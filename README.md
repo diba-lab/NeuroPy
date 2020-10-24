@@ -1,6 +1,9 @@
 # NeuroPy
 Modules for electrophysiology analysis using python.
 
+### Overview
+These modules are primarily developed for hippocampal recordings.
+
 ### Minimum requirements
 * python 3.8.6
 * Numpy 1.19.1
