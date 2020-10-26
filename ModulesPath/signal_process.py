@@ -296,11 +296,12 @@ class wavelet_decomp:
         return wave_spec * np.linspace(1, 150, 100).reshape(-1, 1)
 
     def torrenceCompo(self):
-        wavelet = _check_parameter_wavelet("morlet")
-        sj = 1 / (wavelet.flambda() * self.freqs)
+        # wavelet = _check_parameter_wavelet("morlet")
+        # sj = 1 / (wavelet.flambda() * self.freqs)
         # wave, period, scale, coi = wavelet(
         #     self.lfp, 1 / self.sampfreq, pad=1, dj=0.25, s0, j1, mother
         # )
+        pass
 
     def cohen(self, ncycles=3):
         """Implementation of ref. 1 chapter 13

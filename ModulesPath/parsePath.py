@@ -12,6 +12,30 @@ import scipy.signal as sg
 
 
 class Recinfo:
+    """Parses .xml file to get a sense of recording parameters
+
+    Attributes
+    ----------
+    basePath : str
+        path to datafolder where .xml and .eeg files reside
+    probemap : instance of Probemap class
+        layout of recording channels
+    sampfreq : int
+        sampling rate of recording and is extracted from .xml file
+    channels: list
+        list of recording channels in the .dat file
+    badchans: list
+        list of bad channels
+
+
+    Methods
+    ----------
+    makerecinfo()
+        creates a file containing basic infomation about the recording
+    geteeg(chas, timeRange, period)
+        returns lfp from .eeg file for given channels
+    """
+
     def __init__(self, basePath):
         self.basePath = Path(basePath)
 
@@ -182,18 +206,13 @@ class files:
         self.probe = filePrefix.with_suffix(".probe.npy")
         self.spikes = Path(str(filePrefix) + "_spikes.npy")
         self.basics = Path(str(filePrefix) + "_basics.npy")
-        self.badchans = Path(str(filePrefix) + "_badChans.npy")
         self.position = Path(str(filePrefix) + "_position.npy")
         self.epochs = Path(str(filePrefix) + "_epochs.npy")
-        # self.ripplelfp = Path(str(filePrefix) + "_BestRippleChans.npy")
-        # self.ripple_evt = Path(str(filePrefix) + "_ripples.npy")
         self.spindle_evt = Path(str(filePrefix) + "_spindles.npy")
         self.spindlelfp = Path(str(filePrefix) + "_BestSpindleChan.npy")
-        self.thetalfp = Path(str(filePrefix) + "_BestThetaChan.npy")
         self.theta_evt = Path(str(filePrefix) + "_thetaevents.npy")
         self.sessionepoch = Path(str(filePrefix) + "_epochs.npy")
         self.hwsa_ripple = Path(str(filePrefix) + "_hswa_ripple.npy")
-        self.sws_states = Path(str(filePrefix) + "_sws.npy")
         self.slow_wave = Path(str(filePrefix) + "_hswa.npy")
         self.corr_emg = Path(str(filePrefix) + "_emg.npy")
         self.spectrogram = Path(str(filePrefix) + "_sxx.npy")

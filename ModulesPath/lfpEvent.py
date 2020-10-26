@@ -24,6 +24,11 @@ class Hswa:
     Attributes
     ----------
 
+    Methods
+    ----------
+    detect :
+        detects putative events in the entire recording
+
     """
 
     def __init__(self, basepath):
@@ -32,6 +37,16 @@ class Hswa:
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
+
+        # ------- defining file names ---------
+        filePrefix = self._obj.files.filePrefix
+
+        @dataclass
+        class files:
+            events: Path = filePrefix.with_suffix(".hswa.npy")
+
+        self.files = files()
+        # self._load()
 
         if Path(self._obj.files.slow_wave).is_file():
             self._load()
