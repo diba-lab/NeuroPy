@@ -16,4 +16,5 @@ These modules are primarily developed for hippocampal recordings.
    * Open the .eeg file in neuroscope and categorize bad recording channels as skipped. Similarly, mark any non-lfp channels as discard in neuroscope
    * Add ModulesPath to your pythonpath
 
+### Data structure and hierarchy
 
