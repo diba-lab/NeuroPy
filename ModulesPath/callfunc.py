@@ -3,7 +3,7 @@ from behavior import behavior_epochs
 from decoders import DecodeBehav
 from eventCorr import event_event
 from getPosition import ExtractPosition
-from getSpikes import spikes
+from getSpikes import Spikes
 from lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
 from MakePrmKlusta import makePrmPrb
 from parsePath import Recinfo
@@ -25,7 +25,7 @@ class processData:
         self.makePrmPrb = makePrmPrb(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 
-        self.spikes = spikes(self.recinfo)
+        self.spikes = Spikes(self.recinfo)
         self.brainstates = SleepScore(self.recinfo)
         self.swa = Hswa(self.recinfo)
         self.theta = Theta(self.recinfo)

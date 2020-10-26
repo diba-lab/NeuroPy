@@ -1,3 +1,4 @@
+from behavior import behavior_epochs
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -8,10 +9,31 @@ import scipy.signal as sg
 import matplotlib.gridspec as gridspec
 import matplotlib as mpl
 from parsePath import Recinfo
-from sessionUtil import SessionUtil
+from behavior import behavior_epochs
 
 
-class spikes:
+class Spikes:
+    """Spike related methods
+
+    Attributes
+    ----------
+    times : list
+        list of arrays representing spike times of all detected clusters
+    pyr : list
+        Each array within list representing spike times of pyramidal neurons
+    intneur : list
+        list of arrays representing spike times of interneurons neurons
+    mua : list
+        list of arrays representing spike times of mulitunits neurons
+
+
+    Methods
+    ----------
+    gen_instfiring()
+        generates instantenous firing rate and includes all spiking events (pyr, mua, intneur)
+
+    """
+
     def __init__(self, basepath):
 
         if isinstance(basepath, Recinfo):
@@ -80,17 +102,81 @@ class spikes:
 
         return gaussian
 
-    def rasterPlot(self, ax=None, period=None):
-        spikes = self.times
-        print(f"Plotting {len(spikes)} cells")
-        totalduration = self._obj.epochs.totalduration
-        frate = [len(cell) / totalduration for cell in spikes]
+    def plot_raster(
+        self,
+        spikes=None,
+        ax=None,
+        period=None,
+        sort_by_frate=False,
+        tstart=0,
+        color=None,
+        marker="|",
+        markersize=2,
+    ):
+        """creates raster plot using spike times
 
+        Parameters
+        ----------
+        spikes : list, optional
+            Each array within list represents spike times of that unit, by default None
+        ax : obj, optional
+            axis to plot onto, by default None
+        period : array like, optional
+            only plot raster for spikes within this period, by default None
+        sort_by_frate : bool, optional
+            If true then sorts spikes by the number of spikes (frate), by default False
+        tstart : int, optional
+            positions the x-axis labels to start from this, by default 0
+        color : [type], optional
+            color for raster plots, by default None
+        marker : str, optional
+            marker style, by default "|"
+        markersize : int, optional
+            size of marker, by default 2
+        """
         if ax is None:
             fig = plt.figure(1, figsize=(6, 10))
             gs = gridspec.GridSpec(1, 1, figure=fig)
             fig.subplots_adjust(hspace=0.4)
             ax = fig.add_subplot(gs[0])
+
+        if spikes is None:
+            pyr = self.pyr
+            intneur = self.intneur
+            mua = self.mua
+            spikes = mua + pyr + intneur
+
+            color = (
+                ["#a9bcd0"] * len(mua)
+                + ["#2d3143"] * len(pyr)
+                + ["#02c59b"] * len(intneur)
+            )
+
+            # --- mimics legend for labeling unit category ---------
+            ax.annotate(
+                "mua", xy=(0.9, 0.5), xycoords="figure fraction", color="#a9bcd0"
+            )
+            ax.annotate(
+                "pyr", xy=(0.9, 0.45), xycoords="figure fraction", color="#2d3143"
+            )
+            ax.annotate(
+                "int", xy=(0.9, 0.4), xycoords="figure fraction", color="#02c59b"
+            )
+
+        else:
+            assert isinstance(spikes, list), "Please provide a list of arrays"
+            if color is None:
+                color = ["#2d3143"] * len(spikes)
+            elif isinstance(color, str):
+
+                try:
+                    cmap = mpl.cm.get_cmap(color)
+                    color = [cmap(_ / len(spikes)) for _ in range(len(spikes))]
+                except:
+                    color = [color] * len(spikes)
+
+        print(f"Plotting {len(spikes)} cells")
+        frate = [len(cell) for cell in spikes]  # number of spikes ~= frate
 
         if period is not None:
             period_duration = np.diff(period)
@@ -102,23 +188,37 @@ class spikes:
                 [len(cell) / period_duration for cell in spikes]
             ).squeeze()
 
-        sort_frate_indices = np.argsort(frate)
-        spikes = [spikes[indx] for indx in sort_frate_indices]
+        if sort_by_frate:
+            sort_frate_indices = np.argsort(frate)
+            spikes = [spikes[indx] for indx in sort_frate_indices]
 
-        cmap = mpl.cm.get_cmap("inferno_r")
         for cell, spk in enumerate(spikes):
-            color = cmap(cell / len(spikes))
             plt.plot(
-                spk, (cell + 1) * np.ones(len(spk)), ".", markersize=0.75, color=color
+                spk - tstart,
+                (cell + 1) * np.ones(len(spk)),
+                marker,
+                markersize=markersize,
+                color=color[cell],
             )
-
+        ax.set_ylim([1, len(spikes)])
         ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Neurons")
+        ax.set_ylabel("Units")
 
     def removeDoubleSpikes(self):
         pass
 
-    def fromCircus(self, fileformat="diff_folder"):
+    def from_Phy(self, folder=None, fileformat="diff_folder"):
+        """Gets spike times from Phy (https://github.com/cortex-lab/phy) compatible files
+
+        Parameters
+        ----------
+        folder : str
+            folder where Phy files are present
+        fileformat : str, optional
+            [description], by default "diff_folder"
+        """
+        spktimes = None
+        spkinfo = None
 
         if fileformat == "diff_folder":
             nShanks = self._obj.nShanks
@@ -161,7 +261,11 @@ class spikes:
             changroup = self._obj.channelgroups
             clubasePath = Path(basePath, "spykcirc")
 
-            clufolder = Path(clubasePath, subname, subname + ".GUI",)
+            clufolder = Path(
+                clubasePath,
+                subname,
+                subname + ".GUI",
+            )
             spktime = np.load(clufolder / "spike_times.npy")
             cluID = np.load(clufolder / "spike_clusters.npy")
             cluinfo = pd.read_csv(clufolder / "cluster_info.tsv", delimiter="\t")
@@ -188,12 +292,6 @@ class spikes:
         spikes_ = {"times": spktimes, "info": spkinfo}
         filename = self._obj.files.spikes
         np.save(filename, spikes_)
-
-    def fromNeurosuite(self):
-        pass
-
-    def fromKilosort2(self):
-        pass
 
 
 class Stability:
