@@ -1114,6 +1114,27 @@ class Theta:
         weak_theta = np.delete(lfp, theta_indices, axis=-1)
         return strong_theta, weak_theta, theta_indices
 
+    @staticmethod
+    def phase_specfic_extraction(lfp, y, window=5, slideby=None):
+
+        thetalfp = signal_process.filter_sig.bandpass(lfp, lf=1, hf=25)
+        hil_theta = signal_process.hilbertfast(thetalfp)
+        theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
+
+        angle_bin = np.arange(0, 360 - window, slideby)
+        if slideby is None:
+            slideby = window
+            angle_bin = np.arange(0, 360, slideby)
+        angle_centers = angle_bin + window / 2
+
+        y_at_phase = []
+        for phase in angle_bin:
+            y_at_phase.append(
+                y[np.where((theta_angle >= phase) & (theta_angle < phase + window))[0]]
+            )
+
+        return y_at_phase, angle_bin, angle_centers
+
     def plot(self):
         """Gives a comprehensive view of the detection process with some statistics and examples"""
         data = self._load()
@@ -1194,7 +1215,7 @@ class Gamma:
             self.bestchan = data["chanorder"][0]
             self.chansOrder = data["chanorder"]
 
-    def getPeakIntervals(
+    def get_peak_intervals(
         self,
         lfp,
         band=(25, 50),
