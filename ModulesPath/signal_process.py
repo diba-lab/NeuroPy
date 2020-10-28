@@ -3,21 +3,15 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import interpolate
-import scipy.linalg as linalg
 import scipy.ndimage as filtSig
 import scipy.signal as sg
 from scipy import stats
 from joblib import Parallel, delayed
-from numpy import linalg
-from numpy.lib.npyio import NpzFile
 from scipy import fftpack
 from scipy.fft import fft
 from scipy.fftpack import next_fast_len
-from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 from plotUtil import Fig
-from waveletFunctions import wavelet
 
 
 class filter_sig:
@@ -217,7 +211,8 @@ class wavelet_decomp:
         # signal = np.tile(np.expand_dims(signal, axis=0), (len(freqs), 1))
         # wavelet_at_freqs = np.zeros((len(freqs), len(t_wavelet)), dtype=complex)
         conv_val = np.zeros((len(freqs), n), dtype=complex)
-        for i, freq in enumerate(freqs):
+        # for i, freq in enumerate(freqs):
+        def wav_cal(freq):
             sigma = 7 / (2 * np.pi * freq)
             A = (sigma * np.sqrt(np.pi)) ** -0.5
             wavelet_at_freq = (
@@ -226,9 +221,10 @@ class wavelet_decomp:
                 * np.exp(2j * np.pi * freq * t_wavelet)
             )
 
-            conv_val[i, :] = sg.fftconvolve(
-                signal, wavelet_at_freq, mode="same", axes=-1
-            )[:n]
+            return sg.fftconvolve(signal, wavelet_at_freq, mode="same", axes=-1)[:n]
+
+        conv_val = Parallel(n_jobs=10)(delayed(wav_cal)(freq) for freq in freqs)
+        conv_val = np.asarray(conv_val)
 
         return np.abs(conv_val) ** 2
 
@@ -437,7 +433,7 @@ class bicoherence:
         sxx = sxx / self.window  # scaling the fourier transform
 
         # ------ Getting required frequencies and their indices -------------
-        freq_ind = np.where((f > self.flow) & (f < self.fhigh / 2))[0]
+        freq_ind = np.where((f > self.flow) & (f < self.fhigh))[0]
         freq_req = f[freq_ind]
 
         """ ===========================================
@@ -450,7 +446,7 @@ class bicoherence:
         ================================================="""
 
         X_f2 = sxx[:, freq_ind, :]  # complex spectrogram of required frequencies
-        # P_f2 = np.abs(X_f2) ** 2  # absolute square of spectrogram
+        P_f2 = np.abs(X_f2) ** 2  # absolute square of spectrogram
 
         def bicoh_product(f_ind):
             X_f1 = sxx[:, f_ind, np.newaxis, :]
@@ -460,12 +456,16 @@ class bicoherence:
             bispec_freq = np.mean((X_f1 * X_f2) * np.conjugate(X_f1f2), axis=-1)
 
             # ----- normalization to calculate bicoherence ---------
-            # P_f1 = np.abs(X_f1) ** 2
+            P_f1 = np.abs(X_f1) ** 2
             P_f1f2 = np.abs(X_f1f2) ** 2
-            # norm = (np.mean(P_f1 * P_f2 * P_f1f2, axis=-1))
             norm = np.sqrt(
-                np.mean(np.abs(X_f1 * X_f2) ** 2, axis=-1) * np.mean(P_f1f2, axis=-1)
+                np.mean(P_f1, axis=-1)
+                * np.mean(P_f2, axis=-1)
+                * np.mean(P_f1f2, axis=-1)
             )
+            # norm = np.sqrt(
+            #     np.mean(np.abs(X_f1 * X_f2) ** 2, axis=-1) * np.mean(P_f1f2, axis=-1)
+            # )
 
             return bispec_freq / norm
 
@@ -485,32 +485,26 @@ class bicoherence:
 
         return bicoher
 
-    def plot(self, index=None, ax=None, vmin=0, vmax=0.2, cmap="hot"):
+    def plot(self, index=None, ax=None, smooth=2, **kwargs):
 
-        bic = self.bicoher.copy()
-        # bic = bic.T
+        if index is None:
+            bic = self.bicoher
+        else:
+            bic = self.bicoher[index].copy()
+
         lt = np.tril_indices_from(bic, k=-1)
-        # bic[lt] = np.nan
-        # bic[(lt[0], -lt[1])] = np.nan
+        bic[lt] = 0
+        bic[(lt[0], -lt[1])] = 0
         bic[bic < self.significance] = 0
-        bic = gaussian_filter(bic, sigma=2)
+
+        if smooth is not None:
+            bic = gaussian_filter(bic, sigma=smooth)
 
         if ax is None:
             _, ax = plt.subplots(1, 1)
 
-        bicoh_plt = ax.pcolormesh(
-            self.freq,
-            self.freq,
-            bic,
-            cmap=cmap,
-            shading="gouraud",
-            vmin=0,
-            vmax=0.06,
-            rasterized=True,
-        )
-
+        bicoh_plt = ax.pcolormesh(self.freq, self.freq, bic, **kwargs)
         ax.set_ylim([0, np.max(self.freq) / 2])
-
         ax.plot(
             [1, np.max(self.freq / 2)],
             [1, np.max(self.freq) / 2],
@@ -521,7 +515,10 @@ class bicoherence:
             [np.max(self.freq) / 2, 1],
             "gray",
         )
-        plt.colorbar(bicoh_plt)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Frequency (Hz)")
+        cb = plt.colorbar(bicoh_plt)
+        cb.outline.set_linewidth(0.5)
 
 
 def phasePowerCorrelation(signal):
@@ -545,22 +542,24 @@ class Csd:
     def icsd(self, lfp, coords):
         pass
 
-    def plot(self, ax=None, cmap="jet", smooth=3):
-        csdmap = gaussian_filter(self.csdmap, sigma=smooth)
+    def plot(self, ax=None, smooth=3, **kwargs):
+
+        if smooth is not None:
+            csdmap = gaussian_filter(self.csdmap, sigma=smooth)
+        else:
+            csdmap = self.csdmap.copy()
 
         gs = None
         if ax is None:
             figure = Fig()
             _, gs = figure.draw(grid=[1, 1])
             ax = plt.subplot(gs[0])
+
         ax.pcolormesh(
             self.time,
             np.arange(len(self.coords) + 1, 1, -1),
             stats.zscore(csdmap, axis=None),
-            cmap=cmap,
-            shading="gouraud",
-            # vmax=1,
-            rasterized=True,
+            **kwargs,
         )
         ax.set_title("Current source density map")
         ax.set_ylabel("y Coordinates")
@@ -596,3 +595,73 @@ def mtspect(signal, nperseg, noverlap, fs=1250):
     psd = np.asarray(psd_taper).mean(axis=0)
 
     return f, psd
+
+
+@dataclass
+class PAC:
+    """Phase amplitude coupling
+
+    Attributes
+    ----------
+
+    Methods
+    -------
+    compute(lfp)
+        calculates phase amplitude coupling
+    """
+
+    fphase: tuple = (4, 12)
+    famp: tuple = (25, 50)
+    binsz: int = 9
+
+    def compute(self, lfp):
+        self.angle_bin = np.linspace(0, 360, 360 // self.binsz + 1)
+        self.phase_center = self.angle_bin[:-1] + self.binsz / 2
+        phase_lfp = stats.zscore(
+            filter_sig.bandpass(lfp, lf=self.fphase[0], hf=self.fphase[1])
+        )
+        amp_lfp = stats.zscore(
+            filter_sig.bandpass(lfp, lf=self.famp[0], hf=self.famp[1])
+        )
+
+        hil_phaselfp = hilbertfast(phase_lfp)
+        hil_amplfp = hilbertfast(amp_lfp)
+        amplfp_amp = np.abs(hil_amplfp)
+
+        phaselfp_angle = np.angle(hil_phaselfp, deg=True) + 180
+
+        mean_amplfp = stats.binned_statistic(
+            phaselfp_angle, amplfp_amp, bins=self.angle_bin
+        )[0]
+
+        self.pac = mean_amplfp / np.sum(mean_amplfp)
+
+    def plot(self, ax=None, **kwargs):
+        """Bar plot for phase amplitude coupling
+
+        Parameters
+        ----------
+        ax : axis object, optional
+            axis to plot into, by default None
+        kwargs : other keyword arguments
+            arguments are to plt.bar()
+
+        Returns
+        -------
+        ax : matplotlib axes
+            Axes object with the heatmap
+        """
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        ax.bar(
+            np.concatenate((self.phase_center, self.phase_center + 360)),
+            np.concatenate((self.pac, self.pac)),
+            width=self.binsz,
+            **kwargs,
+        )
+        ax.set_xlabel("Phase (degrees)")
+        ax.set_ylabel("Amplitude")
+
+        return ax
