@@ -13,9 +13,8 @@ from joblib import Parallel, delayed
 from matplotlib.collections import PatchCollection
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
-from matplotlib.widgets import Button, RadioButtons, Slider
 from scipy.ndimage import gaussian_filter
-
+from dataclasses import dataclass
 from parsePath import Recinfo
 from signal_process import spectrogramBands
 
@@ -145,11 +144,24 @@ class SleepScore:
         else:
             self._obj = Recinfo(basepath)
 
-        if Path(self._obj.files.stateparams).is_file():
-            self.params = pd.read_pickle(self._obj.files.stateparams)
+        # ------- defining file names ---------
+        filePrefix = self._obj.files.filePrefix
 
-        if Path(self._obj.files.states).is_file():
-            self.states = pd.read_pickle(self._obj.files.states)
+        @dataclass
+        class files:
+            stateparams: str = Path(str(filePrefix) + "_stateparams.pkl")
+            states: str = Path(str(filePrefix) + "_states.pkl")
+            emg: Path = Path(str(filePrefix) + "_emg.npy")
+
+        self.files = files()
+        self._load()
+
+    def _load(self):
+        if (f := self.files.stateparams).is_file():
+            self.params = pd.read_pickle(f)
+
+        if (f := self.files.states).is_file():
+            self.states = pd.read_pickle(f)
             # Adding name convention to the states
             state_number_dict = {
                 1: "nrem",
@@ -162,8 +174,8 @@ class SleepScore:
     def detect(self):
 
         self.params, self.sxx, self.states = self._getparams()
-        self.params.to_pickle(self._obj.files.stateparams)
-        self.states.to_pickle(self._obj.files.states)
+        self.params.to_pickle(self.files.stateparams)
+        self.states.to_pickle(self.files.states)
 
     @staticmethod
     def _label2states(theta_delta, delta_l, emg_l):
@@ -346,7 +358,7 @@ class SleepScore:
 
     def _emgfromlfp(self, fromfile=0):
 
-        emgfilename = self._obj.sessinfo.files.corr_emg
+        emgfilename = self.files.emg
 
         if fromfile:
             emg_lfp = np.load(emgfilename)

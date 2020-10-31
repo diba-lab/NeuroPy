@@ -67,7 +67,8 @@ class Recinfo:
 
         self.goodchans = np.setdiff1d(self.channels, self.badchans, assume_unique=True)
         self.goodchangrp = [
-            list(np.setdiff1d(_, self.badchans).astype(int)) for _ in self.channelgroups
+            list(np.setdiff1d(_, self.badchans, assume_unique=True).astype(int))
+            for _ in self.channelgroups
         ]
 
     @property
@@ -204,31 +205,14 @@ class files:
     def __init__(self, filePrefix):
         self.filePrefix = filePrefix
         self.probe = filePrefix.with_suffix(".probe.npy")
-        self.spikes = Path(str(filePrefix) + "_spikes.npy")
         self.basics = Path(str(filePrefix) + "_basics.npy")
         self.position = Path(str(filePrefix) + "_position.npy")
         self.epochs = Path(str(filePrefix) + "_epochs.npy")
         self.spindle_evt = Path(str(filePrefix) + "_spindles.npy")
         self.spindlelfp = Path(str(filePrefix) + "_BestSpindleChan.npy")
-        self.theta_evt = Path(str(filePrefix) + "_thetaevents.npy")
-        self.sessionepoch = Path(str(filePrefix) + "_epochs.npy")
         self.hwsa_ripple = Path(str(filePrefix) + "_hswa_ripple.npy")
         self.slow_wave = Path(str(filePrefix) + "_hswa.npy")
-        self.corr_emg = Path(str(filePrefix) + "_emg.npy")
         self.spectrogram = Path(str(filePrefix) + "_sxx.npy")
-        self.stateparams = Path(str(filePrefix) + "_stateparams.pkl")
-        self.states = Path(str(filePrefix) + "_states.pkl")
-
-
-# TODO auto file loading functionality
-class loadfile:
-    def __init__(self, filename):
-        self.name = filename
-
-    def load(self):
-
-        if self.name.suffix == ".pkl":
-            pd.read_pickle(self.name)
 
 
 class recfiles:
