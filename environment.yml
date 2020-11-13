@@ -1,0 +1,16 @@
+name: NeuroPy
+channels:
+    - conda-forge
+dependencies:
+    - python=3.8
+    - numpy=1.19.1
+    - scipy=1.5.2
+    - matplotlib
+    - pandas
+    - joblib
+    - scikit-learn
+    - hmmlearn
+    - ipywidgets
+    - seaborn
+    - pip:
+	- scikit-posthocs
