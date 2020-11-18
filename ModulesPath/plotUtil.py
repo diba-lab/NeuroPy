@@ -1,23 +1,12 @@
 import numpy as np
-import scipy.signal as sg
 from dataclasses import dataclass
-from typing import Any
-import scipy.ndimage as filtSig
-from collections import namedtuple
-import scipy.stats as stats
-from scipy.interpolate import interp1d
-from scipy import fftpack
-from scipy.fft import fft
 import matplotlib as mpl
 from matplotlib.colors import ListedColormap
 from datetime import date
-import os
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from pathlib import Path
-
-plt.style.use("figPublish")
 
 
 class Colormap:
@@ -95,7 +84,7 @@ class Colormap:
 class Fig:
     labelsize = 8
 
-    def draw(self, num=1, grid=(2, 2), size=(8.5, 11), style="figPublish"):
+    def draw(self, num=1, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs):
 
         # --- plot settings --------
         if style == "figPublish":
@@ -109,7 +98,7 @@ class Fig:
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
         gs = gridspec.GridSpec(grid[0], grid[1], figure=fig)
-        fig.subplots_adjust(hspace=0.3)
+        fig.subplots_adjust(**kwargs)
 
         self.fig = fig
         return self.fig, gs

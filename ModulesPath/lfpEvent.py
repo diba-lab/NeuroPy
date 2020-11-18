@@ -1,4 +1,3 @@
-import typing
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -297,10 +296,7 @@ class Ripple:
             zscsignal.append(zsc_chan)
 
             broadband = signal_process.filter_sig.bandpass(eeg[i, :], lf=2, hf=50)
-            zsc_broadband = stats.zscore(np.abs(signal_process.hilbertfast(broadband)))
-            sharpWv_sig += signal_process.filter_sig.bandpass(
-                zsc_broadband, lf=2, hf=50
-            )
+            sharpWv_sig += stats.zscore(np.abs(signal_process.hilbertfast(broadband)))
         zscsignal = np.asarray(zscsignal)
 
         # ---------setting noisy period zero --------
@@ -412,12 +408,13 @@ class Ripple:
         np.save(self.files.ripples, ripples)
         print(f"{self.files.ripples} created")
         self._load()
-        return ripples
 
     def export2Neuroscope(self):
         with self.files.neuroscope.open("w") as a:
             for event in self.events.itertuples():
-                a.write(f"{event.start*1000} start\n{event.end*1000} end\n")
+                a.write(
+                    f"{event.start*1000} start\n{event.peakSharpWave*1000} peakSW\n{event.end*1000} end\n"
+                )
 
     def plot(self):
         """Gives a comprehensive view of the detection process with some statistics and examples"""
@@ -1159,6 +1156,7 @@ class Theta:
         csd : dataclass,
             a dataclass return from signal_process module
         """
+        eegSrate = self._obj.lfpSrate
         lfp_period = self._obj.geteeg(chans=chans, timeRange=period)
         lfp_period = signal_process.filter_sig.bandpass(lfp_period, lf=5, hf=12)
 
@@ -1183,7 +1181,9 @@ class Theta:
 
         _, ycoord = self._obj.probemap.get(chans=chans)
 
-        csd = signal_process.Csd(lfp=avg_theta, coords=ycoord, chan_label=chans)
+        csd = signal_process.Csd(
+            lfp=avg_theta, coords=ycoord, chan_label=chans, fs=eegSrate
+        )
         csd.classic()
 
         return csd
