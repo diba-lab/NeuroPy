@@ -1,23 +1,12 @@
 import numpy as np
-import scipy.signal as sg
 from dataclasses import dataclass
-from typing import Any
-import scipy.ndimage as filtSig
-from collections import namedtuple
-import scipy.stats as stats
-from scipy.interpolate import interp1d
-from scipy import fftpack
-from scipy.fft import fft
 import matplotlib as mpl
 from matplotlib.colors import ListedColormap
 from datetime import date
-import os
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from pathlib import Path
-
-plt.style.use("figPublish")
 
 
 class Colormap:

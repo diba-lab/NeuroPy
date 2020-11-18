@@ -40,3 +40,6 @@ class processData:
         self.pbe = PBE(self.recinfo)
 
         self.eventpsth = event_event()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
