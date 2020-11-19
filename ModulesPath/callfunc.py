@@ -40,3 +40,8 @@ class processData:
         self.pbe = PBE(self.recinfo)
 
         self.eventpsth = event_event()
+
+
+if __name__ == '__main__':
+    sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined')
+    sess.spikes.from_Phy(fileformat='same_folder')

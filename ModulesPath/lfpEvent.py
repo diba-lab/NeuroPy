@@ -168,7 +168,7 @@ class Hswa:
             ax1.fill_between([start, end], [-6, -6], [45, 45], alpha=0.3)
             ax1.axis("off")
 
-        deltabandlfp = filt.filter_delta(lfp, ax=0)
+        deltabandlfp = signal_process.filter_sig.delta(lfp, ax=0)
         deltabandlfp = deltabandlfp + np.linspace(40, 0, lfp.shape[1])
         ax2 = fig.add_subplot(gs[1, :])
         ax2.plot(eegt, deltabandlfp, "#444040", linewidth=0.8)
@@ -441,7 +441,7 @@ class Ripple:
         nripples = len(peakpower)
 
         fig = plt.figure(1, figsize=(6, 10))
-        gs = GridSpec(3, 10, figure=fig)
+        gs = gridspec.GridSpec(3, 10, figure=fig)
         fig.subplots_adjust(hspace=0.5)
 
         ripple_to_plot = list(range(5)) + list(range(nripples - 5, nripples))
@@ -583,7 +583,7 @@ class Spindle:
         hilbertfast = lambda x: sg.hilbert(x, fftpack.next_fast_len(len(x)))[: len(x)]
         avgSpindle = np.zeros(lfpCA1.shape[1])
         for i in range(lfpCA1.shape[1]):
-            spindleband = filt.filter_spindle(lfpCA1[:, i])
+            spindleband = signal_process.filter_sig.spindle(lfpCA1[:, i])
             amplitude_envelope = np.abs(hilbertfast(spindleband))
             avgSpindle[i] = np.mean(amplitude_envelope)
 
@@ -762,7 +762,7 @@ class Spindle:
         nspindles = len(peakpower)
 
         fig = plt.figure(1, figsize=(6, 10))
-        gs = GridSpec(3, 10, figure=fig)
+        gs = gridspec.GridSpec(3, 10, figure=fig)
         fig.subplots_adjust(hspace=0.5)
 
         spindles_to_plot = list(range(5)) + list(range(nspindles - 5, nspindles))
@@ -771,7 +771,7 @@ class Spindle:
             start = int(frames[spindle, 0])
             end = int(frames[spindle, 1])
             lfp = stats.zscore(eegdata[start:end, :])
-            ripplebandlfp = filt.filter_spindle(lfp, ax=0)
+            ripplebandlfp = signal_process.filter_sig.spindle(lfp, ax=0)
             # lfp = (lfp.T - np.median(lfp, axis=1)).T
             lfp = lfp + np.linspace(40, 0, lfp.shape[1])
             ripplebandlfp = ripplebandlfp + np.linspace(40, 0, lfp.shape[1])
