@@ -152,12 +152,24 @@ class ExtractPosition:
             self.speed = np.sqrt(np.diff(self.x) ** 2 + np.diff(self.y) ** 2) / (
                 1 / self.tracking_sRate
             )
+            self.data = pd.DataFrame(
+                {
+                    "time": self.t[1:],
+                    "x": self.x[1:],
+                    "y": self.y[1:],
+                    "speed": self.speed,
+                    "datetime": self.datetime[1:],
+                }
+            )
 
         else:
             "Position file does not exist....did not load _position.npy"
 
     def _load(self, posfile):
         return np.load(posfile, allow_pickle=True)
+
+    def __getitem__(self, epochs):
+        pass
 
     def getPosition(self):
         sRate = self._obj.sampfreq  # .dat file sampling frequency
@@ -270,4 +282,3 @@ class ExtractPosition:
         with filename.open("w") as f:
             for xpos, ypos in zip(x, y):
                 f.write(f"{xpos} {ypos}\n")
-

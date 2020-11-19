@@ -43,7 +43,6 @@ class Spikes:
 
         self.stability = Stability(basepath)
         # self.dynamics = firingDynamics(basepath)
-
         filePrefix = self._obj.files.filePrefix
 
         @dataclass
@@ -53,7 +52,7 @@ class Spikes:
 
         self.files = files()
 
-        filename = self._obj.files.spikes
+        filename = self.files.spikes
         if filename.is_file():
             spikes = np.load(filename, allow_pickle=True).item()
             self.times = spikes["times"]
