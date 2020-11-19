@@ -12,5 +12,6 @@ dependencies:
     - hmmlearn
     - ipywidgets
     - seaborn
+    # Works well in linux. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
     - pip:
 	- scikit-posthocs
