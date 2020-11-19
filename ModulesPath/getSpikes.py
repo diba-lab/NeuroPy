@@ -1,4 +1,3 @@
-from behavior import behavior_epochs
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -41,6 +40,8 @@ class Spikes:
         else:
             self._obj = Recinfo(basepath)
 
+        self._obj.epochs = behavior_epochs(self._obj)  # load in behavioral epochs!
+
         self.stability = Stability(basepath)
         # self.dynamics = firingDynamics(basepath)
         filePrefix = self._obj.files.filePrefix
@@ -76,7 +77,12 @@ class Spikes:
 
         pre = self._obj.epochs.pre
         post = self._obj.epochs.post
-        bins = np.arange(pre[0], post[1], 0.001)
+        if pre is None and post is not None:
+            bins = np.arange(pre[0], post[1], 0.001)
+        else:
+            print('No pre/post behavioral epochs designated - using entire recording session')
+            bins = np.arange()
+
 
         spkcnt = np.histogram(spkall, bins=bins)[0]
         gaussKernel = self._gaussian()
@@ -272,7 +278,7 @@ class Spikes:
                 goodCellsID = cluinfo.id[cluinfo["q"] < 10].tolist()
                 info = cluinfo.loc[cluinfo["q"] < 10]
             else:
-                print('No labels q found in phy data - using good for now, be sure to label with :l q n')
+                print('No labels "q" found in phy data - using good for now, be sure to label with ":l q #"')
                 goodCellsID = cluinfo.id[(cluinfo['group'] == 'good')].tolist()
                 info = cluinfo.loc[(cluinfo['group'] == 'good')]
             peakchan = info["ch"]
@@ -294,7 +300,7 @@ class Spikes:
             # self.shankID = np.asarray(shankID)
 
         spikes_ = {"times": spktimes, "info": spkinfo}
-        filename = self._obj.files.spikes
+        filename = self.files.spikes
         np.save(filename, spikes_)
 
 
