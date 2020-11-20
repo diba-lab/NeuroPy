@@ -55,15 +55,27 @@ class Spikes:
 
         filename = self.files.spikes
         if filename.is_file():
-            spikes = np.load(filename, allow_pickle=True).item()
-            self.times = spikes["times"]
-            self.info = spikes["info"].reset_index()
-            self.pyrid = np.where(self.info.q < 4)[0]
-            self.pyr = [self.times[_] for _ in self.pyrid]
-            self.intneurid = np.where(self.info.q == 8)[0]
-            self.intneur = [self.times[_] for _ in self.intneurid]
-            self.muaid = np.where(self.info.q == 6)[0]
-            self.mua = [self.times[_] for _ in self.muaid]
+            self.load_spikes(filename)
+            # spikes = np.load(filename, allow_pickle=True).item()
+            # self.times = spikes["times"]
+            # self.info = spikes["info"].reset_index()
+            # self.pyrid = np.where(self.info.q < 4)[0]
+            # self.pyr = [self.times[_] for _ in self.pyrid]
+            # self.intneurid = np.where(self.info.q == 8)[0]
+            # self.intneur = [self.times[_] for _ in self.intneurid]
+            # self.muaid = np.where(self.info.q == 6)[0]
+            # self.mua = [self.times[_] for _ in self.muaid]
+
+    def load_spikes(self, spikes_filename):
+        spikes = np.load(spikes_filename, allow_pickle=True).item()
+        self.times = spikes["times"]
+        self.info = spikes["info"].reset_index()
+        self.pyrid = np.where(self.info.q < 4)[0]
+        self.pyr = [self.times[_] for _ in self.pyrid]
+        self.intneurid = np.where(self.info.q == 8)[0]
+        self.intneur = [self.times[_] for _ in self.intneurid]
+        self.muaid = np.where(self.info.q == 6)[0]
+        self.mua = [self.times[_] for _ in self.muaid]
 
     @property
     def instfiring(self):
@@ -81,7 +93,7 @@ class Spikes:
             bins = np.arange(pre[0], post[1], 0.001)
         else:
             print('No pre/post behavioral epochs designated - using entire recording session')
-            bins = np.arange()
+            bins = np.arange()  # NRK todo: fill this in
 
 
         spkcnt = np.histogram(spkall, bins=bins)[0]
@@ -292,7 +304,7 @@ class Spikes:
             spkall = []
             for i in range(len(goodCellsID)):
                 clu_spike_location = spktime[np.where(cluID == goodCellsID[i])[0]]
-                spkall.append(clu_spike_location / sRate)
+                spkall.append(clu_spike_location / s0Rate)
 
             info["shank"] = shankID
             spkinfo = info
@@ -302,6 +314,7 @@ class Spikes:
         spikes_ = {"times": spktimes, "info": spkinfo}
         filename = self.files.spikes
         np.save(filename, spikes_)
+        self.load_spikes(filename)  # now load these into class
 
 
 class Stability:
