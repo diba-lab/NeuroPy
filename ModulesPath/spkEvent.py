@@ -12,6 +12,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib as mpl
 from mathutil import threshPeriods
 from parsePath import Recinfo
+from getSpikes import Spikes
 
 
 class LocalSleep:
@@ -283,18 +284,21 @@ class PBE:
             self._obj = Recinfo(basepath)
 
         filePrefix = self._obj.files.filePrefix
+        self.spikes = Spikes(self._obj)
 
         @dataclass
         class files:
             pbe: str = Path(str(filePrefix) + "_pbe.pkl")
+            neuroscope: Path = filePrefix.with_suffix(".evt.pbe")
 
         self.files = files()
 
         if self.files.pbe.is_file():
             self.events = pd.read_pickle(self.files.pbe)
 
+
     def detect(self):
-        instfiring = self._obj.spikes.instfiring
+        instfiring = self.spikes.instfiring
         events = threshPeriods(
             stats.zscore(instfiring.frate), lowthresh=0, highthresh=3, minDuration=100
         )
@@ -310,5 +314,15 @@ class PBE:
             }
         )
 
+        self.events = data  # make this available immediately after setting
+
         data.to_pickle(self.files.pbe)
+
+
+    def export2Neuroscope(self):
+        with self.files.neuroscope.open("w") as a:
+            for event in self.events.itertuples():
+                a.write(
+                    f"{event.start*1000} start\n{event.end*1000} end\n"
+                )
 
