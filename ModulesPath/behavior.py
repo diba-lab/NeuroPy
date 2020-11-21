@@ -29,7 +29,6 @@ class behavior_epochs:
         self.pre = None
         self.maze = None
         self.post = None
-        self.noepochsfile = False
 
         # ---- defining filenames --------
         filePrefix = self._obj.files.filePrefix
@@ -57,9 +56,7 @@ class behavior_epochs:
             self.totalduration = np.sum(np.asarray(totaldur))
 
         else:
-            if not self.noepochsfile:  # Only show this warning the first time you run this code NRK todo: (minor annoyance) this is not quite working
-                print("Epochs file does not exist...did not load epochs")
-            self.noepochsfile = True
+            print("Epochs file does not exist...did not load epochs")
 
     def __str__(self):
         return "This creates behavioral epochs by loading positons and letting the user select a period which most likely represents maze"
