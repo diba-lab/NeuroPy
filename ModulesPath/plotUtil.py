@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from pathlib import Path
+from cycler import cycler
 
 
 class Colormap:
@@ -88,10 +89,30 @@ class Fig:
 
         # --- plot settings --------
         if style == "figPublish":
+            mpl.rcParams["axes.linewidth"] = 2
             mpl.rcParams["axes.labelsize"] = 8
             mpl.rcParams["axes.titlesize"] = 8
             mpl.rcParams["xtick.labelsize"] = 8
             mpl.rcParams["ytick.labelsize"] = 8
+            mpl.rcParams["axes.spines.top"] = False
+            mpl.rcParams["axes.spines.right"] = False
+            mpl.rcParams["axes.prop_cycle"] = cycler(
+                "color",
+                [
+                    "#5cc0eb",
+                    "#faa49d",
+                    "#05d69e",
+                    "#253237",
+                    "#ef6e4e",
+                    "#f0a8e6",
+                    "#aaa8f0",
+                    "#f0a8af",
+                    "#dfe36b",
+                    "#825265",
+                    "#e8594f",
+                ],
+            )
+
         if style == "Pres":
             mpl.rcParams["axes.labelsize"] = 10
 
