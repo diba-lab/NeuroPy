@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-
+from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -31,8 +31,21 @@ class behavior_epochs:
         self.post = None
         self.noepochsfile = False
 
-        if Path(self._obj.files.epochs).is_file():
-            epochs = np.load(self._obj.files.epochs, allow_pickle=True).item()
+        # ---- defining filenames --------
+        filePrefix = self._obj.files.filePrefix
+
+        @dataclass
+        class files:
+            epochs: str = Path(str(filePrefix) + "_epochs.npy")
+
+        self.files = files()
+        self._load()
+
+    def _load(self):
+        """Loads epochs files if that exists in the basepath"""
+
+        if (f := self.files.epochs).is_file():
+            epochs = np.load(f, allow_pickle=True).item()
 
             totaldur = []
             self.times = pd.DataFrame(epochs)
@@ -51,9 +64,13 @@ class behavior_epochs:
     def __str__(self):
         return "This creates behavioral epochs by loading positons and letting the user select a period which most likely represents maze"
 
+    def save_epochs(self, name_time: dict):
+
+        for key in name_time:
+            print(key)
+
     def getfromPosition(self):
-        """user defines epoch boundaries from the positons by selecting a rectangular region in the plot
-        """
+        """user defines epoch boundaries from the positons by selecting a rectangular region in the plot"""
 
         position = ExtractPosition(self._obj.basePath)
 
