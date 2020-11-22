@@ -60,6 +60,8 @@ class Spikes:
     def load_spikes(self, spikes_filename):
         spikes = np.load(spikes_filename, allow_pickle=True).item()
         self.times = spikes["times"]
+        self.alltimes = spikes["allspikes"]
+        self.cluID = spikes["allcluIDs"]
         self.info = spikes["info"].reset_index()
         self.pyrid = np.where(self.info.q < 4)[0]
         self.pyr = [self.times[_] for _ in self.pyrid]
@@ -67,6 +69,7 @@ class Spikes:
         self.intneur = [self.times[_] for _ in self.intneurid]
         self.muaid = np.where(self.info.q == 6)[0]
         self.mua = [self.times[_] for _ in self.muaid]
+
 
     @property
     def instfiring(self):
@@ -302,7 +305,7 @@ class Spikes:
             spktimes = spkall
             # self.shankID = np.asarray(shankID)
 
-        spikes_ = {"times": spktimes, "info": spkinfo}
+        spikes_ = {"times": spktimes, "info": spkinfo, "allspikes": spktime, "allcluIDs": cluID}
         filename = self.files.spikes
         np.save(filename, spikes_)
         self.load_spikes(filename)  # now load these into class
