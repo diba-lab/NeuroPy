@@ -214,8 +214,6 @@ class files:
         self.basics = Path(str(filePrefix) + "_basics.npy")
         self.position = Path(str(filePrefix) + "_position.npy")
         self.epochs = Path(str(filePrefix) + "_epochs.npy")
-        self.spindle_evt = Path(str(filePrefix) + "_spindles.npy")
-        self.spindlelfp = Path(str(filePrefix) + "_BestSpindleChan.npy")
         self.hwsa_ripple = Path(str(filePrefix) + "_hswa_ripple.npy")
         self.slow_wave = Path(str(filePrefix) + "_hswa.npy")
         self.spectrogram = Path(str(filePrefix) + "_sxx.npy")
