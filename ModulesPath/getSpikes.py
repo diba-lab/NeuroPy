@@ -304,7 +304,7 @@ class Spikes:
             spkall = []
             for i in range(len(goodCellsID)):
                 clu_spike_location = spktime[np.where(cluID == goodCellsID[i])[0]]
-                spkall.append(clu_spike_location / s0Rate)
+                spkall.append(clu_spike_location / sRate)
 
             info["shank"] = shankID
             spkinfo = info
