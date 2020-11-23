@@ -507,12 +507,9 @@ class Ripple:
 
 
 class Spindle:
-    # parameters in standard deviation
     lowthresholdFactor = 1.5
     highthresholdFactor = 4
-    # parameters in ms
     minSpindleDuration = 350
-    # maxSpindleDuration = 450
     mergeDistance = 125
 
     def __init__(self, basepath):
@@ -522,9 +519,21 @@ class Spindle:
         else:
             self._obj = Recinfo(basepath)
 
-        if Path(self._obj.files.spindle_evt).is_file():
+        # ------- defining file names ---------
+        filePrefix = self._obj.files.filePrefix
 
-            spindle_evt = np.load(self._obj.files.spindle_evt, allow_pickle=True).item()
+        @dataclass
+        class files:
+            events: Path = filePrefix.with_suffix(".spindles.npy")
+            bestChan: Path = filePrefix.with_suffix(".BestSpindleChan.npy")
+            neuroscope: Path = filePrefix.with_suffix(".evt.spn")
+
+        self.files = files()
+        self._load()
+
+    def _load(self):
+        if (f := self.files.events).is_file():
+            spindle_evt = np.load(f, allow_pickle=True).item()
             self.time = spindle_evt["times"]
             self.peakpower = spindle_evt["peakPower"]
             self.peaktime = spindle_evt["peaktime"]
@@ -549,12 +558,12 @@ class Spindle:
         sampleRate = self._obj.recinfo.lfpSrate
         duration = 1 * 60 * 60  # chunk of lfp in seconds
         nyq = 0.5 * sampleRate  # Nyquist frequency
-        nChans = self._obj.recinfo.nChans
-        badchans = self._obj.recinfo.badchans
-        allchans = self._obj.recinfo.channels
-        changrp = self._obj.recinfo.channelgroups
-        nShanks = self._obj.recinfo.nShanks
-        probemap = self._obj.recinfo.probemap()
+        nChans = self._obj.nChans
+        badchans = self._obj.badchans
+        allchans = self._obj.channels
+        changrp = self._obj.channelgroups
+        nShanks = self._obj.nShanks
+        probemap = self._obj.probemap()
         brainChannels = [item for sublist in changrp[:nShanks] for item in sublist]
         dict_probemap = dict(zip(brainChannels, zip(probemap[0], probemap[1])))
 

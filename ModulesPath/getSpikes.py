@@ -56,19 +56,14 @@ class Spikes:
         filename = self.files.spikes
         if filename.is_file():
             self.load_spikes(filename)
-            # spikes = np.load(filename, allow_pickle=True).item()
-            # self.times = spikes["times"]
-            # self.info = spikes["info"].reset_index()
-            # self.pyrid = np.where(self.info.q < 4)[0]
-            # self.pyr = [self.times[_] for _ in self.pyrid]
-            # self.intneurid = np.where(self.info.q == 8)[0]
-            # self.intneur = [self.times[_] for _ in self.intneurid]
-            # self.muaid = np.where(self.info.q == 6)[0]
-            # self.mua = [self.times[_] for _ in self.muaid]
 
     def load_spikes(self, spikes_filename):
         spikes = np.load(spikes_filename, allow_pickle=True).item()
         self.times = spikes["times"]
+
+        if "allspikes" in spikes:
+            self.alltimes = spikes["allspikes"]
+            self.cluID = spikes["allcluIDs"]
         self.info = spikes["info"].reset_index()
         self.pyrid = np.where(self.info.q < 4)[0]
         self.pyr = [self.times[_] for _ in self.pyrid]
@@ -92,9 +87,12 @@ class Spikes:
         if pre is None and post is not None:
             bins = np.arange(pre[0], post[1], 0.001)
         else:
-            print('No pre/post behavioral epochs designated - using entire recording session')
-            bins = np.arange()  # NRK todo: fill this in
-
+            print(
+                "No pre/post behavioral epochs designated - using entire recording session"
+            )
+            bins = np.arange(
+                spkall.min(), spkall.max(), 0.001
+            )  # NRK todo: fill this in
 
         spkcnt = np.histogram(spkall, bins=bins)[0]
         gaussKernel = self._gaussian()
@@ -224,7 +222,7 @@ class Spikes:
     def removeDoubleSpikes(self):
         pass
 
-    def from_Phy(self, folder=None, fileformat="diff_folder"):
+    def from_Phy(self, folder=None, fileformat="diff_folder", save_allspikes=False):
         """Gets spike times from Phy (https://github.com/cortex-lab/phy) compatible files
 
         Parameters
@@ -286,13 +284,15 @@ class Spikes:
             spktime = np.load(clufolder / "spike_times.npy")
             cluID = np.load(clufolder / "spike_clusters.npy")
             cluinfo = pd.read_csv(clufolder / "cluster_info.tsv", delimiter="\t")
-            if 'q' in cluinfo.keys():
+            if "q" in cluinfo.keys():
                 goodCellsID = cluinfo.id[cluinfo["q"] < 10].tolist()
                 info = cluinfo.loc[cluinfo["q"] < 10]
             else:
-                print('No labels "q" found in phy data - using good for now, be sure to label with ":l q #"')
-                goodCellsID = cluinfo.id[(cluinfo['group'] == 'good')].tolist()
-                info = cluinfo.loc[(cluinfo['group'] == 'good')]
+                print(
+                    'No labels "q" found in phy data - using good for now, be sure to label with ":l q #"'
+                )
+                goodCellsID = cluinfo.id[(cluinfo["group"] == "good")].tolist()
+                info = cluinfo.loc[(cluinfo["group"] == "good")]
             peakchan = info["ch"]
             shankID = [
                 sh + 1
@@ -311,8 +311,17 @@ class Spikes:
             spktimes = spkall
             # self.shankID = np.asarray(shankID)
 
-        spikes_ = {"times": spktimes, "info": spkinfo}
+        if save_allspikes:
+            spikes_ = {
+                "times": spktimes,
+                "info": spkinfo,
+                "allspikes": spktime,
+                "allcluIDs": cluID,
+            }
+        else:
+            spikes_ = {"times": spktimes, "info": spkinfo}
         filename = self.files.spikes
+
         np.save(filename, spikes_)
         self.load_spikes(filename)  # now load these into class
 
