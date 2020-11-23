@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 import os
-import tkinter as tk
-from tokenize import Name
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
