@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import os
 import tkinter as tk
+from tokenize import Name
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -51,6 +52,7 @@ class Recinfo:
 
         if self.files.basics.is_file():
             self._intialize()
+        self.animal = Animal(self)
         self.probemap = Probemap(self)
 
     def _intialize(self):
@@ -70,40 +72,6 @@ class Recinfo:
             list(np.setdiff1d(_, self.badchans, assume_unique=True).astype(int))
             for _ in self.channelgroups
         ]
-
-    # @property
-    # def metadata(self):
-    #     metadatafile = Path(str(self.files.filePrefix) + "_metadata.csv")
-    #     if metadatafile.is_file():
-    #         metadata = pd.read_csv(metadatafile)
-    #
-    #     else:
-    #         val = input("Do you want to create metadata, Yes or No: ")
-    #         if val in ["Y", "y", "yes", "Yes", "YES"]:
-    #
-    #             def show_entry_fields():
-    #                 print("First Name: %s\nLast Name: %s" % (e1.get(), e2.get()))
-    #
-    #             master = tk.Tk()
-    #             tk.Label(master, text="First Name").grid(row=0)
-    #             tk.Label(master, text="Last Name").grid(row=1)
-    #
-    #             e1 = tk.Entry(master)
-    #             e2 = tk.Entry(master)
-    #
-    #             e1.grid(row=0, column=1)
-    #             e2.grid(row=1, column=1)
-    #
-    #             tk.Button(master, text="Quit", command=master.quit).grid(
-    #                 row=3, column=0, sticky=tk.W, pady=4
-    #             )
-    #             tk.Button(master, text="Show", command=show_entry_fields).grid(
-    #                 row=3, column=1, sticky=tk.W, pady=4
-    #             )
-    #
-    #             tk.mainloop()
-    #
-    #     return metadata
 
     def __str__(self) -> str:
         return f"Name: {self.session.name} with {self.nChans} channels"
@@ -235,6 +203,71 @@ class sessionname:
         self.day = basePath.split("/")[-1]
         # self.basePath = Path(basePath)
         self.subname = f_prefix.stem
+
+
+class Animal:
+    def __init__(self, obj: Recinfo) -> None:
+        """
+        Name:  name of the animal e.g. Roy, Ted, Kevin
+        Alias:  code names as per lab standard e.g, RatN, Rat3254,
+        Tag:  helps identifying category for analyses, e.g, sd, nsd, control, rollipramSD
+        Sex: sex of animal
+        Experimenter: Experimenter's name
+        weight  : wieght of the animal during this recording
+        Probe :  what probes were used
+        BrainRegion :  which brain regions were implanted
+        Day  : The number of experiments : Day1, Day2
+        Date :  Date of experiment
+        Experiment  : any name for experiment
+        Track  : type of maze used, linear, l-shpaed
+        files :
+        StartTime : startime of the experiment in this format, 2019-10-11_03-58-54
+        nFrames :
+        deletedStart (minutes):  deleted from raw data to eliminate noise, for synching
+                                video tracking
+        deletedEnd (minutes): deleted tiem from raw data
+        Notes:  Any important notes
+
+        """
+        self._obj = obj
+
+        metadatafile = Path(str(self._obj.files.filePrefix) + "_metadata.csv")
+        if metadatafile.is_file():
+            metadata = pd.read_csv(metadatafile)
+            self.name = metadata.Name[0]
+            self.alias = metadata.Alias[0]
+            self.tag = metadata.Tag[0]
+            self.sex = metadata.Sex[0]
+            self.day = metadata.Day[0]
+            self.date = metadata.Date[0]
+
+        else:
+            metadata = pd.DataFrame(
+                columns=[
+                    "Name",
+                    "Alias",
+                    "Tag",
+                    "Sex",
+                    "Experimenter",
+                    "weight",
+                    "Probe",
+                    "BrainRegion",
+                    "Day",
+                    "Date",
+                    "Experiment",
+                    "Track",
+                    "files",
+                    "StartTime",
+                    "nFrames",
+                    "deletedStart (minutes)",
+                    "deletedEnd (minutes)",
+                    "Notes",
+                ]
+            )
+            metadata.to_csv(metadatafile)
+            print(
+                f"Template metadata file {metadatafile.name} created. Please fill it accordingly."
+            )
 
 
 class Probemap:
