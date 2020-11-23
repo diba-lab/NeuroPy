@@ -61,10 +61,28 @@ class behavior_epochs:
     def __str__(self):
         return "This creates behavioral epochs by loading positons and letting the user select a period which most likely represents maze"
 
-    def save_epochs(self, name_time: dict):
+    def make_epochs(self, new_epochs: dict):
+        """Adds epochs to the sessions at given timestamps. If epoch file already exists then new epochs are merged.
+        NOTE: If new_epochs have names common to previous existing epochs, values will be updated with new one.
 
-        for key in name_time:
-            print(key)
+        Parameters
+        ----------
+        new_epochs : dict
+            'dict_key' is meaningful string, 'dict_value' should be 2 element array/list
+        """
+
+        assert isinstance(new_epochs, dict), "Dictionaries are only valid argument"
+        length_epochs = [len(new_epochs[_]) for _ in new_epochs]
+        assert np.all(length_epochs == 2), "epochs can only have length of 2"
+
+        if (f := self.files.epochs).is_file():
+            epochs = np.load(f, allow_pickle=True).item()
+            epochs = {**epochs, **new_epochs}
+        else:
+            epochs = new_epochs
+
+        np.save(self.files.epochs, epochs)
+        self._load()
 
     def getfromPosition(self):
         """user defines epoch boundaries from the positons by selecting a rectangular region in the plot"""
@@ -134,4 +152,4 @@ class behavior_epochs:
         for name in epochs_name:
             epochs_times[name] = np.asarray(epochs.loc[name])
 
-        np.save(self._obj.files.epochs, epochs_times)
+        np.save(self.files.epochs, epochs_times)
