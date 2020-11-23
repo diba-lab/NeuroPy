@@ -72,7 +72,7 @@ class behavior_epochs:
         """
 
         assert isinstance(new_epochs, dict), "Dictionaries are only valid argument"
-        length_epochs = [len(new_epochs[_]) for _ in new_epochs]
+        length_epochs = np.array([len(new_epochs[_]) for _ in new_epochs])
         assert np.all(length_epochs == 2), "epochs can only have length of 2"
 
         if (f := self.files.epochs).is_file():
