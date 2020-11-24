@@ -58,8 +58,14 @@ class behavior_epochs:
         else:
             print("Epochs file does not exist...did not load epochs")
 
-    def __str__(self):
-        return "This creates behavioral epochs by loading positons and letting the user select a period which most likely represents maze"
+    def __repr__(self):
+        if (f := self.files.epochs).is_file():
+            epochs = np.load(f, allow_pickle=True).item()
+            epoch_string = [f"{key}: {epochs[key]}\n" for key in epochs]
+        else:
+            epoch_string = "No epochs exist"
+
+        return f"Epochs (seconds) \n" + "".join(epoch_string)
 
     def make_epochs(self, new_epochs: dict):
         """Adds epochs to the sessions at given timestamps. If epoch file already exists then new epochs are merged.
