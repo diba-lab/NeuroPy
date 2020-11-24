@@ -195,7 +195,7 @@ class recfiles:
 
 class sessionname:
     def __init__(self, f_prefix):
-        basePath = str(f_prefix.parent)
+        basePath = str(f_prefix.parent.as_posix())
         self.sessionName = basePath.split("/")[-2] + basePath.split("/")[-1]
         self.name = basePath.split("/")[-2]
         self.day = basePath.split("/")[-1]
