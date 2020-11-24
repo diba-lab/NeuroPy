@@ -36,7 +36,7 @@ class Recinfo:
     """
 
     def __init__(self, basePath):
-        self.basePath = Path(basePath)
+        self.basePath = Path(basePath).as_posix()
 
         filePrefix = None
         for file in os.listdir(basePath):
