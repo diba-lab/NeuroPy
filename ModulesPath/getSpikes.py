@@ -219,6 +219,24 @@ class Spikes:
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Units")
 
+    def ccg_spike_assemble(self, clus_use):
+        """Assemble an array of sorted spike times and cluIDs for the input cluster ids the list clus_use """
+        spikes_all, clus_all = [], []
+        [
+            (
+                spikes_all.append(self.times[idc]),
+                clus_all.append(np.ones_like(self.times[idc]) * idc),
+            )
+            for idc in clus_use
+        ]
+        spikes_all, clus_all = np.concatenate(spikes_all), np.concatenate(clus_all)
+        spikes_sorted, clus_sorted = (
+            spikes_all[spikes_all.argsort()],
+            clus_all[spikes_all.argsort()],
+        )
+
+        return spikes_sorted, clus_sorted
+
     def removeDoubleSpikes(self):
         pass
 
