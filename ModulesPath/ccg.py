@@ -206,10 +206,8 @@ def correlograms(
         clusters = _as_array(cluster_ids)
     n_clusters = len(clusters)
 
-    # NRK todo: fix _index_of if this code takes forever
     # Like spike_clusters, but with 0..n_clusters-1 indices.
-    # spike_clusters_i = _index_of(spike_clusters, clusters)
-    spike_clusters_i = np.digitize(spike_clusters, clusters)
+    spike_clusters_i = _index_of(spike_clusters, clusters)
 
     # Shift between the two copies of the spike trains.
     shift = 1
@@ -260,9 +258,7 @@ def correlograms(
         return correlograms
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from callfunc import processData
-    sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined')
-    sess.spikes.from_Phy(fileformat='same_folder')
-    correlograms = correlograms(sess.spikes.alltimes, sess.spikes.cluID, cluster_ids=[2,3], bin_size=0.001,
-                                window_size=2, sample_rate=30000)
+
+    pass
