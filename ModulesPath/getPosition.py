@@ -9,6 +9,31 @@ from pathlib import Path
 from parsePath import Recinfo
 
 
+def posfromCSV(fileName):
+    """Import position data from OptiTrack CSV file"""
+
+
+def startfromCSV(fileName):
+    """Get start time from OptiTrack CSV file"""
+    toprow = pd.read_csv(fileName, nrows=1, header=None)
+    start_time = toprow[np.where(toprow == 'Capture Start Time')[1][0] + 1][0]
+
+    tbegin = datetime.strptime(start_time, "%Y-%m-%d %H.%M.%S.%f %p")
+
+    return tbegin
+
+
+def SRfromCSV(fileName):
+    toprow = pd.read_csv(fileName, nrows=1, header=None)
+    capture_FR = np.asarray(toprow[np.where(toprow == 'Capture Frame Rate')[1][0] + 1][0], dtype=float)
+    export_FR = np.asarray(toprow[np.where(toprow == 'Export Frame Rate')[1][0] + 1][0], dtype=float)
+
+    if capture_FR != export_FR:
+        print('Careful! capture FR does NOT match export FR. Using export only.')
+
+    return export_FR
+
+
 def posfromFBX(fileName):
     fileName = str(fileName)
 
@@ -127,7 +152,7 @@ def getStartTime(fileName):
 
 
 class ExtractPosition:
-
+    # NRK todo: add in function to get sample rate from .csv file
     tracking_sRate = 120  # position sample rate
 
     def __init__(self, basepath):
@@ -163,7 +188,7 @@ class ExtractPosition:
             )
 
         else:
-            "Position file does not exist....did not load _position.npy"
+            print("Position file does not exist....Run .getPosition to generate.")
 
     def _load(self, posfile):
         return np.load(posfile, allow_pickle=True)
@@ -237,6 +262,7 @@ class ExtractPosition:
             tend = tbegin + duration
             trange = pd.date_range(start=tbegin, end=tend, periods=nframes)
 
+            # NRK todo: add try/except statement to use .csv file if there, otherwise use FBX file.
             x, y, z = posfromFBX(file.with_suffix(".fbx"))
 
             postime.extend(trange)
