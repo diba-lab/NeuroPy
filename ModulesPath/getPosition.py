@@ -9,21 +9,8 @@ from pathlib import Path
 from parsePath import Recinfo
 
 
-def posfromCSV(fileName):
-    """Import position data from OptiTrack CSV file"""
-
-
-def startfromCSV(fileName):
-    """Get start time from OptiTrack CSV file"""
-    toprow = pd.read_csv(fileName, nrows=1, header=None)
-    start_time = toprow[np.where(toprow == 'Capture Start Time')[1][0] + 1][0]
-
-    tbegin = datetime.strptime(start_time, "%Y-%m-%d %H.%M.%S.%f %p")
-
-    return tbegin
-
-
-def SRfromCSV(fileName):
+def getSampleRate(fileName):
+    """Get Sample rate from csv header file - not set at 120Hz"""
     toprow = pd.read_csv(fileName, nrows=1, header=None)
     capture_FR = np.asarray(toprow[np.where(toprow == 'Capture Frame Rate')[1][0] + 1][0], dtype=float)
     export_FR = np.asarray(toprow[np.where(toprow == 'Export Frame Rate')[1][0] + 1][0], dtype=float)
@@ -32,6 +19,29 @@ def SRfromCSV(fileName):
         print('Careful! capture FR does NOT match export FR. Using export only.')
 
     return export_FR
+
+
+def getnframes(fileName):
+    """Get nframes from csv header file"""
+    toprow = pd.read_csv(fileName, nrows=1, header=None)
+    nframes_take = np.asarray(toprow[np.where(toprow == 'Total Frames in Take')[1][0] + 1][0], dtype=float)
+    nframes_export = np.asarray(toprow[np.where(toprow == 'Total Exported Frames')[1][0] + 1][0], dtype=float)
+
+    if nframes_take != nframes_export:
+        print('CAREFUL! # frames in take does not match # frames exported. Using # frames exported for analysis!')
+
+    return nframes_export
+
+
+def posfromCSV(fileName):
+    """Import position data from OptiTrack CSV file"""
+    posdata = pd.read_csv(fileName, header=[2, 4, 5])
+    x = np.asarray(posdata['RigidBody', 'Position', 'X'])
+    y = np.asarray(posdata['RigidBody', 'Position', 'Y'])
+    z = np.asarray(posdata['RigidBody', 'Position', 'Z'])
+    t = np.asarray(posdata.loc[:, ['Time (Seconds)' in _ for _ in posdata.keys()]])
+
+    return x, y, z, t
 
 
 def posfromFBX(fileName):
@@ -152,8 +162,6 @@ def getStartTime(fileName):
 
 
 class ExtractPosition:
-    # NRK todo: add in function to get sample rate from .csv file
-    tracking_sRate = 120  # position sample rate
 
     def __init__(self, basepath):
         """initiates position class
@@ -166,6 +174,9 @@ class ExtractPosition:
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
+
+        # Sample rate can vary, so grab it from csv header
+        self.tracking_sRate = getSampleRate(sorted((self.basePath / "position").glob('*.csv'))[0])
 
         posfile = self._obj.files.position
         if os.path.exists(posfile):
@@ -254,18 +265,23 @@ class ExtractPosition:
         for file in posfiles:
             print(file)
 
-            fileinfo = pd.read_csv(file, header=None, nrows=1)
-            # required values are in column 11 and 13 of .csv file
-            tbegin = datetime.strptime(fileinfo.iloc[0][11], "%Y-%m-%d %I.%M.%S.%f %p")
-            nframes = fileinfo.iloc[0][13]
-            duration = pd.Timedelta(nframes / self.tracking_sRate, unit="sec")
-            tend = tbegin + duration
-            trange = pd.date_range(start=tbegin, end=tend, periods=nframes)
+            try:  # First try to load everything from CSV directly
+                x, y, z, t = posfromCSV(file)
+                assert len(x) > 0  # Make sure you aren't just importing the header
+                postime.extend(t)
 
-            # NRK todo: add try/except statement to use .csv file if there, otherwise use FBX file.
-            x, y, z = posfromFBX(file.with_suffix(".fbx"))
+            except (FileNotFoundError, KeyError, pd.errors.ParserError):  # Get data from FBX file if not in CSV
+                # Get time ranges for position files
+                tbegin = getStartTime(file)
+                nframes = getnframes(file)
+                duration = pd.Timedelta(nframes / self.tracking_sRate, unit="sec")
+                tend = tbegin + duration
+                trange = pd.date_range(start=tbegin, end=tend, periods=nframes)
 
-            postime.extend(trange)
+                # NRK todo: add try/except statement to use .csv file if there, otherwise use FBX file.
+                x, y, z = posfromFBX(file.with_suffix(".fbx"))
+
+                postime.extend(trange)
             posx.extend(x)
             posy.extend(y)
             posz.extend(z)
@@ -279,7 +295,7 @@ class ExtractPosition:
         xdata = np.interp(data_time, postime, posx)
         ydata = np.interp(data_time, postime, posy)
         zdata = np.interp(data_time, postime, posz)
-        time = np.linspace(0, len(xdata) / 120, len(xdata))
+        time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
 
         posVar = {
             "x": xdata,
