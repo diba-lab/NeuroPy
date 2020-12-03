@@ -10,6 +10,7 @@ from parsePath import Recinfo
 
 
 def getSampleRate(fileName):
+    test
     """Get Sample rate from csv header file - not set at 120Hz"""
     toprow = pd.read_csv(fileName, nrows=1, header=None)
     capture_FR = np.asarray(
