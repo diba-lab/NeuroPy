@@ -40,7 +40,7 @@ def getnframes(fileName):
             "CAREFUL! # frames in take does not match # frames exported. Using # frames exported for analysis!"
         )
 
-    return nframes_export
+    return int(nframes_export)
 
 
 def posfromCSV(fileName):
@@ -49,7 +49,9 @@ def posfromCSV(fileName):
     x = np.asarray(posdata["RigidBody", "Position", "X"])
     y = np.asarray(posdata["RigidBody", "Position", "Y"])
     z = np.asarray(posdata["RigidBody", "Position", "Z"])
-    t = np.asarray(posdata.loc[:, ["Time (Seconds)" in _ for _ in posdata.keys()]])
+    t = np.asarray(
+        posdata.loc[:, ["Time (Seconds)" in _ for _ in posdata.keys()]]
+    ).reshape(-1)
 
     return x, y, z, t
 
@@ -172,12 +174,15 @@ def getStartTime(fileName):
 
 
 class ExtractPosition:
-    def __init__(self, basepath):
+    def __init__(self, basepath, tracking_sf=4):
         """initiates position class
 
         Arguments:
             obj {class instance} -- should have the following attributes
                 obj.sessinfo.files.position --> filename for storing the positions
+                tracking_sf: accounts for any mismatch between calibration wand size (125mm) and the size used in OptiTrack.
+                Prior to late 2020, we used a 500mm wand length in Motive (Calibration Box: Wanding->OptiWand->Wand Length)
+                by accident, so the default is 4.
         """
         if isinstance(basepath, Recinfo):
             self._obj = basepath
@@ -186,14 +191,14 @@ class ExtractPosition:
 
         # Sample rate can vary, so grab it from csv header
         self.tracking_sRate = getSampleRate(
-            sorted((self.basePath / "position").glob("*.csv"))[0]
+            sorted((self._obj.basePath / "position").glob("*.csv"))[0]
         )
 
         posfile = self._obj.files.position
         if os.path.exists(posfile):
             posInfo = self._load(posfile).item()
-            self.x = posInfo["x"] / 4  # in seconds
-            self.y = posInfo["y"] / 4  # in seconds
+            self.x = posInfo["x"] / tracking_sf  # in seconds
+            self.y = posInfo["y"] / tracking_sf  # in seconds
             self.t = posInfo["time"]  # in seconds
             self.datetime = posInfo["datetime"]  # in seconds
             self.speed = np.sqrt(np.diff(self.x) ** 2 + np.diff(self.y) ** 2) / (
@@ -220,17 +225,24 @@ class ExtractPosition:
 
     def getPosition(self):
         sRate = self._obj.sampfreq  # .dat file sampling frequency
+        lfpsRate = self._obj.sampfreq  # .eeg file sampling frequency
         basePath = Path(self._obj.basePath)
-        metadata = self._obj.metadata
+        metadata = self._obj.loadmetadata()
 
         nfiles = metadata.count()["StartTime"]
 
         # ------- collecting timepoints related to .dat file  --------
         data_time = []
         for i, file_time in enumerate(metadata["StartTime"][:nfiles]):
+            # NRK todo: read tbegin directly from OpenEphys experiment xml file.
             tbegin = datetime.strptime(file_time, "%Y-%m-%d_%H-%M-%S")
             nframes = metadata["nFrames"][i]
-            duration = pd.Timedelta(nframes / sRate, unit="sec")
+            if not np.isnan(nframes):
+                duration = pd.Timedelta(nframes / sRate, unit="sec")
+            else:
+                nframes = self._obj.getNframesEEG
+                duration = pd.Timedelta(nframes / self._obj.lfpSrate, unit="sec")
+
             tend = tbegin + duration
             trange = pd.date_range(
                 start=tbegin,
@@ -286,12 +298,13 @@ class ExtractPosition:
                 KeyError,
                 pd.errors.ParserError,
             ):  # Get data from FBX file if not in CSV
+
                 # Get time ranges for position files
                 tbegin = getStartTime(file)
-                nframes = getnframes(file)
-                duration = pd.Timedelta(nframes / self.tracking_sRate, unit="sec")
+                nframes_pos = getnframes(file)
+                duration = pd.Timedelta(nframes_pos / self.tracking_sRate, unit="sec")
                 tend = tbegin + duration
-                trange = pd.date_range(start=tbegin, end=tend, periods=nframes)
+                trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
 
                 # NRK todo: add try/except statement to use .csv file if there, otherwise use FBX file.
                 x, y, z = posfromFBX(file.with_suffix(".fbx"))
