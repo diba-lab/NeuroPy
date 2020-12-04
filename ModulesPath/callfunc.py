@@ -16,11 +16,10 @@ from viewerData import SessView
 
 
 class processData:
-    def __init__(self, basepath, tracking_sf=4):
-        """Make sure to enter in the tracking scale factor if you have used a properly sized wand to optitrack calibration"""
+    def __init__(self, basepath):
         self.recinfo = Recinfo(basepath)
 
-        self.position = ExtractPosition(self.recinfo, tracking_sf=tracking_sf)
+        self.position = ExtractPosition(self.recinfo)
         self.epochs = behavior_epochs(self.recinfo)
         self.artifact = findartifact(self.recinfo)
         self.makePrmPrb = makePrmPrb(self.recinfo)
@@ -46,8 +45,7 @@ class processData:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
 
 
-if __name__ == "__main__":
-    # sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined',
-    #     tracking_sf=4)
-    # sess.position.getPosition()
+if __name__ == '__main__':
+    sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined')
+    sess.spikes.gen_instfiring()
 pass

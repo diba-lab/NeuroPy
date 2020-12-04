@@ -135,12 +135,6 @@ class Recinfo:
 
         return len(data) / nChans
 
-    @property
-    def getNframesEEG(self):
-        nframes = len(self.geteeg(chans=0))
-
-        return nframes
-
     def geteeg(self, chans, timeRange=None, frames=None):
         """Returns eeg signal for given channels and timeperiod or selected frames
 
@@ -177,12 +171,6 @@ class Recinfo:
             eeg, fs=self.lfpSrate, nperseg=2 * self.lfpSrate, noverlap=self.lfpSrate
         )
         return f, pxx
-
-    def loadmetadata(self):
-        metadatafile = Path(str(self.files.filePrefix) + "_metadata.csv")
-        metadata = pd.read_csv(metadatafile)
-
-        return metadata
 
 
 class files:

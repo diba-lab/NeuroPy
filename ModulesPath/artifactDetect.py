@@ -8,7 +8,7 @@ from parsePath import Recinfo
 
 
 class findartifact:
-    """Detects noisy periods using downsampled data
+    """Detects noisy periods uding downsampled data
 
     Attributes
     ------------
