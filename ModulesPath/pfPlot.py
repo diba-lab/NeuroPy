@@ -5,6 +5,9 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from sklearn.decomposition import PCA
 from plotUtil import Colormap
 from parsePath import Recinfo
+from getPosition import ExtractPosition
+from getSpikes import Spikes
+from behavior import behavior_epochs
 
 
 class pf:
@@ -24,6 +27,9 @@ class pf1d:
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
+        self._obj.position = ExtractPosition(basepath)
+        self._obj.spikes = Spikes(basepath)
+        self._obj.epochs = behavior_epochs(basepath)
 
     def compute(self):
         trackingSRate = self._obj.position.tracking_sRate
@@ -115,7 +121,7 @@ class pf2d:
             self._obj = Recinfo(basepath)
 
     def compute(self, gridbin=10):
-
+        """Calculate 2d placefields.  Gridbin in centimeters."""
         # ------ Cell selection ---------
         spkAll = self._obj.spikes.pyr
         # spkinfo = self._obj.spikes.info

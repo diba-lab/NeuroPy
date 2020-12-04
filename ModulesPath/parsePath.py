@@ -59,7 +59,7 @@ class Recinfo:
         self.sampfreq = myinfo["sRate"]
         self.channels = myinfo["channels"]
         self.nChans = myinfo["nChans"]
-        self.lfpSrate = myinfo["lfpSrate"]
+        self.lfpsRate = myinfo["lfpsRate"]
         self.channelgroups = myinfo["channelgroups"]
         self.badchans = myinfo["badchans"]
         self.nShanks = myinfo["nShanks"]
@@ -100,9 +100,9 @@ class Recinfo:
             sampfreq = int(sf.find("samplingRate").text)
             nChans = int(sf.find("nChannels").text)
 
-        lfpSrate = None
+        lfpsRate = None
         for val in myroot.findall("fieldPotentials"):
-            lfpSrate = int(val.find("lfpSamplingRate").text)
+            lfpsRate = int(val.find("lfpSamplingRate").text)
 
         auxchans = np.setdiff1d(np.arange(nChans), np.concatenate(channelgroups))
         if auxchans.size == 0:
@@ -116,7 +116,7 @@ class Recinfo:
             "nShanks": len(channelgroups),
             "subname": self.session.subname,
             "sessionName": self.session.sessionName,
-            "lfpSrate": lfpSrate,
+            "lfpsRate": lfpsRate,
             "badchans": badchans,
             "auxchans": auxchans,
         }
@@ -153,7 +153,7 @@ class Recinfo:
             eeg: [array of channels x timepoints]
         """
         eegfile = self.recfiles.eegfile
-        eegSrate = self.lfpSrate
+        eegSrate = self.lfpsRate
         nChans = self.nChans
 
         eeg = np.memmap(eegfile, dtype="int16", mode="r")

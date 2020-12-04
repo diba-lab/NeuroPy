@@ -43,15 +43,32 @@ def getnframes(fileName):
     return int(nframes_export)
 
 
+def getunits(fileName):
+    """determine if position data is in centimeters or meters"""
+    toprow = pd.read_csv(fileName, nrows=1, header=None)
+    units = toprow[np.where(toprow == "Length Units")[1][0] + 1][0]
+
+    return units
+
+
 def posfromCSV(fileName):
     """Import position data from OptiTrack CSV file"""
     posdata = pd.read_csv(fileName, header=[2, 4, 5])
-    x = np.asarray(posdata["RigidBody", "Position", "X"])
-    y = np.asarray(posdata["RigidBody", "Position", "Y"])
-    z = np.asarray(posdata["RigidBody", "Position", "Z"])
+    x0 = np.asarray(posdata["RigidBody", "Position", "X"])
+    y0 = np.asarray(posdata["RigidBody", "Position", "Y"])
+    z0 = np.asarray(posdata["RigidBody", "Position", "Z"])
     t = np.asarray(
         posdata.loc[:, ["Time (Seconds)" in _ for _ in posdata.keys()]]
     ).reshape(-1)
+
+    # Now convert to centimeters
+    units = getunits(fileName)
+    if units.lower() == 'centimeters':
+        x, y, z = x0, y0, z0
+    elif units.lower() == 'meters':
+        x, y, z = x0*100, y0*100, z0*100
+    else:
+        raise Exception('position data needs to be exported in either centimeters or meters')
 
     return x, y, z, t
 
@@ -67,6 +84,7 @@ def posfromFBX(fileName):
             m = "".join(line)
 
             if "KeyCount" in m:
+                print('Line 87 break at i = ' + str(i))
                 track_begin = i + 2
                 line_frame = linecache.getline(fileName, i + 2).strip().split(" ")
                 total_frames = int(line_frame[1]) - 1
@@ -98,13 +116,14 @@ def posfromFBX(fileName):
         for line in f:
 
             if "KeyCount" in line:
+                print('Line 119 break at i = ' + str(i))
                 break
-            else:
-                next(f)
+            # else:
+            #     next(f)
 
         pos1 = []
         for i, line in enumerate(f):
-            # print(line)
+            # print(i)
             if len(ypos) > total_frames:
                 break
 
@@ -125,10 +144,10 @@ def posfromFBX(fileName):
         for line in f:
 
             if "KeyCount" in line:
+                print('Line 147 break at i = ' + str(i))
                 break
-            else:
-                next(f)
-
+            # else:
+            #     next(f)
         pos1 = []
 
         for i, line in enumerate(f):
@@ -179,8 +198,8 @@ class ExtractPosition:
 
         Arguments:
             obj {class instance} -- should have the following attributes
-                obj.sessinfo.files.position --> filename for storing the positions
-                tracking_sf: accounts for any mismatch between calibration wand size (125mm) and the size used in OptiTrack.
+                :param: obj.sessinfo.files.position --> filename for storing the positions
+                :param: tracking_sf: accounts for any mismatch between calibration wand size (125mm) and the size used in OptiTrack.
                 Prior to late 2020, we used a 500mm wand length in Motive (Calibration Box: Wanding->OptiWand->Wand Length)
                 by accident, so the default is 4.
         """
@@ -193,12 +212,18 @@ class ExtractPosition:
         self.tracking_sRate = getSampleRate(
             sorted((self._obj.basePath / "position").glob("*.csv"))[0]
         )
+        self.tracking_sf = 4
 
+        self.import_posfile(tracking_sf)
+
+
+    def import_posfile(self, tracking_sf):
         posfile = self._obj.files.position
         if os.path.exists(posfile):
             posInfo = self._load(posfile).item()
-            self.x = posInfo["x"] / tracking_sf  # in seconds
-            self.y = posInfo["y"] / tracking_sf  # in seconds
+            self.x = posInfo["x"] / tracking_sf
+            self.y = posInfo["y"] / tracking_sf
+            self.z = posInfo["z"] / tracking_sf
             self.t = posInfo["time"]  # in seconds
             self.datetime = posInfo["datetime"]  # in seconds
             self.speed = np.sqrt(np.diff(self.x) ** 2 + np.diff(self.y) ** 2) / (
@@ -209,6 +234,7 @@ class ExtractPosition:
                     "time": self.t[1:],
                     "x": self.x[1:],
                     "y": self.y[1:],
+                    "z": self.z[1:],
                     "speed": self.speed,
                     "datetime": self.datetime[1:],
                 }
@@ -216,6 +242,7 @@ class ExtractPosition:
 
         else:
             print("Position file does not exist....Run .getPosition to generate.")
+
 
     def _load(self, posfile):
         return np.load(posfile, allow_pickle=True)
@@ -225,7 +252,7 @@ class ExtractPosition:
 
     def getPosition(self):
         sRate = self._obj.sampfreq  # .dat file sampling frequency
-        lfpsRate = self._obj.sampfreq  # .eeg file sampling frequency
+        lfpsRate = self._obj.lfpsRate  # .eeg file sampling frequency
         basePath = Path(self._obj.basePath)
         metadata = self._obj.loadmetadata()
 
@@ -241,7 +268,7 @@ class ExtractPosition:
                 duration = pd.Timedelta(nframes / sRate, unit="sec")
             else:
                 nframes = self._obj.getNframesEEG
-                duration = pd.Timedelta(nframes / self._obj.lfpSrate, unit="sec")
+                duration = pd.Timedelta(nframes / lfpsRate, unit="sec")
 
             tend = tbegin + duration
             trange = pd.date_range(
@@ -329,12 +356,16 @@ class ExtractPosition:
         posVar = {
             "x": xdata,
             "y": zdata,  # as in optitrack the z coordinates gives the y information
+            "z": ydata,  # keep this data in case you are interested in rearing activity...
             "time": time,
             "datetime": data_time,
             "trackingsRate": self.tracking_sRate,
         }
 
         np.save(self._obj.files.position, posVar)
+
+        # Low load this immediately into existence
+        self.import_posfile(self.tracking_sf)
 
     def plot(self):
 
@@ -353,3 +384,8 @@ class ExtractPosition:
         with filename.open("w") as f:
             for xpos, ypos in zip(x, y):
                 f.write(f"{xpos} {ypos}\n")
+
+if __name__ == "__main__":
+    xf, yf, zf = posfromFBX(
+        '/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined/position/Take 2020-10-08 11.33.02 AM.fbx')
+pass
