@@ -287,7 +287,6 @@ class ExtractPosition:
         postime, posx, posy, posz = [], [], [], []
 
         for file in posfiles:
-            this is a test
             print(file)
             tbegin = getStartTime(file)
             try:  # First try to load everything from CSV directly
