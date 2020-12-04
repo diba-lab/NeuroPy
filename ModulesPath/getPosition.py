@@ -285,13 +285,15 @@ class ExtractPosition:
         posfiles = posfiles[filesort_ind]
 
         postime, posx, posy, posz = [], [], [], []
+
         for file in posfiles:
             print(file)
-
+            tbegin = getStartTime(file)
             try:  # First try to load everything from CSV directly
-                x, y, z, t = posfromCSV(file)
-                assert len(x) > 0  # Make sure you aren't just importing the header
-                postime.extend(t)
+                x, y, z, trelative = posfromCSV(file)
+                assert len(x) > 0  # Make sure you aren't just importing the header, if so engage except below
+                trange = tbegin + pd.to_timedelta(trelative, unit='s')
+                postime.extend(trange)
 
             except (
                 FileNotFoundError,
@@ -300,7 +302,6 @@ class ExtractPosition:
             ):  # Get data from FBX file if not in CSV
 
                 # Get time ranges for position files
-                tbegin = getStartTime(file)
                 nframes_pos = getnframes(file)
                 duration = pd.Timedelta(nframes_pos / self.tracking_sRate, unit="sec")
                 tend = tbegin + duration

@@ -47,9 +47,7 @@ class processData:
 
 
 if __name__ == "__main__":
-    sess = processData(
-        r"C:\Users\Nat\Documents\UM\Working\Opto\Jackie671\Jackie_3well_day4\Jackie_UTRACK_combined",
-        tracking_sf=4,
-    )
-    sess.position.getPosition()
+    # sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined',
+    #     tracking_sf=4)
+    # sess.position.getPosition()
 pass
