@@ -7,6 +7,7 @@ import linecache
 from datetime import datetime, timedelta
 from pathlib import Path
 from parsePath import Recinfo
+from mathutil import contiguous_regions
 
 
 def getSampleRate(fileName):
@@ -61,17 +62,33 @@ def posfromCSV(fileName):
         posdata.loc[:, ["Time (Seconds)" in _ for _ in posdata.keys()]]
     ).reshape(-1)
 
+    xfill, yfill, zfill = interp_missing_pos(x0, y0, z0, t)
+
     # Now convert to centimeters
     units = getunits(fileName)
     if units.lower() == 'centimeters':
-        x, y, z = x0, y0, z0
+        x, y, z = xfill, yfill, zfill
     elif units.lower() == 'meters':
-        x, y, z = x0*100, y0*100, z0*100
+        x, y, z = xfill*100, yfill*100, zfill*100
     else:
         raise Exception('position data needs to be exported in either centimeters or meters')
 
     return x, y, z, t
 
+
+def interp_missing_pos(x, y, z, t):
+    """Interpolate missing data points"""
+    xgood, ygood, zgood = x, y, z
+    idnan = contiguous_regions(np.isnan(x))  # identify missing data points
+
+    for ids in idnan:
+        missing_ids = range(ids[0], ids[-1])
+        bracket_ids = ids + [-1, 0]
+        xgood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], x[bracket_ids])
+        ygood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], y[bracket_ids])
+        zgood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], z[bracket_ids])
+
+    return xgood, ygood, zgood
 
 def posfromFBX(fileName):
     fileName = str(fileName)
