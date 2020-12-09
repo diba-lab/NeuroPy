@@ -383,6 +383,8 @@ class ExtractPosition:
         ydata = np.interp(data_time, postime, posy)
         zdata = np.interp(data_time, postime, posz)
         time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
+        tids = np.interp(data_time, postime, np.arange(len(postime)), dtype="int")
+        time_interp = postime[tids]
 
         posVar = {
             "x": xdata,
