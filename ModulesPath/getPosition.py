@@ -439,9 +439,13 @@ def timestamps_from_oe(rec_folder, data_type="continuous"):
             )
         )
     else:
-        raise ValueError("data_type must be either " "continuous" "")
-    set_files = np.asarray(sorted(glob(oefolder.as_posix() + "**/settings*.xml")))
-    sync_files = np.asarray(sorted(glob(oefolder.as_posix() + "**/sync_messages.txt")))
+        raise ValueError("data_type must be " "continuous" "")
+    set_files = np.asarray(
+        sorted(glob(oefolder.as_posix() + "/**/settings*.xml", recursive=True))
+    )
+    sync_files = np.asarray(
+        sorted(glob(oefolder.as_posix() + "/**/sync_messages.txt", recursive=True))
+    )
 
     # Loop through and establish timeframes for each file
     times_abs = []
@@ -482,7 +486,6 @@ if __name__ == "__main__":
     # xf, yf, zf = posfromFBX(
     #     '/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined/position/Take 2020-10-08 11.33.02 AM.fbx')
     time_abs = timestamps_from_oe(
-        "/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined",
-        data_type="events",
+        r"C:\Users\Nat\Documents\UM\Working\Opto\Jackie671\Jackie_3well_day4\Jackie_UTRACK_combined\Jackie_UTRACK_2020-10-08_11-32-45"
     )
 pass
