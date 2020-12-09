@@ -40,8 +40,6 @@ class Spikes:
         else:
             self._obj = Recinfo(basepath)
 
-        self._obj.epochs = behavior_epochs(self._obj)  # load in behavioral epochs!
-
         self.stability = Stability(basepath)
         # self.dynamics = firingDynamics(basepath)
         filePrefix = self._obj.files.filePrefix
@@ -80,10 +78,11 @@ class Spikes:
             print("instantenous file does not exist ")
 
     def gen_instfiring(self):
+        epochs = behavior_epochs(self._obj)
         spkall = np.concatenate(self.times)
 
-        pre = self._obj.epochs.pre
-        post = self._obj.epochs.post
+        pre = epochs.pre
+        post = epochs.post
         if pre is None and post is not None:
             bins = np.arange(pre[0], post[1], 0.001)
         else:
