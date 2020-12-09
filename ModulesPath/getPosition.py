@@ -418,10 +418,10 @@ def timestamps_from_oe(rec_folder, data_type='continuous'):
         oefolder = Path(rec_folder)
 
     # Identify and sort timestamp and settings files in ascending order
-    if data_type in ['continuous', 'events']:
+    if data_type in ['continuous']:
         time_files = np.asarray(sorted(oefolder.glob('**/experiment*/**/' + data_type + '/**/timestamps.npy')))
     else:
-        raise ValueError('data_type must be either ''continuous'' or ''events''')
+        raise ValueError('data_type must be either ''continuous''')
     set_files = np.asarray(sorted(oefolder.glob('**/settings*.xml')))
     sync_files = np.asarray(sorted(oefolder.glob('**/sync_messages.txt')))
 
@@ -453,5 +453,5 @@ def get_sync_info(_sync_file):
 if __name__ == "__main__":
     # xf, yf, zf = posfromFBX(
     #     '/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined/position/Take 2020-10-08 11.33.02 AM.fbx')
-    time_abs = timestamps_from_oe('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined')
+    time_abs = timestamps_from_oe('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined', data_type='events')
 pass
