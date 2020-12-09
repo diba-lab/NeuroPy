@@ -1122,6 +1122,24 @@ class Theta:
 
     @staticmethod
     def phase_specfic_extraction(lfp, y, window=5, slideby=None):
+        """Breaks a signal into theta phase specific components
+
+        Parameters
+        ----------
+        lfp : array like
+            reference lfp from which theta phases are estimated
+        y : array like
+            timeseries which is broken into components
+        window : int, optional
+            , by default 5
+        slideby : [type], optional
+            [description], by default None
+
+        Returns
+        -------
+        [list]
+            list of broken signal into phase components
+        """
 
         thetalfp = signal_process.filter_sig.bandpass(lfp, lf=1, hf=25)
         hil_theta = signal_process.hilbertfast(thetalfp)
