@@ -43,6 +43,12 @@ class Recinfo:
             if file.endswith(".xml"):
                 xmlfile = self.basePath / file
                 filePrefix = xmlfile.with_suffix("")
+            elif file.endswith(".eeg"):
+                eegfile = self.basePath / file
+                filePrefix = eegfile.with_suffix("")
+            elif file.endswith(".dat"):
+                datfile = self.basePath / file
+                filePrefix = datfile.with_suffix("")
 
         self.session = sessionname(filePrefix)
         self.files = files(filePrefix)
@@ -74,8 +80,22 @@ class Recinfo:
     def __str__(self) -> str:
         return f"Name: {self.session.name} with {self.nChans} channels"
 
-    # def __repr__(self) -> str:
-    #     return "I am an animal"
+    def generate_xml(self, settingsPath):
+        """Generates .xml for the data using openephys's settings.xml"""
+        myroot = ET.parse(settingsPath).getroot()
+
+        chanmap = []
+        for elem in myroot[1][1][-1]:
+            if "Mapping" in elem.attrib:
+                chanmap.append(elem.attrib["Mapping"])
+
+        neuroscope_xmltree = ET.parse(self.files.filePrefix.with_suffix(".xml"))
+        neuroscope_xmlroot = neuroscope_xmltree.getroot()
+
+        for i, chan in enumerate(neuroscope_xmlroot[2][0][0].iter("channel")):
+            chan.text = str(int(chanmap[i]) - 1)
+
+        neuroscope_xmltree.write(self.files.filePrefix.with_suffix(".xml"))
 
     def makerecinfo(self):
         """Reads recording parameter from xml file"""
