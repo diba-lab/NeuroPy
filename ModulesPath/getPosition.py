@@ -382,9 +382,12 @@ class ExtractPosition:
         xdata = np.interp(data_time, postime, posx)
         ydata = np.interp(data_time, postime, posy)
         zdata = np.interp(data_time, postime, posz)
-        time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
-        tids = np.interp(data_time, postime, np.arange(len(postime)), dtype="int")
-        time_interp = postime[tids]
+        if method == "from_metadata":
+            time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
+        elif method == "from_files":
+            tids = np.interp(data_time, postime, np.arange(len(postime))).astype("int")
+            time = postime[tids] - data_time[0]
+        # NRK todo: need to chop off or make Nan all redundant timestamps.
 
         posVar = {
             "x": xdata,
