@@ -157,7 +157,9 @@ class pf2d:
         y_thresh = y[running]
         t_thresh = t[running]
 
-        def make_pfs(t_, x_, y_, spkAll_, occupancy_, speed_thresh_, maze_, x_grid_, y_grid_):
+        def make_pfs(
+            t_, x_, y_, spkAll_, occupancy_, speed_thresh_, maze_, x_grid_, y_grid_
+        ):
             maps, spk_pos, spk_t = [], [], []
             for cell in spkAll_:
                 # assemble spikes and position data
@@ -186,13 +188,19 @@ class pf2d:
         occupancy = occupancy / trackingRate + 10e-16  # converting to seconds
         occupancy = gaussian_filter(occupancy, sigma=2)
 
-        maps, spk_pos, spk_t = make_pfs(t, x, y, spkAll, occupancy, 0, maze, x_grid, y_grid)
+        maps, spk_pos, spk_t = make_pfs(
+            t, x, y, spkAll, occupancy, 0, maze, x_grid, y_grid
+        )
 
         run_occupancy = np.histogram2d(x_thresh, y_thresh, bins=(x_grid, y_grid))[0]
         run_occupancy = run_occupancy / trackingRate + 10e-16  # converting to seconds
-        run_occupancy = gaussian_filter(run_occupancy, sigma=2)  # NRK todo: might need to normalize this so that total occupancy adds up to 1 here...
+        run_occupancy = gaussian_filter(
+            run_occupancy, sigma=2
+        )  # NRK todo: might need to normalize this so that total occupancy adds up to 1 here...
 
-        run_maps, run_spk_pos, run_spk_t = make_pfs(t, x, y, spkAll, run_occupancy, speed_thresh, maze, x_grid, y_grid)
+        run_maps, run_spk_pos, run_spk_t = make_pfs(
+            t, x, y, spkAll, run_occupancy, speed_thresh, maze, x_grid, y_grid
+        )
 
         # spk_pfx, spk_pfy, spk_pft = [], [], []
         # pf, spk_pos, spk_t = [], [], []
@@ -236,7 +244,6 @@ class pf2d:
         # self.spkx = spk_pfx
         # self.spky = spk_pfy
         # self.spkt = spk_pft
-
 
     def plotMap(self, speed_thresh=False, subplots=(10, 8), fignum=None):
         plt.clf()

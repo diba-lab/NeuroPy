@@ -154,7 +154,7 @@ def contiguous_regions(condition):
 
     # Find the indices of changes in "condition"
     d = np.diff(condition)
-    idx, = d.nonzero()
+    (idx,) = d.nonzero()
 
     # We need to start things after the change in "condition". Therefore,
     # we'll shift the index by 1 to the right.
@@ -166,7 +166,7 @@ def contiguous_regions(condition):
 
     if condition[-1]:
         # If the end of condition is True, append the length of the array
-        idx = np.r_[idx, condition.size] # Edit
+        idx = np.r_[idx, condition.size]  # Edit
 
     # Reshape the result into two columns
     idx.shape = (-1, 2)

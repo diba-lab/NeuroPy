@@ -10,6 +10,7 @@ from parsePath import Recinfo
 from mathutil import contiguous_regions
 import Python3.SettingsXML as sxml
 import re
+from glob import glob
 
 
 def getSampleRate(fileName):
@@ -68,12 +69,14 @@ def posfromCSV(fileName):
 
     # Now convert to centimeters
     units = getunits(fileName)
-    if units.lower() == 'centimeters':
+    if units.lower() == "centimeters":
         x, y, z = xfill, yfill, zfill
-    elif units.lower() == 'meters':
-        x, y, z = xfill*100, yfill*100, zfill*100
+    elif units.lower() == "meters":
+        x, y, z = xfill * 100, yfill * 100, zfill * 100
     else:
-        raise Exception('position data needs to be exported in either centimeters or meters')
+        raise Exception(
+            "position data needs to be exported in either centimeters or meters"
+        )
 
     return x, y, z, t
 
@@ -92,6 +95,7 @@ def interp_missing_pos(x, y, z, t):
 
     return xgood, ygood, zgood
 
+
 def posfromFBX(fileName):
     fileName = str(fileName)
 
@@ -103,7 +107,7 @@ def posfromFBX(fileName):
             m = "".join(line)
 
             if "KeyCount" in m:
-                print('Line 87 break at i = ' + str(i))
+                print("Line 87 break at i = " + str(i))
                 track_begin = i + 2
                 line_frame = linecache.getline(fileName, i + 2).strip().split(" ")
                 total_frames = int(line_frame[1]) - 1
@@ -135,7 +139,7 @@ def posfromFBX(fileName):
         for line in f:
 
             if "KeyCount" in line:
-                print('Line 119 break at i = ' + str(i))
+                print("Line 119 break at i = " + str(i))
                 break
             # else:
             #     next(f)
@@ -163,7 +167,7 @@ def posfromFBX(fileName):
         for line in f:
 
             if "KeyCount" in line:
-                print('Line 147 break at i = ' + str(i))
+                print("Line 147 break at i = " + str(i))
                 break
             # else:
             #     next(f)
@@ -235,7 +239,6 @@ class ExtractPosition:
 
         self.import_posfile(tracking_sf)
 
-
     def import_posfile(self, tracking_sf):
         posfile = self._obj.files.position
         if os.path.exists(posfile):
@@ -262,14 +265,13 @@ class ExtractPosition:
         else:
             print("Position file does not exist....Run .getPosition to generate.")
 
-
     def _load(self, posfile):
         return np.load(posfile, allow_pickle=True)
 
     def __getitem__(self, epochs):
         pass
 
-    def getPosition(self, method='from_metadata'):
+    def getPosition(self, method="from_metadata"):
         sRate = self._obj.sampfreq  # .dat file sampling frequency
         lfpsRate = self._obj.lfpsRate  # .eeg file sampling frequency
         basePath = Path(self._obj.basePath)
@@ -280,7 +282,7 @@ class ExtractPosition:
         # ------- collecting timepoints related to .dat file  --------
         data_time = []
         # transfer start times from the settings*.xml file and nframes in .dat file to each row of the metadata file
-        if method == 'from_metadata':
+        if method == "from_metadata":
             for i, file_time in enumerate(metadata["StartTime"][:nfiles]):
                 tbegin = datetime.strptime(file_time, "%Y-%m-%d_%H-%M-%S")
                 nframes = metadata["nFrames"][i]
@@ -289,16 +291,21 @@ class ExtractPosition:
                 trange = pd.date_range(
                     start=tbegin,
                     end=tend,
-                    periods=int(duration.seconds * self.tracking_sRate))
+                    periods=int(duration.seconds * self.tracking_sRate),
+                )
                 data_time.extend(trange)
 
         # grab timestamps directly from timestamps.npy files. Assumes you have preserved the OE file structure.
-        elif method == 'from_files':
-            times_all = timestamps_from_oe(basePath, data_type='continuous')
+        elif method == "from_files":
+            times_all = timestamps_from_oe(basePath, data_type="continuous")
             for i, times in enumerate(times_all):
                 tbegin, tend = times[0], times[-1]
                 duration = tend - tbegin
-                trange = pd.date_range(start=tbegin, end=tend, periods=int(duration.seconds * self.tracking_sRate))
+                trange = pd.date_range(
+                    start=tbegin,
+                    end=tend,
+                    periods=int(duration.seconds * self.tracking_sRate),
+                )
                 data_time.extend(trange)
         data_time = pd.to_datetime(data_time)
 
@@ -340,8 +347,10 @@ class ExtractPosition:
             tbegin = getStartTime(file)
             try:  # First try to load everything from CSV directly
                 x, y, z, trelative = posfromCSV(file)
-                assert len(x) > 0  # Make sure you aren't just importing the header, if so engage except below
-                trange = tbegin + pd.to_timedelta(trelative, unit='s')
+                assert (
+                    len(x) > 0
+                )  # Make sure you aren't just importing the header, if so engage except below
+                trange = tbegin + pd.to_timedelta(trelative, unit="s")
                 postime.extend(trange)
 
             except (
@@ -408,7 +417,7 @@ class ExtractPosition:
                 f.write(f"{xpos} {ypos}\n")
 
 
-def timestamps_from_oe(rec_folder, data_type='continuous'):
+def timestamps_from_oe(rec_folder, data_type="continuous"):
     """Gets timestamps for all recordings/experiments in a given recording folder. Assumes you have recorded
     in flat binary format in OpenEphys and left the directory structure intact. continuous data by default,
     set data_type='events' for TTL timestamps"""
@@ -418,12 +427,21 @@ def timestamps_from_oe(rec_folder, data_type='continuous'):
         oefolder = Path(rec_folder)
 
     # Identify and sort timestamp and settings files in ascending order
-    if data_type in ['continuous']:
-        time_files = np.asarray(sorted(oefolder.glob('**/experiment*/**/' + data_type + '/**/timestamps.npy')))
+    if data_type in ["continuous"]:
+        time_files = np.asarray(
+            sorted(
+                glob(
+                    oefolder.as_posix()
+                    + "**/experiment*/**/"
+                    + data_type
+                    + "/**/timestamps.npy"
+                )
+            )
+        )
     else:
-        raise ValueError('data_type must be either ''continuous''')
-    set_files = np.asarray(sorted(oefolder.glob('**/settings*.xml')))
-    sync_files = np.asarray(sorted(oefolder.glob('**/sync_messages.txt')))
+        raise ValueError("data_type must be either " "continuous" "")
+    set_files = np.asarray(sorted(glob(oefolder.as_posix() + "**/settings*.xml")))
+    sync_files = np.asarray(sorted(glob(oefolder.as_posix() + "**/sync_messages.txt")))
 
     # Loop through and establish timeframes for each file
     times_abs = []
@@ -432,10 +450,10 @@ def timestamps_from_oe(rec_folder, data_type='continuous'):
         SRuse, sync_start = get_sync_info(sync_file)
 
         # Identify absolute start times of each file...
-        tbegin = datetime.strptime(setdict['INFO']['DATE'], "%d %b %Y %H:%M:%S")
-        tstamps = tbegin + pd.to_timedelta((timedata - sync_start)/SRuse, unit="sec")
+        tbegin = datetime.strptime(setdict["INFO"]["DATE"], "%d %b %Y %H:%M:%S")
+        tstamps = tbegin + pd.to_timedelta((timedata - sync_start) / SRuse, unit="sec")
         if len(times_abs) > 0 and tstamps[0] < times_abs[-1][-1]:
-            raise Exception('Timestamps out of order - check directory structure!')
+            raise Exception("Timestamps out of order - check directory structure!")
         times_abs.append(tstamps)
 
     return times_abs
@@ -443,15 +461,28 @@ def timestamps_from_oe(rec_folder, data_type='continuous'):
 
 def get_sync_info(_sync_file):
     sync_file_read = open(_sync_file).readlines()
-    SR = int(sync_file_read[1][re.search('@', sync_file_read[1]).span()[1]:
-                      re.search('Hz', sync_file_read[1]).span()[0]])
-    sync_start = int(sync_file_read[1][re.search('start time: ', sync_file_read[1]).span()[1]:
-                                   re.search('@[0-9]*Hz', sync_file_read[1]).span()[0]])
+    SR = int(
+        sync_file_read[1][
+            re.search("@", sync_file_read[1])
+            .span()[1] : re.search("Hz", sync_file_read[1])
+            .span()[0]
+        ]
+    )
+    sync_start = int(
+        sync_file_read[1][
+            re.search("start time: ", sync_file_read[1])
+            .span()[1] : re.search("@[0-9]*Hz", sync_file_read[1])
+            .span()[0]
+        ]
+    )
     return SR, sync_start
 
 
 if __name__ == "__main__":
     # xf, yf, zf = posfromFBX(
     #     '/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined/position/Take 2020-10-08 11.33.02 AM.fbx')
-    time_abs = timestamps_from_oe('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined', data_type='events')
+    time_abs = timestamps_from_oe(
+        "/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined",
+        data_type="events",
+    )
 pass
