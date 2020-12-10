@@ -76,6 +76,14 @@ class Recinfo:
             list(np.setdiff1d(_, self.badchans, assume_unique=True).astype(int))
             for _ in self.channelgroups
         ]
+        if "skulleeg" in myinfo:
+            self.skulleeg = myinfo["skulleeg"]
+
+        if "emgChans" in myinfo:
+            self.emgChans = myinfo["emgChans"]
+
+        if "motionChans" in myinfo:
+            self.motionChans = myinfo["motionChans"]
 
     def __str__(self) -> str:
         return f"Name: {self.session.name} with {self.nChans} channels"
@@ -97,8 +105,27 @@ class Recinfo:
 
         neuroscope_xmltree.write(self.files.filePrefix.with_suffix(".xml"))
 
-    def makerecinfo(self):
-        """Reads recording parameter from xml file"""
+    def makerecinfo(self, nShanks=None, skulleeg=None, emg=None, motion=None):
+        """Uses .xml file to parse anatomical groups
+
+        Parameters
+        ----------
+        nShanks : [int], optional
+            number of shanks, if None then this equals to number of anatomical grps
+        skulleeg : list, optional
+            any channels recorded from the skull, by default None
+        emg : list, optional
+            emg channels, by default None
+        motion : list, optional
+            channels recording accelerometer data or velocity, by default None
+        """
+
+        if skulleeg is None:
+            skulleeg = []
+        if emg is None:
+            emg = []
+        if motion is None:
+            motion = []
 
         myroot = ET.parse(self.recfiles.xmlfile).getroot()
 
@@ -108,12 +135,14 @@ class Recinfo:
                 for z in y.findall("group"):
                     chan_group = []
                     for chan in z.findall("channel"):
-                        chan_session.append(int(chan.text))
-                        if int(chan.attrib["skip"]) == 1:
-                            badchans.append(int(chan.text))
+                        if int(chan.text) not in skulleeg + emg + motion:
+                            chan_session.append(int(chan.text))
+                            if int(chan.attrib["skip"]) == 1:
+                                badchans.append(int(chan.text))
 
-                        chan_group.append(int(chan.text))
-                    channelgroups.append(chan_group)
+                            chan_group.append(int(chan.text))
+                    if chan_group:
+                        channelgroups.append(chan_group)
 
         sampfreq = nChans = None
         for sf in myroot.findall("acquisitionSystem"):
@@ -128,17 +157,26 @@ class Recinfo:
         if auxchans.size == 0:
             auxchans = None
 
+        if nShanks is None:
+            nShanks = len(channelgroups)
+
+        if motion is not None:
+            pass
+
         basics = {
             "sRate": sampfreq,
             "channels": chan_session,
             "nChans": nChans,
             "channelgroups": channelgroups,
-            "nShanks": len(channelgroups),
+            "nShanks": nShanks,
             "subname": self.session.subname,
             "sessionName": self.session.sessionName,
             "lfpSrate": lfpSrate,
             "badchans": badchans,
             "auxchans": auxchans,
+            "skulleeg": skulleeg,
+            "emgChans": emg,
+            "motionChans": motion,
         }
 
         np.save(self.files.basics, basics)
