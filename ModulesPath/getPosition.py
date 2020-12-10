@@ -292,7 +292,7 @@ class ExtractPosition:
                 trange = pd.date_range(
                     start=tbegin,
                     end=tend,
-                    periods=int(duration.seconds * self.tracking_sRate),
+                    periods=int(duration.total_seconds() * self.tracking_sRate),
                 )
                 data_time.extend(trange)
 
