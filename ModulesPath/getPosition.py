@@ -282,6 +282,7 @@ class ExtractPosition:
         # ------- collecting timepoints related to .dat file  --------
         data_time = []
         # transfer start times from the settings*.xml file and nframes in .dat file to each row of the metadata file
+        durations = []
         if method == "from_metadata":
             for i, file_time in enumerate(metadata["StartTime"][:nfiles]):
                 tbegin = datetime.strptime(file_time, "%Y-%m-%d_%H-%M-%S")
@@ -301,10 +302,11 @@ class ExtractPosition:
             for i, times in enumerate(times_all):
                 tbegin, tend = times[0], times[-1]
                 duration = tend - tbegin
+                durations.append(duration)
                 trange = pd.date_range(
                     start=tbegin,
                     end=tend,
-                    periods=int(duration.seconds * self.tracking_sRate),
+                    periods=int(duration.total_seconds() * self.tracking_sRate),
                 )
                 data_time.extend(trange)
         data_time = pd.to_datetime(data_time)
@@ -382,12 +384,7 @@ class ExtractPosition:
         xdata = np.interp(data_time, postime, posx)
         ydata = np.interp(data_time, postime, posy)
         zdata = np.interp(data_time, postime, posz)
-        if method == "from_metadata":
-            time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
-        elif method == "from_files":
-            tids = np.interp(data_time, postime, np.arange(len(postime))).astype("int")
-            time = postime[tids] - data_time[0]
-        # NRK todo: need to chop off or make Nan all redundant timestamps.
+        time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
 
         posVar = {
             "x": xdata,
