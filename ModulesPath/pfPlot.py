@@ -237,6 +237,7 @@ class pf2d:
         self.speed = speed
         self.x = x
         self.y = y
+        self.t = t
         self.occupancy = occupancy
         self.run_occupancy = run_occupancy
         self.xgrid = x_grid
