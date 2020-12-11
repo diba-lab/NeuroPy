@@ -83,7 +83,7 @@ class Spikes:
 
         pre = epochs.pre
         post = epochs.post
-        if pre is None and post is not None:
+        if pre and post:
             bins = np.arange(pre[0], post[1], 0.001)
         else:
             print(
