@@ -51,5 +51,6 @@ if __name__ == "__main__":
         "/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined",
         tracking_sf=4,
     )
-    sess.position.getPosition(method="from_files")
+    sess.placefield.pf2d.compute(gridbin=2, speed_thresh=20)
+    sess.placefield.pf2d.plotRaw_v_time(4, speed_thresh=True)
 pass

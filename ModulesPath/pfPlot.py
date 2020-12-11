@@ -8,6 +8,7 @@ from parsePath import Recinfo
 from getPosition import ExtractPosition
 from getSpikes import Spikes
 from behavior import behavior_epochs
+from plotUtil import pretty_plot
 
 
 class pf:
@@ -242,6 +243,7 @@ class pf2d:
         self.run_occupancy = run_occupancy
         self.xgrid = x_grid
         self.ygrid = y_grid
+        self.speed_thresh = speed_thresh
         # self.spkx = spk_pfx
         # self.spky = spk_pfy
         # self.spkt = spk_pft
@@ -253,15 +255,15 @@ class pf2d:
         fig.subplots_adjust(hspace=0.4)
 
         if speed_thresh:
-            map_use = self.run_maps
+            map_use, thresh = self.run_maps, self.speed_thresh
         elif not speed_thresh:
-            map_use = self.maps
+            map_use, thresh = self.maps, 0
 
         for cell, pfmap in enumerate(map_use):
             ax1 = fig.add_subplot(gs[cell])
             im = ax1.pcolorfast(
-                self.xgrid, self.ygrid, pfmap / np.max(pfmap), cmap="Spectral_r", vmin=0
-            )
+                self.xgrid, self.ygrid, np.rot90(np.fliplr(pfmap)) / np.max(pfmap), cmap="Spectral_r", vmin=0
+            )  # rot90(flipud... is necessary to match plotRaw configuration.
             # max_frate =
             ax1.axis("off")
             ax1.set_title(f"{round(np.nanmax(pfmap),2)} Hz")
@@ -270,30 +272,27 @@ class pf2d:
         # cbar = fig.colorbar(im, cax=cbar_ax)
         # cbar.set_label("firing rate (Hz)")
 
-        if speed_thresh:
-            fig.suptitle(
-                "Place maps for cells with their peak firing rate (with speed threshold)"
-            )
-        elif not speed_thresh:
-            fig.suptitle(
-                "Place maps for cells with their peak firing rate (no speed threshold)"
-            )
+        fig.suptitle("Place maps with peak firing rate (speed_threshold = " + str(thresh) + ")")
 
-    def plotRaw(self, speed_thresh=False, subplots=(10, 8), fignum=None):
+    def plotRaw(self, speed_thresh=False, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False):
         fig = plt.figure(fignum, figsize=(6, 10))
         gs = GridSpec(subplots[0], subplots[1], figure=fig)
         # fig.subplots_adjust(hspace=0.4)
 
-        if speed_thresh:
+        if not speed_thresh:
             spk_pos_use = self.spk_pos
-        elif not speed_thresh:
+        elif speed_thresh:
             spk_pos_use = self.run_spk_pos
 
         for cell, (spk_x, spk_y) in enumerate(spk_pos_use):
             ax1 = fig.add_subplot(gs[cell])
             ax1.plot(self.x, self.y, color="#d3c5c5")
-            ax1.plot(spk_x, spk_y, ".r", markersize=0.8)
+            ax1.plot(spk_x, spk_y, ".r", markersize=0.8, color=[1, 0, 0, alpha])
             ax1.axis("off")
+            if label_cells:
+                # Put info on title
+                info = self._obj.spikes.info.iloc[cell]
+                ax1.set_title('Cell ' + str(info['id']))
 
         if speed_thresh:
             fig.suptitle(
@@ -303,3 +302,29 @@ class pf2d:
             fig.suptitle(
                 "Place maps for cells with their peak firing rate (no speed threshold)"
             )
+
+
+    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5):
+        fig, ax = plt.subplots(2, 1, sharex=True)
+        fig.set_size_inches([23, 9.7])
+
+        # plot trajectories
+        for a, pos, ylabel in zip(ax, [self.x, self.y], ['X position (cm)', 'Y position (cm)']):
+            a.plot(self.t, pos)
+            a.set_xlabel('Time (seconds)')
+            a.set_ylabel(ylabel)
+            pretty_plot(a)
+
+        # Grab correct spike times/positions
+        if speed_thresh:
+            spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
+        else:
+            spk_pos_, spk_t_ = self.spk_pos, self.spk_t
+
+        # plot spikes on trajectory
+        for a, pos in zip(ax, spk_pos_[cellind]):
+            a.plot(spk_t_[cellind], pos, 'r.', color=[1, 0, 0, alpha])
+
+        # Put info on title
+        info = self._obj.spikes.info.iloc[cellind]
+        ax[0].set_title('Cell ' + str(info['id']) + ': q = ' + str(info['q']) + ', speed_thresh=' + str(self.speed_thresh))
