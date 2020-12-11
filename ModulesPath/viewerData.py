@@ -1,4 +1,3 @@
-from matplotlib.pyplot import plot
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -9,6 +8,7 @@ import matplotlib as mpl
 import random
 import ipywidgets as widgets
 from parsePath import Recinfo
+import signal_process
 
 
 def make_boxes(
@@ -38,7 +38,9 @@ class SessView:
         else:
             self._obj = Recinfo(basepath)
 
-    def specgram(self, chan=None, period=None, window=4, overlap=2, ax=None):
+    def specgram(
+        self, chan=None, period=None, window=4, overlap=2, ax=None, plotChan=False
+    ):
         """Generating spectrogram plot for given channel
 
         Parameters
@@ -59,9 +61,13 @@ class SessView:
             goodchans = self._obj.goodchans
             chan = random.choice(goodchans)
 
-        spec = self._obj.utils.spectrogram(
-            chan=chan, period=period, window=window, overlap=overlap
+        eegSrate = self._obj.lfpSrate
+        lfp = self._obj.geteeg(chans=chan, timeRange=period)
+
+        spec = signal_process.spectrogramBands(
+            lfp, sampfreq=eegSrate, window=window, overlap=overlap
         )
+
         sxx = spec.sxx / np.max(spec.sxx)
         sxx = gaussian_filter(sxx, sigma=2)
         vmax = np.max(sxx) / 4
@@ -85,9 +91,10 @@ class SessView:
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Frequency (Hz)")
 
-        axins = ax.inset_axes([0, 0.6, 0.1, 0.25])
-        self._obj.utils.plotChanPos(chans=[chan], ax=axins)
-        axins.axis("off")
+        if plotChan:
+            axins = ax.inset_axes([0, 0.6, 0.1, 0.25])
+            self._obj.probemap.plot(chans=[chan], ax=axins)
+            axins.axis("off")
 
         # ---- updating plotting values for interaction ------------
         widgets.interact(
