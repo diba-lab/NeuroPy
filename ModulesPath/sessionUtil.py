@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from numpy.core.fromnumeric import var
 import pandas as pd
 import os
 import scipy.stats as stats
@@ -44,7 +45,7 @@ class SessionUtil:
     def spectrogram(self, chan, period=None, window=4, overlap=2):
 
         eegSrate = self._obj.lfpSrate
-        lfp = self.geteeg(chans=chan, timeRange=period)
+        lfp = self._obj.geteeg(chans=chan, timeRange=period)
 
         specgram = signal_process.spectrogramBands(
             lfp, sampfreq=eegSrate, window=window, overlap=overlap
@@ -52,3 +53,16 @@ class SessionUtil:
 
         return specgram
 
+    def savefile(self, variable, namesuffix):
+        """Save files in the basepath for variables created by the user
+
+        Parameters
+        ----------
+        variable : dict/array/list/dataframe
+            [description]
+        namesuffix : string
+            name and suffix e.g,  coherence.npy , coherence.pkl
+        """
+        fileprefix = self._obj.files.filePrefix
+        filename = fileprefix.with_suffix(namesuffix)
+        np.save(filename, variable)

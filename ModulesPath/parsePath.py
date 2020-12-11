@@ -43,6 +43,12 @@ class Recinfo:
             if file.endswith(".xml"):
                 xmlfile = self.basePath / file
                 filePrefix = xmlfile.with_suffix("")
+            elif file.endswith(".eeg"):
+                eegfile = self.basePath / file
+                filePrefix = eegfile.with_suffix("")
+            elif file.endswith(".dat"):
+                datfile = self.basePath / file
+                filePrefix = datfile.with_suffix("")
 
         self.session = sessionname(filePrefix)
         self.files = files(filePrefix)
@@ -70,15 +76,56 @@ class Recinfo:
             list(np.setdiff1d(_, self.badchans, assume_unique=True).astype(int))
             for _ in self.channelgroups
         ]
+        if "skulleeg" in myinfo:
+            self.skulleeg = myinfo["skulleeg"]
+
+        if "emgChans" in myinfo:
+            self.emgChans = myinfo["emgChans"]
+
+        if "motionChans" in myinfo:
+            self.motionChans = myinfo["motionChans"]
 
     def __str__(self) -> str:
-        return f"Name: {self.session.name} with {self.nChans} channels"
+        return f"Name: {self.session.name} \nChannels: {self.nChans}\nSampling Freq: {self.sampfreq}\nlfp Srate (downsampled): {self.lfpSrate}\n# bad channels: {len(self.badchans)}\nmotion channels: {self.motionChans}\nemg channels: {self.emgChans}\nskull eeg: {self.skulleeg}"
 
-    # def __repr__(self) -> str:
-    #     return "I am an animal"
+    def generate_xml(self, settingsPath):
+        """Generates .xml for the data using openephys's settings.xml"""
+        myroot = ET.parse(settingsPath).getroot()
 
-    def makerecinfo(self):
-        """Reads recording parameter from xml file"""
+        chanmap = []
+        for elem in myroot[1][1][-1]:
+            if "Mapping" in elem.attrib:
+                chanmap.append(elem.attrib["Mapping"])
+
+        neuroscope_xmltree = ET.parse(self.files.filePrefix.with_suffix(".xml"))
+        neuroscope_xmlroot = neuroscope_xmltree.getroot()
+
+        for i, chan in enumerate(neuroscope_xmlroot[2][0][0].iter("channel")):
+            chan.text = str(int(chanmap[i]) - 1)
+
+        neuroscope_xmltree.write(self.files.filePrefix.with_suffix(".xml"))
+
+    def makerecinfo(self, nShanks=None, skulleeg=None, emg=None, motion=None):
+        """Uses .xml file to parse anatomical groups
+
+        Parameters
+        ----------
+        nShanks : [int], optional
+            number of shanks, if None then this equals to number of anatomical grps
+        skulleeg : list, optional
+            any channels recorded from the skull, by default None
+        emg : list, optional
+            emg channels, by default None
+        motion : list, optional
+            channels recording accelerometer data or velocity, by default None
+        """
+
+        if skulleeg is None:
+            skulleeg = []
+        if emg is None:
+            emg = []
+        if motion is None:
+            motion = []
 
         myroot = ET.parse(self.recfiles.xmlfile).getroot()
 
@@ -88,12 +135,14 @@ class Recinfo:
                 for z in y.findall("group"):
                     chan_group = []
                     for chan in z.findall("channel"):
-                        chan_session.append(int(chan.text))
-                        if int(chan.attrib["skip"]) == 1:
-                            badchans.append(int(chan.text))
+                        if int(chan.text) not in skulleeg + emg + motion:
+                            chan_session.append(int(chan.text))
+                            if int(chan.attrib["skip"]) == 1:
+                                badchans.append(int(chan.text))
 
-                        chan_group.append(int(chan.text))
-                    channelgroups.append(chan_group)
+                            chan_group.append(int(chan.text))
+                    if chan_group:
+                        channelgroups.append(chan_group)
 
         sampfreq = nChans = None
         for sf in myroot.findall("acquisitionSystem"):
@@ -108,17 +157,26 @@ class Recinfo:
         if auxchans.size == 0:
             auxchans = None
 
+        if nShanks is None:
+            nShanks = len(channelgroups)
+
+        if motion is not None:
+            pass
+
         basics = {
             "sRate": sampfreq,
             "channels": chan_session,
             "nChans": nChans,
             "channelgroups": channelgroups,
-            "nShanks": len(channelgroups),
+            "nShanks": nShanks,
             "subname": self.session.subname,
             "sessionName": self.session.sessionName,
             "lfpsRate": lfpsRate,
             "badchans": badchans,
             "auxchans": auxchans,
+            "skulleeg": skulleeg,
+            "emgChans": emg,
+            "motionChans": motion,
         }
 
         np.save(self.files.basics, basics)

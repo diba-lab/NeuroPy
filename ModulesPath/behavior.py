@@ -56,7 +56,7 @@ class behavior_epochs:
             self.totalduration = np.sum(np.asarray(totaldur))
 
         else:
-            print("Epochs file does not exist...did not load epochs")
+            print(f"Epochs file does not exist for {self._obj.files.filePrefix}")
 
     def __repr__(self):
         if (f := self.files.epochs).is_file():
