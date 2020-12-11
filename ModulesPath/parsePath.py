@@ -86,7 +86,7 @@ class Recinfo:
             self.motionChans = myinfo["motionChans"]
 
     def __str__(self) -> str:
-        return f"Name: {self.session.name} with {self.nChans} channels"
+        return f"Name: {self.session.name} \nChannels: {self.nChans}\nSampling Freq: {self.sampfreq}\nlfp Srate (downsampled): {self.lfpSrate}\n# bad channels: {len(self.badchans)}\nmotion channels: {self.motionChans}\nemg channels: {self.emgChans}\nskull eeg: {self.skulleeg}"
 
     def generate_xml(self, settingsPath):
         """Generates .xml for the data using openephys's settings.xml"""
