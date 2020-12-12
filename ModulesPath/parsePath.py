@@ -54,36 +54,39 @@ class Recinfo:
         self.files = files(filePrefix)
         self.recfiles = recfiles(filePrefix)
 
-        if self.files.basics.is_file():
-            self._intialize()
+        self._intialize()
         self.animal = Animal(self)
         self.probemap = Probemap(self)
 
     def _intialize(self):
 
-        myinfo = np.load(self.files.basics, allow_pickle=True).item()
-        self.sampfreq = myinfo["sRate"]
-        self.channels = myinfo["channels"]
-        self.nChans = myinfo["nChans"]
-        self.lfpSrate = myinfo["lfpSrate"]
-        self.channelgroups = myinfo["channelgroups"]
-        self.badchans = myinfo["badchans"]
-        self.nShanks = myinfo["nShanks"]
-        self.auxchans = myinfo["auxchans"]
+        self.sampfreq = None
+        self.channels = None
+        self.nChans = None
+        self.lfpSrate = None
+        self.channelgroups = None
+        self.badchans = None
+        self.nShanks = None
+        self.auxchans = None
+        self.skulleeg = None
+        self.emgChans = None
+        self.motionChans = None
+        self.nShanksProbe = None
+        self.nProbes = None
 
-        self.goodchans = np.setdiff1d(self.channels, self.badchans, assume_unique=True)
-        self.goodchangrp = [
-            list(np.setdiff1d(_, self.badchans, assume_unique=True).astype(int))
-            for _ in self.channelgroups
-        ]
-        if "skulleeg" in myinfo:
-            self.skulleeg = myinfo["skulleeg"]
+        if self.files.basics.is_file():
+            myinfo = np.load(self.files.basics, allow_pickle=True).item()
+            for attrib, val in myinfo.items():  # alternative list(epochs)
+                setattr(self, attrib, val)  # .lower() will be removed
 
-        if "emgChans" in myinfo:
-            self.emgChans = myinfo["emgChans"]
-
-        if "motionChans" in myinfo:
-            self.motionChans = myinfo["motionChans"]
+        if self.channels and self.badchans and self.channelgroups:
+            self.goodchans = np.setdiff1d(
+                self.channels, self.badchans, assume_unique=True
+            )
+            self.goodchangrp = [
+                list(np.setdiff1d(_, self.badchans, assume_unique=True).astype(int))
+                for _ in self.channelgroups
+            ]
 
     def __str__(self) -> str:
         return f"Name: {self.session.name} \nChannels: {self.nChans}\nSampling Freq: {self.sampfreq}\nlfp Srate (downsampled): {self.lfpSrate}\n# bad channels: {len(self.badchans)}\nmotion channels: {self.motionChans}\nemg channels: {self.emgChans}\nskull eeg: {self.skulleeg}"
@@ -110,8 +113,8 @@ class Recinfo:
 
         Parameters
         ----------
-        nShanks : [int], optional
-            number of shanks, if None then this equals to number of anatomical grps
+        nShanks : int or list of int, optional
+            number of shanks, if None then this equals to number of anatomical grps excluding channels mentioned in skulleeg, emg, motion
         skulleeg : list, optional
             any channels recorded from the skull, by default None
         emg : list, optional
@@ -160,6 +163,10 @@ class Recinfo:
         if nShanks is None:
             nShanks = len(channelgroups)
 
+        nShanksProbe = nShanks
+        nProbes = len(nShanks)
+        nShanks = np.sum(nShanks)
+
         if motion is not None:
             pass
 
@@ -169,6 +176,8 @@ class Recinfo:
             "nChans": nChans,
             "channelgroups": channelgroups,
             "nShanks": nShanks,
+            "nProbes": nProbes,
+            "nShanksProbe": nShanksProbe,
             "subname": self.session.subname,
             "sessionName": self.session.sessionName,
             "lfpSrate": lfpSrate,
@@ -193,13 +202,12 @@ class Recinfo:
 
         return len(data) / nChans
 
-    def geteeg(self, chans, timeRange=None, frames=None):
+    def geteeg(self, chans, timeRange=None):
         """Returns eeg signal for given channels and timeperiod or selected frames
 
         Args:
-            chans (list): list of channels required index should in order of binary file
+            chans (list/array): channels required, index should in order of binary file
             timeRange (list, optional): In seconds and must have length 2.
-            frames (list, optional): Required frames from the eeg data.
 
         Returns:
             eeg: [array of channels x timepoints]
@@ -208,20 +216,26 @@ class Recinfo:
         eegSrate = self.lfpSrate
         nChans = self.nChans
 
-        eeg = np.memmap(eegfile, dtype="int16", mode="r")
-        eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
-        eeg = eeg[chans, :]
-
         if timeRange is not None:
             assert len(timeRange) == 2
             frameStart = int(timeRange[0] * eegSrate)
             frameEnd = int(timeRange[1] * eegSrate)
-            eeg = eeg[..., frameStart:frameEnd]
+            eeg = np.memmap(
+                eegfile,
+                dtype="int16",
+                mode="r",
+                offset=2 * nChans * frameStart,
+                shape=(nChans, frameEnd - frameStart),
+            )
+        else:
+            eeg = np.memmap(eegfile, dtype="int16", mode="r")
+            eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
 
-        elif frames is not None:
-            eeg = eeg[..., frames]
+        eeg_ = []
+        for chan in chans:
+            eeg_.append(eeg[chan, :])
 
-        return eeg
+        return eeg_
 
     def getPxx(self, chans, timeRange=None):
         eeg = self.geteeg(chans=chans, timeRange=timeRange)
@@ -340,43 +354,67 @@ class Probemap:
                 {"chan": self._obj.channels, "x": self.x, "y": self.y}
             )
 
-    def create(self, probetype="diagbio"):
-        changroup = self._obj.channelgroups
+    def create(self, xypitch=(15, 16), shankdist=150):
+        """Probe layout, Assuming channels within each channelgroup/shank are oriented depthwise (dorsal --> ventral). Also supports mutiprobes. All distances are in um.
+
+                      o
+                    o
+                      o
+                    o
+                      o
+                    o   y
+                      o
+                    o
+                     x
+
+        Parameters
+        ----------
+        xypitch : tuple/list, optional
+            x and y separation between electrodes
+        shift : float,optional
+            Use shift parameter for buzsaki type probes where 'V-shaped' configuration is desired.
+
+
+        Examples
+        ---------
+        >>> Probemap.create(xypitch=[15,16]) # tetrode style
+        >>> Probemap.create(xypitch=[[15,16],[20,14]]) # multiprobe
+        #TODO buzsaki style probe
+
+        """
         nShanks = self._obj.nShanks
+        changroup = self._obj.channelgroups[:nShanks]
+        nProbes = self._obj.nProbes
+        nShanksProbe = self._obj.nShanksProbe
 
-        if len(changroup[0]) == 16:
-            probetype = "diagbio"
-        if len(changroup[0]) == 8:
-            probetype = "buzsaki"
-
-        changroup = changroup[:nShanks]
         xcoord, ycoord = [], []
-        if probetype == "diagbio":
+        if nProbes > 1:
+            probesid = np.concatenate([[_] * nShanksProbe[_] for _ in range(nProbes)])
+            shankid = 0
+            for probe in range(nProbes):
+                x, y = xypitch[probe]
+                shanks_in_probe = [
+                    changroup[sh] for sh, _ in enumerate(probesid) if _ == probe
+                ]
+                for channels in shanks_in_probe:
+                    xpos = [
+                        x * (_ % 2) + shankid * shankdist for _ in range(len(channels))
+                    ]
+                    ypos = [_ * y for _ in range(len(channels))]
+                    shankid += 1
 
-            for i in range(nShanks):
-                xpos = [10 * (_ % 2) + i * 150 for _ in range(16)]
-                ypos = [15 * 16 - _ * 15 for _ in range(16)]
-                xcoord.extend(xpos)
-                ycoord.extend(ypos)
+                    xcoord.extend(xpos)
+                    ycoord.extend(ypos[::-1])
 
-        if probetype == "buzsaki":
+        # if probetype == "buzsaki":
 
-            xp = [0, 37, 4, 33, 8, 29, 12, 20]
-            yp = np.arange(160, 0, -20)
-            for i in range(nShanks):
-                xpos = [xp[_] + i * 200 for _ in range(8)]
-                ypos = [yp[_] for _ in range(8)]
-                xcoord.extend(xpos)
-                ycoord.extend(ypos)
-
-        if probetype == "linear":
-
-            for i in range(nShanks):
-                nchans = len(changroup[i])
-                xpos = [10 * (_ % 2) + i * 150 for _ in range(nchans)]
-                ypos = [15 * 128 - _ * 15 for _ in range(nchans)]
-                xcoord.extend(xpos)
-                ycoord.extend(ypos)
+        #     xp = [0, 37, 4, 33, 8, 29, 12, 20]
+        #     yp = np.arange(160, 0, -20)
+        #     for i in range(nShanks):
+        #         xpos = [xp[_] + i * 200 for _ in range(8)]
+        #         ypos = [yp[_] for _ in range(8)]
+        #         xcoord.extend(xpos)
+        #         ycoord.extend(ypos)
 
         coords = {"x": xcoord, "y": ycoord}
         np.save(self._obj.files.probe, coords)
@@ -389,6 +427,69 @@ class Probemap:
         reqchans = self.coords[self.coords.chan.isin(chans)]
 
         return reqchans.x.values, reqchans.y.values
+
+    def for_spyking_circus(self, rmv_badchans=True, shanksCombine=False):
+        """Creates .prb file for spyking circus in the basepath folder
+
+        Parameters
+        ----------
+        rmv_badchans : bool
+            if True then removes badchannels from the .prb file, by default True
+        shanksCombine : bool, optional
+            if True then all shanks are combined in same channel group, by default False
+        """
+        nShanks = self._obj.nShanks
+        nChans = self._obj.nChans
+        channelgroups = self._obj.channelgroups[:nShanks]
+        circus_prb = (self._obj.files.filePrefix).with_suffix(".prb")
+        coords = self.coords.set_index("chan")
+
+        if rmv_badchans:
+            channelgroups = self._obj.goodchangrp[:nShanks]
+
+        with circus_prb.open("w") as f:
+            f.write(f"total_nb_channels = {nChans}\n")
+            f.write(f"radius = 120\n")
+            f.write("channel_groups = {\n")
+
+            if shanksCombine:
+
+                chan_list = np.concatenate(channelgroups[:nShanks])
+                f.write(f"1: {{\n")
+                f.write(f"'channels' : {[int(_) for _ in chan_list]},\n")
+                f.write("'graph' : [],\n")
+                f.write("'geometry' : {\n")
+
+                for i, shank in enumerate(channelgroups):
+                    if shank:
+                        for chan in shank:
+                            x, y = coords.loc[chan]
+                            f.write(f"{chan}: [{x+i*300},{y+i*400}],\n")
+
+                        f.write("\n")
+                f.write("}\n")
+                f.write("},\n")
+
+                f.write("}\n")
+
+            else:
+                for i, shank in enumerate(channelgroups):
+                    if shank:
+                        f.write(f"{i+1}: {{\n")
+                        f.write(f"'channels' : {[int(_) for _ in shank]},\n")
+                        f.write("'graph' : [],\n")
+                        f.write("'geometry' : {\n")
+
+                        for chan in shank:
+                            x, y = coords.loc[chan]
+                            f.write(f"{chan}: [{x+i*300},{y+i*400}],\n")
+
+                        f.write("}\n")
+                        f.write("},\n\n")
+
+                f.write("}\n")
+
+        print(".prb file created for Spyking Circus")
 
     def plot(self, chans=None, ax=None, colors=None):
 
