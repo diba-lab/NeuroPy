@@ -21,18 +21,39 @@ class Recinfo:
         layout of recording channels
     sampfreq : int
         sampling rate of recording and is extracted from .xml file
-    channels: list
-        list of recording channels in the .dat file
-    badchans: list
+    nChans : int,
+        number of channels in the .dat/.eeg file
+    channels : list
+        list of recording channels in the .dat file from silicon probes and EXCLUDES any aux channels, skulleeg, emg, motion channels.
+    channelgroups: list
+        channels grouped in shanks.
+    badchans : list
         list of bad channels
+    skulleeg : list,
+        channels in .dat/.eeg file from skull electrodes
+    emgChans : list
+        list of channels for emg
+    nProbes : int,
+        number of silicon probes used for this recording
+    nShanksProbe : int or list of int,
+        number of shanks in each probe. Example, [5,8], two probes with 5 and 8 shanks
+    goodChans: list,
+        list of channels excluding bad channels
+    goodChangrp: list of lists,
+        channels grouped in shanks and excludes bad channels. If all channels within a shank are bad, then it is represented as empty list within goodChangrp
+
+    NOTE: len(channels) may not be equal to nChans.
+
 
 
     Methods
     ----------
     makerecinfo()
         creates a file containing basic infomation about the recording
-    geteeg(chas, timeRange, period)
+    geteeg(chans, timeRange)
         returns lfp from .eeg file for given channels
+    generate_xml(settingsPath)
+        re-orders channels in the .xml file to reflect channel ordering in openephys settings.xml
     """
 
     def __init__(self, basePath):
@@ -232,8 +253,11 @@ class Recinfo:
             eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
 
         eeg_ = []
-        for chan in chans:
-            eeg_.append(eeg[chan, :])
+        if isinstance(chans, int):
+            eeg_ = eeg[chans, :]
+        else:
+            for chan in chans:
+                eeg_.append(eeg[chan, :])
 
         return eeg_
 
@@ -293,8 +317,7 @@ class Animal:
         files :
         StartTime : startime of the experiment in this format, 2019-10-11_03-58-54
         nFrames :
-        deletedStart (minutes):  deleted from raw data to eliminate noise, for synching
-                                video tracking
+        deletedStart (minutes):  deleted from raw data to eliminate noise, required       for synching video tracking
         deletedEnd (minutes): deleted tiem from raw data
         Notes:  Any important notes
 
@@ -302,6 +325,7 @@ class Animal:
         self._obj = obj
 
         metadatafile = Path(str(self._obj.files.filePrefix) + "_metadata.csv")
+
         if metadatafile.is_file():
             metadata = pd.read_csv(metadatafile)
             self.name = metadata.Name[0]
@@ -346,6 +370,9 @@ class Probemap:
         self._obj = obj
 
         self.x, self.y = None, None
+        self._load()
+
+    def _load(self):
         if self._obj.files.probe.is_file():
             data = np.load(self._obj.files.probe, allow_pickle=True).item()
             self.x = data["x"]
@@ -371,14 +398,15 @@ class Probemap:
         ----------
         xypitch : tuple/list, optional
             x and y separation between electrodes
-        shift : float,optional
-            Use shift parameter for buzsaki type probes where 'V-shaped' configuration is desired.
+        shankdist : float,optional
+            Distance between each shank.
 
 
         Examples
         ---------
         >>> Probemap.create(xypitch=[15,16]) # tetrode style
         >>> Probemap.create(xypitch=[[15,16],[20,14]]) # multiprobe
+        >>> Probemap.create(xypich=[0,15]) # linear probe
         #TODO buzsaki style probe
 
         """
@@ -388,23 +416,25 @@ class Probemap:
         nShanksProbe = self._obj.nShanksProbe
 
         xcoord, ycoord = [], []
-        if nProbes > 1:
-            probesid = np.concatenate([[_] * nShanksProbe[_] for _ in range(nProbes)])
-            shankid = 0
-            for probe in range(nProbes):
-                x, y = xypitch[probe]
-                shanks_in_probe = [
-                    changroup[sh] for sh, _ in enumerate(probesid) if _ == probe
-                ]
-                for channels in shanks_in_probe:
-                    xpos = [
-                        x * (_ % 2) + shankid * shankdist for _ in range(len(channels))
-                    ]
-                    ypos = [_ * y for _ in range(len(channels))]
-                    shankid += 1
+        probesid = np.concatenate([[_] * nShanksProbe[_] for _ in range(nProbes)])
+        shankid = 0
+        for probe in range(nProbes):
 
-                    xcoord.extend(xpos)
-                    ycoord.extend(ypos[::-1])
+            if nProbes == 1:
+                x, y = xypitch
+            else:
+                x, y = xypitch[probe]
+
+            shanks_in_probe = [
+                changroup[sh] for sh, _ in enumerate(probesid) if _ == probe
+            ]
+            for channels in shanks_in_probe:
+                xpos = [x * (_ % 2) + shankid * shankdist for _ in range(len(channels))]
+                ypos = [_ * y for _ in range(len(channels))]
+                shankid += 1
+
+                xcoord.extend(xpos)
+                ycoord.extend(ypos[::-1])
 
         # if probetype == "buzsaki":
 
@@ -418,6 +448,8 @@ class Probemap:
 
         coords = {"x": xcoord, "y": ycoord}
         np.save(self._obj.files.probe, coords)
+        print(".probe.npy file created")
+        self._load()
 
     def get(self, chans):
 
