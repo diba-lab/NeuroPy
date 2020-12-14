@@ -262,7 +262,11 @@ class pf2d:
         for cell, pfmap in enumerate(map_use):
             ax1 = fig.add_subplot(gs[cell])
             im = ax1.pcolorfast(
-                self.xgrid, self.ygrid, np.rot90(np.fliplr(pfmap)) / np.max(pfmap), cmap="Spectral_r", vmin=0
+                self.xgrid,
+                self.ygrid,
+                np.rot90(np.fliplr(pfmap)) / np.max(pfmap),
+                cmap="Spectral_r",
+                vmin=0,
             )  # rot90(flipud... is necessary to match plotRaw configuration.
             # max_frate =
             ax1.axis("off")
@@ -272,9 +276,18 @@ class pf2d:
         # cbar = fig.colorbar(im, cax=cbar_ax)
         # cbar.set_label("firing rate (Hz)")
 
-        fig.suptitle("Place maps with peak firing rate (speed_threshold = " + str(thresh) + ")")
+        fig.suptitle(
+            "Place maps with peak firing rate (speed_threshold = " + str(thresh) + ")"
+        )
 
-    def plotRaw(self, speed_thresh=False, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False):
+    def plotRaw(
+        self,
+        speed_thresh=False,
+        subplots=(10, 8),
+        fignum=None,
+        alpha=0.5,
+        label_cells=False,
+    ):
         fig = plt.figure(fignum, figsize=(6, 10))
         gs = GridSpec(subplots[0], subplots[1], figure=fig)
         # fig.subplots_adjust(hspace=0.4)
@@ -292,7 +305,7 @@ class pf2d:
             if label_cells:
                 # Put info on title
                 info = self._obj.spikes.info.iloc[cell]
-                ax1.set_title('Cell ' + str(info['id']))
+                ax1.set_title("Cell " + str(info["id"]))
 
         if speed_thresh:
             fig.suptitle(
@@ -303,15 +316,16 @@ class pf2d:
                 "Place maps for cells with their peak firing rate (no speed threshold)"
             )
 
-
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5):
         fig, ax = plt.subplots(2, 1, sharex=True)
         fig.set_size_inches([23, 9.7])
 
         # plot trajectories
-        for a, pos, ylabel in zip(ax, [self.x, self.y], ['X position (cm)', 'Y position (cm)']):
+        for a, pos, ylabel in zip(
+            ax, [self.x, self.y], ["X position (cm)", "Y position (cm)"]
+        ):
             a.plot(self.t, pos)
-            a.set_xlabel('Time (seconds)')
+            a.set_xlabel("Time (seconds)")
             a.set_ylabel(ylabel)
             pretty_plot(a)
 
@@ -323,8 +337,15 @@ class pf2d:
 
         # plot spikes on trajectory
         for a, pos in zip(ax, spk_pos_[cellind]):
-            a.plot(spk_t_[cellind], pos, 'r.', color=[1, 0, 0, alpha])
+            a.plot(spk_t_[cellind], pos, "r.", color=[1, 0, 0, alpha])
 
         # Put info on title
         info = self._obj.spikes.info.iloc[cellind]
-        ax[0].set_title('Cell ' + str(info['id']) + ': q = ' + str(info['q']) + ', speed_thresh=' + str(self.speed_thresh))
+        ax[0].set_title(
+            "Cell "
+            + str(info["id"])
+            + ": q = "
+            + str(info["q"])
+            + ", speed_thresh="
+            + str(self.speed_thresh)
+        )
