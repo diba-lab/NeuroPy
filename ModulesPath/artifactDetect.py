@@ -93,7 +93,10 @@ class findartifact:
 
         eegSrate = self._obj.lfpSrate
         lfp = self._obj.geteeg(chans=chans)
-        lfp = np.median(lfp, axis=0)
+        if isinstance(chans, list):
+            lfp = np.asarray(lfp)
+            lfp = np.median(lfp, axis=0)
+
         zsc = np.abs(stat.zscore(lfp))
 
         artifact_binary = np.where(zsc > thresh, 1, 0)
@@ -140,7 +143,7 @@ class findartifact:
         if chan is None:
             chan = np.random.choice(self._obj.goodchans)
 
-        lfp = self._obj.utils.geteeg(chans=chan)
+        lfp = self._obj.geteeg(chans=chan)
         zsc = np.abs(stat.zscore(lfp))
         artifact = self.time * self._obj.lfpSrate
 

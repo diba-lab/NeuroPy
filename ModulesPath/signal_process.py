@@ -623,6 +623,12 @@ class PAC:
 
         self.pac = mean_amplfp / np.sum(mean_amplfp)
 
+    def comodulo(self, lfp, method="tort", njobs=5):
+        """comodulogram for frequencies of interest"""
+
+        if method == "tort":
+            phase_lfp = filter_sig.bandpass(lfp, lf=4, hf=5)
+
     def plot(self, ax=None, **kwargs):
         """Bar plot for phase amplitude coupling
 
