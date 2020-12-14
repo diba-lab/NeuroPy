@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from pathlib import Path
 from cycler import cycler
+from matplotlib.patches import Rectangle
+from matplotlib.collections import PatchCollection
 
 
 class Colormap:
@@ -160,3 +162,27 @@ class Fig:
             alpha=0.5,
         )
         fig.savefig(filename)
+
+
+def make_boxes(
+    ax, xdata, ydata, xerror, yerror, facecolor="r", edgecolor="None", alpha=0.5
+):
+
+    # Loop over data points; create box from errors at each point
+    errorboxes = [
+        Rectangle((x, y), xe, ye) for x, y, xe, ye in zip(xdata, ydata, xerror, yerror)
+    ]
+
+    # Create patch collection with specified colour/alpha
+    pc = PatchCollection(
+        errorboxes, facecolor=facecolor, alpha=alpha, edgecolor=edgecolor
+    )
+
+    # Add collection to axes
+    ax.add_collection(pc)
+
+    # Plot errorbars
+    # artists = ax.errorbar(
+    #     xdata, ydata, xerr=xerror, yerr=yerror, fmt="None", ecolor="k"
+    # )
+    return 1

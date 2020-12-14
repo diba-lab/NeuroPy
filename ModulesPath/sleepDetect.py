@@ -3,44 +3,18 @@ from pathlib import Path
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.ma as ma
 import pandas as pd
 import scipy.ndimage as filtSig
 import scipy.signal as sg
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from matplotlib.collections import PatchCollection
+from plotUtil import make_boxes
 from matplotlib.gridspec import GridSpec
-from matplotlib.patches import Rectangle
 from scipy.ndimage import gaussian_filter
 from dataclasses import dataclass
 from parsePath import Recinfo
 from signal_process import spectrogramBands
-
-
-def make_boxes(
-    ax, xdata, ydata, xerror, yerror, facecolor="r", edgecolor="None", alpha=0.5
-):
-
-    # Loop over data points; create box from errors at each point
-    errorboxes = [
-        Rectangle((x, y), xe, ye) for x, y, xe, ye in zip(xdata, ydata, xerror, yerror)
-    ]
-
-    # Create patch collection with specified colour/alpha
-    pc = PatchCollection(
-        errorboxes, facecolor=facecolor, alpha=alpha, edgecolor=edgecolor
-    )
-
-    # Add collection to axes
-    ax.add_collection(pc)
-
-    # Plot errorbars
-    # artists = ax.errorbar(
-    #     xdata, ydata, xerr=xerror, yerr=yerror, fmt="None", ecolor="k"
-    # )
-    return 1
 
 
 def genepoch(start, end):
