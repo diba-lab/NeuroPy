@@ -199,7 +199,7 @@ class ScrollPlot:
     # Initialize the class. Gather the data and labels.
     def __init__(self, plot_func, xlabel='', ylabel='',
                  titles=([' '] * 10000), n_rows=1,
-                 n_cols=1, figsize=(8, 6), combine_rows = [], **kwargs):
+                 n_cols=1, figsize=(8, 6), combine_rows=[], **kwargs):
         self.plot_func = plot_func
         self.xlabel = xlabel
         self.ylabel = ylabel
@@ -240,9 +240,6 @@ class ScrollPlot:
             plot_f(self, ax_ind)
             self.apply_labels()
             # print(str(ax_ind))
-
-
-
 
         # Connect the figure to keyboard arrow keys.
         self.fig.canvas.mpl_connect('key_press_event',

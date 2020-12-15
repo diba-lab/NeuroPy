@@ -47,10 +47,6 @@ class processData:
 
 
 if __name__ == "__main__":
-    sess = processData(
-        "/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined",
-        tracking_sf=4,
-    )
-    sess.placefield.pf2d.compute(gridbin=2, speed_thresh=20)
-    sess.placefield.pf2d.plotRaw_v_time(4, speed_thresh=True)
+    sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined')
+    sess.spikes.plot_ccg([0, 1], bin_size=0.001, window_size=0.1)
 pass
