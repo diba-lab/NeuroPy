@@ -192,7 +192,7 @@ class Recinfo:
             pass
 
         basics = {
-            "sRate": sampfreq,
+            "sampfreq": sampfreq,
             "channels": chan_session,
             "nChans": nChans,
             "channelgroups": channelgroups,
@@ -246,18 +246,20 @@ class Recinfo:
                 dtype="int16",
                 mode="r",
                 offset=2 * nChans * frameStart,
-                shape=(nChans, frameEnd - frameStart),
+                shape=nChans * (frameEnd - frameStart),
             )
+            eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
+
         else:
             eeg = np.memmap(eegfile, dtype="int16", mode="r")
             eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
 
         eeg_ = []
-        if isinstance(chans, int):
-            eeg_ = eeg[chans, :]
-        else:
+        if isinstance(chans, (list, np.ndarray)):
             for chan in chans:
                 eeg_.append(eeg[chan, :])
+        else:
+            eeg_ = eeg[chans, :]
 
         return eeg_
 
