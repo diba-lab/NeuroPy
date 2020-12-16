@@ -223,6 +223,12 @@ class Recinfo:
 
         return len(data) / nChans
 
+    @property
+    def getNframesEEG(self):
+        nframes = len(self.geteeg(chans=0))
+
+        return nframes
+
     def geteeg(self, chans, timeRange=None):
         """Returns eeg signal for given channels and timeperiod or selected frames
 
