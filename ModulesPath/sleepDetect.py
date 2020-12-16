@@ -3,44 +3,19 @@ from pathlib import Path
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.ma as ma
 import pandas as pd
 import scipy.ndimage as filtSig
 import scipy.signal as sg
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from matplotlib.collections import PatchCollection
+from plotUtil import make_boxes
 from matplotlib.gridspec import GridSpec
-from matplotlib.patches import Rectangle
 from scipy.ndimage import gaussian_filter
 from dataclasses import dataclass
 from parsePath import Recinfo
-from signal_process import spectrogramBands
-
-
-def make_boxes(
-    ax, xdata, ydata, xerror, yerror, facecolor="r", edgecolor="None", alpha=0.5
-):
-
-    # Loop over data points; create box from errors at each point
-    errorboxes = [
-        Rectangle((x, y), xe, ye) for x, y, xe, ye in zip(xdata, ydata, xerror, yerror)
-    ]
-
-    # Create patch collection with specified colour/alpha
-    pc = PatchCollection(
-        errorboxes, facecolor=facecolor, alpha=alpha, edgecolor=edgecolor
-    )
-
-    # Add collection to axes
-    ax.add_collection(pc)
-
-    # Plot errorbars
-    # artists = ax.errorbar(
-    #     xdata, ydata, xerr=xerror, yerr=yerror, fmt="None", ecolor="k"
-    # )
-    return 1
+import signal_process
+from artifactDetect import findartifact
 
 
 def genepoch(start, end):
@@ -134,9 +109,6 @@ def hmmfit1d(Data):
 class SleepScore:
     # TODO add support for bad time points
 
-    window = 1  # seconds
-    overlap = 0.2  # seconds
-
     def __init__(self, basepath):
 
         if isinstance(basepath, Recinfo):
@@ -149,9 +121,9 @@ class SleepScore:
 
         @dataclass
         class files:
-            stateparams: str = Path(str(filePrefix) + "_stateparams.pkl")
-            states: str = Path(str(filePrefix) + "_states.pkl")
-            emg: Path = Path(str(filePrefix) + "_emg.npy")
+            stateparams: str = filePrefix.with_suffix(".stateparams.pkl")
+            states: str = filePrefix.with_suffix(".states.pkl")
+            emg: Path = filePrefix.with_suffix(".emg.npy")
 
         self.files = files()
         self._load()
@@ -170,12 +142,6 @@ class SleepScore:
                 4: "active",
             }
             self.states["name"] = self.states["state"].map(state_number_dict)
-
-    def detect(self):
-
-        self.params, self.sxx, self.states = self._getparams()
-        self.params.to_pickle(self.files.stateparams)
-        self.states.to_pickle(self.files.states)
 
     @staticmethod
     def _label2states(theta_delta, delta_l, emg_l):
@@ -263,15 +229,29 @@ class SleepScore:
 
         return statetime
 
-    def _getparams(self):
-        sRate = self._obj.recinfo.lfpSrate
-        # lfp = np.load(self._obj.sessinfo.files.thetalfp)
-        lfp = self._obj.spindle.best_chan_lfp()[0]
-        # ripplelfp = np.load(self._obj.files.ripplelfp).item()["BestChan"]
+    def detect(self, chans=None, window=1, overlap=0.2, emgfile=False):
+        artifact = findartifact(self._obj)
+        sRate = self._obj.lfpSrate
 
+        if emgfile:
+            print("emg loaded")
+            emg = np.load(self.files.emg)
+        else:
+            emg = self._emgfromlfp(window=window, overlap=overlap)
+
+        emg = filtSig.gaussian_filter1d(emg, 10)
+
+        if chans is None:
+            changroup = self._obj.goodchangrp
+            bottom_chans = [shank[-1] for shank in changroup if shank]
+            chans = np.random.choice(bottom_chans)
+
+        print(f"channel for sleep detection: {chans}")
+
+        lfp = self._obj.geteeg(chans=chans)
         lfp = stats.zscore(lfp)
-        bands = spectrogramBands(
-            lfp, window=self.window, overlap=self.overlap, smooth=10
+        bands = signal_process.spectrogramBands(
+            lfp, sampfreq=sRate, window=window, overlap=overlap, smooth=10
         )
         time = bands.time
         delta = bands.delta
@@ -282,11 +262,10 @@ class SleepScore:
         ripple = bands.ripple
         theta_deltaplus_ratio = theta / deltaplus
         sxx = stats.zscore(bands.sxx, axis=None)  # zscored only for visualization
-
-        emg = self._emgfromlfp(fromfile=1)
+        print(f"spectral properties calculated")
         print(emg.shape, theta_deltaplus_ratio.shape)
 
-        deadfile = (self._obj.sessinfo.files.filePrefix).with_suffix(".dead")
+        deadfile = artifact.files.dead
         if deadfile.is_file():
             with deadfile.open("r") as f:
                 noisy = []
@@ -354,56 +333,79 @@ class SleepScore:
 
         # data_label = pd.DataFrame({"theta_delta": theta_delta_label, "emg": emg_label})
 
+        data.to_pickle(self.files.stateparams)
+        statetime_new.to_pickle(self.files.states)
+
         return data, sxx, statetime_new
 
-    def _emgfromlfp(self, fromfile=0):
+    def _emgfromlfp(self, window, overlap):
+        print("calculating emg")
+        highfreq = 600
+        lowfreq = 300
+        sRate = self._obj.lfpSrate
+        nChans = self._obj.nChans
+        nyq = 0.5 * sRate
+        # window = window * sRate
+        # overlap = overlap * sRate
+        nProbes = self._obj.nProbes
+        changrp = self._obj.goodchangrp
+        nShanksProbe = self._obj.nShanksProbe
 
-        emgfilename = self.files.emg
-
-        if fromfile:
-            emg_lfp = np.load(emgfilename)
-
-        else:
-
-            highfreq = 600
-            lowfreq = 300
-            sRate = self._obj.recinfo.lfpSrate
-            nChans = self._obj.recinfo.nChans
-            nyq = 0.5 * sRate
-            window = self.window * sRate
-            overlap = self.overlap * sRate
-            channels = self._obj.recinfo.channels
-            badchans = self._obj.recinfo.badchans
-
-            emgChans = np.setdiff1d(channels, badchans, assume_unique=True)
-            nemgChans = len(emgChans)
-
-            # filtering for high frequency band
-            eegdata = np.memmap(
-                self._obj.sessinfo.recfiles.eegfile, dtype="int16", mode="r"
+        # ---- filtering for high frequency band --------
+        probesid = np.concatenate([[_] * nShanksProbe[_] for _ in range(nProbes)])
+        max_shanks_probe = [np.min([2, _]) for _ in nShanksProbe]
+        selected_shanks = []
+        for probe in range(nProbes):
+            shanks_in_probe = [
+                changrp[_] for _ in np.where(probesid == probe)[0] if changrp[_]
+            ]
+            selected_shanks.append(
+                np.concatenate(
+                    np.random.choice(
+                        shanks_in_probe, max_shanks_probe[probe], replace=False
+                    )
+                )
             )
-            eegdata = np.memmap.reshape(eegdata, (int(len(eegdata) / nChans), nChans))
-            b, a = sg.butter(3, [lowfreq / nyq, highfreq / nyq], btype="bandpass")
-            nframes = len(eegdata)
 
-            # windowing signal
-            frames = np.arange(0, nframes - window, window - overlap)
+        emgChans = np.concatenate(selected_shanks)
+        nemgChans = len(emgChans)
 
-            def corrchan(start):
-                start_frame = int(start)
-                end_frame = start_frame + window
-                lfp_req = eegdata[start_frame:end_frame, emgChans]
-                yf = sg.filtfilt(b, a, lfp_req, axis=0).T
-                ltriang = np.tril_indices(nemgChans, k=-1)
-                return np.corrcoef(yf)[ltriang].mean()
+        eegdata = self._obj.geteeg(chans=0)
+        total_duration = len(eegdata) / sRate
+        b, a = sg.butter(3, [lowfreq / nyq, highfreq / nyq], btype="bandpass")
+        # nframes = len(eegdata)
 
-            corr_per_frame = Parallel(n_jobs=8, require="sharedmem")(
-                delayed(corrchan)(start) for start in frames
+        # windowing signal
+        # frames = np.arange(0, nframes - window, window - overlap)
+        timepoints = np.arange(0, total_duration - window, window - overlap)
+
+        # def corrchan(start):
+        #     start_frame = int(start)
+        #     end_frame = start_frame + window
+        #     lfp_req = eegdata[start_frame:end_frame, emgChans]
+        #     yf = sg.filtfilt(b, a, lfp_req, axis=0).T
+        #     ltriang = np.tril_indices(nemgChans, k=-1)
+        #     return np.corrcoef(yf)[ltriang].mean()
+
+        def corrchan(start):
+            lfp_req = np.asarray(
+                self._obj.geteeg(chans=emgChans, timeRange=[start, start + window])
             )
-            emg_lfp = np.asarray(corr_per_frame)
-            np.save(emgfilename, emg_lfp)
 
-        emg_lfp = filtSig.gaussian_filter1d(emg_lfp, 10)
+            # yf = sg.filtfilt(b, a, lfp_req, axis=-1)
+            yf = signal_process.filter_sig.bandpass(
+                lfp_req, lf=lowfreq, hf=highfreq, fs=sRate
+            )
+            ltriang = np.tril_indices(nemgChans, k=-1)
+            return np.corrcoef(yf)[ltriang].mean()
+
+        corr_per_frame = Parallel(n_jobs=8, require="sharedmem")(
+            delayed(corrchan)(start) for start in timepoints
+        )
+        emg_lfp = np.asarray(corr_per_frame)
+
+        np.save(self.files.emg, emg_lfp)
+
         return emg_lfp
 
     def addBackgroundtoPlots(self, tstart=0, ax=None):
@@ -424,9 +426,9 @@ class SleepScore:
         states = self.states
         params = self.params
         post = self._obj.epochs.post
-        lfpSrate = self._obj.recinfo.lfpSrate
+        lfpSrate = self._obj.lfpSrate
         lfp = self._obj.spindle.best_chan_lfp()[0]
-        spec = spectrogramBands(lfp, window=5)
+        spec = signal_process.spectrogramBands(lfp, window=5)
 
         fig = plt.figure(num=None, figsize=(6, 10))
         gs = GridSpec(4, 4, figure=fig)

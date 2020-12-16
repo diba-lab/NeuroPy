@@ -37,6 +37,7 @@ class findartifact:
         class files:
             dead: str = filePrefix.with_suffix(".dead")
             artifact: str = filePrefix.with_suffix(".artifact.npy")
+            neuroscope: str = filePrefix.with_suffix(".evt.art")
 
         self.files = files()
 
@@ -88,11 +89,14 @@ class findartifact:
         calculating periods to exclude for analysis using simple z-score measure
         """
         if chans is None:
-            chans = np.random.choice(self._obj.recinfo.goodchans, 4)
+            chans = np.random.choice(self._obj.goodchans, 4)
 
         eegSrate = self._obj.lfpSrate
-        lfp = self._obj.recinfo.geteeg(chans=chans)
-        lfp = np.median(lfp, axis=0)
+        lfp = self._obj.geteeg(chans=chans)
+        if isinstance(chans, list):
+            lfp = np.asarray(lfp)
+            lfp = np.median(lfp, axis=0)
+
         zsc = np.abs(stat.zscore(lfp))
 
         artifact_binary = np.where(zsc > thresh, 1, 0)
@@ -116,13 +120,13 @@ class findartifact:
 
         secondPass.append(artifact)
 
-        # --- converting to required time units for various puposes ------
+        # --- converting to required time units for export ------
         artifact_ms = np.asarray(secondPass) / (eegSrate / 1000)  # ms
         artifact_s = np.asarray(secondPass) / eegSrate  # seconds
 
-        # --- writing to file for visualizing in neuroscope and spyking circus ----
-        file_neuroscope = self._obj.recinfo.files.filePrefix.with_suffix(".evt.art")
-        circus_file = self._obj.recinfo.files.filePrefix.with_suffix(".dead")
+        # --- writing to file for neuroscope and spyking circus ----
+        file_neuroscope = self.files.neuroscope
+        circus_file = self.files.dead
         with file_neuroscope.open("w") as a, circus_file.open("w") as c:
             for beg, stop in artifact_ms:
                 a.write(f"{beg} start\n{stop} end\n")
@@ -137,11 +141,11 @@ class findartifact:
     def plot(self, chan=None):
 
         if chan is None:
-            chan = np.random.choice(self._obj.recinfo.goodchans)
+            chan = np.random.choice(self._obj.goodchans)
 
-        lfp = self._obj.utils.geteeg(chans=chan)
+        lfp = self._obj.geteeg(chans=chan)
         zsc = np.abs(stat.zscore(lfp))
-        artifact = self.time * self._obj.recinfo.lfpSrate
+        artifact = self.time * self._obj.lfpSrate
 
         _, ax = plt.subplots(1, 1)
         ax.plot(zsc, "gray")

@@ -123,20 +123,15 @@ class spectrogramBands:
 
         deltaplus_ind = np.where(((f > 0.5) & (f < 4)) | ((f > 12) & (f < 15)))[0]
         deltaplus_sxx = np.mean(sxx[deltaplus_ind, :], axis=0)
-        # delta_ind = np.where(((f > 0.5) & (f < 16)))[0]
-        # delta_smooth = filtSig.gaussian_filter1d(delta_sxx, smooth, axis=0)
 
         theta_ind = np.where((f > 5) & (f < 11))[0]
         theta_sxx = np.mean(sxx[theta_ind, :], axis=0)
-        # theta_smooth = filtSig.gaussian_filter1d(theta_sxx, smooth, axis=0)
 
         spindle_ind = np.where((f > 10) & (f < 20))[0]
         spindle_sxx = np.mean(sxx[spindle_ind, :], axis=0)
-        # spindle_smooth = filtSig.gaussian_filter1d(spindle_sxx, smooth, axis=0)
 
         gamma_ind = np.where((f > 30) & (f < 90))[0]
         gamma_sxx = np.mean(sxx[gamma_ind, :], axis=0)
-        # gamma_smooth = filtSig.gaussian_filter1d(gamma_sxx, smooth, axis=0)
 
         ripple_ind = np.where((f > 140) & (f < 250))[0]
         ripple_sxx = np.mean(sxx[ripple_ind, :], axis=0)
@@ -622,6 +617,12 @@ class PAC:
         )[0]
 
         self.pac = mean_amplfp / np.sum(mean_amplfp)
+
+    def comodulo(self, lfp, method="tort", njobs=5):
+        """comodulogram for frequencies of interest"""
+
+        if method == "tort":
+            phase_lfp = filter_sig.bandpass(lfp, lf=4, hf=5)
 
     def plot(self, ax=None, **kwargs):
         """Bar plot for phase amplitude coupling
