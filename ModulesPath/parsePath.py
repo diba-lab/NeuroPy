@@ -173,9 +173,9 @@ class Recinfo:
             sampfreq = int(sf.find("samplingRate").text)
             nChans = int(sf.find("nChannels").text)
 
-        lfpSrate = None
+        lfpsRate = None
         for val in myroot.findall("fieldPotentials"):
-            lfpSrate = int(val.find("lfpSamplingRate").text)
+            lfpsRate = int(val.find("lfpSamplingRate").text)
 
         auxchans = np.setdiff1d(np.arange(nChans), np.concatenate(channelgroups))
         if auxchans.size == 0:
@@ -201,7 +201,7 @@ class Recinfo:
             "nShanksProbe": nShanksProbe,
             "subname": self.session.subname,
             "sessionName": self.session.sessionName,
-            "lfpSrate": lfpSrate,
+            "lfpsRate": lfpsRate,
             "badchans": badchans,
             "auxchans": auxchans,
             "skulleeg": skulleeg,
@@ -223,6 +223,12 @@ class Recinfo:
 
         return len(data) / nChans
 
+    @property
+    def getNframesEEG(self):
+        nframes = len(self.geteeg(chans=0))
+
+        return nframes
+
     def geteeg(self, chans, timeRange=None):
         """Returns eeg signal for given channels and timeperiod or selected frames
 
@@ -234,7 +240,7 @@ class Recinfo:
             eeg: [array of channels x timepoints]
         """
         eegfile = self.recfiles.eegfile
-        eegSrate = self.lfpSrate
+        eegSrate = self.lfpsRate
         nChans = self.nChans
 
         if timeRange is not None:
@@ -269,6 +275,12 @@ class Recinfo:
             eeg, fs=self.lfpSrate, nperseg=2 * self.lfpSrate, noverlap=self.lfpSrate
         )
         return f, pxx
+
+    def loadmetadata(self):
+        metadatafile = Path(str(self.files.filePrefix) + "_metadata.csv")
+        metadata = pd.read_csv(metadatafile)
+
+        return metadata
 
 
 class files:

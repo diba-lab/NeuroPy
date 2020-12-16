@@ -67,6 +67,7 @@ class behavior_epochs:
 
         return f"Epochs (seconds) \n" + "".join(epoch_string)
 
+
     def make_epochs(self, new_epochs: dict):
         """Adds epochs to the sessions at given timestamps. If epoch file already exists then new epochs are merged.
         NOTE: If new_epochs have names common to previous existing epochs, values will be updated with new one.
@@ -149,6 +150,19 @@ class behavior_epochs:
 
         np.save(self._obj.files.epochs, epoch_times)
 
+        self._load()  # load these in for immediate use
+
+
+    def all_maze(self):
+        """Make the entire session a maze epoch if that's all you are analyzing"""
+        position = ExtractPosition(self._obj.basePath)
+        maze_time = np.array([position.t[0], position.t[-1]])
+        epoch_times = {"MAZE": maze_time}
+
+        np.save(self._obj.files.epochs, epoch_times)
+
+        self._load()  # load these in for immediate use
+
     def getfromCSV(self):
         file = Path(str(self._obj.files.filePrefix) + "_epochs.csv")
         epochs = pd.read_csv(file, index_col=0)
@@ -159,3 +173,5 @@ class behavior_epochs:
             epochs_times[name] = np.asarray(epochs.loc[name])
 
         np.save(self.files.epochs, epochs_times)
+
+        self._load()  # load these in for immediate use
