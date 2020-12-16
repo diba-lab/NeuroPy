@@ -6,7 +6,7 @@ import os
 import linecache
 from datetime import datetime, timedelta
 from pathlib import Path
-from parsePath import Recinfo
+from parsePath import Recinfo, XML2Dict
 from mathutil import contiguous_regions
 
 # import Python3.SettingsXML as sxml
@@ -454,11 +454,11 @@ def timestamps_from_oe(rec_folder, data_type="continuous"):
     for time, set_, sync_file in zip(time_files, set_files, sync_files):
         # load data
         timedata = np.load(time)
-        myroot = ET.parse(set_).getroot()
-        setdict = {}
-        for elem in myroot[0]:
-            setdict[elem.tag] = elem.text
-        # xml_file = sxml.XML2Dict(set_)
+        # myroot = ET.parse(set_).getroot()
+        # setdict = {}
+        # for elem in myroot[0]:
+        #     setdict[elem.tag] = elem.text
+        setdict = XML2Dict(set_)
         SRuse, sync_start = get_sync_info(sync_file)
 
         # Identify absolute start times of each file...

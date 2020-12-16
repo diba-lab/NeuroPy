@@ -48,7 +48,7 @@ class processData:
 
 if __name__ == "__main__":
     sess = processData(
-        "/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined"
+        r"C:\Users\Nat\Documents\UM\Working\Opto\Jackie671\Jackie_3well_day4\Jackie_UTRACK_combined"
     )
-    sess.spikes.plot_ccg([0, 1], bin_size=0.001, window_size=0.1)
+    sess.position.getPosition(method="from_files", scale=4.0)
 pass
