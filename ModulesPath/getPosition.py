@@ -454,15 +454,15 @@ def timestamps_from_oe(rec_folder, data_type="continuous"):
     for time, set_, sync_file in zip(time_files, set_files, sync_files):
         # load data
         timedata = np.load(time)
-        # myroot = ET.parse(set_).getroot()
-        # setdict = {}
-        # for elem in myroot[0]:
-        #     setdict[elem.tag] = elem.text
-        setdict = XML2Dict(set_)
+        myroot = ET.parse(set_).getroot()
+        setdict = {}
+        for elem in myroot[0]:
+            setdict[elem.tag] = elem.text
+        # setdict = XML2Dict(set_)
         SRuse, sync_start = get_sync_info(sync_file)
 
         # Identify absolute start times of each file...
-        tbegin = datetime.strptime(setdict["INFO"]["DATE"], "%d %b %Y %H:%M:%S")
+        tbegin = datetime.strptime(setdict["DATE"], "%d %b %Y %H:%M:%S")
         tstamps = tbegin + pd.to_timedelta((timedata - sync_start) / SRuse, unit="sec")
         if len(times_abs) > 0 and tstamps[0] < times_abs[-1][-1]:
             raise Exception("Timestamps out of order - check directory structure!")
