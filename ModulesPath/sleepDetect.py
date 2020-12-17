@@ -230,6 +230,20 @@ class SleepScore:
         return statetime
 
     def detect(self, chans=None, window=1, overlap=0.2, emgfile=False):
+        """detects sleep states for the recording
+
+        Parameters
+        ----------
+        chans : int, optional
+            channel you want to use for sleep detection, by default None
+        window : int, optional
+            bin size, by default 1
+        overlap : float, optional
+            seconds of overlap between adjacent window , by default 0.2
+        emgfile : bool, optional
+            if True load the emg file in the basepath, by default False
+
+        """
         artifact = findartifact(self._obj)
         sRate = self._obj.lfpSrate
 
@@ -261,7 +275,7 @@ class SleepScore:
         gamma = bands.gamma
         ripple = bands.ripple
         theta_deltaplus_ratio = theta / deltaplus
-        sxx = stats.zscore(bands.sxx, axis=None)  # zscored only for visualization
+        # sxx = stats.zscore(bands.sxx, axis=None)  # zscored only for visualization
         print(f"spectral properties calculated")
         print(emg.shape, theta_deltaplus_ratio.shape)
 
@@ -336,22 +350,18 @@ class SleepScore:
         data.to_pickle(self.files.stateparams)
         statetime_new.to_pickle(self.files.states)
 
-        return data, sxx, statetime_new
-
     def _emgfromlfp(self, window, overlap):
         print("calculating emg")
         highfreq = 600
         lowfreq = 300
         sRate = self._obj.lfpSrate
-        nChans = self._obj.nChans
         nyq = 0.5 * sRate
-        # window = window * sRate
-        # overlap = overlap * sRate
         nProbes = self._obj.nProbes
         changrp = self._obj.goodchangrp
         nShanksProbe = self._obj.nShanksProbe
 
-        # ---- filtering for high frequency band --------
+        # ---selecting shanks for emg calculation --------
+
         probesid = np.concatenate([[_] * nShanksProbe[_] for _ in range(nProbes)])
         max_shanks_probe = [np.min([2, _]) for _ in nShanksProbe]
         selected_shanks = []
@@ -373,26 +383,14 @@ class SleepScore:
         eegdata = self._obj.geteeg(chans=0)
         total_duration = len(eegdata) / sRate
         b, a = sg.butter(3, [lowfreq / nyq, highfreq / nyq], btype="bandpass")
-        # nframes = len(eegdata)
 
-        # windowing signal
-        # frames = np.arange(0, nframes - window, window - overlap)
         timepoints = np.arange(0, total_duration - window, window - overlap)
 
-        # def corrchan(start):
-        #     start_frame = int(start)
-        #     end_frame = start_frame + window
-        #     lfp_req = eegdata[start_frame:end_frame, emgChans]
-        #     yf = sg.filtfilt(b, a, lfp_req, axis=0).T
-        #     ltriang = np.tril_indices(nemgChans, k=-1)
-        #     return np.corrcoef(yf)[ltriang].mean()
-
+        # ---- filtering for high frequency band --------
         def corrchan(start):
             lfp_req = np.asarray(
                 self._obj.geteeg(chans=emgChans, timeRange=[start, start + window])
             )
-
-            # yf = sg.filtfilt(b, a, lfp_req, axis=-1)
             yf = signal_process.filter_sig.bandpass(
                 lfp_req, lf=lowfreq, hf=highfreq, fs=sRate
             )
