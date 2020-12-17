@@ -6,11 +6,14 @@ import os
 import linecache
 from datetime import datetime, timedelta
 from pathlib import Path
-from parsePath import Recinfo
+from parsePath import Recinfo, XML2Dict
 from mathutil import contiguous_regions
-import Python3.SettingsXML as sxml
+
+# import Python3.SettingsXML as sxml
+import xml.etree.ElementTree as ET
 import re
 from glob import glob
+from dataclasses import dataclass
 
 
 def getSampleRate(fileName):
@@ -217,7 +220,7 @@ def getStartTime(fileName):
 
 
 class ExtractPosition:
-    def __init__(self, basepath, tracking_sf=4):
+    def __init__(self, basepath):
         """initiates position class
 
         Arguments:
@@ -232,23 +235,27 @@ class ExtractPosition:
         else:
             self._obj = Recinfo(basepath)
 
-        # Sample rate can vary, so grab it from csv header
-        self.tracking_sRate = getSampleRate(
-            sorted((self._obj.basePath / "position").glob("*.csv"))[0]
-        )
-        self.tracking_sf = 4
+        # ------- defining file names ---------
+        filePrefix = self._obj.files.filePrefix
 
-        self.import_posfile(tracking_sf)
+        @dataclass
+        class files:
+            position: str = Path(str(filePrefix) + "_position.npy")
 
-    def import_posfile(self, tracking_sf):
-        posfile = self._obj.files.position
-        if os.path.exists(posfile):
-            posInfo = self._load(posfile).item()
-            self.x = posInfo["x"] / tracking_sf
-            self.y = posInfo["y"] / tracking_sf
-            self.z = posInfo["z"] / tracking_sf
+        self.files = files()
+        self._load()
+
+    def _load(self):
+        if (f := self.files.position).is_file():
+            posInfo = np.load(f, allow_pickle=True).item()
+            self.x = posInfo["x"]
+            self.y = posInfo["y"]
+            self.z = posInfo["z"]
             self.t = posInfo["time"]  # in seconds
             self.datetime = posInfo["datetime"]  # in seconds
+            self.tracking_sRate = getSampleRate(
+                sorted((self._obj.basePath / "position").glob("*.csv"))[0]
+            )
             self.speed = np.sqrt(np.diff(self.x) ** 2 + np.diff(self.y) ** 2) / (
                 1 / self.tracking_sRate
             )
@@ -263,16 +270,19 @@ class ExtractPosition:
                 }
             )
 
-        else:
-            print("Position file does not exist....Run .getPosition to generate.")
-
-    def _load(self, posfile):
-        return np.load(posfile, allow_pickle=True)
-
     def __getitem__(self, epochs):
         pass
 
-    def getPosition(self, method="from_metadata"):
+    def getPosition(self, method="from_metadata", scale=1.0):
+        """get position data from files. All position related files should be in 'position' folder within basepath
+
+        Parameters
+        ----------
+        method : str, optional
+            [description], by default "from_metadata"
+        scale : float, optional
+            scale the extracted coordinates, by default 1.0
+        """
         sRate = self._obj.sampfreq  # .dat file sampling frequency
         lfpsRate = self._obj.lfpsRate  # .eeg file sampling frequency
         basePath = Path(self._obj.basePath)
@@ -381,14 +391,14 @@ class ExtractPosition:
         posz = np.asarray(posz)
 
         # -------- interpolating positions for recorded data ------------
-        xdata = np.interp(data_time, postime, posx)
-        ydata = np.interp(data_time, postime, posy)
-        zdata = np.interp(data_time, postime, posz)
+        xdata = np.interp(data_time, postime, posx) / scale
+        ydata = np.interp(data_time, postime, posy) / scale
+        zdata = np.interp(data_time, postime, posz) / scale
         time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
         posVar = {
             "x": xdata,
-            "y": zdata,  # as in optitrack the z coordinates gives the y information
-            "z": ydata,  # keep this data in case you are interested in rearing activity...
+            "y": zdata,
+            "z": ydata,  # keep this data in case you are interested in rearing activity
             "time": time,
             "datetime": data_time,
             "trackingsRate": self.tracking_sRate,
@@ -396,8 +406,8 @@ class ExtractPosition:
 
         np.save(self._obj.files.position, posVar)
 
-        # Low load this immediately into existence
-        self.import_posfile(self.tracking_sf)
+        # now load this immediately into existence
+        self._load()
 
     def plot(self):
 
@@ -441,8 +451,14 @@ def timestamps_from_oe(rec_folder, data_type="continuous"):
 
     # Loop through and establish timeframes for each file
     times_abs = []
-    for time, set, sync_file in zip(time_files, set_files, sync_files):
-        timedata, setdict = np.load(time), sxml.XML2Dict(set)  # load in data
+    for time, set_, sync_file in zip(time_files, set_files, sync_files):
+        # load data
+        timedata = np.load(time)
+        # myroot = ET.parse(set_).getroot()
+        # setdict = {}
+        # for elem in myroot[0]:
+        #     setdict[elem.tag] = elem.text
+        setdict = XML2Dict(set_)
         SRuse, sync_start = get_sync_info(sync_file)
 
         # Identify absolute start times of each file...
