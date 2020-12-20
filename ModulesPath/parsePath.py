@@ -173,9 +173,9 @@ class Recinfo:
             sampfreq = int(sf.find("samplingRate").text)
             nChans = int(sf.find("nChannels").text)
 
-        lfpsRate = None
+        lfpSrate = None
         for val in myroot.findall("fieldPotentials"):
-            lfpsRate = int(val.find("lfpSamplingRate").text)
+            lfpSrate = int(val.find("lfpSamplingRate").text)
 
         auxchans = np.setdiff1d(np.arange(nChans), np.concatenate(channelgroups))
         if auxchans.size == 0:
@@ -184,9 +184,9 @@ class Recinfo:
         if nShanks is None:
             nShanks = len(channelgroups)
 
-        nShanksProbe = nShanks
-        nProbes = len(nShanks)
-        nShanks = np.sum(nShanks)
+        nShanksProbe = [nShanks] if isinstance(nShanks, int) else nShanks
+        nProbes = len(nShanksProbe)
+        nShanks = np.sum(nShanksProbe)
 
         if motion is not None:
             pass
@@ -201,7 +201,7 @@ class Recinfo:
             "nShanksProbe": nShanksProbe,
             "subname": self.session.subname,
             "sessionName": self.session.sessionName,
-            "lfpsRate": lfpsRate,
+            "lfpSrate": lfpSrate,
             "badchans": badchans,
             "auxchans": auxchans,
             "skulleeg": skulleeg,
@@ -240,7 +240,7 @@ class Recinfo:
             eeg: [array of channels x timepoints]
         """
         eegfile = self.recfiles.eegfile
-        eegSrate = self.lfpsRate
+        eegSrate = self.lfpSrate
         nChans = self.nChans
 
         if timeRange is not None:

@@ -251,9 +251,7 @@ class ExtractPosition:
             self.z = posInfo["z"]
             self.t = posInfo["time"]  # in seconds
             self.datetime = posInfo["datetime"]  # in seconds
-            self.tracking_sRate = getSampleRate(
-                sorted((self._obj.basePath / "position").glob("*.csv"))[0]
-            )
+            self.tracking_sRate = posInfo["trackingsRate"]
             self.speed = np.sqrt(np.diff(self.x) ** 2 + np.diff(self.y) ** 2) / (
                 1 / self.tracking_sRate
             )
@@ -282,7 +280,6 @@ class ExtractPosition:
             scale the extracted coordinates, by default 1.0
         """
         sRate = self._obj.sampfreq  # .dat file sampling frequency
-        lfpsRate = self._obj.lfpsRate  # .eeg file sampling frequency
         basePath = Path(self._obj.basePath)
         metadata = self._obj.loadmetadata()
 
@@ -291,6 +288,9 @@ class ExtractPosition:
         # ------- collecting timepoints related to .dat file  --------
         data_time = []
         # transfer start times from the settings*.xml file and nframes in .dat file to each row of the metadata file
+        tracking_sRate = getSampleRate(
+            sorted((self._obj.basePath / "position").glob("*.csv"))[0]
+        )
         durations = []
         if method == "from_metadata":
             for i, file_time in enumerate(metadata["StartTime"][:nfiles]):
@@ -301,7 +301,7 @@ class ExtractPosition:
                 trange = pd.date_range(
                     start=tbegin,
                     end=tend,
-                    periods=int(duration.total_seconds() * self.tracking_sRate),
+                    periods=int(duration.total_seconds() * tracking_sRate),
                 )
                 data_time.extend(trange)
 
@@ -315,7 +315,7 @@ class ExtractPosition:
                 trange = pd.date_range(
                     start=tbegin,
                     end=tend,
-                    periods=int(duration.total_seconds() * self.tracking_sRate),
+                    periods=int(duration.total_seconds() * tracking_sRate),
                 )
                 data_time.extend(trange)
         data_time = pd.to_datetime(data_time)
@@ -372,7 +372,7 @@ class ExtractPosition:
 
                 # Get time ranges for position files
                 nframes_pos = getnframes(file)
-                duration = pd.Timedelta(nframes_pos / self.tracking_sRate, unit="sec")
+                duration = pd.Timedelta(nframes_pos / tracking_sRate, unit="sec")
                 tend = tbegin + duration
                 trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
 
@@ -392,14 +392,14 @@ class ExtractPosition:
         xdata = np.interp(data_time, postime, posx) / scale
         ydata = np.interp(data_time, postime, posy) / scale
         zdata = np.interp(data_time, postime, posz) / scale
-        time = np.linspace(0, len(xdata) / self.tracking_sRate, len(xdata))
+        time = np.linspace(0, len(xdata) / tracking_sRate, len(xdata))
         posVar = {
             "x": xdata,
             "y": zdata,
             "z": ydata,  # keep this data in case you are interested in rearing activity
             "time": time,
             "datetime": data_time,
-            "trackingsRate": self.tracking_sRate,
+            "trackingsRate": tracking_sRate,
         }
 
         np.save(self._obj.files.position, posVar)
@@ -424,6 +424,12 @@ class ExtractPosition:
         with filename.open("w") as f:
             for xpos, ypos in zip(x, y):
                 f.write(f"{xpos} {ypos}\n")
+
+    def theta_vs_speed(self):
+        pass
+
+    def ripple_location(self):
+        pass
 
 
 def timestamps_from_oe(rec_folder, data_type="continuous"):
