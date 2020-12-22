@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 import re
 from glob import glob
 from dataclasses import dataclass
+import csv
 
 
 def getSampleRate(fileName):
@@ -58,13 +59,37 @@ def getunits(fileName):
 
 def posfromCSV(fileName):
     """Import position data from OptiTrack CSV file"""
-    posdata = pd.read_csv(fileName, header=[2, 4, 5])
-    x0 = np.asarray(posdata["RigidBody", "Position", "X"])
-    y0 = np.asarray(posdata["RigidBody", "Position", "Y"])
-    z0 = np.asarray(posdata["RigidBody", "Position", "Z"])
-    t = np.asarray(
-        posdata.loc[:, ["Time (Seconds)" in _ for _ in posdata.keys()]]
-    ).reshape(-1)
+
+    # ---- auto select which columns have rigid body position -------
+    pos_columns = rigidbody_columns = None
+    with open(fileName, newline="") as csvfile:
+        reader = csv.reader(csvfile, delimiter=",")
+        line_count = 0
+        for row in reader:
+            if "Rigid Body" in row or "RigidBody" in row:
+                rigidbody_columns = np.where(np.array(row) == "Rigid Body")[0]
+
+            if "Position" in row:
+                pos_columns = np.where(np.array(row) == "Position")[0]
+                break
+            line_count += 1
+
+    rigidbody_pos_columns = np.intersect1d(pos_columns, rigidbody_columns)
+
+    # second column is time so append that
+    read_columns = np.append(1, rigidbody_pos_columns)
+
+    posdata = pd.read_csv(
+        fileName,
+        skiprows=line_count + 1,
+        skip_blank_lines=False,
+        usecols=read_columns,
+    )
+
+    t = np.asarray(posdata.iloc[:, 0])
+    x0 = np.asarray(posdata.iloc[:, 1])
+    y0 = np.asarray(posdata.iloc[:, 2])
+    z0 = np.asarray(posdata.iloc[:, 3])
 
     xfill, yfill, zfill = interp_missing_pos(x0, y0, z0, t)
 
@@ -213,7 +238,7 @@ def getStartTime(fileName):
             row1[i + 1] for i in range(len(row1)) if row1[i] == "Capture Start Time"
         ]
     # print(StartTime)
-    tbegin = datetime.strptime(StartTime[0], "%Y-%m-%d %H.%M.%S.%f %p")
+    tbegin = datetime.strptime(StartTime[0], "%Y-%m-%d %I.%M.%S.%f %p")
     return tbegin
 
 
@@ -335,9 +360,6 @@ class ExtractPosition:
             ]
 
             data_time = np.delete(data_time, del_index)
-            # data_time = data_time.indexer_between_time(
-            #     pd.Timestamp(tnoisy_end), pd.Timestamp(tnoisy_begin)
-            # )
 
         # ------- collecting timepoints related to position tracking ------
         posFolder = basePath / "position"
@@ -382,7 +404,6 @@ class ExtractPosition:
             posx.extend(x)
             posy.extend(y)
             posz.extend(z)
-
         postime = pd.to_datetime(postime[: len(posx)])
         posx = np.asarray(posx)
         posy = np.asarray(posy)
