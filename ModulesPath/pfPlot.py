@@ -12,7 +12,7 @@ from plotUtil import pretty_plot
 
 
 class pf:
-    def __init__(self, basepath, **kwargs):
+    def __init__(self, basepath):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
@@ -23,27 +23,25 @@ class pf:
 
 
 class pf1d:
-    def __init__(self, basepath, **kwargs):
+    def __init__(self, basepath):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
-        self._obj.position = ExtractPosition(basepath)
-        self._obj.spikes = Spikes(basepath)
-        self._obj.epochs = behavior_epochs(basepath)
 
-    def compute(self):
-        trackingSRate = self._obj.position.tracking_sRate
-        spks = self._obj.spikes.pyr
+    def compute(self, period):
+        assert len(period) == 2, "period should have length 2"
+        spikes = Spikes(self._obj)
+        position = ExtractPosition(self._obj)
 
-        xcoord = self._obj.position.x
-        ycoord = self._obj.position.y
+        trackingSRate = position.tracking_sRate
+        spks = spikes.pyr
+        xcoord = position.x
+        ycoord = position.y
 
-        time = self._obj.position.t
+        time = position.t
 
-        maze = self._obj.epochs.maze
-
-        ind_maze = np.where((time > maze[0]) & (time < maze[1]))
+        ind_maze = np.where((time > period[0]) & (time < period[1]))
         self.x = xcoord[ind_maze]
         self.y = ycoord[ind_maze]
         self.t = time[ind_maze]
@@ -67,7 +65,7 @@ class pf1d:
         spk_pfx, spk_pft = [], []
         for cell in spks:
 
-            spk_maze = cell[np.where((cell > maze[0]) & (cell < maze[1]))]
+            spk_maze = cell[np.where((cell > period[0]) & (cell < period[1]))]
             spk_spd = np.interp(spk_maze, self.t[:-1], self.speed)
             spk_x = np.interp(spk_maze, self.t, self.xlinear)
 
@@ -121,22 +119,39 @@ class pf2d:
         else:
             self._obj = Recinfo(basepath)
 
-    def compute(self, gridbin=10, speed_thresh=10):
-        """Calculate 2d placefields.  Gridbin in centimeters."""
+    def compute(self, period, gridbin=10, speed_thresh=10, smooth=2):
+        """Calculates 2D placefields
+
+        Parameters
+        ----------
+        period : list/array
+            in seconds, time period between which placefields are calculated
+        gridbin : int, optional
+            bin size of grid in centimeters, by default 10
+        speed_thresh : int, optional
+            speed threshold in cm/s, by default 10 cm/s
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        assert len(period) == 2, "period should have length 2"
+        spikes = Spikes(self._obj)
+        position = ExtractPosition(self._obj)
         # ------ Cell selection ---------
-        spkAll = self._obj.spikes.pyr
+        spkAll = spikes.pyr
         # spkinfo = self._obj.spikes.info
         # pyrid = np.where(spkinfo.q < 4)[0]
         # spkAll = [spkAll[_] for _ in pyrid]
 
         # ----- Position---------
-        xcoord = self._obj.position.x
-        ycoord = self._obj.position.y
-        time = self._obj.position.t
-        maze = [self._obj.epochs.maze[0], self._obj.epochs.maze[1]]  # in seconds
-        trackingRate = self._obj.position.tracking_sRate
+        xcoord = position.x
+        ycoord = position.y
+        time = position.t
+        trackingRate = position.tracking_sRate
 
-        ind_maze = np.where((time > maze[0]) & (time < maze[1]))
+        ind_maze = np.where((time > period[0]) & (time < period[1]))
         x = xcoord[ind_maze]
         y = ycoord[ind_maze]
         t = time[ind_maze]
@@ -149,7 +164,7 @@ class pf2d:
         diff_posy = np.diff(y)
 
         speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / (1 / trackingRate)
-        speed = gaussian_filter1d(speed, sigma=2)
+        speed = gaussian_filter1d(speed, sigma=smooth)
         print(np.ptp(speed))
         dt = t[1] - t[0]
         running = np.where(speed / dt > speed_thresh)[0]
@@ -177,7 +192,7 @@ class pf2d:
 
                 # Calculate maps
                 spk_map = np.histogram2d(spk_x, spk_y, bins=(x_grid_, y_grid_))[0]
-                spk_map = gaussian_filter(spk_map, sigma=2)
+                spk_map = gaussian_filter(spk_map, sigma=smooth)
                 maps.append(spk_map / occupancy_)
 
                 spk_t.append(spk_maze[spd_ind])
@@ -187,10 +202,10 @@ class pf2d:
 
         occupancy = np.histogram2d(x, y, bins=(x_grid, y_grid))[0]
         occupancy = occupancy / trackingRate + 10e-16  # converting to seconds
-        occupancy = gaussian_filter(occupancy, sigma=2)
+        occupancy = gaussian_filter(occupancy, sigma=smooth)
 
         maps, spk_pos, spk_t = make_pfs(
-            t, x, y, spkAll, occupancy, 0, maze, x_grid, y_grid
+            t, x, y, spkAll, occupancy, 0, period, x_grid, y_grid
         )
 
         run_occupancy = np.histogram2d(x_thresh, y_thresh, bins=(x_grid, y_grid))[0]
@@ -200,33 +215,8 @@ class pf2d:
         )  # NRK todo: might need to normalize this so that total occupancy adds up to 1 here...
 
         run_maps, run_spk_pos, run_spk_t = make_pfs(
-            t, x, y, spkAll, run_occupancy, speed_thresh, maze, x_grid, y_grid
+            t, x, y, spkAll, run_occupancy, speed_thresh, period, x_grid, y_grid
         )
-
-        # spk_pfx, spk_pfy, spk_pft = [], [], []
-        # pf, spk_pos, spk_t = [], [], []
-        # for cell in spkAll:
-        #
-        #     spk_maze = cell[np.where((cell > maze[0]) & (cell < maze[1]))]
-        #     spk_speed = np.interp(spk_maze, t[1:], speed)
-        #     spk_y = np.interp(spk_maze, t, y)
-        #     spk_x = np.interp(spk_maze, t, x)
-        #
-        #     spk_map = np.histogram2d(spk_x, spk_y, bins=(x_grid, y_grid))[0]
-        #     spk_map = gaussian_filter(spk_map, sigma=2)
-        #     pf.append(spk_map / occupancy)
-        #
-        #     # speed threshold
-        #     spd_ind = np.where(spk_speed > 0)
-        #     spk_spd = spk_speed[spd_ind]
-        #     spk_x = spk_x[spd_ind]
-        #     spk_y = spk_y[spd_ind]
-        #     spk_t.append(spk_maze[spd_ind])
-        #     spk_pos.append([spk_x, spk_y])
-        #
-        #     # spk_pfx.append(spk_x)
-        #     # spk_pfy.append(spk_y)
-        #     # spk_pft.append(spk_t)
 
         # NRK todo: might be nicer to make spk_pos, spk_t, maps, and occupancy into two separate dicts: no thresh, speed_thresh
         self.spk_pos = spk_pos
@@ -244,23 +234,51 @@ class pf2d:
         self.xgrid = x_grid
         self.ygrid = y_grid
         self.speed_thresh = speed_thresh
-        # self.spkx = spk_pfx
-        # self.spky = spk_pfy
-        # self.spkt = spk_pft
 
-    def plotMap(self, speed_thresh=False, subplots=(10, 8), fignum=None):
-        plt.clf()
-        fig = plt.figure(fignum, figsize=(6, 10))
-        gs = GridSpec(subplots[0], subplots[1], figure=fig)
-        fig.subplots_adjust(hspace=0.4)
+    def plotMap(self, speed_thresh=False, subplots=(7, 4), fignum=None):
+        """Plots heatmaps of placefields with peak firing rate
 
+        Parameters
+        ----------
+        speed_thresh : bool, optional
+            [description], by default False
+        subplots : tuple, optional
+            number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
+        fignum : int, optional
+            figure number to start from, by default None
+        """
+
+        map_use = thresh = None
         if speed_thresh:
             map_use, thresh = self.run_maps, self.speed_thresh
         elif not speed_thresh:
             map_use, thresh = self.maps, 0
 
+        nCells = len(map_use)
+        nfigures = nCells // np.prod(subplots) + 1
+
+        if fignum is None:
+            if (f := plt.get_fignums()) :
+                fignum = f[-1] + 1
+            else:
+                fignum = 1
+
+        figures, gs = [], []
+        for fig_ind in range(nfigures):
+            fig = plt.figure(fignum + fig_ind, figsize=(6, 10), clear=True)
+            gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
+            fig.subplots_adjust(hspace=0.4)
+            fig.suptitle(
+                "Place maps with peak firing rate (speed_threshold = "
+                + str(thresh)
+                + ")"
+            )
+            figures.append(fig)
+
         for cell, pfmap in enumerate(map_use):
-            ax1 = fig.add_subplot(gs[cell])
+            ind = cell // np.prod(subplots)
+            subplot_ind = cell % np.prod(subplots)
+            ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
             im = ax1.pcolorfast(
                 self.xgrid,
                 self.ygrid,
@@ -272,13 +290,9 @@ class pf2d:
             ax1.axis("off")
             ax1.set_title(f"{round(np.nanmax(pfmap),2)} Hz")
 
-        # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-        # cbar = fig.colorbar(im, cax=cbar_ax)
-        # cbar.set_label("firing rate (Hz)")
-
-        fig.suptitle(
-            "Place maps with peak firing rate (speed_threshold = " + str(thresh) + ")"
-        )
+            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
+            # cbar = fig.colorbar(im, cax=cbar_ax)
+            # cbar.set_label("firing rate (Hz)")
 
     def plotRaw(
         self,

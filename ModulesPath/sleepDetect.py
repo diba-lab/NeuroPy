@@ -18,41 +18,6 @@ import signal_process
 from artifactDetect import findartifact
 
 
-def genepoch(start, end):
-
-    if start[0] > end[0]:
-        end = end[1:]
-
-    if start[-1] > end[-1]:
-        start = start[:-1]
-
-    firstPass = np.vstack((start, end)).T
-
-    # ===== merging close ripples
-    minInterSamples = 20
-    secondPass = []
-    state = firstPass[0]
-    for i in range(1, len(firstPass)):
-        if firstPass[i, 0] - state[1] < minInterSamples:
-            # Merging states
-            state = [state[0], firstPass[i, 1]]
-        else:
-            secondPass.append(state)
-            state = firstPass[i]
-
-    secondPass.append(state)
-    secondPass = np.asarray(secondPass)
-
-    state_duration = np.diff(secondPass, axis=1)
-
-    # delete very short ripples
-    minstateDuration = 90
-    shortRipples = np.where(state_duration < minstateDuration)[0]
-    thirdPass = np.delete(secondPass, shortRipples, 0)
-
-    return thirdPass
-
-
 def hmmfit1d(Data):
     # hmm states on 1d data and returns labels with highest mean = highest label
     flag = None
@@ -108,6 +73,8 @@ def hmmfit1d(Data):
 
 class SleepScore:
     # TODO add support for bad time points
+    # colors = [NREM, REM, Quiet, Wake]
+    colors = ["#6b90d1", "#eb9494", "#b6afaf", "#474343"]
 
     def __init__(self, basepath):
 
@@ -149,13 +116,13 @@ class SleepScore:
         state = np.zeros(len(theta_delta))
         for i, (ratio, delta, emg) in enumerate(zip(theta_delta, delta_l, emg_l)):
 
-            if ratio == 1 and emg == 1:
+            if ratio == 1 and emg == 1:  # active wake
                 state[i] = 4
-            elif ratio == 0 and emg == 1:
+            elif ratio == 0 and emg == 1:  # quiet wake
                 state[i] = 3
-            elif ratio == 1 and emg == 0:
+            elif ratio == 1 and emg == 0:  # REM
                 state[i] = 2
-            elif ratio == 0 and emg == 0:
+            elif ratio == 0 and emg == 0:  # NREM
                 state[i] = 1
 
         return state
@@ -230,6 +197,20 @@ class SleepScore:
         return statetime
 
     def detect(self, chans=None, window=1, overlap=0.2, emgfile=False):
+        """detects sleep states for the recording
+
+        Parameters
+        ----------
+        chans : int, optional
+            channel you want to use for sleep detection, by default None
+        window : int, optional
+            bin size, by default 1
+        overlap : float, optional
+            seconds of overlap between adjacent window , by default 0.2
+        emgfile : bool, optional
+            if True load the emg file in the basepath, by default False
+
+        """
         artifact = findartifact(self._obj)
         sRate = self._obj.lfpSrate
 
@@ -261,38 +242,19 @@ class SleepScore:
         gamma = bands.gamma
         ripple = bands.ripple
         theta_deltaplus_ratio = theta / deltaplus
-        sxx = stats.zscore(bands.sxx, axis=None)  # zscored only for visualization
         print(f"spectral properties calculated")
-        print(emg.shape, theta_deltaplus_ratio.shape)
 
-        deadfile = artifact.files.dead
-        if deadfile.is_file():
-            with deadfile.open("r") as f:
-                noisy = []
-                for line in f:
-                    epc = line.split(" ")
-                    epc = [float(_) for _ in epc]
-                    noisy.append(epc)
-                noisy = np.asarray(noisy) / 1000  # seconds
-
+        if (noisy := artifact.time) :
             noisy_timepoints = []
             for noisy_ind in range(noisy.shape[0]):
                 st = noisy[noisy_ind, 0]
                 en = noisy[noisy_ind, 1]
-                # numnoisy = en - st
                 noisy_indices = np.where((time > st) & (time < en))[0]
                 noisy_timepoints.extend(noisy_indices)
 
-            # noisy_boolean = np.zeros(len(deltaplus))
-            # noisy_boolean[noisy_timepoints] = np.ones(len(noisy_timepoints))
             theta_deltaplus_ratio[noisy_timepoints] = np.nan
             emg[noisy_timepoints] = np.nan
             deltaplus[noisy_timepoints] = np.nan
-
-            # emg = np.asarray(pd.Series.fillna(pd.Series(emg), method="bfill"))
-            # theta_deltaplus_ratio = np.asarray(
-            #     pd.Series.fillna(pd.Series(theta_deltaplus_ratio), method="bfill")
-            # )
 
         deltaplus_label = hmmfit1d(deltaplus)
         theta_deltaplus_label = hmmfit1d(theta_deltaplus_ratio)
@@ -336,79 +298,90 @@ class SleepScore:
         data.to_pickle(self.files.stateparams)
         statetime_new.to_pickle(self.files.states)
 
-        return data, sxx, statetime_new
+    def _emgfromlfp(self, window, overlap, n_jobs=8):
+        """Calculating emg
 
-    def _emgfromlfp(self, window, overlap):
-        print("calculating emg")
+        Parameters
+        ----------
+        window : int
+            window size in seconds
+        overlap : float
+            overlap between windows in seconds
+        n_jobs: int,
+            number of cpu/processes to use
+
+        Returns
+        -------
+        array
+            emg calculated at each time window
+        """
+        print("starting emg calculation")
         highfreq = 600
         lowfreq = 300
         sRate = self._obj.lfpSrate
-        nChans = self._obj.nChans
-        nyq = 0.5 * sRate
-        # window = window * sRate
-        # overlap = overlap * sRate
         nProbes = self._obj.nProbes
         changrp = self._obj.goodchangrp
         nShanksProbe = self._obj.nShanksProbe
-
-        # ---- filtering for high frequency band --------
         probesid = np.concatenate([[_] * nShanksProbe[_] for _ in range(nProbes)])
-        max_shanks_probe = [np.min([2, _]) for _ in nShanksProbe]
-        selected_shanks = []
-        for probe in range(nProbes):
-            shanks_in_probe = [
-                changrp[_] for _ in np.where(probesid == probe)[0] if changrp[_]
-            ]
-            selected_shanks.append(
-                np.concatenate(
-                    np.random.choice(
-                        shanks_in_probe, max_shanks_probe[probe], replace=False
-                    )
-                )
-            )
+
+        # ----selecting a fixed number of shanks from each probe-----
+        # max_shanks_probe = [np.min([3, _]) for _ in nShanksProbe]
+        # selected_shanks = []
+        # for probe in range(nProbes):
+        #     shanks_in_probe = [
+        #         changrp[_] for _ in np.where(probesid == probe)[0] if changrp[_]
+        #     ]
+        #     selected_shanks.append(
+        #         np.concatenate(
+        #             np.random.choice(
+        #                 shanks_in_probe, max_shanks_probe[probe], replace=False
+        #             )
+        #         )
+        #     )
+
+        # ---- selecting probe with most number of shanks -------
+        which_probe = np.argmax(nShanksProbe)
+        selected_shanks = np.where(probesid == which_probe)[0]
+        # making sure shanks are not empty
+        selected_shanks = [changrp[_] for _ in selected_shanks if changrp[_]]
 
         emgChans = np.concatenate(selected_shanks)
         nemgChans = len(emgChans)
-
         eegdata = self._obj.geteeg(chans=0)
         total_duration = len(eegdata) / sRate
-        b, a = sg.butter(3, [lowfreq / nyq, highfreq / nyq], btype="bandpass")
-        # nframes = len(eegdata)
 
-        # windowing signal
-        # frames = np.arange(0, nframes - window, window - overlap)
         timepoints = np.arange(0, total_duration - window, window - overlap)
 
-        # def corrchan(start):
-        #     start_frame = int(start)
-        #     end_frame = start_frame + window
-        #     lfp_req = eegdata[start_frame:end_frame, emgChans]
-        #     yf = sg.filtfilt(b, a, lfp_req, axis=0).T
-        #     ltriang = np.tril_indices(nemgChans, k=-1)
-        #     return np.corrcoef(yf)[ltriang].mean()
-
+        # ---- Mean correlation across all selected channels calculated in parallel --
         def corrchan(start):
             lfp_req = np.asarray(
                 self._obj.geteeg(chans=emgChans, timeRange=[start, start + window])
             )
-
-            # yf = sg.filtfilt(b, a, lfp_req, axis=-1)
             yf = signal_process.filter_sig.bandpass(
                 lfp_req, lf=lowfreq, hf=highfreq, fs=sRate
             )
             ltriang = np.tril_indices(nemgChans, k=-1)
             return np.corrcoef(yf)[ltriang].mean()
 
-        corr_per_frame = Parallel(n_jobs=8, require="sharedmem")(
+        corr_per_frame = Parallel(n_jobs=n_jobs, require="sharedmem")(
             delayed(corrchan)(start) for start in timepoints
         )
         emg_lfp = np.asarray(corr_per_frame)
 
         np.save(self.files.emg, emg_lfp)
-
+        print("emg calculation done")
         return emg_lfp
 
-    def addBackgroundtoPlots(self, tstart=0, ax=None):
+    def addBackgroundtoPlots(self, ax, tstart=0):
+        """This helps to quickly add background to existing plots according to brainstates. For example, if you want to overlay replay on top of sleep states
+
+        Parameters
+        ----------
+        ax : axis object
+            axis of plot to which background is added
+        tstart : int, optional
+            tstart is zero of x-axis
+        """
         states = self.states
         x = (np.asarray(states.start) - tstart) / 3600
 
@@ -417,8 +390,7 @@ class SleepScore:
         height = np.ones(len(x)) * 1.3
         qual = states.state
 
-        colors = ["#6b90d1", "#eb9494", "#b6afaf", "#474343"]
-        col = [colors[int(state) - 1] for state in states.state]
+        col = [self.colors[int(state) - 1] for state in states.state]
 
         make_boxes(ax, x, y, width, height, facecolor=col)
 
@@ -426,7 +398,6 @@ class SleepScore:
         states = self.states
         params = self.params
         post = self._obj.epochs.post
-        lfpSrate = self._obj.lfpSrate
         lfp = self._obj.spindle.best_chan_lfp()[0]
         spec = signal_process.spectrogramBands(lfp, window=5)
 
@@ -439,8 +410,7 @@ class SleepScore:
         y = np.zeros(len(x)) + np.asarray(states.state)
         width = np.asarray(states.duration)
         height = np.ones(len(x))
-        colors = ["#6b90d1", "#eb9494", "#b6afaf", "#474343"]
-        col = [colors[int(state) - 1] for state in states.state]
+        col = [self.colors[int(state) - 1] for state in states.state]
         make_boxes(axhypno, x, y, width, height, facecolor=col)
         axhypno.set_xlim(0, post[1])
         axhypno.set_ylim(1, 5)
@@ -503,7 +473,10 @@ class SleepScore:
 
         if unit == "s":
             make_boxes(ax1, x, y, width, height, facecolor=col)
+            # ax1.set_xlim([0, np.max(x)])
         if unit == "h":
             make_boxes(ax1, x / 3600, y, width / 3600, height, facecolor=col)
-        ax1.set_ylim(1, 5)
+            # ax1.set_xlim([0, np.max(x) / 3600])
+        ax1.set_ylim([1, 5])
         ax1.axis("off")
+        return ax1
