@@ -221,6 +221,7 @@ class Spikes:
         ax.set_ylabel("Units")
 
     def plot_ccg(self, clus_use, type='all', bin_size=0.001, window_size=0.05, ax=None):
+
         """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
         type: 'all' or 'ccg_only'.
         ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type'all'"""
@@ -241,13 +242,18 @@ class Spikes:
                 clus_all[spikes_all.argsort()],
             )
 
-            return spikes_sorted, clus_sorted.astype('int')
+            return spikes_sorted, clus_sorted.astype("int")
 
         spikes_sorted, clus_sorted = ccg_spike_assemble(clus_use)
-        ccgs = correlograms(spikes_sorted, clus_sorted, sample_rate=self._obj.sampfreq,
-                            bin_size=bin_size, window_size=window_size)
+        ccgs = correlograms(
+            spikes_sorted,
+            clus_sorted,
+            sample_rate=self._obj.sampfreq,
+            bin_size=bin_size,
+            window_size=window_size,
+        )
 
-        if type == 'ccgs_only':
+        if type == "ccgs_only":
             ccgs = ccgs[0, 1, :].reshape(1, 1, -1)
 
         if ax is None:
@@ -256,7 +262,7 @@ class Spikes:
         winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
         bins = np.linspace(0, 1, winsize_bins)
         for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
-            a.bar(bins, ccg, width=1/(winsize_bins-1))
+            a.bar(bins, ccg, width=1 / (winsize_bins - 1))
             a.set_xticks([0, 1])
             a.set_xticklabels(np.ones((2,))*np.round(window_size/2, 2))
             a.set_xlabel('Time (s)')

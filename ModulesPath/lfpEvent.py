@@ -224,9 +224,9 @@ class Ripple:
         goodChans = self._obj.goodchans  # keeps order
 
         # --- filter and hilbert amplitude for each channel --------
-        avgRipple = np.zeros(lfpCA1.shape[0])
-        for i in range(lfpCA1.shape[0]):
-            rippleband = signal_process.filter_sig.ripple(lfpCA1[i])
+        avgRipple = np.zeros(len(lfpCA1))
+        for i, lfp in enumerate(lfpCA1):
+            rippleband = signal_process.filter_sig.ripple(lfp)
             amplitude_envelope = np.abs(signal_process.hilbertfast(rippleband))
             avgRipple[i] = np.mean(amplitude_envelope, axis=0)
 
@@ -289,13 +289,13 @@ class Ripple:
 
         eeg = self._obj.geteeg(chans=bestchans)
         zscsignal = []
-        sharpWv_sig = np.zeros(eeg.shape[-1])
-        for i in range(len(bestchans)):
-            yf = signal_process.filter_sig.bandpass(eeg[i, :], lf=lowFreq, hf=highFreq)
+        sharpWv_sig = np.zeros(eeg[0].shape[-1])
+        for lfp in eeg:
+            yf = signal_process.filter_sig.bandpass(lfp, lf=lowFreq, hf=highFreq)
             zsc_chan = stats.zscore(np.abs(signal_process.hilbertfast(yf)))
             zscsignal.append(zsc_chan)
 
-            broadband = signal_process.filter_sig.bandpass(eeg[i, :], lf=2, hf=50)
+            broadband = signal_process.filter_sig.bandpass(lfp, lf=2, hf=50)
             sharpWv_sig += stats.zscore(np.abs(signal_process.hilbertfast(broadband)))
         zscsignal = np.asarray(zscsignal)
 
@@ -385,7 +385,6 @@ class Ripple:
 
         # ----- converting to all time stamps to seconds --------
         ripples[["start", "end", "peakSharpWave", "peaktime"]] /= SampFreq  # seconds
-        ripples.duration = ripples.duration / 1000  # seconds
 
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -416,93 +415,89 @@ class Ripple:
                     f"{event.start*1000} start\n{event.peakSharpWave*1000} peakSW\n{event.end*1000} end\n"
                 )
 
-    def plot(self):
-        """Gives a comprehensive view of the detection process with some statistics and examples"""
-        _, _, coords = self.best_chan_lfp()
-        probemap = self._obj.recinfo.probemap()
-        nChans = self._obj.recinfo.nChans
-        changrp = self._obj.recinfo.channelgroups
-        chosenShank = changrp[1] + changrp[2]
-        times = self.time
-        peakpower = self.peakpower
-        eegfile = self._obj.sessinfo.recfiles.eegfile
-        eegdata = np.memmap(eegfile, dtype="int16", mode="r")
-        eegdata = np.memmap.reshape(eegdata, (int(len(eegdata) / nChans), nChans))
-        eegdata = eegdata[:, chosenShank]
+    def plot(self, random=False):
+        """Plots 10 of detected ripples across two randomly selected shanks with their filtered lfp
 
-        sort_ind = np.argsort(peakpower)
-        peakpower = peakpower[sort_ind]
-        times = times[sort_ind, :]
-        rpl_duration = np.diff(times, axis=1) * 1000  # in ms
-        frames = times * 1250
-        nripples = len(peakpower)
-
+        Parameters
+        ----------
+        random : bool, optional
+            if True then randomly plots 10 ripples, by default False then it plots 5 weakest and 5 strongest ripples
+        """
         fig = plt.figure(1, figsize=(6, 10))
         gs = gridspec.GridSpec(3, 10, figure=fig)
         fig.subplots_adjust(hspace=0.5)
 
-        ripple_to_plot = list(range(5)) + list(range(nripples - 5, nripples))
+        changrp = [shank for shank in self._obj.goodchangrp if shank]
+        channels = np.concatenate(np.random.choice(changrp, 2))  # random 2 shanks
+        ripples = self.events
+        peakpower = self.events.peakNormalizedPower.values
+        params = self.params
+
+        # --- sorting ripples by peakpower ------
+        sort_ind = np.argsort(peakpower)
+
+        # ---- selecting few ripples to plot -----------
+        if random:
+            ripple_to_plot = np.random.choice(sort_ind, 10)
+        else:
+            ripple_to_plot = np.concatenate((sort_ind[:5], sort_ind[-5:]))
+
+        # ------ plotting ripples and filtered lfp -----------
         for ind, ripple in enumerate(ripple_to_plot):
-            print(ripple)
-            start = int(frames[ripple, 0])
-            end = int(frames[ripple, 1])
-            lfp = stats.zscore(eegdata[start:end, :])
-            ripplebandlfp = signal_process.filter_sig.ripple(lfp)
-            # lfp = (lfp.T - np.median(lfp, axis=1)).T
-            lfp = lfp + np.linspace(40, 0, lfp.shape[1])
-            ripplebandlfp = ripplebandlfp + np.linspace(40, 0, lfp.shape[1])
-            duration = (lfp.shape[0] / 1250) * 1000  # in ms
-
-            # if ripple < 5:
-            #     row = 1
-            # else:
-            #     row = 2
-            #     ind = ind - 5
-
-            ax = fig.add_subplot(gs[1, ind])
-            ax.plot(lfp, "#fa761e", linewidth=0.8)
-            ax.set_title(
-                f"zsc = {round(peakpower[ripple],2)}, {round(duration)} ms", loc="left"
+            lfp = np.asarray(
+                self._obj.geteeg(
+                    chans=channels,
+                    timeRange=[ripples.loc[ripple].start, ripples.loc[ripple].end],
+                )
             )
-            ax.set_xlim([0, self.maxRippleDuration / 1000 * 1250])
+            lfp = stats.zscore(lfp)
+            filtlfp = signal_process.filter_sig.ripple(lfp)
+
+            lfp = lfp + np.linspace(40, 0, lfp.shape[0])[:, np.newaxis]
+            ax = fig.add_subplot(gs[1, ind])
+            ax.plot(lfp.T, "#fa761e", linewidth=0.8)
+            ax.set_title(
+                f"zsc = {round(peakpower[ripple],2)}, {round(ripples.loc[ripple].duration*1000)} ms",
+                loc="left",
+            )
             ax.axis("off")
 
+            filtlfp = filtlfp + np.linspace(40, 0, lfp.shape[0])[:, np.newaxis]
             ax = fig.add_subplot(gs[2, ind])
-            ax.plot(ripplebandlfp, linewidth=0.8, color="#594f4f")
-            # ax.set_title(f"{round(peakpower[ripple],2)}")
-            ax.set_xlim([0, self.maxRippleDuration / 1000 * 1250])
+            ax.plot(filtlfp.T, linewidth=0.8, color="#594f4f")
             ax.axis("off")
 
+        # ------ plotting parameters used during detection ----------
         ax = fig.add_subplot(gs[0, 0])
         ax.text(
             0,
             0.8,
-            f" highThresh ={self.highthresholdFactor}\n lowThresh ={self.lowthresholdFactor}\n minDuration = {self.minRippleDuration}\n maxDuration = {self.maxRippleDuration} \n mergeRipple = {self.mergeDistance} \n #Ripples = {len(peakpower)}",
+            f" highThresh ={params['highThresh']}\n lowThresh ={params['lowThres']}\n minDuration = {params['minDuration']}\n maxDuration = {params['maxDuration']} \n mergeRipple = {params['mergeDistance']} \n #Ripples = {len(peakpower)}",
         )
         ax.axis("off")
 
+        # ----- plotting channels used for detection --------
         ax = fig.add_subplot(gs[0, 1:4])
-        coords = np.asarray(coords)
-        ax.plot(probemap[0], probemap[1], ".", color="#cdc6c6")
-        ax.plot(coords[:, 0], coords[:, 1], "r.")
-        ax.axis("off")
+        self._obj.probemap.plot(self.bestchans, ax=ax)
         ax.set_title("selected channel")
 
+        # ---- peaknormalized power distribution plot ---------
         ax = fig.add_subplot(gs[0, 5])
         histpower, edgespower = np.histogram(peakpower, bins=100)
         ax.plot(edgespower[:-1], histpower, color="#544a4a")
         ax.set_xlabel("Zscore value")
         ax.set_ylabel("Counts")
-        # ax.set_yscale("log")
+        ax.set_yscale("log")
 
+        # ----- distribution of ripple duration ---------
         ax = fig.add_subplot(gs[0, 6])
-        histdur, edgesdur = np.histogram(rpl_duration, bins=100)
+        histdur, edgesdur = np.histogram(ripples.duration * 1000, bins=100)
         ax.plot(edgesdur[:-1], histdur, color="#544a4a")
         ax.set_xlabel("Duration (ms)")
         # ax.set_ylabel("Counts")
-        # ax.set_yscale("log")
+        ax.set_yscale("log")
 
-        subname = self._obj.sessinfo.session.subname
+        subname = self._obj.session.subname
         fig.suptitle(f"Ripple detection of {subname}")
 
 

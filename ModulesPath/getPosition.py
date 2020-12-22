@@ -107,7 +107,7 @@ def posfromFBX(fileName):
             m = "".join(line)
 
             if "KeyCount" in m:
-                print("Line 87 break at i = " + str(i))
+                # print("break at i = " + str(i))
                 track_begin = i + 2
                 line_frame = linecache.getline(fileName, i + 2).strip().split(" ")
                 total_frames = int(line_frame[1]) - 1
@@ -139,9 +139,10 @@ def posfromFBX(fileName):
         for line in f:
 
             if "KeyCount" in line:
-                print("Line 119 break at i = " + str(i))
+                # print("break at i = " + str(i))
                 break
-            # else:
+            # else:  # NRK note: this errors out unpredictably on my computer. Is it necessary? doesn't the for break
+            # automatically move onto the next line of code once you reach a "KeyCount" in the line being read?
             #     next(f)
 
         pos1 = []
@@ -167,7 +168,7 @@ def posfromFBX(fileName):
         for line in f:
 
             if "KeyCount" in line:
-                print("Line 147 break at i = " + str(i))
+                # print("break at i = " + str(i))
                 break
             # else:
             #     next(f)
@@ -367,7 +368,6 @@ class ExtractPosition:
                 tend = tbegin + duration
                 trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
 
-                # NRK todo: add try/except statement to use .csv file if there, otherwise use FBX file.
                 x, y, z = posfromFBX(file.with_suffix(".fbx"))
 
                 postime.extend(trange)

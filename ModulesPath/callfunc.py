@@ -45,7 +45,6 @@ class processData:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
 
-
 if __name__ == "__main__":
     sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined')
     sess.placefield.pf2d.compute(gridbin=2, speed_thresh=10)
