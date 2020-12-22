@@ -473,9 +473,10 @@ class SleepScore:
 
         if unit == "s":
             make_boxes(ax1, x, y, width, height, facecolor=col)
+            # ax1.set_xlim([0, np.max(x)])
         if unit == "h":
             make_boxes(ax1, x / 3600, y, width / 3600, height, facecolor=col)
+            # ax1.set_xlim([0, np.max(x) / 3600])
         ax1.set_ylim([1, 5])
-        ax1.set_xlim([0, np.max(x)])
         ax1.axis("off")
         return ax1
