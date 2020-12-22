@@ -10,6 +10,7 @@ import matplotlib as mpl
 from parsePath import Recinfo
 from behavior import behavior_epochs
 from ccg import correlograms
+from plotUtil import pretty_plot
 
 
 class Spikes:
@@ -219,7 +220,7 @@ class Spikes:
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Units")
 
-    def plot_ccg(self, clus_use, type='all', bin_size=0.05, window_size=0.5, ax=None):
+    def plot_ccg(self, clus_use, type='all', bin_size=0.001, window_size=0.05, ax=None):
         """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
         type: 'all' or 'ccg_only'.
         ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type'all'"""
@@ -258,6 +259,9 @@ class Spikes:
             a.bar(bins, ccg, width=1/(winsize_bins-1))
             a.set_xticks([0, 1])
             a.set_xticklabels(np.ones((2,))*np.round(window_size/2, 2))
+            a.set_xlabel('Time (s)')
+            a.set_ylabel('Spike Count')
+            pretty_plot(a)
 
         return ax
 

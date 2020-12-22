@@ -287,18 +287,34 @@ class pf2d:
         fignum=None,
         alpha=0.5,
         label_cells=False,
+        ax=None,
+        clus_use=None,
     ):
-        fig = plt.figure(fignum, figsize=(6, 10))
-        gs = GridSpec(subplots[0], subplots[1], figure=fig)
-        # fig.subplots_adjust(hspace=0.4)
+        if ax is None:
+            fig = plt.figure(fignum, figsize=(6, 10))
+            gs = GridSpec(subplots[0], subplots[1], figure=fig)
+            # fig.subplots_adjust(hspace=0.4)
+        else:
+            assert len(ax) == len(clus_use), "Number of axes must match number of clusters to plot"
+            fig = ax[0].get_figure()
+
+
 
         if not speed_thresh:
             spk_pos_use = self.spk_pos
         elif speed_thresh:
             spk_pos_use = self.run_spk_pos
 
+        if clus_use is not None:
+            spk_pos_tmp = spk_pos_use
+            spk_pos_use = []
+            [spk_pos_use.append(spk_pos_tmp[a]) for a in clus_use]
+
         for cell, (spk_x, spk_y) in enumerate(spk_pos_use):
-            ax1 = fig.add_subplot(gs[cell])
+            if ax is None:
+                ax1 = fig.add_subplot(gs[cell])
+            else:
+                ax1 = ax[cell]
             ax1.plot(self.x, self.y, color="#d3c5c5")
             ax1.plot(spk_x, spk_y, ".r", markersize=0.8, color=[1, 0, 0, alpha])
             ax1.axis("off")
@@ -316,9 +332,10 @@ class pf2d:
                 "Place maps for cells with their peak firing rate (no speed threshold)"
             )
 
-    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5):
-        fig, ax = plt.subplots(2, 1, sharex=True)
-        fig.set_size_inches([23, 9.7])
+    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(2, 1, sharex=True)
+            fig.set_size_inches([23, 9.7])
 
         # plot trajectories
         for a, pos, ylabel in zip(
@@ -340,7 +357,8 @@ class pf2d:
             a.plot(spk_t_[cellind], pos, "r.", color=[1, 0, 0, alpha])
 
         # Put info on title
-        info = self._obj.spikes.info.iloc[cellind]
+        ipbool = self._obj.spikes.pyrid[cellind] == self._obj.spikes.info.index
+        info = self._obj.spikes.info.iloc[ipbool]
         ax[0].set_title(
             "Cell "
             + str(info["id"])
@@ -349,3 +367,21 @@ class pf2d:
             + ", speed_thresh="
             + str(self.speed_thresh)
         )
+
+    def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
+        if fig is None:
+            fig_use = plt.figure(figsize=[28.25, 11.75])
+        else:
+            fig_use = fig
+        gs = GridSpec(2, 4, figure=fig_use)
+        ax2d = fig_use.add_subplot(gs[0, 0])
+        axccg = np.asarray(fig_use.add_subplot(gs[1, 0]))
+        axx = fig_use.add_subplot(gs[0, 1:])
+        axy = fig_use.add_subplot(gs[1, 1:], sharex=axx)
+
+        self.plotRaw(speed_thresh=speed_thresh, clus_use=[cellind], ax=[ax2d])
+        self.plotRaw_v_time(cellind, speed_thresh=speed_thresh, ax=[axx, axy], alpha=alpha)
+        self._obj.spikes.plot_ccg(clus_use=[cellind], type='acg', ax=axccg)
+
+        return fig_use
+
