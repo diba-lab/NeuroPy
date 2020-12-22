@@ -151,6 +151,10 @@ class Recinfo:
         if motion is None:
             motion = []
 
+        skulleeg = list(skulleeg)
+        emg = list(emg)
+        motion = list(motion)
+
         myroot = ET.parse(self.recfiles.xmlfile).getroot()
 
         chan_session, channelgroups, badchans = [], [], []

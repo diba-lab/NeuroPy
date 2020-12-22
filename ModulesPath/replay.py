@@ -8,6 +8,7 @@ from mathutil import parcorr_mult, getICA_Assembly
 import scipy.stats as stats
 import matplotlib.gridspec as gridspec
 from parsePath import Recinfo
+from getSpikes import Spikes
 
 
 class Replay:
@@ -121,11 +122,13 @@ class ExplainedVariance:
 
     # TODO  smooth version of explained variance
     def compute(self, template=None, match=None, control=None):
-        """ Calucate explained variance (EV) and reverse EV
+        """Calucate explained variance (EV) and reverse EV
         References:
         1) Kudrimoti 1999
         2) Tastsuno et al. 2007
         """
+
+        spikes = Spikes(self._obj)
 
         if None in [template, match, control]:
             control = self._obj.epochs.pre
@@ -133,8 +136,8 @@ class ExplainedVariance:
             match = self._obj.epochs.post
 
         # ----- choosing cells ----------------
-        spks = self._obj.spikes.times
-        stability = self._obj.spikes.stability.info
+        spks = spikes.times
+        stability = spikes.stability.info
         stable_pyr = np.where((stability.q < 4) & (stability.stable == 1))[0]
         print(f"Calculating EV for {len(stable_pyr)} stable cells")
         spks = [spks[_] for _ in stable_pyr]
@@ -178,7 +181,7 @@ class ExplainedVariance:
         match_corr, self.t_match = cal_corr(period=match)
 
         # ----- indices for cross shanks correlation -------
-        shnkId = np.asarray(self._obj.spikes.info.shank)
+        shnkId = np.asarray(spikes.info.shank)
         shnkId = shnkId[stable_pyr]
         assert len(shnkId) == len(spks)
         cross_shnks = np.nonzero(np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1)))
@@ -225,9 +228,10 @@ class ExplainedVariance:
         ax.plot(t, ev_mean, "k", zorder=4)
         ax.set_xlabel("Time (h)")
         ax.set_ylabel("Explained variance")
-        ax.legend(["EV", "REV"])
+        ax.legend(["REV", "EV"])
         ax.text(0.2, 0.28, "POST SD", fontweight="bold")
-        # ax.set_xlim([0, 4])
+
+    # ax.set_xlim([0, np.max(t)])
 
 
 class CellAssemblyICA:
@@ -360,4 +364,3 @@ class Correlation:
         np.fill_diagonal(corr, 0)
 
         return corr
-

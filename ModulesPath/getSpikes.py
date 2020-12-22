@@ -385,7 +385,7 @@ class Stability:
 
         @dataclass
         class files:
-            stability: str = Path(str(filePrefix) + "_stability.npy")
+            stability: str = filePrefix.with_suffix(".stability.npy")
 
         self.files = files()
 
@@ -401,7 +401,8 @@ class Stability:
 
     def firingRate(self, bins=None, thresh=0.3):
 
-        spks = self._obj.spikes.times
+        spikes = Spikes(self._obj)
+        spks = spikes.times
         nCells = len(spks)
 
         # ---- goes to default mode of PRE-POST stability --------
@@ -436,7 +437,7 @@ class Stability:
         assert frate_bin.shape == fraction.shape
 
         isStable = np.where(fraction >= thresh, 1, 0)
-        spkinfo = self._obj.spikes.info[["q", "shank"]].copy()
+        spkinfo = spikes.info[["q", "shank"]].copy()
         spkinfo["stable"] = isStable.all(axis=1).astype(int)
 
         stbl = {
