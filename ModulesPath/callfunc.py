@@ -47,8 +47,7 @@ class processData:
 
 #test
 if __name__ == "__main__":
-    sess = processData('/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined')
-    sess.placefield.pf2d.compute(gridbin=2, speed_thresh=10)
-    sess.placefield.pf2d.plot_all(4)
+    sess2 = processData('/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39')
+    sess2.position.getPosition(method='from_files')
 
 pass

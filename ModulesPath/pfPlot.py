@@ -3,12 +3,50 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from sklearn.decomposition import PCA
+from sklearn.manifold import Isomap
 from plotUtil import Colormap
 from parsePath import Recinfo
 from getPosition import ExtractPosition
 from getSpikes import Spikes
 from behavior import behavior_epochs
 from plotUtil import pretty_plot
+from os.path import isfile
+
+
+def linearize_trajectory(xpos, ypos, sample_rate=60, sample_sec=3, method='PCA'):
+    """
+    linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
+    :param xpos, ypos: size n, arrays of x/y position when the animal is on the maze
+    :param sample_rate: position sampling rate in Hz
+    :param sample_sec: sample a point every sample_sec seconds for training ISOMAP. Make lower if inaccurate results.
+    Default = 3 seconds.
+    :param method: 'PCA' (for straight tracks) or 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020)
+    :return:
+    """
+
+    position = np.vstack((xpos, ypos)).T
+    if method == 'PCA':
+        pca = PCA(n_components=1)
+        xlinear = pca.fit_transform(position).squeeze()
+    elif method == 'ISOMAP':
+        imap = Isomap(n_neighbors=5, n_components=2)
+        pos_ds = position[0:-1:np.round(int(sample_rate)*sample_sec)]  # downsample points to reduce memory load and time
+        imap.fit(pos_ds)
+        iso_pos = imap.transform(position)
+        # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
+        if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
+            iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
+        xlinear = iso_pos[:, 0]
+
+    # plot sanity check
+    fig, ax = plt.subplots()
+    fig.set_size_inches([28, 8.6])
+    ax.plot(xlinear)
+    ax.set_xlabel('Frame #')
+    ax.set_ylabel('Linear Position')
+    ax.set_title(method + ' Sanity Check Plot')
+
+    return xlinear
 
 
 class pf:
@@ -29,7 +67,11 @@ class pf1d:
         else:
             self._obj = Recinfo(basepath)
 
-    def compute(self, period):
+    def compute(self, period, method='PCA'):
+        """Linearize trajectory and compute 1d placefields
+        :param: period: length 2 array/list with maze start/end times.
+        :param: method: linearization method, 'PCA'(default): fast, only good for linear track, 'ISOMAP': slower, good for
+        arbitrary track configurations. 'ISOMAP' will save linearized data to save time."""
         assert len(period) == 2, "period should have length 2"
         spikes = Spikes(self._obj)
         position = ExtractPosition(self._obj)
@@ -51,9 +93,17 @@ class pf1d:
         # yrange = np.ptp(self.y)
         # if yrange > xrange:
         #     self.x, self.y = self.y, self.x
-        position = np.vstack((self.x, self.y)).T
-        pca = PCA(n_components=1)
-        self.xlinear = pca.fit_transform(position).squeeze()
+        # position = np.vstack((self.x, self.y)).T
+        # pca = PCA(n_components=1)
+        # self.xlinear = pca.fit_transform(position).squeeze()
+        if method.lower() == 'isomap' and self._obj.files.isomap_trajectory.is_file():
+            print('Loading previously computed linear trajectory using ISOMAP - delete saved file to re-run')
+            self.xlinear = np.load(self._obj.isomap_trajectory)
+        else:
+            self.xlinear = linearize_trajectory(self.x, self.y, sample_rate=trackingSRate, method=method)
+
+            if method.lower() == 'isomap':
+                np.save(self._obj.files.isomap_trajectory, self.xlinear)
 
         diff_posx = np.diff(self.y)
 

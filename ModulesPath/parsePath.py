@@ -297,6 +297,7 @@ class files:
         self.hwsa_ripple = Path(str(filePrefix) + "_hswa_ripple.npy")
         self.slow_wave = Path(str(filePrefix) + "_hswa.npy")
         self.spectrogram = Path(str(filePrefix) + "_sxx.npy")
+        self.isomap_trajectory = Path(str(filePrefix) + "_ISOMAP_trajectory.npy")
 
 
 class recfiles:
