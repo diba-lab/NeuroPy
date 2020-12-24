@@ -13,6 +13,7 @@ from sessionUtil import SessionUtil
 from sleepDetect import SleepScore
 from spkEvent import PBE, LocalSleep
 from viewerData import SessView
+from track import Track
 
 
 class processData:
@@ -21,6 +22,7 @@ class processData:
         self.recinfo = Recinfo(basepath)
 
         self.position = ExtractPosition(self.recinfo)
+        self.tracks = Track(self.recinfo)
         self.epochs = behavior_epochs(self.recinfo)
         self.artifact = findartifact(self.recinfo)
         self.makePrmPrb = makePrmPrb(self.recinfo)
@@ -45,9 +47,12 @@ class processData:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
 
-#test
+
+# test
 if __name__ == "__main__":
-    sess2 = processData('/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39')
-    sess2.position.getPosition(method='from_files')
+    sess2 = processData(
+        "/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39"
+    )
+    sess2.position.getPosition(method="from_files")
 
 pass
