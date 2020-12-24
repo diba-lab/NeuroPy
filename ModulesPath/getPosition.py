@@ -67,7 +67,8 @@ def posfromCSV(fileName):
         line_count = 0
         for row in reader:
             if "Rigid Body" in row or "RigidBody" in row:
-                rigidbody_columns = np.where(np.array(row) == "Rigid Body")[0]
+                rigidbody_columns = np.where(np.bitwise_or(np.array(row) == "Rigid Body",
+                                                           np.array(row) == "RigidBody"))[0]
 
             if "Position" in row:
                 pos_columns = np.where(np.array(row) == "Position")[0]
@@ -516,8 +517,5 @@ def get_sync_info(_sync_file):
 
 
 if __name__ == "__main__":
-    position = ExtractPosition(
-        r"C:\Users\Nat\Documents\UM\Working\Opto\Jackie671\Jackie_3well_day4\Jackie_UTRACK_combined"
-    )
-    position.getPosition(method="from_files")
+    x,y,z,t = posfromCSV('/data/Working/Other Peoples Data/Bapun/circle_track/Take 2020-11-29 09.49.16 PM.csv')
 pass

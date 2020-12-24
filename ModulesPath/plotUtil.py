@@ -189,7 +189,8 @@ class ScrollPlot:
     Created on Thu Jan 18 10:53:29 2018
     @author: William Mau, modified by Nat Kinsky
     :param
-        plot_func: tuple of plotting functions to plot into the appropriate axes
+        plot_func: tuple of plotting functions to plot into the appropriate axes (default) or figure (have to
+        specify config='figure').
         x: X axis data.
         y: Y axis data.
         xlabel = 'x': X axis label.
@@ -209,6 +210,7 @@ class ScrollPlot:
         n_cols=1,
         figsize=(8, 6),
         combine_rows=[],
+        config='axes',
         **kwargs,
     ):
 
@@ -221,50 +223,55 @@ class ScrollPlot:
         self.share_y = False
         self.share_x = False
         self.figsize = figsize
+        self.config = config  # options are 'axes' or 'figure'
 
         # Dump all arguments into ScrollPlot.
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        self.fig, self.ax, = plt.subplots(
+        if config == 'axes':
+            self.fig, self.ax, = plt.subplots(
             self.n_rows,
             self.n_cols,
             sharey=self.share_y,
             sharex=self.share_x,
             figsize=self.figsize,
-        )
-        if n_cols == 1 and n_rows == 1:
-            self.ax = (self.ax,)
+            )
+            if n_cols == 1 and n_rows == 1:
+                self.ax = (self.ax,)
 
-        # Make rows into one subplot if specified
-        if len(combine_rows) > 0:
-            for row in combine_rows:
-                plt.subplot2grid(
-                    (self.n_rows, self.n_cols),
-                    (row, 0),
-                    colspan=self.n_cols,
-                    fig=self.fig,
-                )
-            self.ax = self.fig.get_axes()
+            # Make rows into one subplot if specified
+            if len(combine_rows) > 0:
+                for row in combine_rows:
+                    plt.subplot2grid(
+                        (self.n_rows, self.n_cols),
+                        (row, 0),
+                        colspan=self.n_cols,
+                        fig=self.fig,
+                    )
+                self.ax = self.fig.get_axes()
 
-        # Flatten into 1d array if necessary and not done already via combining rows
-        if n_cols > 1 and n_rows > 1 and hasattr(self.ax, "flat"):
-            self.ax = self.ax.flat
+            # Flatten into 1d array if necessary and not done already via combining rows
+            if n_cols > 1 and n_rows > 1 and hasattr(self.ax, "flat"):
+                self.ax = self.ax.flat
 
-        # Necessary for scrolling.
-        if not hasattr(self, "current_position"):
-            self.current_position = 0
+            # Necessary for scrolling.
+            if not hasattr(self, "current_position"):
+                self.current_position = 0
 
-        # Plot the first plot of each function and label
-        for ax_ind, plot_f in enumerate(self.plot_func):
-            plot_f(self, ax_ind)
-            self.apply_labels()
-            # print(str(ax_ind))
+            # Plot the first plot of each function and label
+            for ax_ind, plot_f in enumerate(self.plot_func):
+                plot_f(self, ax_ind)
+                self.apply_labels()
+                # print(str(ax_ind))
 
-        # Connect the figure to keyboard arrow keys.
-        self.fig.canvas.mpl_connect(
-            "key_press_event", lambda event: self.update_plots(event)
-        )
+            # Connect the figure to keyboard arrow keys.
+            self.fig.canvas.mpl_connect(
+                "key_press_event", lambda event: self.update_plots(event)
+            )
+        elif config == 'figure':
+            print('not yet configured')
+
 
     # Go up or down the list. Left = down, right = up.
     def scroll(self, event):
@@ -330,6 +337,14 @@ class ScrollPlot:
         # Draw.
         self.fig.canvas.draw()
 
+        if event.key == "escape":
+            plt.close(self.fig)
+
+    def update_fig(self, event, **kwargs):
+        self.fig.clf()
+        self.scroll(event)
+        self.plot_func(fig=self.fig, **kwargs)
+        self.fig.canvas.draw()
         if event.key == "escape":
             plt.close(self.fig)
 

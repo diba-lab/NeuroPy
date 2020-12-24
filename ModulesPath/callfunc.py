@@ -45,10 +45,9 @@ class processData:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
 
-
+#test
 if __name__ == "__main__":
-    sess = processData(
-        r"C:\Users\Nat\Documents\UM\Working\Opto\Jackie671\Jackie_3well_day4\Jackie_UTRACK_combined"
-    )
-    sess.position.getPosition(method="from_files", scale=4.0)
+    sess2 = processData('/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39')
+    sess2.position.getPosition(method='from_files')
+
 pass

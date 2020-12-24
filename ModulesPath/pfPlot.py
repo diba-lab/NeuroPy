@@ -3,12 +3,50 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from sklearn.decomposition import PCA
+from sklearn.manifold import Isomap
 from plotUtil import Colormap
 from parsePath import Recinfo
 from getPosition import ExtractPosition
 from getSpikes import Spikes
 from behavior import behavior_epochs
 from plotUtil import pretty_plot
+from os.path import isfile
+
+
+def linearize_trajectory(xpos, ypos, sample_rate=60, sample_sec=3, method='PCA'):
+    """
+    linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
+    :param xpos, ypos: size n, arrays of x/y position when the animal is on the maze
+    :param sample_rate: position sampling rate in Hz
+    :param sample_sec: sample a point every sample_sec seconds for training ISOMAP. Make lower if inaccurate results.
+    Default = 3 seconds.
+    :param method: 'PCA' (for straight tracks) or 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020)
+    :return:
+    """
+
+    position = np.vstack((xpos, ypos)).T
+    if method == 'PCA':
+        pca = PCA(n_components=1)
+        xlinear = pca.fit_transform(position).squeeze()
+    elif method == 'ISOMAP':
+        imap = Isomap(n_neighbors=5, n_components=2)
+        pos_ds = position[0:-1:np.round(int(sample_rate)*sample_sec)]  # downsample points to reduce memory load and time
+        imap.fit(pos_ds)
+        iso_pos = imap.transform(position)
+        # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
+        if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
+            iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
+        xlinear = iso_pos[:, 0]
+
+    # plot sanity check
+    fig, ax = plt.subplots()
+    fig.set_size_inches([28, 8.6])
+    ax.plot(xlinear)
+    ax.set_xlabel('Frame #')
+    ax.set_ylabel('Linear Position')
+    ax.set_title(method + ' Sanity Check Plot')
+
+    return xlinear
 
 
 class pf:
@@ -29,7 +67,11 @@ class pf1d:
         else:
             self._obj = Recinfo(basepath)
 
-    def compute(self, period):
+    def compute(self, period, method='PCA'):
+        """Linearize trajectory and compute 1d placefields
+        :param: period: length 2 array/list with maze start/end times.
+        :param: method: linearization method, 'PCA'(default): fast, only good for linear track, 'ISOMAP': slower, good for
+        arbitrary track configurations. 'ISOMAP' will save linearized data to save time."""
         assert len(period) == 2, "period should have length 2"
         spikes = Spikes(self._obj)
         position = ExtractPosition(self._obj)
@@ -51,9 +93,17 @@ class pf1d:
         # yrange = np.ptp(self.y)
         # if yrange > xrange:
         #     self.x, self.y = self.y, self.x
-        position = np.vstack((self.x, self.y)).T
-        pca = PCA(n_components=1)
-        self.xlinear = pca.fit_transform(position).squeeze()
+        # position = np.vstack((self.x, self.y)).T
+        # pca = PCA(n_components=1)
+        # self.xlinear = pca.fit_transform(position).squeeze()
+        if method.lower() == 'isomap' and self._obj.files.isomap_trajectory.is_file():
+            print('Loading previously computed linear trajectory using ISOMAP - delete saved file to re-run')
+            self.xlinear = np.load(self._obj.isomap_trajectory)
+        else:
+            self.xlinear = linearize_trajectory(self.x, self.y, sample_rate=trackingSRate, method=method)
+
+            if method.lower() == 'isomap':
+                np.save(self._obj.files.isomap_trajectory, self.xlinear)
 
         diff_posx = np.diff(self.y)
 
@@ -301,18 +351,34 @@ class pf2d:
         fignum=None,
         alpha=0.5,
         label_cells=False,
+        ax=None,
+        clus_use=None,
     ):
-        fig = plt.figure(fignum, figsize=(6, 10))
-        gs = GridSpec(subplots[0], subplots[1], figure=fig)
-        # fig.subplots_adjust(hspace=0.4)
+        if ax is None:
+            fig = plt.figure(fignum, figsize=(6, 10))
+            gs = GridSpec(subplots[0], subplots[1], figure=fig)
+            # fig.subplots_adjust(hspace=0.4)
+        else:
+            assert len(ax) == len(clus_use), "Number of axes must match number of clusters to plot"
+            fig = ax[0].get_figure()
+
+
 
         if not speed_thresh:
             spk_pos_use = self.spk_pos
         elif speed_thresh:
             spk_pos_use = self.run_spk_pos
 
+        if clus_use is not None:
+            spk_pos_tmp = spk_pos_use
+            spk_pos_use = []
+            [spk_pos_use.append(spk_pos_tmp[a]) for a in clus_use]
+
         for cell, (spk_x, spk_y) in enumerate(spk_pos_use):
-            ax1 = fig.add_subplot(gs[cell])
+            if ax is None:
+                ax1 = fig.add_subplot(gs[cell])
+            else:
+                ax1 = ax[cell]
             ax1.plot(self.x, self.y, color="#d3c5c5")
             ax1.plot(spk_x, spk_y, ".r", markersize=0.8, color=[1, 0, 0, alpha])
             ax1.axis("off")
@@ -330,9 +396,10 @@ class pf2d:
                 "Place maps for cells with their peak firing rate (no speed threshold)"
             )
 
-    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5):
-        fig, ax = plt.subplots(2, 1, sharex=True)
-        fig.set_size_inches([23, 9.7])
+    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(2, 1, sharex=True)
+            fig.set_size_inches([23, 9.7])
 
         # plot trajectories
         for a, pos, ylabel in zip(
@@ -354,7 +421,8 @@ class pf2d:
             a.plot(spk_t_[cellind], pos, "r.", color=[1, 0, 0, alpha])
 
         # Put info on title
-        info = self._obj.spikes.info.iloc[cellind]
+        ipbool = self._obj.spikes.pyrid[cellind] == self._obj.spikes.info.index
+        info = self._obj.spikes.info.iloc[ipbool]
         ax[0].set_title(
             "Cell "
             + str(info["id"])
@@ -363,3 +431,21 @@ class pf2d:
             + ", speed_thresh="
             + str(self.speed_thresh)
         )
+
+    def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
+        if fig is None:
+            fig_use = plt.figure(figsize=[28.25, 11.75])
+        else:
+            fig_use = fig
+        gs = GridSpec(2, 4, figure=fig_use)
+        ax2d = fig_use.add_subplot(gs[0, 0])
+        axccg = np.asarray(fig_use.add_subplot(gs[1, 0]))
+        axx = fig_use.add_subplot(gs[0, 1:])
+        axy = fig_use.add_subplot(gs[1, 1:], sharex=axx)
+
+        self.plotRaw(speed_thresh=speed_thresh, clus_use=[cellind], ax=[ax2d])
+        self.plotRaw_v_time(cellind, speed_thresh=speed_thresh, ax=[axx, axy], alpha=alpha)
+        self._obj.spikes.plot_ccg(clus_use=[cellind], type='acg', ax=axccg)
+
+        return fig_use
+
