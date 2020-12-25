@@ -15,7 +15,6 @@ from dataclasses import dataclass
 import csv
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
-from behavior import behavior_epochs
 
 
 def getSampleRate(fileName):
@@ -97,6 +96,10 @@ def posfromCSV(fileName):
     x0 = np.asarray(posdata.iloc[:, 1])
     y0 = np.asarray(posdata.iloc[:, 2])
     z0 = np.asarray(posdata.iloc[:, 3])
+
+    # if last frame is missing drop that
+    if np.isnan(x0[-1]):
+        t, x0, y0, z0 = t[:-1], x0[:-1], y0[:-1], z0[:-1]
 
     xfill, yfill, zfill = interp_missing_pos(x0, y0, z0, t)
 
