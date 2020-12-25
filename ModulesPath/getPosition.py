@@ -13,6 +13,9 @@ import re
 from glob import glob
 from dataclasses import dataclass
 import csv
+from sklearn.decomposition import PCA
+from sklearn.manifold import Isomap
+from behavior import behavior_epochs
 
 
 def getSampleRate(fileName):
@@ -67,8 +70,11 @@ def posfromCSV(fileName):
         line_count = 0
         for row in reader:
             if "Rigid Body" in row or "RigidBody" in row:
-                rigidbody_columns = np.where(np.bitwise_or(np.array(row) == "Rigid Body",
-                                                           np.array(row) == "RigidBody"))[0]
+                rigidbody_columns = np.where(
+                    np.bitwise_or(
+                        np.array(row) == "Rigid Body", np.array(row) == "RigidBody"
+                    )
+                )[0]
 
             if "Position" in row:
                 pos_columns = np.where(np.array(row) == "Position")[0]
@@ -267,6 +273,7 @@ class ExtractPosition:
             position: str = Path(str(filePrefix) + "_position.npy")
 
         self.files = files()
+
         self._load()
 
     def _load(self):
@@ -447,12 +454,6 @@ class ExtractPosition:
             for xpos, ypos in zip(x, y):
                 f.write(f"{xpos} {ypos}\n")
 
-    def theta_vs_speed(self):
-        pass
-
-    def ripple_location(self):
-        pass
-
 
 def timestamps_from_oe(rec_folder, data_type="continuous"):
     """Gets timestamps for all recordings/experiments in a given recording folder. Assumes you have recorded
@@ -517,5 +518,7 @@ def get_sync_info(_sync_file):
 
 
 if __name__ == "__main__":
-    x,y,z,t = posfromCSV('/data/Working/Other Peoples Data/Bapun/circle_track/Take 2020-11-29 09.49.16 PM.csv')
+    x, y, z, t = posfromCSV(
+        "/data/Working/Other Peoples Data/Bapun/circle_track/Take 2020-11-29 09.49.16 PM.csv"
+    )
 pass
