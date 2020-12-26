@@ -2,7 +2,6 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 from scipy.stats import binned_statistic_2d, binned_statistic
-from sklearn.naive_bayes import GaussianNB
 import math
 from scipy.ndimage import gaussian_filter1d, gaussian_filter
 from scipy.special import factorial
@@ -327,4 +326,3 @@ class bayes2d:
         axerror = ax.twinx()
         axerror.plot(decodingtime, gaussian_filter1d(error, sigma=1), "#05d69e")
         axerror.set_ylabel("error (cm)")
-

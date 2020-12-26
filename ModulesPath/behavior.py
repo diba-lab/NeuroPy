@@ -67,6 +67,9 @@ class behavior_epochs:
 
         return f"Epochs (seconds) \n" + "".join(epoch_string)
 
+    def __getitem__(self, name):
+        assert name in self.times, f"Epoch {name} does not exist"
+        return self.times[name].to_list()
 
     def make_epochs(self, new_epochs: dict):
         """Adds epochs to the sessions at given timestamps. If epoch file already exists then new epochs are merged.
@@ -151,7 +154,6 @@ class behavior_epochs:
         np.save(self._obj.files.epochs, epoch_times)
 
         self._load()  # load these in for immediate use
-
 
     def all_maze(self):
         """Make the entire session a maze epoch if that's all you are analyzing"""

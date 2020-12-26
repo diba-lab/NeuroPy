@@ -133,7 +133,7 @@ class pf1d:
         speed_thresh=False,
         pad=2,
         normalize=False,
-        sortby=True,
+        sortby=None,
         cmap="tab20b",
     ):
         """Plot 1D place fields stacked
@@ -176,10 +176,10 @@ class pf1d:
             ratemaps = [_ / np.max(_) for _ in ratemaps]
             pad = 1
 
-        if sortby:
+        if sortby is None:
             sort_ind = np.argsort(np.argmax(np.asarray(ratemaps), axis=1))
-            if isinstance(sortby, (list, np.ndarray)):
-                sort_ind = sort_ind
+        elif isinstance(sortby, (list, np.ndarray)):
+            sort_ind = sortby
         else:
             sort_ind = np.arange(len(ratemaps))
         for cellid, cell in enumerate(sort_ind):
@@ -207,6 +207,7 @@ class pf1d:
         ax.spines["left"].set_visible(False)
         ax.set_xlim([np.min(bin_cntr), np.max(bin_cntr)])
         ax.tick_params("y", length=0)
+        ax.set_ylim([0, nCells])
 
         return ax
 
