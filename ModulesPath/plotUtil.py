@@ -87,7 +87,7 @@ class Colormap:
 class Fig:
     labelsize = 8
 
-    def draw(self, num=1, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs):
+    def draw(self, num=None, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs):
 
         # --- plot settings --------
         if style == "figPublish":
@@ -163,6 +163,11 @@ class Fig:
         )
         fig.savefig(filename)
 
+    @staticmethod
+    def pf_1D(ax):
+        ax.spines["left"].set_visible(False)
+        ax.tick_params("y", length=0)
+
 
 def pretty_plot(ax, round_ylim=False):
     """Generic function to make plot pretty, bare bones for now, will need updating
@@ -210,7 +215,7 @@ class ScrollPlot:
         n_cols=1,
         figsize=(8, 6),
         combine_rows=[],
-        config='axes',
+        config="axes",
         **kwargs,
     ):
 
@@ -229,13 +234,13 @@ class ScrollPlot:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        if config == 'axes':
+        if config == "axes":
             self.fig, self.ax, = plt.subplots(
-            self.n_rows,
-            self.n_cols,
-            sharey=self.share_y,
-            sharex=self.share_x,
-            figsize=self.figsize,
+                self.n_rows,
+                self.n_cols,
+                sharey=self.share_y,
+                sharex=self.share_x,
+                figsize=self.figsize,
             )
             if n_cols == 1 and n_rows == 1:
                 self.ax = (self.ax,)
@@ -269,9 +274,8 @@ class ScrollPlot:
             self.fig.canvas.mpl_connect(
                 "key_press_event", lambda event: self.update_plots(event)
             )
-        elif config == 'figure':
-            print('not yet configured')
-
+        elif config == "figure":
+            print("not yet configured")
 
     # Go up or down the list. Left = down, right = up.
     def scroll(self, event):
