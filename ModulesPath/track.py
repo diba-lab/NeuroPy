@@ -32,18 +32,22 @@ class Track:
 
         @dataclass
         class files:
-            trackinfo: str = filePrefix.with_suffix(".tracksinfo.npy")
+            trackinfo: str = filePrefix.with_suffix(".tracks.info.npy")
+            laps: str = filePrefix.with_suffix(".tracks.laps.npy")
 
         self.files = files()
+        self.names = None
 
         self._load()
 
     def _load(self):
         if (f := self.files.trackinfo).is_file():
             tracks = np.load(f, allow_pickle=True).item()
+            self.names = list(tracks.keys())
+            self.data = tracks
 
-            for name in tracks["mazes"]:
-                setattr(self, name, TrackProcess(name, self._obj))
+            # for name in tracks["mazes"]:
+            #     setattr(self, name, TrackProcess(name, self._obj))
 
     def create(self, epoch_names):
 
@@ -59,43 +63,24 @@ class Track:
 
         posdata = position.data
 
-        mazes = {}
+        maze_data = {}
         for name, epch in zip(epoch_names, periods):
-            mazes[name] = epch
-            maze_data = {
-                "data": posdata[
-                    (posdata.time > epch[0]) & (posdata.time < epch[1])
-                ].reset_index(drop=True),
-                "tracking_sRate": position.tracking_sRate,
-            }
-            np.save(
-                self._obj.files.filePrefix.with_suffix(".tracks." + name + ".npy"),
-                maze_data,
-            )
+            maze_data[name] = posdata[
+                (posdata.time > epch[0]) & (posdata.time < epch[1])
+            ].reset_index(drop=True)
 
-        info = {"mazes": mazes, "nMazes": len(mazes)}
-        np.save(self.files.trackinfo, info)
-
-
-class TrackProcess:
-    def __init__(self, name, obj: Recinfo) -> None:
-
-        filePrefix = obj.files.filePrefix
-
-        @dataclass
-        class files:
-            track: str = filePrefix.with_suffix(".tracks." + name + ".npy")
-
-        self.files = files()
+        np.save(self.files.trackinfo, maze_data)
         self._load()
 
-    def _load(self):
-        if (f := self.files.track).is_file():
-            posdata = np.load(f, allow_pickle=True).item()
-            self.data = posdata["data"]
-            self.tracking_sRate = posdata["tracking_sRate"]
+    def __getitem__(self, track_name):
+        return self.data[track_name]
 
-    def linearize_position(self, sample_sec=3, method="isomap", plot=True):
+    def __len__(self):
+        return len(self.data)
+
+    def linearize_position(
+        self, track_name=None, sample_sec=3, method="isomap", plot=True
+    ):
         """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
 
         Parameters
@@ -105,41 +90,61 @@ class TrackProcess:
         method : str, optional
             by default "PCA" (for straight tracks) or 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020)
 
-
         """
-        xpos = self.data.x
-        ypos = self.data.y
-        position = np.vstack((xpos, ypos)).T
-        xlinear = None
-        if method == "pca":
-            pca = PCA(n_components=1)
-            xlinear = pca.fit_transform(position).squeeze()
-        elif method == "isomap":
-            imap = Isomap(n_neighbors=5, n_components=2)
-            pos_ds = position[
-                0 : -1 : np.round(int(self.tracking_sRate) * sample_sec)
-            ]  # downsample points to reduce memory load and time
-            imap.fit(pos_ds)
-            iso_pos = imap.transform(position)
-            # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
-            if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
-                iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
-            xlinear = iso_pos[:, 1]
-        if plot:
-            fig, ax = plt.subplots()
-            fig.set_size_inches([28, 8.6])
-            ax.plot(xlinear)
-            ax.set_xlabel("Frame #")
-            ax.set_ylabel("Linear Position")
-            ax.set_title(method + " Sanity Check Plot")
+        posinfo = ExtractPosition(self._obj)
+        tracking_sRate = posinfo.tracking_sRate
 
-        self.data["linear"] = xlinear
-        posdata = np.load(self.files.track, allow_pickle=True).item()
-        posdata["data"] = self.data
+        if track_name is None:
+            track_name = self.names
 
-        np.save(self.files.track, posdata)
+        # ---- loading the data ----------
+        alldata = np.load(self.files.trackinfo, allow_pickle=True).item()
+
+        for name in track_name:
+            xpos = alldata[name].x
+            ypos = alldata[name].y
+            position = np.vstack((xpos, ypos)).T
+            xlinear = None
+            if method == "pca":
+                pca = PCA(n_components=1)
+                xlinear = pca.fit_transform(position).squeeze()
+            elif method == "isomap":
+                imap = Isomap(n_neighbors=5, n_components=2)
+                # downsample points to reduce memory load and time
+                pos_ds = position[0 : -1 : np.round(int(tracking_sRate) * sample_sec)]
+                imap.fit(pos_ds)
+                iso_pos = imap.transform(position)
+                # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
+                if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
+                    iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
+                xlinear = iso_pos[:, 0]
+            if plot:
+                fig, ax = plt.subplots()
+                fig.set_size_inches([28, 8.6])
+                ax.plot(xlinear)
+                ax.set_xlabel("Frame #")
+                ax.set_ylabel("Linear Position")
+                ax.set_title(method + " Sanity Check Plot")
+
+            alldata[name]["linear"] = xlinear
+
+        # ---- saving the updated data -----------
+        np.save(self.files.trackinfo, alldata)
 
         self._load()
 
+    def plot(self, track_name=None):
+
+        if track_name is None:
+            track_name = self.names
+
+        fig, ax = plt.subplots(1, len(track_name))
+
+        for ind, name in enumerate(track_name):
+            posdata = self[name]
+            ax[ind].plot(posdata.x, posdata.y)
+            ax[ind].set_title(name)
+
     def laps(self):
+        """Divide track session into laps"""
         pass

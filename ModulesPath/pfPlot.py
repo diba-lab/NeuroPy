@@ -2,17 +2,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
-from sklearn.decomposition import PCA
-from sklearn.manifold import Isomap
 from plotUtil import Colormap
 from parsePath import Recinfo
 from getPosition import ExtractPosition
 from getSpikes import Spikes
-from behavior import behavior_epochs
 from plotUtil import pretty_plot
-from os.path import isfile
 from dataclasses import dataclass
 from track import Track
+import matplotlib as mpl
+from plotUtil import Fig
+import ipywidgets as widgets
 
 
 class pf:
@@ -42,11 +41,11 @@ class pf1d:
 
         self.files = files()
 
-    def _load(self):
-        if (f := self.files.placemap) :
-            self.ratemap = np.load(f, allow_pickle=True)
+    # def _load(self):
+    #     if (f := self.files.placemap) :
+    #         self.ratemap = np.load(f, allow_pickle=True)
 
-    def compute(self, track_name):
+    def compute(self, track_name, grid_bin=5, speed_thresh=5, smooth=1):
         """computes 1d place field using linearized coordinates
 
         Parameters
@@ -56,69 +55,210 @@ class pf1d:
         """
 
         tracks = Track(self._obj)
-        assert hasattr(tracks, track_name), f"{track_name} doesn't exist"
+        assert track_name in tracks.names, f"{track_name} doesn't exist"
         spikes = Spikes(self._obj)
+        trackingSRate = ExtractPosition(self._obj).tracking_sRate
 
-        maze = getattr(tracks, track_name)
+        maze = tracks.data[track_name]
         assert (
-            "linear" in maze.data
-        ), f"First run .tracks.{track_name}.linearize_position()"
+            "linear" in maze
+        ), f"Track {track_name} doesn't have linearized coordinates. First run tracks.linearize_position(track_name='{track_name}')"
 
-        trackingSRate = maze.tracking_sRate
         spks = spikes.pyr
-        self.x = maze.data.linear
-        self.speed = maze.data.speed
-        self.t = maze.data.time
-        period = [np.min(self.t), np.max(self.t)]
+        x = maze.linear
+        speed = maze.speed
+        t = maze.time
+        period = [np.min(t), np.max(t)]
 
-        spk_pfx, spk_pft = [], []
+        xbin = np.arange(min(x), max(x), grid_bin)
+        occupancy = np.histogram(x, bins=xbin)[0] / trackingSRate + 1e-16
+        occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+
+        # --- speed thresh occupancy----
+        x_speed = x[speed > speed_thresh]
+        run_occupancy = np.histogram(x_speed, bins=xbin)[0] / trackingSRate + 1e-16
+        run_occupancy = gaussian_filter1d(run_occupancy, sigma=smooth)
+
+        run_spk_pos, run_spk_t, spk_pos, spk_t = [], [], [], []
+        ratemap, run_ratemap = [], []
         for cell in spks:
+            spk = cell[(cell > period[0]) & (cell < period[1])]
+            spk_spd = np.interp(spk, t, speed)
+            spk_x = np.interp(spk, t, x)
 
-            spk_maze = cell[np.where((cell > period[0]) & (cell < period[1]))]
-            spk_spd = np.interp(spk_maze, self.t, self.speed)
-            spk_x = np.interp(spk_maze, self.t, self.x)
+            spk_pos.append(spk_x)
+            spk_t.append(spk)
 
             # speed threshold
-            spd_ind = np.where(spk_spd > 0)
-            spk_spd = spk_spd[spd_ind]
-            spk_x = spk_x[spd_ind]
-            spk_t = spk_maze[spd_ind]
-            spk_pfx.append(spk_x)
-            spk_pft.append(spk_t)
+            spd_ind = np.where(spk_spd > speed_thresh)[0]
+            spk_x_spd = spk_x[spd_ind]
+            run_spk_pos.append(spk_x_spd)
+            run_spk_t.append(spk[spd_ind])
 
-        self.spkx = spk_pfx
-        self.spkt = spk_pft
+            # ratemap calculation
+            ratemap_ = (
+                gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
+                / occupancy
+            )
 
-        self.xbin = np.arange(min(self.x), max(self.x), 5)
-        occupancy = np.histogram(self.x, bins=self.xbin)[0] / trackingSRate
-        # occupancy = gaussian_filter1d(occupancy, sigma=1)
+            run_ratemap_ = (
+                gaussian_filter1d(np.histogram(spk_x_spd, bins=xbin)[0], sigma=smooth)
+                / run_occupancy
+            )
+            ratemap.append(ratemap_)
+            run_ratemap.append(run_ratemap_)
 
-        self.ratemap = []
-        for cell in range(10):
-            spkpos = self.spkx[cell]
-            spkmap = np.histogram(spkpos, bins=self.xbin)[0]
-            # spkmap = gaussian_filter1d(spkmap, sigma=2)
-            self.ratemap.append(spkmap / occupancy)
+        self.no_thresh = {
+            "pos": spk_pos,
+            "time": spk_t,
+            "ratemaps": ratemap,
+            "occupancy": occupancy,
+        }
 
-    def plot(self, ax=None, pad=2, normalize=False):
+        self.thresh = {
+            "pos": run_spk_pos,
+            "time": run_spk_t,
+            "ratemaps": run_ratemap,
+            "occupancy": run_occupancy,
+        }
 
-        ratemap = self.ratemap
+        self.speed = speed
+        self.x = x
+        self.t = t
+        self.bin = xbin
+
+    def plot(
+        self,
+        ax=None,
+        speed_thresh=False,
+        pad=2,
+        normalize=False,
+        sortby=True,
+        cmap="tab20b",
+    ):
+        """Plot 1D place fields stacked
+
+        Parameters
+        ----------
+        ax : [type], optional
+            [description], by default None
+        speed_thresh : bool, optional
+            [description], by default False
+        pad : int, optional
+            [description], by default 2
+        normalize : bool, optional
+            [description], by default False
+        sortby : bool, optional
+            [description], by default True
+        cmap : str, optional
+            [description], by default "tab20b"
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        cmap = mpl.cm.get_cmap(cmap)
+
+        mapinfo = self.no_thresh
+        if speed_thresh:
+            mapinfo = self.thresh
+
+        ratemaps = mapinfo["ratemaps"]
+        nCells = len(ratemaps)
+        bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
+
         if ax is None:
-            fig, ax = plt.subplots(1, 1)
+            _, gs = Fig().draw(grid=(1, 1), size=(4.5, 11))
+            ax = plt.subplot(gs[0])
 
         if normalize:
-            ratemap = [cellmap / np.max(cellmap) for cellmap in ratemap]
+            ratemaps = [_ / np.max(_) for _ in ratemaps]
+            pad = 1
 
-        for cellid, cell in enumerate(ratemap):
+        if sortby:
+            sort_ind = np.argsort(np.argmax(np.asarray(ratemaps), axis=1))
+            if isinstance(sortby, (list, np.ndarray)):
+                sort_ind = sort_ind
+        else:
+            sort_ind = np.arange(len(ratemaps))
+        for cellid, cell in enumerate(sort_ind):
+            color = cmap(cellid / nCells)
 
             ax.fill_between(
-                self.xbin[:-1],
+                bin_cntr,
                 cellid * pad,
-                cellid * pad + cell,
-                color="gray",
+                cellid * pad + ratemaps[cell],
+                color=color,
+                ec=None,
                 alpha=0.5,
                 zorder=cellid + 1,
             )
+            ax.plot(
+                bin_cntr,
+                cellid * pad + ratemaps[cell],
+                color=color,
+                alpha=0.7,
+            )
+
+        ax.set_yticks(list(range(nCells)))
+        ax.set_yticklabels(list(sort_ind))
+        ax.set_xlabel("Position")
+        ax.spines["left"].set_visible(False)
+        ax.set_xlim([np.min(bin_cntr), np.max(bin_cntr)])
+        ax.tick_params("y", length=0)
+
+        return ax
+
+    def plot_raw(self, speed_thresh=False, ax=None, subplots=(8, 9)):
+        """Plot spike location on animal's path
+
+        Parameters
+        ----------
+        speed_thresh : bool, optional
+            [description], by default False
+        ax : [type], optional
+            [description], by default None
+        subplots : tuple, optional
+            [description], by default (8, 9)
+        """
+
+        mapinfo = self.no_thresh
+        if speed_thresh:
+            mapinfo = self.thresh
+        nCells = len(mapinfo["pos"])
+
+        def plot_(cell, ax):
+            if subplots is None:
+                ax.clear()
+            ax.plot(self.x, self.t, color="gray", alpha=0.6)
+            ax.plot(mapinfo["pos"][cell], mapinfo["time"][cell], ".", color="#ff5f5c")
+            ax.set_title(f"Cell {cell}")
+            ax.invert_yaxis()
+            ax.set_xlabel("Position (cm)")
+            ax.set_ylabel("Time (s)")
+
+        if ax is None:
+
+            if subplots is None:
+                _, gs = Fig().draw(grid=(1, 1), size=(6, 8))
+                ax = plt.subplot(gs[0])
+                widgets.interact(
+                    plot_,
+                    cell=widgets.IntSlider(
+                        min=0,
+                        max=nCells - 1,
+                        step=1,
+                        description="Cell ID:",
+                    ),
+                    ax=widgets.fixed(ax),
+                )
+            else:
+                _, gs = Fig().draw(grid=subplots, size=(10, 11))
+                for cell in range(nCells):
+                    ax = plt.subplot(gs[cell])
+                    ax.set_yticks([])
+                    plot_(cell, ax)
 
 
 class pf2d:
