@@ -1,23 +1,15 @@
-import csv
-import linecache
-import os
-import re
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from glob import glob
 from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
-
+from mathutil import threshPeriods
 from behavior import behavior_epochs
 from getPosition import ExtractPosition
-from mathutil import contiguous_regions
 from parsePath import Recinfo
+from scipy.ndimage import gaussian_filter1d
 
 
 class Track:
@@ -46,8 +38,9 @@ class Track:
             self.names = list(tracks.keys())
             self.data = tracks
 
-            # for name in tracks["mazes"]:
-            #     setattr(self, name, TrackProcess(name, self._obj))
+        if (f := self.files.laps).is_file():
+            lapdata = np.load(f, allow_pickle=True).item()
+            self.laps = lapdata
 
     def create(self, epoch_names):
 
@@ -138,13 +131,116 @@ class Track:
         if track_name is None:
             track_name = self.names
 
-        fig, ax = plt.subplots(1, len(track_name))
+        _, ax = plt.subplots(1, len(track_name))
 
         for ind, name in enumerate(track_name):
             posdata = self[name]
             ax[ind].plot(posdata.x, posdata.y)
             ax[ind].set_title(name)
 
-    def laps(self):
-        """Divide track session into laps"""
-        pass
+    def estimate_run_laps(
+        self,
+        track_name,
+        speedthresh=(10, 20),
+        merge_dur=2,
+        min_dur=2,
+        smooth_speed=50,
+        min_dist=50,
+        plot=True,
+    ):
+        """Divide running epochs into forward and backward
+
+        Parameters
+        ----------
+        track_name : str
+            name of track
+        speedthresh : tuple, optional
+            low and high speed threshold for speed, by default (10, 20)
+        merge_dur : int, optional
+            two epochs if less than merge_dur (seconds) apart they will be merged , by default 2 seconds
+        min_dur : int, optional
+            minimum duration of a run epoch, by default 2 seconds
+        smooth_speed : int, optional
+            speed is smoothed, increase if epochs are fragmented, by default 50
+        min_dist : int, optional
+            the animal should cover this much distance in one direction within the lap to be included, by default 50
+        plot : bool, optional
+            plots the epochs with position and speed data, by default True
+        """
+
+        trackingSrate = ExtractPosition(self._obj).tracking_sRate
+        track_period = behavior_epochs(self._obj)[track_name]
+        posdata = self[track_name]
+        x = posdata.linear
+        time = posdata.time
+        speed = gaussian_filter1d(posdata.speed, sigma=smooth_speed)
+
+        high_speed = threshPeriods(
+            speed,
+            lowthresh=speedthresh[0],
+            highthresh=speedthresh[1],
+            minDistance=merge_dur * trackingSrate,
+            minDuration=min_dur * trackingSrate,
+        )
+        val = []
+        for epoch in high_speed:
+            displacement = x[epoch[1]] - x[epoch[0]]
+            # distance = np.abs(np.diff(x[epoch[0] : epoch[1]])).sum()
+
+            if np.abs(displacement) > min_dist:
+                if displacement < 0:
+                    val.append(-1)
+                elif displacement > 0:
+                    val.append(1)
+            else:
+                val.append(0)
+        val = np.asarray(val)
+
+        # ---- deleting epochs where animal ran a little distance------
+        high_speed = np.delete(high_speed, np.where(val == 0)[0], axis=0)
+        val = np.delete(val, np.where(val == 0)[0])
+
+        high_speed = np.around(high_speed / trackingSrate + track_period[0], 2)
+        data = pd.DataFrame(high_speed, columns=["start", "end"])
+        data["duration"] = np.diff(high_speed, axis=1)
+        data["direction"] = np.where(val > 0, "forward", "backward")
+
+        if plot:
+            _, axall = plt.subplots(2, 1, sharex=True)
+
+            # ---- position and epoch plot ----------
+            ax = axall[0]
+            ax.plot(time, x, color="gray")
+            for epoch in data.itertuples():
+                if epoch.direction == "forward":
+                    color = "#3eccc7"
+                else:
+                    color = "#ff928a"
+                ax.axvspan(
+                    epoch.start,
+                    epoch.end,
+                    ymax=np.ptp(x),
+                    facecolor=color,
+                    alpha=0.7,
+                )
+            ax.set_ylabel("Linear cordinates")
+
+            # ----- velocity plot ----------
+            ax = axall[1]
+            ax.plot(time, speed, color="gray")
+            ax.axhline(y=speedthresh[0], ls="--", color="r", label="lower speed limit")
+            ax.axhline(y=speedthresh[1], ls="--", color="g", label="upper speed limit")
+            ax.set_ylabel("speed (cm/s)")
+            ax.set_xlabel("Time (s)")
+            ax.legend()
+
+        alldata = {}
+        if (f := self.files.laps).is_file():
+            alldata = np.load(f, allow_pickle=True).item()
+
+        alldata[track_name] = data
+        np.save(self.files.laps, alldata)
+        self._load()
+
+    def get_laps(self, track_name):
+        return self.laps[track_name]
