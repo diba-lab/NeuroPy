@@ -5,7 +5,6 @@ from eventCorr import event_event
 from getPosition import ExtractPosition
 from getSpikes import Spikes
 from lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
-from MakePrmKlusta import makePrmPrb
 from parsePath import Recinfo
 from pfPlot import pf
 from replay import Replay
@@ -25,7 +24,6 @@ class processData:
         self.tracks = Track(self.recinfo)
         self.epochs = behavior_epochs(self.recinfo)
         self.artifact = findartifact(self.recinfo)
-        self.makePrmPrb = makePrmPrb(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 
         self.spikes = Spikes(self.recinfo)
