@@ -97,7 +97,8 @@ def posfromCSV(fileName):
     y0 = np.asarray(posdata.iloc[:, 2])
     z0 = np.asarray(posdata.iloc[:, 3])
 
-    # if last frame is missing drop that
+    # if end frames are nan drop those
+    # last_nan_region = contiguous_regions(np.isnan(x0))[-1]
     if np.isnan(x0[-1]):
         t, x0, y0, z0 = t[:-1], x0[:-1], y0[:-1], z0[:-1]
 
@@ -391,9 +392,8 @@ class ExtractPosition:
             tbegin = getStartTime(file)
             try:  # First try to load everything from CSV directly
                 x, y, z, trelative = posfromCSV(file)
-                assert (
-                    len(x) > 0
-                )  # Make sure you aren't just importing the header, if so engage except below
+                # Make sure you arent't just importing the header, if so engage except
+                assert len(x) > 0
                 trange = tbegin + pd.to_timedelta(trelative, unit="s")
                 postime.extend(trange)
 

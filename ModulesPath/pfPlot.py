@@ -1,17 +1,18 @@
-import numpy as np
+from dataclasses import dataclass
+
+import ipywidgets as widgets
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
-from plotUtil import Colormap
-from parsePath import Recinfo
+
 from getPosition import ExtractPosition
 from getSpikes import Spikes
-from plotUtil import pretty_plot
-from dataclasses import dataclass
+from parsePath import Recinfo
+from plotUtil import Colormap, Fig, pretty_plot
 from track import Track
-import matplotlib as mpl
-from plotUtil import Fig
-import ipywidgets as widgets
+from signal_process import ThetaParams
 
 
 class pf:
@@ -26,6 +27,19 @@ class pf:
 
 
 class pf1d:
+    """1D place field computation
+
+    Attributes
+    ----------
+    x : array_like
+        position used for place field calculation
+    thresh : dict
+        place maps with speed threshold
+    no_thresh : dict
+        place maps without speed threshold
+
+    """
+
     def __init__(self, basepath):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
@@ -45,13 +59,19 @@ class pf1d:
     #     if (f := self.files.placemap) :
     #         self.ratemap = np.load(f, allow_pickle=True)
 
-    def compute(self, track_name, grid_bin=5, speed_thresh=5, smooth=1):
-        """computes 1d place field using linearized coordinates
+    def compute(self, track_name, run_dir=None, grid_bin=5, speed_thresh=5, smooth=1):
+        """computes 1d place field using linearized coordinates. It always computes two place maps with and without speed thresholds.
 
         Parameters
         ----------
         track_name : str
             name of track
+        direction : forward, backward or None
+            direction of running, by default None which means direction is ignored
+        grid_bin : int
+            bin size of position bining, by default 5
+        speed_thresh : int
+            speed threshold for calculating place field
         """
 
         tracks = Track(self._obj)
@@ -64,13 +84,42 @@ class pf1d:
             "linear" in maze
         ), f"Track {track_name} doesn't have linearized coordinates. First run tracks.linearize_position(track_name='{track_name}')"
 
-        spks = spikes.pyr
         x = maze.linear
         speed = maze.speed
         t = maze.time
         period = [np.min(t), np.max(t)]
+        spks = spikes.pyr
+        xbin = np.arange(min(x), max(x), grid_bin)  # binning of x position
 
-        xbin = np.arange(min(x), max(x), grid_bin)
+        # ------ if direction then restrict to those epochs --------
+        if run_dir in ["forward", "backward"]:
+            print(f" using {run_dir} running only")
+            run_epochs = tracks.get_laps(track_name)
+            run_epochs = run_epochs[run_epochs["direction"] == run_dir]
+            spks = [
+                np.concatenate(
+                    [
+                        cell[(cell > epc.start) & (cell < epc.end)]
+                        for epc in run_epochs.itertuples()
+                    ]
+                )
+                for cell in spks
+            ]
+            # changing x, speed, time to only run epochs so occupancy map is consistent with that
+            indx = np.concatenate(
+                [
+                    np.where((t > epc.start) & (t < epc.end))[0]
+                    for epc in run_epochs.itertuples()
+                ]
+            )
+            x = x[indx]
+            speed = speed[indx]
+            t = t[indx]
+        else:
+            spks = [cell[(cell > period[0]) & (cell < period[1])] for cell in spks]
+
+        # --- occupancy with no speed threshold ---------
+        # NOTE: x is changed if direction is taken into account
         occupancy = np.histogram(x, bins=xbin)[0] / trackingSRate + 1e-16
         occupancy = gaussian_filter1d(occupancy, sigma=smooth)
 
@@ -82,18 +131,17 @@ class pf1d:
         run_spk_pos, run_spk_t, spk_pos, spk_t = [], [], [], []
         ratemap, run_ratemap = [], []
         for cell in spks:
-            spk = cell[(cell > period[0]) & (cell < period[1])]
-            spk_spd = np.interp(spk, t, speed)
-            spk_x = np.interp(spk, t, x)
+            spk_spd = np.interp(cell, t, speed)
+            spk_x = np.interp(cell, t, x)
 
             spk_pos.append(spk_x)
-            spk_t.append(spk)
+            spk_t.append(cell)
 
             # speed threshold
             spd_ind = np.where(spk_spd > speed_thresh)[0]
             spk_x_spd = spk_x[spd_ind]
             run_spk_pos.append(spk_x_spd)
-            run_spk_t.append(spk[spd_ind])
+            run_spk_t.append(cell[spd_ind])
 
             # ratemap calculation
             ratemap_ = (
@@ -110,14 +158,14 @@ class pf1d:
 
         self.no_thresh = {
             "pos": spk_pos,
-            "time": spk_t,
+            "spikes": spk_t,
             "ratemaps": ratemap,
             "occupancy": occupancy,
         }
 
         self.thresh = {
             "pos": run_spk_pos,
-            "time": run_spk_t,
+            "spikes": run_spk_t,
             "ratemaps": run_ratemap,
             "occupancy": run_occupancy,
         }
@@ -126,6 +174,98 @@ class pf1d:
         self.x = x
         self.t = t
         self.bin = xbin
+        self.track_name = track_name
+        self.period = period
+
+    def phase_precession(self, theta_chan):
+        """Calculates phase of spikes computed for placefields
+
+        Parameters
+        ----------
+        theta_chan : int
+            lfp channel to use for calculating theta phases
+        """
+        lfpmaze = self._obj.geteeg(chans=theta_chan, timeRange=self.period)
+        lfpt = np.linspace(self.period[0], self.period[1], len(lfpmaze))
+        thetaparam = ThetaParams(lfpmaze, fs=self._obj.lfpSrate)
+        # phase_bin = np.linspace(0, 360, 37)
+
+        phase, run_phase = [], []
+        for spk, run_spk in zip(self.no_thresh["spikes"], self.thresh["spikes"]):
+            spk_phase = np.interp(spk, lfpt, thetaparam.angle)
+            run_spk_phase = np.interp(run_spk, lfpt, thetaparam.angle)
+
+            phase.append(spk_phase)
+            run_phase.append(run_spk_phase)
+            # precess = np.histogram2d(spk_pos, spk_phase, bins=[pos_bin, phase_bin])[0]
+            # precess = gaussian_filter(precess, sigma=1)
+
+        self.no_thresh["phases"] = phase
+        self.thresh["phases"] = run_phase
+
+    def plot_with_phase(
+        self,
+        ax=None,
+        speed_thresh=False,
+        normalize=True,
+        cmap="tab20b",
+        subplots=(5, 8),
+    ):
+        cmap = mpl.cm.get_cmap(cmap)
+
+        mapinfo = self.no_thresh
+        if speed_thresh:
+            mapinfo = self.thresh
+
+        ratemaps = mapinfo["ratemaps"]
+        if normalize:
+            ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
+        phases = mapinfo["phases"]
+        position = mapinfo["pos"]
+        nCells = len(ratemaps)
+        bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
+
+        def plot_(cell, ax, axphase):
+            color = cmap(cell / nCells)
+            if subplots is None:
+                ax.clear()
+                axphase.clear()
+            ax.fill_between(bin_cntr, 0, ratemaps[cell], color=color, alpha=0.3)
+            ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
+            ax.set_xlabel("Position (cm)")
+            ax.set_ylabel("Normalized frate")
+            ax.set_title(f"Cell {cell}")
+            if normalize:
+                ax.set_ylim([0, 1])
+            axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
+            axphase.set_ylabel(r"$\theta$ Phase")
+
+        if ax is None:
+
+            if subplots is None:
+                _, gs = Fig().draw(grid=(1, 1), size=(10, 5))
+                ax = plt.subplot(gs[0])
+                ax.spines["right"].set_visible(True)
+                axphase = ax.twinx()
+                widgets.interact(
+                    plot_,
+                    cell=widgets.IntSlider(
+                        min=0,
+                        max=nCells - 1,
+                        step=1,
+                        description="Cell ID:",
+                    ),
+                    ax=widgets.fixed(ax),
+                    axphase=widgets.fixed(axphase),
+                )
+            else:
+                _, gs = Fig().draw(grid=subplots, size=(15, 10))
+                for cell in range(nCells):
+                    ax = plt.subplot(gs[cell])
+                    axphase = ax.twinx()
+                    plot_(cell, ax, axphase)
+
+        return ax
 
     def plot(
         self,

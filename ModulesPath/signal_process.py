@@ -653,3 +653,125 @@ class PAC:
         ax.set_ylabel("Amplitude")
 
         return ax
+
+
+@dataclass
+class ThetaParams:
+    lfp: np.array
+    fs: int = 1250
+    lowtheta: int = 1
+    hightheta: int = 25
+
+    def __post_init__(self):
+        # --- calculating theta parameters from broadband theta---------
+        eegSrate = self.fs
+        thetalfp = filter_sig.bandpass(self.lfp, lf=self.lowtheta, hf=self.hightheta)
+        hil_theta = hilbertfast(thetalfp)
+        theta_360 = np.angle(hil_theta, deg=True) + 180
+        theta_angle = np.abs(np.angle(hil_theta, deg=True))
+        theta_trough = sg.find_peaks(theta_angle)[0]
+        theta_peak = sg.find_peaks(-theta_angle)[0]
+        theta_amp = np.abs(hil_theta) ** 2
+
+        if theta_peak[0] < theta_trough[0]:
+            theta_peak = theta_peak[1:]
+        if theta_trough[-1] > theta_peak[-1]:
+            theta_trough = theta_trough[:-1]
+
+        assert len(theta_trough) == len(theta_peak)
+
+        rising_time = (theta_peak[1:] - theta_trough[1:]) / eegSrate
+        falling_time = (theta_trough[1:] - theta_peak[:-1]) / eegSrate
+
+        self.amp = theta_amp
+        self.angle = theta_360
+        self.trough = theta_trough
+        self.peak = theta_peak
+        self.lfp_filtered = thetalfp
+        self.rise_time = rising_time
+        self.fall_time = falling_time
+
+    @property
+    def rise_mid(self):
+        theta_trough = self.trough
+        theta_peak = self.peak
+        thetalfp = self.lfp_filtered
+        rise_midpoints = np.array(
+            [
+                trough
+                + np.argmin(
+                    np.abs(
+                        thetalfp[trough:peak]
+                        - (
+                            max(thetalfp[trough:peak])
+                            - np.ptp(thetalfp[trough:peak]) / 2
+                        )
+                    )
+                )
+                for (trough, peak) in zip(theta_trough, theta_peak)
+            ]
+        )
+        return rise_midpoints
+
+    @property
+    def fall_mid(self):
+        theta_peak = self.peak
+        theta_trough = self.trough
+        thetalfp = self.lfp_filtered
+        fall_midpoints = np.array(
+            [
+                peak
+                + np.argmin(
+                    np.abs(
+                        thetalfp[peak:trough]
+                        - (
+                            max(thetalfp[peak:trough])
+                            - np.ptp(thetalfp[peak:trough]) / 2
+                        )
+                    )
+                )
+                for (peak, trough) in zip(theta_peak[:-1], theta_trough[1:])
+            ]
+        )
+
+        return fall_midpoints
+
+    @property
+    def peak_width(self):
+        return (self.fall_mid - self.rise_mid[:-1]) / self.fs
+
+    @property
+    def trough_width(self):
+        return (self.rise_mid[1:] - self.fall_mid) / self.fs
+
+    @property
+    def asymmetry(self):
+        return self.rise_time / (self.rise_time + self.fall_time)
+
+    @property
+    def peaktrough(self):
+        return self.peak_width / (self.peak_width + self.trough_width)
+
+    def sanityCheck(self, rawTheta):
+        # ax3 = plt.subplot(gs[1, :])
+        # theta_lfp = signal_process.filter_sig.bandpass(lfpmaze, lf=1, hf=25)
+        # ax3.plot(lfpmaze, "gray", alpha=0.3)
+        # ax3.plot(theta_lfp, "k")
+        # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
+        # ax3.plot(thetaparams.peak, theta_lfp[thetaparams.peak], "|", color="r", markersize=30)
+        # ax3.plot(
+        #     thetaparams.rise_mid,
+        #     theta_lfp[thetaparams.rise_mid],
+        #     "|",
+        #     color="gray",
+        #     markersize=30,
+        # )
+        # ax3.plot(
+        #     thetaparams.fall_mid,
+        #     theta_lfp[thetaparams.fall_mid],
+        #     "|",
+        #     color="magenta",
+        #     markersize=30,
+        # )
+        # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
+        pass

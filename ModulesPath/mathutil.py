@@ -3,6 +3,7 @@ import math
 import pandas as pd
 from sklearn.decomposition import FastICA, PCA
 from scipy import stats
+from hmmlearn.hmm import GaussianHMM
 
 
 def partialcorr(x, y, z):
@@ -171,3 +172,46 @@ def contiguous_regions(condition):
     # Reshape the result into two columns
     idx.shape = (-1, 2)
     return idx
+
+
+def hmmfit1d(Data, n_comp=2, n_iter=50):
+    # hmm states on 1d data and returns labels with highest mean = highest label
+    flag = None
+    if np.isnan(Data).any():
+        nan_indices = np.where(np.isnan(Data) == 1)[0]
+        non_nan_indices = np.where(np.isnan(Data) == 0)[0]
+        Data_og = Data
+        Data = np.delete(Data, nan_indices)
+        hmmlabels = np.nan * np.ones(len(Data_og))
+        flag = 1
+
+    Data = (np.asarray(Data)).reshape(-1, 1)
+    model = GaussianHMM(n_components=n_comp, n_iter=n_iter).fit(Data)
+    hidden_states = model.predict(Data)
+    mus = np.squeeze(model.means_)
+    sigmas = np.squeeze(np.sqrt(model.covars_))
+    transmat = np.array(model.transmat_)
+
+    idx = np.argsort(mus)
+    mus = mus[idx]
+    sigmas = sigmas[idx]
+    transmat = transmat[idx, :][:, idx]
+
+    state_dict = {}
+    states = [i for i in range(5)]
+    for i in idx:
+        state_dict[idx[i]] = states[i]
+
+    relabeled_states = np.asarray([state_dict[h] for h in hidden_states])
+    relabeled_states[:2] = [0, 0]
+    relabeled_states[-2:] = [0, 0]
+
+    hmmlabels = None
+    if flag:
+
+        hmmlabels[non_nan_indices] = relabeled_states
+
+    else:
+        hmmlabels = relabeled_states
+
+    return hmmlabels
