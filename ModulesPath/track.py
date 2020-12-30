@@ -244,3 +244,46 @@ class Track:
 
     def get_laps(self, track_name):
         return self.laps[track_name]
+
+    def plot_run_epochs(self, track_name: str, ax=None):
+        """Plots run epochs for the track
+
+        Parameters
+        ----------
+        track_name : str
+            name of the track
+        ax : axis object, optional
+            axis to plot onto, by default None
+
+        Returns
+        -------
+        axis
+            [description]
+        """
+
+        track = self[track_name]
+        x = track.linear
+        time = track.time
+        data = self.laps[track_name]
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        # ---- position and epoch plot ----------
+        ax.plot(time, x, color="gray")
+        for epoch in data.itertuples():
+            if epoch.direction == "forward":
+                color = "#3eccc7"
+            else:
+                color = "#ff928a"
+            ax.axvspan(
+                epoch.start,
+                epoch.end,
+                ymax=np.ptp(x),
+                facecolor=color,
+                alpha=0.7,
+            )
+        ax.set_ylabel("Linear cordinates")
+        ax.set_title(f"{track_name} linear position with run epochs")
+
+        return ax
