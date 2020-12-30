@@ -220,7 +220,7 @@ class Spikes:
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Units")
 
-    def plot_ccg(self, clus_use, type='all', bin_size=0.001, window_size=0.05, ax=None):
+    def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
 
         """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
         type: 'all' or 'ccg_only'.
@@ -264,9 +264,9 @@ class Spikes:
         for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
             a.bar(bins, ccg, width=1 / (winsize_bins - 1))
             a.set_xticks([0, 1])
-            a.set_xticklabels(np.ones((2,))*np.round(window_size/2, 2))
-            a.set_xlabel('Time (s)')
-            a.set_ylabel('Spike Count')
+            a.set_xticklabels(np.ones((2,)) * np.round(window_size / 2, 2))
+            a.set_xlabel("Time (s)")
+            a.set_ylabel("Spike Count")
             pretty_plot(a)
 
         return ax
@@ -376,6 +376,32 @@ class Spikes:
 
         np.save(filename, spikes_)
         self.load_spikes(filename)  # now load these into class
+
+    def export2neuroscope(self, spks):
+        """To view spikes in neuroscope, spikes are exported to .clu.1 and .res.1 files in the basepath. You can order the spikes in a way to view sequential activity in neuroscope
+
+        Parameters
+        ----------
+        spks : list
+            list of spike times.
+        """
+        srate = self._obj.sampfreq
+        nclu = len(spks)
+        spk_frame = np.concatenate([(cell * srate).astype(int) for cell in spks])
+        clu_id = np.concatenate([[_] * len(spks[_]) for _ in range(nclu)])
+
+        sort_ind = np.argsort(spk_frame)
+        spk_frame = spk_frame[sort_ind]
+        clu_id = clu_id[sort_ind]
+        clu_id = np.append(nclu, clu_id)
+
+        file_clu = self._obj.files.filePrefix.with_suffix(".clu.1")
+        file_res = self._obj.files.filePrefix.with_suffix(".res.1")
+        with file_clu.open("w") as f_clu, file_res.open("w") as f_res:
+            for item in clu_id:
+                f_clu.write(f"{item}\n")
+            for frame in spk_frame:
+                f_res.write(f"{frame}\n")
 
 
 class Stability:

@@ -170,9 +170,9 @@ class pf1d:
             "occupancy": run_occupancy,
         }
 
-        self.speed = speed
-        self.x = x
-        self.t = t
+        self.speed = maze.speed
+        self.x = maze.linear
+        self.t = maze.time
         self.bin = xbin
         self.track_name = track_name
         self.period = period
