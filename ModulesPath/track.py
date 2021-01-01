@@ -245,7 +245,7 @@ class Track:
     def get_laps(self, track_name):
         return self.laps[track_name]
 
-    def plot_run_epochs(self, track_name: str, ax=None):
+    def plot_laps(self, track_name: str, ax=None):
         """Plots run epochs for the track
 
         Parameters
