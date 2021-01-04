@@ -1213,9 +1213,6 @@ class Theta:
 
         return csd
 
-    def precession(self):
-        pass
-
 
 class Gamma:
     """Events and analysis related to gamma oscillations"""

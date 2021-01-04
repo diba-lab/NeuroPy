@@ -1,116 +1,123 @@
-import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
-from scipy.stats import binned_statistic_2d, binned_statistic
-import math
-from scipy.ndimage import gaussian_filter1d, gaussian_filter
-from scipy.special import factorial
+
 import matplotlib.gridspec as gridspec
-import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from scipy import stats
+from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from scipy.special import factorial
+
+from behavior import behavior_epochs
+from getSpikes import Spikes
 from parsePath import Recinfo
+from pfPlot import pf1d
+from plotUtil import Fig
 
 
 class DecodeBehav:
     def __init__(self, basepath):
 
-        # self._obj = basepath
         self.bayes1d = bayes1d(basepath)
         self.bayes2d = bayes2d(basepath)
 
 
 class bayes1d:
-    def __init__(self, basepath):
+    def __init__(self, basepath: Recinfo):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
 
-    def fit(self):
-        spkAll = self._obj.spikes.times
-        x = self._obj.position.x
-        y = self._obj.position.y
-        t = self._obj.position.t
-        maze = self._obj.epochs.maze  # in seconds
-        maze[0] = maze[0] + 60
-        maze[1] = maze[1] - 90
+    def estimate_behavior(
+        self, pf1d_obj: pf1d, binsize=0.25, speed_thresh=True, smooth=1, plot=True
+    ):
 
-        # we require only maze portion
-        ind_maze = np.where((t > maze[0]) & (t < maze[1]))[0]
-        x = y[ind_maze]
-        y = y[ind_maze]
-        t = t[ind_maze]
+        """Estimates position on track using ratemaps and spike counts during behavior
 
-        x = x + abs(min(x))
-        x_grid = np.arange(min(x), max(x), 10)
+        TODO: Needs furthher improvement
 
-        diff_posx = np.diff(x)
-        diff_posy = np.diff(y)
+        Parameters
+        ----------
+        pf1d_obj: obj
+            pass object from placefield.pf1d
+        binsize : float
+            binsize in seconds
+        """
 
-        speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2)
-        dt = t[1] - t[0]
-        speed_thresh = np.where(speed / dt > 0)[0]
+        spikes = Spikes(self._obj).pyr
+        mapinfo = pf1d_obj.no_thresh
+        if speed_thresh:
+            mapinfo = pf1d_obj.thresh
 
-        x_thresh = x[speed_thresh]
-        y_thresh = y[speed_thresh]
-        t_thresh = t[speed_thresh]
+        ratemaps = np.asarray(mapinfo["ratemaps"])
+        bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
+        maze = pf1d_obj.period
+        x = pf1d_obj.x
+        time = pf1d_obj.t
+        speed = pf1d_obj.speed
 
-        occupancy = np.histogram(x, bins=x_grid)[0]
-        shape_occ = occupancy.shape
-        occupancy = occupancy + np.spacing(1)
-        occupancy = occupancy / 120  # converting to seconds
+        tmz = np.arange(maze[0], maze[1], binsize)
+        actualposx = stats.binned_statistic(time, values=x, bins=tmz)[0]
+        meanspeed = stats.binned_statistic(time, speed, bins=tmz)[0]
 
-        bin_t = np.arange(t[0], t[-1], 0.1)
-        x_bin = np.interp(bin_t, t, x)
-        y_bin = np.interp(bin_t, t, y)
+        spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spikes])
 
-        bin_number_t = np.digitize(x_bin, bins=x_grid)
+        """ 
+        ===========================
+        Probability is calculated using this formula
+        prob = (1 / nspike!)* ((0.1 * frate)^nspike) * exp(-0.1 * frate)
+        =========================== 
+        """
 
-        spkcount = np.asarray([np.histogram(x, bins=bin_t)[0] for x in spkAll])
-        ratemap, spk_pos = [], []
-        for cell in spkAll:
+        nCells = len(spikes)
+        cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
+        for cell in range(nCells):
+            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
+            cell_ratemap = ratemaps[cell, :][:, np.newaxis]
 
-            spk_maze = cell[np.where((cell > maze[0]) & (cell < maze[1]))]
-            spk_speed = np.interp(spk_maze, t[1:], speed)
-            spk_y = np.interp(spk_maze, t, y)
-            spk_x = np.interp(spk_maze, t, x)
+            coeff = 1 / (factorial(cell_spkcnt))
+            # broadcasting
+            cell_prob[:, :, cell] = (
+                ((binsize * cell_ratemap) ** cell_spkcnt) * coeff
+            ) * (np.exp(-binsize * cell_ratemap))
 
-            spk_map = np.histogram(spk_y, bins=x_grid)[0]
-            spk_map = spk_map / occupancy
-            ratemap.append(spk_map)
-            spk_pos.append([spk_x, spk_y])
+        posterior = np.prod(cell_prob, axis=2)
+        posterior /= np.sum(posterior, axis=0)
+        self.posterior = posterior
+        self.decodedPos = bincntr[np.argmax(self.posterior, axis=0)]
 
-        ratemap = np.asarray(ratemap)
-        print(ratemap.shape)
+        self.decodingtime = tmz
+        self.actualpos = actualposx
 
-        ntbin = len(bin_t)
-        nposbin = len(x_grid) - 1
-        prob = (
-            lambda nspike, rate: (1 / math.factorial(nspike))
-            * ((0.1 * rate) ** nspike)
-            * (np.exp(-0.1 * rate))
-        )
+        if plot:
+            _, gs = Fig().draw(grid=(3, 4), size=(15, 6))
+            axpos = plt.subplot(gs[0, :3])
+            axpos.plot(self.actualpos, "k")
+            axpos.set_ylabel("Actual position")
 
-        pos_decode = []
-        for timebin in range(len(bin_t) - 1):
-            spk_bin = spkcount[:, timebin]
+            axdec = plt.subplot(gs[1, :3], sharex=axpos)
+            axdec.plot(gaussian_filter1d(self.decodedPos, sigma=smooth), "r")
+            axdec.set_ylabel("Estimated position")
 
-            prob_allbin = []
-            for posbin in range(nposbin):
-                rate_bin = ratemap[:, posbin]
-                spk_prob_bin = [prob(spk, rate) for spk, rate in zip(spk_bin, rate_bin)]
-                prob_thisbin = np.prod(spk_prob_bin)
-                prob_allbin.append(prob_thisbin)
+            axpost = plt.subplot(gs[2, :3], sharex=axpos)
+            axpost.pcolormesh(
+                self.posterior / np.max(self.posterior, axis=0, keepdims=True),
+                cmap="binary",
+            )
+            axpost.set_ylabel("Posterior")
 
-            prob_allbin = np.asarray(prob_allbin)
-
-            posterior = prob_allbin / np.sum(prob_allbin)
-            predict_bin = np.argmax(posterior)
-
-            pos_decode.append(predict_bin)
-
-        plt.plot(bin_number_t, "k")
-        plt.plot(pos_decode, "r")
+            axconf = plt.subplot(gs[:, 3])
+            actual_ = self.actualpos[np.where(meanspeed > 20)[0]]
+            decoded_ = self.decodedPos[np.where(meanspeed > 20)[0]]
+            bin_ = np.histogram2d(decoded_, actual_, bins=[pf1d_obj.bin, pf1d_obj.bin])[
+                0
+            ]
+            bin_ = bin_ / np.max(bin_, axis=0, keepdims=True)
+            axconf.pcolormesh(pf1d_obj.bin, pf1d_obj.bin, bin_, cmap="binary")
+            axconf.set_xlabel("Actual position (cm)")
+            axconf.set_ylabel("Estimated position (cm)")
+            axconf.set_title("Confusion matrix")
 
 
 class bayes2d:
