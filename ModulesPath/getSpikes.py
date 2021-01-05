@@ -80,20 +80,9 @@ class Spikes:
             print("instantenous file does not exist ")
 
     def gen_instfiring(self):
-        epochs = behavior_epochs(self._obj)
         spkall = np.concatenate(self.times)
 
-        pre = epochs.pre
-        post = epochs.post
-        if pre and post:
-            bins = np.arange(pre[0], post[1], 0.001)
-        else:
-            print(
-                "No pre/post behavioral epochs designated - using entire recording session"
-            )
-            bins = np.arange(
-                spkall.min(), spkall.max(), 0.001
-            )  # NRK todo: fill this in
+        bins = np.arange(spkall.min(), spkall.max(), 0.001)
 
         spkcnt = np.histogram(spkall, bins=bins)[0]
         gaussKernel = self._gaussian()
