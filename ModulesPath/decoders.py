@@ -18,16 +18,43 @@ from plotUtil import Fig
 class DecodeBehav:
     def __init__(self, basepath):
 
-        self.bayes1d = bayes1d(basepath)
+        self.bayes1d = Bayes1d(basepath)
         self.bayes2d = bayes2d(basepath)
 
 
-class bayes1d:
+class Bayes1d:
     def __init__(self, basepath: Recinfo):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
+
+    def _decoder(self, spkcount, ratemaps, tau):
+        """
+        ===========================
+        Probability is calculated using this formula
+        prob = (1 / nspike!)* ((tau * frate)^nspike) * exp(-tau * frate)
+        where,
+            tau = binsize
+        ===========================
+        """
+
+        nCells = spkcount.shape[0]
+        cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
+        for cell in range(nCells):
+            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
+            cell_ratemap = ratemaps[cell, :][:, np.newaxis]
+
+            coeff = 1 / (factorial(cell_spkcnt))
+            # broadcasting
+            cell_prob[:, :, cell] = (((tau * cell_ratemap) ** cell_spkcnt) * coeff) * (
+                np.exp(-tau * cell_ratemap)
+            )
+
+        posterior = np.prod(cell_prob, axis=2)
+        posterior /= np.sum(posterior, axis=0)
+
+        return posterior
 
     def estimate_behavior(
         self, pf1d_obj: pf1d, binsize=0.25, speed_thresh=True, smooth=1, plot=True
@@ -35,7 +62,7 @@ class bayes1d:
 
         """Estimates position on track using ratemaps and spike counts during behavior
 
-        TODO: Needs furthher improvement
+        TODO: Needs furthher improvement/polish
 
         Parameters
         ----------
@@ -51,6 +78,7 @@ class bayes1d:
             mapinfo = pf1d_obj.thresh
 
         ratemaps = np.asarray(mapinfo["ratemaps"])
+        occupancy = mapinfo["occupancy"] / np.sum(mapinfo["occupancy"])
         bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
         maze = pf1d_obj.period
         x = pf1d_obj.x
@@ -63,30 +91,8 @@ class bayes1d:
 
         spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spikes])
 
-        """ 
-        ===========================
-        Probability is calculated using this formula
-        prob = (1 / nspike!)* ((0.1 * frate)^nspike) * exp(-0.1 * frate)
-        =========================== 
-        """
-
-        nCells = len(spikes)
-        cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
-        for cell in range(nCells):
-            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
-            cell_ratemap = ratemaps[cell, :][:, np.newaxis]
-
-            coeff = 1 / (factorial(cell_spkcnt))
-            # broadcasting
-            cell_prob[:, :, cell] = (
-                ((binsize * cell_ratemap) ** cell_spkcnt) * coeff
-            ) * (np.exp(-binsize * cell_ratemap))
-
-        posterior = np.prod(cell_prob, axis=2)
-        posterior /= np.sum(posterior, axis=0)
-        self.posterior = posterior
+        self.posterior = self._decoder(spkcount, ratemaps, tau=binsize)
         self.decodedPos = bincntr[np.argmax(self.posterior, axis=0)]
-
         self.decodingtime = tmz
         self.actualpos = actualposx
 
@@ -97,8 +103,13 @@ class bayes1d:
             axpos.set_ylabel("Actual position")
 
             axdec = plt.subplot(gs[1, :3], sharex=axpos)
-            axdec.plot(gaussian_filter1d(self.decodedPos, sigma=smooth), "r")
-            axdec.set_ylabel("Estimated position")
+            axdec.plot(
+                np.abs(
+                    gaussian_filter1d(self.decodedPos, sigma=smooth) - self.actualpos
+                ),
+                "r",
+            )
+            axdec.set_ylabel("Error")
 
             axpost = plt.subplot(gs[2, :3], sharex=axpos)
             axpost.pcolormesh(
@@ -118,6 +129,77 @@ class bayes1d:
             axconf.set_xlabel("Actual position (cm)")
             axconf.set_ylabel("Estimated position (cm)")
             axconf.set_title("Confusion matrix")
+
+    def decode_events(self, pf1d_obj: pf1d, events, binsize=0.02, speed_thresh=True):
+        """Decoding events like population bursts or ripples
+
+        Parameters
+        ----------
+        events : pd.Dataframe
+            dataframe with column names start and end
+        binsize : float
+            bin size within each events
+        slideby : float
+            sliding window by this much, in seconds
+        """
+
+        assert isinstance(events, pd.DataFrame)
+        spks = Spikes(self._obj).pyr
+
+        mapinfo = pf1d_obj.no_thresh
+        if speed_thresh:
+            mapinfo = pf1d_obj.thresh
+
+        ratemaps = np.asarray(mapinfo["ratemaps"])
+        bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
+
+        # ----- removing cells that fire < 1 HZ --------
+        good_cells = np.where(np.max(ratemaps, axis=1) > 1)[0]
+        spks = [spks[_] for _ in good_cells]
+        ratemaps = ratemaps[good_cells, :]
+
+        # --- sorting the cells according to pf location -------
+        sort_ind = np.argsort(np.argmax(ratemaps, axis=1))
+        spks = [spks[_] for _ in sort_ind]
+        ratemaps = ratemaps[sort_ind, :]
+
+        # ----- calculating binned spike counts -------------
+        # Ncells = len(spks)
+        nbins_events = np.zeros(len(events))  # number of bins in each event
+        bins_events = []
+        for i, epoch in enumerate(events.itertuples()):
+            bins = np.arange(epoch.start, epoch.end, binsize)
+            nbins_events[i] = len(bins) - 1
+            bins_events.extend(bins)
+        spkcount = np.asarray([np.histogram(_, bins=bins_events)[0] for _ in spks])
+
+        # ---- deleting unwanted columns that represent time between events ------
+        cumsum_nbins = np.cumsum(nbins_events)
+        del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
+        spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
+
+        posterior = self._decoder(spkcount, ratemaps, tau=binsize)
+        decodedPos = bincntr[np.argmax(posterior, axis=0)]
+        cum_nbins = np.append(0, np.cumsum(nbins_events)).astype(int)
+
+        posterior = [
+            posterior[:, cum_nbins[i] : cum_nbins[i + 1]]
+            for i in range(len(cum_nbins) - 1)
+        ]
+
+        decodedPos = [
+            decodedPos[cum_nbins[i] : cum_nbins[i + 1]]
+            for i in range(len(cum_nbins) - 1)
+        ]
+        spkcount = [
+            spkcount[:, cum_nbins[i] : cum_nbins[i + 1]]
+            for i in range(len(cum_nbins) - 1)
+        ]
+
+        return decodedPos, posterior, spkcount
+
+    def plot_decoded_events(self):
+        pass
 
 
 class bayes2d:
