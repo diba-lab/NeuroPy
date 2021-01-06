@@ -409,7 +409,7 @@ class pf2d:
         else:
             self._obj = Recinfo(basepath)
 
-    def compute(self, period, gridbin=10, speed_thresh=10, smooth=2):
+    def compute(self, period, gridbin=10, speed_thresh=5, smooth=2):
         """Calculates 2D placefields
 
         Parameters
