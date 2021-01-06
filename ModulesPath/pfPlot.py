@@ -60,7 +60,8 @@ class pf1d:
     #         self.ratemap = np.load(f, allow_pickle=True)
 
     def compute(self, track_name, run_dir=None, grid_bin=5, speed_thresh=5, smooth=1):
-        """computes 1d place field using linearized coordinates. It always computes two place maps with and without speed thresholds.
+        """computes 1d place field using linearized coordinates. It always computes two place maps with and
+        without speed thresholds.
 
         Parameters
         ----------

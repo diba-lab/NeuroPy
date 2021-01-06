@@ -75,6 +75,7 @@ class Track:
         self, track_name=None, sample_sec=3, method="isomap", plot=True
     ):
         """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
+        ISOMAP is more versatile but also more computationally expensive.
 
         Parameters
         ----------

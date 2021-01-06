@@ -78,7 +78,11 @@ class behavior_epochs:
         Parameters
         ----------
         new_epochs : dict
-            'dict_key' is meaningful string, 'dict_value' should be 2 element array/list
+            'dict_key' is meaningful string, 'dict_value' should be 2 element array/list of epoch start/end times in
+            seconds.
+            Example: if you have a session with pre-sleep, maze1 running, maze2 running, and then post-sleep,
+            you would enter:
+            {'pre': [t1, t2], 'maze1': [t3, t4], 'maze2': [t5, t6], 'post': [t7, t8]}
         """
 
         assert isinstance(new_epochs, dict), "Dictionaries are only valid argument"
