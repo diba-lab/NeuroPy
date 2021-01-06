@@ -79,7 +79,7 @@ class Track:
 
         Parameters
         ----------
-        track_names: list of track names, must match an epoch in epochs class.
+        track_names: list of track names, each must match an epoch in epochs class.
         sample_sec : int, optional
             sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results
         method : str, optional

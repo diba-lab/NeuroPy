@@ -209,6 +209,7 @@ class pf1d:
         ax=None,
         speed_thresh=False,
         normalize=True,
+        stack=True,
         cmap="tab20b",
         subplots=(5, 8),
     ):
@@ -239,6 +240,8 @@ class pf1d:
             if normalize:
                 ax.set_ylim([0, 1])
             axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
+            if stack:  # double up y-axis as is convention for phase precession plots
+                axphase.scatter(position[cell], phases[cell] + 360, c="k", s=0.6)
             axphase.set_ylabel(r"$\theta$ Phase")
 
         if ax is None:
