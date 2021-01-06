@@ -917,13 +917,10 @@ class Theta:
 
         return sorted_thetapow
 
-    def detectBestChan(self):
+    def detectBestChan(self, period):
         """Selects the best channel by computing area under the curve of spectral density"""
-        epochs = behavior_epochs(self._obj)
-
         channels = self._obj.goodchans
-        maze = epochs.maze
-        eeg = self._obj.geteeg(chans=channels, timeRange=maze)
+        eeg = self._obj.geteeg(chans=channels, timeRange=period)
         sorted_thetapow = self._getAUC(eeg=eeg)
         chans_thetapow = channels[sorted_thetapow]
 
