@@ -82,7 +82,8 @@ class Track:
         sample_sec : int, optional
             sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results
         method : str, optional
-            by default "PCA" (for straight tracks) or 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020)
+            by default 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020) or
+            'PCA' (for straight tracks)
 
         """
         posinfo = ExtractPosition(self._obj)
@@ -118,7 +119,7 @@ class Track:
                 ax.plot(xlinear)
                 ax.set_xlabel("Frame #")
                 ax.set_ylabel("Linear Position")
-                ax.set_title(method + " Sanity Check Plot")
+                ax.set_title(method.upper() + " Sanity Check Plot")
 
             alldata[name]["linear"] = xlinear
 
@@ -132,11 +133,11 @@ class Track:
         if track_name is None:
             track_name = self.names
 
-        _, ax = plt.subplots(1, len(track_name))
+        _, ax = plt.subplots(1, len(track_name), squeeze=False)
 
         for ind, name in enumerate(track_name):
             posdata = self[name]
-            ax[ind].plot(posdata.x, posdata.y)
+            ax.reshape[ind].plot(posdata.x, posdata.y)
             ax[ind].set_title(name)
 
     def estimate_run_laps(

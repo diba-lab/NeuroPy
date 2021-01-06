@@ -312,7 +312,8 @@ class ExtractPosition:
         Parameters
         ----------
         method : str, optional
-            [description], by default "from_metadata"
+            method to grab file start times: "from_metadata" (default) grabs from metadata.csv file,
+                                             "from_files" grabs from timestamps.npy files in open-ephys folders
         scale : float, optional
             scale the extracted coordinates, by default 1.0
         """
