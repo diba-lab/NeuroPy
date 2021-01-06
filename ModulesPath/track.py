@@ -128,16 +128,24 @@ class Track:
 
         self._load()
 
-    def plot(self, track_name=None):
+    def plot(self, track_name=None, linear=False):
+        """track_name: list of tracks
+            linear: boolean to plot 2d (False, default) or linear (True)"""
 
         if track_name is None:
             track_name = self.names
 
         _, ax = plt.subplots(1, len(track_name), squeeze=False)
+        ax = ax.reshape(-1)
 
         for ind, name in enumerate(track_name):
             posdata = self[name]
-            ax.reshape[ind].plot(posdata.x, posdata.y)
+            if not linear:
+                ax[ind].plot(posdata.x, posdata.y)
+            elif linear:
+                ax[ind].plot(posdata.time, posdata.linear)
+                ax[ind].set_xlabel('Time (s)')
+                ax[ind].set_ylabel('Linear Position (cm)')
             ax[ind].set_title(name)
 
     def estimate_run_laps(
