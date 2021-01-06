@@ -72,13 +72,14 @@ class Track:
         return len(self.data)
 
     def linearize_position(
-        self, track_name=None, sample_sec=3, method="isomap", plot=True
+        self, track_names=None, sample_sec=3, method="isomap", plot=True
     ):
         """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
         ISOMAP is more versatile but also more computationally expensive.
 
         Parameters
         ----------
+        track_names: list of track names, must match an epoch in epochs class.
         sample_sec : int, optional
             sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results
         method : str, optional
@@ -89,13 +90,13 @@ class Track:
         posinfo = ExtractPosition(self._obj)
         tracking_sRate = posinfo.tracking_sRate
 
-        if track_name is None:
-            track_name = self.names
+        if track_names is None:
+            track_names = self.names
 
         # ---- loading the data ----------
         alldata = np.load(self.files.trackinfo, allow_pickle=True).item()
 
-        for name in track_name:
+        for name in track_names:
             xpos = alldata[name].x
             ypos = alldata[name].y
             position = np.vstack((xpos, ypos)).T
