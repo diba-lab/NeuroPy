@@ -129,17 +129,17 @@ class Track:
 
         self._load()
 
-    def plot(self, track_name=None, linear=False):
-        """track_name: list of tracks
+    def plot(self, track_names=None, linear=False):
+        """track_names: list of tracks
             linear: boolean to plot 2d (False, default) or linear (True)"""
 
-        if track_name is None:
+        if track_names is None:
             track_name = self.names
 
-        _, ax = plt.subplots(1, len(track_name), squeeze=False)
+        _, ax = plt.subplots(1, len(track_names), squeeze=False)
         ax = ax.reshape(-1)
 
-        for ind, name in enumerate(track_name):
+        for ind, name in enumerate(track_names):
             posdata = self[name]
             if not linear:
                 ax[ind].plot(posdata.x, posdata.y)
