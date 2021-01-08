@@ -72,28 +72,31 @@ class Track:
         return len(self.data)
 
     def linearize_position(
-        self, track_name=None, sample_sec=3, method="isomap", plot=True
+        self, track_names=None, sample_sec=3, method="isomap", plot=True
     ):
         """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
+        ISOMAP is more versatile but also more computationally expensive.
 
         Parameters
         ----------
+        track_names: list of track names, each must match an epoch in epochs class.
         sample_sec : int, optional
             sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results
         method : str, optional
-            by default "PCA" (for straight tracks) or 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020)
+            by default 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020) or
+            'PCA' (for straight tracks)
 
         """
         posinfo = ExtractPosition(self._obj)
         tracking_sRate = posinfo.tracking_sRate
 
-        if track_name is None:
-            track_name = self.names
+        if track_names is None:
+            track_names = self.names
 
         # ---- loading the data ----------
         alldata = np.load(self.files.trackinfo, allow_pickle=True).item()
 
-        for name in track_name:
+        for name in track_names:
             xpos = alldata[name].x
             ypos = alldata[name].y
             position = np.vstack((xpos, ypos)).T
@@ -117,7 +120,7 @@ class Track:
                 ax.plot(xlinear)
                 ax.set_xlabel("Frame #")
                 ax.set_ylabel("Linear Position")
-                ax.set_title(method + " Sanity Check Plot")
+                ax.set_title(method.upper() + " Sanity Check Plot")
 
             alldata[name]["linear"] = xlinear
 
@@ -126,16 +129,24 @@ class Track:
 
         self._load()
 
-    def plot(self, track_name=None):
+    def plot(self, track_names=None, linear=False):
+        """track_names: list of tracks
+            linear: boolean to plot 2d (False, default) or linear (True)"""
 
-        if track_name is None:
+        if track_names is None:
             track_name = self.names
 
-        _, ax = plt.subplots(1, len(track_name))
+        _, ax = plt.subplots(1, len(track_names), squeeze=False)
+        ax = ax.reshape(-1)
 
-        for ind, name in enumerate(track_name):
+        for ind, name in enumerate(track_names):
             posdata = self[name]
-            ax[ind].plot(posdata.x, posdata.y)
+            if not linear:
+                ax[ind].plot(posdata.x, posdata.y)
+            elif linear:
+                ax[ind].plot(posdata.time, posdata.linear)
+                ax[ind].set_xlabel('Time (s)')
+                ax[ind].set_ylabel('Linear Position (cm)')
             ax[ind].set_title(name)
 
     def estimate_run_laps(

@@ -927,14 +927,15 @@ class Theta:
         filename = self.files.bestThetachan
         best_theta_chans = {"chanorder": chans_thetapow}
         np.save(filename, best_theta_chans)
+        self._load()  # load result immediately into Theta object.
 
     def getParams(self, lfp, lowtheta=1, hightheta=25):
-        """Calculatiing Various theta related parameters
+        """Calculating Various theta related parameters
 
         Parameters
         ----------
         lfp : [type]
-            lfp on which theta parameters are calculated
+            lfp on which theta parameters are calculated.
 
         Returns
         -------
@@ -1062,7 +1063,8 @@ class Theta:
     def getstrongTheta(
         self, lfp, lowthresh=0, highthresh=0.5, minDistance=300, minDuration=1250
     ):
-        """Returns strong theta lfp. If it has multiple channels, then strong theta periods are calculated from that channel which has highest area under the curve in the theta frequency band. Parameters are applied on z-scored lfp.
+        """Returns strong theta lfp. If it has multiple channels, then strong theta periods are calculated from that
+        channel which has highest area under the curve in the theta frequency band. Parameters are applied on z-scored lfp.
 
         Parameters
         ----------
@@ -1164,7 +1166,8 @@ class Theta:
         period : array
             period over which theta cycles are averaged
         refchan : int or array
-            channel whose theta peak will be considered. If array then median of lfp across all channels will be chosen for peak detection
+            channel whose theta peak will be considered. If array then median of lfp across all channels will be chosen
+            for peak detection
         chans : array
             channels for lfp data
         window : int, optional

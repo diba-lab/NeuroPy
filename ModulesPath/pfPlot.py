@@ -60,7 +60,8 @@ class pf1d:
     #         self.ratemap = np.load(f, allow_pickle=True)
 
     def compute(self, track_name, run_dir=None, grid_bin=5, speed_thresh=5, smooth=1):
-        """computes 1d place field using linearized coordinates. It always computes two place maps with and without speed thresholds.
+        """computes 1d place field using linearized coordinates. It always computes two place maps with and
+        without speed thresholds.
 
         Parameters
         ----------
@@ -208,6 +209,7 @@ class pf1d:
         ax=None,
         speed_thresh=False,
         normalize=True,
+        stack=True,
         cmap="tab20b",
         subplots=(5, 8),
     ):
@@ -238,6 +240,8 @@ class pf1d:
             if normalize:
                 ax.set_ylim([0, 1])
             axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
+            if stack:  # double up y-axis as is convention for phase precession plots
+                axphase.scatter(position[cell], phases[cell] + 360, c="k", s=0.6)
             axphase.set_ylabel(r"$\theta$ Phase")
 
         if ax is None:
@@ -409,7 +413,7 @@ class pf2d:
         else:
             self._obj = Recinfo(basepath)
 
-    def compute(self, period, gridbin=10, speed_thresh=10, smooth=2):
+    def compute(self, period, gridbin=10, speed_thresh=5, smooth=2):
         """Calculates 2D placefields
 
         Parameters
