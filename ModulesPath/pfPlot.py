@@ -54,6 +54,8 @@ class pf1d:
             placemap: str = filePrefix.with_suffix(".pf1d.npy")
 
         self.files = files()
+        self.thresh = []
+        self.no_thresh = []
 
     # def _load(self):
     #     if (f := self.files.placemap) :
@@ -157,23 +159,40 @@ class pf1d:
             ratemap.append(ratemap_)
             run_ratemap.append(run_ratemap_)
 
-        self.no_thresh = {
-            run_dir: {
+        # Initiate/build up dictionary with 1d place field results
+        if not isinstance(self.no_thresh, dict):
+            self.no_thresh = {
+                run_dir: {
+                    "pos": spk_pos,
+                    "spikes": spk_t,
+                    "ratemaps": ratemap,
+                    "occupancy": occupancy,
+                }
+            }
+        else:
+            self.no_thresh[run_dir] = {
                 "pos": spk_pos,
                 "spikes": spk_t,
                 "ratemaps": ratemap,
                 "occupancy": occupancy,
             }
-        }
 
-        self.thresh = {
-            run_dir: {
+        if not isinstance(self.thresh, dict):
+            self.thresh = {
+                run_dir: {
+                    "pos": run_spk_pos,
+                    "spikes": run_spk_t,
+                    "ratemaps": run_ratemap,
+                    "occupancy": run_occupancy,
+                }
+            }
+        else:
+            self.thresh[run_dir] = {
                 "pos": run_spk_pos,
                 "spikes": run_spk_t,
                 "ratemaps": run_ratemap,
                 "occupancy": run_occupancy,
             }
-        }
 
         self.speed = maze.speed
         self.x = maze.linear
@@ -245,7 +264,7 @@ class pf1d:
             ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
             ax.set_xlabel("Position (cm)")
             ax.set_ylabel("Normalized frate")
-            ax.set_title(f"Cell {cell}")
+            ax.set_title(" ".join(filter(None, ("Cell", str(cell), run_dir))))
             if normalize:
                 ax.set_ylim([0, 1])
             axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
@@ -391,7 +410,7 @@ class pf1d:
             if subplots is None:
                 ax.clear()
             ax.plot(self.x, self.t, color="gray", alpha=0.6)
-            ax.plot(mapinfo["pos"][cell], mapinfo["time"][cell], ".", color="#ff5f5c")
+            ax.plot(mapinfo["pos"][cell], mapinfo["spikes"][cell], ".", color="#ff5f5c")
             ax.set_title(f"Cell {cell}")
             ax.invert_yaxis()
             ax.set_xlabel("Position (cm)")
