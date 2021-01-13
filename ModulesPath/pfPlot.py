@@ -163,7 +163,8 @@ class pf1d:
                 "spikes": spk_t,
                 "ratemaps": ratemap,
                 "occupancy": occupancy,
-                       }}
+            }
+        }
 
         self.thresh = {
             run_dir: {
@@ -171,7 +172,8 @@ class pf1d:
                 "spikes": run_spk_t,
                 "ratemaps": run_ratemap,
                 "occupancy": run_occupancy,
-                    }}
+            }
+        }
 
         self.speed = maze.speed
         self.x = maze.linear
@@ -196,7 +198,9 @@ class pf1d:
         # phase_bin = np.linspace(0, 360, 37)
 
         phase, run_phase = [], []
-        for spk, run_spk in zip(self.no_thresh[run_dir]["spikes"], self.thresh[run_dir]["spikes"]):
+        for spk, run_spk in zip(
+            self.no_thresh[run_dir]["spikes"], self.thresh[run_dir]["spikes"]
+        ):
             spk_phase = np.interp(spk, lfpt, thetaparam.angle)
             run_spk_phase = np.interp(run_spk, lfpt, thetaparam.angle)
 

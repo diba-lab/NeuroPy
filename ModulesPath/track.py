@@ -131,7 +131,7 @@ class Track:
 
     def plot(self, track_names=None, linear=False):
         """track_names: list of tracks
-            linear: boolean to plot 2d (False, default) or linear (True)"""
+        linear: boolean to plot 2d (False, default) or linear (True)"""
 
         if track_names is None:
             track_name = self.names
@@ -145,8 +145,8 @@ class Track:
                 ax[ind].plot(posdata.x, posdata.y)
             elif linear:
                 ax[ind].plot(posdata.time, posdata.linear)
-                ax[ind].set_xlabel('Time (s)')
-                ax[ind].set_ylabel('Linear Position (cm)')
+                ax[ind].set_xlabel("Time (s)")
+                ax[ind].set_ylabel("Linear Position (cm)")
             ax[ind].set_title(name)
 
     def estimate_run_laps(
