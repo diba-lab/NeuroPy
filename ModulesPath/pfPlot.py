@@ -158,18 +158,20 @@ class pf1d:
             run_ratemap.append(run_ratemap_)
 
         self.no_thresh = {
-            "pos": spk_pos,
-            "spikes": spk_t,
-            "ratemaps": ratemap,
-            "occupancy": occupancy,
-        }
+            run_dir: {
+                "pos": spk_pos,
+                "spikes": spk_t,
+                "ratemaps": ratemap,
+                "occupancy": occupancy,
+                       }}
 
         self.thresh = {
-            "pos": run_spk_pos,
-            "spikes": run_spk_t,
-            "ratemaps": run_ratemap,
-            "occupancy": run_occupancy,
-        }
+            run_dir: {
+                "pos": run_spk_pos,
+                "spikes": run_spk_t,
+                "ratemaps": run_ratemap,
+                "occupancy": run_occupancy,
+                    }}
 
         self.speed = maze.speed
         self.x = maze.linear
@@ -178,13 +180,15 @@ class pf1d:
         self.track_name = track_name
         self.period = period
 
-    def phase_precession(self, theta_chan):
+    def phase_precession(self, theta_chan, run_dir=None):
         """Calculates phase of spikes computed for placefields
 
         Parameters
         ----------
         theta_chan : int
             lfp channel to use for calculating theta phases
+        run_dir : None, 'forward', 'backward' (optional)
+            [description] include both directions or only forward/backward running
         """
         lfpmaze = self._obj.geteeg(chans=theta_chan, timeRange=self.period)
         lfpt = np.linspace(self.period[0], self.period[1], len(lfpmaze))
@@ -192,7 +196,7 @@ class pf1d:
         # phase_bin = np.linspace(0, 360, 37)
 
         phase, run_phase = [], []
-        for spk, run_spk in zip(self.no_thresh["spikes"], self.thresh["spikes"]):
+        for spk, run_spk in zip(self.no_thresh[run_dir]["spikes"], self.thresh[run_dir]["spikes"]):
             spk_phase = np.interp(spk, lfpt, thetaparam.angle)
             run_spk_phase = np.interp(run_spk, lfpt, thetaparam.angle)
 
@@ -201,13 +205,14 @@ class pf1d:
             # precess = np.histogram2d(spk_pos, spk_phase, bins=[pos_bin, phase_bin])[0]
             # precess = gaussian_filter(precess, sigma=1)
 
-        self.no_thresh["phases"] = phase
-        self.thresh["phases"] = run_phase
+        self.no_thresh[run_dir]["phases"] = phase
+        self.thresh[run_dir]["phases"] = run_phase
 
     def plot_with_phase(
         self,
         ax=None,
         speed_thresh=False,
+        run_dir=None,
         normalize=True,
         stack=True,
         cmap="tab20b",
@@ -215,9 +220,9 @@ class pf1d:
     ):
         cmap = mpl.cm.get_cmap(cmap)
 
-        mapinfo = self.no_thresh
+        mapinfo = self.no_thresh[run_dir]
         if speed_thresh:
-            mapinfo = self.thresh
+            mapinfo = self.thresh[run_dir]
 
         ratemaps = mapinfo["ratemaps"]
         if normalize:
@@ -276,6 +281,7 @@ class pf1d:
         ax=None,
         speed_thresh=False,
         pad=2,
+        run_dir=None,
         normalize=False,
         sortby=None,
         cmap="tab20b",
@@ -290,6 +296,8 @@ class pf1d:
             [description], by default False
         pad : int, optional
             [description], by default 2
+        run_dir : None, 'forward', 'backward' (optional)
+            [description] include both directions or only forward/backward running
         normalize : bool, optional
             [description], by default False
         sortby : bool, optional
@@ -304,9 +312,9 @@ class pf1d:
         """
         cmap = mpl.cm.get_cmap(cmap)
 
-        mapinfo = self.no_thresh
+        mapinfo = self.no_thresh[run_dir]
         if speed_thresh:
-            mapinfo = self.thresh
+            mapinfo = self.thresh[run_dir]
 
         ratemaps = mapinfo["ratemaps"]
         nCells = len(ratemaps)
@@ -355,7 +363,7 @@ class pf1d:
 
         return ax
 
-    def plot_raw(self, speed_thresh=False, ax=None, subplots=(8, 9)):
+    def plot_raw(self, speed_thresh=False, ax=None, run_dir=None, subplots=(8, 9)):
         """Plot spike location on animal's path
 
         Parameters
@@ -364,13 +372,15 @@ class pf1d:
             [description], by default False
         ax : [type], optional
             [description], by default None
+        run_dir : None, 'forward', 'backward' (optional)
+            [description] include both directions or only forward/backward running
         subplots : tuple, optional
             [description], by default (8, 9)
         """
 
-        mapinfo = self.no_thresh
+        mapinfo = self.no_thresh[run_dir]
         if speed_thresh:
-            mapinfo = self.thresh
+            mapinfo = self.thresh[run_dir]
         nCells = len(mapinfo["pos"])
 
         def plot_(cell, ax):
@@ -677,6 +687,9 @@ class pf2d:
         )
 
     def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
+        """Plots X and Y trajectory with spikes, 2d map with spikes, and autocorrelogram."""
+        # NRK todo: Future plans: each direction, 1d trajectory plot, acg, and phase precession of each cell
+        #           all on the same plot.
         if fig is None:
             fig_use = plt.figure(figsize=[28.25, 11.75])
         else:
