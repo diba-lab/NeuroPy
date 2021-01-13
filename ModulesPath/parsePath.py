@@ -545,7 +545,7 @@ class Probemap:
 
         print(".prb file created for Spyking Circus")
 
-    def plot(self, chans=None, ax=None, colors=None):
+    def plot(self, chans=None, ax=None, colors=None, annotate=False):
 
         lfpchans = self._obj.channels
 
@@ -562,6 +562,9 @@ class Probemap:
             ax = fig.add_subplot(gs[0])
 
         ax.scatter(xpos, ypos, s=2, color="gray", zorder=1, linewidths=0.5)
+        if annotate:
+            for coord in self.coords.itertuples():
+                ax.annotate(coord.chan, (coord.x, coord.y), fontsize=8)
 
         if len(self._obj.badchans) != 0:
             badchans = self._obj.badchans
