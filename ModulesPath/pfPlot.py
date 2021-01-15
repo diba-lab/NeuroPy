@@ -240,7 +240,9 @@ class pf1d:
             ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
             ax.set_xlabel("Position (cm)")
             ax.set_ylabel("Normalized frate")
-            ax.set_title(" ".join(filter(None, ("Cell", str(cell), self.run_dir))))
+            ax.set_title(
+                " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
+            )
             if normalize:
                 ax.set_ylim([0, 1])
             axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
@@ -356,6 +358,8 @@ class pf1d:
         ax.set_xlim([np.min(bin_cntr), np.max(bin_cntr)])
         ax.tick_params("y", length=0)
         ax.set_ylim([0, nCells])
+        if self.run_dir is not None:
+            ax.set_title(self.run_dir.capitalize() + " Runs only")
 
         return ax
 
@@ -382,7 +386,9 @@ class pf1d:
                 ax.clear()
             ax.plot(self.x, self.t, color="gray", alpha=0.6)
             ax.plot(mapinfo["pos"][cell], mapinfo["spikes"][cell], ".", color="#ff5f5c")
-            ax.set_title(f"Cell {cell}")
+            ax.set_title(
+                " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
+            )
             ax.invert_yaxis()
             ax.set_xlabel("Position (cm)")
             ax.set_ylabel("Time (s)")
