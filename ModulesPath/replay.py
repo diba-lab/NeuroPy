@@ -71,7 +71,7 @@ class ExplainedVariance:
 
                 if nwindow % 1 > 0.3:
                     window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
-                    t = np.append(t, round(nwindow % 1, 3) / 2)
+                    t = np.append(t, t[-1] + round(nwindow % 1, 3) / 2)
 
                 corr = [
                     np.corrcoef(window_spkcnt[x]) for x in range(len(window_spkcnt))
