@@ -73,8 +73,13 @@ def hmmfit1d(Data):
 
 class SleepScore:
     # TODO add support for bad time points
-    # colors = [NREM, REM, Quiet, Wake]
-    colors = ["#6b90d1", "#eb9494", "#b6afaf", "#474343"]
+    # colors = ["#6b90d1", "#eb9494", "#b6afaf", "#474343"]
+    colors = {
+        "nrem": "#6b90d1",
+        "rem": "#eb9494",
+        "quiet": "#b6afaf",
+        "active": "#474343",
+    }
 
     def __init__(self, basepath):
 
@@ -244,7 +249,7 @@ class SleepScore:
         theta_deltaplus_ratio = theta / deltaplus
         print(f"spectral properties calculated")
 
-        if (noisy := artifact.time) :
+        if (noisy := artifact.time).any():
             noisy_timepoints = []
             for noisy_ind in range(noisy.shape[0]):
                 st = noisy[noisy_ind, 0]
@@ -372,6 +377,20 @@ class SleepScore:
         print("emg calculation done")
         return emg_lfp
 
+    def proportion(self, period=None):
+
+        if period is None:
+            period = [self.states.iloc[0].start, self.states.iloc[-1].end]
+
+        assert len(period) == 2
+        period_duration = np.diff(period)[0]
+        states = self.states[
+            (self.states.start > period[0]) & (self.states.start < period[1])
+        ][["duration", "name"]]
+        states_duration = states.groupby("name").agg("sum")
+
+        return states_duration / period_duration
+
     def addBackgroundtoPlots(self, ax, tstart=0):
         """This helps to quickly add background to existing plots according to brainstates. For example, if you want to overlay replay on top of sleep states
 
@@ -410,7 +429,7 @@ class SleepScore:
         y = np.zeros(len(x)) + np.asarray(states.state)
         width = np.asarray(states.duration)
         height = np.ones(len(x))
-        col = [self.colors[int(state) - 1] for state in states.state]
+        col = [self.colors[state] for state in states.name]
         make_boxes(axhypno, x, y, width, height, facecolor=col)
         axhypno.set_xlim(0, post[1])
         axhypno.set_ylim(1, 5)
