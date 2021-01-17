@@ -896,13 +896,14 @@ class Theta:
         """
         eegSrate = self._obj.lfpSrate
 
-        assert eeg.ndim == 2
+        assert isinstance(eeg, list), "list of lfps needs"
+        assert len(eeg) > 1, "More than one channel needed"
 
         aucChans = []
-        for i in range(eeg.shape[0]):
+        for lfp in eeg:
 
             f, pxx = sg.welch(
-                eeg[i],
+                lfp,
                 fs=eegSrate,
                 nperseg=10 * eegSrate,
                 noverlap=5 * eegSrate,
@@ -942,123 +943,10 @@ class Theta:
         [type]
             [description]
         """
-        # --- calculating theta parameters from broadband theta---------
-        eegSrate = self._obj.lfpSrate
-        thetalfp = signal_process.filter_sig.bandpass(lfp, lf=lowtheta, hf=hightheta)
-        hil_theta = signal_process.hilbertfast(thetalfp)
-        theta_360 = np.angle(hil_theta, deg=True) + 180
-        theta_angle = np.abs(np.angle(hil_theta, deg=True))
-        theta_trough = sg.find_peaks(theta_angle)[0]
-        theta_peak = sg.find_peaks(-theta_angle)[0]
-        theta_amp = np.abs(hil_theta) ** 2
 
-        if theta_peak[0] < theta_trough[0]:
-            theta_peak = theta_peak[1:]
-        if theta_trough[-1] > theta_peak[-1]:
-            theta_trough = theta_trough[:-1]
-
-        assert len(theta_trough) == len(theta_peak)
-
-        rising_time = (theta_peak[1:] - theta_trough[1:]) / eegSrate
-        falling_time = (theta_trough[1:] - theta_peak[:-1]) / eegSrate
-
-        # ----- nested class for keeping parameters and sanity plots ----------
-        @dataclass
-        class Params:
-            lfp_filtered: np.array = thetalfp
-            amplitude: np.array = theta_amp
-            angle: np.array = theta_360  # ranges from 0 to 360
-            peak: np.array = theta_peak
-            trough: np.array = theta_trough
-            rise_time: np.array = rising_time
-            fall_time: np.array = falling_time
-
-            @property
-            def rise_mid(self):
-                theta_trough = self.trough
-                theta_peak = self.peak
-                thetalfp = self.lfp_filtered
-                rise_midpoints = np.array(
-                    [
-                        trough
-                        + np.argmin(
-                            np.abs(
-                                thetalfp[trough:peak]
-                                - (
-                                    max(thetalfp[trough:peak])
-                                    - np.ptp(thetalfp[trough:peak]) / 2
-                                )
-                            )
-                        )
-                        for (trough, peak) in zip(theta_trough, theta_peak)
-                    ]
-                )
-                return rise_midpoints
-
-            @property
-            def fall_mid(self):
-                theta_peak = self.peak
-                theta_trough = self.trough
-                thetalfp = self.lfp_filtered
-                fall_midpoints = np.array(
-                    [
-                        peak
-                        + np.argmin(
-                            np.abs(
-                                thetalfp[peak:trough]
-                                - (
-                                    max(thetalfp[peak:trough])
-                                    - np.ptp(thetalfp[peak:trough]) / 2
-                                )
-                            )
-                        )
-                        for (peak, trough) in zip(theta_peak[:-1], theta_trough[1:])
-                    ]
-                )
-
-                return fall_midpoints
-
-            @property
-            def peak_width(self):
-                return (self.fall_mid - self.rise_mid[:-1]) / eegSrate
-
-            @property
-            def trough_width(self):
-                return (self.rise_mid[1:] - self.fall_mid) / eegSrate
-
-            @property
-            def asymmetry(self):
-                return self.rise_time / (self.rise_time + self.fall_time)
-
-            @property
-            def peaktrough(self):
-                return self.peak_width / (self.peak_width + self.trough_width)
-
-            def sanityCheck(self, rawTheta):
-                # ax3 = plt.subplot(gs[1, :])
-                # theta_lfp = signal_process.filter_sig.bandpass(lfpmaze, lf=1, hf=25)
-                # ax3.plot(lfpmaze, "gray", alpha=0.3)
-                # ax3.plot(theta_lfp, "k")
-                # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-                # ax3.plot(thetaparams.peak, theta_lfp[thetaparams.peak], "|", color="r", markersize=30)
-                # ax3.plot(
-                #     thetaparams.rise_mid,
-                #     theta_lfp[thetaparams.rise_mid],
-                #     "|",
-                #     color="gray",
-                #     markersize=30,
-                # )
-                # ax3.plot(
-                #     thetaparams.fall_mid,
-                #     theta_lfp[thetaparams.fall_mid],
-                #     "|",
-                #     color="magenta",
-                #     markersize=30,
-                # )
-                # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-                pass
-
-        return Params()
+        return signal_process.ThetaParams(
+            lfp=lfp, fs=self._obj.lfpSrate, lowtheta=lowtheta, hightheta=hightheta
+        )
 
     def getstrongTheta(
         self, lfp, lowthresh=0, highthresh=0.5, minDistance=300, minDuration=1250
@@ -1115,8 +1003,8 @@ class Theta:
         return strong_theta, weak_theta, theta_indices
 
     @staticmethod
-    def phase_specfic_extraction(lfp, y, window=5, slideby=None):
-        """Breaks a signal into theta phase specific components
+    def phase_specfic_extraction(lfp, y, binsize=20, slideby=None):
+        """Breaks y into theta phase specific components
 
         Parameters
         ----------
@@ -1124,10 +1012,10 @@ class Theta:
             reference lfp from which theta phases are estimated
         y : array like
             timeseries which is broken into components
-        window : int, optional
-            , by default 5
-        slideby : [type], optional
-            [description], by default None
+        binsize : int, optional
+            width of each bin in degrees, by default 20
+        slideby : int, optional
+            slide each bin by this amount in degrees, by default None
 
         Returns
         -------
@@ -1135,20 +1023,21 @@ class Theta:
             list of broken signal into phase components
         """
 
+        assert len(lfp) == len(y), "Both signals should be of same length"
         thetalfp = signal_process.filter_sig.bandpass(lfp, lf=1, hf=25)
         hil_theta = signal_process.hilbertfast(thetalfp)
         theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
 
-        angle_bin = np.arange(0, 360 - window, slideby)
+        angle_bin = np.arange(0, 360 - binsize, slideby)
         if slideby is None:
-            slideby = window
+            slideby = binsize
             angle_bin = np.arange(0, 360, slideby)
-        angle_centers = angle_bin + window / 2
+        angle_centers = angle_bin + binsize / 2
 
         y_at_phase = []
         for phase in angle_bin:
             y_at_phase.append(
-                y[np.where((theta_angle >= phase) & (theta_angle < phase + window))[0]]
+                y[np.where((theta_angle >= phase) & (theta_angle < phase + binsize))[0]]
             )
 
         return y_at_phase, angle_bin, angle_centers

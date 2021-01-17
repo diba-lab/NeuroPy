@@ -100,7 +100,6 @@ class spectrogramBands:
 
         window = int(self.window * self.sampfreq)
         overlap = int(self.overlap * self.sampfreq)
-
         f = None
         if self.multitaper:
             tapers = sg.windows.dpss(M=window, NW=5, Kmax=6)
