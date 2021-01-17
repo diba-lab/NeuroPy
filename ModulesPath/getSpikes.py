@@ -419,42 +419,29 @@ class Stability:
         self.bins = data["bins"]
         self.thresh = data["thresh"]
 
-    def firingRate(self, periods, nbins=None, thresh=0.3):
+    def firingRate(self, periods, thresh=0.3):
 
         spikes = Spikes(self._obj)
         spks = spikes.times
         nCells = len(spks)
 
-        # ---- goes to default mode of PRE-POST stability --------
-        if bins is None:
-            pre = self._obj.epochs.pre
-            pre = self._obj.utils.getinterval(period=pre, nbins=3)
-
-            post = self._obj.epochs.post
-            post = self._obj.utils.getinterval(period=post, nbins=5)
-            total_dur = self._obj.epochs.totalduration
-            mean_frate = self._obj.spikes.info.fr
-            bins = pre + post
-            nbins = len(bins)
-
         # --- number of spikes in each bin ------
-        bin_dur = np.asarray([np.diff(window) for window in bins]).squeeze()
+        bin_dur = np.asarray([np.diff(window) for window in periods]).squeeze()
         total_dur = np.sum(bin_dur)
-        nspks_bin = np.asarray(
-            [np.histogram(cell, bins=np.concatenate(bins))[0][::2] for cell in spks]
+        nspks_period = np.asarray(
+            [np.histogram(cell, bins=np.concatenate(periods))[0][::2] for cell in spks]
         )
-        assert nspks_bin.shape[0] == nCells
+        assert nspks_period.shape[0] == nCells
 
-        total_spks = np.sum(nspks_bin, axis=1)
+        total_spks = np.sum(nspks_period, axis=1)
 
-        if bins is not None:
-            nbins = len(bins)
-            mean_frate = total_spks / total_dur
+        nperiods = len(periods)
+        mean_frate = total_spks / total_dur
 
         # --- calculate meanfr in each bin and the fraction of meanfr over all bins
-        frate_bin = nspks_bin / np.tile(bin_dur, (nCells, 1))
-        fraction = frate_bin / mean_frate.reshape(-1, 1)
-        assert frate_bin.shape == fraction.shape
+        frate_period = nspks_period / np.tile(bin_dur, (nCells, 1))
+        fraction = frate_period / mean_frate.reshape(-1, 1)
+        assert frate_period.shape == fraction.shape
 
         isStable = np.where(fraction >= thresh, 1, 0)
         spkinfo = spikes.info[["q", "shank"]].copy()
@@ -463,11 +450,14 @@ class Stability:
         stbl = {
             "stableinfo": spkinfo,
             "isStable": isStable,
-            "bins": bins,
+            "bins": periods,
             "thresh": thresh,
         }
         np.save(self.files.stability, stbl)
         self._load()
+
+    def waveform_similarity(self):
+        pass
 
     def refPeriodViolation(self):
 
