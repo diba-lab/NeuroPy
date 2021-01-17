@@ -455,7 +455,7 @@ class SleepScore:
         unit : str, optional
             unit of timepoints, 's'=seconds or 'h'=hour, by default "s"
         collapsed : bool, optional
-            if true then all states have same vertical spans, by default False and classic look
+            if true then all states have same vertical spans, by default False and has classic look
 
         Returns
         -------
@@ -478,6 +478,14 @@ class SleepScore:
             "active": [0.75, 1],
         }
 
+        for state in span_:
+            ax.annotate(
+                state,
+                (1, span_[state][1] - 0.15),
+                xycoords="axes fraction",
+                fontsize=7,
+                color=self.colors[state],
+            )
         if collapsed:
             span_ = {
                 "nrem": [0, 1],
@@ -487,14 +495,15 @@ class SleepScore:
             }
 
         for state in self.states.itertuples():
-            ax.axvspan(
-                (state.start - tstart) / unit_norm,
-                (state.end - tstart) / unit_norm,
-                ymin=span_[state.name][0],
-                ymax=span_[state.name][1],
-                facecolor=self.colors[state.name],
-                alpha=0.7,
-            )
+            if state.name in self.colors.keys():
+                ax.axvspan(
+                    (state.start - tstart) / unit_norm,
+                    (state.end - tstart) / unit_norm,
+                    ymin=span_[state.name][0],
+                    ymax=span_[state.name][1],
+                    facecolor=self.colors[state.name],
+                    alpha=0.7,
+                )
         ax.axis("off")
 
         return ax
