@@ -19,14 +19,17 @@ class Replay:
 
 
 class ExplainedVariance:
+    colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
+
     def __init__(self, basepath):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
 
-    # TODO  smooth version of explained variance
-    def compute(self, template, match, control, binSize=0.250, window=900):
+    def compute(
+        self, template, match, control, binSize=0.250, window=900, slideby=None
+    ):
         """Calucate explained variance (EV) and reverse EV
 
         Parameters
@@ -34,15 +37,24 @@ class ExplainedVariance:
         template : list
             template period
         match : list
-            match period
+            match period whose similarity is calculated to template
         control : list
-            control period
+            control period, correlations in this period will be accounted for
+        binSize : float,
+            bin size within each window, defaults 0.250 seconds
+        window : int,
+            size of window in which ev is calculated, defaults 900 seconds
+        slideby : int,
+            calculate EV by sliding window, seconds
+
         References:
         1) Kudrimoti 1999
         2) Tastsuno et al. 2007
         """
 
         spikes = Spikes(self._obj)
+        if slideby is None:
+            slideby = window
 
         # ----- choosing cells ----------------
         spks = spikes.times
@@ -53,6 +65,7 @@ class ExplainedVariance:
 
         # ------- windowing the time periods ----------
         nbins_window = int(window / binSize)
+        nbins_slide = int(slideby / binSize)
 
         # ---- function to calculate correlation in each window ---------
         def cal_corr(period, windowing=True):
@@ -60,18 +73,17 @@ class ExplainedVariance:
             spkcnt = np.array([np.histogram(x, bins=bin_period)[0] for x in spks])
 
             if windowing:
-                dur = np.diff(period)
-                nwindow = (dur / window)[0]
-                t = np.arange(period[0], period[1], window)[: int(nwindow)] + window / 2
+                t = np.arange(period[0], period[1] - window, slideby) + window / 2
+                nwindow = len(t)
 
                 window_spkcnt = [
                     spkcnt[:, i : i + nbins_window]
-                    for i in range(0, int(nwindow) * nbins_window, nbins_window)
+                    for i in range(0, int(nwindow) * nbins_slide, nbins_slide)
                 ]
 
-                if nwindow % 1 > 0.3:
-                    window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
-                    t = np.append(t, t[-1] + round(nwindow % 1, 3) / 2)
+                # if nwindow % 1 > 0.3:
+                #     window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
+                #     t = np.append(t, t[-1] + round(nwindow % 1, 3) / 2)
 
                 corr = [
                     np.corrcoef(window_spkcnt[x]) for x in range(len(window_spkcnt))
@@ -108,8 +120,9 @@ class ExplainedVariance:
 
         self.ev = ev_template_vs_match
         self.rev = rev_corr
+        self.npairs = template_corr.shape[0]
 
-    def plot(self, ax=None, tstart=0, legend=None):
+    def plot(self, ax=None, tstart=0, legend=True):
 
         ev_mean = np.mean(self.ev.squeeze(), axis=0)
         ev_std = np.std(self.ev.squeeze(), axis=0)
@@ -125,22 +138,36 @@ class ExplainedVariance:
 
         t = (self.t_match - tstart) / 3600  # converting to hour
 
+        # ---- plot rev first ---------
         ax.fill_between(
-            t, rev_mean - rev_std, rev_mean + rev_std, color="#87d498", zorder=1
+            t,
+            rev_mean - rev_std,
+            rev_mean + rev_std,
+            color=self.colors["rev"],
+            zorder=1,
+            alpha=0.5,
+            label="REV",
         )
-        ax.plot(t, rev_mean, "#02c59b", zorder=2)
-        ax.fill_between(
-            t, ev_mean - ev_std, ev_mean + ev_std, color="#7c7979", zorder=3
-        )
+        ax.plot(t, rev_mean, color=self.colors["rev"], zorder=2)
 
-        ax.plot(t, ev_mean, "k", zorder=4)
+        # ------- plot ev -------
+        ax.fill_between(
+            t,
+            ev_mean - ev_std,
+            ev_mean + ev_std,
+            color=self.colors["ev"],
+            zorder=3,
+            alpha=0.5,
+            label="EV",
+        )
+        ax.plot(t, ev_mean, self.colors["ev"], zorder=4)
+
         ax.set_xlabel("Time (h)")
         ax.set_ylabel("Explained variance")
-        if legend is not None:
-            ax.legend(["REV", "EV"])
-        # ax.text(0.2, 0.28, "POST SD", fontweight="bold")
+        if legend:
+            ax.legend()
 
-    # ax.set_xlim([0, np.max(t)])
+        return ax
 
 
 class CellAssemblyICA:
