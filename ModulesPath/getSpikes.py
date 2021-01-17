@@ -419,7 +419,7 @@ class Stability:
         self.bins = data["bins"]
         self.thresh = data["thresh"]
 
-    def firingRate(self, bins=None, thresh=0.3):
+    def firingRate(self, periods, nbins=None, thresh=0.3):
 
         spikes = Spikes(self._obj)
         spks = spikes.times
