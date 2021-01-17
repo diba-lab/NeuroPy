@@ -9,7 +9,6 @@ import scipy.signal as sg
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from plotUtil import make_boxes
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter
 from dataclasses import dataclass
@@ -391,28 +390,6 @@ class SleepScore:
 
         return states_duration / period_duration
 
-    def addBackgroundtoPlots(self, ax, tstart=0):
-        """This helps to quickly add background to existing plots according to brainstates. For example, if you want to overlay replay on top of sleep states
-
-        Parameters
-        ----------
-        ax : axis object
-            axis of plot to which background is added
-        tstart : int, optional
-            tstart is zero of x-axis
-        """
-        states = self.states
-        x = (np.asarray(states.start) - tstart) / 3600
-
-        y = -1 * np.ones(len(x))  # + np.asarray(states.state)
-        width = np.asarray(states.duration) / 3600
-        height = np.ones(len(x)) * 1.3
-        qual = states.state
-
-        col = [self.colors[int(state) - 1] for state in states.state]
-
-        make_boxes(ax, x, y, width, height, facecolor=col)
-
     def plot(self):
         states = self.states
         params = self.params
@@ -466,36 +443,58 @@ class SleepScore:
             # allplts(time - 5, time + 5)
             specplot.set_clim([0, norm])
 
-    def hypnogram(self, ax1=None, tstart=0.0, unit="s"):
-        """Plots hypnogram in the given axis
+    def hypnogram(self, ax=None, tstart=0.0, unit="s", collapsed=False):
+        """Plot hypnogram
 
-        Args:
-            ax1 (axis, optional): axis for plotting. Defaults to None.
-            tstart (float, optional): Start time of hypnogram. Defaults to 0.
-            unit (str, optional): Unit of time in seconds or hour. Defaults to "s".
+        Parameters
+        ----------
+        ax : [type], optional
+            axis to plot onto, by default None
+        tstart : float, optional
+            start of hypnogram, by default 0.0, helps in positioning of hypnogram
+        unit : str, optional
+            unit of timepoints, 's'=seconds or 'h'=hour, by default "s"
+        collapsed : bool, optional
+            if true then all states have same vertical spans, by default False and classic look
+
+        Returns
+        -------
+        [type]
+            [description]
         """
-        states = self.states
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
 
-        if ax1 is None:
-            fig = plt.figure(1, figsize=(6, 10))
-            gs = GridSpec(9, 1, figure=fig)
-            fig.subplots_adjust(hspace=0.4)
-            ax1 = fig.add_subplot(gs[0, 0])
-
-        x = np.asarray(states.start) - tstart
-        y = np.zeros(len(x)) + np.asarray(states.state)
-        width = np.asarray(states.duration)
-        height = np.ones(len(x))
-
-        colors = ["#6b90d1", "#eb9494", "#b6afaf", "#474343"]
-        col = [colors[int(state) - 1] for state in states.state]
-
+        unit_norm = None
         if unit == "s":
-            make_boxes(ax1, x, y, width, height, facecolor=col)
-            # ax1.set_xlim([0, np.max(x)])
-        if unit == "h":
-            make_boxes(ax1, x / 3600, y, width / 3600, height, facecolor=col)
-            # ax1.set_xlim([0, np.max(x) / 3600])
-        ax1.set_ylim([1, 5])
-        ax1.axis("off")
-        return ax1
+            unit_norm = 1
+        elif unit == "h":
+            unit_norm = 3600
+
+        span_ = {
+            "nrem": [0, 0.25],
+            "rem": [0.25, 0.5],
+            "quiet": [0.5, 0.75],
+            "active": [0.75, 1],
+        }
+
+        if collapsed:
+            span_ = {
+                "nrem": [0, 1],
+                "rem": [0, 1],
+                "quiet": [0, 1],
+                "active": [0, 1],
+            }
+
+        for state in self.states.itertuples():
+            ax.axvspan(
+                (state.start - tstart) / unit_norm,
+                (state.end - tstart) / unit_norm,
+                ymin=span_[state.name][0],
+                ymax=span_[state.name][1],
+                facecolor=self.colors[state.name],
+                alpha=0.7,
+            )
+        ax.axis("off")
+
+        return ax
