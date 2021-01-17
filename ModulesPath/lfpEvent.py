@@ -896,13 +896,14 @@ class Theta:
         """
         eegSrate = self._obj.lfpSrate
 
-        assert eeg.ndim == 2
+        assert isinstance(eeg, list), "list of lfps needs"
+        assert len(eeg) > 1, "More than one channel needed"
 
         aucChans = []
-        for i in range(eeg.shape[0]):
+        for lfp in eeg:
 
             f, pxx = sg.welch(
-                eeg[i],
+                lfp,
                 fs=eegSrate,
                 nperseg=10 * eegSrate,
                 noverlap=5 * eegSrate,
