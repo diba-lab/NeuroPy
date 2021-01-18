@@ -28,7 +28,14 @@ class ExplainedVariance:
             self._obj = Recinfo(basepath)
 
     def compute(
-        self, template, match, control, binSize=0.250, window=900, slideby=None
+        self,
+        template,
+        match,
+        control,
+        binSize=0.250,
+        window=900,
+        slideby=None,
+        cross_shanks=True,
     ):
         """Calucate explained variance (EV) and reverse EV
 
@@ -104,12 +111,19 @@ class ExplainedVariance:
         shnkId = np.asarray(spikes.info.shank)
         shnkId = shnkId[stable_pyr]
         assert len(shnkId) == len(spks)
-        cross_shnks = np.nonzero(np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1)))
+
+        selected_pairs = np.tril_indices(len(spks), k=-1)
+        if cross_shanks:
+            selected_pairs = np.nonzero(
+                np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1))
+            )
 
         # --- selecting only pairwise correlations from different shanks -------
-        control_corr = [control_corr[x][cross_shnks] for x in range(len(control_corr))]
-        template_corr = template_corr[cross_shnks]
-        match_corr = [match_corr[x][cross_shnks] for x in range(len(match_corr))]
+        control_corr = [
+            control_corr[x][selected_pairs] for x in range(len(control_corr))
+        ]
+        template_corr = template_corr[selected_pairs]
+        match_corr = [match_corr[x][selected_pairs] for x in range(len(match_corr))]
 
         parcorr_template_vs_match, rev_corr = parcorr_mult(
             [template_corr], match_corr, control_corr
@@ -366,7 +380,7 @@ class Correlation:
         cmap : str, optional
             colormap used for heatmap, by default "Spectral_r"
         """
-        
+
         corr_mat = self.corr.copy()
         np.fill_diagonal(corr_mat, 0)
 
