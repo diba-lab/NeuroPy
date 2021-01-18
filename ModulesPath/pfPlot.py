@@ -54,8 +54,6 @@ class pf1d:
             placemap: str = filePrefix.with_suffix(".pf1d.npy")
 
         self.files = files()
-        self.thresh = []
-        self.no_thresh = []
 
     # def _load(self):
     #     if (f := self.files.placemap) :
