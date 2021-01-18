@@ -3,12 +3,12 @@ import numpy as np
 from sklearn.decomposition import FastICA, PCA
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
 from mathutil import parcorr_mult, getICA_Assembly
 import scipy.stats as stats
 import matplotlib.gridspec as gridspec
 from parsePath import Recinfo
 from getSpikes import Spikes
+from scipy.ndimage import gaussian_filter
 
 
 class Replay:
@@ -279,24 +279,103 @@ class CellAssemblyICA:
 
 
 class Correlation:
+    """Class for calculating pairwise correlations
+
+    Attributes
+    ----------
+    corr : matrix
+        correlation between time windows across a period of time
+    time : array
+        time points
+    """
+
     def __init__(self, basepath):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
 
-    def comparePeriods(self, template, match, spks=None, window=900, bnsz=0.25):
+    def across_time_window(self, period, window=300, binsize=0.25, **kwargs):
+        """Correlation of pairwise correlation across a period by dividing into window size epochs
 
-        if spks is None:
-            spks = self._obj.spikes.times
+        Parameters
+        ----------
+        period: array like
+            time period where the pairwise correlations are calculated, in seconds
+        window : int, optional
+            dividing the period into this size window, by default 900
+        binsize : float, optional
+            [description], by default 0.25
+        """
 
-        template_corr = self.getcorr(period=template)
-        match_corr = self.getcorr(period=match)
+        spikes = Spikes(self._obj)
 
-    def getcorr(self):
+        # ----- choosing cells ----------------
+        spks = spikes.times
+        stability = spikes.stability.info
+        stable_pyr = np.where((stability.q < 4) & (stability.stable == 1))[0]
+        print(f"Calculating EV for {len(stable_pyr)} stable cells")
+        spks = [spks[_] for _ in stable_pyr]
+
+        epochs = np.arange(period[0], period[1], window)
+
+        pair_corr_epoch = []
+        for i in range(len(epochs) - 1):
+            epoch_bins = np.arange(epochs[i], epochs[i + 1], binsize)
+            spkcnt = np.asarray([np.histogram(x, bins=epoch_bins)[0] for x in spks])
+            epoch_corr = np.corrcoef(spkcnt)
+            pair_corr_epoch.append(epoch_corr[np.tril_indices_from(epoch_corr, k=-1)])
+        pair_corr_epoch = np.asarray(pair_corr_epoch)
+
+        # masking nan values in the array
+        pair_corr_epoch = np.ma.array(pair_corr_epoch, mask=np.isnan(pair_corr_epoch))
+        self.corr = np.ma.corrcoef(pair_corr_epoch)  # correlation across windows
+        self.time = epochs[:-1] + window / 2
+
+    def pairwise(self, spikes, period, binsize=0.25):
+        """Calculates pairwise correlation between given spikes within given period
+
+        Parameters
+        ----------
+        spikes : list
+            list of spike times
+        period : list
+            time period within which it is calculated , in seconds
+        binsize : float, optional
+            binning of the time period, by default 0.25 seconds
+
+        Returns
+        -------
+        N-pairs
+            pairwise correlations
+        """
         bins = np.arange(period[0], period[1], binsize)
         spk_cnts = np.asarray([np.histogram(cell, bins=bins)[0] for cell in spikes])
         corr = np.corrcoef(spk_cnts)
-        np.fill_diagonal(corr, 0)
+        return corr[np.tril_indices_from(corr, k=-1)]
 
-        return corr
+    def plot_across_time(self, ax=None, tstart=0, smooth=None, cmap="Spectral_r"):
+        """Plots heatmap of correlation matrix calculated in self.across_time_window()
+
+        Parameters
+        ----------
+        ax : [type], optional
+            axis to plot into, by default None
+        tstart : int, optional
+            if you want to start the time axis at some other time points, by default 0
+        cmap : str, optional
+            colormap used for heatmap, by default "Spectral_r"
+        """
+        
+        corr_mat = self.corr.copy()
+        np.fill_diagonal(corr_mat, 0)
+
+        if smooth is not None:
+            corr_mat = gaussian_filter(corr_mat, sigma=smooth)
+
+        if ax is None:
+            _, ax = plt.subplots()
+
+        ax.pcolormesh(self.time - tstart, self.time - tstart, corr_mat, cmap=cmap)
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Time")
