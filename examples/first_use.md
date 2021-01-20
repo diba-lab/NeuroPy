@@ -51,3 +51,8 @@ Probemaps can be created by specifying `xypitch`, which is a tuple where first e
 sess.recinfo.probemap.create(xypitch=(20,30)) # tetrode type config
 sess.recinfo.probemap.create(xypitch=(0,15)) # linear probe
 ```
+You can also create `.prb` file to be used by `spyking-circus`
+
+```python
+sess.recinfo.probemap.for_circus()
+```
