@@ -181,7 +181,9 @@ class Recinfo:
         for val in myroot.findall("fieldPotentials"):
             lfpSrate = int(val.find("lfpSamplingRate").text)
 
-        auxchans = np.setdiff1d(np.arange(nChans), np.concatenate(channelgroups))
+        auxchans = np.setdiff1d(
+            np.arange(nChans), np.concatenate(channelgroups + skulleeg + emg + motion)
+        )
         if auxchans.size == 0:
             auxchans = None
 
