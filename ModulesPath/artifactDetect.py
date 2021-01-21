@@ -120,23 +120,33 @@ class findartifact:
 
         secondPass.append(artifact)
 
-        # --- converting to required time units for export ------
-        artifact_ms = np.asarray(secondPass) / (eegSrate / 1000)  # ms
         artifact_s = np.asarray(secondPass) / eegSrate  # seconds
-
-        # --- writing to file for neuroscope and spyking circus ----
-        file_neuroscope = self.files.neuroscope
-        circus_file = self.files.dead
-        with file_neuroscope.open("w") as a, circus_file.open("w") as c:
-            for beg, stop in artifact_ms:
-                a.write(f"{beg} start\n{stop} end\n")
-                c.write(f"{beg} {stop}\n")
 
         data = {"channel": chans, "time": artifact_s, "threshold": thresh}
         np.save(self.files.artifact, data)
 
         self._load()
         return zsc
+
+    def export2neuroscope(self):
+        # --- converting to required time units for export ------
+        artifact_ms = self.time * 1000  # ms
+
+        # --- writing to file for neuroscope and spyking circus ----
+        file_neuroscope = self.files.neuroscope
+        with file_neuroscope.open("w") as file:
+            for beg, stop in artifact_ms:
+                file.write(f"{beg} start\n{stop} end\n")
+
+    def export2circus(self):
+        # --- converting to required time units for export ------
+        artifact_ms = self.time * 1000  # ms
+
+        # --- writing to file for neuroscope and spyking circus ----
+        circus_file = self.files.dead
+        with circus_file.open("w") as file:
+            for beg, stop in artifact_ms:
+                file.write(f"{beg} {stop}\n")
 
     def plot(self, chan=None):
 
