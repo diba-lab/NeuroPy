@@ -126,6 +126,25 @@ class Fig:
         self.fig = fig
         return self.fig, gs
 
+    def subplot2grid(self, subplot_spec, grid=(1, 3), **kwargs):
+        """Subplots within a subplot
+
+        Parameters
+        ----------
+        subplot_spec : gridspec of figure
+            subplot inside which subplots are created
+        grid : tuple, optional
+            number of rows and columns for subplots, by default (1, 3)
+
+        Returns
+        -------
+        gridspec
+        """
+        gs = gridspec.GridSpecFromSubplotSpec(
+            grid[0], grid[1], subplot_spec=subplot_spec, **kwargs
+        )
+        return gs
+
     def panel_label(self, ax, label):
         ax.text(
             x=-0.08,
