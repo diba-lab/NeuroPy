@@ -302,9 +302,8 @@ class Ripple:
         # ---------setting noisy period zero --------
         artifact = findartifact(self._obj)
         if artifact.time is not None:
-            noisy_intervals = (artifact.time * SampFreq).astype(int)
-            noisy_frames = [np.arange(beg, end) for (beg, end) in noisy_intervals]
-            zscsignal[:, np.concatenate(noisy_frames)] = 0
+            noisy_frames = artifact.getframes()
+            zscsignal[:, noisy_frames] = 0
 
         # ------hilbert transform --> binarize by > than lowthreshold
         maxPower = np.max(zscsignal, axis=0)
