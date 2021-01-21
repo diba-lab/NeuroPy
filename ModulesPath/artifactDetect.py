@@ -84,6 +84,16 @@ class findartifact:
             lfp = np.delete(lfp, dead_indx, axis=-1)
         return lfp
 
+    def getframes(self):
+        eegSrate = self._obj.lfpSrate
+        noisy_intervals = (self.time * eegSrate).astype(int) - 1  # zero indexing
+        noisy_frames = np.concatenate(
+            [np.arange(beg, end) for (beg, end) in noisy_intervals]
+        )
+        # correcting for any rounding error mostly an issue when artifacts are at end
+        noisy_frames = noisy_frames[noisy_frames < self._obj.getNframesEEG]
+        return noisy_frames
+
     def usingZscore(self, chans=None, thresh=5):
         """
         calculating periods to exclude for analysis using simple z-score measure
