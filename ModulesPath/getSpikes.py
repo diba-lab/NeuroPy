@@ -109,6 +109,10 @@ class Spikes:
 
         return gaussian
 
+    def firing_rate(self, spikes, period):
+        duration = np.diff(period)
+        return np.asarray([np.histogram(_, bins=period)[0] for _ in spikes]) / duration
+
     def plot_raster(
         self,
         spikes=None,
@@ -265,8 +269,9 @@ class Spikes:
     def removeDoubleSpikes(self):
         pass
 
-    def from_Phy(self, folder=None, fileformat="diff_folder", save_allspikes=False):
-        """Gets spike times from Phy (https://github.com/cortex-lab/phy) compatible files
+    def from_Phy(self, folder, fileformat="diff_folder", save_allspikes=False):
+        """Gets spike times from Phy (https://github.com/cortex-lab/phy) compatible files.
+        If shanks are in separate folder, then folder should have subfolders with names Shank1, Shank2, Shank3 and so on.
 
         Parameters
         ----------
@@ -278,34 +283,29 @@ class Spikes:
         spktimes = None
         spkinfo = None
 
+        clufolder = Path(folder)
         if fileformat == "diff_folder":
             nShanks = self._obj.nShanks
             sRate = self._obj.sampfreq
-            name = self._obj.session.name
-            day = self._obj.session.day
-            basePath = self._obj.basePath
-            clubasePath = Path(basePath, "spykcirc")
             spkall, info, shankID = [], [], []
             for shank in range(1, nShanks + 1):
+                shank_folder = clufolder / f"Shank{shank}"
 
-                clufolder = Path(
-                    clubasePath,
-                    name + day + "Shank" + str(shank),
-                    name + day + "Shank" + str(shank) + ".GUI",
-                )
+                if shank_folder.is_dir():
+                    spktime = np.load(shank_folder / "spike_times.npy")
+                    cluID = np.load(shank_folder / "spike_clusters.npy")
+                    cluinfo = pd.read_csv(
+                        shank_folder / "cluster_info.tsv", delimiter="\t"
+                    )
+                    goodCellsID = cluinfo.id[cluinfo["q"] < 10].tolist()
+                    info.append(cluinfo.loc[cluinfo["q"] < 10])
+                    shankID.extend(shank * np.ones(len(goodCellsID)))
 
-                # datFile = np.memmap(file + "Shank" + str(i) + ".dat", dtype="int16")
-                # datFiledur = len(datFile) / (16 * sRate)
-                spktime = np.load(clufolder / "spike_times.npy")
-                cluID = np.load(clufolder / "spike_clusters.npy")
-                cluinfo = pd.read_csv(clufolder / "cluster_info.tsv", delimiter="\t")
-                goodCellsID = cluinfo.id[cluinfo["q"] < 10].tolist()
-                info.append(cluinfo.loc[cluinfo["q"] < 10])
-                shankID.extend(shank * np.ones(len(goodCellsID)))
-
-                for i in range(len(goodCellsID)):
-                    clu_spike_location = spktime[np.where(cluID == goodCellsID[i])[0]]
-                    spkall.append(clu_spike_location / sRate)
+                    for i in range(len(goodCellsID)):
+                        clu_spike_location = spktime[
+                            np.where(cluID == goodCellsID[i])[0]
+                        ]
+                        spkall.append(clu_spike_location / sRate)
 
             spkinfo = pd.concat(info, ignore_index=True)
             spkinfo["shank"] = shankID
@@ -314,16 +314,8 @@ class Spikes:
         if fileformat == "same_folder":
             nShanks = self._obj.nShanks
             sRate = self._obj.sampfreq
-            subname = self._obj.session.subname
-            basePath = self._obj.basePath
             changroup = self._obj.channelgroups
-            clubasePath = Path(basePath, "spykcirc")
 
-            clufolder = Path(
-                clubasePath,
-                subname,
-                subname + ".GUI",
-            )
             spktime = np.load(clufolder / "spike_times.npy")
             cluID = np.load(clufolder / "spike_clusters.npy")
             cluinfo = pd.read_csv(clufolder / "cluster_info.tsv", delimiter="\t")
@@ -486,18 +478,6 @@ class Stability:
         pass
 
 
-# class firingDynamics:
-#     def __init__(self, obj):
-#         self._obj = obj
-
-#     def fRate(self):
-#         pass
-
-#     def plotfrate(self):
-#         pass
-
-#     def plotRaster(self):
-#         pass
 class Correlation:
     """Class for calculating pairwise correlations
 
