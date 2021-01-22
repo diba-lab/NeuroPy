@@ -1,7 +1,6 @@
 from artifactDetect import findartifact
 from behavior import behavior_epochs
 from decoders import DecodeBehav
-from eventCorr import event_event
 from getPosition import ExtractPosition
 from getSpikes import Spikes
 from lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
@@ -39,8 +38,6 @@ class processData:
         self.localsleep = LocalSleep(self.recinfo)
         self.viewdata = SessView(self.recinfo)
         self.pbe = PBE(self.recinfo)
-
-        self.eventpsth = event_event()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
