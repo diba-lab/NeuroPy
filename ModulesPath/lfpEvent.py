@@ -45,39 +45,35 @@ class Hswa:
             events: Path = filePrefix.with_suffix(".hswa.npy")
 
         self.files = files()
-        # self._load()
-
-        if Path(self._obj.files.slow_wave).is_file():
-            self._load()
+        self._load()
 
     def _load(self):
 
-        evt = np.load(self._obj.files.slow_wave, allow_pickle=True).item()
-        self.peakamp = np.asarray(evt["peakamp"])
-        self.time = np.asarray(evt["time"])
-        self.tbeg = np.asarray(evt["tbeg"])
-        self.tend = np.asarray(evt["tend"])
-        self.endamp = np.asarray(evt["endamp"])
+        if (f := self.files.events).is_file():
+            evt = np.load(f, allow_pickle=True).item()
+            self.events: pd.DataFrame = evt["events"]
+            self.params = evt["DetectionParams"]
 
-    def detect(self):
+    def detect(self, chan, freq_band=(0.5, 4)):
+        """Caculate delta events
+
+        chan --> filter delta --> identify peaks and troughs within sws epochs only --> identifies a slow wave as trough to peak --> thresholds for 100ms minimum duration
+
+        Parameters
+        ----------
+        chan : int
+            channel to be used for detection
+        freq_band : tuple, optional
+            frequency band in Hz, by default (0.5, 4)
         """
-        filters the channel which has highest ripple power.
-        Caculate peaks and troughs in the filtered lfp
 
-        ripplechan --> filter delta --> identify peaks and troughs within sws epochs only --> identifies a slow wave as trough to peak --> thresholds for 100ms minimum duration
-
-        """
-
-        # -------- files ------
-        myinfo = self._obj
-
-        # ----- parameters ---------
         lfpsRate = self._obj.lfpSrate
+        deltachan = self._obj.geteeg(chans=chan)
 
         # ---- filtering best ripple channel in delta band
-        deltachan, _, _ = myinfo.spindle.best_chan_lfp()
         t = np.linspace(0, len(deltachan) / lfpsRate, len(deltachan))
-        delta_sig = signal_process.filter_sig.bandpass(deltachan, lf=0.5, hf=4)
+        lf, hf = freq_band
+        delta_sig = signal_process.filter_sig.bandpass(deltachan, lf=lf, hf=hf)
         delta = stats.zscore(delta_sig)  # normalization w.r.t session
         delta = -delta  # flipping as this is in sync with cortical slow wave
 
@@ -105,36 +101,32 @@ class Hswa:
         sigdelta = np.asarray(sigdelta)
         print(f"{len(sigdelta)} delta detected")
 
-        hipp_slow_wave = {
-            "peakamp": sigdelta[:, 0],
-            "endamp": sigdelta[:, 1],
-            "time": sigdelta[:, 2],
-            "tbeg": sigdelta[:, 3],
-            "tend": sigdelta[:, 4],
-        }
+        data = pd.DataFrame(
+            {
+                "start": sigdelta[:, 3],
+                "end": sigdelta[:, 4],
+                "peaktime": sigdelta[:, 2],
+                "peakamp": sigdelta[:, 0],
+                "endamp": sigdelta[:, 1],
+            }
+        )
+        detection_params = {"freq_band": freq_band, "chan": chan}
+        hipp_slow_wave = {"events": data, "DetectionParams": detection_params}
 
-        np.save(self._obj.sessinfo.files.slow_wave, hipp_slow_wave)
-
+        np.save(self.files.events, hipp_slow_wave)
         self._load()
 
     def plot(self):
         """Gives a comprehensive view of the detection process with some statistics and examples"""
-        _, spindlechan, coord = self._obj.spindle.best_chan_lfp()
-        eegSrate = self._obj.recinfo.lfpSrate
-        probemap = self._obj.recinfo.probemap()
-        nChans = self._obj.recinfo.nChans
-        changrp = self._obj.recinfo.channelgroups
-        badchans = self._obj.recinfo.badchans
-        chosenShank = changrp[0]
-        chosenShank = np.setdiff1d(np.array(chosenShank), badchans)
-        times = self.time
-        tbeg = self.tbeg
-        tend = self.tend
-        eegfile = self._obj.sessinfo.recfiles.eegfile
-        eegdata = np.memmap(eegfile, dtype="int16", mode="r")
-        eegdata = np.memmap.reshape(eegdata, (int(len(eegdata) / nChans), nChans))
-        eegdata = eegdata[:, chosenShank]
+        eegSrate = self._obj.lfpSrate
+        deltachan = self.params["chan"]
+        goodchangrp = self._obj.goodchangrp
+        chosenShank = [_ for _ in goodchangrp if deltachan in _]
+        times = self.events.peaktime.to_numpy()
+        tbeg = self.events.start.to_numpy()
+        tend = self.events.end.to_numpy()
 
+        eegdata = self._obj.geteeg(chans=chosenShank)
         # sort_ind = np.argsort(peakpower)
         # peakpower = peakpower[sort_ind]
         # times = times[sort_ind, :]
@@ -180,7 +172,7 @@ class Hswa:
             ax2.fill_between([start, end], [-6, -6], [45, 45], alpha=0.3)
             ax2.axis("off")
 
-        subname = self._obj.sessinfo.session.subname
+        subname = self._obj.session.subname
         fig.suptitle(f"Delta wave detection of {subname}")
 
 
