@@ -200,7 +200,7 @@ class Ripple:
         if (f := self.files.ripples).is_file():
 
             ripple_evt = np.load(f, allow_pickle=True).item()
-            self.events = ripple_evt["events"]
+            self.events: pd.DataFrame = ripple_evt["events"]
             self.params = ripple_evt["DetectionParams"]
 
         if (f := self.files.bestRippleChans).is_file():
