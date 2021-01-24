@@ -65,7 +65,9 @@ class ExplainedVariance:
         # ----- choosing cells ----------------
         spks = spikes.times
         stability = spikes.stability.info
-        stable_pyr = np.where((stability.q < 4) & (stability.stable == 1))[0]
+        stable_cells = np.where(stability.stable == 1)[0]
+        pyr_id = spikes.pyrid
+        stable_pyr = np.intersect1d(pyr_id, stable_cells, assume_unique=True)
         print(f"Calculating EV for {len(stable_pyr)} stable cells")
         spks = [spks[_] for _ in stable_pyr]
 
@@ -137,10 +139,10 @@ class ExplainedVariance:
 
     def plot(self, ax=None, tstart=0, legend=True):
 
-        ev_mean = np.mean(self.ev.squeeze(), axis=0)
-        ev_std = np.std(self.ev.squeeze(), axis=0)
-        rev_mean = np.mean(self.rev.squeeze(), axis=0)
-        rev_std = np.std(self.rev.squeeze(), axis=0)
+        ev_mean = np.nanmean(self.ev.squeeze(), axis=0)
+        ev_std = np.nanstd(self.ev.squeeze(), axis=0)
+        rev_mean = np.nanmean(self.rev.squeeze(), axis=0)
+        rev_std = np.nanstd(self.rev.squeeze(), axis=0)
 
         if ax is None:
             plt.clf()
