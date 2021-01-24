@@ -12,6 +12,7 @@ from behavior import behavior_epochs
 from ccg import correlograms
 from plotUtil import pretty_plot
 from scipy.ndimage import gaussian_filter
+from sklearn.cluster import KMeans
 
 
 class Spikes:
@@ -66,6 +67,8 @@ class Spikes:
         if "allspikes" in spikes:
             self.alltimes = spikes["allspikes"]
             self.cluID = spikes["allcluIDs"]
+        if "templates" in spikes:
+            self.templates = spikes["templates"]
         self.info = spikes["info"].reset_index()
         self.pyrid = np.where(self.info.q < 4)[0]
         self.pyr = [self.times[_] for _ in self.pyrid]
@@ -73,6 +76,14 @@ class Spikes:
         self.intneur = [self.times[_] for _ in self.intneurid]
         self.muaid = np.where(self.info.q == 6)[0]
         self.mua = [self.times[_] for _ in self.muaid]
+
+        if "celltype" in self.info:
+            self.pyrid = np.where(self.info.celltype == "pyr")[0]
+            self.pyr = [self.times[_] for _ in self.pyrid]
+            self.intneurid = np.where(self.info.celltype == "intneur")[0]
+            self.intneur = [self.times[_] for _ in self.intneurid]
+            self.muaid = np.where(self.info.celltype == "mua")[0]
+            self.mua = [self.times[_] for _ in self.muaid]
 
     @property
     def instfiring(self):
@@ -215,6 +226,128 @@ class Spikes:
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Units")
 
+    def get_acg(self, spikes=None, bin_size=0.001, window_size=0.05):
+        """Get autocorrelogram
+
+        Parameters
+        ----------
+        spikes : [type], optional
+            [description], by default None
+        bin_size : float, optional
+            [description], by default 0.001
+        window_size : float, optional
+            [description], by default 0.05
+        """
+
+        if isinstance(spikes, np.ndarray):
+            spikes = [spikes]
+        nCells = len(spikes)
+
+        correlo = []
+        for cell in spikes:
+            cell_id = np.zeros(len(cell)).astype(int)
+            correlo.append(
+                correlograms(
+                    cell,
+                    cell_id,
+                    sample_rate=self._obj.sampfreq,
+                    bin_size=bin_size,
+                    window_size=window_size,
+                ).squeeze()
+            )
+
+        return correlo
+
+    def label_celltype(self):
+        """Auto label cell type"""
+        spikes = self.times
+        self.info["celltype"] = None
+        ccgs = self.get_acg(spikes=spikes, bin_size=0.001, window_size=0.05)
+        ccg_width = ccgs[0].shape[-1]
+        ccg_center_ind = int(ccg_width / 2)
+
+        # -- calculate burstiness (mean duration of right ccg)------
+        ccg_right = [_[ccg_center_ind + 1 :] for _ in ccgs]
+        burstiness = np.asarray([len(ccg) / np.sum(ccg) for ccg in ccg_right])
+
+        # --- calculate frate ------------
+        recording_dur = self._obj.getNframesEEG / self._obj.lfpSrate
+        frate = np.asarray([len(cell) / recording_dur for cell in spikes])
+
+        # ------ calculate peak ratio of waveform ----------
+        templates = self.templates
+        waveform = np.asarray(
+            [cell[np.argmax(np.ptp(cell, axis=1)), :] for cell in templates]
+        )
+        n_t = waveform.shape[1]  # waveform width
+        center = np.int(n_t / 2)
+        left_peak = np.max(waveform[:, :center], axis=1)
+        right_peak = np.max(waveform[:, center + 1 :], axis=1)
+        peak_ratio = left_peak / right_peak
+
+        # ---- refractory contamination ----------
+        isi = [np.diff(_) for _ in spikes]
+        isi_bin = np.arange(0, 0.1, 0.001)
+        isi_hist = np.asarray([np.histogram(_, bins=isi_bin)[0] for _ in isi])
+        n_spikes_ref = np.sum(isi_hist[:, :2], axis=1) + 1e-16
+        ref_period_ratio = (np.max(isi_hist, axis=1) / n_spikes_ref) * 100
+        mua_cells = np.where(ref_period_ratio < 300)[0]
+        good_cells = np.where(ref_period_ratio >= 300)[0]
+
+        self.info.loc[mua_cells, "celltype"] = "mua"
+
+        param1 = frate[good_cells]
+        param2 = burstiness[good_cells]  # np.log10(sum_peak / sum_refractory)
+        param3 = peak_ratio[good_cells]
+
+        features = np.vstack((param1, param2, param3)).T
+        kmeans = KMeans(n_clusters=2).fit(features)
+        y_means = kmeans.predict(features)
+
+        interneuron_label = np.argmax(kmeans.cluster_centers_[:, 0])
+        intneur_id = np.where(y_means == interneuron_label)[0]
+        pyr_id = np.where(y_means != interneuron_label)[0]
+        self.info.loc[good_cells[intneur_id], "celltype"] = "intneur"
+        self.info.loc[good_cells[pyr_id], "celltype"] = "pyr"
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        ax.scatter(
+            frate[mua_cells],
+            burstiness[mua_cells],
+            peak_ratio[mua_cells],
+            c="#b4b2b1",
+            s=50,
+            label="mua",
+        )
+
+        ax.scatter(
+            param1[pyr_id],
+            param2[pyr_id],
+            param3[pyr_id],
+            c="#ef440b",
+            s=50,
+            label="pyr",
+        )
+
+        ax.scatter(
+            param1[intneur_id],
+            param2[intneur_id],
+            param3[intneur_id],
+            c="#3a924d",
+            s=50,
+            label="int",
+        )
+        ax.legend()
+        ax.set_xlabel("Firing rate (Hz)")
+        ax.set_ylabel("Burstiness")
+        ax.set_zlabel("Peak ratio")
+
+        data = np.load(self.files.spikes, allow_pickle=True).item()
+        data["info"] = self.info
+
+        np.save(self.files.spikes, data)
+
     def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
 
         """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
@@ -287,13 +420,15 @@ class Spikes:
         if fileformat == "diff_folder":
             nShanks = self._obj.nShanks
             sRate = self._obj.sampfreq
-            spkall, info, shankID = [], [], []
+            spkall, info, shankID, template_waveforms = [], [], [], []
             for shank in range(1, nShanks + 1):
                 shank_folder = clufolder / f"Shank{shank}"
-
+                print(shank_folder)
                 if shank_folder.is_dir():
                     spktime = np.load(shank_folder / "spike_times.npy")
                     cluID = np.load(shank_folder / "spike_clusters.npy")
+                    spk_templates_id = np.load(shank_folder / "spike_templates.npy")
+                    spk_templates = np.load(shank_folder / "templates.npy")
                     cluinfo = pd.read_csv(
                         shank_folder / "cluster_info.tsv", delimiter="\t"
                     )
@@ -302,10 +437,17 @@ class Spikes:
                     shankID.extend(shank * np.ones(len(goodCellsID)))
 
                     for i in range(len(goodCellsID)):
-                        clu_spike_location = spktime[
-                            np.where(cluID == goodCellsID[i])[0]
-                        ]
-                        spkall.append(clu_spike_location / sRate)
+                        clu_spike_location = np.where(cluID == goodCellsID[i])[0]
+                        spkframes = spktime[clu_spike_location]
+                        cell_template_id, counts = np.unique(
+                            spk_templates_id[clu_spike_location], return_counts=True
+                        )
+                        spkall.append(spkframes / sRate)
+                        template_waveforms.append(
+                            spk_templates[cell_template_id[np.argmax(counts)]]
+                            .squeeze()
+                            .T
+                        )
 
             spkinfo = pd.concat(info, ignore_index=True)
             spkinfo["shank"] = shankID
@@ -318,6 +460,8 @@ class Spikes:
 
             spktime = np.load(clufolder / "spike_times.npy")
             cluID = np.load(clufolder / "spike_clusters.npy")
+            spk_templates_id = np.load(clufolder / "spike_templates.npy")
+            spk_templates = np.load(clufolder / "templates.npy")
             cluinfo = pd.read_csv(clufolder / "cluster_info.tsv", delimiter="\t")
             if "q" in cluinfo.keys():
                 goodCellsID = cluinfo.id[cluinfo["q"] < 10].tolist()
@@ -336,10 +480,17 @@ class Spikes:
                 if chan in grp
             ]
 
-            spkall = []
+            spkall, template_waveforms = [], []
             for i in range(len(goodCellsID)):
-                clu_spike_location = spktime[np.where(cluID == goodCellsID[i])[0]]
-                spkall.append(clu_spike_location / sRate)
+                clu_spike_location = np.where(cluID == goodCellsID[i])[0]
+                spkframes = spktime[clu_spike_location]
+                cell_template_id, counts = np.unique(
+                    spk_templates_id[clu_spike_location], return_counts=True
+                )
+                spkall.append(spkframes / sRate)
+                template_waveforms.append(
+                    spk_templates[cell_template_id[np.argmax(counts)]].squeeze().T
+                )
 
             info["shank"] = shankID
             spkinfo = info
@@ -352,9 +503,14 @@ class Spikes:
                 "info": spkinfo,
                 "allspikes": spktime,
                 "allcluIDs": cluID,
+                "templates": template_waveforms,
             }
         else:
-            spikes_ = {"times": spktimes, "info": spkinfo}
+            spikes_ = {
+                "times": spktimes,
+                "info": spkinfo,
+                "templates": template_waveforms,
+            }
         filename = self.files.spikes
 
         np.save(filename, spikes_)
