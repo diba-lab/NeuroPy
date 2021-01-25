@@ -69,7 +69,7 @@ class Spikes:
             self.cluID = spikes["allcluIDs"]
         if "templates" in spikes:
             self.templates = spikes["templates"]
-        self.info = spikes["info"].reset_index()
+        self.info = spikes["info"]
         self.pyrid = np.where(self.info.q < 4)[0]
         self.pyr = [self.times[_] for _ in self.pyrid]
         self.intneurid = np.where(self.info.q == 8)[0]
@@ -268,11 +268,12 @@ class Spikes:
 
         # -- calculate burstiness (mean duration of right ccg)------
         ccg_right = [_[ccg_center_ind + 1 :] for _ in ccgs]
-        burstiness = np.asarray([len(ccg) / np.sum(ccg) for ccg in ccg_right])
+        mean_isi = np.asarray([np.mean(np.arange(len(ccg)) * ccg) for ccg in ccg_right])
+        burstiness = 1 / mean_isi
 
         # --- calculate frate ------------
-        recording_dur = self._obj.getNframesEEG / self._obj.lfpSrate
-        frate = np.asarray([len(cell) / recording_dur for cell in spikes])
+        # recording_dur = self._obj.getNframesEEG / self._obj.lfpSrate
+        frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
 
         # ------ calculate peak ratio of waveform ----------
         templates = self.templates
@@ -283,7 +284,7 @@ class Spikes:
         center = np.int(n_t / 2)
         left_peak = np.max(waveform[:, :center], axis=1)
         right_peak = np.max(waveform[:, center + 1 :], axis=1)
-        peak_ratio = left_peak / right_peak
+        peak_ratio = left_peak - right_peak
 
         # ---- refractory contamination ----------
         isi = [np.diff(_) for _ in spikes]
@@ -291,8 +292,8 @@ class Spikes:
         isi_hist = np.asarray([np.histogram(_, bins=isi_bin)[0] for _ in isi])
         n_spikes_ref = np.sum(isi_hist[:, :2], axis=1) + 1e-16
         ref_period_ratio = (np.max(isi_hist, axis=1) / n_spikes_ref) * 100
-        mua_cells = np.where(ref_period_ratio < 300)[0]
-        good_cells = np.where(ref_period_ratio >= 300)[0]
+        mua_cells = np.where(ref_period_ratio < 400)[0]
+        good_cells = np.where(ref_period_ratio >= 400)[0]
 
         self.info.loc[mua_cells, "celltype"] = "mua"
 
@@ -443,11 +444,12 @@ class Spikes:
                             spk_templates_id[clu_spike_location], return_counts=True
                         )
                         spkall.append(spkframes / sRate)
-                        template_waveforms.append(
-                            spk_templates[cell_template_id[np.argmax(counts)]]
-                            .squeeze()
-                            .T
-                        )
+                        if np.any(counts):
+                            template_waveforms.append(
+                                spk_templates[cell_template_id[np.argmax(counts)]]
+                                .squeeze()
+                                .T
+                            )
 
             spkinfo = pd.concat(info, ignore_index=True)
             spkinfo["shank"] = shankID
