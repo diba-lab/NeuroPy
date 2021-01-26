@@ -34,7 +34,7 @@ class processData:
         self.ripple = Ripple(self.recinfo)
         self.placefield = pf(self.recinfo)
         self.replay = Replay(self.recinfo)
-        self.decode = DecodeBehav(self.recinfo)
+        self.decode = DecodeBehav(self.placefield.pf1d, self.placefield.pf2d)
         self.localsleep = LocalSleep(self.recinfo)
         self.viewdata = SessView(self.recinfo)
         self.pbe = PBE(self.recinfo)

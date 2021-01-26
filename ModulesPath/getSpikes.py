@@ -268,8 +268,12 @@ class Spikes:
 
         # -- calculate burstiness (mean duration of right ccg)------
         ccg_right = [_[ccg_center_ind + 1 :] for _ in ccgs]
-        mean_isi = np.asarray([np.mean(np.arange(len(ccg)) * ccg) for ccg in ccg_right])
-        burstiness = 1 / mean_isi
+        mean_isi = np.asarray(
+            [np.sum(np.arange(len(ccg)) * ccg) / np.sum(ccg) for ccg in ccg_right]
+        )
+        burstiness = mean_isi
+        print(burstiness)
+        print(burstiness.shape)
 
         # --- calculate frate ------------
         # recording_dur = self._obj.getNframesEEG / self._obj.lfpSrate
@@ -282,8 +286,17 @@ class Spikes:
         )
         n_t = waveform.shape[1]  # waveform width
         center = np.int(n_t / 2)
-        left_peak = np.max(waveform[:, :center], axis=1)
-        right_peak = np.max(waveform[:, center + 1 :], axis=1)
+        wave_window = int(0.25 * (self._obj.sampfreq / 1000))
+        from_peak = int(0.18 * (self._obj.sampfreq / 1000))
+        # left_peak = np.max(waveform[:, :center], axis=1)
+        # right_peak = np.max(waveform[:, center + 1 :], axis=1)
+        left_peak = np.trapz(
+            waveform[:, center - from_peak - wave_window : center - from_peak], axis=1
+        )
+        right_peak = np.trapz(
+            waveform[:, center + from_peak : center + from_peak + wave_window], axis=1
+        )
+
         peak_ratio = left_peak - right_peak
 
         # ---- refractory contamination ----------
@@ -341,13 +354,40 @@ class Spikes:
         )
         ax.legend()
         ax.set_xlabel("Firing rate (Hz)")
-        ax.set_ylabel("Burstiness")
-        ax.set_zlabel("Peak ratio")
+        ax.set_ylabel("Mean isi (ms)")
+        ax.set_zlabel("Difference of \narea under shoulders")
 
         data = np.load(self.files.spikes, allow_pickle=True).item()
         data["info"] = self.info
 
         np.save(self.files.spikes, data)
+
+    def ccg_temporal(self, spikes):
+        ccgs = np.zeros((len(spikes), len(spikes), 251)) * np.nan
+        spike_ind = np.asarray([_ for _ in range(len(spikes)) if spikes[_].size != 0])
+        clus_id = np.concatenate(
+            [[_] * len(spikes[_]) for _ in range(len(spikes))]
+        ).astype(int)
+        sort_ind = np.argsort(np.concatenate(spikes))
+        spikes = np.concatenate(spikes)[sort_ind]
+        clus_id = clus_id[sort_ind]
+        ccgs_ = correlograms(
+            spikes,
+            clus_id,
+            sample_rate=self._obj.sampfreq,
+            bin_size=0.001,
+            window_size=0.25,
+        )
+        grid = np.ix_(spike_ind, spike_ind, np.arange(251))
+        ccgs[grid] = ccgs_
+
+        center = int(ccgs.shape[-1] / 2) - 1
+        diff = ccgs[:, :, center + 2 :].sum(axis=-1) - ccgs[:, :, : center - 2].sum(
+            axis=-1
+        )
+        non_redundant_indx = np.tril_indices_from(diff, k=-1)
+
+        return diff[non_redundant_indx]
 
     def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
 
@@ -444,12 +484,11 @@ class Spikes:
                             spk_templates_id[clu_spike_location], return_counts=True
                         )
                         spkall.append(spkframes / sRate)
-                        if np.any(counts):
-                            template_waveforms.append(
-                                spk_templates[cell_template_id[np.argmax(counts)]]
-                                .squeeze()
-                                .T
-                            )
+                        template_waveforms.append(
+                            spk_templates[cell_template_id[np.argmax(counts)]]
+                            .squeeze()
+                            .T
+                        )
 
             spkinfo = pd.concat(info, ignore_index=True)
             spkinfo["shank"] = shankID
@@ -474,6 +513,7 @@ class Spikes:
                 )
                 goodCellsID = cluinfo.id[(cluinfo["group"] == "good")].tolist()
                 info = cluinfo.loc[(cluinfo["group"] == "good")]
+
             peakchan = info["ch"]
             shankID = [
                 sh + 1
@@ -502,7 +542,7 @@ class Spikes:
         if save_allspikes:
             spikes_ = {
                 "times": spktimes,
-                "info": spkinfo,
+                "info": spkinfo.reset_index(),
                 "allspikes": spktime,
                 "allcluIDs": cluID,
                 "templates": template_waveforms,
@@ -510,7 +550,7 @@ class Spikes:
         else:
             spikes_ = {
                 "times": spktimes,
-                "info": spkinfo,
+                "info": spkinfo.reset_index(),
                 "templates": template_waveforms,
             }
         filename = self.files.spikes
