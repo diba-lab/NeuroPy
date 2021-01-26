@@ -11,23 +11,21 @@ from scipy.special import factorial
 from behavior import behavior_epochs
 from getSpikes import Spikes
 from parsePath import Recinfo
-from pfPlot import pf1d
+from pfPlot import pf1d, pf2d
 from plotUtil import Fig
 
 
 class DecodeBehav:
-    def __init__(self, basepath):
+    def __init__(self, pf1d_obj: pf1d, pf2d_obj: pf2d):
 
-        self.bayes1d = Bayes1d(basepath)
-        self.bayes2d = bayes2d(basepath)
+        self.bayes1d = Bayes1d(pf1d_obj)
+        self.bayes2d = bayes2d(pf2d_obj)
 
 
 class Bayes1d:
-    def __init__(self, basepath: Recinfo):
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
+    def __init__(self, pf1d_obj: pf1d):
+        self._obj = pf1d_obj._obj
+        self.ratemaps = pf1d_obj
 
     def _decoder(self, spkcount, ratemaps, tau):
         """
@@ -56,9 +54,7 @@ class Bayes1d:
 
         return posterior
 
-    def estimate_behavior(
-        self, pf1d_obj: pf1d, binsize=0.25, speed_thresh=True, smooth=1, plot=True
-    ):
+    def estimate_behavior(self, binsize=0.25, speed_thresh=True, smooth=1, plot=True):
 
         """Estimates position on track using ratemaps and spike counts during behavior
 
@@ -71,8 +67,9 @@ class Bayes1d:
         binsize : float
             binsize in seconds
         """
-
+        pf1d_obj = self.ratemaps
         spikes = Spikes(self._obj).pyr
+
         mapinfo = pf1d_obj.no_thresh
         if speed_thresh:
             mapinfo = pf1d_obj.thresh
@@ -130,7 +127,7 @@ class Bayes1d:
             axconf.set_ylabel("Estimated position (cm)")
             axconf.set_title("Confusion matrix")
 
-    def decode_events(self, pf1d_obj: pf1d, events, binsize=0.02, speed_thresh=True):
+    def decode_events(self, events, binsize=0.02, speed_thresh=True):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -145,6 +142,7 @@ class Bayes1d:
 
         assert isinstance(events, pd.DataFrame)
         spks = Spikes(self._obj).pyr
+        pf1d_obj = self.ratemaps
 
         mapinfo = pf1d_obj.no_thresh
         if speed_thresh:
@@ -198,17 +196,104 @@ class Bayes1d:
 
         return decodedPos, posterior, spkcount
 
+    def decode_shuffle(self, pf1d_obj: pf1d, events, binsize=0.02, speed_thresh=True):
+        """Decoding events like population bursts or ripples
+
+        Parameters
+        ----------
+        events : pd.Dataframe
+            dataframe with column names start and end
+        binsize : float
+            bin size within each events
+        slideby : float
+            sliding window by this much, in seconds
+        """
+
+        assert isinstance(events, pd.DataFrame)
+        spks = Spikes(self._obj).pyr
+
+        mapinfo = pf1d_obj.no_thresh
+        if speed_thresh:
+            mapinfo = pf1d_obj.thresh
+
+        ratemaps = np.asarray(mapinfo["ratemaps"])
+        bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
+
+        # ----- removing cells that fire < 1 HZ --------
+        good_cells = np.where(np.max(ratemaps, axis=1) > 1)[0]
+        spks = [spks[_] for _ in good_cells]
+        ratemaps = ratemaps[good_cells, :]
+
+        # --- sorting the cells according to pf location -------
+        sort_ind = np.argsort(np.argmax(ratemaps, axis=1))
+        spks = [spks[_] for _ in sort_ind]
+        ratemaps = ratemaps[sort_ind, :]
+        np.random.shuffle(ratemaps)
+
+        # ----- calculating binned spike counts -------------
+        # Ncells = len(spks)
+        nbins_events = np.zeros(len(events))  # number of bins in each event
+        bins_events = []
+        for i, epoch in enumerate(events.itertuples()):
+            bins = np.arange(epoch.start, epoch.end, binsize)
+            nbins_events[i] = len(bins) - 1
+            bins_events.extend(bins)
+        spkcount = np.asarray([np.histogram(_, bins=bins_events)[0] for _ in spks])
+
+        # ---- deleting unwanted columns that represent time between events ------
+        cumsum_nbins = np.cumsum(nbins_events)
+        del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
+        spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
+
+        posterior = self._decoder(spkcount, ratemaps, tau=binsize)
+        decodedPos = bincntr[np.argmax(posterior, axis=0)]
+        cum_nbins = np.append(0, np.cumsum(nbins_events)).astype(int)
+
+        posterior = [
+            posterior[:, cum_nbins[i] : cum_nbins[i + 1]]
+            for i in range(len(cum_nbins) - 1)
+        ]
+
+        decodedPos = [
+            decodedPos[cum_nbins[i] : cum_nbins[i + 1]]
+            for i in range(len(cum_nbins) - 1)
+        ]
+        spkcount = [
+            spkcount[:, cum_nbins[i] : cum_nbins[i + 1]]
+            for i in range(len(cum_nbins) - 1)
+        ]
+
+        return decodedPos, posterior, spkcount
+
+    def score_decoded_events(self, posterior):
+        score, slope_ = [], []
+        for evt in posterior:
+            t = np.arange(0, evt.shape[1])
+            y_bin = np.argmax(evt, axis=0)
+            linfit = stats.linregress(t, y_bin)
+            slope = linfit.slope
+            intercept = linfit.intercept
+            line_pos = (slope * t + intercept).astype(int)
+            line_pos = np.clip(line_pos, 0, evt.shape[0] - 1)
+            one_up = np.clip(line_pos + 1, 0, evt.shape[0] - 1)
+            one_down = np.clip(line_pos - 1, 0, evt.shape[0] - 1)
+
+            val_line = evt[line_pos, t] + evt[one_up, t] + evt[one_down, t]
+            score.append(np.nanmean(val_line))
+            slope_.append(slope)
+
+        return score, slope_
+
     def plot_decoded_events(self):
         pass
 
 
 class bayes2d:
-    def __init__(self, basepath):
+    def __init__(self, pf2d_obj: pf2d):
 
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
+        assert isinstance(pf2d_obj, pf2d)
+        self._obj = pf2d_obj._obj
+        self.ratemaps = pf2d_obj
 
     def fit(self):
         trackingSrate = self._obj.position.tracking_sRate
