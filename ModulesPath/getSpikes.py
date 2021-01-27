@@ -13,6 +13,7 @@ from ccg import correlograms
 from plotUtil import pretty_plot
 from scipy.ndimage import gaussian_filter
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 
 class Spikes:
@@ -259,7 +260,12 @@ class Spikes:
         return correlo
 
     def label_celltype(self):
-        """Auto label cell type"""
+        """Auto label cell type using firing rate, burstiness and waveform shape followed by kmeans clustering.
+
+        Reference
+        ---------
+        Csicsvari, J., Hirase, H., Czurko, A., & Buzsáki, G. (1998). Reliability and state dependence of pyramidal cell–interneuron synapses in the hippocampus: an ensemble approach in the behaving rat. Neuron, 21(1), 179-189.
+        """
         spikes = self.times
         self.info["celltype"] = None
         ccgs = self.get_acg(spikes=spikes, bin_size=0.001, window_size=0.05)
@@ -271,12 +277,8 @@ class Spikes:
         mean_isi = np.asarray(
             [np.sum(np.arange(len(ccg)) * ccg) / np.sum(ccg) for ccg in ccg_right]
         )
-        burstiness = mean_isi
-        print(burstiness)
-        print(burstiness.shape)
 
         # --- calculate frate ------------
-        # recording_dur = self._obj.getNframesEEG / self._obj.lfpSrate
         frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
 
         # ------ calculate peak ratio of waveform ----------
@@ -288,8 +290,6 @@ class Spikes:
         center = np.int(n_t / 2)
         wave_window = int(0.25 * (self._obj.sampfreq / 1000))
         from_peak = int(0.18 * (self._obj.sampfreq / 1000))
-        # left_peak = np.max(waveform[:, :center], axis=1)
-        # right_peak = np.max(waveform[:, center + 1 :], axis=1)
         left_peak = np.trapz(
             waveform[:, center - from_peak - wave_window : center - from_peak], axis=1
         )
@@ -297,7 +297,7 @@ class Spikes:
             waveform[:, center + from_peak : center + from_peak + wave_window], axis=1
         )
 
-        peak_ratio = left_peak - right_peak
+        diff_auc = left_peak - right_peak
 
         # ---- refractory contamination ----------
         isi = [np.diff(_) for _ in spikes]
@@ -311,10 +311,11 @@ class Spikes:
         self.info.loc[mua_cells, "celltype"] = "mua"
 
         param1 = frate[good_cells]
-        param2 = burstiness[good_cells]  # np.log10(sum_peak / sum_refractory)
-        param3 = peak_ratio[good_cells]
+        param2 = mean_isi[good_cells]
+        param3 = diff_auc[good_cells]
 
         features = np.vstack((param1, param2, param3)).T
+        features = StandardScaler().fit_transform(features)
         kmeans = KMeans(n_clusters=2).fit(features)
         y_means = kmeans.predict(features)
 
@@ -328,8 +329,8 @@ class Spikes:
         ax = fig.add_subplot(111, projection="3d")
         ax.scatter(
             frate[mua_cells],
-            burstiness[mua_cells],
-            peak_ratio[mua_cells],
+            mean_isi[mua_cells],
+            diff_auc[mua_cells],
             c="#b4b2b1",
             s=50,
             label="mua",
