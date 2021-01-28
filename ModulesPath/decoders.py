@@ -26,6 +26,24 @@ class Bayes1d:
     def __init__(self, pf1d_obj: pf1d):
         self._obj = pf1d_obj._obj
         self.ratemaps = pf1d_obj
+        self._events = None
+        self.posterior = None
+        self.decodedPos = None
+
+    @property
+    def events(self):
+        return self._events
+
+    @events.setter
+    def events(self, events: pd.DataFrame):
+
+        if isinstance(events, pd.DataFrame):
+            assert (
+                pd.Series(["start", "end"]).isin(events.columns).all()
+            ), "events should have start and end as column names"
+        elif isinstance(events, np.ndarray):
+            events = pd.DataFrame({"start": events[:, 0], "end": events[:, 1]})
+        self._events = events
 
     def _decoder(self, spkcount, ratemaps, tau):
         """
@@ -62,8 +80,6 @@ class Bayes1d:
 
         Parameters
         ----------
-        pf1d_obj: obj
-            pass object from placefield.pf1d
         binsize : float
             binsize in seconds
         """
@@ -75,7 +91,6 @@ class Bayes1d:
             mapinfo = pf1d_obj.thresh
 
         ratemaps = np.asarray(mapinfo["ratemaps"])
-        occupancy = mapinfo["occupancy"] / np.sum(mapinfo["occupancy"])
         bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
         maze = pf1d_obj.period
         x = pf1d_obj.x
@@ -127,7 +142,7 @@ class Bayes1d:
             axconf.set_ylabel("Estimated position (cm)")
             axconf.set_title("Confusion matrix")
 
-    def decode_events(self, events, binsize=0.02, speed_thresh=True):
+    def decode_events(self, binsize=0.02, speed_thresh=True):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -140,7 +155,7 @@ class Bayes1d:
             sliding window by this much, in seconds
         """
 
-        assert isinstance(events, pd.DataFrame)
+        events = self.events
         spks = Spikes(self._obj).pyr
         pf1d_obj = self.ratemaps
 
@@ -193,10 +208,11 @@ class Bayes1d:
             spkcount[:, cum_nbins[i] : cum_nbins[i + 1]]
             for i in range(len(cum_nbins) - 1)
         ]
+        self.decodedPos = decodedPos
+        self.posterior = posterior
+        self.spkcount = spkcount
 
-        return decodedPos, posterior, spkcount
-
-    def decode_shuffle(self, pf1d_obj: pf1d, events, binsize=0.02, speed_thresh=True):
+    def decode_shuffle(self, binsize=0.02, speed_thresh=True):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -209,8 +225,9 @@ class Bayes1d:
             sliding window by this much, in seconds
         """
 
-        assert isinstance(events, pd.DataFrame)
+        events = self.events
         spks = Spikes(self._obj).pyr
+        pf1d_obj = self.ratemaps
 
         mapinfo = pf1d_obj.no_thresh
         if speed_thresh:
@@ -265,9 +282,20 @@ class Bayes1d:
 
         return decodedPos, posterior, spkcount
 
-    def score_decoded_events(self, posterior):
+    def score_decoded_events(self):
+        """Scoring of events
+
+        Returns
+        -------
+        [type]
+            [description]
+
+        References
+        ----------
+        1) Kloosterman et al. 2012
+        """
         score, slope_ = [], []
-        for evt in posterior:
+        for evt in self.posterior:
             t = np.arange(0, evt.shape[1])
             y_bin = np.argmax(evt, axis=0)
             linfit = stats.linregress(t, y_bin)

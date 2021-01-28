@@ -406,7 +406,7 @@ class Ripple:
                     f"{event.start*1000} start\n{event.peakSharpWave*1000} peakSW\n{event.end*1000} end\n"
                 )
 
-    def plot(self, random=False):
+    def plot_summary(self, random=False):
         """Plots 10 of detected ripples across two randomly selected shanks with their filtered lfp
 
         Parameters
@@ -490,6 +490,38 @@ class Ripple:
 
         subname = self._obj.session.subname
         fig.suptitle(f"Ripple detection of {subname}")
+
+    def plot_example(
+        self, ax=None, ripple_indx=None, shank_id=None, pad=0.2, color="k"
+    ):
+        changrp = self._obj.channelgroups
+        nShanks = self._obj.nShanks
+        if ripple_indx is None:
+            ripple_indx = np.random.randint(low=0, high=len(self.events))
+        if shank_id is None:
+            shank_id = np.random.randint(low=0, high=nShanks)
+
+        ripple_time = self.events.loc[ripple_indx][["start", "end"]].to_list()
+        lfp = np.array(self._obj.geteeg(chans=changrp[shank_id], timeRange=ripple_time))
+        lfp = lfp / np.max(lfp)  # scaling
+        lfp = lfp - lfp[:, 0][:, np.newaxis]  # np.min(lfp, axis=1, keepdims=True)
+        pad_vals = np.linspace(0, len(lfp) * pad, len(lfp))[::-1]
+        lfp = lfp + pad_vals[:, np.newaxis]
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        print(f"Plotting ripple no. {ripple_indx}")
+        ax.clear()
+        ax.plot(lfp.T, color=color)
+        ax.set_yticks(pad_vals)
+        ax.set_yticklabels(changrp[shank_id])
+        ax.set_xticklabels([])
+        ax.spines["left"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.tick_params(axis="both", length=0)
+
+        return ax
 
 
 class Spindle:
