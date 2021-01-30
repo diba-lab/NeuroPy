@@ -38,6 +38,8 @@ class Spikes:
 
     """
 
+    colors = {"pyr": "#211c1c", "intneur": "#3a924d", "mua": "#b4b2b1"}
+
     def __init__(self, basepath):
 
         if isinstance(basepath, Recinfo):
@@ -170,22 +172,21 @@ class Spikes:
             spikes = mua + pyr + intneur
 
             color = (
-                ["#a9bcd0"] * len(mua)
-                + ["#2d3143"] * len(pyr)
-                + ["#02c59b"] * len(intneur)
+                [self.colors["mua"]] * len(mua)
+                + [self.colors["pyr"]] * len(pyr)
+                + [self.colors["intneur"]] * len(intneur)
             )
 
             # --- mimics legend for labeling unit category ---------
-            ax.annotate(
-                "mua", xy=(0.9, 0.5), xycoords="figure fraction", color="#a9bcd0"
-            )
-            ax.annotate(
-                "pyr", xy=(0.9, 0.45), xycoords="figure fraction", color="#2d3143"
-            )
-            ax.annotate(
-                "int", xy=(0.9, 0.4), xycoords="figure fraction", color="#02c59b"
-            )
-
+            y = 0.5
+            for cell in self.colors:
+                ax.annotate(
+                    cell,
+                    xy=(0.9, y),
+                    xycoords="figure fraction",
+                    color=self.colors[cell],
+                )
+                y -= 0.05
         else:
             assert isinstance(spikes, list), "Please provide a list of arrays"
             if color is None:
@@ -227,7 +228,9 @@ class Spikes:
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Units")
 
-    def get_acg(self, spikes=None, bin_size=0.001, window_size=0.05):
+        return ax
+
+    def get_acg(self, spikes=None, bin_size=0.001, window_size=0.05) -> np.ndarray:
         """Get autocorrelogram
 
         Parameters
@@ -257,7 +260,7 @@ class Spikes:
                 ).squeeze()
             )
 
-        return correlo
+        return np.array(correlo)
 
     def label_celltype(self):
         """Auto label cell type using firing rate, burstiness and waveform shape followed by kmeans clustering.
@@ -269,14 +272,13 @@ class Spikes:
         spikes = self.times
         self.info["celltype"] = None
         ccgs = self.get_acg(spikes=spikes, bin_size=0.001, window_size=0.05)
-        ccg_width = ccgs[0].shape[-1]
+        ccg_width = ccgs.shape[-1]
         ccg_center_ind = int(ccg_width / 2)
 
         # -- calculate burstiness (mean duration of right ccg)------
-        ccg_right = [_[ccg_center_ind + 1 :] for _ in ccgs]
-        mean_isi = np.asarray(
-            [np.sum(np.arange(len(ccg)) * ccg) / np.sum(ccg) for ccg in ccg_right]
-        )
+        ccg_right = ccgs[:, ccg_center_ind + 1 :]
+        t_ccg_right = np.arange(ccg_right.shape[1])  # timepoints
+        mean_isi = np.sum(ccg_right * t_ccg_right, axis=1) / np.sum(ccg_right, axis=1)
 
         # --- calculate frate ------------
         frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
@@ -331,7 +333,7 @@ class Spikes:
             frate[mua_cells],
             mean_isi[mua_cells],
             diff_auc[mua_cells],
-            c="#b4b2b1",
+            c=self.colors["mua"],
             s=50,
             label="mua",
         )
@@ -340,7 +342,7 @@ class Spikes:
             param1[pyr_id],
             param2[pyr_id],
             param3[pyr_id],
-            c="#ef440b",
+            c=self.colors["pyr"],
             s=50,
             label="pyr",
         )
@@ -349,7 +351,7 @@ class Spikes:
             param1[intneur_id],
             param2[intneur_id],
             param3[intneur_id],
-            c="#3a924d",
+            c=self.colors["intneur"],
             s=50,
             label="int",
         )
