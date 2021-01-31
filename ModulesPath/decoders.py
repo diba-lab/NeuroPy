@@ -13,6 +13,8 @@ from getSpikes import Spikes
 from parsePath import Recinfo
 from pfPlot import pf1d, pf2d
 from plotUtil import Fig
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 
 class DecodeBehav:
@@ -23,6 +25,9 @@ class DecodeBehav:
 
 
 class Bayes1d:
+    binsize = 0.02
+    n_jobs = 8
+
     def __init__(self, pf1d_obj: pf1d):
         self._obj = pf1d_obj._obj
         self.ratemaps = pf1d_obj
@@ -45,7 +50,7 @@ class Bayes1d:
             events = pd.DataFrame({"start": events[:, 0], "end": events[:, 1]})
         self._events = events
 
-    def _decoder(self, spkcount, ratemaps, tau):
+    def _decoder(self, spkcount, ratemaps):
         """
         ===========================
         Probability is calculated using this formula
@@ -54,7 +59,7 @@ class Bayes1d:
             tau = binsize
         ===========================
         """
-
+        tau = self.binsize
         nCells = spkcount.shape[0]
         cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
         for cell in range(nCells):
@@ -72,7 +77,7 @@ class Bayes1d:
 
         return posterior
 
-    def estimate_behavior(self, binsize=0.25, speed_thresh=True, smooth=1, plot=True):
+    def estimate_behavior(self, speed_thresh=True, smooth=1, plot=True):
 
         """Estimates position on track using ratemaps and spike counts during behavior
 
@@ -85,6 +90,7 @@ class Bayes1d:
         """
         pf1d_obj = self.ratemaps
         spikes = Spikes(self._obj).pyr
+        binsize = self.binsize
 
         mapinfo = pf1d_obj.no_thresh
         if speed_thresh:
@@ -103,7 +109,7 @@ class Bayes1d:
 
         spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spikes])
 
-        self.posterior = self._decoder(spkcount, ratemaps, tau=binsize)
+        self.posterior = self._decoder(spkcount, ratemaps)
         self.decodedPos = bincntr[np.argmax(self.posterior, axis=0)]
         self.decodingtime = tmz
         self.actualpos = actualposx
@@ -142,7 +148,7 @@ class Bayes1d:
             axconf.set_ylabel("Estimated position (cm)")
             axconf.set_title("Confusion matrix")
 
-    def decode_events(self, binsize=0.02, speed_thresh=True):
+    def decode_events(self, speed_thresh=True):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -181,7 +187,7 @@ class Bayes1d:
         nbins_events = np.zeros(len(events))  # number of bins in each event
         bins_events = []
         for i, epoch in enumerate(events.itertuples()):
-            bins = np.arange(epoch.start, epoch.end, binsize)
+            bins = np.arange(epoch.start, epoch.end, self.binsize)
             nbins_events[i] = len(bins) - 1
             bins_events.extend(bins)
         spkcount = np.asarray([np.histogram(_, bins=bins_events)[0] for _ in spks])
@@ -191,7 +197,7 @@ class Bayes1d:
         del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
         spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
 
-        posterior = self._decoder(spkcount, ratemaps, tau=binsize)
+        posterior = self._decoder(spkcount, ratemaps)
         decodedPos = bincntr[np.argmax(posterior, axis=0)]
         cum_nbins = np.append(0, np.cumsum(nbins_events)).astype(int)
 
@@ -211,8 +217,10 @@ class Bayes1d:
         self.decodedPos = decodedPos
         self.posterior = posterior
         self.spkcount = spkcount
+        self.nbins_events = nbins_events
+        self.score = self._score_events(posterior)
 
-    def decode_shuffle(self, binsize=0.02, speed_thresh=True):
+    def decode_shuffle(self, speed_thresh=True, n_iter=100, kind="column"):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -225,64 +233,70 @@ class Bayes1d:
             sliding window by this much, in seconds
         """
 
-        events = self.events
-        spks = Spikes(self._obj).pyr
-        pf1d_obj = self.ratemaps
+        # print(f"Using {kind} shuffle")
+        score = []
 
-        mapinfo = pf1d_obj.no_thresh
-        if speed_thresh:
-            mapinfo = pf1d_obj.thresh
+        if kind == "cellid":
+            spks = Spikes(self._obj).pyr
+            pf1d_obj = self.ratemaps
 
-        ratemaps = np.asarray(mapinfo["ratemaps"])
-        bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
+            mapinfo = pf1d_obj.no_thresh
+            if speed_thresh:
+                mapinfo = pf1d_obj.thresh
 
-        # ----- removing cells that fire < 1 HZ --------
-        good_cells = np.where(np.max(ratemaps, axis=1) > 1)[0]
-        spks = [spks[_] for _ in good_cells]
-        ratemaps = ratemaps[good_cells, :]
+            ratemaps = np.asarray(mapinfo["ratemaps"])
+            bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
 
-        # --- sorting the cells according to pf location -------
-        sort_ind = np.argsort(np.argmax(ratemaps, axis=1))
-        spks = [spks[_] for _ in sort_ind]
-        ratemaps = ratemaps[sort_ind, :]
-        np.random.shuffle(ratemaps)
+            # ----- removing cells that fire < 1 HZ --------
+            good_cells = np.where(np.max(ratemaps, axis=1) > 1)[0]
+            spks = [spks[_] for _ in good_cells]
+            ratemaps = ratemaps[good_cells, :]
 
-        # ----- calculating binned spike counts -------------
-        # Ncells = len(spks)
-        nbins_events = np.zeros(len(events))  # number of bins in each event
-        bins_events = []
-        for i, epoch in enumerate(events.itertuples()):
-            bins = np.arange(epoch.start, epoch.end, binsize)
-            nbins_events[i] = len(bins) - 1
-            bins_events.extend(bins)
-        spkcount = np.asarray([np.histogram(_, bins=bins_events)[0] for _ in spks])
+            # --- sorting the cells according to pf location -------
+            sort_ind = np.argsort(np.argmax(ratemaps, axis=1))
+            spks = [spks[_] for _ in sort_ind]
+            ratemaps = ratemaps[sort_ind, :]
 
-        # ---- deleting unwanted columns that represent time between events ------
-        cumsum_nbins = np.cumsum(nbins_events)
-        del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
-        spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
+            posterior, decodedPos = [], []
+            for i in range(n_iter):
+                np.random.shuffle(ratemaps)
 
-        posterior = self._decoder(spkcount, ratemaps, tau=binsize)
-        decodedPos = bincntr[np.argmax(posterior, axis=0)]
-        cum_nbins = np.append(0, np.cumsum(nbins_events)).astype(int)
+                posterior_ = self._decoder(np.hstack(self.spkcount), ratemaps)
+                decodedPos_ = bincntr[np.argmax(posterior_, axis=0)]
+                cum_nbins = np.append(0, np.cumsum(self.nbins_events)).astype(int)
 
-        posterior = [
-            posterior[:, cum_nbins[i] : cum_nbins[i + 1]]
-            for i in range(len(cum_nbins) - 1)
-        ]
+                posterior.extend(
+                    [
+                        posterior_[:, cum_nbins[i] : cum_nbins[i + 1]]
+                        for i in range(len(cum_nbins) - 1)
+                    ]
+                )
 
-        decodedPos = [
-            decodedPos[cum_nbins[i] : cum_nbins[i + 1]]
-            for i in range(len(cum_nbins) - 1)
-        ]
-        spkcount = [
-            spkcount[:, cum_nbins[i] : cum_nbins[i + 1]]
-            for i in range(len(cum_nbins) - 1)
-        ]
+                decodedPos.extend(
+                    [
+                        decodedPos_[cum_nbins[i] : cum_nbins[i + 1]]
+                        for i in range(len(cum_nbins) - 1)
+                    ]
+                )
 
-        return decodedPos, posterior, spkcount
+        if kind == "column":
 
-    def score_decoded_events(self):
+            def col_shuffle(mat):
+                shift = np.random.randint(1, mat.shape[1], mat.shape[1])
+                direction = np.random.choice([-1, 1], size=mat.shape[1])
+                shift = shift * direction
+
+                mat = np.array([np.roll(mat[:, i], sh) for i, sh in enumerate(shift)])
+                return mat.T
+
+            score = []
+            for i in tqdm(range(n_iter)):
+                evt_shuff = [col_shuffle(arr) for arr in self.posterior]
+                score.append(self._score_events(evt_shuff))
+
+        self.shuffle_score = np.array(score)
+
+    def _score_events(self, posterior):
         """Scoring of events
 
         Returns
@@ -294,23 +308,52 @@ class Bayes1d:
         ----------
         1) Kloosterman et al. 2012
         """
-        score, slope_ = [], []
-        for evt in self.posterior:
-            t = np.arange(0, evt.shape[1])
-            y_bin = np.argmax(evt, axis=0)
-            linfit = stats.linregress(t, y_bin)
-            slope = linfit.slope
-            intercept = linfit.intercept
-            line_pos = (slope * t + intercept).astype(int)
-            line_pos = np.clip(line_pos, 0, evt.shape[0] - 1)
-            one_up = np.clip(line_pos + 1, 0, evt.shape[0] - 1)
-            one_down = np.clip(line_pos - 1, 0, evt.shape[0] - 1)
+        # ------ similar to radon transform ------------
 
-            val_line = evt[line_pos, t] + evt[one_up, t] + evt[one_down, t]
-            score.append(np.nanmean(val_line))
-            slope_.append(slope)
+        def score_event(evt):
+            t = np.arange(evt.shape[1])
+            nt = len(t)
+            tmid = (nt + 1) / 2
+            pos = np.arange(evt.shape[0])
+            npos = len(pos)
+            pmid = (npos + 1) / 2
+            evt = np.apply_along_axis(np.convolve, axis=0, arr=evt, v=np.ones(3))
 
-        return score, slope_
+            nlines = 5000
+            slope = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
+            diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
+            intercept = np.random.uniform(
+                low=-diag_len / 2, high=diag_len / 2, size=nlines
+            )
+
+            cmat = np.tile(intercept, (nt, 1)).T
+            mmat = np.tile(slope, (nt, 1)).T
+            tmat = np.tile(t, (nlines, 1))
+            posterior = np.zeros((nlines, nt))
+
+            y_line = (
+                ((cmat - (tmat - tmid) * np.cos(mmat)) / np.sin(mmat)) + pmid
+            ).astype(int)
+            t_out = np.where((y_line < 0) | (y_line > npos - 1))
+            t_in = np.where((y_line >= 0) & (y_line <= npos - 1))
+            posterior[t_out] = np.median(evt[:, t_out[1]], axis=0)
+            posterior[t_in] = evt[y_line[t_in], t_in[1]]
+
+            return np.max(np.nanmean(posterior, axis=1))
+
+        score = Parallel(n_jobs=self.n_jobs)(
+            delayed(score_event)(evt) for evt in posterior
+        )
+
+        return np.array(score)
+
+    @property
+    def p_val_events(self):
+        shuff_score = self.shuffle_score
+        n_iter = shuff_score.shape[0]
+        diff_score = shuff_score - np.tile(self.score, (n_iter, 1))
+        chance = np.where(diff_score > 0, 1, 0).sum(axis=0)
+        return (chance + 1) / (n_iter + 1)
 
     def plot_decoded_events(self):
         pass
