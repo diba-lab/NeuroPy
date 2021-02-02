@@ -114,15 +114,15 @@ class Track:
                 if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
                     iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
                 xlinear = iso_pos[:, 0]
+            alldata[name]["linear"] = xlinear - np.min(xlinear)
+
             if plot:
                 fig, ax = plt.subplots()
                 fig.set_size_inches([28, 8.6])
-                ax.plot(xlinear)
+                ax.plot(xlinear - np.min(xlinear))
                 ax.set_xlabel("Frame #")
                 ax.set_ylabel("Linear Position")
                 ax.set_title(method.upper() + " Sanity Check Plot")
-
-            alldata[name]["linear"] = xlinear
 
         # ---- saving the updated data -----------
         np.save(self.files.trackinfo, alldata)
