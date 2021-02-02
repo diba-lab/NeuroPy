@@ -199,7 +199,7 @@ class Spikes:
                 except:
                     color = [color] * len(spikes)
 
-        print(f"Plotting {len(spikes)} cells")
+        # print(f"Plotting {len(spikes)} cells")
         frate = [len(cell) for cell in spikes]  # number of spikes ~= frate
 
         if period is not None:
