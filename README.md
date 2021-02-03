@@ -5,7 +5,7 @@ Modules for electrophysiology analysis using python.
 These modules are primarily developed for hippocampal recordings.
 
 ### Minimum requirements
-* python 3.8.6
+* python 3.8
 * Numpy 1.19.1
 * Scipy 1.5.2
 
@@ -66,3 +66,16 @@ for sess in sessions:
 ```
 
 ![Example Image](images/raster.png)
+
+### Citing this package
+If you use NeuroPy in your research, please consider citing it.
+
+```
+@misc{neuropy2021,
+    author       = {Bapun Giri, Nat Kinsky},
+    title        = {{NeuroPy: Electrophysiology analysis using Python}},
+    year         = 2020--2021,
+    version      = {0.0.1},
+    url          = {https://github.com/diba-lab/NeuroPy}
+    }
+```
