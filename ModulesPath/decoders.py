@@ -77,7 +77,7 @@ class Bayes1d:
 
         return posterior
 
-    def estimate_behavior(self, speed_thresh=True, smooth=1, plot=True):
+    def estimate_behavior(self, speed_thresh=False, smooth=1, plot=True):
 
         """Estimates position on track using ratemaps and spike counts during behavior
 
@@ -148,7 +148,7 @@ class Bayes1d:
             axconf.set_ylabel("Estimated position (cm)")
             axconf.set_title("Confusion matrix")
 
-    def decode_events(self, speed_thresh=True):
+    def decode_events(self, speed_thresh=False):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -218,9 +218,9 @@ class Bayes1d:
         self.posterior = posterior
         self.spkcount = spkcount
         self.nbins_events = nbins_events
-        self.score = self._score_events(posterior)
+        self.score, self.slope = self._score_events(posterior)
 
-    def decode_shuffle(self, speed_thresh=True, n_iter=100, kind="column"):
+    def decode_shuffle(self, speed_thresh=False, n_iter=100, kind="column"):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -292,7 +292,7 @@ class Bayes1d:
             score = []
             for i in tqdm(range(n_iter)):
                 evt_shuff = [col_shuffle(arr) for arr in self.posterior]
-                score.append(self._score_events(evt_shuff))
+                score.append(self._score_events(evt_shuff)[0])
 
         self.shuffle_score = np.array(score)
 
@@ -320,14 +320,14 @@ class Bayes1d:
             evt = np.apply_along_axis(np.convolve, axis=0, arr=evt, v=np.ones(3))
 
             nlines = 5000
-            slope = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
+            theta = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
             diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
             intercept = np.random.uniform(
                 low=-diag_len / 2, high=diag_len / 2, size=nlines
             )
 
             cmat = np.tile(intercept, (nt, 1)).T
-            mmat = np.tile(slope, (nt, 1)).T
+            mmat = np.tile(theta, (nt, 1)).T
             tmat = np.tile(t, (nlines, 1))
             posterior = np.zeros((nlines, nt))
 
@@ -339,13 +339,18 @@ class Bayes1d:
             posterior[t_out] = np.median(evt[:, t_out[1]], axis=0)
             posterior[t_in] = evt[y_line[t_in], t_in[1]]
 
-            return np.max(np.nanmean(posterior, axis=1))
+            posterior_sum = np.nanmean(posterior, axis=1)
+            max_line = np.argmax(posterior_sum)
+            slope = -(1 / np.tan(theta[max_line]))
+            return posterior_sum[max_line], slope
 
-        score = Parallel(n_jobs=self.n_jobs)(
+        results = Parallel(n_jobs=self.n_jobs)(
             delayed(score_event)(evt) for evt in posterior
         )
+        score = [res[0] for res in results]
+        slope = [res[1] for res in results]
 
-        return np.array(score)
+        return np.asarray(score), np.asarray(slope)
 
     @property
     def p_val_events(self):
@@ -355,8 +360,72 @@ class Bayes1d:
         chance = np.where(diff_score > 0, 1, 0).sum(axis=0)
         return (chance + 1) / (n_iter + 1)
 
-    def plot_decoded_events(self):
-        pass
+    def plot_replay_events(self, pval=0.05, speed_thresh=True, cmap="hot"):
+        pval_events = self.p_val_events
+        replay_ind = np.where(pval_events < pval)[0]
+        posterior = [self.posterior[_] for _ in replay_ind]
+        sort_ind = np.argsort(self.score[replay_ind])[::-1]
+        posterior = [posterior[_] for _ in sort_ind]
+        events = self.events.iloc[replay_ind].reset_index(drop=True)
+        events["score"] = self.score[replay_ind]
+        events["slope"] = self.slope[replay_ind]
+        events.sort_values(by=["score"], inplace=True, ascending=False)
+
+        spikes = Spikes(self._obj)
+        spks = spikes.pyr
+        pf1d_obj = self.ratemaps
+
+        mapinfo = pf1d_obj.no_thresh
+        if speed_thresh:
+            mapinfo = pf1d_obj.thresh
+
+        ratemaps = np.asarray(mapinfo["ratemaps"])
+
+        # ----- removing cells that fire < 1 HZ --------
+        good_cells = np.where(np.max(ratemaps, axis=1) > 1)[0]
+        spks = [spks[_] for _ in good_cells]
+        ratemaps = ratemaps[good_cells, :]
+
+        # --- sorting the cells according to pf location -------
+        sort_ind = np.argsort(np.argmax(ratemaps, axis=1))
+        spks = [spks[_] for _ in sort_ind]
+        ratemaps = ratemaps[sort_ind, :]
+
+        figure = Fig()
+        fig, gs = figure.draw(grid=(6, 12), hspace=0.34)
+
+        for i, epoch in enumerate(events.itertuples()):
+            gs_ = figure.subplot2grid(gs[i], grid=(2, 1), hspace=0.1)
+            ax = plt.subplot(gs_[0])
+            spikes.plot_raster(
+                spks, ax=ax, period=[epoch.start, epoch.end], tstart=epoch.start
+            )
+            ax.set_title(
+                f"Score = {np.round(epoch.score,2)},\n Slope = {np.round(epoch.slope,2)}",
+                loc="left",
+            )
+            ax.set_xlabel("")
+            ax.tick_params(length=0)
+            plt.setp(ax.get_xticklabels(), visible=False)
+            axdec = plt.subplot(gs_[1], sharex=ax)
+            axdec.pcolormesh(
+                np.arange(posterior[i].shape[1] + 1) * self.binsize,
+                self.ratemaps.bin - np.min(self.ratemaps.bin),
+                posterior[i],
+                cmap=cmap,
+                vmin=0,
+                vmax=0.5,
+            )
+            axdec.set_ylabel("Position")
+
+            if i % 12:
+                ax.set_ylabel("")
+                plt.setp(ax.get_yticklabels(), visible=False)
+                plt.setp(axdec.get_yticklabels(), visible=False)
+                axdec.set_ylabel("")
+
+            if i > (5 * 6 - 1):
+                axdec.set_xlabel("Time (ms)")
 
 
 class bayes2d:
