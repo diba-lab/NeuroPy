@@ -101,4 +101,3 @@ class event_event:
 
     def plot_raster(self):
         pass
-
