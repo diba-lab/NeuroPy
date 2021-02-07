@@ -77,7 +77,7 @@ class Bayes1d:
 
         return posterior
 
-    def estimate_behavior(self, speed_thresh=False, smooth=1, plot=True):
+    def estimate_behavior(self, smooth=1, plot=True):
 
         """Estimates position on track using ratemaps and spike counts during behavior
 
@@ -92,10 +92,7 @@ class Bayes1d:
         spikes = Spikes(self._obj).pyr
         binsize = self.binsize
 
-        mapinfo = pf1d_obj.no_thresh
-        if speed_thresh:
-            mapinfo = pf1d_obj.thresh
-
+        mapinfo = pf1d_obj.ratemaps
         ratemaps = np.asarray(mapinfo["ratemaps"])
         bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
         maze = pf1d_obj.period
@@ -148,7 +145,7 @@ class Bayes1d:
             axconf.set_ylabel("Estimated position (cm)")
             axconf.set_title("Confusion matrix")
 
-    def decode_events(self, speed_thresh=False):
+    def decode_events(self):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -165,10 +162,7 @@ class Bayes1d:
         spks = Spikes(self._obj).pyr
         pf1d_obj = self.ratemaps
 
-        mapinfo = pf1d_obj.no_thresh
-        if speed_thresh:
-            mapinfo = pf1d_obj.thresh
-
+        mapinfo = pf1d_obj.ratemaps
         ratemaps = np.asarray(mapinfo["ratemaps"])
         bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
 
@@ -220,7 +214,7 @@ class Bayes1d:
         self.nbins_events = nbins_events
         self.score, self.slope = self._score_events(posterior)
 
-    def decode_shuffle(self, speed_thresh=False, n_iter=100, kind="column"):
+    def decode_shuffle(self, n_iter=100, kind="column"):
         """Decoding events like population bursts or ripples
 
         Parameters
@@ -240,10 +234,7 @@ class Bayes1d:
             spks = Spikes(self._obj).pyr
             pf1d_obj = self.ratemaps
 
-            mapinfo = pf1d_obj.no_thresh
-            if speed_thresh:
-                mapinfo = pf1d_obj.thresh
-
+            mapinfo = pf1d_obj.ratemaps
             ratemaps = np.asarray(mapinfo["ratemaps"])
             bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
 
@@ -375,10 +366,7 @@ class Bayes1d:
         spks = spikes.pyr
         pf1d_obj = self.ratemaps
 
-        mapinfo = pf1d_obj.no_thresh
-        if speed_thresh:
-            mapinfo = pf1d_obj.thresh
-
+        mapinfo = pf1d_obj.ratemaps
         ratemaps = np.asarray(mapinfo["ratemaps"])
 
         # ----- removing cells that fire < 1 HZ --------

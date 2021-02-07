@@ -77,7 +77,27 @@ class SessView:
 
         # ---------- plotting ----------------
         def plotspec(n_std, cmap, freq):
-            ax.pcolorfast(spec.time, spec.freq, sxx, cmap=cmap, vmax=n_std * std_sxx)
+            # slow to plot
+            # ax.pcolormesh(
+            #     spec.time,
+            #     spec.freq,
+            #     sxx,
+            #     cmap=cmap,
+            #     vmax=n_std * std_sxx,
+            #     rasterized=True,
+            # )
+            # ax.set_ylim(freq)
+
+            # fast to plot
+            ax.imshow(
+                sxx,
+                cmap=cmap,
+                vmax=n_std * std_sxx,
+                rasterized=True,
+                origin="lower",
+                extent=(spec.time[0], spec.time[-1], spec.freq[0], spec.freq[-1]),
+                aspect="auto",
+            )
             ax.set_ylim(freq)
 
         ax.text(

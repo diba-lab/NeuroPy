@@ -157,9 +157,7 @@ class Fig:
             ha="right",
         )
 
-    def savefig(self, fname, scriptname, fig=None, folder=None):
-
-        scriptname = Path(scriptname).name
+    def savefig(self, fname, scriptname=None, fig=None, folder=None):
 
         if folder is None:
             folder = "/home/bapung/Documents/MATLAB/figures/"
@@ -170,16 +168,18 @@ class Fig:
 
         today = date.today().strftime("%m/%d/%y")
 
-        fig.text(
-            0.95,
-            0.01,
-            f"{scriptname}\n Date: {today}",
-            fontsize=6,
-            color="gray",
-            ha="right",
-            va="bottom",
-            alpha=0.5,
-        )
+        if scriptname is not None:
+            scriptname = Path(scriptname).name
+            fig.text(
+                0.95,
+                0.01,
+                f"{scriptname}\n Date: {today}",
+                fontsize=6,
+                color="gray",
+                ha="right",
+                va="bottom",
+                alpha=0.5,
+            )
         fig.savefig(filename)
 
     @staticmethod
