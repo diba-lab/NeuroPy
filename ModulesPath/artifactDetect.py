@@ -158,12 +158,14 @@ class findartifact:
             for beg, stop in artifact_ms:
                 file.write(f"{beg} {stop}\n")
 
-    def plot(self, chan=None):
+    def plot(self):
 
-        if chan is None:
-            chan = np.random.choice(self._obj.goodchans)
+        chans = self.chan
+        lfp = self._obj.geteeg(chans=chans)
+        if not isinstance(chans, int):
+            lfp = np.asarray(lfp)
+            lfp = np.median(lfp, axis=0)
 
-        lfp = self._obj.geteeg(chans=chan)
         zsc = np.abs(stat.zscore(lfp))
         artifact = self.time * self._obj.lfpSrate
 
