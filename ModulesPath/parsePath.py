@@ -182,7 +182,7 @@ class Recinfo:
             lfpSrate = int(val.find("lfpSamplingRate").text)
 
         auxchans = np.setdiff1d(
-            np.arange(nChans), np.concatenate(channelgroups + skulleeg + emg + motion)
+            np.arange(nChans), np.array(chan_session + skulleeg + emg + motion)
         )
         if auxchans.size == 0:
             auxchans = None
