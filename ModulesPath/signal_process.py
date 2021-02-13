@@ -658,34 +658,57 @@ class PAC:
 class ThetaParams:
     lfp: np.array
     fs: int = 1250
-    lowtheta: int = 1
-    hightheta: int = 25
+    method: str = "hilbert"
 
     def __post_init__(self):
         # --- calculating theta parameters from broadband theta---------
         eegSrate = self.fs
-        thetalfp = filter_sig.bandpass(self.lfp, lf=self.lowtheta, hf=self.hightheta)
-        hil_theta = hilbertfast(thetalfp)
-        theta_360 = np.angle(hil_theta, deg=True) + 180
-        theta_angle = np.abs(np.angle(hil_theta, deg=True))
-        theta_trough = sg.find_peaks(theta_angle)[0]
-        theta_peak = sg.find_peaks(-theta_angle)[0]
-        theta_amp = np.abs(hil_theta) ** 2
 
-        if theta_peak[0] < theta_trough[0]:
-            theta_peak = theta_peak[1:]
-        if theta_trough[-1] > theta_peak[-1]:
-            theta_trough = theta_trough[:-1]
+        peak, trough, theta_amp, theta_360, thetalfp = 5 * [None]
+        if self.method == "hilbert":
+            thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=25)
+            hil_theta = hilbertfast(thetalfp)
+            theta_360 = np.angle(hil_theta, deg=True) + 180
+            theta_angle = np.abs(np.angle(hil_theta, deg=True))
+            trough = sg.find_peaks(theta_angle)[0]
+            peak = sg.find_peaks(-theta_angle)[0]
+            theta_amp = np.abs(hil_theta) ** 2
 
-        assert len(theta_trough) == len(theta_peak)
+        elif self.method == "waveshape":
+            thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=80)
+            hil_theta = hilbertfast(thetalfp)
+            theta_amp = np.abs(hil_theta) ** 2
 
-        rising_time = (theta_peak[1:] - theta_trough[1:]) / eegSrate
-        falling_time = (theta_trough[1:] - theta_peak[:-1]) / eegSrate
+            peak = sg.find_peaks(thetalfp, height=0, distance=100)[0]
+            trough = sg.find_peaks(-thetalfp, height=0, distance=100)[0]
+
+            loc = np.concatenate((trough, peak))
+            angles = np.concatenate((np.zeros(len(trough)), 180 * np.ones(len(peak))))
+            sort_ind = np.argsort(loc)
+            loc = loc[sort_ind]
+            angles = angles[sort_ind]
+            theta_angle = np.interp(np.arange(len(self.lfp)), loc, angles)
+            angle_descend = np.where(np.diff(theta_angle) < 0)[0]
+            theta_angle[angle_descend] = -theta_angle[angle_descend] + 360
+            theta_360 = theta_angle
+
+        else:
+            print("method not understood")
+
+        if peak[0] < trough[0]:
+            peak = peak[1:]
+        if trough[-1] > peak[-1]:
+            trough = trough[:-1]
+
+        assert len(trough) == len(peak)
+
+        rising_time = (peak[1:] - trough[1:]) / eegSrate
+        falling_time = (trough[1:] - peak[:-1]) / eegSrate
 
         self.amp = theta_amp
         self.angle = theta_360
-        self.trough = theta_trough
-        self.peak = theta_peak
+        self.trough = trough
+        self.peak = peak
         self.lfp_filtered = thetalfp
         self.rise_time = rising_time
         self.fall_time = falling_time
