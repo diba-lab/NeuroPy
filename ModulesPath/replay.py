@@ -9,6 +9,8 @@ import matplotlib.gridspec as gridspec
 from parsePath import Recinfo
 from getSpikes import Spikes
 from scipy.ndimage import gaussian_filter
+import random
+import pingouin as pg
 
 
 class Replay:
@@ -135,6 +137,135 @@ class ExplainedVariance:
 
         self.ev = ev_template_vs_match
         self.rev = rev_corr
+        self.npairs = template_corr.shape[0]
+
+    def compute_shuffle(
+        self,
+        template,
+        match,
+        binSize=0.250,
+        window=900,
+        slideby=None,
+        cross_shanks=True,
+        n_iter=10,
+    ):
+        """Calucate explained variance (EV) and reverse EV
+
+        Parameters
+        ----------
+        template : list
+            template period
+        match : list
+            match period whose similarity is calculated to template
+        control : list
+            control period, correlations in this period will be accounted for
+        binSize : float,
+            bin size within each window, defaults 0.250 seconds
+        window : int,
+            size of window in which ev is calculated, defaults 900 seconds
+        slideby : int,
+            calculate EV by sliding window, seconds
+
+        References:
+        1) Kudrimoti 1999
+        2) Tastsuno et al. 2007
+        """
+
+        spikes = Spikes(self._obj)
+        if slideby is None:
+            slideby = window
+
+        # ----- choosing cells ----------------
+        spks = spikes.times
+        stability = spikes.stability.info
+        stable_cells = np.where(stability.stable == 1)[0]
+        pyr_id = spikes.pyrid
+        stable_pyr = np.intersect1d(pyr_id, stable_cells, assume_unique=True)
+        print(f"Calculating EV for {len(stable_pyr)} stable cells")
+        spks = [spks[_] for _ in stable_pyr]
+
+        # ------- windowing the time periods ----------
+        nbins_window = int(window / binSize)
+        nbins_slide = int(slideby / binSize)
+
+        # ---- function to calculate correlation in each window ---------
+        def cal_corr(spikes, period, windowing=True):
+            bin_period = np.arange(period[0], period[1], binSize)
+            spkcnt = np.array([np.histogram(x, bins=bin_period)[0] for x in spikes])
+
+            if windowing:
+                t = np.arange(period[0], period[1] - window, slideby) + window / 2
+                nwindow = len(t)
+
+                window_spkcnt = [
+                    spkcnt[:, i : i + nbins_window]
+                    for i in range(0, int(nwindow) * nbins_slide, nbins_slide)
+                ]
+
+                # if nwindow % 1 > 0.3:
+                #     window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
+                #     t = np.append(t, t[-1] + round(nwindow % 1, 3) / 2)
+
+                corr = [
+                    np.corrcoef(window_spkcnt[x]) for x in range(len(window_spkcnt))
+                ]
+
+            else:
+                corr = np.corrcoef(spkcnt)
+                t = None
+
+            return corr, t
+
+        # ---- correlation for each time period -----------
+        template_corr, _ = cal_corr(spks, period=template, windowing=False)
+        match_corr, self.t_match = cal_corr(spks, period=match)
+
+        # ----- indices for cross shanks correlation -------
+        shnkId = np.asarray(spikes.info.shank)
+        shnkId = shnkId[stable_pyr]
+        assert len(shnkId) == len(spks)
+
+        selected_pairs = np.tril_indices(len(spks), k=-1)
+        if cross_shanks:
+            selected_pairs = np.nonzero(
+                np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1))
+            )
+
+        template_corr = template_corr[selected_pairs]
+        match_corr = [match_corr[x][selected_pairs] for x in range(len(match_corr))]
+
+        ev_all, rev_all = [], []
+        for i in range(n_iter):
+            # pair_id = np.arange(len(template_corr))
+            # np.random.shuffle(pair_id)
+            # shuff_match = [window[pair_id] for window in match_corr]
+
+            spks_shuff = random.sample(spks, len(spks))
+            shuff_corr, _ = cal_corr(spks_shuff, period=match)
+            shuff_match = [
+                shuff_corr[x][selected_pairs] for x in range(len(shuff_corr))
+            ]
+
+            ev, rev = [], []
+            for control, match_ in zip(shuff_match, match_corr):
+                df = pd.DataFrame(
+                    {"control": control, "template": template_corr, "match": match_}
+                )
+                ev_ = pg.partial_corr(data=df, x="template", y="match", covar="control")
+                rev_ = pg.partial_corr(
+                    data=df, x="template", y="control", covar="match"
+                )
+                ev.append(ev_.r2)
+                rev.append(rev_.r2)
+
+            ev_all.append(ev)
+            rev_all.append(rev)
+
+        ev_all = np.asarray(ev_all)
+        rev_all = np.asarray(rev_all)
+
+        self.ev = ev_all
+        self.rev = rev_all
         self.npairs = template_corr.shape[0]
 
     def plot(self, ax=None, tstart=0, legend=True):
