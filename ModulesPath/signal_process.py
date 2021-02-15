@@ -656,6 +656,14 @@ class PAC:
 
 @dataclass
 class ThetaParams:
+    """Estimating various theta oscillation features like phase, asymmetry etc.
+
+    References
+    -------
+    1) hilbert --> Cole, Scott, and Bradley Voytek. "Cycle-by-cycle analysis of neural oscillations." Journal of neurophysiology (2019)
+    2) waveshape --> Belluscio, Mariano A., et al. "Cross-frequency phase–phase coupling between theta and gamma oscillations in the hippocampus." Journal of Neuroscience(2012)
+    """
+
     lfp: np.array
     fs: int = 1250
     method: str = "hilbert"
@@ -678,10 +686,16 @@ class ThetaParams:
             thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=80)
             hil_theta = hilbertfast(thetalfp)
             theta_amp = np.abs(hil_theta) ** 2
+            # distance between theta peaks should be >= 80 ms
+            distance = int(0.08 * self.fs)
 
-            peak = sg.find_peaks(thetalfp, height=0, distance=100)[0]
-            trough = sg.find_peaks(-thetalfp, height=0, distance=100)[0]
+            peak = sg.find_peaks(thetalfp, height=0, distance=distance)[0]
+            trough = stats.binned_statistic(
+                np.arange(len(thetalfp)), thetalfp, bins=peak, statistic=np.argmin
+            )[0]
+            trough = peak[:-1] + trough
 
+            # ---- linear interpolation of angles ---------
             loc = np.concatenate((trough, peak))
             angles = np.concatenate((np.zeros(len(trough)), 180 * np.ones(len(peak))))
             sort_ind = np.argsort(loc)
@@ -774,26 +788,42 @@ class ThetaParams:
     def peaktrough(self):
         return self.peak_width / (self.peak_width + self.trough_width)
 
-    def sanityCheck(self, rawTheta):
-        # ax3 = plt.subplot(gs[1, :])
-        # theta_lfp = signal_process.filter_sig.bandpass(lfpmaze, lf=1, hf=25)
-        # ax3.plot(lfpmaze, "gray", alpha=0.3)
-        # ax3.plot(theta_lfp, "k")
-        # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-        # ax3.plot(thetaparams.peak, theta_lfp[thetaparams.peak], "|", color="r", markersize=30)
-        # ax3.plot(
-        #     thetaparams.rise_mid,
-        #     theta_lfp[thetaparams.rise_mid],
-        #     "|",
-        #     color="gray",
-        #     markersize=30,
-        # )
-        # ax3.plot(
-        #     thetaparams.fall_mid,
-        #     theta_lfp[thetaparams.fall_mid],
-        #     "|",
-        #     color="magenta",
-        #     markersize=30,
-        # )
-        # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-        pass
+    def sanityCheck(self):
+        """Plots raw signal with filtered signal and peak, trough locations with phase
+
+        Returns
+        -------
+        ax : obj
+        """
+
+        fig, ax = plt.subplots(2, 1, sharex=True, figsize=(15, 8))
+
+        ax[0].plot(stats.zscore(self.lfp), "k", label="raw")
+        ax[0].plot(stats.zscore(self.lfp_filtered), "r", label="filtered")
+        ax[0].vlines(
+            self.peak,
+            ymin=-5,
+            ymax=5,
+            colors="green",
+            linestyles="dashed",
+            label="peak",
+        )
+
+        ax[0].vlines(
+            self.trough,
+            ymin=-5,
+            ymax=5,
+            colors="blue",
+            linestyles="dashed",
+            label="trough",
+        )
+        ax[0].set_ylabel("Amplitude")
+        ax[0].legend()
+
+        ax[1].plot(self.angle, "k")
+        ax[1].set_xlabel("frame number")
+        ax[1].set_ylabel("Phase")
+
+        fig.suptitle(f"Theta parameters estimation using {self.method}")
+
+        return ax
