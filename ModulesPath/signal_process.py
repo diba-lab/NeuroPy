@@ -9,7 +9,6 @@ import scipy.signal as sg
 from scipy import stats
 from joblib import Parallel, delayed
 from scipy import fftpack
-from scipy.fft import fft
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
 from plotUtil import Fig
@@ -683,7 +682,7 @@ class ThetaParams:
             theta_amp = np.abs(hil_theta) ** 2
 
         elif self.method == "waveshape":
-            thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=80)
+            thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=60)
             hil_theta = hilbertfast(thetalfp)
             theta_amp = np.abs(hil_theta) ** 2
             # distance between theta peaks should be >= 80 ms
@@ -695,9 +694,32 @@ class ThetaParams:
             )[0]
             trough = peak[:-1] + trough
 
+            def get_desc(arr):
+                arr = stats.zscore(arr)
+                return np.where(np.diff(np.sign(arr)))[0][0]
+
+            def get_asc(arr):
+                arr = stats.zscore(arr)
+                return np.where(np.diff(np.sign(arr)))[0][-1]
+
+            zero_up = stats.binned_statistic(
+                np.arange(len(thetalfp)), thetalfp, bins=peak, statistic=get_asc
+            )[0]
+
+            zero_down = stats.binned_statistic(
+                np.arange(len(thetalfp)), thetalfp, bins=peak, statistic=get_desc
+            )[0]
+
             # ---- linear interpolation of angles ---------
-            loc = np.concatenate((trough, peak))
-            angles = np.concatenate((np.zeros(len(trough)), 180 * np.ones(len(peak))))
+            loc = np.concatenate((trough, zero_up, peak, zero_down))
+            angles = np.concatenate(
+                (
+                    np.zeros(len(trough)),
+                    90 * np.ones(len(zero_up)),
+                    180 * np.ones(len(peak)),
+                    270 * np.ones(len(zero_down)),
+                )
+            )
             sort_ind = np.argsort(loc)
             loc = loc[sort_ind]
             angles = angles[sort_ind]
