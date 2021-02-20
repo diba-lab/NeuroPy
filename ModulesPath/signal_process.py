@@ -711,13 +711,13 @@ class ThetaParams:
             )[0]
 
             # ---- linear interpolation of angles ---------
-            loc = np.concatenate((trough, zero_up, peak, zero_down))
+            loc = np.concatenate((trough, peak))
             angles = np.concatenate(
                 (
                     np.zeros(len(trough)),
-                    90 * np.ones(len(zero_up)),
+                    # 90 * np.ones(len(zero_up)),
                     180 * np.ones(len(peak)),
-                    270 * np.ones(len(zero_down)),
+                    # 270 * np.ones(len(zero_down)),
                 )
             )
             sort_ind = np.argsort(loc)
@@ -809,6 +809,41 @@ class ThetaParams:
     @property
     def peaktrough(self):
         return self.peak_width / (self.peak_width + self.trough_width)
+
+    def break_by_phase(self, y, binsize=20, slideby=None):
+        """Breaks y into theta phase specific components
+
+        Parameters
+        ----------
+        lfp : array like
+            reference lfp from which theta phases are estimated
+        y : array like
+            timeseries which is broken into components
+        binsize : int, optional
+            width of each bin in degrees, by default 20
+        slideby : int, optional
+            slide each bin by this amount in degrees, by default None
+
+        Returns
+        -------
+        [list]
+            list of broken signal into phase components
+        """
+
+        assert len(self.lfp) == len(y), "Both signals should be of same length"
+        angle_bin = np.arange(0, 360 - binsize, slideby)
+        if slideby is None:
+            slideby = binsize
+            angle_bin = np.arange(0, 360 - binsize, slideby)
+        angle_centers = angle_bin + binsize / 2
+
+        y_at_phase = []
+        for phase in angle_bin:
+            y_at_phase.append(
+                y[np.where((self.angle >= phase) & (self.angle < phase + binsize))[0]]
+            )
+
+        return y_at_phase, angle_bin, angle_centers
 
     def sanityCheck(self):
         """Plots raw signal with filtered signal and peak, trough locations with phase
