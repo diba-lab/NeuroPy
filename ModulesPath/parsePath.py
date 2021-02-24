@@ -554,7 +554,7 @@ class Probemap:
         ypos = np.asarray(ypos)
 
         if ax is None:
-            fig = plt.figure(1, figsize=(10, 15))
+            fig = plt.figure(figsize=(10, 15))
             gs = gridspec.GridSpec(1, 1, figure=fig)
             fig.subplots_adjust(hspace=0.3)
             ax = fig.add_subplot(gs[0])

@@ -250,15 +250,18 @@ class Spikes:
         correlo = []
         for cell in spikes:
             cell_id = np.zeros(len(cell)).astype(int)
-            correlo.append(
-                correlograms(
-                    cell,
-                    cell_id,
-                    sample_rate=self._obj.sampfreq,
-                    bin_size=bin_size,
-                    window_size=window_size,
-                ).squeeze()
-            )
+            acg = correlograms(
+                cell,
+                cell_id,
+                sample_rate=self._obj.sampfreq,
+                bin_size=bin_size,
+                window_size=window_size,
+            ).squeeze()
+
+            if acg.size == 0:
+                acg = np.zeros(acg.shape[-1])
+
+            correlo.append(acg)
 
         return np.array(correlo)
 
