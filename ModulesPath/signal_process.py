@@ -9,7 +9,6 @@ import scipy.signal as sg
 from scipy import stats
 from joblib import Parallel, delayed
 from scipy import fftpack
-from scipy.fft import fft
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
 from plotUtil import Fig
@@ -100,7 +99,6 @@ class spectrogramBands:
 
         window = int(self.window * self.sampfreq)
         overlap = int(self.overlap * self.sampfreq)
-
         f = None
         if self.multitaper:
             tapers = sg.windows.dpss(M=window, NW=5, Kmax=6)
@@ -657,36 +655,96 @@ class PAC:
 
 @dataclass
 class ThetaParams:
+    """Estimating various theta oscillation features like phase, asymmetry etc.
+
+    References
+    -------
+    1) hilbert --> Cole, Scott, and Bradley Voytek. "Cycle-by-cycle analysis of neural oscillations." Journal of neurophysiology (2019)
+    2) waveshape --> Belluscio, Mariano A., et al. "Cross-frequency phase–phase coupling between theta and gamma oscillations in the hippocampus." Journal of Neuroscience(2012)
+    """
+
     lfp: np.array
     fs: int = 1250
-    lowtheta: int = 1
-    hightheta: int = 25
+    method: str = "hilbert"
 
     def __post_init__(self):
         # --- calculating theta parameters from broadband theta---------
         eegSrate = self.fs
-        thetalfp = filter_sig.bandpass(self.lfp, lf=self.lowtheta, hf=self.hightheta)
-        hil_theta = hilbertfast(thetalfp)
-        theta_360 = np.angle(hil_theta, deg=True) + 180
-        theta_angle = np.abs(np.angle(hil_theta, deg=True))
-        theta_trough = sg.find_peaks(theta_angle)[0]
-        theta_peak = sg.find_peaks(-theta_angle)[0]
-        theta_amp = np.abs(hil_theta) ** 2
 
-        if theta_peak[0] < theta_trough[0]:
-            theta_peak = theta_peak[1:]
-        if theta_trough[-1] > theta_peak[-1]:
-            theta_trough = theta_trough[:-1]
+        peak, trough, theta_amp, theta_360, thetalfp = 5 * [None]
+        if self.method == "hilbert":
+            thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=25)
+            hil_theta = hilbertfast(thetalfp)
+            theta_360 = np.angle(hil_theta, deg=True) + 180
+            theta_angle = np.abs(np.angle(hil_theta, deg=True))
+            trough = sg.find_peaks(theta_angle)[0]
+            peak = sg.find_peaks(-theta_angle)[0]
+            theta_amp = np.abs(hil_theta) ** 2
 
-        assert len(theta_trough) == len(theta_peak)
+        elif self.method == "waveshape":
+            thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=60)
+            hil_theta = hilbertfast(thetalfp)
+            theta_amp = np.abs(hil_theta) ** 2
+            # distance between theta peaks should be >= 80 ms
+            distance = int(0.08 * self.fs)
 
-        rising_time = (theta_peak[1:] - theta_trough[1:]) / eegSrate
-        falling_time = (theta_trough[1:] - theta_peak[:-1]) / eegSrate
+            peak = sg.find_peaks(thetalfp, height=0, distance=distance)[0]
+            trough = stats.binned_statistic(
+                np.arange(len(thetalfp)), thetalfp, bins=peak, statistic=np.argmin
+            )[0]
+            trough = peak[:-1] + trough
+
+            def get_desc(arr):
+                arr = stats.zscore(arr)
+                return np.where(np.diff(np.sign(arr)))[0][0]
+
+            def get_asc(arr):
+                arr = stats.zscore(arr)
+                return np.where(np.diff(np.sign(arr)))[0][-1]
+
+            zero_up = stats.binned_statistic(
+                np.arange(len(thetalfp)), thetalfp, bins=peak, statistic=get_asc
+            )[0]
+
+            zero_down = stats.binned_statistic(
+                np.arange(len(thetalfp)), thetalfp, bins=peak, statistic=get_desc
+            )[0]
+
+            # ---- linear interpolation of angles ---------
+            loc = np.concatenate((trough, peak))
+            angles = np.concatenate(
+                (
+                    np.zeros(len(trough)),
+                    # 90 * np.ones(len(zero_up)),
+                    180 * np.ones(len(peak)),
+                    # 270 * np.ones(len(zero_down)),
+                )
+            )
+            sort_ind = np.argsort(loc)
+            loc = loc[sort_ind]
+            angles = angles[sort_ind]
+            theta_angle = np.interp(np.arange(len(self.lfp)), loc, angles)
+            angle_descend = np.where(np.diff(theta_angle) < 0)[0]
+            theta_angle[angle_descend] = -theta_angle[angle_descend] + 360
+            theta_360 = theta_angle
+
+        else:
+            print("method not understood")
+
+        if peak[0] < trough[0]:
+            peak = peak[1:]
+        if trough[-1] > peak[-1]:
+            trough = trough[:-1]
+
+        assert len(trough) == len(peak)
+
+        rising_time = (peak[1:] - trough[1:]) / eegSrate
+        falling_time = (trough[1:] - peak[:-1]) / eegSrate
 
         self.amp = theta_amp
         self.angle = theta_360
-        self.trough = theta_trough
-        self.peak = theta_peak
+        self.trough = trough
+        self.peak = peak
         self.lfp_filtered = thetalfp
         self.rise_time = rising_time
         self.fall_time = falling_time
@@ -752,26 +810,77 @@ class ThetaParams:
     def peaktrough(self):
         return self.peak_width / (self.peak_width + self.trough_width)
 
-    def sanityCheck(self, rawTheta):
-        # ax3 = plt.subplot(gs[1, :])
-        # theta_lfp = signal_process.filter_sig.bandpass(lfpmaze, lf=1, hf=25)
-        # ax3.plot(lfpmaze, "gray", alpha=0.3)
-        # ax3.plot(theta_lfp, "k")
-        # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-        # ax3.plot(thetaparams.peak, theta_lfp[thetaparams.peak], "|", color="r", markersize=30)
-        # ax3.plot(
-        #     thetaparams.rise_mid,
-        #     theta_lfp[thetaparams.rise_mid],
-        #     "|",
-        #     color="gray",
-        #     markersize=30,
-        # )
-        # ax3.plot(
-        #     thetaparams.fall_mid,
-        #     theta_lfp[thetaparams.fall_mid],
-        #     "|",
-        #     color="magenta",
-        #     markersize=30,
-        # )
-        # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-        pass
+    def break_by_phase(self, y, binsize=20, slideby=None):
+        """Breaks y into theta phase specific components
+
+        Parameters
+        ----------
+        lfp : array like
+            reference lfp from which theta phases are estimated
+        y : array like
+            timeseries which is broken into components
+        binsize : int, optional
+            width of each bin in degrees, by default 20
+        slideby : int, optional
+            slide each bin by this amount in degrees, by default None
+
+        Returns
+        -------
+        [list]
+            list of broken signal into phase components
+        """
+
+        assert len(self.lfp) == len(y), "Both signals should be of same length"
+        angle_bin = np.arange(0, 360 - binsize, slideby)
+        if slideby is None:
+            slideby = binsize
+            angle_bin = np.arange(0, 360 - binsize, slideby)
+        angle_centers = angle_bin + binsize / 2
+
+        y_at_phase = []
+        for phase in angle_bin:
+            y_at_phase.append(
+                y[np.where((self.angle >= phase) & (self.angle < phase + binsize))[0]]
+            )
+
+        return y_at_phase, angle_bin, angle_centers
+
+    def sanityCheck(self):
+        """Plots raw signal with filtered signal and peak, trough locations with phase
+
+        Returns
+        -------
+        ax : obj
+        """
+
+        fig, ax = plt.subplots(2, 1, sharex=True, figsize=(15, 8))
+
+        ax[0].plot(stats.zscore(self.lfp), "k", label="raw")
+        ax[0].plot(stats.zscore(self.lfp_filtered), "r", label="filtered")
+        ax[0].vlines(
+            self.peak,
+            ymin=-5,
+            ymax=5,
+            colors="green",
+            linestyles="dashed",
+            label="peak",
+        )
+
+        ax[0].vlines(
+            self.trough,
+            ymin=-5,
+            ymax=5,
+            colors="blue",
+            linestyles="dashed",
+            label="trough",
+        )
+        ax[0].set_ylabel("Amplitude")
+        ax[0].legend()
+
+        ax[1].plot(self.angle, "k")
+        ax[1].set_xlabel("frame number")
+        ax[1].set_ylabel("Phase")
+
+        fig.suptitle(f"Theta parameters estimation using {self.method}")
+
+        return ax

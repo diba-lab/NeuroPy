@@ -50,7 +50,7 @@ class SessView:
         period : [type], optional
             plot only for this duration in the session, by default None
         window : [float, seconds], optional
-            window binning size for spectrogram, by default 4
+            window binning size for spectrogram, by default 10
         overlap : [float, seconds], optional
             overlap between windows, by default 2
         ax : [obj], optional
@@ -77,7 +77,27 @@ class SessView:
 
         # ---------- plotting ----------------
         def plotspec(n_std, cmap, freq):
-            ax.pcolorfast(spec.time, spec.freq, sxx, cmap=cmap, vmax=n_std * std_sxx)
+            # slow to plot
+            # ax.pcolormesh(
+            #     spec.time,
+            #     spec.freq,
+            #     sxx,
+            #     cmap=cmap,
+            #     vmax=n_std * std_sxx,
+            #     rasterized=True,
+            # )
+            # ax.set_ylim(freq)
+
+            # fast to plot
+            ax.imshow(
+                sxx,
+                cmap=cmap,
+                vmax=n_std * std_sxx,
+                rasterized=True,
+                origin="lower",
+                extent=(spec.time[0], spec.time[-1], spec.freq[0], spec.freq[-1]),
+                aspect="auto",
+            )
             ax.set_ylim(freq)
 
         ax.text(
@@ -102,7 +122,7 @@ class SessView:
             n_std=widgets.FloatSlider(
                 value=2,
                 min=0.1,
-                max=5,
+                max=30,
                 step=0.1,
                 description="Clim :",
             ),

@@ -391,19 +391,8 @@ class ExtractPosition:
         for file in posfiles:
             print(file)
             tbegin = getStartTime(file)
-            try:  # First try to load everything from CSV directly
-                x, y, z, trelative = posfromCSV(file)
-                # Make sure you arent't just importing the header, if so engage except
-                assert len(x) > 0
-                trange = tbegin + pd.to_timedelta(trelative, unit="s")
-                postime.extend(trange)
 
-            except (
-                FileNotFoundError,
-                KeyError,
-                pd.errors.ParserError,
-            ):  # Get data from FBX file if not in CSV
-
+            if file.with_suffix(".fbx").is_file():
                 # Get time ranges for position files
                 nframes_pos = getnframes(file)
                 duration = pd.Timedelta(nframes_pos / tracking_sRate, unit="sec")
@@ -413,6 +402,36 @@ class ExtractPosition:
                 x, y, z = posfromFBX(file.with_suffix(".fbx"))
 
                 postime.extend(trange)
+
+            else:  # First try to load everything from CSV directly
+                x, y, z, trelative = posfromCSV(file)
+                # Make sure you arent't just importing the header, if so engage except
+                assert len(x) > 0
+                trange = tbegin + pd.to_timedelta(trelative, unit="s")
+                postime.extend(trange)
+            # try:  # First try to load everything from CSV directly
+            #     x, y, z, trelative = posfromCSV(file)
+            #     # Make sure you arent't just importing the header, if so engage except
+            #     assert len(x) > 0
+            #     trange = tbegin + pd.to_timedelta(trelative, unit="s")
+            #     postime.extend(trange)
+
+            # except (
+            #     FileNotFoundError,
+            #     KeyError,
+            #     pd.errors.ParserError,
+            # ):  # Get data from FBX file if not in CSV
+
+            #     # Get time ranges for position files
+            #     nframes_pos = getnframes(file)
+            #     duration = pd.Timedelta(nframes_pos / tracking_sRate, unit="sec")
+            #     tend = tbegin + duration
+            #     trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
+
+            #     x, y, z = posfromFBX(file.with_suffix(".fbx"))
+
+            #     postime.extend(trange)
+
             posx.extend(x)
             posy.extend(y)
             posz.extend(z)

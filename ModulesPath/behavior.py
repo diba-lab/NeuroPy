@@ -26,10 +26,6 @@ class behavior_epochs:
         else:
             self._obj = Recinfo(basepath)
 
-        self.pre = None
-        self.maze = None
-        self.post = None
-
         # ---- defining filenames --------
         filePrefix = self._obj.files.filePrefix
 
@@ -70,6 +66,9 @@ class behavior_epochs:
     def __getitem__(self, name):
         assert name in self.times, f"Epoch {name} does not exist"
         return self.times[name].to_list()
+
+    def __getattr__(self, name):
+        return self[name]
 
     def make_epochs(self, new_epochs: dict):
         """Adds epochs to the sessions at given timestamps. If epoch file already exists then new epochs are merged.

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.signal as sg
+from scipy import stats
 
 
 class Recinfo:
@@ -78,6 +79,7 @@ class Recinfo:
         self._intialize()
         self.animal = Animal(self)
         self.probemap = Probemap(self)
+        self.artifact = findartifact(self)
 
     def _intialize(self):
 
@@ -181,7 +183,9 @@ class Recinfo:
         for val in myroot.findall("fieldPotentials"):
             lfpSrate = int(val.find("lfpSamplingRate").text)
 
-        auxchans = np.setdiff1d(np.arange(nChans), np.concatenate(channelgroups))
+        auxchans = np.setdiff1d(
+            np.arange(nChans), np.array(chan_session + skulleeg + emg + motion)
+        )
         if auxchans.size == 0:
             auxchans = None
 
@@ -234,14 +238,14 @@ class Recinfo:
         return nframes
 
     def geteeg(self, chans, timeRange=None):
-        """Returns eeg signal for given channels and timeperiod or selected frames
+        """Returns eeg signal for given channels. If multiple channels provided then it is list of lfps.
 
         Args:
             chans (list/array): channels required, index should in order of binary file
             timeRange (list, optional): In seconds and must have length 2.
 
         Returns:
-            eeg: [array of channels x timepoints]
+            eeg: memmap, or list of memmaps
         """
         eegfile = self.recfiles.eegfile
         eegSrate = self.lfpSrate
@@ -264,15 +268,12 @@ class Recinfo:
             eeg = np.memmap(eegfile, dtype="int16", mode="r")
             eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
 
-        # NRK comment: this dumps eeg_ to a list which then does not work with ltpEvent.theta.detectBestChan -> _getAUC
-        # line 899: there is no .ndim property for a list.
-        # eeg_ = []
-        # if isinstance(chans, (list, np.ndarray)):
-        #     for chan in chans:
-        #         eeg_.append(eeg[chan, :])
-        # else:
-        #     eeg_ = eeg[chans, :]
-        eeg_ = eeg.take(chans, axis=0)  # pull out good channels but leave as memmap.
+        eeg_ = []
+        if isinstance(chans, (list, np.ndarray)):
+            for chan in chans:
+                eeg_.append(eeg[chan, :])
+        else:
+            eeg_ = eeg[chans, :]
 
         return eeg_
 
@@ -297,10 +298,7 @@ class files:
         self.basics = Path(str(filePrefix) + "_basics.npy")
         self.position = Path(str(filePrefix) + "_position.npy")
         self.epochs = Path(str(filePrefix) + "_epochs.npy")
-        self.hwsa_ripple = Path(str(filePrefix) + "_hswa_ripple.npy")
-        self.slow_wave = Path(str(filePrefix) + "_hswa.npy")
         self.spectrogram = Path(str(filePrefix) + "_sxx.npy")
-        self.isomap_trajectory = Path(str(filePrefix) + "_ISOMAP_trajectory.npy")
 
 
 class recfiles:
@@ -556,7 +554,7 @@ class Probemap:
         ypos = np.asarray(ypos)
 
         if ax is None:
-            fig = plt.figure(1, figsize=(10, 15))
+            fig = plt.figure(figsize=(10, 15))
             gs = gridspec.GridSpec(1, 1, figure=fig)
             fig.subplots_adjust(hspace=0.3)
             ax = fig.add_subplot(gs[0])
@@ -586,3 +584,243 @@ class Probemap:
         # ax.legend(["channels", "bad", "chosen"])
 
         ax.axis("off")
+
+
+class findartifact:
+    """Detects noisy periods using downsampled data
+
+    Attributes
+    ------------
+    time: array,
+        time periods which are noisy
+
+    Methods
+    ------------
+    removefrom:
+        removes noisy timestamps
+    """
+
+    def __init__(self, obj):
+
+        if isinstance(obj, Recinfo):
+            self._obj = obj
+        else:
+            self._obj = Recinfo(obj)
+
+        self.time = None
+
+        # ----- defining file names ---------
+        filePrefix = self._obj.files.filePrefix
+
+        @dataclass
+        class files:
+            dead: str = filePrefix.with_suffix(".dead")
+            artifact: str = filePrefix.with_suffix(".artifact.npy")
+            neuroscope: str = filePrefix.with_suffix(".evt.art")
+
+        self.files = files()
+
+        # ----- loading files --------
+        if self.files.artifact.is_file():
+            self._load()
+        elif Path(self.files.dead).is_file():
+            with self.files.dead.open("r") as f:
+                noisy = []
+                for line in f:
+                    epc = line.split(" ")
+                    epc = [float(_) for _ in epc]
+                    noisy.append(epc)
+                noisy = np.asarray(noisy) / 1000
+                self.time = noisy  # in seconds
+
+    def _load(self):
+        data = np.load(self.files.artifact, allow_pickle=True).item()
+        self.threshold = data["threshold"]
+        self.chan = data["channel"]
+        self.time = data["time"]
+
+    def removefrom(self, lfp, timepoints):
+        """Deletes detected artifacts from the 'lfp'
+
+        Args:
+            lfp ([array]): lfp signal
+            timepoints ([array]): seconds, corresponding time stamps of the lfp
+
+        Returns:
+            [array]: artifact deleted lfp
+        """
+        # --- if a period is given, then convert it to timepoints------
+        if len(timepoints) == 2:
+            timepoints = np.linspace(timepoints[0], timepoints[1], len(lfp))
+
+        if self.time is not None:
+            dead_indx = np.concatenate(
+                [
+                    np.where((timepoints > start) & (timepoints < end))[0]
+                    for (start, end) in self.time
+                ]
+            )
+            lfp = np.delete(lfp, dead_indx, axis=-1)
+        return lfp
+
+    def getframes(self):
+        eegSrate = self._obj.lfpSrate
+        noisy_intervals = (self.time * eegSrate).astype(int) - 1  # zero indexing
+        noisy_frames = np.concatenate(
+            [np.arange(beg, end) for (beg, end) in noisy_intervals]
+        )
+        # correcting for any rounding error mostly an issue when artifacts are at end
+        noisy_frames = noisy_frames[noisy_frames < self._obj.getNframesEEG]
+        return noisy_frames
+
+    def usingZscore(self, chans=None, thresh=5):
+        """
+        calculating periods to exclude for analysis using simple z-score measure
+        """
+        if chans is None:
+            chans = np.random.choice(self._obj.goodchans, 4)
+
+        eegSrate = self._obj.lfpSrate
+        lfp = self._obj.geteeg(chans=chans)
+        if isinstance(chans, list):
+            lfp = np.asarray(lfp)
+            lfp = np.median(lfp, axis=0)
+
+        zsc = np.abs(stats.zscore(lfp))
+
+        artifact_binary = np.where(zsc > thresh, 1, 0)
+        artifact_binary = np.concatenate(([0], artifact_binary, [0]))
+        artifact_diff = np.diff(artifact_binary)
+        artifact_start = np.where(artifact_diff == 1)[0]
+        artifact_end = np.where(artifact_diff == -1)[0]
+
+        firstPass = np.vstack((artifact_start - 10, artifact_end + 2)).T
+
+        minInterArtifactDist = 5 * eegSrate
+        secondPass = []
+        artifact = firstPass[0]
+        for i in range(1, len(artifact_start)):
+            if firstPass[i, 0] - artifact[1] < minInterArtifactDist:
+                # Merging artifacts
+                artifact = [artifact[0], firstPass[i, 1]]
+            else:
+                secondPass.append(artifact)
+                artifact = firstPass[i]
+
+        secondPass.append(artifact)
+
+        artifact_s = np.asarray(secondPass) / eegSrate  # seconds
+
+        data = {"channel": chans, "time": artifact_s, "threshold": thresh}
+        np.save(self.files.artifact, data)
+
+        self._load()
+        return zsc
+
+    def export2neuroscope(self):
+        # --- converting to required time units for export ------
+        artifact_ms = self.time * 1000  # ms
+
+        # --- writing to file for neuroscope and spyking circus ----
+        file_neuroscope = self.files.neuroscope
+        with file_neuroscope.open("w") as file:
+            for beg, stop in artifact_ms:
+                file.write(f"{beg} start\n{stop} end\n")
+
+    def export2circus(self):
+        # --- converting to required time units for export ------
+        artifact_ms = self.time * 1000  # ms
+
+        # --- writing to file for neuroscope and spyking circus ----
+        circus_file = self.files.dead
+        with circus_file.open("w") as file:
+            for beg, stop in artifact_ms:
+                file.write(f"{beg} {stop}\n")
+
+    def plot(self):
+
+        chans = self.chan
+        lfp = self._obj.geteeg(chans=chans)
+        if not isinstance(chans, int):
+            lfp = np.asarray(lfp)
+            lfp = np.median(lfp, axis=0)
+
+        zsc = np.abs(stats.zscore(lfp))
+        artifact = self.time * self._obj.lfpSrate
+
+        _, ax = plt.subplots(1, 1)
+        ax.plot(zsc, "gray")
+        ax.axhline(self.threshold, color="#37474F", ls="--")
+        ax.plot(
+            artifact[:, 0], self.threshold * np.ones(artifact.shape[0]), "r|", ms="10"
+        )
+        ax.plot(
+            artifact[:, 1], self.threshold * np.ones(artifact.shape[0]), "k|", ms="10"
+        )
+        ax.set_xlabel("frames")
+        ax.set_ylabel("Absolute zscore")
+
+        ax.legend(["zsc-lfp", "threshold", "art-start", "art-end"])
+
+    def createCleanDat(self):
+
+        # for shankID in range(3, 9):
+        #     print(shankID)
+
+        #     DatFileOG = (
+        #         folderPath
+        #         + "Shank"
+        #         + str(shankID)
+        #         + "/RatJDay2_Shank"
+        #         + str(shankID)
+        #         + ".dat"
+        #     )
+        #     DestFolder = (
+        #         folderPath
+        #         + "Shank"
+        #         + str(shankID)
+        #         + "/RatJDay2_Shank"
+        #         + str(shankID)
+        #         + "_denoised.dat"
+        #     )
+
+        #     nChans = 8
+        #     SampFreq = 30000
+
+        #     b = []
+        #     for i in range(len(Data_start)):
+
+        #         start_time = Data_start[i]
+        #         end_time = Data_end[i]
+
+        #         duration = end_time - start_time  # in seconds
+        #         b.append(
+        #             np.memmap(
+        #                 DatFileOG,
+        #                 dtype="int16",
+        #                 mode="r",
+        #                 offset=2 * nChans * int(SampFreq * start_time),
+        #                 shape=(nChans * int(SampFreq * duration)),
+        #             )
+        #         )
+
+        #     c = np.memmap(
+        #         DestFolder, dtype="int16", mode="w+", shape=sum([len(x) for x in b])
+        #     )
+
+        #     del c
+        #     d = np.memmap(
+        #         DestFolder, dtype="int16", mode="r+", shape=sum([len(x) for x in b])
+        #     )
+
+        #     sizeb = [0]
+        #     sizeb.extend([len(x) for x in b])
+        #     sizeb = np.cumsum(sizeb)
+
+        #     for i in range(len(b)):
+
+        #         d[sizeb[i] : sizeb[i + 1]] = b[i]
+        #         # d[len(b[i]) : len(b1) + len(b2)] = b2
+        #     del d
+        #     del b
+        pass

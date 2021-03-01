@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from getPosition import ExtractPosition
 from getSpikes import Spikes
 from parsePath import Recinfo
-from plotUtil import Colormap, Fig, pretty_plot
+from plotUtil import Fig, pretty_plot
 from track import Track
 from signal_process import ThetaParams
 
@@ -54,14 +54,14 @@ class pf1d:
             placemap: str = filePrefix.with_suffix(".pf1d.npy")
 
         self.files = files()
-        self.thresh = []
-        self.no_thresh = []
 
     # def _load(self):
     #     if (f := self.files.placemap) :
     #         self.ratemap = np.load(f, allow_pickle=True)
 
-    def compute(self, track_name, run_dir=None, grid_bin=5, speed_thresh=5, smooth=1):
+    def compute(
+        self, track_name, frate=1, run_dir=None, grid_bin=5, speed_thresh=0, smooth=1
+    ):
         """computes 1d place field using linearized coordinates. It always computes two place maps with and
         without speed thresholds.
 
@@ -94,6 +94,8 @@ class pf1d:
         spks = spikes.pyr
         xbin = np.arange(min(x), max(x), grid_bin)  # binning of x position
 
+        spk_pos, spk_t, ratemap = [], [], []
+
         # ------ if direction then restrict to those epochs --------
         if run_dir in ["forward", "backward"]:
             print(f" using {run_dir} running only")
@@ -118,59 +120,56 @@ class pf1d:
             x = x[indx]
             speed = speed[indx]
             t = t[indx]
+            occupancy = np.histogram(x, bins=xbin)[0] / trackingSRate + 1e-16
+            occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+
+            for cell in spks:
+                spk_spd = np.interp(cell, t, speed)
+                spk_x = np.interp(cell, t, x)
+
+                spk_pos.append(spk_x)
+                spk_t.append(cell)
+
+                # ratemap calculation
+                ratemap.append(
+                    gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
+                    / occupancy
+                )
+
         else:
+            # --- speed thresh occupancy----
+
             spks = [cell[(cell > period[0]) & (cell < period[1])] for cell in spks]
+            indx = np.where(speed >= speed_thresh)[0]
+            x = x[indx]
+            speed = speed[indx]
+            t = t[indx]
 
-        # --- occupancy with no speed threshold ---------
-        # NOTE: x is changed if direction is taken into account
-        occupancy = np.histogram(x, bins=xbin)[0] / trackingSRate + 1e-16
-        occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+            occupancy = np.histogram(x, bins=xbin)[0] / trackingSRate + 1e-16
+            occupancy = gaussian_filter1d(occupancy, sigma=smooth)
 
-        # --- speed thresh occupancy----
-        x_speed = x[speed > speed_thresh]
-        run_occupancy = np.histogram(x_speed, bins=xbin)[0] / trackingSRate + 1e-16
-        run_occupancy = gaussian_filter1d(run_occupancy, sigma=smooth)
+            for cell in spks:
+                spk_spd = np.interp(cell, t, speed)
+                spk_x = np.interp(cell, t, x)
 
-        run_spk_pos, run_spk_t, spk_pos, spk_t = [], [], [], []
-        ratemap, run_ratemap = [], []
-        for cell in spks:
-            spk_spd = np.interp(cell, t, speed)
-            spk_x = np.interp(cell, t, x)
+                # speed threshold
+                spd_ind = np.where(spk_spd > speed_thresh)[0]
+                spk_pos.append(spk_x[spd_ind])
+                spk_t.append(cell[spd_ind])
 
-            spk_pos.append(spk_x)
-            spk_t.append(cell)
+                # ratemap calculation
+                ratemap.append(
+                    gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
+                    / occupancy
+                )
 
-            # speed threshold
-            spd_ind = np.where(spk_spd > speed_thresh)[0]
-            spk_x_spd = spk_x[spd_ind]
-            run_spk_pos.append(spk_x_spd)
-            run_spk_t.append(cell[spd_ind])
+        # ---- thresholding firing rate ---------
 
-            # ratemap calculation
-            ratemap_ = (
-                gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
-                / occupancy
-            )
-
-            run_ratemap_ = (
-                gaussian_filter1d(np.histogram(spk_x_spd, bins=xbin)[0], sigma=smooth)
-                / run_occupancy
-            )
-            ratemap.append(ratemap_)
-            run_ratemap.append(run_ratemap_)
-
-        self.no_thresh = {
+        self.ratemaps = {
             "pos": spk_pos,
             "spikes": spk_t,
             "ratemaps": ratemap,
             "occupancy": occupancy,
-        }
-
-        self.thresh = {
-            "pos": run_spk_pos,
-            "spikes": run_spk_t,
-            "ratemaps": run_ratemap,
-            "occupancy": run_occupancy,
         }
 
         self.speed = maze.speed
@@ -194,34 +193,21 @@ class pf1d:
         thetaparam = ThetaParams(lfpmaze, fs=self._obj.lfpSrate)
         # phase_bin = np.linspace(0, 360, 37)
 
-        phase, run_phase = [], []
-
-        for spk, run_spk in zip(self.no_thresh["spikes"], self.thresh["spikes"]):
+        phase = []
+        for spk in self.ratemaps["spikes"]:
             spk_phase = np.interp(spk, lfpt, thetaparam.angle)
-            run_spk_phase = np.interp(run_spk, lfpt, thetaparam.angle)
-
             phase.append(spk_phase)
-            run_phase.append(run_spk_phase)
             # precess = np.histogram2d(spk_pos, spk_phase, bins=[pos_bin, phase_bin])[0]
             # precess = gaussian_filter(precess, sigma=1)
 
-        self.no_thresh["phases"] = phase
-        self.thresh["phases"] = run_phase
+        self.ratemaps["phases"] = phase
 
     def plot_with_phase(
-        self,
-        ax=None,
-        speed_thresh=False,
-        normalize=True,
-        stack=True,
-        cmap="tab20b",
-        subplots=(5, 8),
+        self, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)
     ):
         cmap = mpl.cm.get_cmap(cmap)
 
-        mapinfo = self.no_thresh
-        if speed_thresh:
-            mapinfo = self.thresh
+        mapinfo = self.ratemaps
 
         ratemaps = mapinfo["ratemaps"]
         if normalize:
@@ -277,15 +263,7 @@ class pf1d:
 
         return ax
 
-    def plot(
-        self,
-        ax=None,
-        speed_thresh=False,
-        pad=2,
-        normalize=False,
-        sortby=None,
-        cmap="tab20b",
-    ):
+    def plot(self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"):
         """Plot 1D place fields stacked
 
         Parameters
@@ -310,13 +288,11 @@ class pf1d:
         """
         cmap = mpl.cm.get_cmap(cmap)
 
-        mapinfo = self.no_thresh
-        if speed_thresh:
-            mapinfo = self.thresh
-
+        mapinfo = self.ratemaps
         ratemaps = mapinfo["ratemaps"]
         nCells = len(ratemaps)
         bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
+        bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
         if ax is None:
             _, gs = Fig().draw(grid=(1, 1), size=(4.5, 11))
@@ -333,7 +309,7 @@ class pf1d:
         else:
             sort_ind = np.arange(len(ratemaps))
         for cellid, cell in enumerate(sort_ind):
-            color = cmap(cellid / nCells)
+            color = cmap(cellid / len(sort_ind))
 
             ax.fill_between(
                 bin_cntr,
@@ -351,19 +327,19 @@ class pf1d:
                 alpha=0.7,
             )
 
-        ax.set_yticks(list(range(nCells)))
+        ax.set_yticks(list(range(len(sort_ind))))
         ax.set_yticklabels(list(sort_ind))
         ax.set_xlabel("Position")
         ax.spines["left"].set_visible(False)
-        ax.set_xlim([np.min(bin_cntr), np.max(bin_cntr)])
+        ax.set_xlim([0, 1])
         ax.tick_params("y", length=0)
-        ax.set_ylim([0, nCells])
+        ax.set_ylim([0, len(sort_ind)])
         if self.run_dir is not None:
             ax.set_title(self.run_dir.capitalize() + " Runs only")
 
         return ax
 
-    def plot_raw(self, speed_thresh=False, ax=None, subplots=(8, 9)):
+    def plot_raw(self, ax=None, subplots=(8, 9)):
         """Plot spike location on animal's path
 
         Parameters
@@ -376,9 +352,7 @@ class pf1d:
             [description], by default (8, 9)
         """
 
-        mapinfo = self.no_thresh
-        if speed_thresh:
-            mapinfo = self.thresh
+        mapinfo = self.ratemaps
         nCells = len(mapinfo["pos"])
 
         def plot_(cell, ax):

@@ -3,30 +3,41 @@ import numpy as np
 from sklearn.decomposition import FastICA, PCA
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
 from mathutil import parcorr_mult, getICA_Assembly
 import scipy.stats as stats
 import matplotlib.gridspec as gridspec
 from parsePath import Recinfo
 from getSpikes import Spikes
+from scipy.ndimage import gaussian_filter
+import random
+import pingouin as pg
 
 
 class Replay:
     def __init__(self, basepath):
         self.expvar = ExplainedVariance(basepath)
         self.assemblyICA = CellAssemblyICA(basepath)
-        self.corr = Correlation(basepath)
 
 
 class ExplainedVariance:
+    colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
+
     def __init__(self, basepath):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
 
-    # TODO  smooth version of explained variance
-    def compute(self, template, match, control, binSize=0.250, window=900):
+    def compute(
+        self,
+        template,
+        match,
+        control,
+        binSize=0.250,
+        window=900,
+        slideby=None,
+        cross_shanks=True,
+    ):
         """Calucate explained variance (EV) and reverse EV
 
         Parameters
@@ -34,25 +45,37 @@ class ExplainedVariance:
         template : list
             template period
         match : list
-            match period
+            match period whose similarity is calculated to template
         control : list
-            control period
+            control period, correlations in this period will be accounted for
+        binSize : float,
+            bin size within each window, defaults 0.250 seconds
+        window : int,
+            size of window in which ev is calculated, defaults 900 seconds
+        slideby : int,
+            calculate EV by sliding window, seconds
+
         References:
         1) Kudrimoti 1999
         2) Tastsuno et al. 2007
         """
 
         spikes = Spikes(self._obj)
+        if slideby is None:
+            slideby = window
 
         # ----- choosing cells ----------------
         spks = spikes.times
         stability = spikes.stability.info
-        stable_pyr = np.where((stability.q < 4) & (stability.stable == 1))[0]
+        stable_cells = np.where(stability.stable == 1)[0]
+        pyr_id = spikes.pyrid
+        stable_pyr = np.intersect1d(pyr_id, stable_cells, assume_unique=True)
         print(f"Calculating EV for {len(stable_pyr)} stable cells")
         spks = [spks[_] for _ in stable_pyr]
 
         # ------- windowing the time periods ----------
         nbins_window = int(window / binSize)
+        nbins_slide = int(slideby / binSize)
 
         # ---- function to calculate correlation in each window ---------
         def cal_corr(period, windowing=True):
@@ -60,18 +83,17 @@ class ExplainedVariance:
             spkcnt = np.array([np.histogram(x, bins=bin_period)[0] for x in spks])
 
             if windowing:
-                dur = np.diff(period)
-                nwindow = (dur / window)[0]
-                t = np.arange(period[0], period[1], window)[: int(nwindow)] + window / 2
+                t = np.arange(period[0], period[1] - window, slideby) + window / 2
+                nwindow = len(t)
 
                 window_spkcnt = [
                     spkcnt[:, i : i + nbins_window]
-                    for i in range(0, int(nwindow) * nbins_window, nbins_window)
+                    for i in range(0, int(nwindow) * nbins_slide, nbins_slide)
                 ]
 
-                if nwindow % 1 > 0.3:
-                    window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
-                    t = np.append(t, round(nwindow % 1, 3) / 2)
+                # if nwindow % 1 > 0.3:
+                #     window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
+                #     t = np.append(t, t[-1] + round(nwindow % 1, 3) / 2)
 
                 corr = [
                     np.corrcoef(window_spkcnt[x]) for x in range(len(window_spkcnt))
@@ -92,12 +114,19 @@ class ExplainedVariance:
         shnkId = np.asarray(spikes.info.shank)
         shnkId = shnkId[stable_pyr]
         assert len(shnkId) == len(spks)
-        cross_shnks = np.nonzero(np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1)))
+
+        selected_pairs = np.tril_indices(len(spks), k=-1)
+        if cross_shanks:
+            selected_pairs = np.nonzero(
+                np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1))
+            )
 
         # --- selecting only pairwise correlations from different shanks -------
-        control_corr = [control_corr[x][cross_shnks] for x in range(len(control_corr))]
-        template_corr = template_corr[cross_shnks]
-        match_corr = [match_corr[x][cross_shnks] for x in range(len(match_corr))]
+        control_corr = [
+            control_corr[x][selected_pairs] for x in range(len(control_corr))
+        ]
+        template_corr = template_corr[selected_pairs]
+        match_corr = [match_corr[x][selected_pairs] for x in range(len(match_corr))]
 
         parcorr_template_vs_match, rev_corr = parcorr_mult(
             [template_corr], match_corr, control_corr
@@ -108,13 +137,143 @@ class ExplainedVariance:
 
         self.ev = ev_template_vs_match
         self.rev = rev_corr
+        self.npairs = template_corr.shape[0]
 
-    def plot(self, ax=None, tstart=0, legend=None):
+    def compute_shuffle(
+        self,
+        template,
+        match,
+        binSize=0.250,
+        window=900,
+        slideby=None,
+        cross_shanks=True,
+        n_iter=10,
+    ):
+        """Calucate explained variance (EV) and reverse EV
 
-        ev_mean = np.mean(self.ev.squeeze(), axis=0)
-        ev_std = np.std(self.ev.squeeze(), axis=0)
-        rev_mean = np.mean(self.rev.squeeze(), axis=0)
-        rev_std = np.std(self.rev.squeeze(), axis=0)
+        Parameters
+        ----------
+        template : list
+            template period
+        match : list
+            match period whose similarity is calculated to template
+        control : list
+            control period, correlations in this period will be accounted for
+        binSize : float,
+            bin size within each window, defaults 0.250 seconds
+        window : int,
+            size of window in which ev is calculated, defaults 900 seconds
+        slideby : int,
+            calculate EV by sliding window, seconds
+
+        References:
+        1) Kudrimoti 1999
+        2) Tastsuno et al. 2007
+        """
+
+        spikes = Spikes(self._obj)
+        if slideby is None:
+            slideby = window
+
+        # ----- choosing cells ----------------
+        spks = spikes.times
+        stability = spikes.stability.info
+        stable_cells = np.where(stability.stable == 1)[0]
+        pyr_id = spikes.pyrid
+        stable_pyr = np.intersect1d(pyr_id, stable_cells, assume_unique=True)
+        print(f"Calculating EV for {len(stable_pyr)} stable cells")
+        spks = [spks[_] for _ in stable_pyr]
+
+        # ------- windowing the time periods ----------
+        nbins_window = int(window / binSize)
+        nbins_slide = int(slideby / binSize)
+
+        # ---- function to calculate correlation in each window ---------
+        def cal_corr(spikes, period, windowing=True):
+            bin_period = np.arange(period[0], period[1], binSize)
+            spkcnt = np.array([np.histogram(x, bins=bin_period)[0] for x in spikes])
+
+            if windowing:
+                t = np.arange(period[0], period[1] - window, slideby) + window / 2
+                nwindow = len(t)
+
+                window_spkcnt = [
+                    spkcnt[:, i : i + nbins_window]
+                    for i in range(0, int(nwindow) * nbins_slide, nbins_slide)
+                ]
+
+                # if nwindow % 1 > 0.3:
+                #     window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
+                #     t = np.append(t, t[-1] + round(nwindow % 1, 3) / 2)
+
+                corr = [
+                    np.corrcoef(window_spkcnt[x]) for x in range(len(window_spkcnt))
+                ]
+
+            else:
+                corr = np.corrcoef(spkcnt)
+                t = None
+
+            return corr, t
+
+        # ---- correlation for each time period -----------
+        template_corr, _ = cal_corr(spks, period=template, windowing=False)
+        match_corr, self.t_match = cal_corr(spks, period=match)
+
+        # ----- indices for cross shanks correlation -------
+        shnkId = np.asarray(spikes.info.shank)
+        shnkId = shnkId[stable_pyr]
+        assert len(shnkId) == len(spks)
+
+        selected_pairs = np.tril_indices(len(spks), k=-1)
+        if cross_shanks:
+            selected_pairs = np.nonzero(
+                np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1))
+            )
+
+        template_corr = template_corr[selected_pairs]
+        match_corr = [match_corr[x][selected_pairs] for x in range(len(match_corr))]
+
+        ev_all, rev_all = [], []
+        for i in range(n_iter):
+            # pair_id = np.arange(len(template_corr))
+            # np.random.shuffle(pair_id)
+            # shuff_match = [window[pair_id] for window in match_corr]
+
+            spks_shuff = random.sample(spks, len(spks))
+            shuff_corr, _ = cal_corr(spks_shuff, period=match)
+            shuff_match = [
+                shuff_corr[x][selected_pairs] for x in range(len(shuff_corr))
+            ]
+
+            ev, rev = [], []
+            for control, match_ in zip(shuff_match, match_corr):
+                df = pd.DataFrame(
+                    {"control": control, "template": template_corr, "match": match_}
+                )
+                ev_ = pg.partial_corr(data=df, x="template", y="match", covar="control")
+                rev_ = pg.partial_corr(
+                    data=df, x="template", y="control", covar="match"
+                )
+                ev.append(ev_.r2)
+                rev.append(rev_.r2)
+
+            ev_all.append(ev)
+            rev_all.append(rev)
+
+        ev_all = np.asarray(ev_all)
+        rev_all = np.asarray(rev_all)
+
+        self.ev = ev_all
+        self.rev = rev_all
+        self.npairs = template_corr.shape[0]
+
+    def plot(self, ax=None, tstart=0, legend=True):
+
+        ev_mean = np.nanmean(self.ev.squeeze(), axis=0)
+        ev_std = np.nanstd(self.ev.squeeze(), axis=0)
+        rev_mean = np.nanmean(self.rev.squeeze(), axis=0)
+        rev_std = np.nanstd(self.rev.squeeze(), axis=0)
 
         if ax is None:
             plt.clf()
@@ -125,22 +284,36 @@ class ExplainedVariance:
 
         t = (self.t_match - tstart) / 3600  # converting to hour
 
+        # ---- plot rev first ---------
         ax.fill_between(
-            t, rev_mean - rev_std, rev_mean + rev_std, color="#87d498", zorder=1
+            t,
+            rev_mean - rev_std,
+            rev_mean + rev_std,
+            color=self.colors["rev"],
+            zorder=1,
+            alpha=0.5,
+            label="REV",
         )
-        ax.plot(t, rev_mean, "#02c59b", zorder=2)
-        ax.fill_between(
-            t, ev_mean - ev_std, ev_mean + ev_std, color="#7c7979", zorder=3
-        )
+        ax.plot(t, rev_mean, color=self.colors["rev"], zorder=2)
 
-        ax.plot(t, ev_mean, "k", zorder=4)
+        # ------- plot ev -------
+        ax.fill_between(
+            t,
+            ev_mean - ev_std,
+            ev_mean + ev_std,
+            color=self.colors["ev"],
+            zorder=3,
+            alpha=0.5,
+            label="EV",
+        )
+        ax.plot(t, ev_mean, self.colors["ev"], zorder=4)
+
         ax.set_xlabel("Time (h)")
         ax.set_ylabel("Explained variance")
-        if legend is not None:
-            ax.legend(["REV", "EV"])
-        # ax.text(0.2, 0.28, "POST SD", fontweight="bold")
+        if legend:
+            ax.legend()
 
-    # ax.set_xlim([0, np.max(t)])
+        return ax
 
 
 class CellAssemblyICA:
@@ -249,27 +422,3 @@ class CellAssemblyICA:
                 axvec.set_xticks([])
                 axvec.set_xticklabels([])
                 axvec.spines["bottom"].set_visible(False)
-
-
-class Correlation:
-    def __init__(self, basepath):
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
-
-    def comparePeriods(self, template, match, spks=None, window=900, bnsz=0.25):
-
-        if spks is None:
-            spks = self._obj.spikes.times
-
-        template_corr = self.getcorr(period=template)
-        match_corr = self.getcorr(period=match)
-
-    def getcorr(self):
-        bins = np.arange(period[0], period[1], binsize)
-        spk_cnts = np.asarray([np.histogram(cell, bins=bins)[0] for cell in spikes])
-        corr = np.corrcoef(spk_cnts)
-        np.fill_diagonal(corr, 0)
-
-        return corr

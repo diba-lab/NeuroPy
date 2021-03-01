@@ -45,39 +45,35 @@ class Hswa:
             events: Path = filePrefix.with_suffix(".hswa.npy")
 
         self.files = files()
-        # self._load()
-
-        if Path(self._obj.files.slow_wave).is_file():
-            self._load()
+        self._load()
 
     def _load(self):
 
-        evt = np.load(self._obj.files.slow_wave, allow_pickle=True).item()
-        self.peakamp = np.asarray(evt["peakamp"])
-        self.time = np.asarray(evt["time"])
-        self.tbeg = np.asarray(evt["tbeg"])
-        self.tend = np.asarray(evt["tend"])
-        self.endamp = np.asarray(evt["endamp"])
+        if (f := self.files.events).is_file():
+            evt = np.load(f, allow_pickle=True).item()
+            self.events: pd.DataFrame = evt["events"]
+            self.params = evt["DetectionParams"]
 
-    def detect(self):
+    def detect(self, chan, freq_band=(0.5, 4)):
+        """Caculate delta events
+
+        chan --> filter delta --> identify peaks and troughs within sws epochs only --> identifies a slow wave as trough to peak --> thresholds for 100ms minimum duration
+
+        Parameters
+        ----------
+        chan : int
+            channel to be used for detection
+        freq_band : tuple, optional
+            frequency band in Hz, by default (0.5, 4)
         """
-        filters the channel which has highest ripple power.
-        Caculate peaks and troughs in the filtered lfp
 
-        ripplechan --> filter delta --> identify peaks and troughs within sws epochs only --> identifies a slow wave as trough to peak --> thresholds for 100ms minimum duration
-
-        """
-
-        # -------- files ------
-        myinfo = self._obj
-
-        # ----- parameters ---------
         lfpsRate = self._obj.lfpSrate
+        deltachan = self._obj.geteeg(chans=chan)
 
         # ---- filtering best ripple channel in delta band
-        deltachan, _, _ = myinfo.spindle.best_chan_lfp()
         t = np.linspace(0, len(deltachan) / lfpsRate, len(deltachan))
-        delta_sig = signal_process.filter_sig.bandpass(deltachan, lf=0.5, hf=4)
+        lf, hf = freq_band
+        delta_sig = signal_process.filter_sig.bandpass(deltachan, lf=lf, hf=hf)
         delta = stats.zscore(delta_sig)  # normalization w.r.t session
         delta = -delta  # flipping as this is in sync with cortical slow wave
 
@@ -105,36 +101,32 @@ class Hswa:
         sigdelta = np.asarray(sigdelta)
         print(f"{len(sigdelta)} delta detected")
 
-        hipp_slow_wave = {
-            "peakamp": sigdelta[:, 0],
-            "endamp": sigdelta[:, 1],
-            "time": sigdelta[:, 2],
-            "tbeg": sigdelta[:, 3],
-            "tend": sigdelta[:, 4],
-        }
+        data = pd.DataFrame(
+            {
+                "start": sigdelta[:, 3],
+                "end": sigdelta[:, 4],
+                "peaktime": sigdelta[:, 2],
+                "peakamp": sigdelta[:, 0],
+                "endamp": sigdelta[:, 1],
+            }
+        )
+        detection_params = {"freq_band": freq_band, "chan": chan}
+        hipp_slow_wave = {"events": data, "DetectionParams": detection_params}
 
-        np.save(self._obj.sessinfo.files.slow_wave, hipp_slow_wave)
-
+        np.save(self.files.events, hipp_slow_wave)
         self._load()
 
     def plot(self):
         """Gives a comprehensive view of the detection process with some statistics and examples"""
-        _, spindlechan, coord = self._obj.spindle.best_chan_lfp()
-        eegSrate = self._obj.recinfo.lfpSrate
-        probemap = self._obj.recinfo.probemap()
-        nChans = self._obj.recinfo.nChans
-        changrp = self._obj.recinfo.channelgroups
-        badchans = self._obj.recinfo.badchans
-        chosenShank = changrp[0]
-        chosenShank = np.setdiff1d(np.array(chosenShank), badchans)
-        times = self.time
-        tbeg = self.tbeg
-        tend = self.tend
-        eegfile = self._obj.sessinfo.recfiles.eegfile
-        eegdata = np.memmap(eegfile, dtype="int16", mode="r")
-        eegdata = np.memmap.reshape(eegdata, (int(len(eegdata) / nChans), nChans))
-        eegdata = eegdata[:, chosenShank]
+        eegSrate = self._obj.lfpSrate
+        deltachan = self.params["chan"]
+        goodchangrp = self._obj.goodchangrp
+        chosenShank = [_ for _ in goodchangrp if deltachan in _]
+        times = self.events.peaktime.to_numpy()
+        tbeg = self.events.start.to_numpy()
+        tend = self.events.end.to_numpy()
 
+        eegdata = self._obj.geteeg(chans=chosenShank)
         # sort_ind = np.argsort(peakpower)
         # peakpower = peakpower[sort_ind]
         # times = times[sort_ind, :]
@@ -180,7 +172,7 @@ class Hswa:
             ax2.fill_between([start, end], [-6, -6], [45, 45], alpha=0.3)
             ax2.axis("off")
 
-        subname = self._obj.sessinfo.session.subname
+        subname = self._obj.session.subname
         fig.suptitle(f"Delta wave detection of {subname}")
 
 
@@ -208,7 +200,7 @@ class Ripple:
         if (f := self.files.ripples).is_file():
 
             ripple_evt = np.load(f, allow_pickle=True).item()
-            self.events = ripple_evt["events"]
+            self.events: pd.DataFrame = ripple_evt["events"]
             self.params = ripple_evt["DetectionParams"]
 
         if (f := self.files.bestRippleChans).is_file():
@@ -302,9 +294,8 @@ class Ripple:
         # ---------setting noisy period zero --------
         artifact = findartifact(self._obj)
         if artifact.time is not None:
-            noisy_intervals = (artifact.time * SampFreq).astype(int)
-            noisy_frames = [np.arange(beg, end) for (beg, end) in noisy_intervals]
-            zscsignal[:, np.concatenate(noisy_frames)] = 0
+            noisy_frames = artifact.getframes()
+            zscsignal[:, noisy_frames] = 0
 
         # ------hilbert transform --> binarize by > than lowthreshold
         maxPower = np.max(zscsignal, axis=0)
@@ -415,7 +406,7 @@ class Ripple:
                     f"{event.start*1000} start\n{event.peakSharpWave*1000} peakSW\n{event.end*1000} end\n"
                 )
 
-    def plot(self, random=False):
+    def plot_summary(self, random=False):
         """Plots 10 of detected ripples across two randomly selected shanks with their filtered lfp
 
         Parameters
@@ -499,6 +490,38 @@ class Ripple:
 
         subname = self._obj.session.subname
         fig.suptitle(f"Ripple detection of {subname}")
+
+    def plot_example(
+        self, ax=None, ripple_indx=None, shank_id=None, pad=0.2, color="k"
+    ):
+        changrp = self._obj.channelgroups
+        nShanks = self._obj.nShanks
+        if ripple_indx is None:
+            ripple_indx = np.random.randint(low=0, high=len(self.events))
+        if shank_id is None:
+            shank_id = np.random.randint(low=0, high=nShanks)
+
+        ripple_time = self.events.loc[ripple_indx][["start", "end"]].to_list()
+        lfp = np.array(self._obj.geteeg(chans=changrp[shank_id], timeRange=ripple_time))
+        lfp = lfp / np.max(lfp)  # scaling
+        lfp = lfp - lfp[:, 0][:, np.newaxis]  # np.min(lfp, axis=1, keepdims=True)
+        pad_vals = np.linspace(0, len(lfp) * pad, len(lfp))[::-1]
+        lfp = lfp + pad_vals[:, np.newaxis]
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        print(f"Plotting ripple no. {ripple_indx}")
+        ax.clear()
+        ax.plot(lfp.T, color=color)
+        ax.set_yticks(pad_vals)
+        ax.set_yticklabels(changrp[shank_id])
+        ax.set_xticklabels([])
+        ax.spines["left"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.tick_params(axis="both", length=0)
+
+        return ax
 
 
 class Spindle:
@@ -896,13 +919,14 @@ class Theta:
         """
         eegSrate = self._obj.lfpSrate
 
-        assert eeg.ndim == 2
+        assert isinstance(eeg, list), "list of lfps needs"
+        assert len(eeg) > 1, "More than one channel needed"
 
         aucChans = []
-        for i in range(eeg.shape[0]):
+        for lfp in eeg:
 
             f, pxx = sg.welch(
-                eeg[i],
+                lfp,
                 fs=eegSrate,
                 nperseg=10 * eegSrate,
                 noverlap=5 * eegSrate,
@@ -942,123 +966,10 @@ class Theta:
         [type]
             [description]
         """
-        # --- calculating theta parameters from broadband theta---------
-        eegSrate = self._obj.lfpSrate
-        thetalfp = signal_process.filter_sig.bandpass(lfp, lf=lowtheta, hf=hightheta)
-        hil_theta = signal_process.hilbertfast(thetalfp)
-        theta_360 = np.angle(hil_theta, deg=True) + 180
-        theta_angle = np.abs(np.angle(hil_theta, deg=True))
-        theta_trough = sg.find_peaks(theta_angle)[0]
-        theta_peak = sg.find_peaks(-theta_angle)[0]
-        theta_amp = np.abs(hil_theta) ** 2
 
-        if theta_peak[0] < theta_trough[0]:
-            theta_peak = theta_peak[1:]
-        if theta_trough[-1] > theta_peak[-1]:
-            theta_trough = theta_trough[:-1]
-
-        assert len(theta_trough) == len(theta_peak)
-
-        rising_time = (theta_peak[1:] - theta_trough[1:]) / eegSrate
-        falling_time = (theta_trough[1:] - theta_peak[:-1]) / eegSrate
-
-        # ----- nested class for keeping parameters and sanity plots ----------
-        @dataclass
-        class Params:
-            lfp_filtered: np.array = thetalfp
-            amplitude: np.array = theta_amp
-            angle: np.array = theta_360  # ranges from 0 to 360
-            peak: np.array = theta_peak
-            trough: np.array = theta_trough
-            rise_time: np.array = rising_time
-            fall_time: np.array = falling_time
-
-            @property
-            def rise_mid(self):
-                theta_trough = self.trough
-                theta_peak = self.peak
-                thetalfp = self.lfp_filtered
-                rise_midpoints = np.array(
-                    [
-                        trough
-                        + np.argmin(
-                            np.abs(
-                                thetalfp[trough:peak]
-                                - (
-                                    max(thetalfp[trough:peak])
-                                    - np.ptp(thetalfp[trough:peak]) / 2
-                                )
-                            )
-                        )
-                        for (trough, peak) in zip(theta_trough, theta_peak)
-                    ]
-                )
-                return rise_midpoints
-
-            @property
-            def fall_mid(self):
-                theta_peak = self.peak
-                theta_trough = self.trough
-                thetalfp = self.lfp_filtered
-                fall_midpoints = np.array(
-                    [
-                        peak
-                        + np.argmin(
-                            np.abs(
-                                thetalfp[peak:trough]
-                                - (
-                                    max(thetalfp[peak:trough])
-                                    - np.ptp(thetalfp[peak:trough]) / 2
-                                )
-                            )
-                        )
-                        for (peak, trough) in zip(theta_peak[:-1], theta_trough[1:])
-                    ]
-                )
-
-                return fall_midpoints
-
-            @property
-            def peak_width(self):
-                return (self.fall_mid - self.rise_mid[:-1]) / eegSrate
-
-            @property
-            def trough_width(self):
-                return (self.rise_mid[1:] - self.fall_mid) / eegSrate
-
-            @property
-            def asymmetry(self):
-                return self.rise_time / (self.rise_time + self.fall_time)
-
-            @property
-            def peaktrough(self):
-                return self.peak_width / (self.peak_width + self.trough_width)
-
-            def sanityCheck(self, rawTheta):
-                # ax3 = plt.subplot(gs[1, :])
-                # theta_lfp = signal_process.filter_sig.bandpass(lfpmaze, lf=1, hf=25)
-                # ax3.plot(lfpmaze, "gray", alpha=0.3)
-                # ax3.plot(theta_lfp, "k")
-                # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-                # ax3.plot(thetaparams.peak, theta_lfp[thetaparams.peak], "|", color="r", markersize=30)
-                # ax3.plot(
-                #     thetaparams.rise_mid,
-                #     theta_lfp[thetaparams.rise_mid],
-                #     "|",
-                #     color="gray",
-                #     markersize=30,
-                # )
-                # ax3.plot(
-                #     thetaparams.fall_mid,
-                #     theta_lfp[thetaparams.fall_mid],
-                #     "|",
-                #     color="magenta",
-                #     markersize=30,
-                # )
-                # ax3.plot(theta_trough, theta_lfp[theta_trough], "|", markersize=30)
-                pass
-
-        return Params()
+        return signal_process.ThetaParams(
+            lfp=lfp, fs=self._obj.lfpSrate, lowtheta=lowtheta, hightheta=hightheta
+        )
 
     def getstrongTheta(
         self, lfp, lowthresh=0, highthresh=0.5, minDistance=300, minDuration=1250
@@ -1115,8 +1026,8 @@ class Theta:
         return strong_theta, weak_theta, theta_indices
 
     @staticmethod
-    def phase_specfic_extraction(lfp, y, window=5, slideby=None):
-        """Breaks a signal into theta phase specific components
+    def phase_specfic_extraction(lfp, y, binsize=20, slideby=None):
+        """Breaks y into theta phase specific components
 
         Parameters
         ----------
@@ -1124,10 +1035,10 @@ class Theta:
             reference lfp from which theta phases are estimated
         y : array like
             timeseries which is broken into components
-        window : int, optional
-            , by default 5
-        slideby : [type], optional
-            [description], by default None
+        binsize : int, optional
+            width of each bin in degrees, by default 20
+        slideby : int, optional
+            slide each bin by this amount in degrees, by default None
 
         Returns
         -------
@@ -1135,20 +1046,21 @@ class Theta:
             list of broken signal into phase components
         """
 
+        assert len(lfp) == len(y), "Both signals should be of same length"
         thetalfp = signal_process.filter_sig.bandpass(lfp, lf=1, hf=25)
         hil_theta = signal_process.hilbertfast(thetalfp)
         theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
 
-        angle_bin = np.arange(0, 360 - window, slideby)
+        angle_bin = np.arange(0, 360 - binsize, slideby)
         if slideby is None:
-            slideby = window
+            slideby = binsize
             angle_bin = np.arange(0, 360, slideby)
-        angle_centers = angle_bin + window / 2
+        angle_centers = angle_bin + binsize / 2
 
         y_at_phase = []
         for phase in angle_bin:
             y_at_phase.append(
-                y[np.where((theta_angle >= phase) & (theta_angle < phase + window))[0]]
+                y[np.where((theta_angle >= phase) & (theta_angle < phase + binsize))[0]]
             )
 
         return y_at_phase, angle_bin, angle_centers

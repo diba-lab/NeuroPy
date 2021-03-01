@@ -1,7 +1,6 @@
 from artifactDetect import findartifact
 from behavior import behavior_epochs
 from decoders import DecodeBehav
-from eventCorr import event_event
 from getPosition import ExtractPosition
 from getSpikes import Spikes
 from lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
@@ -35,12 +34,10 @@ class processData:
         self.ripple = Ripple(self.recinfo)
         self.placefield = pf(self.recinfo)
         self.replay = Replay(self.recinfo)
-        self.decode = DecodeBehav(self.recinfo)
+        self.decode = DecodeBehav(self.placefield.pf1d, self.placefield.pf2d)
         self.localsleep = LocalSleep(self.recinfo)
         self.viewdata = SessView(self.recinfo)
         self.pbe = PBE(self.recinfo)
-
-        self.eventpsth = event_event()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
