@@ -48,10 +48,7 @@ class processData:
 
 # test
 if __name__ == "__main__":
-    sess = processData(
-        r"C:\Users\Nat\Documents\UM\Working\Opto\Jackie671\Jackie_3well_day4\Jackie_UTRACK_combined"
-    )
-    sess.placefield.pf1d.compute(track_name="MAZE")
-    sess.placefield.pf1d.phase_precession(9)
-
+    sess = processData("/data/Working/Opto/Jackie671/Jackie_propofol_2020-09-30")
+    sess.spikes.load_rough_mua()
+    sess.spikes.roughmua2neuroscope([7, 8, 6, 5, 9], [4, 4, 4, 4, 4])
 pass
