@@ -160,7 +160,7 @@ class Fig:
     def savefig(self, fname, scriptname=None, fig=None, folder=None):
 
         if folder is None:
-            folder = "/home/bapung/Documents/MATLAB/figures/"
+            folder = "/home/bapung/Documents/figures/"
         if fig is None:
             fig = self.fig
 
