@@ -45,9 +45,7 @@ class processData:
 
 # test
 if __name__ == "__main__":
-    sess2 = processData(
-        "/data/Working/Opto/Jackie671/Jackie_3well_Day4/Jackie_UTRACK_combined"
-    )
-    sess2.recinfo.geteeg(sess2.recinfo.goodchans)
-
+    sess = processData("/data/Working/Opto/Jackie671/Jackie_propofol_2020-09-30")
+    sess.spikes.load_rough_mua()
+    sess.spikes.roughmua2neuroscope([7, 8, 6, 5, 9], [4, 4, 4, 4, 4])
 pass
