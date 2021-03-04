@@ -233,7 +233,7 @@ class Spikes:
             spikes = [spikes[indx] for indx in sort_frate_indices]
 
         for cell, spk in enumerate(spikes):
-            plt.plot(
+            ax.plot(
                 spk - tstart,
                 (cell + 1) * np.ones(len(spk)),
                 marker,
