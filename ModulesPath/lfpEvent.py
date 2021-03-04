@@ -247,6 +247,7 @@ class Ripple:
 
         filename = self.files.bestRippleChans
         np.save(filename, bestripplechans)
+        self._load()  # load variables immediately into existence
 
     def detect(
         self,

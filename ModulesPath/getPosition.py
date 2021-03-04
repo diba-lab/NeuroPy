@@ -240,6 +240,7 @@ def posfromFBX(fileName):
 
 
 def getStartTime(fileName):
+    """Get optitrack start time"""
     fileName = str(fileName)
 
     with open(fileName, newline="") as f:
@@ -305,6 +306,12 @@ class ExtractPosition:
 
     def __getitem__(self, epochs):
         pass
+
+    @property
+    def video_start_time(self):
+        posFolder = Path(self._obj.basePath) / "position"
+        posfiles = np.asarray(sorted(posFolder.glob("*.csv")))
+        return getStartTime(posfiles[0])
 
     def getPosition(self, method="from_metadata", scale=1.0):
         """get position data from files. All position related files should be in 'position' folder within basepath
