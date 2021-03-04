@@ -415,7 +415,7 @@ class Ripple:
         random : bool, optional
             if True then randomly plots 10 ripples, by default False then it plots 5 weakest and 5 strongest ripples
         """
-        fig = plt.figure(1, figsize=(6, 10))
+        fig = plt.figure(None, figsize=(6, 10))
         gs = gridspec.GridSpec(3, 10, figure=fig)
         fig.subplots_adjust(hspace=0.5)
 
@@ -470,8 +470,13 @@ class Ripple:
 
         # ----- plotting channels used for detection --------
         ax = fig.add_subplot(gs[0, 1:4])
-        self._obj.probemap.plot(self.bestchans, ax=ax)
-        ax.set_title("selected channel")
+        try:
+            self._obj.probemap.plot(self.bestchans, ax=ax)
+            ax.set_title("selected channel")
+        except AttributeError:
+            print(
+                "No probemap provided - provide to visualize ripple channel location!"
+            )
 
         # ---- peaknormalized power distribution plot ---------
         ax = fig.add_subplot(gs[0, 5])
