@@ -407,7 +407,7 @@ class Ripple:
                     f"{event.start*1000} start\n{event.peakSharpWave*1000} peakSW\n{event.end*1000} end\n"
                 )
 
-    def plot_summary(self, random=False):
+    def plot_summary(self, random=False, shank_id=None):
         """Plots 10 of detected ripples across two randomly selected shanks with their filtered lfp
 
         Parameters
@@ -415,8 +415,8 @@ class Ripple:
         random : bool, optional
             if True then randomly plots 10 ripples, by default False then it plots 5 weakest and 5 strongest ripples
         """
-        fig = plt.figure(None, figsize=(6, 10))
-        gs = gridspec.GridSpec(3, 10, figure=fig)
+        fig = plt.figure(num=None, figsize=(10, 6))
+        gs = gridspec.GridSpec(2, 10, figure=fig)
         fig.subplots_adjust(hspace=0.5)
 
         changrp = [shank for shank in self._obj.goodchangrp if shank]
@@ -436,27 +436,13 @@ class Ripple:
 
         # ------ plotting ripples and filtered lfp -----------
         for ind, ripple in enumerate(ripple_to_plot):
-            lfp = np.asarray(
-                self._obj.geteeg(
-                    chans=channels,
-                    timeRange=[ripples.loc[ripple].start, ripples.loc[ripple].end],
-                )
-            )
-            lfp = stats.zscore(lfp)
-            filtlfp = signal_process.filter_sig.ripple(lfp)
 
-            lfp = lfp + np.linspace(40, 0, lfp.shape[0])[:, np.newaxis]
             ax = fig.add_subplot(gs[1, ind])
-            ax.plot(lfp.T, "#fa761e", linewidth=0.8)
+            self.plot_example(ax=ax, ripple_indx=ripple, pad=0.3, shank_id=shank_id)
             ax.set_title(
-                f"zsc = {round(peakpower[ripple],2)}, {round(ripples.loc[ripple].duration*1000)} ms",
+                f"zsc = {round(peakpower[ripple],2)} \n {round(ripples.loc[ripple].duration*1000)} ms",
                 loc="left",
             )
-            ax.axis("off")
-
-            filtlfp = filtlfp + np.linspace(40, 0, lfp.shape[0])[:, np.newaxis]
-            ax = fig.add_subplot(gs[2, ind])
-            ax.plot(filtlfp.T, linewidth=0.8, color="#594f4f")
             ax.axis("off")
 
         # ------ plotting parameters used during detection ----------
@@ -568,9 +554,9 @@ class Spindle:
         Returns:
             [type] -- [description]
         """
-        lfpsrate = self._obj.recinfo.lfpSrate
+        lfpsrate = self._obj.lfpSrate
 
-        lfpinfo = np.load(self._obj.sessinfo.files.spindlelfp, allow_pickle=True).item()
+        lfpinfo = np.load(self._obj.files.spindlelfp, allow_pickle=True).item()
         chan = np.asarray(lfpinfo["channel"])
         lfp = np.asarray(lfpinfo["lfp"])
         coords = lfpinfo["coords"]
@@ -772,14 +758,14 @@ class Spindle:
     def plot(self):
         """Gives a comprehensive view of the detection process with some statistics and examples"""
         _, spindlechan, coord = self.best_chan_lfp()
-        eegSrate = self._obj.recinfo.lfpSrate
-        probemap = self._obj.recinfo.probemap()
-        nChans = self._obj.recinfo.nChans
-        changrp = self._obj.recinfo.channelgroups
+        eegSrate = self._obj.lfpSrate
+        probemap = self._obj.probemap()
+        nChans = self._obj.nChans
+        changrp = self._obj.channelgroups
         chosenShank = changrp[1] + changrp[2]
         times = self.time
         peakpower = self.peakpower
-        eegfile = self._obj.sessinfo.recfiles.eegfile
+        eegfile = self._obj.recfiles.eegfile
         eegdata = np.memmap(eegfile, dtype="int16", mode="r")
         eegdata = np.memmap.reshape(eegdata, (int(len(eegdata) / nChans), nChans))
         eegdata = eegdata[:, chosenShank]
