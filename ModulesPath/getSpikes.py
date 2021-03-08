@@ -425,7 +425,7 @@ class Spikes:
 
         """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
         type: 'all' or 'ccg_only'.
-        ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type'all'"""
+        ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type 'all'"""
 
         def ccg_spike_assemble(clus_use):
             """Assemble an array of sorted spike times and cluIDs for the input cluster ids the list clus_use """
