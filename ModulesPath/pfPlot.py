@@ -397,7 +397,7 @@ class pf2d:
         else:
             self._obj = Recinfo(basepath)
 
-    def compute(self, period, gridbin=10, speed_thresh=5, smooth=2):
+    def compute(self, period, spikes=None, gridbin=10, speed_thresh=5, smooth=2):
         """Calculates 2D placefields
 
         Parameters
@@ -415,13 +415,10 @@ class pf2d:
             [description]
         """
         assert len(period) == 2, "period should have length 2"
-        spikes = Spikes(self._obj)
         position = ExtractPosition(self._obj)
         # ------ Cell selection ---------
-        spkAll = spikes.pyr
-        # spkinfo = self._obj.spikes.info
-        # pyrid = np.where(spkinfo.q < 4)[0]
-        # spkAll = [spkAll[_] for _ in pyrid]
+        if spikes is None:
+            spikes = Spikes(self._obj).pyr
 
         # ----- Position---------
         xcoord = position.x
@@ -443,7 +440,7 @@ class pf2d:
 
         speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / (1 / trackingRate)
         speed = gaussian_filter1d(speed, sigma=smooth)
-        print(np.ptp(speed))
+
         dt = t[1] - t[0]
         running = np.where(speed / dt > speed_thresh)[0]
 
@@ -483,7 +480,7 @@ class pf2d:
         occupancy = gaussian_filter(occupancy, sigma=smooth)
 
         maps, spk_pos, spk_t = make_pfs(
-            t, x, y, spkAll, occupancy, 0, period, x_grid, y_grid
+            t, x, y, spikes, occupancy, 0, period, x_grid, y_grid
         )
 
         run_occupancy = np.histogram2d(x_thresh, y_thresh, bins=(x_grid, y_grid))[0]
@@ -493,7 +490,7 @@ class pf2d:
         )  # NRK todo: might need to normalize this so that total occupancy adds up to 1 here...
 
         run_maps, run_spk_pos, run_spk_t = make_pfs(
-            t, x, y, spkAll, run_occupancy, speed_thresh, period, x_grid, y_grid
+            t, x, y, spikes, run_occupancy, speed_thresh, period, x_grid, y_grid
         )
 
         # NRK todo: might be nicer to make spk_pos, spk_t, maps, and occupancy into two separate dicts: no thresh, speed_thresh
@@ -512,6 +509,15 @@ class pf2d:
         self.xgrid = x_grid
         self.ygrid = y_grid
         self.speed_thresh = speed_thresh
+
+        self.ratemaps = {
+            "pos": spk_pos,
+            "spikes": spk_t,
+            "ratemaps": maps,
+            "occupancy": occupancy,
+        }
+
+        self.ratemaps = {"ratemaps": maps, "occupancy": occupancy}
 
     def plotMap(self, speed_thresh=False, subplots=(7, 4), fignum=None):
         """Plots heatmaps of placefields with peak firing rate
@@ -561,7 +567,7 @@ class pf2d:
                 self.xgrid,
                 self.ygrid,
                 np.rot90(np.fliplr(pfmap)) / np.max(pfmap),
-                cmap="Spectral_r",
+                cmap="jet",
                 vmin=0,
             )  # rot90(flipud... is necessary to match plotRaw configuration.
             # max_frate =
