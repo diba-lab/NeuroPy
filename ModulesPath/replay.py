@@ -341,6 +341,12 @@ class CellAssemblyICA:
             [np.histogram(cell, bins=template_bin)[0] for cell in spikes]
         )
 
+        # --- removing very low firing cells -----
+        nspikes = np.sum(template, axis=1)
+        good_cells = np.where(nspikes > 10)[0]
+        template = template[good_cells, :]
+        spikes = [spikes[_] for _ in good_cells]
+
         zsc_template = stats.zscore(template, axis=1)
 
         # corrmat = (zsc_x @ zsc_x.T) / x.shape[1]
