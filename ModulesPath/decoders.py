@@ -473,20 +473,30 @@ class bayes2d(Bayes):
 
         assert isinstance(pf2d_obj, pf2d)
         self._obj = pf2d_obj._obj
-        self.ratemaps = pf2d_obj
+        self.pf2d = pf2d_obj
 
     def estimate_behavior(self, binsize=0.25, smooth=1, plot=True):
 
-        pf2d_obj = self.ratemaps
         spikes = Spikes(self._obj).pyr
-        ratemaps = pf2d_obj.ratemaps
-        speed = pf2d_obj.speed
-        t = pf2d_obj.t
-        x = pf2d_obj.x
-        y = pf2d_obj.y
+        ratemaps = self.pf2d.ratemaps
+        speed = self.pf2d.speed
+        t = self.pf2d.t
+        x = self.pf2d.x
+        y = self.pf2d.y
 
-        maze = self._obj.epochs.maze
-        tmz = np.arange(maze[0], maze[1], binsize)
+        mesh = np.meshgrid(
+            self.pf2d.xgrid[:-1] + self.pf2d.gridbin / 2,
+            self.pf2d.ygrid[:-1] + self.pf2d.gridbin / 2,
+        )
+        ngrid_centers_x = mesh[0].size
+        ngrid_centers_y = mesh[1].size
+        x_center = np.reshape(mesh[0], [ngrid_centers_x, 1])
+        y_center = np.reshape(mesh[1], [ngrid_centers_y, 1])
+        xy_center = np.hstack((x_center, y_center))
+        gridcenter = xy_center.T
+
+        period = self.pf2d.period
+        tmz = np.arange(period[0], period[1], binsize)
         actualposx = stats.binned_statistic(t, values=x, bins=tmz)[0]
         actualposy = stats.binned_statistic(t, values=y, bins=tmz)[0]
         meanspeed = stats.binned_statistic(t[1:], speed, bins=tmz)[0]
@@ -495,61 +505,59 @@ class bayes2d(Bayes):
         spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spikes])
 
         # ---- linearize 2d ratemaps -------
-        ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
+        # transpose ratemap to match with meshgrid
+        ratemaps = np.asarray([ratemap.T.flatten() for ratemap in ratemaps])
 
         self.posterior = self._decoder(spkcount=spkcount, ratemaps=ratemaps)
-        self.decodedPos = gridcntr[:, np.argmax(self.posterior, axis=0)]
+        self.decodedPos = gridcenter[:, np.argmax(self.posterior, axis=0)]
         self.decodingtime = tmz
-        self.actualPos = actualpos
+        self.actualpos = actualpos
 
         if plot:
-            _, gs = Fig().draw(grid=(3, 4), size=(15, 6))
-            axpos = plt.subplot(gs[0, :3])
-            axpos.plot(self.actualpos, "k")
-            axpos.set_ylabel("Actual position")
+            _, gs = Fig().draw(grid=(4, 4), size=(15, 6))
+            axposx = plt.subplot(gs[0, :3])
+            axposx.plot(self.actualpos[1, :], "k")
+            axposx.set_ylabel("Actual position")
 
-            axdec = plt.subplot(gs[1, :3], sharex=axpos)
-            axdec.plot(
-                np.abs(
-                    gaussian_filter1d(self.decodedPos, sigma=smooth) - self.actualpos
-                ),
-                "r",
+            axdecx = plt.subplot(gs[1, :3], sharex=axposx)
+            axdecx.plot(
+                gaussian_filter1d(self.decodedPos[1, :], sigma=smooth),
+                "gray",
             )
-            axdec.set_ylabel("Error")
+            axdecx.set_ylabel("Decoded position")
 
-            axpost = plt.subplot(gs[2, :3], sharex=axpos)
-            axpost.pcolormesh(
-                self.posterior / np.max(self.posterior, axis=0, keepdims=True),
-                cmap="binary",
-            )
-            axpost.set_ylabel("Posterior")
+            # axpost = plt.subplot(gs[2, :3], sharex=axpos)
+            # axpost.pcolormesh(
+            #     self.posterior / np.max(self.posterior, axis=0, keepdims=True),
+            #     cmap="binary",
+            # )
+            # axpost.set_ylabel("Posterior")
 
-            axconf = plt.subplot(gs[:, 3])
-            actual_ = self.actualpos[np.where(meanspeed > 20)[0]]
-            decoded_ = self.decodedPos[np.where(meanspeed > 20)[0]]
-            bin_ = np.histogram2d(decoded_, actual_, bins=[pf2d_obj.bin, pf2d_obj.bin])[
-                0
-            ]
-            bin_ = bin_ / np.max(bin_, axis=0, keepdims=True)
-            axconf.pcolormesh(pf2d_obj.bin, pf2d_obj.bin, bin_, cmap="binary")
-            axconf.set_xlabel("Actual position (cm)")
-            axconf.set_ylabel("Estimated position (cm)")
-            axconf.set_title("Confusion matrix")
+            # axconf = plt.subplot(gs[:, 3])
+            # actual_ = self.actualpos[np.where(meanspeed > 20)[0]]
+            # decoded_ = self.decodedPos[np.where(meanspeed > 20)[0]]
+            # bin_ = np.histogram2d(
+            #     decoded_, actual_, bins=[self.pf2d.bin, self.pf2d.bin]
+            # )[0]
+            # bin_ = bin_ / np.max(bin_, axis=0, keepdims=True)
+            # axconf.pcolormesh(self.pf2d.bin, self.pf2d.bin, bin_, cmap="binary")
+            # axconf.set_xlabel("Actual position (cm)")
+            # axconf.set_ylabel("Estimated position (cm)")
+            # axconf.set_title("Confusion matrix")
 
-    def decode(self, epochs, binsize=0.02, slideby=0.005):
+    def decode_events(self, binsize=0.02, slideby=0.005):
 
-        assert isinstance(epochs, pd.DataFrame)
+        events = self.events
 
         spks = self._spks
         Ncells = len(spks)
-        # self.fit()
         ratemap = self.ratemap
         gridcntr = self.gridcenter
 
-        nbins = np.zeros(len(epochs))
+        nbins = np.zeros(len(events))
         spkcount = []
-        for i, epoch in enumerate(epochs.itertuples()):
-            bins = np.arange(epoch.start, epoch.end - binsize, slideby)
+        for i, event in enumerate(events.itertuples()):
+            bins = np.arange(event.start, event.end - binsize, slideby)
             nbins[i] = len(bins)
             for j in bins:
                 spkcount.append(

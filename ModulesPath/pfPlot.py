@@ -496,28 +496,21 @@ class pf2d:
         # NRK todo: might be nicer to make spk_pos, spk_t, maps, and occupancy into two separate dicts: no thresh, speed_thresh
         self.spk_pos = spk_pos
         self.spk_t = spk_t
-        self.maps = maps
-        self.run_spk_pos = run_spk_pos
-        self.run_spk_t = run_spk_t
-        self.run_maps = run_maps
+        self.ratemaps = maps
+        # self.run_spk_pos = run_spk_pos
+        # self.run_spk_t = run_spk_t
+        # self.run_maps = run_maps
         self.speed = speed
         self.x = x
         self.y = y
         self.t = t
         self.occupancy = occupancy
-        self.run_occupancy = run_occupancy
+        # self.run_occupancy = run_occupancy
         self.xgrid = x_grid
         self.ygrid = y_grid
+        self.gridbin = gridbin
         self.speed_thresh = speed_thresh
-
-        self.ratemaps = {
-            "pos": spk_pos,
-            "spikes": spk_t,
-            "ratemaps": maps,
-            "occupancy": occupancy,
-        }
-
-        self.ratemaps = {"ratemaps": maps, "occupancy": occupancy}
+        self.period = period
 
     def plotMap(self, speed_thresh=False, subplots=(7, 4), fignum=None):
         """Plots heatmaps of placefields with peak firing rate
