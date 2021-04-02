@@ -277,10 +277,27 @@ class Recinfo:
 
         return eeg_
 
-    def getPxx(self, chans, timeRange=None):
-        eeg = self.geteeg(chans=chans, timeRange=timeRange)
+    def getPxx(self, chan, window=2, overlap=1, period=None):
+        """Get powerspectrum
+
+        Parameters
+        ----------
+        chan : int
+            channel for which to calculate the power spectrum
+        period : list/array, optional
+            lfp is restricted to only this period, by default None
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        eeg = self.geteeg(chans=chan, timeRange=period)
         f, pxx = sg.welch(
-            eeg, fs=self.lfpSrate, nperseg=2 * self.lfpSrate, noverlap=self.lfpSrate
+            eeg,
+            fs=self.lfpSrate,
+            nperseg=int(window * self.lfpSrate),
+            noverlap=int(overlap * self.lfpSrate),
         )
         return f, pxx
 
