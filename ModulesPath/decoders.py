@@ -562,9 +562,18 @@ class bayes2d(Bayes):
         """
 
         events = self.events
-
         spks = Spikes(self._obj).pyr
-        Ncells = len(spks)
+        # ---- selecting cells for which ratemaps were calculated -------
+        ratemap_cell_ids = self.pf2d.cell_ids
+        all_cell_ids = Spikes(self._obj).pyrid
+        spks = [
+            spks[i]
+            for i, cell_id in enumerate(all_cell_ids)
+            if cell_id in ratemap_cell_ids
+        ]
+
+        nCells = len(spks)
+        print(nCells)
         ratemaps = self.pf2d.ratemaps
         speed = self.pf2d.speed
         t = self.pf2d.t
@@ -582,6 +591,7 @@ class bayes2d(Bayes):
         xy_center = np.hstack((x_center, y_center))
         gridcenter = xy_center.T
 
+        # ---- Binning events and calculating spike counts --------
         nbins = np.zeros(len(events))
         spkcount = []
         for i, event in enumerate(events.itertuples()):

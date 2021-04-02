@@ -567,7 +567,9 @@ class pf2d:
             )  # rot90(flipud... is necessary to match plotRaw configuration.
             # max_frate =
             ax1.axis("off")
-            ax1.set_title(f"{round(np.nanmax(pfmap),2)} Hz")
+            ax1.set_title(
+                f"Cell {self.cell_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
+            )
 
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
             # cbar = fig.colorbar(im, cax=cbar_ax)
@@ -575,7 +577,6 @@ class pf2d:
 
     def plotRaw(
         self,
-        speed_thresh=False,
         subplots=(10, 8),
         fignum=None,
         alpha=0.5,
@@ -593,10 +594,7 @@ class pf2d:
             ), "Number of axes must match number of clusters to plot"
             fig = ax[0].get_figure()
 
-        if not speed_thresh:
-            spk_pos_use = self.spk_pos
-        elif speed_thresh:
-            spk_pos_use = self.run_spk_pos
+        spk_pos_use = self.spk_pos
 
         if clus_use is not None:
             spk_pos_tmp = spk_pos_use
@@ -616,14 +614,9 @@ class pf2d:
                 info = self._obj.spikes.info.iloc[cell]
                 ax1.set_title("Cell " + str(info["id"]))
 
-        if speed_thresh:
-            fig.suptitle(
-                "Place maps for cells with their peak firing rate (with speed threshold)"
-            )
-        elif not speed_thresh:
-            fig.suptitle(
-                "Place maps for cells with their peak firing rate (no speed threshold)"
-            )
+        fig.suptitle(
+            f"Place maps for cells with their peak firing rate (frate thresh={self.peak_frate},speed_thresh={self.speed_thresh})"
+        )
 
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
         if ax is None:
