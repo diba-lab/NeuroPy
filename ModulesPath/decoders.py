@@ -546,58 +546,81 @@ class bayes2d(Bayes):
             # axconf.set_title("Confusion matrix")
 
     def decode_events(self, binsize=0.02, slideby=0.005):
+        """Decodes position within events which are set using self.events
+
+        Parameters
+        ----------
+        binsize : float, seconds, optional
+            size of binning withing each events, by default 0.02
+        slideby : float, seconds optional
+            sliding by this much, by default 0.005
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
 
         events = self.events
+        spks = Spikes(self._obj).pyr
+        # ---- selecting cells for which ratemaps were calculated -------
+        ratemap_cell_ids = self.pf2d.cell_ids
+        all_cell_ids = Spikes(self._obj).pyrid
+        spks = [
+            spks[i]
+            for i, cell_id in enumerate(all_cell_ids)
+            if cell_id in ratemap_cell_ids
+        ]
 
-        spks = self._spks
-        Ncells = len(spks)
-        ratemap = self.ratemap
-        gridcntr = self.gridcenter
+        nCells = len(spks)
+        print(nCells)
+        ratemaps = self.pf2d.ratemaps
+        speed = self.pf2d.speed
+        t = self.pf2d.t
+        x = self.pf2d.x
+        y = self.pf2d.y
 
+        mesh = np.meshgrid(
+            self.pf2d.xgrid[:-1] + self.pf2d.gridbin / 2,
+            self.pf2d.ygrid[:-1] + self.pf2d.gridbin / 2,
+        )
+        ngrid_centers_x = mesh[0].size
+        ngrid_centers_y = mesh[1].size
+        x_center = np.reshape(mesh[0], [ngrid_centers_x, 1])
+        y_center = np.reshape(mesh[1], [ngrid_centers_y, 1])
+        xy_center = np.hstack((x_center, y_center))
+        gridcenter = xy_center.T
+
+        # ---- Binning events and calculating spike counts --------
         nbins = np.zeros(len(events))
         spkcount = []
         for i, event in enumerate(events.itertuples()):
-            bins = np.arange(event.start, event.end - binsize, slideby)
-            nbins[i] = len(bins)
-            for j in bins:
-                spkcount.append(
-                    np.asarray(
-                        [np.histogram(_, bins=[j, j + binsize])[0] for _ in spks]
-                    )
-                )
+            # first dividing in 1ms
+            bins = np.arange(event.start, event.end, 0.001)
+            spkcount_ = np.asarray([np.histogram(_, bins=bins)[0] for _ in spks])
+            slide_view = np.lib.stride_tricks.sliding_window_view(
+                spkcount_, int(binsize * 1000), axis=1
+            )[:, :: int(slideby * 1000), :].sum(axis=2)
 
+            nbins[i] = slide_view.shape[1]
+            spkcount.append(slide_view)
         spkcount = np.hstack(spkcount)
-        print(spkcount.shape)
 
-        """ 
-        ===========================
-        Probability is calculated using this formula
-        prob = (1 / nspike!)* ((0.1 * frate)^nspike) * exp(-0.1 * frate)
-        =========================== 
-        """
+        # ---- linearize 2d ratemaps -------
+        # transpose ratemap to match with meshgrid
+        ratemaps = np.asarray([ratemap.T.flatten() for ratemap in ratemaps])
 
-        cell_prob = np.zeros((ratemap.shape[1], spkcount.shape[1], Ncells))
-        for cell in range(Ncells):
-            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
-            cell_ratemap = ratemap[cell, :][:, np.newaxis]
+        posterior = self._decoder(spkcount=spkcount, ratemaps=ratemaps)
 
-            coeff = 1 / (factorial(cell_spkcnt))
-            # broadcasting
-            cell_prob[:, :, cell] = (((0.1 * cell_ratemap) ** cell_spkcnt) * coeff) * (
-                np.exp(-0.1 * cell_ratemap)
-            )
-        posterior = np.prod(cell_prob, axis=2)
-        posterior /= np.sum(posterior, axis=0)
-
-        decodedPos = gridcntr[:, np.argmax(posterior, axis=0)]
+        decodedPos = gridcenter[:, np.argmax(posterior, axis=0)]
         cum_nbins = np.append(0, np.cumsum(nbins)).astype(int)
 
-        posterior = [
+        self.posterior = [
             posterior[:, cum_nbins[i] : cum_nbins[i + 1]]
             for i in range(len(cum_nbins) - 1)
         ]
 
-        decodedPos = [
+        self.decodedPos = [
             decodedPos[:, cum_nbins[i] : cum_nbins[i + 1]]
             for i in range(len(cum_nbins) - 1)
         ]
