@@ -1037,16 +1037,17 @@ class Theta:
         hil_theta = signal_process.hilbertfast(thetalfp)
         theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
 
-        angle_bin = np.arange(0, 360 - binsize, slideby)
-        if slideby is None:
-            slideby = binsize
-            angle_bin = np.arange(0, 360, slideby)
-        angle_centers = angle_bin + binsize / 2
+        # --- sliding windows--------
+        angle_bin = np.arange(0, 361)
+        slide_angles = np.lib.stride_tricks.sliding_window_view(angle_bin, binsize)[
+            ::slideby, :
+        ]
+        angle_centers = np.mean(slide_angles, axis=1)
 
         y_at_phase = []
-        for phase in angle_bin:
+        for phase in slide_angles:
             y_at_phase.append(
-                y[np.where((theta_angle >= phase) & (theta_angle < phase + binsize))[0]]
+                y[np.where((theta_angle >= phase[0]) & (theta_angle <= phase[-1]))[0]]
             )
 
         return y_at_phase, angle_bin, angle_centers
