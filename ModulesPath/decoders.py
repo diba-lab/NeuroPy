@@ -477,36 +477,33 @@ class bayes2d(Bayes):
 
     def estimate_behavior(self, binsize=0.25, smooth=1, plot=True):
 
-        spikes = Spikes(self._obj).pyr
+        ratemap_cell_ids = self.pf2d.cell_ids
+        spks = Spikes(self._obj).get_cells(ids=ratemap_cell_ids)
         ratemaps = self.pf2d.ratemaps
         speed = self.pf2d.speed
+        xgrid = self.pf2d.xgrid
+        ygrid = self.pf2d.ygrid
+        gridbin = self.pf2d.gridbin
+        gridcenter = self.pf2d.gridcenter
+
+        # --- average position in each time bin and which gridbin it belongs to ----
         t = self.pf2d.t
         x = self.pf2d.x
         y = self.pf2d.y
-
-        mesh = np.meshgrid(
-            self.pf2d.xgrid[:-1] + self.pf2d.gridbin / 2,
-            self.pf2d.ygrid[:-1] + self.pf2d.gridbin / 2,
-        )
-        ngrid_centers_x = mesh[0].size
-        ngrid_centers_y = mesh[1].size
-        x_center = np.reshape(mesh[0], [ngrid_centers_x, 1])
-        y_center = np.reshape(mesh[1], [ngrid_centers_y, 1])
-        xy_center = np.hstack((x_center, y_center))
-        gridcenter = xy_center.T
-
         period = self.pf2d.period
         tmz = np.arange(period[0], period[1], binsize)
         actualposx = stats.binned_statistic(t, values=x, bins=tmz)[0]
         actualposy = stats.binned_statistic(t, values=y, bins=tmz)[0]
-        meanspeed = stats.binned_statistic(t[1:], speed, bins=tmz)[0]
         actualpos = np.vstack((actualposx, actualposy))
 
-        spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spikes])
+        actualbin_x = xgrid[np.digitize(actualposx, bins=xgrid) - 1] + gridbin / 2
+        actualbin_y = ygrid[np.digitize(actualposy, bins=ygrid) - 1] + gridbin / 2
+        self.actualbin = np.vstack((actualbin_x, actualbin_y))
 
-        # ---- linearize 2d ratemaps -------
-        # transpose ratemap to match with meshgrid
-        ratemaps = np.asarray([ratemap.T.flatten() for ratemap in ratemaps])
+        # ---- spike counts and linearize 2d ratemaps -------
+        spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spks])
+        spkcount = gaussian_filter1d(spkcount, sigma=3, axis=1)
+        ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
 
         self.posterior = self._decoder(spkcount=spkcount, ratemaps=ratemaps)
         self.decodedPos = gridcenter[:, np.argmax(self.posterior, axis=0)]
@@ -516,34 +513,24 @@ class bayes2d(Bayes):
         if plot:
             _, gs = Fig().draw(grid=(4, 4), size=(15, 6))
             axposx = plt.subplot(gs[0, :3])
-            axposx.plot(self.actualpos[1, :], "k")
+            axposx.plot(self.actualbin[0, :], "k")
             axposx.set_ylabel("Actual position")
 
             axdecx = plt.subplot(gs[1, :3], sharex=axposx)
-            axdecx.plot(
-                gaussian_filter1d(self.decodedPos[1, :], sigma=smooth),
-                "gray",
-            )
+            axdecx.plot(self.decodedPos[0, :], "gray")
             axdecx.set_ylabel("Decoded position")
 
-            # axpost = plt.subplot(gs[2, :3], sharex=axpos)
-            # axpost.pcolormesh(
-            #     self.posterior / np.max(self.posterior, axis=0, keepdims=True),
-            #     cmap="binary",
-            # )
-            # axpost.set_ylabel("Posterior")
+            axposy = plt.subplot(gs[2, :3], sharex=axposx)
+            axposy.plot(self.actualpos_gridcntr[1, :], "k")
+            axposy.set_ylabel("Actual position")
 
-            # axconf = plt.subplot(gs[:, 3])
-            # actual_ = self.actualpos[np.where(meanspeed > 20)[0]]
-            # decoded_ = self.decodedPos[np.where(meanspeed > 20)[0]]
-            # bin_ = np.histogram2d(
-            #     decoded_, actual_, bins=[self.pf2d.bin, self.pf2d.bin]
-            # )[0]
-            # bin_ = bin_ / np.max(bin_, axis=0, keepdims=True)
-            # axconf.pcolormesh(self.pf2d.bin, self.pf2d.bin, bin_, cmap="binary")
-            # axconf.set_xlabel("Actual position (cm)")
-            # axconf.set_ylabel("Estimated position (cm)")
-            # axconf.set_title("Confusion matrix")
+            axdecy = plt.subplot(gs[3, :3], sharex=axposx)
+            axdecy.plot(
+                # self.decodedPos,
+                self.decodedPos[1, :],
+                "gray",
+            )
+            axdecy.set_ylabel("Decoded position")
 
     def decode_events(self, binsize=0.02, slideby=0.005):
         """Decodes position within events which are set using self.events
@@ -562,37 +549,16 @@ class bayes2d(Bayes):
         """
 
         events = self.events
-        spks = Spikes(self._obj).pyr
-        # ---- selecting cells for which ratemaps were calculated -------
         ratemap_cell_ids = self.pf2d.cell_ids
-        all_cell_ids = Spikes(self._obj).pyrid
-        spks = [
-            spks[i]
-            for i, cell_id in enumerate(all_cell_ids)
-            if cell_id in ratemap_cell_ids
-        ]
-
+        spks = Spikes(self._obj).get_cells(ids=ratemap_cell_ids)
         nCells = len(spks)
-        print(nCells)
-        ratemaps = self.pf2d.ratemaps
-        speed = self.pf2d.speed
-        t = self.pf2d.t
-        x = self.pf2d.x
-        y = self.pf2d.y
+        print(f"Number of cells/ratemaps in pf2d: {nCells}")
 
-        mesh = np.meshgrid(
-            self.pf2d.xgrid[:-1] + self.pf2d.gridbin / 2,
-            self.pf2d.ygrid[:-1] + self.pf2d.gridbin / 2,
-        )
-        ngrid_centers_x = mesh[0].size
-        ngrid_centers_y = mesh[1].size
-        x_center = np.reshape(mesh[0], [ngrid_centers_x, 1])
-        y_center = np.reshape(mesh[1], [ngrid_centers_y, 1])
-        xy_center = np.hstack((x_center, y_center))
-        gridcenter = xy_center.T
+        ratemaps = self.pf2d.ratemaps
+        gridcenter = self.pf2d.gridcenter
 
         # ---- Binning events and calculating spike counts --------
-        nbins = np.zeros(len(events))
+        nbins = np.zeros(len(events), dtype="int")
         spkcount = []
         for i, event in enumerate(events.itertuples()):
             # first dividing in 1ms
@@ -607,23 +573,15 @@ class bayes2d(Bayes):
         spkcount = np.hstack(spkcount)
 
         # ---- linearize 2d ratemaps -------
-        # transpose ratemap to match with meshgrid
-        ratemaps = np.asarray([ratemap.T.flatten() for ratemap in ratemaps])
+        ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
 
         posterior = self._decoder(spkcount=spkcount, ratemaps=ratemaps)
-
         decodedPos = gridcenter[:, np.argmax(posterior, axis=0)]
-        cum_nbins = np.append(0, np.cumsum(nbins)).astype(int)
 
-        self.posterior = [
-            posterior[:, cum_nbins[i] : cum_nbins[i + 1]]
-            for i in range(len(cum_nbins) - 1)
-        ]
-
-        self.decodedPos = [
-            decodedPos[:, cum_nbins[i] : cum_nbins[i + 1]]
-            for i in range(len(cum_nbins) - 1)
-        ]
+        # --- splitting concatenated time bins into separate arrays ------
+        cum_nbins = np.cumsum(nbins)[:-1]
+        self.posterior = np.hsplit(posterior, cum_nbins)
+        self.decodedPos = np.hsplit(decodedPos, cum_nbins)
 
         return decodedPos, posterior
 

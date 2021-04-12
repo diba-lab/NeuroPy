@@ -104,6 +104,22 @@ class Spikes:
             self.muaid = np.where(self.info.celltype == "mua")[0]
             self.mua = [self.times[_] for _ in self.muaid]
 
+    def get_cells(self, ids):
+        """Get spike times corresponding to given cell ids
+
+        Parameters
+        ----------
+        ids : [type]
+            [description]
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        spks = [self.times[_] for _ in ids]
+        return spks
+
     @property
     def instfiring(self):
         if self.files.instfiring.is_file():
@@ -775,15 +791,6 @@ class Correlation:
             [description], by default 0.25
         """
 
-        # spikes = Spikes(self._obj)
-
-        # # ----- choosing cells ----------------
-        # spks = spikes.times
-        # stability = spikes.stability.info
-        # stable_pyr = np.where((stability.q < 4) & (stability.stable == 1))[0]
-        # print(f"Calculating EV for {len(stable_pyr)} stable cells")
-        # spks = [spks[_] for _ in stable_pyr]
-
         epochs = np.arange(period[0], period[1], window)
 
         pair_corr_epoch = []
@@ -796,8 +803,10 @@ class Correlation:
 
         # masking nan values in the array
         pair_corr_epoch = np.ma.array(pair_corr_epoch, mask=np.isnan(pair_corr_epoch))
-        self.corr = np.ma.corrcoef(pair_corr_epoch)  # correlation across windows
-        self.time = epochs[:-1] + window / 2
+        corr = np.ma.corrcoef(pair_corr_epoch)  # correlation across windows
+        time = epochs[:-1] + window / 2
+        self.corr, self.time = corr, time
+        return np.asarray(corr), time
 
     def pairwise(self, spikes, period, binsize=0.25):
         """Calculates pairwise correlation between given spikes within given period

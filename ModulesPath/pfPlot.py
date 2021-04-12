@@ -439,8 +439,8 @@ class pf2d:
         y = ycoord[ind_maze]
         t = time[ind_maze]
 
-        x_grid = np.arange(min(x), max(x), gridbin)
-        y_grid = np.arange(min(y), max(y), gridbin)
+        x_grid = np.arange(min(x), max(x) + gridbin, gridbin)
+        y_grid = np.arange(min(y), max(y) + gridbin, gridbin)
         # x_, y_ = np.meshgrid(x_grid, y_grid)
 
         diff_posx = np.diff(x)
@@ -517,6 +517,16 @@ class pf2d:
         self.speed_thresh = speed_thresh
         self.period = period
         self.peak_frate = peak_frate
+        self.mesh = np.meshgrid(
+            self.xgrid[:-1] + self.gridbin / 2,
+            self.ygrid[:-1] + self.gridbin / 2,
+        )
+        ngrid_centers_x = self.mesh[0].size
+        ngrid_centers_y = self.mesh[1].size
+        x_center = np.reshape(self.mesh[0], [ngrid_centers_x, 1], order="F")
+        y_center = np.reshape(self.mesh[1], [ngrid_centers_y, 1], order="F")
+        xy_center = np.hstack((x_center, y_center))
+        self.gridcenter = xy_center.T
 
     def plotMap(self, subplots=(7, 4), fignum=None):
         """Plots heatmaps of placefields with peak firing rate
@@ -611,8 +621,8 @@ class pf2d:
             ax1.axis("off")
             if label_cells:
                 # Put info on title
-                info = self._obj.spikes.info.iloc[cell]
-                ax1.set_title("Cell " + str(info["id"]))
+                info = self.cell_ids[cell]
+                ax1.set_title(f"Cell {info}")
 
         fig.suptitle(
             f"Place maps for cells with their peak firing rate (frate thresh={self.peak_frate},speed_thresh={self.speed_thresh})"
