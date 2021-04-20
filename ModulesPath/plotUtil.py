@@ -117,6 +117,10 @@ class Fig:
 
         if style == "Pres":
             mpl.rcParams["axes.labelsize"] = 10
+            mpl.rcParams["axes.titlesize"] = 10
+            mpl.rcParams["xtick.labelsize"] = 10
+            mpl.rcParams["ytick.labelsize"] = 10
+            mpl.rcParams["axes.spines.top"] = False
 
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
