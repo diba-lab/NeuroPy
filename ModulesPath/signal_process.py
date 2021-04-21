@@ -515,8 +515,41 @@ class bicoherence:
         cb.outline.set_linewidth(0.5)
 
 
-def phasePowerCorrelation(signal):
-    pass
+def power_correlation(signal, fs=1250, window=2, overlap=1, fband=None):
+    """Power power correlation between frequencies
+
+    Parameters
+    ----------
+    signal : [type]
+        timeseries for which to calculate
+    fs : int, optional
+        sampling frequency of the signal, by default 1250
+    window : int, optional
+        window size for calculating spectrogram, by default 2
+    overlap : int, optional
+        overlap between adjacent windows, by default 1
+    fband : [type], optional
+        return correlations between these frequencies only, by default None
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    f, t, sxx = sg.spectrogram(
+        signal, fs=fs, nperseg=int(window * fs), noverlap=(overlap * fs)
+    )
+    if fband is not None:
+        assert len(fband) == 2, "fband length should of length of 2"
+        f_req_ind = np.where((1 < f) & (f < 100))[0]
+        f_req = f[f_req_ind]
+        corr_freq = np.corrcoef(sxx[f_req_ind, :])
+    else:
+        corr_freq = np.corrcoef(sxx)
+
+    np.fill_diagonal(corr_freq, val=0)
+
+    return f_req, corr_freq
 
 
 @dataclass

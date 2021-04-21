@@ -14,7 +14,6 @@ from plotUtil import Fig, pretty_plot
 from track import Track
 from signal_process import ThetaParams
 
-
 class pf:
     def __init__(self, basepath):
         if isinstance(basepath, Recinfo):

@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from pathlib import Path
 from dataclasses import dataclass
+from scipy.ndimage.measurements import histogram
 import scipy.signal as sg
 import matplotlib.gridspec as gridspec
 import matplotlib as mpl
@@ -120,6 +121,11 @@ class Spikes:
         spks = [self.times[_] for _ in ids]
         return spks
 
+    def get_spkcounts(self, cell_ids, period, binsize=0.25):
+        """Get binned spike counts within a period for the given cells"""
+        bins = np.arange(period[0], period[1] + binsize, binsize)
+        return np.asarray([np.histogram(self.times[_], bins=bins)[0] for _ in cell_ids])
+
     @property
     def instfiring(self):
         if self.files.instfiring.is_file():
@@ -155,7 +161,8 @@ class Spikes:
 
         return gaussian
 
-    def firing_rate(self, spikes, period):
+    def firing_rate(self, cell_ids, period):
+        spikes = self.get_cells(cell_ids)
         duration = np.diff(period)
         return np.asarray([np.histogram(_, bins=period)[0] for _ in spikes]) / duration
 
@@ -778,7 +785,7 @@ class Correlation:
         else:
             self._obj = Recinfo(basepath)
 
-    def across_time_window(self, spikes, period, window=300, binsize=0.25, **kwargs):
+    def across_time_window(self, cell_ids, period, window=300, binsize=0.25, **kwargs):
         """Correlation of pairwise correlation across a period by dividing into window size epochs
 
         Parameters
@@ -791,6 +798,7 @@ class Correlation:
             [description], by default 0.25
         """
 
+        spikes = Spikes(self._obj).get_cells(cell_ids)
         epochs = np.arange(period[0], period[1], window)
 
         pair_corr_epoch = []

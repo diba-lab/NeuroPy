@@ -324,7 +324,7 @@ class CellAssemblyICA:
         else:
             self._obj = Recinfo(basepath)
 
-    def getAssemblies(self, period, spikes=None, bnsz=0.25):
+    def getAssemblies(self, cell_ids, period, bnsz=0.25):
         """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive (as done in Gido M. van de Ven et al. 2016) V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights
 
         Arguments:
@@ -333,8 +333,8 @@ class CellAssemblyICA:
         Returns:
             [type] -- [Independent assemblies]
         """
-        if spikes is None:
-            spikes = Spikes(self._obj).pyr
+
+        spikes = Spikes(self._obj).get_cells(cell_ids)
 
         template_bin = np.arange(period[0], period[1], bnsz)
         template = np.asarray(
@@ -342,10 +342,10 @@ class CellAssemblyICA:
         )
 
         # --- removing very low firing cells -----
-        nspikes = np.sum(template, axis=1)
-        good_cells = np.where(nspikes > 10)[0]
-        template = template[good_cells, :]
-        spikes = [spikes[_] for _ in good_cells]
+        # nspikes = np.sum(template, axis=1)
+        # good_cells = np.where(nspikes > 10)[0]
+        # template = template[good_cells, :]
+        # spikes = [spikes[_] for _ in good_cells]
 
         zsc_template = stats.zscore(template, axis=1)
 
