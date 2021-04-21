@@ -1037,6 +1037,9 @@ class Theta:
         hil_theta = signal_process.hilbertfast(thetalfp)
         theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
 
+        if slideby is None:
+            slideby = binsize
+
         # --- sliding windows--------
         angle_bin = np.arange(0, 361)
         slide_angles = np.lib.stride_tricks.sliding_window_view(angle_bin, binsize)[
