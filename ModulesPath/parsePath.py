@@ -301,6 +301,37 @@ class Recinfo:
         )
         return f, pxx
 
+    def get_specgram(self, chan, window=5, overlap=2, period=None, **kwargs):
+        """Get spectrogram for a given lfp channel (from .eeg file)
+
+        Parameters
+        ----------
+        chan : int
+            channel number
+        window : float, optional
+            size of the window, in seconds, by default 5
+        overlap : float, optional
+            overlap between adjacent window, in seconds, by default 2
+        period : list, optional
+            calculate spectrogram within this period only, list of length 2, in seconds, by default None
+
+        Returns
+        -------
+        list of arrays
+            frequency, time in seconds, spectrogram
+        """
+
+        lfp = self.geteeg(chans=chan, timeRange=period)
+        f, t, sxx = sg.spectrogram(
+            lfp,
+            fs=self.lfpSrate,
+            nperseg=window * self.lfpSrate,
+            noverlap=overlap * self.lfpSrate,
+            **kwargs,
+        )
+
+        return f, t, sxx
+
     def loadmetadata(self):
         metadatafile = Path(str(self.files.filePrefix) + "_metadata.csv")
         metadata = pd.read_csv(metadatafile)
