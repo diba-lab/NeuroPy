@@ -59,7 +59,6 @@ class Spikes:
             instfiring: str = Path(str(filePrefix) + "_instfiring.pkl")
 
         self.files = files()
-        self.corr = Correlation(self._obj)
 
         filename = self.files.spikes
         if filename.is_file():
@@ -120,6 +119,22 @@ class Spikes:
         """
         spks = [self.times[_] for _ in ids]
         return spks
+
+    def get_shankID(self, cell_ids):
+        """Extracts shank location for the given cells
+
+        Parameters
+        ----------
+        cell_ids : array_like
+            cell identity
+
+        Returns
+        -------
+        array
+            list/array of shank location
+        """
+
+        return np.array([self.info.shank.values[_] for _ in cell_ids])
 
     def get_spkcounts(self, cell_ids, period, binsize=0.25):
         """Get binned spike counts within a period for the given cells"""
@@ -676,6 +691,100 @@ class Spikes:
                 for frame in spikes_sorted:
                     f_res.write(f"{frame}\n")
 
+    def corr_pairwise(
+        self,
+        cell_ids,
+        period,
+        cross_shanks=False,
+        binsize=0.25,
+        window=None,
+        slideby=None,
+    ):
+        """Calculates pairwise correlation between given spikes within given period
+
+        Parameters
+        ----------
+        spikes : list
+            list of spike times
+        period : list
+            time period within which it is calculated , in seconds
+        cross_shanks: bool,
+            whether restrict pairs to only across shanks, by default False (all pairs)
+        binsize : float, optional
+            binning of the time period, by default 0.25 seconds
+
+        Returns
+        -------
+        N-pairs
+            pairwise correlations
+        """
+
+        spikes = self.get_cells(cell_ids)
+        bins = np.arange(period[0], period[1], binsize)
+        spk_cnts = np.asarray([np.histogram(cell, bins=bins)[0] for cell in spikes])
+
+        time_points = None
+        if window is not None:
+            nbins_window = int(window / binsize)
+            if slideby is None:
+                slideby = window
+            nbins_slide = int(slideby / binsize)
+            spk_cnts = np.lib.stride_tricks.sliding_window_view(
+                spk_cnts, nbins_window, axis=1
+            )[:, ::nbins_slide, :]
+            time_points = np.lib.stride_tricks.sliding_window_view(
+                bins, nbins_window, axis=-1
+            )[::nbins_slide, :].mean(axis=-1)
+
+        # ----- indices for cross shanks correlation -------
+        shnkId = self.get_shankID(cell_ids)
+        selected_pairs = np.tril_indices(len(cell_ids), k=-1)
+        if cross_shanks:
+            selected_pairs = np.nonzero(
+                np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1))
+            )
+
+        corr = []
+        if spk_cnts.ndim == 2:
+            corr = np.corrcoef(spk_cnts)[selected_pairs]
+        else:
+            for w in range(spk_cnts.shape[1]):
+                corr.append(np.corrcoef(spk_cnts[:, w, :])[selected_pairs])
+            corr = np.asarray(corr).T
+
+        return corr, time_points
+
+    def corr_across_time_window(self, cell_ids, period, window=300, binsize=0.25):
+        """Correlation of pairwise correlation across a period by dividing into window size epochs
+
+        Parameters
+        ----------
+        period: array like
+            time period where the pairwise correlations are calculated, in seconds
+        window : int, optional
+            dividing the period into this size window, by default 900
+        binsize : float, optional
+            [description], by default 0.25
+        """
+
+        spikes = self.get_cells(cell_ids)
+        epochs = np.arange(period[0], period[1], window)
+
+        pair_corr_epoch = []
+        for i in range(len(epochs) - 1):
+            epoch_bins = np.arange(epochs[i], epochs[i + 1], binsize)
+            spkcnt = np.asarray([np.histogram(x, bins=epoch_bins)[0] for x in spikes])
+            epoch_corr = np.corrcoef(spkcnt)
+            pair_corr_epoch.append(epoch_corr[np.tril_indices_from(epoch_corr, k=-1)])
+        pair_corr_epoch = np.asarray(pair_corr_epoch)
+
+        # masking nan values in the array
+        pair_corr_epoch = np.ma.array(pair_corr_epoch, mask=np.isnan(pair_corr_epoch))
+        corr = np.ma.corrcoef(pair_corr_epoch)  # correlation across windows
+        time = epochs[:-1] + window / 2
+        self.corr, self.time = corr, time
+        return np.asarray(corr), time
+
 
 class Stability:
     def __init__(self, basepath):
@@ -766,100 +875,3 @@ class Stability:
 
     def isolationDistance(self):
         pass
-
-
-class Correlation:
-    """Class for calculating pairwise correlations
-
-    Attributes
-    ----------
-    corr : matrix
-        correlation between time windows across a period of time
-    time : array
-        time points
-    """
-
-    def __init__(self, basepath):
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
-
-    def across_time_window(self, cell_ids, period, window=300, binsize=0.25, **kwargs):
-        """Correlation of pairwise correlation across a period by dividing into window size epochs
-
-        Parameters
-        ----------
-        period: array like
-            time period where the pairwise correlations are calculated, in seconds
-        window : int, optional
-            dividing the period into this size window, by default 900
-        binsize : float, optional
-            [description], by default 0.25
-        """
-
-        spikes = Spikes(self._obj).get_cells(cell_ids)
-        epochs = np.arange(period[0], period[1], window)
-
-        pair_corr_epoch = []
-        for i in range(len(epochs) - 1):
-            epoch_bins = np.arange(epochs[i], epochs[i + 1], binsize)
-            spkcnt = np.asarray([np.histogram(x, bins=epoch_bins)[0] for x in spikes])
-            epoch_corr = np.corrcoef(spkcnt)
-            pair_corr_epoch.append(epoch_corr[np.tril_indices_from(epoch_corr, k=-1)])
-        pair_corr_epoch = np.asarray(pair_corr_epoch)
-
-        # masking nan values in the array
-        pair_corr_epoch = np.ma.array(pair_corr_epoch, mask=np.isnan(pair_corr_epoch))
-        corr = np.ma.corrcoef(pair_corr_epoch)  # correlation across windows
-        time = epochs[:-1] + window / 2
-        self.corr, self.time = corr, time
-        return np.asarray(corr), time
-
-    def pairwise(self, spikes, period, binsize=0.25):
-        """Calculates pairwise correlation between given spikes within given period
-
-        Parameters
-        ----------
-        spikes : list
-            list of spike times
-        period : list
-            time period within which it is calculated , in seconds
-        binsize : float, optional
-            binning of the time period, by default 0.25 seconds
-
-        Returns
-        -------
-        N-pairs
-            pairwise correlations
-        """
-        bins = np.arange(period[0], period[1], binsize)
-        spk_cnts = np.asarray([np.histogram(cell, bins=bins)[0] for cell in spikes])
-        corr = np.corrcoef(spk_cnts)
-        return corr[np.tril_indices_from(corr, k=-1)]
-
-    def plot_across_time(self, ax=None, tstart=0, smooth=None, cmap="Spectral_r"):
-        """Plots heatmap of correlation matrix calculated in self.across_time_window()
-
-        Parameters
-        ----------
-        ax : [type], optional
-            axis to plot into, by default None
-        tstart : int, optional
-            if you want to start the time axis at some other time points, by default 0
-        cmap : str, optional
-            colormap used for heatmap, by default "Spectral_r"
-        """
-
-        corr_mat = self.corr.copy()
-        np.fill_diagonal(corr_mat, 0)
-
-        if smooth is not None:
-            corr_mat = gaussian_filter(corr_mat, sigma=smooth)
-
-        if ax is None:
-            _, ax = plt.subplots()
-
-        ax.pcolormesh(self.time - tstart, self.time - tstart, corr_mat, cmap=cmap)
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Time")
