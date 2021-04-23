@@ -691,7 +691,15 @@ class Spikes:
                 for frame in spikes_sorted:
                     f_res.write(f"{frame}\n")
 
-    def corr_pairwise(self, cell_ids, period, cross_shanks=False, window=None,binsize=0.25,slideby=):
+    def corr_pairwise(
+        self,
+        cell_ids,
+        period,
+        cross_shanks=False,
+        binsize=0.25,
+        window=None,
+        slideby=None,
+    ):
         """Calculates pairwise correlation between given spikes within given period
 
         Parameters
@@ -714,7 +722,20 @@ class Spikes:
         spikes = self.get_cells(cell_ids)
         bins = np.arange(period[0], period[1], binsize)
         spk_cnts = np.asarray([np.histogram(cell, bins=bins)[0] for cell in spikes])
-        corr = np.corrcoef(spk_cnts)
+
+        time_points = None
+        if window is not None:
+            nbins_window = int(window / binsize)
+            if slideby is None:
+                slideby = window
+            nbins_slide = int(slideby / binsize)
+            spk_cnts = np.lib.stride_tricks.sliding_window_view(
+                spk_cnts, nbins_window, axis=1
+            )[:, ::nbins_slide, :]
+            time_points = np.lib.stride_tricks.sliding_window_view(
+                bins, nbins_window, axis=-1
+            )[::nbins_slide, :].mean(axis=-1)
+
         # ----- indices for cross shanks correlation -------
         shnkId = self.get_shankID(cell_ids)
         selected_pairs = np.tril_indices(len(cell_ids), k=-1)
@@ -723,7 +744,15 @@ class Spikes:
                 np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1))
             )
 
-        return corr[selected_pairs]
+        corr = []
+        if spk_cnts.ndim == 2:
+            corr = np.corrcoef(spk_cnts)[selected_pairs]
+        else:
+            for w in range(spk_cnts.shape[1]):
+                corr.append(np.corrcoef(spk_cnts[:, w, :])[selected_pairs])
+            corr = np.asarray(corr).T
+
+        return corr, time_points
 
     def corr_across_time_window(self, cell_ids, period, window=300, binsize=0.25):
         """Correlation of pairwise correlation across a period by dividing into window size epochs
@@ -738,7 +767,7 @@ class Spikes:
             [description], by default 0.25
         """
 
-        spikes = Spikes(self._obj).get_cells(cell_ids)
+        spikes = self.get_cells(cell_ids)
         epochs = np.arange(period[0], period[1], window)
 
         pair_corr_epoch = []
