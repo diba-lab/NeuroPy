@@ -509,6 +509,25 @@ class Ripple:
 
         return ax
 
+    def plot_ripples(self, period, ax):
+        """Plot ripples between this period on a given axis
+
+        Parameters
+        ----------
+        period : list
+            list of length 2, in seconds
+        ax : axis object
+            axis
+        """
+
+        events = self.events[
+            (self.events.start > period[0]) & (self.events.start < period[1])
+        ]
+
+        for epoch in events.itertuples():
+            color = "#ff928a"
+            ax.axvspan(epoch.start, epoch.end, facecolor=color, alpha=0.7)
+
 
 class Spindle:
     lowthresholdFactor = 1.5
