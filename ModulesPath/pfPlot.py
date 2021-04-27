@@ -13,6 +13,8 @@ from parsePath import Recinfo
 from plotUtil import Fig, pretty_plot
 from track import Track
 from signal_process import ThetaParams
+from behavior import behavior_epochs
+
 
 class pf:
     def __init__(self, basepath):
@@ -59,7 +61,13 @@ class pf1d:
     #         self.ratemap = np.load(f, allow_pickle=True)
 
     def compute(
-        self, track_name, frate=1, run_dir=None, grid_bin=5, speed_thresh=0, smooth=1
+        self,
+        track_name,
+        frate_thresh=1,
+        run_dir=None,
+        grid_bin=5,
+        speed_thresh=0,
+        smooth=1,
     ):
         """computes 1d place field using linearized coordinates. It always computes two place maps with and
         without speed thresholds.
@@ -91,7 +99,9 @@ class pf1d:
         t = maze.time
         period = [np.min(t), np.max(t)]
         spks = spikes.pyr
+        cell_ids = spikes.pyrid
         xbin = np.arange(min(x), max(x), grid_bin)  # binning of x position
+        nCells = len(spks)
 
         spk_pos, spk_t, ratemap = [], [], []
 
@@ -162,15 +172,20 @@ class pf1d:
                     / occupancy
                 )
 
-        # ---- thresholding firing rate ---------
+        # ---- cells with peak frate abouve thresh ------
+        good_cells_indx = [
+            cell_indx
+            for cell_indx in range(nCells)
+            if np.max(ratemap[cell_indx]) > frate_thresh
+        ]
 
-        self.ratemaps = {
-            "pos": spk_pos,
-            "spikes": spk_t,
-            "ratemaps": ratemap,
-            "occupancy": occupancy,
-        }
+        get_elem = lambda list_: [list_[_] for _ in good_cells_indx]
 
+        self.ratemaps = get_elem(ratemap)
+        self.spk_t = get_elem(spk_t)
+        self.spk_pos = get_elem(spk_pos)
+        self.cell_ids = cell_ids[good_cells_indx]
+        self.occupancy = occupancy
         self.speed = maze.speed
         self.x = maze.linear
         self.t = maze.time
@@ -178,6 +193,52 @@ class pf1d:
         self.track_name = track_name
         self.period = period
         self.run_dir = run_dir
+        self.frate_thresh = frate_thresh
+        self.speed_thresh = speed_thresh
+
+    def lap_by_lap(self):
+        """lap by lap place field (very preliminary)
+        NOTE: it can be added to compute step, if instead of taking track_name, a time window is taken as input
+
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+
+        assert (
+            self.run_dir is not None
+        ), "Please compute using run_dir to forward or backward "
+
+        track = Track(self._obj)
+        track_srate = ExtractPosition(self._obj).tracking_sRate
+        cell_t = self.spk_t
+        cell_pos = self.spk_pos
+        track_data = track.data[self.track_name]
+        laps = track.laps[self.track_name]
+        laps = laps[laps["direction"] == self.run_dir]
+
+        # --- lap by lap occupancy ------
+        occupancy = []
+        for lap in laps.itertuples():
+            lap_pos = track_data[
+                (track_data.time > lap.start) & (track_data.time < lap.end)
+            ].linear
+            occ_ = np.histogram(lap_pos, bins=self.bin)[0] / track_srate + 1e-16
+            occupancy.append(occ_)
+
+        all_cells = []
+        for t, pos in zip(cell_t, cell_pos):
+            lap_ratemap = []
+            for lap in laps.itertuples():
+                ind = np.where((t > lap.start) & (t < lap.end))[0]
+                epoch_pos = pos[ind]
+                lap_ratemap.append(np.histogram(epoch_pos, bins=self.bin)[0])
+            lap_ratemap = np.asarray(lap_ratemap)
+            all_cells.append(lap_ratemap)
+
+        return all_cells
 
     def phase_precession(self, theta_chan):
         """Calculates phase of spikes computed for placefields
@@ -397,7 +458,7 @@ class pf2d:
             self._obj = Recinfo(basepath)
 
     def compute(
-        self, period, spikes=None, gridbin=10, speed_thresh=5, peak_frate=1, smooth=2
+        self, period, spikes=None, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2
     ):
         """Calculates 2D placefields
 
@@ -496,7 +557,7 @@ class pf2d:
         good_cells_indx = [
             cell_indx
             for cell_indx in range(nCells)
-            if np.max(maps[cell_indx]) > peak_frate
+            if np.max(maps[cell_indx]) > frate_thresh
         ]
 
         get_elem = lambda list_: [list_[_] for _ in good_cells_indx]
@@ -515,7 +576,7 @@ class pf2d:
         self.gridbin = gridbin
         self.speed_thresh = speed_thresh
         self.period = period
-        self.peak_frate = peak_frate
+        self.frate_thresh = frate_thresh
         self.mesh = np.meshgrid(
             self.xgrid[:-1] + self.gridbin / 2,
             self.ygrid[:-1] + self.gridbin / 2,
