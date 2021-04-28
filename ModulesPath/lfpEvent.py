@@ -515,6 +515,25 @@ class Ripple:
 
         return ax
 
+    def plot_ripples(self, period, ax):
+        """Plot ripples between this period on a given axis
+
+        Parameters
+        ----------
+        period : list
+            list of length 2, in seconds
+        ax : axis object
+            axis
+        """
+
+        events = self.events[
+            (self.events.start > period[0]) & (self.events.start < period[1])
+        ]
+
+        for epoch in events.itertuples():
+            color = "#ff928a"
+            ax.axvspan(epoch.start, epoch.end, facecolor=color, alpha=0.7)
+
 
 class Spindle:
     lowthresholdFactor = 1.5
@@ -1043,16 +1062,20 @@ class Theta:
         hil_theta = signal_process.hilbertfast(thetalfp)
         theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
 
-        angle_bin = np.arange(0, 360 - binsize, slideby)
         if slideby is None:
             slideby = binsize
-            angle_bin = np.arange(0, 360, slideby)
-        angle_centers = angle_bin + binsize / 2
+
+        # --- sliding windows--------
+        angle_bin = np.arange(0, 361)
+        slide_angles = np.lib.stride_tricks.sliding_window_view(angle_bin, binsize)[
+            ::slideby, :
+        ]
+        angle_centers = np.mean(slide_angles, axis=1)
 
         y_at_phase = []
-        for phase in angle_bin:
+        for phase in slide_angles:
             y_at_phase.append(
-                y[np.where((theta_angle >= phase) & (theta_angle < phase + binsize))[0]]
+                y[np.where((theta_angle >= phase[0]) & (theta_angle <= phase[-1]))[0]]
             )
 
         return y_at_phase, angle_bin, angle_centers

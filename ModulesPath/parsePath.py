@@ -277,12 +277,60 @@ class Recinfo:
 
         return eeg_
 
-    def getPxx(self, chans, timeRange=None):
-        eeg = self.geteeg(chans=chans, timeRange=timeRange)
+    def getPxx(self, chan, window=2, overlap=1, period=None):
+        """Get powerspectrum
+
+        Parameters
+        ----------
+        chan : int
+            channel for which to calculate the power spectrum
+        period : list/array, optional
+            lfp is restricted to only this period, by default None
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        eeg = self.geteeg(chans=chan, timeRange=period)
         f, pxx = sg.welch(
-            eeg, fs=self.lfpSrate, nperseg=2 * self.lfpSrate, noverlap=self.lfpSrate
+            eeg,
+            fs=self.lfpSrate,
+            nperseg=int(window * self.lfpSrate),
+            noverlap=int(overlap * self.lfpSrate),
         )
         return f, pxx
+
+    def get_specgram(self, chan, window=5, overlap=2, period=None, **kwargs):
+        """Get spectrogram for a given lfp channel (from .eeg file)
+
+        Parameters
+        ----------
+        chan : int
+            channel number
+        window : float, optional
+            size of the window, in seconds, by default 5
+        overlap : float, optional
+            overlap between adjacent window, in seconds, by default 2
+        period : list, optional
+            calculate spectrogram within this period only, list of length 2, in seconds, by default None
+
+        Returns
+        -------
+        list of arrays
+            frequency, time in seconds, spectrogram
+        """
+
+        lfp = self.geteeg(chans=chan, timeRange=period)
+        f, t, sxx = sg.spectrogram(
+            lfp,
+            fs=self.lfpSrate,
+            nperseg=window * self.lfpSrate,
+            noverlap=overlap * self.lfpSrate,
+            **kwargs,
+        )
+
+        return f, t, sxx
 
     def loadmetadata(self):
         metadatafile = Path(str(self.files.filePrefix) + "_metadata.csv")

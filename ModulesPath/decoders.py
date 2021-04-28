@@ -17,6 +17,58 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 
 
+class Bayes:
+    binsize = 0.02
+    n_jobs = 8
+
+    def __init__(self):
+        self._events = None
+        self.posterior = None
+        self.decodedPos = None
+
+    @property
+    def events(self):
+        return self._events
+
+    @events.setter
+    def events(self, events: pd.DataFrame):
+
+        if isinstance(events, pd.DataFrame):
+            assert (
+                pd.Series(["start", "end"]).isin(events.columns).all()
+            ), "events should have start and end as column names"
+        elif isinstance(events, np.ndarray):
+            events = pd.DataFrame({"start": events[:, 0], "end": events[:, 1]})
+        self._events = events
+
+    def _decoder(self, spkcount, ratemaps):
+        """
+        ===========================
+        Probability is calculated using this formula
+        prob = (1 / nspike!)* ((tau * frate)^nspike) * exp(-tau * frate)
+        where,
+            tau = binsize
+        ===========================
+        """
+        tau = self.binsize
+        nCells = spkcount.shape[0]
+        cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
+        for cell in range(nCells):
+            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
+            cell_ratemap = ratemaps[cell, :][:, np.newaxis]
+
+            coeff = 1 / (factorial(cell_spkcnt))
+            # broadcasting
+            cell_prob[:, :, cell] = (((tau * cell_ratemap) ** cell_spkcnt) * coeff) * (
+                np.exp(-tau * cell_ratemap)
+            )
+
+        posterior = np.prod(cell_prob, axis=2)
+        posterior /= np.sum(posterior, axis=0)
+
+        return posterior
+
+
 class DecodeBehav:
     def __init__(self, pf1d_obj: pf1d, pf2d_obj: pf2d):
 
@@ -416,174 +468,120 @@ class Bayes1d:
                 axdec.set_xlabel("Time (ms)")
 
 
-class bayes2d:
+class bayes2d(Bayes):
     def __init__(self, pf2d_obj: pf2d):
 
         assert isinstance(pf2d_obj, pf2d)
         self._obj = pf2d_obj._obj
-        self.ratemaps = pf2d_obj
+        self.pf2d = pf2d_obj
 
-    def fit(self):
-        trackingSrate = self._obj.position.tracking_sRate
-        spkAll = self._obj.spikes.pyr
-        x = self._obj.position.x
-        y = self._obj.position.y
-        t = self._obj.position.t
-        maze = self._obj.epochs.maze  # in seconds
+    def estimate_behavior(self, binsize=0.25, smooth=1, plot=True):
 
-        # --- we require only maze portion -----
-        ind_maze = np.where((t > maze[0]) & (t < maze[1]))
-        x = x[ind_maze]
-        y = y[ind_maze]
-        t = t[ind_maze]
+        ratemap_cell_ids = self.pf2d.cell_ids
+        spks = Spikes(self._obj).get_cells(ids=ratemap_cell_ids)
+        ratemaps = self.pf2d.ratemaps
+        speed = self.pf2d.speed
+        xgrid = self.pf2d.xgrid
+        ygrid = self.pf2d.ygrid
+        gridbin = self.pf2d.gridbin
+        gridcenter = self.pf2d.gridcenter
 
-        x_grid, xstep = np.linspace(min(x), max(x), 50, retstep=True)
-        y_grid, ystep = np.linspace(min(y), max(y), 50, retstep=True)
-        mesh = np.meshgrid(x_grid[:-1] + xstep / 2, y_grid[:-1] + ystep / 2)
-        ngrid_centers = mesh[0].size
-
-        x_center = np.reshape(mesh[0], [ngrid_centers, 1])
-        y_center = np.reshape(mesh[1], [ngrid_centers, 1])
-        xy_center = np.hstack((x_center, y_center))
-
-        # ----- Speed calculation -------
-        diff_posx = np.diff(x)
-        diff_posy = np.diff(y)
-        dt = 1 / trackingSrate
-        speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / dt
-        speed_thresh = np.where(speed / dt > 0)[0]
-
-        occupancy = np.histogram2d(x, y, bins=(x_grid, y_grid))[0]
-        occupancy = (occupancy + np.spacing(1)) / trackingSrate
-        # occupancy = gaussian_filter(occupancy, sigma=1)
-
-        ratemap, spk_pos = [], []
-        for cell in spkAll:
-
-            spk_maze = cell[np.where((cell > maze[0]) & (cell < maze[1]))]
-            spk_speed = np.interp(spk_maze, t[1:], speed)
-            spk_y = np.interp(spk_maze, t, y)
-            spk_x = np.interp(spk_maze, t, x)
-
-            # speed threshold
-            spd_ind = np.where(spk_speed > 5)
-            spk_spd = spk_speed[spd_ind]
-            spk_x = spk_x[spd_ind]
-            spk_y = spk_y[spd_ind]
-            spk_t = spk_maze[spd_ind]
-
-            spk_map = np.histogram2d(spk_x, spk_y, bins=(x_grid, y_grid))[0]
-            spk_map = (gaussian_filter(spk_map / occupancy, sigma=1)).flatten("F")
-            ratemap.append(spk_map)
-            spk_pos.append([spk_x, spk_y])
-
-        self.ratemap = np.asarray(ratemap)
-        self._spks = spkAll
-        self.gridcenter = xy_center.T
-        self.grid = [x_grid, y_grid]
-
-    def estimateBehav(self, binsize=0.25):
-        ratemap = self.ratemap
-        gridcntr = self.gridcenter
-        spks = self._spks
-        speed = self._obj.position.speed
-        t = self._obj.position.t
-        x = self._obj.position.x
-        y = self._obj.position.y
-
-        maze = self._obj.epochs.maze
-        tmz = np.arange(maze[0], maze[1], binsize)
-        actualposx = binned_statistic(t, values=x, bins=tmz)[0]
-        actualposy = binned_statistic(t, values=y, bins=tmz)[0]
-        meanspeed = binned_statistic(t[1:], speed, bins=tmz)[0]
+        # --- average position in each time bin and which gridbin it belongs to ----
+        t = self.pf2d.t
+        x = self.pf2d.x
+        y = self.pf2d.y
+        period = self.pf2d.period
+        tmz = np.arange(period[0], period[1], binsize)
+        actualposx = stats.binned_statistic(t, values=x, bins=tmz)[0]
+        actualposy = stats.binned_statistic(t, values=y, bins=tmz)[0]
         actualpos = np.vstack((actualposx, actualposy))
 
+        actualbin_x = xgrid[np.digitize(actualposx, bins=xgrid) - 1] + gridbin / 2
+        actualbin_y = ygrid[np.digitize(actualposy, bins=ygrid) - 1] + gridbin / 2
+        self.actualbin = np.vstack((actualbin_x, actualbin_y))
+
+        # ---- spike counts and linearize 2d ratemaps -------
         spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spks])
+        spkcount = gaussian_filter1d(spkcount, sigma=3, axis=1)
+        ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
 
-        """ 
-        ===========================
-        Probability is calculated using this formula
-        prob = (1 / nspike!)* ((0.1 * frate)^nspike) * exp(-0.1 * frate)
-        =========================== 
-        """
-
-        Ncells = len(spks)
-        cell_prob = np.zeros((ratemap.shape[1], spkcount.shape[1], Ncells))
-        for cell in range(Ncells):
-            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
-            cell_ratemap = ratemap[cell, :][:, np.newaxis]
-
-            coeff = 1 / (factorial(cell_spkcnt))
-            # broadcasting
-            cell_prob[:, :, cell] = (((0.1 * cell_ratemap) ** cell_spkcnt) * coeff) * (
-                np.exp(-0.1 * cell_ratemap)
-            )
-
-        posterior = np.prod(cell_prob, axis=2)
-        posterior /= np.sum(posterior, axis=0)
-        self.posterior = posterior
-        self.decodedPos = gridcntr[:, np.argmax(self.posterior, axis=0)]
+        self.posterior = self._decoder(spkcount=spkcount, ratemaps=ratemaps)
+        self.decodedPos = gridcenter[:, np.argmax(self.posterior, axis=0)]
         self.decodingtime = tmz
-        self.actualPos = actualpos
-        self.speed = meanspeed
+        self.actualpos = actualpos
 
-    def decode(self, epochs, binsize=0.02, slideby=0.005):
+        if plot:
+            _, gs = Fig().draw(grid=(4, 4), size=(15, 6))
+            axposx = plt.subplot(gs[0, :3])
+            axposx.plot(self.actualbin[0, :], "k")
+            axposx.set_ylabel("Actual position")
 
-        assert isinstance(epochs, pd.DataFrame)
+            axdecx = plt.subplot(gs[1, :3], sharex=axposx)
+            axdecx.plot(self.decodedPos[0, :], "gray")
+            axdecx.set_ylabel("Decoded position")
 
-        spks = self._spks
-        Ncells = len(spks)
-        # self.fit()
-        ratemap = self.ratemap
-        gridcntr = self.gridcenter
+            axposy = plt.subplot(gs[2, :3], sharex=axposx)
+            axposy.plot(self.actualpos_gridcntr[1, :], "k")
+            axposy.set_ylabel("Actual position")
 
-        nbins = np.zeros(len(epochs))
-        spkcount = []
-        for i, epoch in enumerate(epochs.itertuples()):
-            bins = np.arange(epoch.start, epoch.end - binsize, slideby)
-            nbins[i] = len(bins)
-            for j in bins:
-                spkcount.append(
-                    np.asarray(
-                        [np.histogram(_, bins=[j, j + binsize])[0] for _ in spks]
-                    )
-                )
+            axdecy = plt.subplot(gs[3, :3], sharex=axposx)
+            axdecy.plot(
+                # self.decodedPos,
+                self.decodedPos[1, :],
+                "gray",
+            )
+            axdecy.set_ylabel("Decoded position")
 
-        spkcount = np.hstack(spkcount)
-        print(spkcount.shape)
+    def decode_events(self, binsize=0.02, slideby=0.005):
+        """Decodes position within events which are set using self.events
 
-        """ 
-        ===========================
-        Probability is calculated using this formula
-        prob = (1 / nspike!)* ((0.1 * frate)^nspike) * exp(-0.1 * frate)
-        =========================== 
+        Parameters
+        ----------
+        binsize : float, seconds, optional
+            size of binning withing each events, by default 0.02
+        slideby : float, seconds optional
+            sliding by this much, by default 0.005
+
+        Returns
+        -------
+        [type]
+            [description]
         """
 
-        cell_prob = np.zeros((ratemap.shape[1], spkcount.shape[1], Ncells))
-        for cell in range(Ncells):
-            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
-            cell_ratemap = ratemap[cell, :][:, np.newaxis]
+        events = self.events
+        ratemap_cell_ids = self.pf2d.cell_ids
+        spks = Spikes(self._obj).get_cells(ids=ratemap_cell_ids)
+        nCells = len(spks)
+        print(f"Number of cells/ratemaps in pf2d: {nCells}")
 
-            coeff = 1 / (factorial(cell_spkcnt))
-            # broadcasting
-            cell_prob[:, :, cell] = (((0.1 * cell_ratemap) ** cell_spkcnt) * coeff) * (
-                np.exp(-0.1 * cell_ratemap)
-            )
-        posterior = np.prod(cell_prob, axis=2)
-        posterior /= np.sum(posterior, axis=0)
+        ratemaps = self.pf2d.ratemaps
+        gridcenter = self.pf2d.gridcenter
 
-        decodedPos = gridcntr[:, np.argmax(posterior, axis=0)]
-        cum_nbins = np.append(0, np.cumsum(nbins)).astype(int)
+        # ---- Binning events and calculating spike counts --------
+        nbins = np.zeros(len(events), dtype="int")
+        spkcount = []
+        for i, event in enumerate(events.itertuples()):
+            # first dividing in 1ms
+            bins = np.arange(event.start, event.end, 0.001)
+            spkcount_ = np.asarray([np.histogram(_, bins=bins)[0] for _ in spks])
+            slide_view = np.lib.stride_tricks.sliding_window_view(
+                spkcount_, int(binsize * 1000), axis=1
+            )[:, :: int(slideby * 1000), :].sum(axis=2)
 
-        posterior = [
-            posterior[:, cum_nbins[i] : cum_nbins[i + 1]]
-            for i in range(len(cum_nbins) - 1)
-        ]
+            nbins[i] = slide_view.shape[1]
+            spkcount.append(slide_view)
+        spkcount = np.hstack(spkcount)
 
-        decodedPos = [
-            decodedPos[:, cum_nbins[i] : cum_nbins[i + 1]]
-            for i in range(len(cum_nbins) - 1)
-        ]
+        # ---- linearize 2d ratemaps -------
+        ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
+
+        posterior = self._decoder(spkcount=spkcount, ratemaps=ratemaps)
+        decodedPos = gridcenter[:, np.argmax(posterior, axis=0)]
+
+        # --- splitting concatenated time bins into separate arrays ------
+        cum_nbins = np.cumsum(nbins)[:-1]
+        self.posterior = np.hsplit(posterior, cum_nbins)
+        self.decodedPos = np.hsplit(decodedPos, cum_nbins)
 
         return decodedPos, posterior
 
