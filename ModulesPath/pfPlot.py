@@ -260,7 +260,7 @@ class pf1d:
             # precess = np.histogram2d(spk_pos, spk_phase, bins=[pos_bin, phase_bin])[0]
             # precess = gaussian_filter(precess, sigma=1)
 
-        self.ratemaps["phases"] = phase
+        self.phases = phase
 
     def plot_with_phase(
         self, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)
