@@ -12,6 +12,7 @@ from sleepDetect import SleepScore
 from spkEvent import PBE, LocalSleep
 from viewerData import SessView
 from track import Track
+import pickle
 
 
 class processData:
@@ -41,6 +42,25 @@ class processData:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
+
+    def export_rearing_data(self):
+        """Export position/ripple/pbe data for rearing analysis"""
+        rearing_data = {
+            "time": self.position.data["time"],
+            "x": self.position.data["x"],
+            "y": self.position.data["y"],
+            "z": self.position.data["z"],
+            "datetime": self.position.data["datetime"],
+            "ripple": self.ripple.events,
+            "pbe": self.pbe.events,
+            "lfpsRate": self.recinfo.lfpSrate,
+            "video_start_time": self.position.video_start_time,
+        }
+
+        with open(
+            self.recinfo.files.filePrefix.with_suffix(".rearing_data.pkl"), "wb"
+        ) as f:
+            pickle.dump(rearing_data, f)
 
 
 # test

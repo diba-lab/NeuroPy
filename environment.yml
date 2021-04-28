@@ -2,9 +2,9 @@ name: NeuroPy
 channels:
     - conda-forge
 dependencies:
-    - python=3.8
-    - numpy=1.19.1
-    - scipy=1.5.2
+    - python=3.9
+    - numpy=1.20.2
+    - scipy=1.6.2
     - matplotlib
     - pandas
     - joblib
@@ -12,6 +12,10 @@ dependencies:
     - hmmlearn
     - ipywidgets
     - seaborn
-    # Works well in linux. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
+    - opencv
+    - pytables
+    # - cupy  # uncomment this if you want to run correlograms with a GPU.
+    
+    # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
     - pip:
-	- scikit-posthocs
+      - scikit-posthocs

@@ -191,6 +191,7 @@ class Spikes:
         color=None,
         marker="|",
         markersize=2,
+        add_vert_jitter=False,
     ):
         """creates raster plot using spike times
 
@@ -212,6 +213,8 @@ class Spikes:
             marker style, by default "|"
         markersize : int, optional
             size of marker, by default 2
+        add_vert_jitter: boolean, optional
+            adds vertical jitter to help visualize super dense spiking, not standardly used for rasters...
         """
         if ax is None:
             fig = plt.figure(1, figsize=(6, 10))
@@ -271,14 +274,21 @@ class Spikes:
             spikes = [spikes[indx] for indx in sort_frate_indices]
 
         for cell, spk in enumerate(spikes):
-            plt.plot(
+            if add_vert_jitter:
+                jitter_add = np.random.randn(len(spk)) * 0.1
+                alpha_use = 0.25
+            else:
+                jitter_add, alpha_use = 0, 0.5
+            ax.plot(
                 spk - tstart,
-                (cell + 1) * np.ones(len(spk)),
+                (cell + 1) * np.ones(len(spk)) + jitter_add,
                 marker,
                 markersize=markersize,
                 color=color[cell],
+                alpha=alpha_use,
             )
-        ax.set_ylim([1, len(spikes)])
+
+        ax.set_ylim([0.5, len(spikes) + 0.5])
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Units")
 
@@ -453,7 +463,7 @@ class Spikes:
 
         """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
         type: 'all' or 'ccg_only'.
-        ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type'all'"""
+        ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type 'all'"""
 
         def ccg_spike_assemble(clus_use):
             """Assemble an array of sorted spike times and cluIDs for the input cluster ids the list clus_use """

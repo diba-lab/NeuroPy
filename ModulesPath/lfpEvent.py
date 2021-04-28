@@ -247,6 +247,7 @@ class Ripple:
 
         filename = self.files.bestRippleChans
         np.save(filename, bestripplechans)
+        self._load()  # load variables immediately into existence
 
     def detect(
         self,
@@ -455,8 +456,13 @@ class Ripple:
 
         # ----- plotting channels used for detection --------
         ax = fig.add_subplot(gs[0, 1:4])
-        self._obj.probemap.plot(self.bestchans, ax=ax)
-        ax.set_title("selected channel")
+        try:
+            self._obj.probemap.plot(self.bestchans, ax=ax)
+            ax.set_title("selected channel")
+        except AttributeError:
+            print(
+                "No probemap provided - provide to visualize ripple channel location!"
+            )
 
         # ---- peaknormalized power distribution plot ---------
         ax = fig.add_subplot(gs[0, 5])
