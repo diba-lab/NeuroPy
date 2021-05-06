@@ -14,7 +14,8 @@ dependencies:
     - seaborn
     - opencv
     - pytables
-    # - cupy  # uncomment this if you want to run correlograms with a GPU.
+    - pickle
+    # - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
     
     # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
     - pip:
