@@ -10,6 +10,7 @@ import scipy
 import seaborn as sns
 from parsePath import Recinfo
 import re
+import scipy.ndimage as simage
 
 
 class DLC:
@@ -67,11 +68,14 @@ class DLC:
         pos_data = import_tracking_data(self.tracking_file)
 
         # Assume you've only run one scorer and that bodyparts are the same for all files
-        self.scorername = scorername(pos_data)
-        self.bodyparts = bodyparts(pos_data)
+        self.scorername = get_scorername(pos_data)
+        self.bodyparts = get_bodyparts(pos_data)
 
         # Now grab the data for the scorer identified above - easier access later!
-        self.pos_data = pos_data[scorername]
+        self.pos_data = pos_data[self.scorername]
+
+        # Now convert from pixels to centimeters
+        self.to_cm()
 
         # Initialize movie
         if self.movie_file is not None:
@@ -79,6 +83,13 @@ class DLC:
             self.SampleRate = self.movie.get_sample_rate()
         else:
             SampleRate = None
+
+    def to_cm(self):
+        """Convert pixels to centimeters in pos_data"""
+        idx = pd.IndexSlice
+        self.pos_data.loc[:, idx[:, ("x", "y")]] = (
+            self.pos_data.loc[:, idx[:, ("x", "y")]] * self.pix2cm
+        )
 
     def get_on_maze(self, bodypart="neck_base", likelihood_thresh=0.9):
 
@@ -100,6 +111,7 @@ class DLC:
         lcutoff=0.9,
         std=1 / 15,
     ):
+        self.smooth_lcutoff = lcutoff
 
         if bodyparts is None:
             bodyparts = self.bodyparts
@@ -121,7 +133,9 @@ class DLC:
         plot_style="-",
         ax=None,
     ):
-        """Plot the feature ('x', 'y', or post-processed 'speed') for a given bodypar vs. time. """
+        """Plot the feature ('x', 'y', or post-processed 'speed') for a given bodypar vs. time.
+        See function dlc.plot1d for docstring"""
+
         # Make sure you have a sample rate to calculate time from
         assert (
             self.SampleRate is not None
@@ -157,7 +171,7 @@ class DLC:
 
         # Add legend for multiple bodyparts
         if len(bodyparts) > 1:
-            ax.set_title("Multiple bodyparts")
+            ax.set_title("Multiple bodyparts lcutoff = " + str(lcutoff))
             ax.legend(bodyparts)
 
         return ax
@@ -170,6 +184,8 @@ class DLC:
         lcutoff=0,
         ax=None,
     ):
+        """Plot the feature ('x', 'y', or post-processed 'speed') for a given bodypart vs. time.
+        See function dlc.plot2d for docstring"""
 
         # Make sure you have a sample rate to calculate time from
         assert (
@@ -206,6 +222,88 @@ class DLC:
 
         return ax
 
+    def calculate_speed(self):
+        calculate_speed(self.pos_smooth, bodyparts=self.bodyparts, SR=self.SampleRate)
+
+    def get_freezing_epochs(
+        self,
+        bodyparts=["neck_base", "mid_back"],
+        speed_threshold=0.25,
+        min_freeze_length=1,
+        plot=True,
+    ):
+        """
+        Identify freezing epochs based on a speed threshold of given bodyparts. If one bodypart is obscured or below
+        the likelihood threshold, it will look at the remaining body parts.
+        :param bodyparts:
+        :param speed_threshold:
+        :param min_freeze_length:
+        :return:
+        """
+
+        assert hasattr(
+            self, "pos_smooth"
+        ), "You must smooth data first with DLC.smooth_pos()"
+
+        # Identify all the places where the animal's bodypart is below the speed threshold,
+        # putting nans where you don't have good tracking
+        no_move_bool = []
+        for bodypart in bodyparts:
+            nan_bool = np.isnan(self.pos_smooth[bodypart]["speed"])
+            no_move = self.pos_smooth[bodypart]["speed"] < speed_threshold
+            no_move[nan_bool] = np.nan
+            no_move_bool.append(no_move)
+
+        # Now count potential freezing points as any time all well-tracked body-parts are below the speed threshold
+        freeze_candidate_array = np.bitwise_and(
+            np.nansum(np.asarray(no_move_bool), axis=0) > 0,
+            np.nansum(np.asarray(no_move_bool), axis=0)
+            == np.nansum(~np.isnan(np.asarray(no_move_bool)), axis=0),
+        )
+
+        # NRK todo: debug everything below here! All the stuff above looks good.
+        # Now identify contiguous regions of freezing.
+        regions = simage.find_objects(simage.label(freeze_candidate_array < thresh)[0])
+
+        # Calculate the length (in frames) of  each potential freezing epoch
+        immobile_length = np.asarray(
+            [
+                len(pos_smooth[bodypart]["speed"][region]) / self.SampleRate
+                for region in regions
+            ]
+        )
+
+        # Identify freezing bouts longer than minimum freeze length
+        long_freezing_bouts = np.where(immobile_length > min_freeze_length)[0]
+        long_freezing_times = [
+            pos_smooth[bodypart]["time"].iloc[regions[bout]]
+            for bout in long_freezing_bouts
+        ]
+        # Now keep only bouts that are longer than the minimum freeze length
+        freeze_bool = np.zeros_like(freeze_candidate_array)
+        for bout in long_freezing_bouts:
+            freeze_bool[regions[bout]] = 1
+
+        if plot:
+            fig, ax = plt.subplots()
+            fig.set_size_inches([10, 3])
+            for bodypart in bodyparts:
+                pos_smooth[bodypart].plot(x="time", y="speed", legend=False, ax=ax)
+
+            # this plots candidate freezing events
+            for region in regions:
+                pos_smooth[bodyparts[-1]].iloc[region[0]].plot(
+                    x="time", y="speed", legend=False, ax=ax, style="r--"
+                )
+            bodyparts.extend(["candidate freezing epochs"])
+
+            # Now plot all the final ones.
+            pos_smooth[bodyparts[-1]].iloc[freeze_bool].plot(
+                x="time", y="speed", legend=False, ax=ax
+            )
+            bodyparts.extend(["final freezing events"])
+            ax.legend(bodyparts)
+
 
 def _as_array(pos_data):
     """Make first entry of a list into an array"""
@@ -217,9 +315,13 @@ def get_matching_files(files, match_str=["habituation", "Camera 1"]):
     """Grab only the files that contain the strings in `match_str`"""
     find_bool = []
     for fstr in match_str:
-        find_bool.extend([re.search(fstr, str(file)) is not None for file in files])
+        find_bool.append([re.search(fstr, str(file)) is not None for file in files])
 
-    match_ind = np.where(np.asarray(find_bool).all(axis=0))[0]
+    find_bool_array = np.asarray(find_bool).squeeze()
+    if find_bool_array.ndim <= 1:
+        match_ind = np.where(find_bool_array)[0]
+    elif find_bool_array.ndim == 2:
+        match_ind = np.where(find_bool_array.all(axis=0))[0]
 
     return [files[ind] for ind in match_ind]
 
@@ -228,7 +330,7 @@ def import_tracking_data(DLC_h5filename):
     return pd.read_hdf(DLC_h5filename)
 
 
-def scorername(pos_data):
+def get_scorername(pos_data):
     """Get DLC scorername - assumes only 1 used."""
     scorername = pos_data.columns.levels[
         np.where([name == "scorer" for name in pos_data.columns.names])[0][0]
@@ -237,7 +339,7 @@ def scorername(pos_data):
     return scorername
 
 
-def bodyparts(pos_data):
+def get_bodyparts(pos_data):
     """Get names of bodyparts"""
     bodyparts = pos_data.columns.levels[
         np.where([name == "bodyparts" for name in pos_data.columns.names])[0][0]
@@ -246,26 +348,66 @@ def bodyparts(pos_data):
     return bodyparts
 
 
-def smooth_pos(pos_data, bodyparts, lcutoff=0.9, std=1 / 15, SampleRate=30):
-    """Smooth data using a gaussian window. Default parameters work well for SampleRate=30, but verify yourself using
-    using plot1d(pos_data, style='.'), plot1d(pos_smooth, style='-')."""
-    pos_smooth = {}
+def smooth_pos(
+    pos_data, bodyparts, lcutoff=0.9, std=1 / 15, interp_limit=15, SampleRate=30
+):
+    """
+    Smooth data using a gaussian window. Default parameters work well for SampleRate=30, but verify yourself using
+    using plot1d(pos_data, style='.'), plot1d(pos_smooth, style='-').
+    :param pos_data: DLCtable
+    :param bodyparts: list
+    :param lcutoff: likelihood threshold - all points with likelihood less than this not within interp_limit are
+    sent to Nan.
+    :param std: # frames for std of gaussian smoother applied
+    :param interp_limit: max # frames to interpolate if nan or below likelihood threshold
+    :param SampleRate: fps
+    :return:
+    """
+    pos_smooth = pos_data.copy()
     for bodypart in bodyparts:
-        data_use = pos_data[bodypart]
+        data_use = pos_data[bodypart].copy()
+        data_copy = data_use.copy()
         good_bool = data_use["likelihood"] > lcutoff
         data_use["x"][~good_bool] = np.nan
         data_use["y"][~good_bool] = np.nan
         for idc, coord in enumerate(["x", "y"]):
-            data_use[coord] = (
-                data_use[coord]
+            mask = data_copy[coord] >= 0
+            data_copy.loc[mask, coord] = (
+                data_use.loc[mask, coord]
                 .interpolate("linear", limit=interp_limit, limit_direction="both")
-                .rolling(8 * std * SampleRate, win_type="gaussian", center=True)
+                .rolling(
+                    np.round(8 * std * SampleRate).astype("int"),
+                    win_type="gaussian",
+                    center=True,
+                )
                 .mean(std=std * SampleRate)
             )
 
         # Dump into pos_smooth keeping likelihood!
-        pos_smooth[bodypart] = data_use
+        pos_smooth[bodypart] = data_copy
 
+    return pos_smooth
+
+
+def calculate_speed(pos_smooth, bodyparts=None, SR=1, pix2cm=1):
+    """Calculate speed from smoothed position data and dump as a column into the dataframe"""
+
+    if bodyparts is None:  # Calculate on all bodyparts by default.
+        bodyparts = get_bodyparts(pos_smooth)
+
+    for idb, bodypart in enumerate(bodyparts):
+        pos_bodypart = pos_smooth[bodypart].copy()
+        # calculate velocity
+        pos_bodypart["time"] = pos_bodypart.index / SR
+        dist = pos_bodypart.diff()
+        dist["Dist"] = np.sqrt(dist.x ** 2 + dist.y ** 2)
+        dist["Speed"] = dist.Dist * pix2cm / pos_bodypart["time"].diff()
+
+        # pos_bodypart.loc[:, "speed"] = dist.Speed
+        pos_smooth.loc[:, (bodypart, "time")] = pos_bodypart["time"]
+        pos_smooth.loc[:, (bodypart, "speed")] = dist.Speed
+
+    # This return should theoretically be un-needed since pos_smooth is mutable...
     return pos_smooth
 
 
@@ -283,7 +425,7 @@ def plot_1d(
     good_bool = DLCtable[body_part]["likelihood"] > likelihood_cutoff
     data_plot = DLCtable[body_part][feature][good_bool]
 
-    time = np.arange(1, len(DLCtable[body_part]["likelihood"]) + 1)
+    time = np.arange(1, len(DLCtable[body_part]["likelihood"]) + 1) / SR
 
     ax.plot(time[good_bool], data_plot, plot_style)
     ax.set_xlabel("Time (s)")
@@ -313,8 +455,8 @@ def plot_2d(
 
 
 if __name__ == "__main__":
-    dlc = DLC(
-        "/data2/Trace_FC/Pilot1/Rat700/2021_02_23_training",
+    DLC(
+        "/data2/Trace_FC/Pilot1/Rat700/2021_02_22_habituation",
         search_str="Camera 1",
         pix2cm=0.13,
     )
