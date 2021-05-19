@@ -10,6 +10,7 @@ from parsePath import Recinfo
 from getSpikes import Spikes
 from plotUtil import Fig
 import ipywidgets as widgets
+from ModulesPath.core.epoch import Epoch
 
 
 class LocalSleep:
@@ -137,7 +138,7 @@ class LocalSleep:
             ax.axis("off")
 
 
-class PBE:
+class PBE(Epoch):
     """Populations burst events"""
 
     def __init__(self, basepath):
@@ -149,19 +150,10 @@ class PBE:
 
         filePrefix = self._obj.files.filePrefix
 
-        @dataclass
-        class files:
-            events: str = Path(str(filePrefix) + ".pbe.npy")
-            neuroscope: Path = filePrefix.with_suffix(".evt.pbe")
+        filename = Path(str(filePrefix) + ".pbe.npy")
+        super().__init__(filename)
 
-        self.files = files()
-        self._load()
-
-    def _load(self):
-        if (f := self.files.events).is_file():
-            events = np.load(f, allow_pickle=True).item()
-            self.events = events["events"]
-            self.params = events["params"]
+        self.load()
 
     def detect(self, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0):
         """Detects putative population burst events
@@ -203,22 +195,21 @@ class PBE:
         events = pd.DataFrame(
             {
                 "start": pbe_times[:, 0],
-                "end": pbe_times[:, 1],
+                "stop": pbe_times[:, 1],
                 "duration": np.diff(pbe_times, axis=1).squeeze(),
             }
         )
 
         events = events[events.duration < max_dur].reset_index(drop=True)
 
-        data = {"events": events, "params": params}
+        self.save(
+            start=events["start"],
+            stop=events["stop"],
+            metadata=params,
+            duration=events["duration"],
+        )
 
-        np.save(self.files.events, data)
-        self._load()
-
-    def export2Neuroscope(self):
-        with self.files.neuroscope.open("w") as a:
-            for event in self.events.itertuples():
-                a.write(f"{event.start*1000} start\n{event.end*1000} end\n")
+        self.load()
 
     def plot_with_raster(self, ax=None):
         spikes = Spikes(self._obj)
@@ -256,3 +247,22 @@ class PBE:
                 readout_format="d",
             ),
         )
+
+
+class LowStates(Epoch):
+    def __init__(self, basepath) -> None:
+        if isinstance(basepath, Recinfo):
+            self._obj = basepath
+        else:
+            self._obj = Recinfo(basepath)
+
+        filePrefix = self._obj.files.filePrefix
+        filename = filePrefix.with_suffix(".lowstates.npy")
+        super().__init__(filename)
+        self.load()
+
+    def detect(self, period):
+        pass
+
+    def plot(self):
+        pass
