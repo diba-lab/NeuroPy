@@ -15,7 +15,8 @@ import scipy.ndimage as simage
 
 class DLC:
     """Import and parse DeepLabCut tracking data. Will import all files into a list unless you specify a
-    `search_str` list which will only include files with ALL the strings listed."""
+    `search_str` list which will only include files with ALL the strings listed. Infers session and animal name
+    from directory structure in base_path, e.g. base_path = ...../Animal_Name/2021_02_22_training"""
 
     def __init__(self, base_path, search_str=None, movie_type=".avi", pix2cm=1):
         # if isinstance(basepath, Recinfo):
@@ -32,7 +33,7 @@ class DLC:
         #
         # self.files = files()
 
-        # fix poorly annotated movie types
+        # fix poorly annotated movie_type input
         if movie_type[0] != ".":
             movie_type = "." + movie_type
 
@@ -40,10 +41,14 @@ class DLC:
         search_str = [search_str] if isinstance(search_str, str) else search_str
 
         # Make base directory into a pathlib object for easy manipulation
-        base_dir = Path(base_path)
+        self.base_dir = Path(base_path)
+
+        # Infer animal name and session from base_path directory structure.
+        self.session = self.base_dir.parts[-1]
+        self.animal_name = self.base_dir.parts[-2]
 
         # Grab tracking files and corresponding movie file.
-        tracking_files = sorted(base_dir.glob("*.h5"))
+        tracking_files = sorted(self.base_dir.glob("*.h5"))
         movie_files = [
             Path(str(file)[0 : str(file).find("DLC")] + movie_type)
             for file in tracking_files
@@ -167,6 +172,7 @@ class DLC:
                 SR=self.SampleRate,
                 likelihood_cutoff=lcutoff,
                 plot_style=style,
+                title_use=self.animal_name + ": " + bodypart,
             )
 
         # Add legend for multiple bodyparts
@@ -213,6 +219,7 @@ class DLC:
                 pix2cm=self.pix2cm,
                 plot_style=plot_style,
                 ax=ax,
+                title_use=self.animal_name + ": " + bodypart,
             )
 
         # Add legend for multiple bodyparts
@@ -225,85 +232,6 @@ class DLC:
     def calculate_speed(self):
         calculate_speed(self.pos_smooth, bodyparts=self.bodyparts, SR=self.SampleRate)
 
-    def get_freezing_epochs(
-        self,
-        bodyparts=["neck_base", "mid_back"],
-        speed_threshold=0.25,
-        min_freeze_length=1,
-        plot=True,
-    ):
-        """
-        Identify freezing epochs based on a speed threshold of given bodyparts. If one bodypart is obscured or below
-        the likelihood threshold, it will look at the remaining body parts.
-        :param bodyparts:
-        :param speed_threshold:
-        :param min_freeze_length:
-        :return:
-        """
-
-        assert hasattr(
-            self, "pos_smooth"
-        ), "You must smooth data first with DLC.smooth_pos()"
-
-        # Identify all the places where the animal's bodypart is below the speed threshold,
-        # putting nans where you don't have good tracking
-        no_move_bool = []
-        for bodypart in bodyparts:
-            nan_bool = np.isnan(self.pos_smooth[bodypart]["speed"])
-            no_move = self.pos_smooth[bodypart]["speed"] < speed_threshold
-            no_move[nan_bool] = np.nan
-            no_move_bool.append(no_move)
-
-        # Now count potential freezing points as any time all well-tracked body-parts are below the speed threshold
-        freeze_candidate_array = np.bitwise_and(
-            np.nansum(np.asarray(no_move_bool), axis=0) > 0,
-            np.nansum(np.asarray(no_move_bool), axis=0)
-            == np.nansum(~np.isnan(np.asarray(no_move_bool)), axis=0),
-        )
-
-        # NRK todo: debug everything below here! All the stuff above looks good.
-        # Now identify contiguous regions of freezing.
-        regions = simage.find_objects(simage.label(freeze_candidate_array < thresh)[0])
-
-        # Calculate the length (in frames) of  each potential freezing epoch
-        immobile_length = np.asarray(
-            [
-                len(pos_smooth[bodypart]["speed"][region]) / self.SampleRate
-                for region in regions
-            ]
-        )
-
-        # Identify freezing bouts longer than minimum freeze length
-        long_freezing_bouts = np.where(immobile_length > min_freeze_length)[0]
-        long_freezing_times = [
-            pos_smooth[bodypart]["time"].iloc[regions[bout]]
-            for bout in long_freezing_bouts
-        ]
-        # Now keep only bouts that are longer than the minimum freeze length
-        freeze_bool = np.zeros_like(freeze_candidate_array)
-        for bout in long_freezing_bouts:
-            freeze_bool[regions[bout]] = 1
-
-        if plot:
-            fig, ax = plt.subplots()
-            fig.set_size_inches([10, 3])
-            for bodypart in bodyparts:
-                pos_smooth[bodypart].plot(x="time", y="speed", legend=False, ax=ax)
-
-            # this plots candidate freezing events
-            for region in regions:
-                pos_smooth[bodyparts[-1]].iloc[region[0]].plot(
-                    x="time", y="speed", legend=False, ax=ax, style="r--"
-                )
-            bodyparts.extend(["candidate freezing epochs"])
-
-            # Now plot all the final ones.
-            pos_smooth[bodyparts[-1]].iloc[freeze_bool].plot(
-                x="time", y="speed", legend=False, ax=ax
-            )
-            bodyparts.extend(["final freezing events"])
-            ax.legend(bodyparts)
-
 
 def _as_array(pos_data):
     """Make first entry of a list into an array"""
@@ -311,17 +239,41 @@ def _as_array(pos_data):
         pos_array = pos_data[0]
 
 
-def get_matching_files(files, match_str=["habituation", "Camera 1"]):
-    """Grab only the files that contain the strings in `match_str`"""
+def get_matching_files(files, match_str=["habituation", "Camera 1"], exclude_str=None):
+    """Grab only the files that contain the strings in `match_str` and DON'T include strings in `exclude_str`"""
+
+    # Fix inputs
+    if isinstance(match_str, str):
+        match_str = [match_str]
+    if isinstance(exclude_str, str):
+        exclude_str = [exclude_str]
+
     find_bool = []
     for fstr in match_str:
-        find_bool.append([re.search(fstr, str(file)) is not None for file in files])
+        find_bool.append(
+            [re.search(fstr, str(file.parts[-1])) is not None for file in files]
+        )
+
+    if exclude_str is not None:
+        exclude_bool = []
+        for estr in exclude_str:
+            exclude_bool.append(
+                [re.search(estr, str(file.parts[-1])) is not None for file in files]
+            )
+    else:
+        exclude_bool = np.zeros_like(find_bool)
 
     find_bool_array = np.asarray(find_bool).squeeze()
-    if find_bool_array.ndim <= 1:
-        match_ind = np.where(find_bool_array)[0]
-    elif find_bool_array.ndim == 2:
-        match_ind = np.where(find_bool_array.all(axis=0))[0]
+    if find_bool_array.ndim == 2:
+        find_bool_array = find_bool_array.all(axis=0)
+
+    exclude_bool_array = np.asarray(exclude_bool).squeeze()
+    if exclude_bool_array.ndim == 2:
+        exclude_bool_array = exclude_bool_array.any(axis=0)
+
+    match_ind = np.where(
+        np.bitwise_and(find_bool_array, np.bitwise_not(exclude_bool_array))
+    )[0]
 
     return [files[ind] for ind in match_ind]
 
@@ -412,7 +364,14 @@ def calculate_speed(pos_smooth, bodyparts=None, SR=1, pix2cm=1):
 
 
 def plot_1d(
-    DLCtable, body_part, feature, SR=30, ax=None, likelihood_cutoff=0, plot_style="-"
+    DLCtable,
+    body_part,
+    feature,
+    SR=30,
+    ax=None,
+    likelihood_cutoff=0,
+    plot_style="-",
+    title_use=None,
 ):
     """:param DLCtable: multi-dimensional pandas dataframe loaded in from DLC output .h5 file for a given scorer, e.g.
     pos_data = pd.read_h5(file_name)
@@ -430,14 +389,23 @@ def plot_1d(
     ax.plot(time[good_bool], data_plot, plot_style)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel(feature)
-    ax.set_title(body_part)
+    if title_use is None:
+        ax.set_title(body_part)
+    else:
+        ax.set_title(title_use)
     sns.despine(ax=ax)
 
     return ax
 
 
 def plot_2d(
-    DLCtable, body_part, likelihood_cutoff=0, pix2cm=1, ax=None, plot_style="-"
+    DLCtable,
+    body_part,
+    likelihood_cutoff=0,
+    pix2cm=1,
+    ax=None,
+    plot_style="-",
+    title_use=None,
 ):
     if ax is None:
         fig, ax = plt.subplots()
@@ -448,16 +416,22 @@ def plot_2d(
     ypos = DLCtable[body_part]["y"][good_bool] * pix2cm
 
     ax.plot(xpos, ypos, plot_style)
-    ax.set_title(body_part)
     ax.set_xlabel("lcutoff = " + str(likelihood_cutoff))
+
+    if title_use is None:
+        ax.set_title(body_part)
+    else:
+        ax.set_title(title_use)
 
     return ax
 
 
 if __name__ == "__main__":
-    DLC(
+    dlc = DLC(
         "/data2/Trace_FC/Pilot1/Rat700/2021_02_22_habituation",
         search_str="Camera 1",
         pix2cm=0.13,
     )
+    dlc.smooth_pos()
+    dlc.get_freezing_epochs()
     pass
