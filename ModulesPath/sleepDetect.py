@@ -15,7 +15,11 @@ from dataclasses import dataclass
 from parsePath import Recinfo
 import signal_process
 from artifactDetect import findartifact
-import ephyviewer
+
+try:
+    import ephyviewer
+except:
+    "Ephyviewer is not installed, will need it if you want sleep state editor"
 
 
 def hmmfit1d(Data):
