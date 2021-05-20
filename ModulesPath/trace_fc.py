@@ -10,14 +10,25 @@ import re
 import csv
 
 # list parameters used in each experiment here. Should move outside this class for later maybe?
+# trace_params = {
+#     "Pilot1": {
+#         "Shock": {"pix2cm": 0.13, "camera": "Camera 1"},
+#         "New": {"pix2cm": 0.26, "camera": "Camera 3"},
+#     },
+#     "Pilot2": {
+#         "Shock": {"pix2cm": 0.13, "camera": "Camera 1"},
+#         "New": {"pix2cm": 0.26, "camera": "Camera 3"},
+#     },
+# }
+
 trace_params = {
     "Pilot1": {
-        "Shock": {"pix2cm": 0.13, "camera": "Camera 1"},
-        "New": {"pix2cm": 0.26, "camera": "Camera 3"},
+        "Shock": {"pix2cm": 0.13, "camera": "_Shockbox"},
+        "New": {"pix2cm": 0.26, "camera": "_newarena"},
     },
     "Pilot2": {
-        "Shock": {"pix2cm": 0.13, "camera": "Camera 1"},
-        "New": {"pix2cm": 0.26, "camera": "Camera 3"},
+        "Shock": {"pix2cm": 0.13, "camera": "_Shockbox"},
+        "New": {"pix2cm": 0.26, "camera": "_newarena"},
     },
 }
 
@@ -37,7 +48,7 @@ class trace_behavior:
         # Infer animal name and session from base_path directory structure.
         self.animal_name = self.base_dir.parts[-2]
         self.session = self.base_dir.parts[-1]
-        self.session_date = date_fix(self.base_dir.parts[-1][0:10])
+        self.session_date = fix_date(self.base_dir.parts[-1][0:10])
         self.session_type = self.base_dir.parts[-1][11:]
 
         # Import DeepLabCut file and pre-process the data
@@ -228,9 +239,10 @@ class trace_behavior:
 
 
 class trace_animal:
-    """Class to analyze and plot trace fear conditioning data for a given animal across all experiments."""
+    """Class to analyze and plot trace fear conditioning data for a given animal across all experiments.
+    **kwargs can be anything from trace_behavior class."""
 
-    def __init__(self, animal_dir, paradigm):
+    def __init__(self, animal_dir, paradigm, **kwargs):
         arenas = ["Shock", "Shock", "Shock", "Shock", "New", "New"]
         sessions = [
             "_habituation",
@@ -249,23 +261,49 @@ class trace_animal:
             "tone_LTMrecall",
         ]
 
+        self.titles = [
+            "Habituation",
+            "Training",
+            "CTX Recall",
+            "CTX LTM Recall",
+            "Tone Recall",
+            "Tone LTM Recall",
+        ]
+
+        self.session_names = session_names
+
         animal_path = Path(animal_dir)
         self.data = {}
         for session, name, arena in zip(sessions, session_names, arenas):
             base_dir = sorted(animal_path.glob("*" + session))[0]
             params_use = trace_params[paradigm][arena]
-            self.data[name] = trace_behavior(
-                base_dir, search_str=params_use["camera"], pix2cm=params_use["pix2cm"]
-            )
+
+            try:
+                self.data[name] = trace_behavior(
+                    base_dir,
+                    search_str=params_use["camera"],
+                    pix2cm=params_use["pix2cm"],
+                    **kwargs,
+                )
+                self.animal_name = self.data[name].animal_name
+            except FileNotFoundError:
+                self.data[name] = False
 
     def plot_all_sessions(self, **kwargs):
         "Plots velocity, freezing, etc. info for all sessions in the same figure"
         fig, ax = plt.subplots(6, 1)
         fig.set_size_inches([29, 17])
+        fig.suptitle(self.animal_name, fontsize=20, fontweight="bold")
+        for a, session, title in zip(ax, self.data.keys(), self.titles):
+            if self.data[session]:
+                self.data[session].get_freezing_epochs(**kwargs, plot=a)
+                a.set_ylim([-3, 90])
+                a.set_title(title, fontsize=14, fontweight="bold")
+            else:
+                a.text(0.1, 0.5, "No tracking data found for this session")
 
-        for a, session in zip(ax, self.data.keys()):
-            self.data[session].get_freezing_epochs(**kwargs, plot=a)
-            a.set_ylim([-3, 90])
+        # Don't show xlabel except on bottom!
+        [a.set_xlabel("") for a in ax[:-1]]
 
 
 class trace_group:
@@ -275,13 +313,17 @@ class trace_group:
         pass
 
 
-def date_fix(date_str):
+def fix_date(date_str):
     """Sends date from YYYY_MM_DD format to MM_DD_YYYY format"""
     # Find first underscore
     first_under = re.search("_", date_str).span()[0]
     if first_under == 2:
-        date_fix = date_str
+        date_fixed = date_str
     elif first_under == 4:
-        date_fix = date_str[5:7] + "_" + date_str[8:10] + "_" + date_str[0:4]
+        date_fixed = date_str[5:7] + "_" + date_str[8:10] + "_" + date_str[0:4]
 
-    return date_fix
+    return date_fixed
+
+
+if __name__ == "__main__":
+    trace_animal("/data2/Trace_FC/Pilot1/Rat703", "Pilot1", movie_type="mp4")

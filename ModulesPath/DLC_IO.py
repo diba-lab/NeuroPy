@@ -18,7 +18,7 @@ class DLC:
     `search_str` list which will only include files with ALL the strings listed. Infers session and animal name
     from directory structure in base_path, e.g. base_path = ...../Animal_Name/2021_02_22_training"""
 
-    def __init__(self, base_path, search_str=None, movie_type=".avi", pix2cm=1):
+    def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1):
         # if isinstance(basepath, Recinfo):
         #     self._obj = basepath
         # else:
@@ -49,10 +49,15 @@ class DLC:
 
         # Grab tracking files and corresponding movie file.
         tracking_files = sorted(self.base_dir.glob("*.h5"))
-        movie_files = [
-            Path(str(file)[0 : str(file).find("DLC")] + movie_type)
-            for file in tracking_files
-        ]
+        movie_files = sorted(self.base_dir.glob("*" + movie_type))
+        # if movie_type == ".avi":  # Not preferred
+        #     movie_files = [
+        #         Path(str(file)[0 : str(file).find("DLC")] + movie_type)
+        #         for file in tracking_files
+        #     ]
+        # elif movie_type == ".mp4":  # Better, more consistent naming
+        #     movie_files = sorted(self.base_dir.glob("*.mp4"))
+
         # Pull out only the specific file you want if specified with a search_str above, otherwise grab first one only!
         # NRK todo: use walrus operator here to check and make sure output file list len == 1?
         if search_str is not None:
@@ -275,7 +280,11 @@ def get_matching_files(files, match_str=["habituation", "Camera 1"], exclude_str
         np.bitwise_and(find_bool_array, np.bitwise_not(exclude_bool_array))
     )[0]
 
-    return [files[ind] for ind in match_ind]
+    matching_files = [files[ind] for ind in match_ind]
+    if len(matching_files) == 0:
+        matching_files = [None]
+
+    return matching_files
 
 
 def import_tracking_data(DLC_h5filename):

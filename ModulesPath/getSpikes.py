@@ -10,6 +10,8 @@ import matplotlib.gridspec as gridspec
 import matplotlib as mpl
 from parsePath import Recinfo
 from behavior import behavior_epochs
+
+# NRK todo: put in conditional import here for ccg_gpu!
 from ccg import correlograms
 from plotUtil import pretty_plot
 import h5py
