@@ -8,6 +8,7 @@ import scipy.ndimage as simage
 import pandas as pd
 import re
 import csv
+from matplotlib.backends.backend_pdf import PdfPages
 
 # list parameters used in each experiment here. Should move outside this class for later maybe?
 # trace_params = {
@@ -36,7 +37,7 @@ trace_params = {
 class trace_behavior:
     """Class to analyze trace_conditioning behavioral data"""
 
-    def __init__(self, base_path, search_str=None, movie_type=".avi", pix2cm=1):
+    def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1):
         # if isinstance(basepath, Recinfo):
         #     self._obj = basepath
         # else:
@@ -307,10 +308,36 @@ class trace_animal:
 
 
 class trace_group:
-    """Class to analyze and plot trace fear conditioning data for a given animal across all experiments."""
+    """Class to analyze and plot trace fear conditioning data for a given animal across all experiments in a given paradigm."""
 
-    def __init__(self, animal_dirs, paradigm):
-        pass
+    def __init__(self, paradigm, base_dir):
+
+        # Set up base directory for paradigm
+        self.paradigm_path = Path(base_dir) / paradigm
+        self.animal_dirs = sorted(self.paradigm_path.glob("Rat*"))
+        self.animal_names = [adir.parts[-1] for adir in self.animal_dirs]
+        self.paradigm = paradigm
+
+        self.animal = {}
+        for animal_dir, name in zip(self.animal_dirs, self.animal_names):
+            self.animal[name] = trace_animal(animal_dir, paradigm)
+
+    def plot_all_animals(self, speed_threshold=0.5, save_to_pdf=False):
+        """Plot speed/freezing/CS/US vs. time for all animals and save if specified"""
+        if not save_to_pdf:
+            for animal in self.animal:
+                animal.plot_all_sessions(speed_threshold=0.25)
+        elif save_to_pdf:
+            save_name = self.paradigm_path / (
+                self.paradigm
+                + "_all_sessions_thresh"
+                + "_".join(str(speed_threshold).split("."))
+                + ".pdf"
+            )
+            with PdfPages(save_name) as pdf:
+                for animal in self.animal.values():
+                    animal.plot_all_sessions(speed_threshold=0.25)
+                    pdf.savefig()
 
 
 def fix_date(date_str):
@@ -326,4 +353,5 @@ def fix_date(date_str):
 
 
 if __name__ == "__main__":
-    trace_animal("/data2/Trace_FC/Pilot1/Rat703", "Pilot1", movie_type="mp4")
+    tg1 = trace_group("Pilot1", "/data2/Trace_FC")
+    tg1.plot_all_animals(save_to_pdf=True)
