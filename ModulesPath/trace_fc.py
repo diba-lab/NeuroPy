@@ -339,6 +339,65 @@ class trace_group:
                     animal.plot_all_sessions(speed_threshold=0.25)
                     pdf.savefig()
 
+    def plot_mean_speed(self, session_type, bodyparts=["neck_base", "mid_back"]):
+
+        assert session_type.lower() in [
+            "habituation",
+            "training",
+            "ctx_recall",
+            "ctx_ltmrecall",
+            "tone_recall",
+            "tone_ltmrecall",
+        ], "Invalid session type specified"
+
+        if session_type in ["habituation", "training", "ctx_recall", "ctx_LTMrecall"]:
+
+            # First get # frames in each video
+            nframes_all = []
+            for animal_name in self.animal_names:
+                if self.animal[animal_name].data[
+                    session_type
+                ]:  # Skip if no data for that session!
+                    nframes_all.append(
+                        self.animal[animal_name]
+                        .data[session_type]
+                        .dlc.pos_smooth[bodyparts[0]]["speed"]
+                        .size
+                    )
+
+            # Now assemble an array with all the speed data together
+            speed_all = np.ones((len(self.animal_names), np.max(nframes_all))) * np.nan
+            for ida, (animal_name, nframes) in enumerate(
+                zip(self.animal_names, nframes_all)
+            ):
+                bodypart_speed = []
+                for bodypart in bodyparts:
+                    bodypart_speed.append(
+                        self.animal[animal_name]
+                        .data[session_type]
+                        .dlc.pos_smooth[bodypart]["speed"]
+                    )
+                speed_all[ida][0:nframes] = np.mean(bodypart_speed, axis=0)
+
+        # Now plot!!!
+        fig, ax = plt.subplots()
+        fig.set_size_inches([21.5, 4.9])
+        SampleRate = self.animal[self.animal_names[0]].data[session_type].dlc.SampleRate
+        time = np.arange(1, np.max(nframes_all) + 1) / SampleRate
+        ax.plot(time, speed_all.T, color=[0, 0, 0, 0.2])  # individual animals
+        # Now plot average speed smoothed in 5 sec rolloing window
+        speed_all_mean = (
+            pd.Series(np.nanmean(speed_all, axis=0)).rolling(int(SampleRate * 5)).mean()
+        )
+        ax.plot(time, speed_all_mean, color="b", linewidth=2)  # mean
+        ax.set_ylim([0, 40])
+        ax.set_ylabel("Speed (cm/s)")
+        ax.set_xlabel("Time (s)")
+        sns.despine()
+        ax.set_title(session_type.title())
+
+        return ax
+
 
 def fix_date(date_str):
     """Sends date from YYYY_MM_DD format to MM_DD_YYYY format"""
@@ -353,5 +412,5 @@ def fix_date(date_str):
 
 
 if __name__ == "__main__":
-    tg1 = trace_group("Pilot1", "/data2/Trace_FC")
-    tg1.plot_all_animals(save_to_pdf=True)
+    tg2 = trace_group("Pilot2", "/data2/Trace_FC")
+    tg2.plot_mean_speed("ctx_LTMrecall", ["neck_base", "mid_back"])
