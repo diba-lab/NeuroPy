@@ -151,8 +151,7 @@ class PBE(Epoch):
         filePrefix = self._obj.files.filePrefix
 
         filename = Path(str(filePrefix) + ".pbe.npy")
-        super().__init__(filename)
-
+        super().__init__(filename=filename)
         self.load()
 
     def detect(self, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0):
@@ -203,8 +202,9 @@ class PBE(Epoch):
 
         events = events[events.duration < max_dur].reset_index(drop=True)
 
-        self.save(df=events, metadata=params)
-
+        self.epochs = events
+        self.metadata = params
+        self.save()
         self.load()
 
     def plot_with_raster(self, ax=None):

@@ -188,7 +188,7 @@ class Ripple(Epoch):
 
         filePrefix = self._obj.files.filePrefix
         filename = filePrefix.with_suffix(".ripples.npy")
-        super().__init__(filename)
+        super().__init__(filename=filename)
         self.load()
 
     def bestchans(self):
@@ -385,8 +385,9 @@ class Ripple(Epoch):
             },
         }
 
-        self.save(df=epochs, metadata=metadata)
-        print(f"{self.filename.name} created")
+        self.epochs = epochs
+        self.metadata = metadata
+        self.save()
         self.load()
 
     def plot_summary(self, random=False, shank_id=None):
