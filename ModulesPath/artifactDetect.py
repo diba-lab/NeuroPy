@@ -4,7 +4,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stat
-from parsePath import Recinfo
+from .parsePath import Recinfo
 
 
 class findartifact:

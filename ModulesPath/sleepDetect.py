@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 import ipywidgets as widgets
@@ -11,10 +12,10 @@ from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter
-from dataclasses import dataclass
-from parsePath import Recinfo
-import signal_process
-from artifactDetect import findartifact
+
+from . import signal_process
+from .artifactDetect import findartifact
+from .parsePath import Recinfo
 
 try:
     import ephyviewer

@@ -1,17 +1,17 @@
-from artifactDetect import findartifact
-from behavior import behavior_epochs
-from decoders import DecodeBehav
-from getPosition import ExtractPosition
-from getSpikes import Spikes
-from lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
-from parsePath import Recinfo
-from pfPlot import pf
-from replay import Replay
-from sessionUtil import SessionUtil
-from sleepDetect import SleepScore
-from spkEvent import PBE, LocalSleep
-from viewerData import SessView
-from track import Track
+from .artifactDetect import findartifact
+from .behavior import behavior_epochs
+from .decoders import DecodeBehav
+from .getPosition import ExtractPosition
+from .getSpikes import Spikes
+from .lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
+from .parsePath import Recinfo
+from .pfPlot import pf
+from .replay import Replay
+from .sessionUtil import SessionUtil
+from .sleepDetect import SleepScore
+from .spkEvent import PBE, LocalSleep
+from .viewerData import SessView
+from .track import Track
 import pickle
 
 
@@ -51,8 +51,8 @@ class processData:
             "y": self.position.data["y"],
             "z": self.position.data["z"],
             "datetime": self.position.data["datetime"],
-            "ripple": self.ripple.events,
-            "pbe": self.pbe.events,
+            "ripple": self.ripple.epochs,
+            "pbe": self.pbe.epochs,
             "lfpsRate": self.recinfo.lfpSrate,
             "video_start_time": self.position.video_start_time,
         }

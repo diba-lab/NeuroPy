@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.decomposition import FastICA, PCA
 from scipy import stats
 from hmmlearn.hmm import GaussianHMM
-from ccg import correlograms
+from .ccg import correlograms
 
 
 def partialcorr(x, y, z):

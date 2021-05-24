@@ -1,16 +1,18 @@
 from dataclasses import dataclass
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-import scipy.stats as stats
-import scipy.signal as sg
 from pathlib import Path
-from mathutil import threshPeriods
-from parsePath import Recinfo
-from getSpikes import Spikes
-from plotUtil import Fig
+
 import ipywidgets as widgets
-from ModulesPath.core.epoch import Epoch
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.signal as sg
+import scipy.stats as stats
+
+from .getSpikes import Spikes
+from .mathutil import threshPeriods
+from .core.epoch import Epoch
+from .parsePath import Recinfo
+from .plotUtil import Fig
 
 
 class LocalSleep:

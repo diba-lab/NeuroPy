@@ -1,14 +1,16 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-from scipy.ndimage import gaussian_filter
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle
-import matplotlib as mpl
 import random
+
 import ipywidgets as widgets
-from parsePath import Recinfo
-import signal_process
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.collections import PatchCollection
+from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Rectangle
+from scipy.ndimage import gaussian_filter
+
+from . import signal_process
+from .parsePath import Recinfo
 
 
 def make_boxes(

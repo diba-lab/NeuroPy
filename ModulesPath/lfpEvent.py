@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-from fileinput import filename
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -9,14 +8,15 @@ import numpy as np
 import pandas as pd
 import scipy.signal as sg
 import scipy.stats as stats
-from scipy import fftpack
-import mathutil
-import signal_process
-from parsePath import Recinfo
 from joblib import Parallel, delayed
-from behavior import behavior_epochs
-from artifactDetect import findartifact
-from ModulesPath.core.epoch import Epoch
+from scipy import fftpack
+
+from . import mathutil
+from . import signal_process
+from .artifactDetect import findartifact
+from .behavior import behavior_epochs
+from .core.epoch import Epoch
+from .parsePath import Recinfo
 
 
 class Hswa:
@@ -191,6 +191,7 @@ class Ripple(Epoch):
         super().__init__(filename=filename)
         self.load()
 
+    @property
     def bestchans(self):
         if "channels" in self.metadata:
             return self.metadata["channels"]

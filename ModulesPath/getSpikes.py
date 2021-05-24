@@ -1,21 +1,23 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
 import os
-from pathlib import Path
 from dataclasses import dataclass
-from scipy.ndimage.measurements import histogram
-import scipy.signal as sg
-import matplotlib.gridspec as gridspec
-import matplotlib as mpl
-from parsePath import Recinfo
-from behavior import behavior_epochs
-from ccg import correlograms
-from plotUtil import pretty_plot
+from pathlib import Path
+
 import h5py
+import matplotlib as mpl
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.signal as sg
 from scipy.ndimage import gaussian_filter
+from scipy.ndimage.measurements import histogram
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+
+from .behavior import behavior_epochs
+from .ccg import correlograms
+from .parsePath import Recinfo
+from .plotUtil import pretty_plot
 
 
 class Spikes:
@@ -627,6 +629,18 @@ class Spikes:
 
         np.save(filename, spikes_)
         self.load_spikes(filename)  # now load these into class
+
+    def from_custom(self, spikes, labels=None):
+        """Spiketrains for the sessions
+
+        Parameters
+        ----------
+        spikes : [type]
+            [description]
+        labels : [type], optional
+            [description], by default None
+        """
+        pass
 
     def export2neuroscope(self, spks):
         """To view spikes in neuroscope, spikes are exported to .clu.1 and .res.1 files in the basepath.

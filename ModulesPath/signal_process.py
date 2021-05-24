@@ -2,16 +2,16 @@ from dataclasses import dataclass
 from typing import Any
 
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import axis
 import numpy as np
 import scipy.ndimage as filtSig
 import scipy.signal as sg
-from scipy import stats
 from joblib import Parallel, delayed
-from scipy import fftpack
+from matplotlib.pyplot import axis
+from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
-from plotUtil import Fig
+
+from .plotUtil import Fig
 
 
 class filter_sig:
