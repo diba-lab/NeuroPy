@@ -197,17 +197,13 @@ class PBE(Epoch):
                 "start": pbe_times[:, 0],
                 "stop": pbe_times[:, 1],
                 "duration": np.diff(pbe_times, axis=1).squeeze(),
+                "label": "",
             }
         )
 
         events = events[events.duration < max_dur].reset_index(drop=True)
 
-        self.save(
-            start=events["start"],
-            stop=events["stop"],
-            metadata=params,
-            duration=events["duration"],
-        )
+        self.save(df=events, metadata=params)
 
         self.load()
 

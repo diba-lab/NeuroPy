@@ -237,6 +237,10 @@ class Recinfo:
 
         return nframes
 
+    @property
+    def duration(self):
+        return self.getNframesEEG / self.lfpSrate
+
     def geteeg(self, chans, timeRange=None):
         """Returns eeg signal for given channels. If multiple channels provided then it is list of lfps.
 
