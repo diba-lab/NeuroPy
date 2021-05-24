@@ -9,7 +9,9 @@ class Epoch:
     def load(self):
         if self.filename.is_file():
             self.data = np.load(self.filename, allow_pickle=True).item()
-            self.metadata = self.data["metadata"]
+
+            if "metadata" in self.data:
+                self.metadata = self.data["metadata"]
 
             if "epochs" in self.data:
                 self.epochs = self.data["epochs"]
@@ -19,21 +21,27 @@ class Epoch:
         else:
             self.data = {"epochs": {}, "metadata": {}}
 
-    def save(self, start, stop, label=None, metadata=None, **kwargs):
+    def save(self, df, metadata=None):
+        """Save epoch data
 
-        assert len(start) == len(stop)
-        df = pd.DataFrame({"start": start, "stop": stop})
-        df["duration"] = df["stop"] - df["start"]
+        Parameters
+        ----------
+        df : pd.Datarame
+            pandas dataframe should have at least 3 columns with names 'start', 'stop', 'label'
+        metadata : dict, optional
+            dictionary for any relevant information, by default None
+        """
 
-        if label is not None:
-            assert len(start) == len(label)
-            df["label"] = label
+        assert isinstance(df, pd.DataFrame)
+        assert (
+            pd.Series(["start", "stop", "label"]).isin(df.columns).all()
+        ), "Epoch dataframe should have columns with names: start, stop, label"
 
-        for key in kwargs:
-            assert len(kwargs[key]) == len(start)
-            df[key] = kwargs[key]
+        if "duration" not in df.columns:
+            df["duration"] = df["stop"] - df["start"]
 
         data = {"epochs": df, "metadata": metadata}
+
         np.save(self.filename, data)
 
     def delete_file(self):
@@ -41,13 +49,16 @@ class Epoch:
 
         print("file removed")
 
+    def create_backup(self):
+        pass
+
     def time_slice(self, period):
         pass
 
     def to_neuroscope(self, ext=".evt"):
         with self.files.neuroscope.open("w") as a:
             for event in self.epochs.itertuples():
-                a.write(f"{event.start*1000} start\n{event.end*1000} end\n")
+                a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
 
     def plot(self):
         pass
