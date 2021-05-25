@@ -1,15 +1,15 @@
-import numpy as np
 from dataclasses import dataclass
-import matplotlib as mpl
-from matplotlib.colors import ListedColormap
 from datetime import date
 from pathlib import Path
-import matplotlib.pyplot as plt
+
+import matplotlib as mpl
 import matplotlib.gridspec as gridspec
-from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy as np
 from cycler import cycler
-from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Rectangle
 
 
 class Colormap:

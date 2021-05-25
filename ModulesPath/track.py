@@ -1,15 +1,17 @@
 from dataclasses import dataclass
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter1d
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
-from mathutil import threshPeriods
-from behavior import behavior_epochs
-from getPosition import ExtractPosition
-from parsePath import Recinfo
-from scipy.ndimage import gaussian_filter1d
+
+from .behavior import behavior_epochs
+from .getPosition import ExtractPosition
+from .mathutil import threshPeriods
+from .parsePath import Recinfo
 
 
 class Track:

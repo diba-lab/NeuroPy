@@ -5,8 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from getPosition import ExtractPosition
-from parsePath import Recinfo
+from .getPosition import ExtractPosition
+from .parsePath import Recinfo
+
+# from ModulesPath.core import Epoch
 
 
 class behavior_epochs:
@@ -28,18 +30,15 @@ class behavior_epochs:
 
         # ---- defining filenames --------
         filePrefix = self._obj.files.filePrefix
+        self.filename = Path(str(filePrefix) + "_epochs.npy")
+        # Epoch.__init__(filename)
 
-        @dataclass
-        class files:
-            epochs: str = Path(str(filePrefix) + "_epochs.npy")
-
-        self.files = files()
         self._load()
 
     def _load(self):
         """Loads epochs files if that exists in the basepath"""
 
-        if (f := self.files.epochs).is_file():
+        if (f := self.filename).is_file():
             epochs = np.load(f, allow_pickle=True).item()
 
             totaldur = []
@@ -52,10 +51,10 @@ class behavior_epochs:
             self.totalduration = np.sum(np.asarray(totaldur))
 
         else:
-            print(f"Epochs file does not exist for {self._obj.files.filePrefix}")
+            print(f"Epochs file does not exist for {self.filename}")
 
     def __repr__(self):
-        if (f := self.files.epochs).is_file():
+        if (f := self.filename).is_file():
             epochs = np.load(f, allow_pickle=True).item()
             epoch_string = [f"{key}: {epochs[key]}\n" for key in epochs]
         else:
@@ -67,8 +66,8 @@ class behavior_epochs:
         assert name in self.times, f"Epoch {name} does not exist"
         return self.times[name].to_list()
 
-    def __getattr__(self, name):
-        return self[name]
+    # def __getattr__(self, name):
+    #     return self[name]
 
     def make_epochs(self, new_epochs: dict):
         """Adds epochs to the sessions at given timestamps. If epoch file already exists then new epochs are merged.
@@ -99,64 +98,7 @@ class behavior_epochs:
 
     def getfromPosition(self):
         """user defines epoch boundaries from the positons by selecting a rectangular region in the plot"""
-
-        position = ExtractPosition(self._obj.basePath)
-
-        def tellme(s):
-            print(s)
-            plt.title(s, fontsize=16)
-            plt.draw()
-
-        # Copy to clipboard
-
-        # Define a rectangle by clicking two points
-
-        t = position.t
-        y = position.y
-        x = position.x
-
-        plt.clf()
-        plt.setp(plt.gca(), autoscale_on=True)
-        plt.plot(t[::4], y[::4])
-
-        tellme("You will define a rectangle for track, click to begin")
-
-        plt.waitforbuttonpress()
-
-        while True:
-            pts = []
-            while len(pts) < 2:
-                tellme("Select 2 edges with mouse")
-                pts = np.asarray(plt.ginput(2, timeout=-1))
-                if len(pts) < 2:
-                    tellme("Too few points, starting over")
-                    time.sleep(1)  # Wait a second
-
-                pts = np.asarray(
-                    [[pts[0, 0], 400], [pts[0, 0], 0], [pts[1, 0], 0], [pts[1, 0], 400]]
-                )
-
-            ph = plt.fill(pts[:, 0], pts[:, 1], "r", lw=2, alpha=0.6)
-
-            tellme("Happy? Key click for yes, mouse click for no")
-
-            if plt.waitforbuttonpress():
-                break
-
-            # Get rid of fill
-            for p in ph:
-                p.remove()
-        maze_start = pts[0][0]  # in seconds
-        maze_end = pts[2][0]  # in seconds
-
-        pre_time = np.array([0, maze_start - 1])
-        maze_time = np.array([maze_start, maze_end])
-        post_time = np.array([maze_end + 1, t[-1]])
-        epoch_times = {"PRE": pre_time, "MAZE": maze_time, "POST": post_time}
-
-        np.save(self._obj.files.epochs, epoch_times)
-
-        self._load()  # load these in for immediate use
+        pass
 
     def all_maze(self):
         """Make the entire session a maze epoch if that's all you are analyzing"""
@@ -165,18 +107,5 @@ class behavior_epochs:
         epoch_times = {"MAZE": maze_time}
 
         np.save(self._obj.files.epochs, epoch_times)
-
-        self._load()  # load these in for immediate use
-
-    def getfromCSV(self):
-        file = Path(str(self._obj.files.filePrefix) + "_epochs.csv")
-        epochs = pd.read_csv(file, index_col=0)
-        epochs_name = epochs.index.values.tolist()
-
-        epochs_times = {}
-        for name in epochs_name:
-            epochs_times[name] = np.asarray(epochs.loc[name])
-
-        np.save(self.files.epochs, epochs_times)
 
         self._load()  # load these in for immediate use

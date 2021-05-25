@@ -1,16 +1,18 @@
 from dataclasses import dataclass
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-import scipy.stats as stats
-import scipy.signal as sg
 from pathlib import Path
-from mathutil import threshPeriods
-from parsePath import Recinfo
-from getSpikes import Spikes
-from plotUtil import Fig
+
 import ipywidgets as widgets
-from ModulesPath.core.epoch import Epoch
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.signal as sg
+import scipy.stats as stats
+
+from .getSpikes import Spikes
+from .mathutil import threshPeriods
+from .core.epoch import Epoch
+from .parsePath import Recinfo
+from .plotUtil import Fig
 
 
 class LocalSleep:
@@ -151,8 +153,7 @@ class PBE(Epoch):
         filePrefix = self._obj.files.filePrefix
 
         filename = Path(str(filePrefix) + ".pbe.npy")
-        super().__init__(filename)
-
+        super().__init__(filename=filename)
         self.load()
 
     def detect(self, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0):
@@ -203,8 +204,9 @@ class PBE(Epoch):
 
         events = events[events.duration < max_dur].reset_index(drop=True)
 
-        self.save(df=events, metadata=params)
-
+        self.epochs = events
+        self.metadata = params
+        self.save()
         self.load()
 
     def plot_with_raster(self, ax=None):

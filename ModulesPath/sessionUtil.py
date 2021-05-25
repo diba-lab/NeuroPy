@@ -1,20 +1,22 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from numpy.core.fromnumeric import var
-import pandas as pd
 import os
-import scipy.stats as stats
-import scipy.signal as sg
 from pathlib import Path
+
+import matplotlib as mpl
 import matplotlib.gridspec as gridspec
-import signal_process
-from scipy.ndimage import gaussian_filter, gaussian_filter1d
-from sklearn.preprocessing import normalize
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.signal as sg
+import scipy.stats as stats
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
-import matplotlib as mpl
-from mathutil import threshPeriods
-from parsePath import Recinfo
+from numpy.core.fromnumeric import var
+from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from sklearn.preprocessing import normalize
+
+from . import signal_process
+from .mathutil import threshPeriods
+from .parsePath import Recinfo
 
 
 class SessionUtil:

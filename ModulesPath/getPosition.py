@@ -6,8 +6,8 @@ import os
 import linecache
 from datetime import datetime, timedelta
 from pathlib import Path
-from parsePath import Recinfo
-from mathutil import contiguous_regions
+from .parsePath import Recinfo
+from .mathutil import contiguous_regions
 import xml.etree.ElementTree as ET
 import re
 from glob import glob
