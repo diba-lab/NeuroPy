@@ -386,6 +386,7 @@ class Ripple(Epoch):
             },
         }
 
+
         self.epochs = epochs
         self.metadata = metadata
         self.save()

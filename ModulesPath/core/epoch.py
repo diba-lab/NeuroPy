@@ -76,10 +76,16 @@ class Epoch:
     def time_slice(self, period):
         pass
 
+    def add_epochs(self):
+        pass
+
     def to_neuroscope(self, ext=".evt"):
         with self.files.neuroscope.open("w") as a:
             for event in self.epochs.itertuples():
                 a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
+
+    def as_array(self):
+        return self.epochs[["start", "stop"]].to_numpy()
 
     def plot(self):
         pass
