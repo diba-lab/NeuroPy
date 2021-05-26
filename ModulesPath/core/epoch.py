@@ -1,13 +1,14 @@
 from curses import meta
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 
 class Epoch:
     def __init__(
         self, epochs: pd.DataFrame = None, filename=None, metadata=None
     ) -> None:
-        self.filename = filename
+        self.filename = Path(filename)
         self.epochs = epochs
         self.metadata = metadata
 
@@ -64,6 +65,12 @@ class Epoch:
 
         np.save(self.filename, data)
         print(f"{self.filename.name} created")
+
+    def __repr__(self) -> str:
+        pass
+
+    def __str__(self) -> str:
+        pass
 
     def delete_file(self):
         self.filename.unlink()
