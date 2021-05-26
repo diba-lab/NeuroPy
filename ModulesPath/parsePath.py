@@ -102,7 +102,6 @@ class Recinfo:
             for attrib, val in myinfo.items():  # alternative list(epochs)
                 setattr(self, attrib, val)  # .lower() will be removed
 
-        if self.channels and self.badchans and self.channelgroups:
             self.goodchans = np.setdiff1d(
                 self.channels, self.badchans, assume_unique=True
             )
