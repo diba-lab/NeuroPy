@@ -1,53 +1,65 @@
+import enum
+import imp
 import numpy as np
 import pandas as pd
 from scipy import stats
 from .. import signal_process
+from .epoch import Epoch
 
 
 class Oscillation:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, freq_band: tuple, fs=1250, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.freq_band = freq_band
+        self.fs = 1250
 
-    def detect(
-        self,
-        eeg,
-        lowFreq,
-        highFreq,
-        lowthresh=1,
-        highthresh=5,
-        mindur=0.05,
-        maxdur=0.450,
-        mergedist=0.05,
-        fs=1250,
-        ignore_times=None,
-    ):
+    def best_channels(self, lfps):
+        """Channel which represent high spindle power during nrem across all channels"""
+        avg_bandpower = np.zeros(len(lfps))
+        for i, lfp in enumerate(lfps):
+            filtered = signal_process.filter_sig.bandpass(
+                lfp, lf=self.freq_band[0], hf=self.freq_band[1]
+            )
+            amplitude_envelope = np.abs(signal_process.hilbertfast(filtered))
+            avg_bandpower[i] = np.mean(amplitude_envelope)
+
+        descending_order = np.argsort(avg_bandpower)[::-1]
+        return descending_order
+
+    def detect(self, lfps, thresh, mindur, maxdur, mergedist, ignore_times=None):
         """[summary]
 
         Parameters
         ----------
-        lowFreq : int, optional
-            [description], by default 150
-        highFreq : int, optional
-            [description], by default 240
+        thresh : tuple, optional
+            low and high threshold for detection
+        mindur : float, optional
+            minimum duration of epoch
+        maxdur : float, optiona
         chans : list
-            channels used for ripple detection, if None then chooses best chans
+            channels used for epoch detection, if None then chooses best chans
         """
 
         zscsignal = []
-        sharpWv_sig = np.zeros(eeg[0].shape[-1])
-        for lfp in eeg:
-            yf = signal_process.filter_sig.bandpass(lfp, lf=lowFreq, hf=highFreq)
+        lf, hf = self.freq_band
+        lowthresh, highthresh = thresh
+        for lfp in lfps:
+            yf = signal_process.filter_sig.bandpass(lfp, lf=lf, hf=hf)
             zsc_chan = stats.zscore(np.abs(signal_process.hilbertfast(yf)))
             zscsignal.append(zsc_chan)
 
-            broadband = signal_process.filter_sig.bandpass(lfp, lf=2, hf=50)
-            sharpWv_sig += stats.zscore(np.abs(signal_process.hilbertfast(broadband)))
         zscsignal = np.asarray(zscsignal)
 
-        # ---------setting noisy period zero --------
-        artifact = findartifact(self._obj)
-        if artifact.time is not None:
-            noisy_frames = artifact.getframes()
+        # ---------setting noisy periods zero --------
+        if ignore_times is not None:
+            assert ignore_times.ndim == 2, "ignore_times should be 2 dimensional array"
+            noisy_frames = np.concatenate(
+                [
+                    (np.arange(start, stop) * self.fs).astype(int)
+                    for (start, stop) in ignore_times
+                ]
+            )
+
             zscsignal[:, noisy_frames] = 0
 
         # ------hilbert transform --> binarize by > than lowthreshold
@@ -57,91 +69,85 @@ class Oscillation:
         start = np.where(ThreshSignal == 1)[0]
         stop = np.where(ThreshSignal == -1)[0]
 
-        # --- getting rid of incomplete ripples at begining or end ---------
+        # --- getting rid of incomplete epochs at begining or end ---------
         if start[0] > stop[0]:
             stop = stop[1:]
         if start[-1] > stop[-1]:
             start = start[:-1]
 
         firstPass = np.vstack((start, stop)).T
-        print(f"{len(firstPass)} ripples detected initially")
+        print(f"{len(firstPass)} epochs detected initially")
 
-        # --------merging close ripples------------
-        minInterRippleSamples = mergedist * fs
+        # --------merging close epochs------------
+        min_inter_epoch_samples = mergedist * self.fs
         secondPass = []
-        ripple = firstPass[0]
+        epoch = firstPass[0]
         for i in range(1, len(firstPass)):
-            if firstPass[i, 0] - ripple[1] < minInterRippleSamples:
-                ripple = [ripple[0], firstPass[i, 1]]
+            if firstPass[i, 0] - epoch[1] < min_inter_epoch_samples:
+                epoch = [epoch[0], firstPass[i, 1]]
             else:
-                secondPass.append(ripple)
-                ripple = firstPass[i]
+                secondPass.append(epoch)
+                epoch = firstPass[i]
 
-        secondPass.append(ripple)
-        secondPass = np.asarray(secondPass)
-        print(f"{len(secondPass)} ripples reamining after merging")
+        secondPass = np.asarray(secondPass.append(epoch))
+        print(f"{len(secondPass)} epochs reamining after merging close ones")
 
-        # ------delete ripples with less than threshold power--------
+        # ------delete epochs with less than threshold power--------
         thirdPass = []
-        peakNormalizedPower, peaktime, peakSharpWave = [], [], []
+        peakpower, peaktime = [], []
 
         for i in range(0, len(secondPass)):
             maxValue = max(maxPower[secondPass[i, 0] : secondPass[i, 1]])
             if maxValue > highthresh:
                 thirdPass.append(secondPass[i])
-                peakNormalizedPower.append(maxValue)
+                peakpower.append(maxValue)
                 peaktime.append(
                     secondPass[i, 0]
                     + np.argmax(maxPower[secondPass[i, 0] : secondPass[i, 1]])
                 )
-                peakSharpWave.append(
-                    secondPass[i, 0]
-                    + np.argmax(sharpWv_sig[secondPass[i, 0] : secondPass[i, 1]])
-                )
         thirdPass = np.asarray(thirdPass)
-        print(f"{len(thirdPass)} ripples reamining after deleting weak ripples")
-        print(thirdPass.shape)
+        print(
+            f"{len(thirdPass)} epochs reamining after deleting epochs with weaker power"
+        )
 
-        ripple_duration = np.diff(thirdPass, axis=1) / fs
-        ripples = pd.DataFrame(
+        ripple_duration = np.diff(thirdPass, axis=1) / self.fs
+        epochs = pd.DataFrame(
             {
                 "start": thirdPass[:, 0],
                 "stop": thirdPass[:, 1],
-                "peakNormalizedPower": peakNormalizedPower,
-                "peakSharpWave": np.asarray(peakSharpWave),
+                "peakpower": peakpower,
                 "peaktime": np.asarray(peaktime),
                 "duration": ripple_duration.squeeze(),
             }
         )
 
-        # ---------delete very short ripples--------
-        ripples = ripples[ripples.duration >= mindur]
-        print(f"{len(ripples)} ripples reamining after deleting short ripples")
+        # ---------delete very short epochs--------
+        epochs = epochs[epochs.duration >= mindur]
+        print(f"{len(epochs)} epochs reamining after deleting short epochs")
 
-        # ----- delete ripples with unrealistic high power
-        # artifactRipples = np.where(peakNormalizedPower > maxPeakPower)[0]
+        # ----- delete epochs with unrealistic high power
+        # artifactRipples = np.where(peakpower > maxPeakPower)[0]
         # fourthPass = np.delete(thirdPass, artifactRipples, 0)
-        # peakNormalizedPower = np.delete(peakNormalizedPower, artifactRipples)
+        # peakpower = np.delete(peakpower, artifactRipples)
 
-        # ---------delete very long ripples---------
-        ripples = ripples[ripples.duration <= maxdur]
-        print(f"{len(ripples)} ripples reamining after deleting very long ripples")
+        # ---------delete very long epochs---------
+        epochs = epochs[epochs.duration <= maxdur]
+        print(f"{len(epochs)} epochs reamining after deleting very long epochs")
 
         # ----- converting to all time stamps to seconds --------
-        ripples[["start", "stop", "peakSharpWave", "peaktime"]] /= fs  # seconds
+        epochs[["start", "stop", "peakpower", "peaktime"]] /= self.fs  # seconds
 
-        epochs = ripples.reset_index(drop=True)
+        epochs = epochs.reset_index(drop=True)
         epochs["label"] = ""
         metadata = {
-            "DetectionParams": {
+            "params": {
                 "lowThres": lowthresh,
                 "highThresh": highthresh,
-                "lowFreq": lowFreq,
-                "highFreq": highFreq,
+                "freq_band": self.freq_band,
                 "mindur": mindur,
                 "maxdur": maxdur,
                 "mergedist": mergedist,
             },
         }
 
-        return epochs, metadata
+        return
