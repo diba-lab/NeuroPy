@@ -11,9 +11,9 @@ class Oscillation:
     def __init__(self, freq_band: tuple, fs=1250, **kwargs) -> None:
         super().__init__(**kwargs)
         self.freq_band = freq_band
-        self.fs = 1250
+        self.fs = fs
 
-    def best_channels(self, lfps):
+    def get_best_channels(self, lfps):
         """Channel which represent high spindle power during nrem across all channels"""
         avg_bandpower = np.zeros(len(lfps))
         for i, lfp in enumerate(lfps):
@@ -150,4 +150,4 @@ class Oscillation:
             },
         }
 
-        return
+        return epochs, metadata

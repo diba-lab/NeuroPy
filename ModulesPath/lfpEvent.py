@@ -552,6 +552,7 @@ class Spindle(Oscillation, Epoch):
         maxdur=1,
         mergedist=0.05,
         ignore_epochs=None,
+        plot=True,
     ):
 
         if chans is None:
@@ -560,10 +561,12 @@ class Spindle(Oscillation, Epoch):
             selected_chans = []
             for changrp in changrps:
                 lfps = self._obj.geteeg(chans=changrp, timeRange=[0, 3600])
-                desc_order = super().best_channels(lfps=lfps)
+                desc_order = super().get_best_channels(lfps=lfps)
                 selected_chans.append(changrp[desc_order[0]])
         else:
             selected_chans = chans
+
+        lfps = self._obj.geteeg(chans=selected_chans)
 
         epochs, metadata = super().detect(
             lfps=lfps,
@@ -579,9 +582,8 @@ class Spindle(Oscillation, Epoch):
         self.metadata = metadata
         self.save()
 
-    def plot(self):
+    def plot_stats(self):
         """Gives a comprehensive view of the detection process with some statistics and examples"""
-        _, spindlechan, coord = self.best_chan_lfp()
         eegSrate = self._obj.lfpSrate
         probemap = self._obj.probemap()
         nChans = self._obj.nChans
@@ -662,13 +664,6 @@ class Spindle(Oscillation, Epoch):
 
         subname = self._obj.sessinfo.session.subname
         fig.suptitle(f"Spindle detection of {subname}")
-
-    def export2Neuroscope(self):
-        times = self.time * 1000  # convert to ms
-        file_neuroscope = self._obj.sessinfo.files.filePrefix.with_suffix(".evt.spn")
-        with file_neuroscope.open("w") as a:
-            for beg, stop in times:
-                a.write(f"{beg} start\n{stop} end\n")
 
 
 class Theta:
