@@ -1,4 +1,3 @@
-from curses import meta
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -8,7 +7,9 @@ class Epoch:
     def __init__(
         self, epochs: pd.DataFrame = None, filename=None, metadata=None
     ) -> None:
-        self.filename = Path(filename)
+
+        if filename is not None:
+            self.filename = Path(filename)
         self.epochs = epochs
         self.metadata = metadata
 
@@ -85,6 +86,71 @@ class Epoch:
 
     def add_epochs(self):
         pass
+
+    def fill_blank(self, method="from_left"):
+
+        ep_starts = self.epochs["start"].values
+        ep_stops = self.epochs["stop"].values
+        ep_durations = self.epochs["duration"].values
+        ep_labels = self.epochs["label"].values
+
+        mask = (ep_starts[:-1] + ep_durations[:-1]) < ep_starts[1:]
+        (inds,) = np.nonzero(mask)
+
+        if method == "from_left":
+            for ind in inds:
+                ep_durations[ind] = ep_starts[ind + 1] - ep_starts[ind]
+
+        elif method == "from_right":
+            for ind in inds:
+                gap = ep_starts[ind + 1] - (ep_starts[ind] + ep_durations[ind])
+                ep_starts[ind + 1] -= gap
+                ep_durations[ind + 1] += gap
+
+        elif method == "from_nearest":
+            for ind in inds:
+                gap = ep_starts[ind + 1] - (ep_starts[ind] + ep_durations[ind])
+                ep_durations[ind] += gap / 2.0
+                ep_starts[ind + 1] -= gap / 2.0
+                ep_durations[ind + 1] += gap / 2.0
+
+        self.epochs["start"] = ep_starts
+        self.epochs["stop"] = ep_starts + ep_durations
+        self.epochs["duration"] = ep_durations
+
+    def delete_in_between(self, t1, t2):
+
+        ep_starts = self.epochs["start"].values
+        ep_stops = self.epochs["stop"].values
+        ep_durations = self.epochs["duration"].values
+        ep_labels = self.epochs["label"].values
+
+        for i in range(len(ep_starts)):
+
+            # if epoch starts and ends inside range, delete it
+            if ep_starts[i] >= t1 and ep_stops[i] <= t2:
+                ep_durations[
+                    i
+                ] = -1  # non-positive duration flags this epoch for clean up
+
+            # if epoch starts before and ends inside range, truncate it
+            elif ep_starts[i] < t1 and (t1 < ep_stops[i] <= t2):
+                ep_durations[i] = t1 - ep_starts[i]
+
+            # if epoch starts inside and ends after range, truncate it
+            elif (t1 <= ep_starts[i] < t2) and ep_stops[i] > t2:
+                ep_durations[i] = ep_stops[i] - t2
+                ep_starts[i] = t2
+
+            # if epoch starts before and ends after range,
+            # truncate the first part and add a new epoch for the end part
+            elif ep_starts[i] <= t1 and ep_stops[i] >= t2:
+                ep_durations[i] = t1 - ep_starts[i]
+                ep_starts = np.append(ep_starts, t2)
+                ep_durations = np.append(ep_durations, ep_stops[i] - t2)
+                ep_labels = np.append(ep_labels, ep_labels[i])
+                ep_ids = np.append(ep_ids, self._next_id)
+                self._next_id += 1
 
     def to_neuroscope(self, ext="evt"):
         with self.filename.with_suffix(f".evt.{ext}").open("w") as a:
