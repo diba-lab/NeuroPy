@@ -16,6 +16,7 @@ from scipy.ndimage import gaussian_filter
 from . import signal_process
 from .artifactDetect import findartifact
 from .parsePath import Recinfo
+from .core import Epoch
 
 try:
     import ephyviewer
@@ -76,9 +77,8 @@ def hmmfit1d(Data):
     return hmmlabels
 
 
-class SleepScore:
+class SleepScore(Epoch):
     # TODO add support for bad time points
-    # colors = ["#6b90d1", "#eb9494", "#b6afaf", "#474343"]
     colors = {
         "nrem": "#6b90d1",
         "rem": "#eb9494",
@@ -94,35 +94,11 @@ class SleepScore:
         else:
             self._obj = Recinfo(basepath)
 
+        super().__init__()
         # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
-
-        @dataclass
-        class files:
-            stateparams: str = filePrefix.with_suffix(".stateparams.pkl")
-            states: str = filePrefix.with_suffix(".states.pkl")
-            emg: Path = filePrefix.with_suffix(".emg.npy")
-
-        self.files = files()
+        self.filename = filePrefix.with_suffix(".brainstates.npy")
         self.load()
-
-    def load(self):
-        if (f := self.files.stateparams).is_file():
-            self.params = pd.read_pickle(f)
-
-        if (f := self.files.states).is_file():
-            self.states = pd.read_pickle(f)
-            # Adding name convention to the states
-            state_number_dict = {
-                1: "nrem",
-                2: "rem",
-                3: "quiet",
-                4: "active",
-            }
-            self.states["name"] = self.states["state"].map(state_number_dict)
-
-    def save(self):
-        self.states.to_pickle(self.files.states)
 
     @staticmethod
     def _label2states(theta_delta, delta_l, emg_l):
@@ -172,7 +148,7 @@ class SleepScore:
 
         duration = statetime.duration
         start = statetime.start
-        end = statetime.end
+        end = statetime.stop
         state = statetime.state
 
         arr = np.zeros((len(start), 4))
@@ -202,7 +178,7 @@ class SleepScore:
         statetime = pd.DataFrame(
             {
                 "start": arr[:, 0],
-                "end": arr[:, 1],
+                "stop": arr[:, 1],
                 "duration": arr[:, 2],
                 "state": arr[:, 3],
             }
@@ -230,7 +206,7 @@ class SleepScore:
 
         if emgfile:
             print("emg loaded")
-            emg = np.load(self.files.emg)
+            emg = self.metadata["emg"]
         else:
             emg = self._emgfromlfp(window=window, overlap=overlap)
 
@@ -249,16 +225,12 @@ class SleepScore:
             lfp, sampfreq=sRate, window=window, overlap=overlap, smooth=10
         )
         time = bands.time
-        delta = bands.delta
         deltaplus = bands.deltaplus
         theta = bands.theta
-        spindle = bands.spindle
-        gamma = bands.gamma
-        ripple = bands.ripple
         theta_deltaplus_ratio = theta / deltaplus
         print(f"spectral properties calculated")
 
-        if (noisy := artifact.time).any():
+        if (noisy := artifact.time) is not None:
             noisy_timepoints = []
             for noisy_ind in range(noisy.shape[0]):
                 st = noisy[noisy_ind, 0]
@@ -275,42 +247,27 @@ class SleepScore:
         emg_label = hmmfit1d(emg)
 
         states = self._label2states(theta_deltaplus_label, deltaplus_label, emg_label)
-
-        print(
-            states.shape, emg.shape, deltaplus_label.shape, theta_deltaplus_label.shape
-        )
         statetime = (self._states2time(states)).astype(int)
-
-        data = pd.DataFrame(
-            {
-                "time": time,
-                "delta": delta,
-                "deltaplus": deltaplus,
-                "theta": theta,
-                "spindle": spindle,
-                "gamma": gamma,
-                "ripple": ripple,
-                "theta_deltaplus_ratio": theta_deltaplus_ratio,
-                "emg": emg,
-                "state": states,
-            }
-        )
 
         statetime = pd.DataFrame(
             {
                 "start": time[statetime[:, 0]],
-                "end": time[statetime[:, 1]],
+                "stop": time[statetime[:, 1]],
                 "duration": time[statetime[:, 1]] - time[statetime[:, 0]],
                 "state": statetime[:, 2],
             }
         )
 
-        statetime_new = self._removetransient(statetime)
+        epochs = self._removetransient(statetime)
 
-        # data_label = pd.DataFrame({"theta_delta": theta_delta_label, "emg": emg_label})
+        state_to_label = {1: "nrem", 2: "rem", 3: "quiet", 4: "active"}
+        epochs["label"] = epochs["state"].map(state_to_label)
+        epochs.drop("state", axis=1, inplace=True)
 
-        data.to_pickle(self.files.stateparams)
-        statetime_new.to_pickle(self.files.states)
+        self.epochs = epochs
+        self.metadata = {"window": window, "overlap": overlap, "emg": emg}
+        self.save()
+        self.load()
 
     def _emgfromlfp(self, window, overlap, n_jobs=8):
         """Calculating emg
@@ -382,7 +339,6 @@ class SleepScore:
         )
         emg_lfp = np.asarray(corr_per_frame)
 
-        np.save(self.files.emg, emg_lfp)
         print("emg calculation done")
         return emg_lfp
 
