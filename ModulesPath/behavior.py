@@ -87,13 +87,13 @@ class behavior_epochs:
         length_epochs = np.array([len(new_epochs[_]) for _ in new_epochs])
         assert np.all(length_epochs == 2), "epochs can only have length of 2"
 
-        if (f := self.files.epochs).is_file():
+        if (f := self.filename).is_file():
             epochs = np.load(f, allow_pickle=True).item()
             epochs = {**epochs, **new_epochs}
         else:
             epochs = new_epochs
 
-        np.save(self.files.epochs, epochs)
+        np.save(self.filename, epochs)
         self._load()
 
     def getfromPosition(self):
