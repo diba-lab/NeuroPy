@@ -50,14 +50,6 @@ class Epoch:
     def __str__(self) -> str:
         pass
 
-    def delete_file(self):
-        self.filename.unlink()
-
-        print("file removed")
-
-    def create_backup(self):
-        pass
-
     def time_slice(self, period):
         pass
 
@@ -163,3 +155,11 @@ class WritableEpoch(Epoch):
 
         np.save(self.filename, data)
         print(f"{self.filename.name} created")
+
+    def delete_file(self):
+        self.filename.unlink()
+
+        print("file removed")
+
+    def create_backup(self):
+        pass
