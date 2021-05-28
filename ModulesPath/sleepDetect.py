@@ -16,7 +16,7 @@ from scipy.ndimage import gaussian_filter
 from . import signal_process
 from .artifactDetect import findartifact
 from .parsePath import Recinfo
-from .core import Epoch
+from .core import Epoch, WritableEpoch
 
 try:
     import ephyviewer
@@ -77,7 +77,7 @@ def hmmfit1d(Data):
     return hmmlabels
 
 
-class SleepScore(Epoch):
+class SleepScore(WritableEpoch):
     # TODO add support for bad time points
     colors = {
         "nrem": "#6b90d1",
@@ -94,10 +94,10 @@ class SleepScore(Epoch):
         else:
             self._obj = Recinfo(basepath)
 
-        super().__init__()
         # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
-        self.filename = filePrefix.with_suffix(".brainstates.npy")
+        filename = filePrefix.with_suffix(".brainstates.npy")
+        super().__init__(filename)
         self.load()
 
     @staticmethod

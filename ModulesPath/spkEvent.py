@@ -10,7 +10,7 @@ import scipy.stats as stats
 
 from .getSpikes import Spikes
 from .mathutil import threshPeriods
-from .core.epoch import Epoch
+from .core.epoch import Epoch, WritableEpoch
 from .parsePath import Recinfo
 from .plotUtil import Fig
 
@@ -140,7 +140,7 @@ class LocalSleep:
             ax.axis("off")
 
 
-class PBE(Epoch):
+class PBE(WritableEpoch):
     """Populations burst events"""
 
     def __init__(self, basepath):
