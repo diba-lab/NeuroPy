@@ -4,12 +4,7 @@ from pathlib import Path
 
 
 class Epoch:
-    def __init__(
-        self, epochs: pd.DataFrame = None, filename=None, metadata=None
-    ) -> None:
-
-        if filename is not None:
-            self.filename = Path(filename)
+    def __init__(self, epochs: pd.DataFrame = None, metadata=None) -> None:
         self.epochs = epochs
         self.metadata = metadata
 
@@ -49,36 +44,10 @@ class Epoch:
 
         self._metadata = metadata
 
-    def load(self):
-        if self.filename.is_file():
-            self.data = np.load(self.filename, allow_pickle=True).item()
-
-            if "metadata" in self.data:
-                self.metadata = self.data["metadata"]
-
-            if "epochs" in self.data:
-                self.epochs = self.data["epochs"]
-            if "events" in self.data:
-                self.epochs = self.data["events"]
-
-    def save(self):
-        data = {"epochs": self._epochs, "metadata": self._metadata}
-
-        np.save(self.filename, data)
-        print(f"{self.filename.name} created")
-
     def __repr__(self) -> str:
         pass
 
     def __str__(self) -> str:
-        pass
-
-    def delete_file(self):
-        self.filename.unlink()
-
-        print("file removed")
-
-    def create_backup(self):
         pass
 
     def time_slice(self, period):
@@ -161,4 +130,36 @@ class Epoch:
         return self.epochs[["start", "stop"]].to_numpy()
 
     def plot(self):
+        pass
+
+
+class WritableEpoch(Epoch):
+    def __init__(self, filename, epochs=None, metadata=None) -> None:
+        super().__init__(epochs=epochs, metadata=metadata)
+        self.filename = filename
+
+    def load(self):
+        if self.filename.is_file():
+            self.data = np.load(self.filename, allow_pickle=True).item()
+
+            if "metadata" in self.data:
+                self.metadata = self.data["metadata"]
+
+            if "epochs" in self.data:
+                self.epochs = self.data["epochs"]
+            if "events" in self.data:
+                self.epochs = self.data["events"]
+
+    def save(self):
+        data = {"epochs": self._epochs, "metadata": self._metadata}
+
+        np.save(self.filename, data)
+        print(f"{self.filename.name} created")
+
+    def delete_file(self):
+        self.filename.unlink()
+
+        print("file removed")
+
+    def create_backup(self):
         pass

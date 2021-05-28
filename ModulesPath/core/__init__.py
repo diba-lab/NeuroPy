@@ -1,3 +1,2 @@
-import imp
-from .epoch import Epoch
+from .epoch import Epoch, WritableEpoch
 from .oscillation import Oscillation
