@@ -1,15 +1,8 @@
-import time
-from pathlib import Path
-from dataclasses import dataclass
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .getPosition import ExtractPosition
 from .parsePath import Recinfo
 from .core import WritableEpoch
-
-# from ModulesPath.core import Epoch
 
 
 class behavior_epochs(WritableEpoch):
@@ -24,7 +17,7 @@ class behavior_epochs(WritableEpoch):
 
         # ---- defining filenames --------
         filePrefix = self._obj.files.filePrefix
-        filename = Path(str(filePrefix) + ".epochs.npy")
+        filename = filePrefix.with_suffix(".epochs.npy")
         super().__init__(filename=filename)
         self.load()
         if not self._epochs.empty:
@@ -42,16 +35,12 @@ class behavior_epochs(WritableEpoch):
         print("epochs updated/added")
 
     def __getitem__(self, label_name):
-        label_pos = np.where(self._epochs["label"] == label_name)[0]
         epoch_label = self._epochs[self._epochs["label"] == label_name]
         return epoch_label[["start", "stop"]].values.tolist()[0]
 
     def all_maze(self):
         """Make the entire session a maze epoch if that's all you are analyzing"""
-        position = ExtractPosition(self._obj.basePath)
-        maze_time = np.array([position.t[0], position.t[-1]])
-        epoch_times = {"MAZE": maze_time}
-
-        np.save(self._obj.files.epochs, epoch_times)
-
-        self._load()  # load these in for immediate use
+        maze_time = [0, self._obj.duration]
+        self.add_epochs(
+            pd.DataFrame({"start": [0], "stop": [maze_time], "label": ["maze"]})
+        )
