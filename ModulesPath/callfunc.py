@@ -22,7 +22,7 @@ class processData:
 
         self.position = ExtractPosition(self.recinfo)
         self.tracks = Track(self.recinfo)
-        self.epochs = behavior_epochs(self.recinfo)
+        self.paradigm = behavior_epochs(self.recinfo)
         self.artifact = findartifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 

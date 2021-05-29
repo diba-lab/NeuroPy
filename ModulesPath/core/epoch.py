@@ -5,7 +5,7 @@ from pathlib import Path
 
 class Epoch:
     def __init__(self, epochs: pd.DataFrame = None, metadata=None) -> None:
-        self.epochs = epochs
+        self.epochs: pd.DataFrame = epochs
         self.metadata = metadata
 
     @property
@@ -23,14 +23,11 @@ class Epoch:
         """
 
         if epochs is not None:
+            self._check_epochs(epochs)
+            epochs["duration"] = epochs["stop"] - epochs["start"]
 
-            assert isinstance(epochs, pd.DataFrame)
-            assert (
-                pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
-            ), "Epoch dataframe should have columns with names: start, stop, label"
-
-            if "duration" not in epochs.columns:
-                epochs["duration"] = epochs["stop"] - epochs["start"]
+        else:
+            epochs = pd.DataFrame(columns=["start", "stop", "label"])
 
         self._epochs = epochs
 
@@ -44,8 +41,14 @@ class Epoch:
 
         self._metadata = metadata
 
+    def _check_epochs(self, epochs):
+        assert isinstance(epochs, pd.DataFrame)
+        assert (
+            pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
+        ), "Epoch dataframe should have columns with names: start, stop, label"
+
     def __repr__(self) -> str:
-        pass
+        return f"{len(self.epochs)} epochs"
 
     def __str__(self) -> str:
         pass
@@ -53,8 +56,11 @@ class Epoch:
     def time_slice(self, period):
         pass
 
-    def add_epochs(self):
-        pass
+    def add_epochs(self, epochs: pd.DataFrame):
+
+        self._check_epochs(epochs)
+        self.epochs = self.epochs.append(epochs)
+        print("epochs added")
 
     def fill_blank(self, method="from_left"):
 
