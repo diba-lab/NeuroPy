@@ -3,24 +3,81 @@ from ..mathutil import threshPeriods
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
+from .datawriter import DataWriter
 
 
-class Position:
-    def __init__(self, time=None, x=None, y=None, z=None, tracking_srate=120) -> None:
+class Position(DataWriter):
+    def __init__(
+        self, time=None, x=None, y=None, z=None, tracking_srate=120, filename=None
+    ) -> None:
 
-        self.time = time
-        self.x = x
-        self.y = y
-        self.z = z
-        self.tracking_srate = tracking_srate
+        self._time = time
+        self._x = x
+        self._y = y
+        self._z = z
+        self._tracking_srate = tracking_srate
+        super().__init__(filename=filename)
+        self.linear = None
 
-        if time is not None:
-            self.linear = np.nan * np.zeros(len(self.time))
+    @property
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, x):
+        self._x = x
+
+    @property
+    def y(self):
+        return self._x
+
+    @y.setter
+    def y(self, y):
+        self._y = y
+
+    @property
+    def z(self):
+        return self._z
+
+    @z.setter
+    def z(self, z):
+        self._z = z
+
+    @property
+    def time(self):
+        return self._time
+
+    @time.setter
+    def time(self, time):
+        self._time = time
 
     def load(self):
-        pass
+        data = super().load()
+
+        if data is not None:
+            data = np.load(self.filename, allow_pickle=True).item()
+            self.time, self.x, self.y, self.z, self.tracking_srate, self.linear = (
+                data["time"],
+                data["x"],
+                data["y"],
+                data["z"],
+                data["tracking_srate"],
+                data["linear"],
+            )
 
     def save(self):
+        data = {
+            "time": self.time,
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
+            "tracking_srate": self.tracking_srate,
+            "linear": self.linear,
+        }
+        super().save(data)
+
+    @property
+    def speed(self):
         pass
 
     def linearize(self, period, method="isomap"):
@@ -29,12 +86,12 @@ class Position:
     def to_dataframe(self):
         self.data = pd.DataFrame(
             {
-                "time": self.t,
-                "x": self.x,
-                "y": self.y,
-                "z": self.z,
+                "time": self.time[1:],
+                "x": self.x[1:],
+                "y": self.y[1:],
+                "z": self.z[1:],
                 "speed": self.speed,
-                "datetime": self.datetime,
+                "linear": self.linear[1:],
             }
         )
 
@@ -42,7 +99,6 @@ class Position:
 class Track:
     def __init__(self, position: Position) -> None:
         self._position = position
-        super().__init__()
 
     def calculate_run_epochs(
         self,

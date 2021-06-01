@@ -16,7 +16,7 @@ from sklearn.manifold import Isomap
 
 from .mathutil import contiguous_regions
 from .parsePath import Recinfo
-from .core import Track, WritableEpoch, Position
+from .core import Track, Epoch, Position
 
 
 def getSampleRate(fileName):
@@ -553,31 +553,11 @@ class SessPosition(Position):
     def __init__(self, basepath: Recinfo) -> None:
 
         self._obj = basepath
-        super().__init__()
 
         filePrefix = self._obj.files.filePrefix
-        self.filename = filePrefix.with_suffix(".test_position.npy")
+        filename = filePrefix.with_suffix(".test_position.npy")
+        super().__init__(filename=filename)
         self.load()
-
-    def load(self):
-        data = np.load(self.filename, allow_pickle=True).item()
-        self.time = data["time"]
-        self.x = data["x"]
-        self.y = data["y"]
-        self.z = data["z"]
-        self.tracking_srate = data["tracking_srate"]
-        self.datetime = data["datetime"]
-
-    def save(self):
-        data = {
-            "time": self.time,
-            "x": self.x,
-            "y": self.y,
-            "z": self.z,
-            "tracking_srate": self.tracking_srate,
-            "datetime": self.datetime,
-        }
-        np.save(self.filename, data)
 
     def from_optitrack(self, method="from_metadata", scale=1.0):
         """get position data from files. All position related files should be in 'position' folder within basepath
@@ -731,36 +711,42 @@ class SessPosition(Position):
         self.y = zdata
         self.z = ydata
         self.time = time
-        self.datetime = data_time
         self.tracking_srate = tracking_sRate
 
         self.save()
-        self.load()
 
 
-class SessTrack(Track, WritableEpoch):
+class SessTrack(Track, Epoch):
     def __init__(self, basepath: Recinfo, position: Position):
         self._obj = basepath
         filePrefix = self._obj.files.filePrefix
         filename = filePrefix.with_suffix(".test_track.npy")
 
-        Track.__init__(position=position)
-        WritableEpoch.__init__(filename=filename)
+        Track.__init__(self, position=position)
+        Epoch.__init__(self, filename=filename)
+        self.load()
 
     def calculate_run_epochs(
-        self, period, speedthresh, merge_dur, min_dur, smooth_speed, min_dist, plot
+        self, epochs, speedthresh, merge_dur, min_dur, smooth_speed, min_dist, plot
     ):
-        epochs = super().calculate_run_epochs(
-            period,
-            speedthresh=speedthresh,
-            merge_dur=merge_dur,
-            min_dur=min_dur,
-            smooth_speed=smooth_speed,
-            min_dist=min_dist,
-            plot=plot,
-        )
+        self._check_epochs(epochs)
 
-        self.epochs = epochs
+        run_epochs = []
+        for epoch in epochs.itertuples():
+            run_ep = super().calculate_run_epochs(
+                [epoch.start, epoch.stop],
+                speedthresh=speedthresh,
+                merge_dur=merge_dur,
+                min_dur=min_dur,
+                smooth_speed=smooth_speed,
+                min_dist=min_dist,
+                plot=plot,
+            )
+            run_epochs.append(run_ep)
+
+        run_epochs = pd.concat(run_epochs)
+
+        self.epochs = run_epochs
         self.save()
 
     def plot_run_epochs():
