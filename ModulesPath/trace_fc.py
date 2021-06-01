@@ -240,6 +240,7 @@ class trace_behavior:
         by_trial=False,
         trial_buffer_sec=10,
         paradigm=None,
+        include_US=True,
     ):
         """
         Gets the mean speed of bodyparts indicated across whole session or broken up by trials
@@ -247,6 +248,10 @@ class trace_behavior:
         :param by_trial: boolean
         :param trial_buffer_sec: time before/after trial start (CSon) or end (CSoff or USoff) for applicable sessions.
         Can be float or list of floats.
+        :param paradigm: 'Pilot1' had a different CS schedule for tone_recall session so be sure to specify if plotting
+        a session from this paradigm.  Otherwise should not matter.
+        :param include_US: True (default): training trials start with CS and end with US.
+                           False: trial ends at CS for plotting and calculation purposes.
         :return:
         """
 
@@ -269,6 +274,7 @@ class trace_behavior:
             self.events, self.session_type, paradigm=paradigm
         )  # Get US/CS times if applicable
         if by_trial and self.session_type in [
+            "habituation",
             "training",
             "tone_recall",
             "tone_LTMrecall",
@@ -276,7 +282,7 @@ class trace_behavior:
 
             # Get start/end times of trial and CS/US
             trial_starts = stimuli["absolute"]["CS_starts"]
-            if self.session_type == "training":
+            if self.session_type == "training" and include_US:
                 trial_ends = stimuli["absolute"]["US_ends"]
             else:
                 trial_ends = stimuli["absolute"]["CS_ends"]
@@ -313,6 +319,7 @@ class trace_behavior:
 
             stimuli_out = stimuli["by_trial"]
         if not by_trial and self.session_type in [
+            "habituation",
             "training",
             "tone_recall",
             "tone_LTMrecall",
@@ -321,7 +328,7 @@ class trace_behavior:
 
         return mean_speed, times, stimuli_out
 
-    def get_baseline_speed(self, baseline_time=[30, 130]):
+    def get_baseline_speed(self, baseline_time=[120, 180]):
         """Pulls out speed during baseline period whose limits are specified"""
         mean_speed_abs, time_abs, _ = self.get_mean_speed(by_trial=False)
         baseline_bool = np.bitwise_and(
@@ -332,7 +339,7 @@ class trace_behavior:
 
         return bl_speed, bl_time
 
-    def plot_trials(
+    def plot_trial_speed_traces(
         self, trial_buffer_sec=10, ax=None, plot_baseline=True, paradigm=None, **kwargs
     ):
         """Plot trial speeds (and in future, freezing) for a given training or tone recall session."""
@@ -366,6 +373,7 @@ class trace_behavior:
         # Get baseline speed if plotting
         if plot_baseline:
             bl_speed, bl_time = self.get_baseline_speed(**kwargs)
+            bl_mean = np.nanmean(bl_speed)
 
         # Plot velocity
         htrial = ax_trial.plot(times, mean_speed.T, color=[0, 0, 0, 0.2])
@@ -394,6 +402,8 @@ class trace_behavior:
         # Plot baseline
         if plot_baseline:
             ax_bl.plot(bl_time, bl_speed, "k", linewidth=1)
+            ax_bl.plot(bl_time, bl_mean * np.ones_like(bl_time), "r--")
+            ax_trial.plot(times, bl_mean * np.ones_like(times), "r--")
             ax_bl.set_xlabel("Time from session start (s)")
             ax_bl.set_ylabel("Speed (cm/s)")
             ax_bl.set_title("Baseline")
@@ -574,7 +584,7 @@ class trace_group:
         plot_by_trial=False,
         trial_buffer=10,
     ):
-        """
+        """THIS IS CURRENTLY BROKEN !!!
         Plots mean speed for ALL animals with average (5 sec rolling mean) overlaid.  Can also plot by trial.
         :param session_type: str
         :param bodyparts: list
@@ -627,7 +637,7 @@ class trace_group:
 
         return ax
 
-    def plot_trials(
+    def plot_trial_speed_traces(
         self, session_type, trial_buffer_sec=20, plot_baseline=True, **kwargs
     ):
 
@@ -644,7 +654,7 @@ class trace_group:
                 ax.append([ax_bl, ax_trial])
 
         for ida, (a, animal_name) in enumerate(zip(ax, self.animal_names)):
-            self.animal[animal_name].data[session_type].plot_trials(
+            self.animal[animal_name].data[session_type].plot_trial_speed_traces(
                 trial_buffer_sec=trial_buffer_sec,
                 ax=a,
                 plot_baseline=True,
@@ -655,31 +665,88 @@ class trace_group:
             # Clean up axes and set limits to be the same across all plots
             if ida < len(self.animal_names) - 1:
                 [_.set_xlabel("") for _ in a]
-                if session_type == "training":
-                    ylims = [-5, 100]
-                else:
-                    ylims = [-5, 70]
-                [_.set_ylim(ylims) for _ in a]
+
+            if session_type == "training":
+                ylims = [-5, 70]
+            else:
+                ylims = [-5, 70]
+            [_.set_ylim(ylims) for _ in a]
 
         return fig
 
-    def plot_speed_summary(self, session_type, time_use=100, ax=None):
+    def plot_speed_summary(
+        self, session_type, time_use=60, baseline_end=180, average_trials=True, ax=None
+    ):
+        """Plots mean speed during baseline period versus mean speed across all trials. Baseline goes from baseline_end
+        - time_use to baseline_end"""
 
-        assert session_type in ["training", "tone_recall", "tone_LTMrecall"]
+        assert session_type in [
+            "habituation",
+            "training",
+            "tone_recall",
+            "tone_LTMrecall",
+        ]
 
         trial_mean_speed_all = []
         bl_mean_speed_all = []
+        paradigm = self.paradigm
         for animal_name in self.animal_names:
             session = self.animal[animal_name].data[session_type]
             trial_speed, _, _ = session.get_mean_speed(
-                by_trial=True, trial_buffer_sec=[0, time_use]
+                by_trial=True,
+                trial_buffer_sec=[0, time_use],
+                paradigm=paradigm,
             )
-            bl_speed, _ = session.get_baseline_speed(baseline_time=[30, 30 + time_use])
+            bl_speed, _ = session.get_baseline_speed(
+                baseline_time=[baseline_end - time_use, baseline_end]
+            )
             bl_mean_speed_all.append(np.nanmean(bl_speed))
-            trial_mean_speed_all.append(np.nanmean(trial_speed))
+            if average_trials:
+                trial_mean_speed_all.append(np.nanmean(trial_speed))
+            else:
+                trial_mean_speed_all.append(np.nanmean(trial_speed, axis=1))
 
         fig, ax = plt.subplots()
-        sns.stripplot(data=[bl_mean_speed_all, trial_mean_speed_all], ax=ax)
+        if average_trials:
+            sns.stripplot(data=[bl_mean_speed_all, trial_mean_speed_all], ax=ax)
+
+            ax.set_xticklabels(
+                [
+                    "Baseline "
+                    + str(baseline_end - time_use)
+                    + "-"
+                    + str(baseline_end)
+                    + " sec",
+                    "CS onset + " + str(time_use) + " sec",
+                ]
+            )
+
+        else:
+            sns.stripplot(
+                data=np.hstack(
+                    (
+                        np.asarray(bl_mean_speed_all)[:, None],
+                        np.asarray(trial_mean_speed_all),
+                    )
+                ),
+                ax=ax,
+            )
+            ntrials = len(trial_mean_speed_all[0])
+            xticks = [
+                "Baseline \n"
+                + str(baseline_end - time_use)
+                + "-"
+                + str(baseline_end)
+                + " sec"
+            ]
+            [
+                xticks.append("Trial " + str(trial) + "\n CS + " + str(time_use))
+                for trial in range(1, ntrials + 1)
+            ]
+            ax.set_xticklabels(xticks)
+        ax.set_title(self.paradigm + ": " + session_type.title())
+        sns.despine()
+        ax.set_ylabel("Speed (cm/s)")
 
     def get_mean_speed(
         self,
@@ -837,15 +904,22 @@ def get_stimuli_times(events_table, session_type, paradigm=None):
     CS_starts, CS_ends = False, False
     US_starts, US_ends = False, False
 
-    if session_type in ["training", "tone_recall", "tone_LTMrecall"]:
+    good_session = False
+    if session_type in ["habituation", "training", "tone_recall", "tone_LTMrecall"]:
+        good_session = True
         if session_type == "training":
             CS_start_name, CS_end_name = ["tone.*_start", "tone.*_end"]
             US_start_name, US_end_name = ["shock.*_start", "shock.*_end"]
-        elif session_type in ["tone_recall", "tone_LTMrecall"]:
+        elif session_type in ["habituation", "tone_recall", "tone_LTMrecall"]:
             CS_start_name, CS_end_name = ["CS.*start", "CS.*end"]
 
         CS_starts = get_event_times(events_table, CS_start_name)
         CS_ends = get_event_times(events_table, CS_end_name)
+        if (
+            session_type == "habituation"
+        ):  # NK todo: document/fix this: Fake trials to match paradigm2 structure
+            CS_starts = np.asarray([180, 250, 320, 390, 460, 520])
+            CS_ends = CS_starts + 10
 
         # Exclude first CS from Pilot1 tone recall sessions - just plot the long CS twice
         if paradigm is not None and session_type != "training" and paradigm == "Pilot1":
@@ -865,6 +939,7 @@ def get_stimuli_times(events_table, session_type, paradigm=None):
             US_starts_by_trial, US_ends_by_trial = False, False
         CS_starts_by_trial = np.zeros_like(CS_starts)
 
+    if good_session:
         # Now dump everything into a dictionary
         stimuli_dict = {
             "absolute": {
@@ -909,4 +984,6 @@ def fix_date(date_str):
 
 if __name__ == "__main__":
     tg2 = trace_group("Pilot2", "/data2/Trace_FC")
-    tg2.plot_trials("tone_recall", trial_buffer_sec=[10, 100])
+    tg2.plot_speed_summary(
+        "training", average_trials=False, baseline_time=30, baseline_end=350
+    )
