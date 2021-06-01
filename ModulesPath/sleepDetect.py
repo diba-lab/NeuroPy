@@ -356,59 +356,6 @@ class SleepScore(WritableEpoch):
 
         return states_duration / period_duration
 
-    def plot(self):
-        states = self.states
-        params = self.params
-        post = self._obj.epochs.post
-        lfp = self._obj.spindle.best_chan_lfp()[0]
-        spec = signal_process.spectrogramBands(lfp, window=5)
-
-        fig = plt.figure(num=None, figsize=(6, 10))
-        gs = GridSpec(4, 4, figure=fig)
-        fig.subplots_adjust(hspace=0.4)
-
-        axhypno = fig.add_subplot(gs[0, :])
-        x = np.asarray(states.start)
-        y = np.zeros(len(x)) + np.asarray(states.state)
-        width = np.asarray(states.duration)
-        height = np.ones(len(x))
-        col = [self.colors[state] for state in states.name]
-        make_boxes(axhypno, x, y, width, height, facecolor=col)
-        axhypno.set_xlim(0, post[1])
-        axhypno.set_ylim(1, 5)
-
-        axspec = fig.add_subplot(gs[1, :], sharex=axhypno)
-        sxx = spec.sxx / np.max(spec.sxx)
-        sxx = gaussian_filter(sxx, sigma=1)
-        vmax = np.max(sxx) / 60
-        specplot = axspec.pcolorfast(
-            spec.time, spec.freq, sxx, cmap="Spectral_r", vmax=vmax
-        )
-        axspec.set_ylim([0, 30])
-        axspec.set_xlim([np.min(spec.time), np.max(spec.time)])
-        axspec.set_xlabel("Time (s)")
-        axspec.set_ylabel("Frequency (s)")
-
-        axemg = fig.add_subplot(gs[2, :], sharex=axhypno)
-        axemg.plot(params.time, params.emg)
-
-        axthdel = fig.add_subplot(gs[3, :], sharex=axhypno)
-        axthdel.plot(params.time, params.theta_deltaplus_ratio)
-
-        # ==== change spectrogram visual properties ========
-
-        # @widgets.interact(time=(maze[0], maze[1], 10))
-        # def update(time=0.5):
-        #     # tnow = timetoPlot.val
-        #     allplts(time - 5, time + 5)
-        #     specplot.set_clim([0, freq])
-
-        @widgets.interact(norm=(np.min(sxx), np.max(sxx), 0.001))
-        def update(norm=0.5):
-            # tnow = timetoPlot.val
-            # allplts(time - 5, time + 5)
-            specplot.set_clim([0, norm])
-
     def plot_hypnogram(self, ax=None, tstart=0.0, unit="s", collapsed=False):
         """Plot hypnogram
 
@@ -460,14 +407,14 @@ class SleepScore(WritableEpoch):
                 "active": [0, 1],
             }
 
-        for state in self.states.itertuples():
-            if state.name in self.colors.keys():
+        for state in self.epochs.itertuples():
+            if state.label in self.colors.keys():
                 ax.axvspan(
                     (state.start - tstart) / unit_norm,
-                    (state.end - tstart) / unit_norm,
-                    ymin=span_[state.name][0],
-                    ymax=span_[state.name][1],
-                    facecolor=self.colors[state.name],
+                    (state.stop - tstart) / unit_norm,
+                    ymin=span_[state.label][0],
+                    ymax=span_[state.label][1],
+                    facecolor=self.colors[state.label],
                     alpha=0.7,
                 )
         ax.axis("off")
