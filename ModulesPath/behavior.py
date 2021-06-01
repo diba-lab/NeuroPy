@@ -28,7 +28,12 @@ class behavior_epochs(Epoch):
     def add_epochs(self, epochs: pd.DataFrame):
 
         self._check_epochs(epochs)
-        self.epochs = self.epochs.append(epochs)
+
+        if self.epochs is None:
+            self.epochs = epochs
+        else:
+            self.epochs = self.epochs.append(epochs)
+
         self._epochs.drop_duplicates(
             subset=["label"], keep="last", inplace=True, ignore_index=True
         )
