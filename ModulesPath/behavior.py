@@ -20,9 +20,10 @@ class behavior_epochs(Epoch):
         filename = filePrefix.with_suffix(".epochs.npy")
         super().__init__(filename=filename)
         self.load()
-        if not self._epochs.empty:
-            for epoch in self._epochs.itertuples():
-                setattr(self, epoch.label, [epoch.start, epoch.stop])
+        if self._epochs is not None:
+            if not self._epochs.empty:
+                for epoch in self._epochs.itertuples():
+                    setattr(self, epoch.label, [epoch.start, epoch.stop])
 
     def add_epochs(self, epochs: pd.DataFrame):
 
