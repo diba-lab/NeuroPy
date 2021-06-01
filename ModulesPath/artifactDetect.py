@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stat
 from .parsePath import Recinfo
-from .core.epoch import Epoch
+from .core import Epoch
 
 
 class findartifact:

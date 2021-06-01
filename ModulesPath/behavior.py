@@ -1,25 +1,12 @@
-import time
-from pathlib import Path
-from dataclasses import dataclass
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .getPosition import ExtractPosition
 from .parsePath import Recinfo
+from .core import Epoch
 
-# from ModulesPath.core import Epoch
 
-
-class behavior_epochs:
-    """Class for epochs within a session which comprises of pre, maze and post
-
-    Attributes:
-        pre -- [seconds] timestamps for pre sleep
-        maze -- [seconds] timestamps for MAZE period when the animal is on the track
-        post -- [seconds] timestamps for sleep following maze exploration
-        totalduration -- entire duration excluding brief peiods between epochs
-    """
+class behavior_epochs(Epoch):
+    """Class for epochs within a session. Such as pre, maze and post."""
 
     def __init__(self, basepath):
 
@@ -30,82 +17,30 @@ class behavior_epochs:
 
         # ---- defining filenames --------
         filePrefix = self._obj.files.filePrefix
-        self.filename = Path(str(filePrefix) + "_epochs.npy")
-        # Epoch.__init__(filename)
+        filename = filePrefix.with_suffix(".epochs.npy")
+        super().__init__(filename=filename)
+        self.load()
+        if not self._epochs.empty:
+            for epoch in self._epochs.itertuples():
+                setattr(self, epoch.label, [epoch.start, epoch.stop])
 
-        self._load()
+    def add_epochs(self, epochs: pd.DataFrame):
 
-    def _load(self):
-        """Loads epochs files if that exists in the basepath"""
+        self._check_epochs(epochs)
+        self.epochs = self.epochs.append(epochs)
+        self._epochs.drop_duplicates(
+            subset=["label"], keep="last", inplace=True, ignore_index=True
+        )
+        self.save()
+        print("epochs updated/added")
 
-        if (f := self.filename).is_file():
-            epochs = np.load(f, allow_pickle=True).item()
-
-            totaldur = []
-            self.times = pd.DataFrame(epochs)
-            for (epoch, times) in epochs.items():  # alternative list(epochs)
-                setattr(self, epoch.lower(), times)  # .lower() will be removed
-
-                totaldur.append(np.diff(times))
-
-            self.totalduration = np.sum(np.asarray(totaldur))
-
-        else:
-            print(f"Epochs file does not exist for {self.filename}")
-
-    def __repr__(self):
-        if (f := self.filename).is_file():
-            epochs = np.load(f, allow_pickle=True).item()
-            epoch_string = [f"{key}: {epochs[key]}\n" for key in epochs]
-        else:
-            epoch_string = "No epochs exist"
-
-        return f"Epochs (seconds) \n" + "".join(epoch_string)
-
-    def __getitem__(self, name):
-        assert name in self.times, f"Epoch {name} does not exist"
-        return self.times[name].to_list()
-
-    # def __getattr__(self, name):
-    #     return self[name]
-
-    def make_epochs(self, new_epochs: dict):
-        """Adds epochs to the sessions at given timestamps. If epoch file already exists then new epochs are merged.
-        NOTE: If new_epochs have names common to previous existing epochs, values will be updated with new one.
-
-        Parameters
-        ----------
-        new_epochs : dict
-            'dict_key' is meaningful string, 'dict_value' should be 2 element array/list of epoch start/end times in
-            seconds.
-            Example: if you have a session with pre-sleep, maze1 running, maze2 running, and then post-sleep,
-            you would enter:
-            {'pre': [t1, t2], 'maze1': [t3, t4], 'maze2': [t5, t6], 'post': [t7, t8]}
-        """
-
-        assert isinstance(new_epochs, dict), "Dictionaries are only valid argument"
-        length_epochs = np.array([len(new_epochs[_]) for _ in new_epochs])
-        assert np.all(length_epochs == 2), "epochs can only have length of 2"
-
-        if (f := self.filename).is_file():
-            epochs = np.load(f, allow_pickle=True).item()
-            epochs = {**epochs, **new_epochs}
-        else:
-            epochs = new_epochs
-
-        np.save(self.filename, epochs)
-        self._load()
-
-    def getfromPosition(self):
-        """user defines epoch boundaries from the positons by selecting a rectangular region in the plot"""
-        pass
+    def __getitem__(self, label_name):
+        epoch_label = self._epochs[self._epochs["label"] == label_name]
+        return epoch_label[["start", "stop"]].values.tolist()[0]
 
     def all_maze(self):
         """Make the entire session a maze epoch if that's all you are analyzing"""
-        position = ExtractPosition(self._obj.basePath)
-        maze_time = np.array([position.t[0], position.t[-1]])
-        epoch_times = {"MAZE": maze_time}
-
-        np.save(self._obj.files.epochs, epoch_times)
-
-        self._load()  # load these in for immediate use
+        maze_time = [0, self._obj.duration]
+        self.add_epochs(
+            pd.DataFrame({"start": [0], "stop": [maze_time], "label": ["maze"]})
+        )

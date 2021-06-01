@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 
 import ipywidgets as widgets
@@ -10,13 +9,12 @@ import scipy.signal as sg
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter
 
 from . import signal_process
 from .artifactDetect import findartifact
 from .parsePath import Recinfo
-from .core import Epoch, WritableEpoch
+from .core import Epoch
 
 try:
     import ephyviewer
@@ -77,7 +75,7 @@ def hmmfit1d(Data):
     return hmmlabels
 
 
-class SleepScore(WritableEpoch):
+class SleepScore(Epoch):
     # TODO add support for bad time points
     colors = {
         "nrem": "#6b90d1",
@@ -97,7 +95,7 @@ class SleepScore(WritableEpoch):
         # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
         filename = filePrefix.with_suffix(".brainstates.npy")
-        super().__init__(filename)
+        super().__init__(filename=filename)
         self.load()
 
     @staticmethod
@@ -347,67 +345,27 @@ class SleepScore(WritableEpoch):
         if period is None:
             period = [self.states.iloc[0].start, self.states.iloc[-1].end]
 
-        assert len(period) == 2
-        period_duration = np.diff(period)[0]
-        states = self.states[
-            (self.states.start > period[0]) & (self.states.start < period[1])
-        ][["duration", "name"]]
-        states_duration = states.groupby("name").agg("sum")
+        period_duration = np.diff(period)
 
-        return states_duration / period_duration
+        ep = self.epochs.copy()
+        ep = ep[(ep.stop > period[0]) & (ep.start < period[1])].reset_index(drop=True)
 
-    def plot(self):
-        states = self.states
-        params = self.params
-        post = self._obj.epochs.post
-        lfp = self._obj.spindle.best_chan_lfp()[0]
-        spec = signal_process.spectrogramBands(lfp, window=5)
+        if ep["start"].iloc[0] < period[0]:
+            ep.at[0, "start"] = period[0]
 
-        fig = plt.figure(num=None, figsize=(6, 10))
-        gs = GridSpec(4, 4, figure=fig)
-        fig.subplots_adjust(hspace=0.4)
+        if ep["stop"].iloc[-1] > period[1]:
+            ep.at[ep.index[-1], "stop"] = period[1]
 
-        axhypno = fig.add_subplot(gs[0, :])
-        x = np.asarray(states.start)
-        y = np.zeros(len(x)) + np.asarray(states.state)
-        width = np.asarray(states.duration)
-        height = np.ones(len(x))
-        col = [self.colors[state] for state in states.name]
-        make_boxes(axhypno, x, y, width, height, facecolor=col)
-        axhypno.set_xlim(0, post[1])
-        axhypno.set_ylim(1, 5)
+        ep["duration"] = ep.stop - ep.start
 
-        axspec = fig.add_subplot(gs[1, :], sharex=axhypno)
-        sxx = spec.sxx / np.max(spec.sxx)
-        sxx = gaussian_filter(sxx, sigma=1)
-        vmax = np.max(sxx) / 60
-        specplot = axspec.pcolorfast(
-            spec.time, spec.freq, sxx, cmap="Spectral_r", vmax=vmax
-        )
-        axspec.set_ylim([0, 30])
-        axspec.set_xlim([np.min(spec.time), np.max(spec.time)])
-        axspec.set_xlabel("Time (s)")
-        axspec.set_ylabel("Frequency (s)")
+        ep_group = ep.groupby("label").sum().duration / period_duration
 
-        axemg = fig.add_subplot(gs[2, :], sharex=axhypno)
-        axemg.plot(params.time, params.emg)
+        states_proportion = {"rem": 0.0, "nrem": 0.0, "quiet": 0.0, "active": 0.0}
 
-        axthdel = fig.add_subplot(gs[3, :], sharex=axhypno)
-        axthdel.plot(params.time, params.theta_deltaplus_ratio)
+        for state in ep_group.index.values:
+            states_proportion[state] = ep_group[state]
 
-        # ==== change spectrogram visual properties ========
-
-        # @widgets.interact(time=(maze[0], maze[1], 10))
-        # def update(time=0.5):
-        #     # tnow = timetoPlot.val
-        #     allplts(time - 5, time + 5)
-        #     specplot.set_clim([0, freq])
-
-        @widgets.interact(norm=(np.min(sxx), np.max(sxx), 0.001))
-        def update(norm=0.5):
-            # tnow = timetoPlot.val
-            # allplts(time - 5, time + 5)
-            specplot.set_clim([0, norm])
+        return states_proportion
 
     def plot_hypnogram(self, ax=None, tstart=0.0, unit="s", collapsed=False):
         """Plot hypnogram
@@ -460,14 +418,14 @@ class SleepScore(WritableEpoch):
                 "active": [0, 1],
             }
 
-        for state in self.states.itertuples():
-            if state.name in self.colors.keys():
+        for state in self.epochs.itertuples():
+            if state.label in self.colors.keys():
                 ax.axvspan(
                     (state.start - tstart) / unit_norm,
-                    (state.end - tstart) / unit_norm,
-                    ymin=span_[state.name][0],
-                    ymax=span_[state.name][1],
-                    facecolor=self.colors[state.name],
+                    (state.stop - tstart) / unit_norm,
+                    ymin=span_[state.label][0],
+                    ymax=span_[state.label][1],
+                    facecolor=self.colors[state.label],
                     alpha=0.7,
                 )
         ax.axis("off")

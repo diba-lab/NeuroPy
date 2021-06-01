@@ -1,12 +1,18 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from .datawriter import DataWriter
 
 
-class Epoch:
-    def __init__(self, epochs: pd.DataFrame = None, metadata=None) -> None:
-        self.epochs = epochs
-        self.metadata = metadata
+class Epoch(DataWriter):
+    def __init__(
+        self, epochs: pd.DataFrame = None, metadata=None, filename=None
+    ) -> None:
+        super().__init__(filename=filename)
+        self._epochs = epochs
+        self._metadata = metadata
+
+        self.load()
 
     @property
     def epochs(self):
@@ -23,14 +29,11 @@ class Epoch:
         """
 
         if epochs is not None:
+            self._check_epochs(epochs)
+            epochs["duration"] = epochs["stop"] - epochs["start"]
 
-            assert isinstance(epochs, pd.DataFrame)
-            assert (
-                pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
-            ), "Epoch dataframe should have columns with names: start, stop, label"
-
-            if "duration" not in epochs.columns:
-                epochs["duration"] = epochs["stop"] - epochs["start"]
+        else:
+            epochs = pd.DataFrame(columns=["start", "stop", "label"])
 
         self._epochs = epochs
 
@@ -44,8 +47,23 @@ class Epoch:
 
         self._metadata = metadata
 
+    def load(self):
+        data = super().load()
+        if data is not None:
+            self.epochs, self.metadata = data["epochs"], data["metadata"]
+
+    def save(self):
+        data = {"epochs": self._epochs, "metadata": self._metadata}
+        super().save(data)
+
+    def _check_epochs(self, epochs):
+        assert isinstance(epochs, pd.DataFrame)
+        assert (
+            pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
+        ), "Epoch dataframe should have columns with names: start, stop, label"
+
     def __repr__(self) -> str:
-        pass
+        return f"{len(self.epochs)} epochs"
 
     def __str__(self) -> str:
         pass
@@ -53,8 +71,11 @@ class Epoch:
     def time_slice(self, period):
         pass
 
-    def add_epochs(self):
-        pass
+    def add_epochs(self, epochs: pd.DataFrame):
+
+        self._check_epochs(epochs)
+        self.epochs = self.epochs.append(epochs)
+        print("epochs added")
 
     def fill_blank(self, method="from_left"):
 
@@ -130,36 +151,4 @@ class Epoch:
         return self.epochs[["start", "stop"]].to_numpy()
 
     def plot(self):
-        pass
-
-
-class WritableEpoch(Epoch):
-    def __init__(self, filename, epochs=None, metadata=None) -> None:
-        super().__init__(epochs=epochs, metadata=metadata)
-        self.filename = filename
-
-    def load(self):
-        if self.filename.is_file():
-            self.data = np.load(self.filename, allow_pickle=True).item()
-
-            if "metadata" in self.data:
-                self.metadata = self.data["metadata"]
-
-            if "epochs" in self.data:
-                self.epochs = self.data["epochs"]
-            if "events" in self.data:
-                self.epochs = self.data["events"]
-
-    def save(self):
-        data = {"epochs": self._epochs, "metadata": self._metadata}
-
-        np.save(self.filename, data)
-        print(f"{self.filename.name} created")
-
-    def delete_file(self):
-        self.filename.unlink()
-
-        print("file removed")
-
-    def create_backup(self):
         pass

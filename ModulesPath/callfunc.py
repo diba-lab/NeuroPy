@@ -12,6 +12,7 @@ from .sleepDetect import SleepScore
 from .spkEvent import PBE, LocalSleep
 from .viewerData import SessView
 from .track import Track
+from .getPosition import SessPosition, SessTrack
 import pickle
 
 
@@ -22,7 +23,9 @@ class processData:
 
         self.position = ExtractPosition(self.recinfo)
         self.tracks = Track(self.recinfo)
-        self.epochs = behavior_epochs(self.recinfo)
+        self.pos = SessPosition(self.recinfo)
+        self.tracku = SessTrack(basepath=self.recinfo, position=self.pos)
+        self.paradigm = behavior_epochs(self.recinfo)
         self.artifact = findartifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 
