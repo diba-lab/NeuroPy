@@ -1,20 +1,22 @@
+import csv
+import linecache
+import os
+import re
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from glob import glob
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import csv
-import os
-import linecache
-from datetime import datetime, timedelta
-from pathlib import Path
-from .parsePath import Recinfo
-from .mathutil import contiguous_regions
-import xml.etree.ElementTree as ET
-import re
-from glob import glob
-from dataclasses import dataclass
-import csv
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
+
+from .mathutil import contiguous_regions
+from .parsePath import Recinfo
+from .core import Track, WritableEpoch, Position
 
 
 def getSampleRate(fileName):
@@ -545,6 +547,224 @@ def get_sync_info(_sync_file):
         ]
     )
     return SR, sync_start
+
+
+class SessPosition(Position):
+    def __init__(self, basepath: Recinfo) -> None:
+
+        self._obj = basepath
+        super().__init__()
+
+        filePrefix = self._obj.files.filePrefix
+        self.filename = filePrefix.with_suffix(".test_position.npy")
+        self.load()
+
+    def load(self):
+        data = np.load(self.filename, allow_pickle=True).item()
+        self.time = data["time"]
+        self.x = data["x"]
+        self.y = data["y"]
+        self.z = data["z"]
+        self.tracking_srate = data["tracking_srate"]
+        self.datetime = data["datetime"]
+
+    def save(self):
+        data = {
+            "time": self.time,
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
+            "tracking_srate": self.tracking_srate,
+            "datetime": self.datetime,
+        }
+        np.save(self.filename, data)
+
+    def from_optitrack(self, method="from_metadata", scale=1.0):
+        """get position data from files. All position related files should be in 'position' folder within basepath
+
+        Parameters
+        ----------
+        method : str, optional
+            method to grab file start times: "from_metadata" (default) grabs from metadata.csv file,
+                                             "from_files" grabs from timestamps.npy files in open-ephys folders
+        scale : float, optional
+            scale the extracted coordinates, by default 1.0
+        """
+        sRate = self._obj.sampfreq  # .dat file sampling frequency
+        basePath = Path(self._obj.basePath)
+        metadata = self._obj.loadmetadata()
+
+        nfiles = metadata.count()["StartTime"]
+
+        # ------- collecting timepoints related to .dat file  --------
+        data_time = []
+        # transfer start times from the settings*.xml file and nframes in .dat file to each row of the metadata file
+        tracking_sRate = getSampleRate(
+            sorted((self._obj.basePath / "position").glob("*.csv"))[0]
+        )
+        durations = []
+        if method == "from_metadata":
+            for i, file_time in enumerate(metadata["StartTime"][:nfiles]):
+                tbegin = datetime.strptime(file_time, "%Y-%m-%d_%H-%M-%S")
+                nframes = metadata["nFrames"][i]
+                duration = pd.Timedelta(nframes / sRate, unit="sec")
+                tend = tbegin + duration
+                trange = pd.date_range(
+                    start=tbegin,
+                    end=tend,
+                    periods=int(duration.total_seconds() * tracking_sRate),
+                )
+                data_time.extend(trange)
+
+        # grab timestamps directly from timestamps.npy files. Assumes you have preserved the OE file structure.
+        elif method == "from_files":
+            times_all = timestamps_from_oe(basePath, data_type="continuous")
+            for i, times in enumerate(times_all):
+                tbegin, tend = times[0], times[-1]
+                duration = tend - tbegin
+                durations.append(duration)
+                trange = pd.date_range(
+                    start=tbegin,
+                    end=tend,
+                    periods=int(duration.total_seconds() * tracking_sRate),
+                )
+                data_time.extend(trange)
+        data_time = pd.to_datetime(data_time)
+
+        # ------- deleting intervals that were deleted from .dat file after concatenating
+        ndeletedintervals = metadata.count()["deletedStart (minutes)"]
+        for i in range(ndeletedintervals):
+            tnoisy_begin = data_time[0] + pd.Timedelta(
+                metadata["deletedStart (minutes)"][i], unit="m"
+            )
+            tnoisy_end = data_time[0] + pd.Timedelta(
+                metadata["deletedEnd (minutes)"][i], unit="m"
+            )
+
+            del_index = np.where((data_time > tnoisy_begin) & (data_time < tnoisy_end))[
+                0
+            ]
+
+            data_time = np.delete(data_time, del_index)
+
+        # ------- collecting timepoints related to position tracking ------
+        posFolder = basePath / "position"
+        posfiles = np.asarray(sorted(posFolder.glob("*.csv")))
+        posfilestimes = np.asarray(
+            [
+                datetime.strptime(file.stem, "Take %Y-%m-%d %I.%M.%S %p")
+                for file in posfiles
+            ]
+        )
+        filesort_ind = np.argsort(posfilestimes).astype(int)
+        posfiles = posfiles[filesort_ind]
+
+        postime, posx, posy, posz = [], [], [], []
+
+        for file in posfiles:
+            print(file)
+            tbegin = getStartTime(file)
+
+            if file.with_suffix(".fbx").is_file():
+                # Get time ranges for position files
+                nframes_pos = getnframes(file)
+                duration = pd.Timedelta(nframes_pos / tracking_sRate, unit="sec")
+                tend = tbegin + duration
+                trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
+
+                x, y, z = posfromFBX(file.with_suffix(".fbx"))
+
+                postime.extend(trange)
+
+            else:  # First try to load everything from CSV directly
+                x, y, z, trelative = posfromCSV(file)
+                # Make sure you arent't just importing the header, if so engage except
+                assert len(x) > 0
+                trange = tbegin + pd.to_timedelta(trelative, unit="s")
+                postime.extend(trange)
+            # try:  # First try to load everything from CSV directly
+            #     x, y, z, trelative = posfromCSV(file)
+            #     # Make sure you arent't just importing the header, if so engage except
+            #     assert len(x) > 0
+            #     trange = tbegin + pd.to_timedelta(trelative, unit="s")
+            #     postime.extend(trange)
+
+            # except (
+            #     FileNotFoundError,
+            #     KeyError,
+            #     pd.errors.ParserError,
+            # ):  # Get data from FBX file if not in CSV
+
+            #     # Get time ranges for position files
+            #     nframes_pos = getnframes(file)
+            #     duration = pd.Timedelta(nframes_pos / tracking_sRate, unit="sec")
+            #     tend = tbegin + duration
+            #     trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
+
+            #     x, y, z = posfromFBX(file.with_suffix(".fbx"))
+
+            #     postime.extend(trange)
+
+            posx.extend(x)
+            posy.extend(y)
+            posz.extend(z)
+        postime = pd.to_datetime(postime[: len(posx)])
+        posx = np.asarray(posx)
+        posy = np.asarray(posy)
+        posz = np.asarray(posz)
+
+        # -------- interpolating positions for recorded data ------------
+        xdata = np.interp(data_time, postime, posx) / scale
+        ydata = np.interp(data_time, postime, posy) / scale
+        zdata = np.interp(data_time, postime, posz) / scale
+        time = np.linspace(0, len(xdata) / tracking_sRate, len(xdata))
+        posVar = {
+            "x": xdata,
+            "y": zdata,
+            "z": ydata,  # keep this data in case you are interested in rearing activity
+            "time": time,
+            "datetime": data_time,
+            "trackingsRate": tracking_sRate,
+        }
+
+        self.x = xdata
+        self.y = zdata
+        self.z = ydata
+        self.time = time
+        self.datetime = data_time
+        self.tracking_srate = tracking_sRate
+
+        self.save()
+        self.load()
+
+
+class SessTrack(Track, WritableEpoch):
+    def __init__(self, basepath: Recinfo, position: Position):
+        self._obj = basepath
+        filePrefix = self._obj.files.filePrefix
+        filename = filePrefix.with_suffix(".test_track.npy")
+
+        Track.__init__(position=position)
+        WritableEpoch.__init__(filename=filename)
+
+    def calculate_run_epochs(
+        self, period, speedthresh, merge_dur, min_dur, smooth_speed, min_dist, plot
+    ):
+        epochs = super().calculate_run_epochs(
+            period,
+            speedthresh=speedthresh,
+            merge_dur=merge_dur,
+            min_dur=min_dur,
+            smooth_speed=smooth_speed,
+            min_dist=min_dist,
+            plot=plot,
+        )
+
+        self.epochs = epochs
+        self.save()
+
+    def plot_run_epochs():
+        pass
 
 
 if __name__ == "__main__":
