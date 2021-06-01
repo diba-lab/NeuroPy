@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 
 import ipywidgets as widgets
@@ -10,13 +9,12 @@ import scipy.signal as sg
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter
 
 from . import signal_process
 from .artifactDetect import findartifact
 from .parsePath import Recinfo
-from .core import Epoch, WritableEpoch
+from .core import Epoch
 
 try:
     import ephyviewer
@@ -77,7 +75,7 @@ def hmmfit1d(Data):
     return hmmlabels
 
 
-class SleepScore(WritableEpoch):
+class SleepScore(Epoch):
     # TODO add support for bad time points
     colors = {
         "nrem": "#6b90d1",
@@ -97,7 +95,7 @@ class SleepScore(WritableEpoch):
         # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
         filename = filePrefix.with_suffix(".brainstates.npy")
-        super().__init__(filename)
+        super().__init__(filename=filename)
         self.load()
 
     @staticmethod
@@ -347,14 +345,27 @@ class SleepScore(WritableEpoch):
         if period is None:
             period = [self.states.iloc[0].start, self.states.iloc[-1].end]
 
-        assert len(period) == 2
-        period_duration = np.diff(period)[0]
-        states = self.states[
-            (self.states.start > period[0]) & (self.states.start < period[1])
-        ][["duration", "name"]]
-        states_duration = states.groupby("name").agg("sum")
+        period_duration = np.diff(period)
 
-        return states_duration / period_duration
+        ep = self.epochs.copy()
+        ep = ep[(ep.stop > period[0]) & (ep.start < period[1])].reset_index(drop=True)
+
+        if ep["start"].iloc[0] < period[0]:
+            ep.at[0, "start"] = period[0]
+
+        if ep["stop"].iloc[-1] > period[1]:
+            ep.at[ep.index[-1], "stop"] = period[1]
+
+        ep["duration"] = ep.stop - ep.start
+
+        ep_group = ep.groupby("label").sum().duration / period_duration
+
+        states_proportion = {"rem": 0.0, "nrem": 0.0, "quiet": 0.0, "active": 0.0}
+
+        for state in ep_group.index.values:
+            states_proportion[state] = ep_group[state]
+
+        return states_proportion
 
     def plot_hypnogram(self, ax=None, tstart=0.0, unit="s", collapsed=False):
         """Plot hypnogram

@@ -18,7 +18,7 @@ from ModulesPath.core import Oscillation
 from . import mathutil, signal_process
 from .artifactDetect import findartifact
 from .behavior import behavior_epochs
-from .core.epoch import Epoch, WritableEpoch
+from .core.epoch import Epoch
 from .parsePath import Recinfo
 
 
@@ -181,7 +181,7 @@ class Hswa:
         fig.suptitle(f"Delta wave detection of {subname}")
 
 
-class Ripple(WritableEpoch):
+class Ripple(Epoch):
     def __init__(self, basepath):
 
         if isinstance(basepath, Recinfo):
@@ -522,7 +522,7 @@ class Ripple(WritableEpoch):
             ax.axvspan(epoch.start, epoch.end, facecolor=color, alpha=0.7)
 
 
-class Spindle(Oscillation, WritableEpoch):
+class Spindle(Oscillation, Epoch):
     lowthresholdFactor = 1.5
     highthresholdFactor = 4
     minSpindleDuration = 350

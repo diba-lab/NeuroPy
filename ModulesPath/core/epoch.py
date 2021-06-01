@@ -1,12 +1,18 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from .datawriter import DataWriter
 
 
-class Epoch:
-    def __init__(self, epochs: pd.DataFrame = None, metadata=None) -> None:
-        self.epochs: pd.DataFrame = epochs
-        self.metadata = metadata
+class Epoch(DataWriter):
+    def __init__(
+        self, epochs: pd.DataFrame = None, metadata=None, filename=None
+    ) -> None:
+        super().__init__(filename=filename)
+        self._epochs = epochs
+        self._metadata = metadata
+
+        self.load()
 
     @property
     def epochs(self):
@@ -40,6 +46,15 @@ class Epoch:
         """metadata compatibility"""
 
         self._metadata = metadata
+
+    def load(self):
+        data = super().load()
+        if data is not None:
+            self.epochs, self.metadata = data["epochs"], data["metadata"]
+
+    def save(self):
+        data = {"epochs": self._epochs, "metadata": self._metadata}
+        super().save(data)
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
@@ -136,36 +151,4 @@ class Epoch:
         return self.epochs[["start", "stop"]].to_numpy()
 
     def plot(self):
-        pass
-
-
-class WritableEpoch(Epoch):
-    def __init__(self, filename, epochs=None, metadata=None) -> None:
-        super().__init__(epochs=epochs, metadata=metadata)
-        self.filename = filename
-
-    def load(self):
-        if self.filename.is_file():
-            self.data = np.load(self.filename, allow_pickle=True).item()
-
-            if "metadata" in self.data:
-                self.metadata = self.data["metadata"]
-
-            if "epochs" in self.data:
-                self.epochs = self.data["epochs"]
-            if "events" in self.data:
-                self.epochs = self.data["events"]
-
-    def save(self):
-        data = {"epochs": self._epochs, "metadata": self._metadata}
-
-        np.save(self.filename, data)
-        print(f"{self.filename.name} created")
-
-    def delete_file(self):
-        self.filename.unlink()
-
-        print("file removed")
-
-    def create_backup(self):
         pass

@@ -2,10 +2,10 @@ import numpy as np
 import pandas as pd
 
 from .parsePath import Recinfo
-from .core import WritableEpoch
+from .core import Epoch
 
 
-class behavior_epochs(WritableEpoch):
+class behavior_epochs(Epoch):
     """Class for epochs within a session. Such as pre, maze and post."""
 
     def __init__(self, basepath):
