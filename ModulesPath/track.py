@@ -8,7 +8,7 @@ from scipy.ndimage import gaussian_filter1d
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
 
-from .behavior import behavior_epochs
+from .behavior import Paradigm
 from .getPosition import ExtractPosition
 from .mathutil import threshPeriods
 from .parsePath import Recinfo

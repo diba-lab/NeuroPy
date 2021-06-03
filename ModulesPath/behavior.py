@@ -5,7 +5,7 @@ from .parsePath import Recinfo
 from .core import Epoch
 
 
-class behavior_epochs(Epoch):
+class Paradigm(Epoch):
     """Class for epochs within a session. Such as pre, maze and post."""
 
     def __init__(self, basepath):
@@ -17,7 +17,7 @@ class behavior_epochs(Epoch):
 
         # ---- defining filenames --------
         filePrefix = self._obj.files.filePrefix
-        filename = filePrefix.with_suffix(".epochs.npy")
+        filename = filePrefix.with_suffix(".paradigm.npy")
         super().__init__(filename=filename)
         self.load()
         if self._epochs is not None:
