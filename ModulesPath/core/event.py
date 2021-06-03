@@ -4,7 +4,9 @@ from .datawriter import DataWriter
 
 class Event(DataWriter):
     def __init__(self, times=None, labels=None) -> None:
-        pass
+
+        self.times = times
+        self.labels = labels
 
     def to_dataframe(self):
         pass

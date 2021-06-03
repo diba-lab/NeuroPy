@@ -2,7 +2,7 @@ from .artifactDetect import findartifact
 from .behavior import behavior_epochs
 from .decoders import DecodeBehav
 from .getPosition import ExtractPosition
-from .getSpikes import Spikes
+from .getSpikes import Spikes, SessNeurons
 from .lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
 from .parsePath import Recinfo
 from .pfPlot import pf
@@ -30,6 +30,7 @@ class processData:
         self.utils = SessionUtil(self.recinfo)
 
         self.spikes = Spikes(self.recinfo)
+        self.neurons = SessNeurons(self.recinfo)
         self.brainstates = SleepScore(self.recinfo)
         self.swa = Hswa(self.recinfo)
         self.theta = Theta(self.recinfo)

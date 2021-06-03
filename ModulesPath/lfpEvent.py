@@ -13,7 +13,7 @@ import scipy.stats as stats
 from joblib import Parallel, delayed
 from scipy import fftpack
 
-from ModulesPath.core import Oscillation
+from .core import Oscillation
 
 from . import mathutil, signal_process
 from .artifactDetect import findartifact

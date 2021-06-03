@@ -18,7 +18,7 @@ from .ccg import correlograms
 from .parsePath import Recinfo
 from .plotUtil import pretty_plot
 from .core import Neurons
-from .plotting import plot_ccg
+from . import plotting
 
 
 class Spikes:
@@ -1204,7 +1204,7 @@ class SessNeurons(Neurons):
         if type == "ccgs_only":
             ccgs = ccgs[0, 1, :].reshape(1, 1, -1)
 
-        return plot_ccg(ccgs, bin_size, ax)
+        return plotting.plot_ccg(ccgs, bin_size, ax)
 
     def from_Phy(self, folder, fileformat="diff_folder", save_allspikes=False):
         """Gets spike times from Phy (https://github.com/cortex-lab/phy) compatible files.
