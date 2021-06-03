@@ -1,5 +1,3 @@
-import enum
-import imp
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -88,8 +86,8 @@ class Oscillation:
             else:
                 secondPass.append(epoch)
                 epoch = firstPass[i]
-
-        secondPass = np.asarray(secondPass.append(epoch))
+        secondPass.append(epoch)
+        secondPass = np.asarray(secondPass)
         print(f"{len(secondPass)} epochs reamining after merging close ones")
 
         # ------delete epochs with less than threshold power--------
