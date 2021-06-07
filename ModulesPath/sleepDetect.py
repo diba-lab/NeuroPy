@@ -12,7 +12,6 @@ from joblib import Parallel, delayed
 from scipy.ndimage import gaussian_filter
 
 from . import signal_process
-from .artifactDetect import findartifact
 from .parsePath import Recinfo
 from .core import Epoch
 
