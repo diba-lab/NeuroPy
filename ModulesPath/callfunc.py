@@ -1,8 +1,8 @@
-from .artifactDetect import findartifact
+from .artifactDetect import Artifact
 from .behavior import Paradigm
 from .decoders import DecodeBehav
-from .getPosition import ExtractPosition
-from .getSpikes import Spikes, SessNeurons
+from .getPosition import SessPosition, SessTrack
+from .getSpikes import SessNeurons
 from .lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
 from .parsePath import Recinfo
 from .pfPlot import pf
@@ -12,7 +12,6 @@ from .sleepDetect import SleepScore
 from .spkEvent import PBE, LocalSleep
 from .viewerData import SessView
 from .track import Track
-from .getPosition import SessPosition, SessTrack
 import pickle
 
 
@@ -21,15 +20,12 @@ class processData:
         """Make sure to enter in the tracking scale factor if you have used a properly sized wand to optitrack calibration"""
         self.recinfo = Recinfo(basepath)
 
-        self.position = ExtractPosition(self.recinfo)
-        self.tracks = Track(self.recinfo)
-        self.pos = SessPosition(self.recinfo)
-        self.tracku = SessTrack(basepath=self.recinfo, position=self.pos)
+        self.position = SessPosition(self.recinfo)
+        self.track = SessTrack(basepath=self.recinfo, position=self.pos)
         self.paradigm = Paradigm(self.recinfo)
-        self.artifact = findartifact(self.recinfo)
+        self.artifact = Artifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 
-        self.spikes = Spikes(self.recinfo)
         self.neurons = SessNeurons(self.recinfo)
         self.brainstates = SleepScore(self.recinfo)
         self.swa = Hswa(self.recinfo)

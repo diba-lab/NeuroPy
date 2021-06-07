@@ -15,7 +15,6 @@ from scipy import fftpack
 from . import core
 
 from . import mathutil, signal_process
-from .artifactDetect import findartifact
 from .parsePath import Recinfo
 
 
