@@ -2,7 +2,7 @@ from .artifactDetect import Artifact
 from .behavior import Paradigm
 from .decoders import DecodeBehav
 from .getPosition import SessPosition, SessTrack
-from .getSpikes import Spikes, SessNeurons
+from .getSpikes import SessNeurons
 from .lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
 from .parsePath import Recinfo
 from .pfPlot import pf
@@ -26,7 +26,6 @@ class processData:
         self.artifact = Artifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 
-        self.spikes = Spikes(self.recinfo)
         self.neurons = SessNeurons(self.recinfo)
         self.brainstates = SleepScore(self.recinfo)
         self.swa = Hswa(self.recinfo)
