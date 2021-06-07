@@ -1,5 +1,5 @@
 from .artifactDetect import findartifact
-from .behavior import behavior_epochs
+from .behavior import Paradigm
 from .decoders import DecodeBehav
 from .getPosition import ExtractPosition
 from .getSpikes import Spikes, SessNeurons
@@ -25,7 +25,7 @@ class processData:
         self.tracks = Track(self.recinfo)
         self.pos = SessPosition(self.recinfo)
         self.tracku = SessTrack(basepath=self.recinfo, position=self.pos)
-        self.paradigm = behavior_epochs(self.recinfo)
+        self.paradigm = Paradigm(self.recinfo)
         self.artifact = findartifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 

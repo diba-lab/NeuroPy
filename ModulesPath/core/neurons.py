@@ -28,7 +28,6 @@ class Neurons(DataWriter):
         self.instfiring = None
         self.metadata = None
 
-    
     @property
     def n_neurons(self):
         return len(self.spiketrains)
@@ -77,10 +76,15 @@ class Neurons(DataWriter):
         }
         super().save(data)
 
-    def firing_rate(self, ids, period):
+    def firing_rate(self, period, ids=None):
+        if ids is None:
+            ids = self.ids
+
         spikes = self.get_spiketrains(ids)
         duration = np.diff(period)
-        return np.asarray([np.histogram(_, bins=period)[0] for _ in spikes]) / duration
+        return (
+            np.concatenate([np.histogram(_, bins=period)[0] for _ in spikes]) / duration
+        )
 
     def binned_spiketrains(self, ids, period, binsize=0.25):
         """Get binned spike counts within a period for the given cells"""

@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import time
-from importlib_metadata import metadata
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -13,12 +12,10 @@ import scipy.stats as stats
 from joblib import Parallel, delayed
 from scipy import fftpack
 
-from .core import Oscillation
+from . import core
 
 from . import mathutil, signal_process
 from .artifactDetect import findartifact
-from .behavior import behavior_epochs
-from .core.epoch import Epoch
 from .parsePath import Recinfo
 
 
@@ -181,7 +178,9 @@ class Hswa:
         fig.suptitle(f"Delta wave detection of {subname}")
 
 
-class Ripple(Epoch):
+class Ripple(core.Oscillation, core.Epoch):
+    """Ripple class to detect ripple epochs"""
+
     def __init__(self, basepath):
 
         if isinstance(basepath, Recinfo):
@@ -191,7 +190,7 @@ class Ripple(Epoch):
 
         filePrefix = self._obj.files.filePrefix
         filename = filePrefix.with_suffix(".ripples.npy")
-        super().__init__(filename=filename)
+        super().__init__(freq_band=(150, 250), fs=self._obj.lfpSrate, filename=filename)
         self.load()
 
     @property
@@ -203,196 +202,43 @@ class Ripple(Epoch):
 
     def detect(
         self,
-        lowFreq=150,
-        highFreq=240,
         chans=None,
-        lowthreshold=1,
-        highthreshold=5,
-        minDuration=0.05,
-        maxDuration=0.450,
-        mergeDistance=0.05,
-        # maxPeakPower=60,
+        thresh=(1, 5),
+        mindur=0.05,
+        maxdur=0.450,
+        mergedist=0.05,
+        ignore_epochs=None,
+        plot=True,
     ):
-        """[summary]
 
-        Parameters
-        ----------
-        lowFreq : int, optional
-            [description], by default 150
-        highFreq : int, optional
-            [description], by default 240
-        chans : list
-            channels used for ripple detection, if None then chooses best chans
-        """
-
-        SampFreq = self._obj.lfpSrate
         if chans is None:
-            # ---- selecting channels which represent high ripple power in each shank ----
-            recording_duration = self._obj.duration
-            duration = np.min((3600, recording_duration))  # 1 hour
-            nShanks = self._obj.nShanks
+            changrps = self._obj.goodchangrp
 
-            lfpCA1 = self._obj.geteeg(
-                chans=self._obj.goodchans, timeRange=[0, duration]
-            )
-            goodChans = self._obj.goodchans  # keeps order
+            selected_chans = []
+            for changrp in changrps:
+                if changrp:
+                    lfps = self._obj.geteeg(chans=changrp, timeRange=[0, 3600])
+                    desc_order = super().get_best_channels(lfps=lfps)
+                    selected_chans.append(changrp[desc_order[0]])
 
-            # --- filter and hilbert amplitude for each channel --------
-            avgRipple = np.zeros(len(lfpCA1))
-            for i, lfp in enumerate(lfpCA1):
-                rippleband = signal_process.filter_sig.ripple(lfp)
-                amplitude_envelope = np.abs(signal_process.hilbertfast(rippleband))
-                avgRipple[i] = np.mean(amplitude_envelope, axis=0)
-
-            rippleamp_chan = dict(zip(goodChans, avgRipple))
-
-            rplchan_shank, metricAmp = [], []
-            for shank in range(nShanks):
-                goodChans_shank = np.asarray(self._obj.goodchangrp[shank])
-
-                if goodChans_shank.size != 0:
-                    avgrpl_shank = np.asarray(
-                        [rippleamp_chan[chan] for chan in goodChans_shank]
-                    )
-                    chan_max = goodChans_shank[np.argmax(avgrpl_shank)]
-                    rplchan_shank.append(chan_max)
-                    metricAmp.append(np.max(avgrpl_shank))
-
-            rplchan_shank = np.asarray(rplchan_shank)
-            metricAmp = np.asarray(metricAmp)
-            sort_chan = np.argsort(metricAmp)
-            # --- the reason metricAmp was used to allow using other metrics such as median
-            # bestripplechans = {
-            #     "channels": rplchan_shank[sort_chan],
-            #     "metricAmp": metricAmp[sort_chan],
-            # }
-
-            bestchans = rplchan_shank[sort_chan]
         else:
-            bestchans = chans
+            selected_chans = chans
 
-        eeg = self._obj.geteeg(chans=bestchans)
-        zscsignal = []
-        sharpWv_sig = np.zeros(eeg[0].shape[-1])
-        for lfp in eeg:
-            yf = signal_process.filter_sig.bandpass(lfp, lf=lowFreq, hf=highFreq)
-            zsc_chan = stats.zscore(np.abs(signal_process.hilbertfast(yf)))
-            zscsignal.append(zsc_chan)
+        lfps = self._obj.geteeg(chans=selected_chans)
 
-            broadband = signal_process.filter_sig.bandpass(lfp, lf=2, hf=50)
-            sharpWv_sig += stats.zscore(np.abs(signal_process.hilbertfast(broadband)))
-        zscsignal = np.asarray(zscsignal)
-
-        # ---------setting noisy period zero --------
-        artifact = findartifact(self._obj)
-        if artifact.time is not None:
-            noisy_frames = artifact.getframes()
-            zscsignal[:, noisy_frames] = 0
-
-        # ------hilbert transform --> binarize by > than lowthreshold
-        maxPower = np.max(zscsignal, axis=0)
-        ThreshSignal = np.where(zscsignal > lowthreshold, 1, 0).sum(axis=0)
-        ThreshSignal = np.diff(np.where(ThreshSignal > 0, 1, 0))
-        start_ripple = np.where(ThreshSignal == 1)[0]
-        stop_ripple = np.where(ThreshSignal == -1)[0]
-
-        # --- getting rid of incomplete ripples at begining or end ---------
-        if start_ripple[0] > stop_ripple[0]:
-            stop_ripple = stop_ripple[1:]
-        if start_ripple[-1] > stop_ripple[-1]:
-            start_ripple = start_ripple[:-1]
-
-        firstPass = np.vstack((start_ripple, stop_ripple)).T
-        print(f"{len(firstPass)} ripples detected initially")
-
-        # --------merging close ripples------------
-        minInterRippleSamples = mergeDistance * SampFreq
-        secondPass = []
-        ripple = firstPass[0]
-        for i in range(1, len(firstPass)):
-            if firstPass[i, 0] - ripple[1] < minInterRippleSamples:
-                ripple = [ripple[0], firstPass[i, 1]]
-            else:
-                secondPass.append(ripple)
-                ripple = firstPass[i]
-
-        secondPass.append(ripple)
-        secondPass = np.asarray(secondPass)
-        print(f"{len(secondPass)} ripples reamining after merging")
-
-        # ------delete ripples with less than threshold power--------
-        thirdPass = []
-        peakNormalizedPower, peaktime, peakSharpWave = [], [], []
-
-        for i in range(0, len(secondPass)):
-            maxValue = max(maxPower[secondPass[i, 0] : secondPass[i, 1]])
-            if maxValue > highthreshold:
-                thirdPass.append(secondPass[i])
-                peakNormalizedPower.append(maxValue)
-                peaktime.append(
-                    secondPass[i, 0]
-                    + np.argmax(maxPower[secondPass[i, 0] : secondPass[i, 1]])
-                )
-                peakSharpWave.append(
-                    secondPass[i, 0]
-                    + np.argmax(sharpWv_sig[secondPass[i, 0] : secondPass[i, 1]])
-                )
-        thirdPass = np.asarray(thirdPass)
-        print(f"{len(thirdPass)} ripples reamining after deleting weak ripples")
-        print(thirdPass.shape)
-
-        ripple_duration = np.diff(thirdPass, axis=1) / SampFreq
-        ripples = pd.DataFrame(
-            {
-                "start": thirdPass[:, 0],
-                "stop": thirdPass[:, 1],
-                "peakNormalizedPower": peakNormalizedPower,
-                "peakSharpWave": np.asarray(peakSharpWave),
-                "peaktime": np.asarray(peaktime),
-                "duration": ripple_duration.squeeze(),
-            }
+        epochs, metadata = super().detect(
+            lfps=lfps,
+            thresh=thresh,
+            mindur=mindur,
+            maxdur=maxdur,
+            mergedist=mergedist,
+            ignore_times=ignore_epochs,
         )
 
-        # ---------delete very short ripples--------
-        ripples = ripples[ripples.duration >= minDuration]
-        print(f"{len(ripples)} ripples reamining after deleting short ripples")
-
-        # ----- delete ripples with unrealistic high power
-        # artifactRipples = np.where(peakNormalizedPower > maxPeakPower)[0]
-        # fourthPass = np.delete(thirdPass, artifactRipples, 0)
-        # peakNormalizedPower = np.delete(peakNormalizedPower, artifactRipples)
-
-        # ---------delete very long ripples---------
-        ripples = ripples[ripples.duration <= maxDuration]
-        print(f"{len(ripples)} ripples reamining after deleting very long ripples")
-
-        # ----- converting to all time stamps to seconds --------
-        ripples[["start", "stop", "peakSharpWave", "peaktime"]] /= SampFreq  # seconds
-
-        now = datetime.now()
-        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-
-        epochs = ripples.reset_index(drop=True)
-        epochs["label"] = ""
-        metadata = {
-            "channels": bestchans,
-            "data": {"Date": dt_string},
-            "DetectionParams": {
-                "lowThres": lowthreshold,
-                "highThresh": highthreshold,
-                # "ArtifactThresh": maxPeakPower,
-                "lowFreq": lowFreq,
-                "highFreq": highFreq,
-                "minDuration": minDuration,
-                "maxDuration": maxDuration,
-                "mergeDistance": mergeDistance,
-            },
-        }
-
+        metadata["channels"] = selected_chans
         self.epochs = epochs
         self.metadata = metadata
         self.save()
-        self.load()
 
     def plot_summary(self, random=False, shank_id=None):
         """Plots 10 of detected ripples across two randomly selected shanks with their filtered lfp
@@ -522,12 +368,7 @@ class Ripple(Epoch):
             ax.axvspan(epoch.start, epoch.end, facecolor=color, alpha=0.7)
 
 
-class Spindle(Oscillation, Epoch):
-    lowthresholdFactor = 1.5
-    highthresholdFactor = 4
-    minSpindleDuration = 350
-    mergeDistance = 125
-
+class Spindle(core.Oscillation, core.Epoch):
     def __init__(self, basepath):
 
         if isinstance(basepath, Recinfo):
