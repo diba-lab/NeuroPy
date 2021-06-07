@@ -1,6 +1,5 @@
-from dataclasses import dataclass
-import imp
 from pathlib import Path
+import pandas as pd
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +8,7 @@ from .parsePath import Recinfo
 from .core import Epoch
 
 
-class findartifact:
+class Artifact(Epoch):
     """Detects noisy periods using downsampled data
 
     Attributes
@@ -30,37 +29,29 @@ class findartifact:
         else:
             self._obj = Recinfo(obj)
 
-        self.time = None
-
         # ----- defining file names ---------
         filePrefix = self._obj.files.filePrefix
+        filename = filePrefix.with_suffix(".artifact.npy")
+        super().__init__(filename=filename)
 
-        @dataclass
-        class files:
-            dead: str = filePrefix.with_suffix(".dead")
-            artifact: str = filePrefix.with_suffix(".artifact.npy")
-            neuroscope: str = filePrefix.with_suffix(".evt.art")
+        # # ----- loading files --------
+        # if self.files.artifact.is_file():
+        #     self._load()
+        # elif Path(self.files.dead).is_file():
+        #     with self.files.dead.open("r") as f:
+        #         noisy = []
+        #         for line in f:
+        #             epc = line.split(" ")
+        #             epc = [float(_) for _ in epc]
+        #             noisy.append(epc)
+        #         noisy = np.asarray(noisy) / 1000
+        #         self.time = noisy  # in seconds
 
-        self.files = files()
-
-        # ----- loading files --------
-        if self.files.artifact.is_file():
-            self._load()
-        elif Path(self.files.dead).is_file():
-            with self.files.dead.open("r") as f:
-                noisy = []
-                for line in f:
-                    epc = line.split(" ")
-                    epc = [float(_) for _ in epc]
-                    noisy.append(epc)
-                noisy = np.asarray(noisy) / 1000
-                self.time = noisy  # in seconds
-
-    def _load(self):
-        data = np.load(self.files.artifact, allow_pickle=True).item()
-        self.threshold = data["threshold"]
-        self.chan = data["channel"]
-        self.time = data["time"]
+    # def _load(self):
+    #     data = np.load(self.files.artifact, allow_pickle=True).item()
+    #     self.threshold = data["threshold"]
+    #     self.chan = data["channel"]
+    #     self.time = data["time"]
 
     def removefrom(self, lfp, timepoints):
         """Deletes detected artifacts from the 'lfp'
@@ -96,7 +87,7 @@ class findartifact:
         noisy_frames = noisy_frames[noisy_frames < self._obj.getNframesEEG]
         return noisy_frames
 
-    def usingZscore(self, chans=None, thresh=5):
+    def detect(self, chans=None, thresh=5, method="zscore"):
         """
         calculating periods to exclude for analysis using simple z-score measure
         """
@@ -134,23 +125,24 @@ class findartifact:
 
         artifact_s = np.asarray(secondPass) / eegSrate  # seconds
 
-        data = {"channel": chans, "time": artifact_s, "threshold": thresh}
-        np.save(self.files.artifact, data)
+        epochs = pd.DataFrame(
+            {"start": artifact_s[:, 0], "stop": artifact_s[:, 1], "label": ""}
+        )
+        metadata = {"channels": chans, "thresh": thresh}
+        self.epochs, self.metadata = epochs, metadata
+        self.save()
 
-        self._load()
-        return zsc
+    # def export2neuroscope(self):
+    #     # --- converting to required time units for export ------
+    #     artifact_ms = self.time * 1000  # ms
 
-    def export2neuroscope(self):
-        # --- converting to required time units for export ------
-        artifact_ms = self.time * 1000  # ms
+    #     # --- writing to file for neuroscope and spyking circus ----
+    #     file_neuroscope = self.files.neuroscope
+    #     with file_neuroscope.open("w") as file:
+    #         for beg, stop in artifact_ms:
+    #             file.write(f"{beg} start\n{stop} end\n")
 
-        # --- writing to file for neuroscope and spyking circus ----
-        file_neuroscope = self.files.neuroscope
-        with file_neuroscope.open("w") as file:
-            for beg, stop in artifact_ms:
-                file.write(f"{beg} start\n{stop} end\n")
-
-    def export2circus(self):
+    def to_spyking_circus(self):
         # --- converting to required time units for export ------
         artifact_ms = self.time * 1000  # ms
 
