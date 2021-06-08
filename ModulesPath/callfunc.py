@@ -21,7 +21,7 @@ class processData:
         self.recinfo = Recinfo(basepath)
 
         self.position = SessPosition(self.recinfo)
-        self.track = SessTrack(basepath=self.recinfo, position=self.pos)
+        self.track = SessTrack(basepath=self.recinfo, position=self.position)
         self.paradigm = Paradigm(self.recinfo)
         self.artifact = Artifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)

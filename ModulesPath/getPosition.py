@@ -205,7 +205,7 @@ class SessTrack(Track, Epoch):
         filePrefix = self._obj.files.filePrefix
         filename = filePrefix.with_suffix(".track.npy")
 
-        super().__init__(self, position=position, filename=filename)
+        super().__init__(position=position, filename=filename)
         self.load()
 
     def calculate_run_epochs(
