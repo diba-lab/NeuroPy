@@ -3,6 +3,7 @@ import pandas as pd
 
 from .parsePath import Recinfo
 from .core import Epoch
+from . import plotting
 
 
 class Paradigm(Epoch):
@@ -50,3 +51,10 @@ class Paradigm(Epoch):
         self.add_epochs(
             pd.DataFrame({"start": [0], "stop": [maze_time], "label": ["maze"]})
         )
+
+    def plot_epochs(self, ax, unit="h"):
+        epochs = self.epochs.copy()
+        epochs[["start", "stop", "duration"]] = (
+            epochs[["start", "stop", "duration"]] / 3600
+        )
+        plotting.plot_epochs(ax, epochs)
