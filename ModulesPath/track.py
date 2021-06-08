@@ -9,7 +9,6 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
 
 from .behavior import Paradigm
-from .getPosition import ExtractPosition
 from .mathutil import threshPeriods
 from .parsePath import Recinfo
 

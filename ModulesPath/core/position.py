@@ -146,8 +146,9 @@ class Position(DataWriter):
 
 
 class Track:
-    def __init__(self, position: Position) -> None:
+    def __init__(self, position: Position, **kwargs) -> None:
         self._position = position
+        super().__init__(**kwargs)
 
     def calculate_run_epochs(
         self,

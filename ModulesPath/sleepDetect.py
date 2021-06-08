@@ -198,7 +198,7 @@ class SleepScore(Epoch):
             if True load the emg file in the basepath, by default False
 
         """
-        artifact = findartifact(self._obj)
+        # artifact = findartifact(self._obj)
         sRate = self._obj.lfpSrate
 
         if emgfile:
@@ -227,17 +227,17 @@ class SleepScore(Epoch):
         theta_deltaplus_ratio = theta / deltaplus
         print(f"spectral properties calculated")
 
-        if (noisy := artifact.time) is not None:
-            noisy_timepoints = []
-            for noisy_ind in range(noisy.shape[0]):
-                st = noisy[noisy_ind, 0]
-                en = noisy[noisy_ind, 1]
-                noisy_indices = np.where((time > st) & (time < en))[0]
-                noisy_timepoints.extend(noisy_indices)
+        # if (noisy := artifact.time) is not None:
+        #     noisy_timepoints = []
+        #     for noisy_ind in range(noisy.shape[0]):
+        #         st = noisy[noisy_ind, 0]
+        #         en = noisy[noisy_ind, 1]
+        #         noisy_indices = np.where((time > st) & (time < en))[0]
+        #         noisy_timepoints.extend(noisy_indices)
 
-            theta_deltaplus_ratio[noisy_timepoints] = np.nan
-            emg[noisy_timepoints] = np.nan
-            deltaplus[noisy_timepoints] = np.nan
+        #     theta_deltaplus_ratio[noisy_timepoints] = np.nan
+        #     emg[noisy_timepoints] = np.nan
+        #     deltaplus[noisy_timepoints] = np.nan
 
         deltaplus_label = hmmfit1d(deltaplus)
         theta_deltaplus_label = hmmfit1d(theta_deltaplus_ratio)
