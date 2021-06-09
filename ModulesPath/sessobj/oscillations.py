@@ -6,7 +6,7 @@ from .. import mathutil, signal_process
 from ..parsePath import Recinfo
 
 
-class Hswa:
+class Hswa(core.Oscillation, core.Epoch):
     """Analyses related to hippocampal slow oscillations
 
     Attributes
@@ -28,20 +28,6 @@ class Hswa:
 
         # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
-
-        @dataclass
-        class files:
-            events: Path = filePrefix.with_suffix(".hswa.npy")
-
-        self.files = files()
-        self._load()
-
-    def _load(self):
-
-        if (f := self.files.events).is_file():
-            evt = np.load(f, allow_pickle=True).item()
-            self.events: pd.DataFrame = evt["events"]
-            self.params = evt["DetectionParams"]
 
     def detect(self, chan, freq_band=(0.5, 4)):
         """Caculate delta events
@@ -165,7 +151,7 @@ class Hswa:
         fig.suptitle(f"Delta wave detection of {subname}")
 
 
-class Theta:
+class Theta(core.Oscillation, core.Epoch):
     """Everything related to theta oscillations
 
     Parameters
@@ -197,19 +183,6 @@ class Theta:
 
         # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
-
-        @dataclass
-        class files:
-            bestThetachan: str = filePrefix.with_suffix(".bestThetaChan.npy")
-
-        self.files = files()
-        self._load()
-
-    def _load(self):
-        if (f := self.files.bestThetachan).is_file():
-            data = np.load(f, allow_pickle=True).item()
-            self.bestchan = data["chanorder"][0]
-            self.chansOrder = data["chanorder"]
 
     def getBestChanlfp(self):
         return self._obj.geteeg(chans=self.bestchan)
@@ -765,7 +738,7 @@ class Ripple(core.Oscillation, core.Epoch):
             ax.axvspan(epoch.start, epoch.end, facecolor=color, alpha=0.7)
 
 
-class Gamma:
+class Gamma(core.Oscillation, core.Epoch):
     """Events and analysis related to gamma oscillations"""
 
     def __init__(self, basepath):
@@ -775,21 +748,7 @@ class Gamma:
         else:
             self._obj = Recinfo(basepath)
 
-        # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
-
-        @dataclass
-        class files:
-            gamma: str = filePrefix.with_suffix(".gamma.npy")
-
-        self.files = files()
-        self._load()
-
-    def _load(self):
-        if (f := self.files.gamma).is_file():
-            data = np.load(f, allow_pickle=True).item()
-            self.bestchan = data["chanorder"][0]
-            self.chansOrder = data["chanorder"]
 
     def get_peak_intervals(
         self,
