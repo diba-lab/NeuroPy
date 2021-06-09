@@ -1,9 +1,4 @@
-from .artifactDetect import Artifact
-from .behavior import Paradigm
 from .decoders import DecodeBehav
-from .getPosition import SessPosition, SessTrack
-from .getSpikes import SessNeurons
-from .lfpEvent import Hswa, Ripple, Spindle, Theta, Gamma
 from .parsePath import Recinfo
 from .pfPlot import pf
 from .replay import Replay
@@ -13,26 +8,26 @@ from .spkEvent import PBE, LocalSleep
 from .viewerData import SessView
 from .track import Track
 import pickle
+from . import sessobj
 
 
 class processData:
     def __init__(self, basepath):
-        """Make sure to enter in the tracking scale factor if you have used a properly sized wand to optitrack calibration"""
         self.recinfo = Recinfo(basepath)
 
-        self.position = SessPosition(self.recinfo)
-        self.track = SessTrack(basepath=self.recinfo, position=self.position)
-        self.paradigm = Paradigm(self.recinfo)
-        self.artifact = Artifact(self.recinfo)
+        self.position = sessobj.SessPosition(self.recinfo)
+        self.track = sessobj.SessTrack(basepath=self.recinfo, position=self.position)
+        self.paradigm = sessobj.Paradigm(self.recinfo)
+        self.artifact = sessobj.Artifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 
-        self.neurons = SessNeurons(self.recinfo)
+        self.neurons = sessobj.SessNeurons(self.recinfo)
         self.brainstates = SleepScore(self.recinfo)
-        self.swa = Hswa(self.recinfo)
-        self.theta = Theta(self.recinfo)
-        self.spindle = Spindle(self.recinfo)
-        self.gamma = Gamma(self.recinfo)
-        self.ripple = Ripple(self.recinfo)
+        self.swa = sessobj.Hswa(self.recinfo)
+        self.theta = sessobj.Theta(self.recinfo)
+        self.spindle = sessobj.Spindle(self.recinfo)
+        self.gamma = sessobj.Gamma(self.recinfo)
+        self.ripple = sessobj.Ripple(self.recinfo)
         self.placefield = pf(self.recinfo)
         self.replay = Replay(self.recinfo)
         self.decode = DecodeBehav(self.placefield.pf1d, self.placefield.pf2d)

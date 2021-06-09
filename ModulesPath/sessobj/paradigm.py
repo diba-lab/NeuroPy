@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from .parsePath import Recinfo
-from .core import Epoch
-from . import plotting
+from ..parsePath import Recinfo
+from ..core import Epoch
+from .. import plotting
 
 
 class Paradigm(Epoch):

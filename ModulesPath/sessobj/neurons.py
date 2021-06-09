@@ -13,12 +13,11 @@ from scipy.ndimage import gaussian_filter
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-from .behavior import Paradigm
-from .ccg import correlograms
-from .parsePath import Recinfo
-from .plotUtil import pretty_plot
-from .core import Neurons
-from . import plotting
+from ..ccg import correlograms
+from ..parsePath import Recinfo
+from ..plotUtil import pretty_plot
+from ..core import Neurons
+from .. import plotting
 
 
 class Spikes:

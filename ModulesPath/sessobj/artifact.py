@@ -4,8 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stat
-from .parsePath import Recinfo
-from .core import Epoch
+from ..parsePath import Recinfo
+from ..core import Epoch
 
 
 class Artifact(Epoch):
