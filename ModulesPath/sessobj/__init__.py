@@ -1,0 +1,1 @@
+from .oscillations import Hswa, Theta, Spindle, Gamma, Ripple
