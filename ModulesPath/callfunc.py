@@ -6,7 +6,6 @@ from .sessionUtil import SessionUtil
 from .sleepDetect import SleepScore
 from .spkEvent import PBE, LocalSleep
 from .viewerData import SessView
-from .track import Track
 import pickle
 from . import sessobj
 

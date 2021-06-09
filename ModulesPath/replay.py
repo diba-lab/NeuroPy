@@ -9,7 +9,6 @@ import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 
-from .getSpikes import Spikes
 from .mathutil import getICA_Assembly, parcorr_mult
 from .parsePath import Recinfo
 

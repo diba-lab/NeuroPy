@@ -34,25 +34,6 @@ class Artifact(Epoch):
         filename = filePrefix.with_suffix(".artifact.npy")
         super().__init__(filename=filename)
 
-        # # ----- loading files --------
-        # if self.files.artifact.is_file():
-        #     self._load()
-        # elif Path(self.files.dead).is_file():
-        #     with self.files.dead.open("r") as f:
-        #         noisy = []
-        #         for line in f:
-        #             epc = line.split(" ")
-        #             epc = [float(_) for _ in epc]
-        #             noisy.append(epc)
-        #         noisy = np.asarray(noisy) / 1000
-        #         self.time = noisy  # in seconds
-
-    # def _load(self):
-    #     data = np.load(self.files.artifact, allow_pickle=True).item()
-    #     self.threshold = data["threshold"]
-    #     self.chan = data["channel"]
-    #     self.time = data["time"]
-
     def removefrom(self, lfp, timepoints):
         """Deletes detected artifacts from the 'lfp'
 
@@ -142,36 +123,34 @@ class Artifact(Epoch):
     #         for beg, stop in artifact_ms:
     #             file.write(f"{beg} start\n{stop} end\n")
 
-    def to_spyking_circus(self):
-        # --- converting to required time units for export ------
-        artifact_ms = self.time * 1000  # ms
-
+    def to_spyking_circus(self, ext=".dead"):
         # --- writing to file for neuroscope and spyking circus ----
-        circus_file = self.files.dead
+        circus_file = self._obj.files.filePrefix.with_suffix(ext)
         with circus_file.open("w") as file:
-            for beg, stop in artifact_ms:
-                file.write(f"{beg} {stop}\n")
+            for epoch in self.epochs.itertuples():
+                file.write(f"{epoch.start*1000} {epoch.stop*1000}\n")  # unit: ms
 
     def plot(self):
 
-        chans = self.chan
+        chans = self.metadata["channels"]
+        threshold = self.metadata["thresh"]
         lfp = self._obj.geteeg(chans=chans)
         if not isinstance(chans, int):
             lfp = np.asarray(lfp)
             lfp = np.median(lfp, axis=0)
 
         zsc = np.abs(stat.zscore(lfp))
-        artifact = self.time * self._obj.lfpSrate
+        factor = 5
+        downsample_srate = int(self._obj.lfpSrate / factor)
+        zsc_downsampled = zsc[::factor]
+        epochs = np.asarray(self.epochs[["start", "stop"]])
+        artifact = epochs * downsample_srate
 
         _, ax = plt.subplots(1, 1)
-        ax.plot(zsc, "gray")
-        ax.axhline(self.threshold, color="#37474F", ls="--")
-        ax.plot(
-            artifact[:, 0], self.threshold * np.ones(artifact.shape[0]), "r|", ms="10"
-        )
-        ax.plot(
-            artifact[:, 1], self.threshold * np.ones(artifact.shape[0]), "k|", ms="10"
-        )
+        ax.plot(zsc_downsampled, "gray")
+        ax.axhline(threshold, color="#37474F", ls="--")
+        ax.plot(artifact[:, 0], threshold * np.ones(artifact.shape[0]), "r|", ms="10")
+        ax.plot(artifact[:, 1], threshold * np.ones(artifact.shape[0]), "k|", ms="10")
         ax.set_xlabel("frames")
         ax.set_ylabel("Absolute zscore")
 

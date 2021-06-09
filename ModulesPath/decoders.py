@@ -10,8 +10,6 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 from tqdm import tqdm
 
-from .behavior import Paradigm
-from .getSpikes import Spikes
 from .parsePath import Recinfo
 from .pfPlot import pf1d, pf2d
 from .plotUtil import Fig
