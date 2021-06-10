@@ -917,3 +917,40 @@ class ThetaParams:
         fig.suptitle(f"Theta parameters estimation using {self.method}")
 
         return ax
+
+
+def pxx_auc(self, eeg, fs):
+    """Calculates area under the power spectrum for a given frequency band
+
+    Parameters
+    ----------
+    eeg : [array]
+        channels x time, has to be two dimensional
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    assert isinstance(eeg, list), "list of lfps needs"
+    assert len(eeg) > 1, "More than one channel needed"
+
+    aucChans = []
+    for lfp in eeg:
+
+        f, pxx = sg.welch(
+            lfp,
+            fs=fs,
+            nperseg=10 * fs,
+            noverlap=5 * fs,
+            axis=-1,
+        )
+        f_theta = np.where((f > 5) & (f < 20))[0]
+        area_in_freq = np.trapz(pxx[f_theta], x=f[f_theta])
+
+        aucChans.append(area_in_freq)
+
+    sorted_thetapow = np.argsort(np.asarray(aucChans))[::-1]
+
+    return sorted_thetapow

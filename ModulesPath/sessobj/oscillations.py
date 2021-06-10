@@ -2,7 +2,7 @@ from .. import core
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from .. import mathutil, signal_process
+from ..utils import mathutil, signal_process
 from ..parsePath import Recinfo
 
 
