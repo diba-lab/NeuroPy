@@ -1,5 +1,4 @@
 from .parsePath import Recinfo
-from .sessionUtil import SessionUtil
 from .viewerData import SessView
 import pickle
 from . import sessobj
@@ -13,7 +12,6 @@ class processData:
         self.paradigm = sessobj.Paradigm(self.recinfo)
         self.position = sessobj.SessPosition(self.recinfo)
         self.track = sessobj.SessTrack(basepath=self.recinfo, position=self.position)
-        self.utils = SessionUtil(self.recinfo)
 
         self.neurons = sessobj.SessNeurons(self.recinfo)
         self.brainstates = sessobj.BrainStates(self.recinfo)
