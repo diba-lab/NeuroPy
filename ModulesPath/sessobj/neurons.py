@@ -1324,7 +1324,7 @@ class SessNeurons(Neurons):
 
         self.spiketrains = spikes_["times"]
         self.labels = labels
-        self.shankid = spkinfo["shank"].to_numpy()
+        self.shankids = spkinfo["shank"].to_numpy()
         self.ids = np.arange(0, len(self.spiketrains))
         self.waveforms = template_waveforms
         self.metadata = None

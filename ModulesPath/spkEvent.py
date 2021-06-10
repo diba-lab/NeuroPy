@@ -8,7 +8,6 @@ import pandas as pd
 import scipy.signal as sg
 import scipy.stats as stats
 
-from .getSpikes import Spikes
 from .mathutil import threshPeriods
 from .core.epoch import Epoch
 from .parsePath import Recinfo

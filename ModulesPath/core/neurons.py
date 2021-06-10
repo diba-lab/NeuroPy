@@ -21,7 +21,7 @@ class Neurons(DataWriter):
         super().__init__(filename=filename)
 
         self.spiketrains = spiketrains
-        self.shankid = shankids
+        self.shankids = shankids
         self.labels = labels
         self.ids = ids
         self.waveforms = waveforms
@@ -70,7 +70,8 @@ class Neurons(DataWriter):
             "spiketrains": self.spiketrains,
             "labels": self.labels,
             "ids": self.ids,
-            "wavforms": self.waveforms,
+            "shankids": self.shankids,
+            "waveforms": self.waveforms,
             "instfiring": self.instfiring,
             "metadata": self.metadata,
         }

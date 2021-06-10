@@ -7,12 +7,9 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
-from .behavior import Paradigm
-from .getSpikes import Spikes
 from .parsePath import Recinfo
 from .plotUtil import Fig, pretty_plot
 from .signal_process import ThetaParams
-from .track import Track
 
 
 class pf:
