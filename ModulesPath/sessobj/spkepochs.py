@@ -8,10 +8,10 @@ import pandas as pd
 import scipy.signal as sg
 import scipy.stats as stats
 
-from .mathutil import threshPeriods
-from .core.epoch import Epoch
-from .parsePath import Recinfo
-from .plotUtil import Fig
+from ..mathutil import threshPeriods
+from ..core import Epoch
+from ..parsePath import Recinfo
+from ..plotUtil import Fig
 
 
 class LocalSleep:
@@ -139,7 +139,7 @@ class LocalSleep:
             ax.axis("off")
 
 
-class PBE(Epoch):
+class Pbe(Epoch):
     """Populations burst events"""
 
     def __init__(self, basepath):

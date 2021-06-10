@@ -1,19 +1,15 @@
 from pathlib import Path
-
-import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.ndimage as filtSig
-import scipy.signal as sg
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from scipy.ndimage import gaussian_filter
 
-from . import signal_process
-from .parsePath import Recinfo
-from .core import Epoch
+from .. import signal_process
+from ..parsePath import Recinfo
+from ..core import Epoch
 
 try:
     import ephyviewer
@@ -74,7 +70,7 @@ def hmmfit1d(Data):
     return hmmlabels
 
 
-class SleepScore(Epoch):
+class BrainStates(Epoch):
     # TODO add support for bad time points
     colors = {
         "nrem": "#6b90d1",

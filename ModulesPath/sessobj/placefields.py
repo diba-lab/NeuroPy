@@ -7,23 +7,12 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
-from .parsePath import Recinfo
-from .plotUtil import Fig, pretty_plot
-from .signal_process import ThetaParams
+from ..parsePath import Recinfo
+from ..plotUtil import Fig, pretty_plot
+from ..signal_process import ThetaParams
 
 
-class pf:
-    def __init__(self, basepath):
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
-
-        self.pf1d = pf1d(basepath)
-        self.pf2d = pf2d(basepath)
-
-
-class pf1d:
+class PF1d:
     """1D place field computation
 
     Attributes
@@ -446,7 +435,7 @@ class pf1d:
                     plot_(cell, ax)
 
 
-class pf2d:
+class PF2d:
     def __init__(self, basepath, **kwargs):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
