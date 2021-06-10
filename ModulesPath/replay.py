@@ -11,28 +11,32 @@ from sklearn.decomposition import PCA, FastICA
 
 from .mathutil import getICA_Assembly, parcorr_mult
 from .parsePath import Recinfo
+from .core import Neurons
 
 
 class Replay:
-    def __init__(self, basepath):
-        self.expvar = ExplainedVariance(basepath)
-        self.assemblyICA = CellAssemblyICA(basepath)
+    def __init__(self, basepath, neurons):
+        self.expvar = ExplainedVariance(basepath, neurons)
+        self.assemblyICA = CellAssemblyICA(basepath, neurons)
 
 
 class ExplainedVariance:
     colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
 
-    def __init__(self, basepath):
+    def __init__(self, basepath, neurons: Neurons):
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
+
+        self._neurons = neurons
 
     def compute(
         self,
         template,
         match,
         control,
+        cell_ids,
         binSize=0.250,
         window=900,
         slideby=None,
@@ -60,18 +64,20 @@ class ExplainedVariance:
         2) Tastsuno et al. 2007
         """
 
-        spikes = Spikes(self._obj)
+        spks = self._neurons.get_spiketrains(cell_ids)
+        shnkId = self._neurons.get_shankids(cell_ids)
+
         if slideby is None:
             slideby = window
 
         # ----- choosing cells ----------------
-        spks = spikes.times
-        stability = spikes.stability.info
-        stable_cells = np.where(stability.stable == 1)[0]
-        pyr_id = spikes.pyrid
-        stable_pyr = np.intersect1d(pyr_id, stable_cells, assume_unique=True)
-        print(f"Calculating EV for {len(stable_pyr)} stable cells")
-        spks = [spks[_] for _ in stable_pyr]
+        # spks = spikes.times
+        # stability = spikes.stability.info
+        # stable_cells = np.where(stability.stable == 1)[0]
+        # pyr_id = spikes.pyrid
+        # stable_pyr = np.intersect1d(pyr_id, stable_cells, assume_unique=True)
+        # print(f"Calculating EV for {len(stable_pyr)} stable cells")
+        # spks = [spks[_] for _ in stable_pyr]
 
         # ------- windowing the time periods ----------
         nbins_window = int(window / binSize)
@@ -111,8 +117,8 @@ class ExplainedVariance:
         match_corr, self.t_match = cal_corr(period=match)
 
         # ----- indices for cross shanks correlation -------
-        shnkId = np.asarray(spikes.info.shank)
-        shnkId = shnkId[stable_pyr]
+        # shnkId = np.asarray(spikes.info.shank)
+        # shnkId = shnkId[stable_pyr]
         assert len(shnkId) == len(spks)
 
         selected_pairs = np.tril_indices(len(spks), k=-1)
@@ -317,12 +323,14 @@ class ExplainedVariance:
 
 
 class CellAssemblyICA:
-    def __init__(self, basepath):
+    def __init__(self, basepath, neurons: Neurons):
 
         if isinstance(basepath, Recinfo):
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
+
+        self._neurons = neurons
 
     def getAssemblies(self, cell_ids, period, bnsz=0.25):
         """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive (as done in Gido M. van de Ven et al. 2016) V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights
@@ -334,7 +342,7 @@ class CellAssemblyICA:
             [type] -- [Independent assemblies]
         """
 
-        spikes = Spikes(self._obj).get_cells(cell_ids)
+        spikes = self._neurons.get_spiketrains(cell_ids)
 
         template_bin = np.arange(period[0], period[1], bnsz)
         template = np.asarray(

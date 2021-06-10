@@ -28,7 +28,7 @@ class processData:
         self.gamma = sessobj.Gamma(self.recinfo)
         self.ripple = sessobj.Ripple(self.recinfo)
         self.placefield = pf(self.recinfo)
-        self.replay = Replay(self.recinfo)
+        self.replay = Replay(self.recinfo, self.neurons)
         self.decode = DecodeBehav(self.placefield.pf1d, self.placefield.pf2d)
         self.localsleep = LocalSleep(self.recinfo)
         self.viewdata = SessView(self.recinfo)
