@@ -11,7 +11,7 @@ from scipy.special import factorial
 from tqdm import tqdm
 
 from ..parsePath import Recinfo
-from ..placefields import PF1d, PF2d
+from .placefields import PF1d, PF2d
 from ..plotUtil import Fig
 
 
@@ -19,7 +19,7 @@ class Decode1d:
     binsize = 0.02
     n_jobs = 8
 
-    def __init__(self, pf1d_obj: pf1d):
+    def __init__(self, pf1d_obj: PF1d):
         self._obj = pf1d_obj._obj
         self.ratemaps = pf1d_obj
         self._events = None
@@ -407,10 +407,10 @@ class Decode1d:
                 axdec.set_xlabel("Time (ms)")
 
 
-class Decode2d(Bayes):
-    def __init__(self, pf2d_obj: pf2d):
+class Decode2d:
+    def __init__(self, pf2d_obj: PF2d):
 
-        assert isinstance(pf2d_obj, pf2d)
+        assert isinstance(pf2d_obj, PF2d)
         self._obj = pf2d_obj._obj
         self.pf2d = pf2d_obj
 
