@@ -9,7 +9,7 @@ import scipy.signal as sg
 import scipy.stats as stats
 
 from ..mathutil import threshPeriods
-from ..epoch import Epoch
+from ..core import Epoch
 from ..parsePath import Recinfo
 from ..plotUtil import Fig
 

@@ -1,10 +1,7 @@
 from .decoders import DecodeBehav
 from .parsePath import Recinfo
 from .pfPlot import pf
-from .replay import Replay
 from .sessionUtil import SessionUtil
-from .sleepDetect import SleepScore
-from .spkEvent import PBE, LocalSleep
 from .viewerData import SessView
 import pickle
 from . import sessobj
@@ -21,18 +18,18 @@ class processData:
         self.utils = SessionUtil(self.recinfo)
 
         self.neurons = sessobj.SessNeurons(self.recinfo)
-        self.brainstates = SleepScore(self.recinfo)
+        self.brainstates = sessobj.BrainStates(self.recinfo)
         self.swa = sessobj.Hswa(self.recinfo)
         self.theta = sessobj.Theta(self.recinfo)
         self.spindle = sessobj.Spindle(self.recinfo)
         self.gamma = sessobj.Gamma(self.recinfo)
         self.ripple = sessobj.Ripple(self.recinfo)
         self.placefield = pf(self.recinfo)
-        self.replay = Replay(self.recinfo, self.neurons)
+        self.replay = sessobj.Replay(self.recinfo, self.neurons)
         self.decode = DecodeBehav(self.placefield.pf1d, self.placefield.pf2d)
-        self.localsleep = LocalSleep(self.recinfo)
+        self.localsleep = sessobj.LocalSleep(self.recinfo)
         self.viewdata = SessView(self.recinfo)
-        self.pbe = PBE(self.recinfo)
+        self.pbe = sessobj.Pbe(self.recinfo)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
