@@ -14,12 +14,6 @@ from ..parsePath import Recinfo
 from ..core import Neurons
 
 
-class Replay:
-    def __init__(self, basepath, neurons):
-        self.expvar = ExplainedVariance(basepath, neurons)
-        self.assemblyICA = CellAssemblyICA(basepath, neurons)
-
-
 class ExplainedVariance:
     colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
 
@@ -322,7 +316,7 @@ class ExplainedVariance:
         return ax
 
 
-class CellAssemblyICA:
+class CellAssembly:
     def __init__(self, basepath, neurons: Neurons):
 
         if isinstance(basepath, Recinfo):

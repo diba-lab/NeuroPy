@@ -1,0 +1,1 @@
+from .decoding import bayesian_decoder

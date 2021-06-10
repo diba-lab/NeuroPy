@@ -1,6 +1,4 @@
-from .decoders import DecodeBehav
 from .parsePath import Recinfo
-from .pfPlot import pf
 from .sessionUtil import SessionUtil
 from .viewerData import SessView
 import pickle
@@ -11,10 +9,10 @@ class processData:
     def __init__(self, basepath):
         self.recinfo = Recinfo(basepath)
 
+        self.artifact = sessobj.Artifact(self.recinfo)
+        self.paradigm = sessobj.Paradigm(self.recinfo)
         self.position = sessobj.SessPosition(self.recinfo)
         self.track = sessobj.SessTrack(basepath=self.recinfo, position=self.position)
-        self.paradigm = sessobj.Paradigm(self.recinfo)
-        self.artifact = sessobj.Artifact(self.recinfo)
         self.utils = SessionUtil(self.recinfo)
 
         self.neurons = sessobj.SessNeurons(self.recinfo)
@@ -24,9 +22,12 @@ class processData:
         self.spindle = sessobj.Spindle(self.recinfo)
         self.gamma = sessobj.Gamma(self.recinfo)
         self.ripple = sessobj.Ripple(self.recinfo)
-        self.placefield = pf(self.recinfo)
-        self.replay = sessobj.Replay(self.recinfo, self.neurons)
-        self.decode = DecodeBehav(self.placefield.pf1d, self.placefield.pf2d)
+        self.expvar = sessobj.ExplainedVariance(self.recinfo, self.neurons)
+        self.assembly = sessobj.CellAssembly(self.recinfo, self.neurons)
+        self.pf1d = sessobj.PF1d(self.recinfo)
+        self.pf2d = sessobj.PF2d(self.recinfo)
+        self.decode1D = sessobj.Decode1d(self.pf1d, self.pf2d)
+        self.decode2D = sessobj.Decode2d(self.pf1d, self.pf2d)
         self.localsleep = sessobj.LocalSleep(self.recinfo)
         self.viewdata = SessView(self.recinfo)
         self.pbe = sessobj.Pbe(self.recinfo)
