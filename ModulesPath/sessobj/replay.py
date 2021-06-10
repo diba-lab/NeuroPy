@@ -9,9 +9,9 @@ import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 
-from .mathutil import getICA_Assembly, parcorr_mult
-from .parsePath import Recinfo
-from .core import Neurons
+from ..mathutil import getICA_Assembly, parcorr_mult
+from ..parsePath import Recinfo
+from ..core import Neurons
 
 
 class Replay:
@@ -36,7 +36,7 @@ class ExplainedVariance:
         template,
         match,
         control,
-        cell_ids,
+        neuron_ids,
         binSize=0.250,
         window=900,
         slideby=None,
@@ -64,8 +64,8 @@ class ExplainedVariance:
         2) Tastsuno et al. 2007
         """
 
-        spks = self._neurons.get_spiketrains(cell_ids)
-        shnkId = self._neurons.get_shankids(cell_ids)
+        spks = self._neurons.get_spiketrains(neuron_ids)
+        shnkId = self._neurons.get_shankids(neuron_ids)
 
         if slideby is None:
             slideby = window
