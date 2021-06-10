@@ -4,7 +4,7 @@ import pickle
 from . import sessobj
 
 
-class processData:
+class ProcessData:
     def __init__(self, basepath):
         self.recinfo = Recinfo(basepath)
 
