@@ -9,7 +9,7 @@ import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 
-from ..mathutil import getICA_Assembly, parcorr_mult
+from ..utils.mathutil import getICA_Assembly, parcorr_mult
 from ..parsePath import Recinfo
 from ..core import Neurons
 

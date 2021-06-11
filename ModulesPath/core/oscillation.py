@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy import stats
-from .. import signal_process
+from ..utils import signal_process
 from .epoch import Epoch
 
 

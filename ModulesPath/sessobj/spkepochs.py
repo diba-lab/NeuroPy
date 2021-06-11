@@ -8,7 +8,7 @@ import pandas as pd
 import scipy.signal as sg
 import scipy.stats as stats
 
-from ..mathutil import threshPeriods
+from ..utils.mathutil import threshPeriods
 from ..core import Epoch
 from ..parsePath import Recinfo
 from ..plotUtil import Fig

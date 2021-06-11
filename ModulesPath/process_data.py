@@ -1,5 +1,4 @@
 from .parsePath import Recinfo
-from .viewerData import SessView
 import pickle
 from . import sessobj
 
@@ -27,7 +26,6 @@ class ProcessData:
         self.decode1D = sessobj.Decode1d(self.pf1d)
         self.decode2D = sessobj.Decode2d(self.pf2d)
         self.localsleep = sessobj.LocalSleep(self.recinfo)
-        self.viewdata = SessView(self.recinfo)
         self.pbe = sessobj.Pbe(self.recinfo)
 
     def __repr__(self) -> str:

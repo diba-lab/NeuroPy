@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import scipy.signal as sg
 from .datawriter import DataWriter
-from ..ccg import correlograms
+from ..utils.ccg import correlograms
 from pathlib import Path
 
 

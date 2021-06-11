@@ -13,7 +13,7 @@ from scipy.ndimage import gaussian_filter
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-from ..ccg import correlograms
+from ..utils.ccg import correlograms
 from ..parsePath import Recinfo
 from ..plotUtil import pretty_plot
 from ..core import Neurons

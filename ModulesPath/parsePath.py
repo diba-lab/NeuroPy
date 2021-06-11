@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.signal as sg
-from scipy import stats
+from scipy.ndimage import gaussian_filter
+from . import plotting
+from .utils import signal_process
 
 
 class Recinfo:
@@ -239,6 +241,46 @@ class Recinfo:
     def duration(self):
         return self.getNframesEEG / self.lfpSrate
 
+    def time_slice(self, chans, period=None):
+        """Returns eeg signal for given channels. If multiple channels provided then it is list of lfps.
+
+        Args:
+            chans (list/array): channels required, index should in order of binary file
+            timeRange (list, optional): In seconds and must have length 2.
+
+        Returns:
+            eeg: memmap, or list of memmaps
+        """
+        eegfile = self.recfiles.eegfile
+        eegSrate = self.lfpSrate
+        nChans = self.nChans
+
+        if period is not None:
+            assert len(period) == 2
+            frameStart = int(period[0] * eegSrate)
+            frameEnd = int(period[1] * eegSrate)
+            eeg = np.memmap(
+                eegfile,
+                dtype="int16",
+                mode="r",
+                offset=2 * nChans * frameStart,
+                shape=nChans * (frameEnd - frameStart),
+            )
+            eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
+
+        else:
+            eeg = np.memmap(eegfile, dtype="int16", mode="r")
+            eeg = np.memmap.reshape(eeg, (nChans, len(eeg) // nChans), order="F")
+
+        eeg_ = []
+        if isinstance(chans, (list, np.ndarray)):
+            for chan in chans:
+                eeg_.append(eeg[chan, :])
+        else:
+            eeg_ = eeg[chans, :]
+
+        return eeg_
+
     def geteeg(self, chans, timeRange=None):
         """Returns eeg signal for given channels. If multiple channels provided then it is list of lfps.
 
@@ -303,7 +345,7 @@ class Recinfo:
         )
         return f, pxx
 
-    def get_specgram(self, chan, window=5, overlap=2, period=None, **kwargs):
+    def get_spectrogram(self, chan, window=5, overlap=2, period=None, **kwargs):
         """Get spectrogram for a given lfp channel (from .eeg file)
 
         Parameters
@@ -333,6 +375,59 @@ class Recinfo:
         )
 
         return f, t, sxx
+
+    def plot_spectrogram(
+        self, chan=None, period=None, window=10, overlap=2, ax=None, plotChan=False
+    ):
+        """Generating spectrogram plot for given channel
+
+        Parameters
+        ----------
+        chan : [int], optional
+            channel to plot, by default None and chooses a channel randomly
+        period : [type], optional
+            plot only for this duration in the session, by default None
+        window : [float, seconds], optional
+            window binning size for spectrogram, by default 10
+        overlap : [float, seconds], optional
+            overlap between windows, by default 2
+        ax : [obj], optional
+            if none generates a new figure, by default None
+        """
+
+        if chan is None:
+            goodchans = self._obj.goodchans
+            chan = np.random.choice(goodchans)
+
+        eegSrate = self._obj.lfpSrate
+        lfp = self._obj.geteeg(chans=chan, timeRange=period)
+
+        spec = signal_process.spectrogramBands(
+            lfp, sampfreq=eegSrate, window=window, overlap=overlap
+        )
+
+        sxx = spec.sxx / np.max(spec.sxx)
+        sxx = gaussian_filter(sxx, sigma=2)
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        ax = plotting.plot_spectrogram(sxx, ax=ax)
+        ax.text(
+            np.max(spec.time) / 2,
+            25,
+            f"Spectrogram for channel {chan}",
+            ha="center",
+            color="w",
+        )
+        ax.set_xlim([np.min(spec.time), np.max(spec.time)])
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Frequency (Hz)")
+
+        if plotChan:
+            axins = ax.inset_axes([0, 0.6, 0.1, 0.25])
+            self._obj.probemap.plot(chans=[chan], ax=axins)
+            axins.axis("off")
 
     def loadmetadata(self):
         metadatafile = Path(str(self.files.filePrefix) + "_metadata.csv")

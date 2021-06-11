@@ -1,5 +1,5 @@
 import numpy as np
-from ..mathutil import threshPeriods
+from ..utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
@@ -143,6 +143,10 @@ class Position(DataWriter):
                 "linear": self.linear[1:],
             }
         )
+
+    def speed_in_epochs(self, epochs: Epoch):
+        assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
+        pass
 
 
 class Track:

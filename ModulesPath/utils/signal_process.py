@@ -1,17 +1,16 @@
 from dataclasses import dataclass
 from typing import Any
-
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as filtSig
 import scipy.signal as sg
 from joblib import Parallel, delayed
-from matplotlib.pyplot import axis
 from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
 
-from .plotUtil import Fig
+from ..plotUtil import Fig
 
 
 class filter_sig:
@@ -917,3 +916,242 @@ class ThetaParams:
         fig.suptitle(f"Theta parameters estimation using {self.method}")
 
         return ax
+
+
+def pxx_auc(signals, freq_band, fs):
+    """Calculates area under the power spectrum for a given frequency band
+
+    Parameters
+    ----------
+    eeg : [array]
+        channels x time, has to be two dimensional
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    assert isinstance(signals, list), "list of lfps needs"
+
+    aucChans = []
+    for sig in signals:
+
+        f, pxx = sg.welch(
+            sig,
+            fs=fs,
+            nperseg=10 * fs,
+            noverlap=5 * fs,
+            axis=-1,
+        )
+        f_theta = np.where((f > freq_band[0]) & (f < freq_band[1]))[0]
+        area_in_freq = np.trapz(pxx[f_theta], x=f[f_theta])
+
+        aucChans.append(area_in_freq)
+
+    # sorted_thetapow = np.argsort(np.asarray(aucChans))[::-1]
+
+    return aucChans
+
+
+def detect_freq_band_epochs(
+    signals, freq_band, thresh, mindur, maxdur, mergedist, fs, ignore_times=None
+):
+    """Detects epochs of high power in a given frequency band
+
+    Parameters
+    ----------
+    thresh : tuple, optional
+        low and high threshold for detection
+    mindur : float, optional
+        minimum duration of epoch
+    maxdur : float, optiona
+    chans : list
+        channels used for epoch detection, if None then chooses best chans
+    """
+
+    zscsignal = []
+    lf, hf = freq_band
+    lowthresh, highthresh = thresh
+    for sig in signals:
+        yf = filter_sig.bandpass(sig, lf=lf, hf=hf)
+        zsc_chan = stats.zscore(np.abs(hilbertfast(yf)))
+        zscsignal.append(zsc_chan)
+
+    zscsignal = np.asarray(zscsignal)
+
+    # ---------setting noisy periods zero --------
+    if ignore_times is not None:
+        assert ignore_times.ndim == 2, "ignore_times should be 2 dimensional array"
+        noisy_frames = np.concatenate(
+            [
+                (np.arange(start, stop) * fs).astype(int)
+                for (start, stop) in ignore_times
+            ]
+        )
+
+        zscsignal[:, noisy_frames] = 0
+
+    # ------hilbert transform --> binarize by > than lowthreshold
+    maxPower = np.max(zscsignal, axis=0)
+    ThreshSignal = np.where(zscsignal > lowthresh, 1, 0).sum(axis=0)
+    ThreshSignal = np.diff(np.where(ThreshSignal > 0, 1, 0))
+    start = np.where(ThreshSignal == 1)[0]
+    stop = np.where(ThreshSignal == -1)[0]
+
+    # --- getting rid of incomplete epochs at begining or end ---------
+    if start[0] > stop[0]:
+        stop = stop[1:]
+    if start[-1] > stop[-1]:
+        start = start[:-1]
+
+    firstPass = np.vstack((start, stop)).T
+    print(f"{len(firstPass)} epochs detected initially")
+
+    # --------merging close epochs------------
+    min_inter_epoch_samples = mergedist * fs
+    secondPass = []
+    epoch = firstPass[0]
+    for i in range(1, len(firstPass)):
+        if firstPass[i, 0] - epoch[1] < min_inter_epoch_samples:
+            epoch = [epoch[0], firstPass[i, 1]]
+        else:
+            secondPass.append(epoch)
+            epoch = firstPass[i]
+    secondPass.append(epoch)
+    secondPass = np.asarray(secondPass)
+    print(f"{len(secondPass)} epochs reamining after merging close ones")
+
+    # ------delete epochs with less than threshold power--------
+    thirdPass = []
+    peakpower, peaktime = [], []
+
+    for i in range(0, len(secondPass)):
+        maxValue = max(maxPower[secondPass[i, 0] : secondPass[i, 1]])
+        if maxValue > highthresh:
+            thirdPass.append(secondPass[i])
+            peakpower.append(maxValue)
+            peaktime.append(
+                secondPass[i, 0]
+                + np.argmax(maxPower[secondPass[i, 0] : secondPass[i, 1]])
+            )
+    thirdPass = np.asarray(thirdPass)
+    print(f"{len(thirdPass)} epochs reamining after deleting epochs with weaker power")
+
+    ripple_duration = np.diff(thirdPass, axis=1) / fs
+    epochs = pd.DataFrame(
+        {
+            "start": thirdPass[:, 0],
+            "stop": thirdPass[:, 1],
+            "peakpower": peakpower,
+            "peaktime": np.asarray(peaktime),
+            "duration": ripple_duration.squeeze(),
+        }
+    )
+
+    # ---------delete very short epochs--------
+    epochs = epochs[epochs.duration >= mindur]
+    print(f"{len(epochs)} epochs reamining after deleting short epochs")
+
+    # ----- delete epochs with unrealistic high power
+    # artifactRipples = np.where(peakpower > maxPeakPower)[0]
+    # fourthPass = np.delete(thirdPass, artifactRipples, 0)
+    # peakpower = np.delete(peakpower, artifactRipples)
+
+    # ---------delete very long epochs---------
+    epochs = epochs[epochs.duration <= maxdur]
+    print(f"{len(epochs)} epochs reamining after deleting very long epochs")
+
+    # ----- converting to all time stamps to seconds --------
+    epochs[["start", "stop", "peakpower", "peaktime"]] /= fs  # seconds
+
+    epochs = epochs.reset_index(drop=True)
+    epochs["label"] = ""
+    metadata = {
+        "params": {
+            "lowThres": lowthresh,
+            "highThresh": highthresh,
+            "freq_band": freq_band,
+            "mindur": mindur,
+            "maxdur": maxdur,
+            "mergedist": mergedist,
+        },
+    }
+
+    return epochs, metadata
+
+
+def hilbert_ampltiude_stat(self, signals, freq_band, fs, statistic="mean"):
+    """Calculates hilbert amplitude statistic over the entire signal
+
+    Parameters
+    ----------
+    signals : list of signals or np.array
+        [description]
+    statistic : str, optional
+        [description], by default "mean"
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    if statistic == "mean":
+        get_stat = lambda x: np.mean(x)
+    if statistic == "median":
+        get_stat = lambda x: np.median(x)
+    if statistic == "std":
+        get_stat = lambda x: np.std(x)
+
+    bandpower_stat = np.zeros(len(signals))
+    for i, sig in enumerate(signals):
+        filtered = filter_sig.bandpass(sig, lf=freq_band[0], hf=freq_band[1], fs=fs)
+        amplitude_envelope = np.abs(hilbertfast(filtered))
+        bandpower_stat[i] = get_stat(amplitude_envelope)
+
+    return bandpower_stat
+
+
+def theta_phase_specfic_extraction(signal, y, fs, binsize=20, slideby=None):
+    """Breaks y into theta phase specific components
+
+    Parameters
+    ----------
+    signal : array like
+        reference lfp from which theta phases are estimated
+    y : array like
+        timeseries which is broken into components
+    binsize : int, optional
+        width of each bin in degrees, by default 20
+    slideby : int, optional
+        slide each bin by this amount in degrees, by default None
+
+    Returns
+    -------
+    [list]
+        list of broken signal into phase components
+    """
+
+    assert len(signal) == len(y), "Both signals should be of same length"
+    thetalfp = filter_sig.bandpass(signal, lf=1, hf=25, fs=fs)
+    hil_theta = hilbertfast(thetalfp)
+    theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
+
+    if slideby is None:
+        slideby = binsize
+
+    # --- sliding windows--------
+    angle_bin = np.arange(0, 361)
+    slide_angles = np.lib.stride_tricks.sliding_window_view(angle_bin, binsize)[
+        ::slideby, :
+    ]
+    angle_centers = np.mean(slide_angles, axis=1)
+
+    y_at_phase = []
+    for phase in slide_angles:
+        y_at_phase.append(
+            y[np.where((theta_angle >= phase[0]) & (theta_angle <= phase[-1]))[0]]
+        )
+
+    return y_at_phase, angle_bin, angle_centers

@@ -1,17 +1,12 @@
 import csv
 import linecache
-import os
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from glob import glob
+from datetime import datetime
 from pathlib import Path
-
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from ..mathutil import contiguous_regions
+from ..utils.mathutil import contiguous_regions
 
 
 def getSampleRate(fileName):
