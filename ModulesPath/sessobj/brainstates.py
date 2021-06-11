@@ -7,7 +7,7 @@ import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
 
-from .. import signal_process
+from ..utils import signal_process
 from ..parsePath import Recinfo
 from ..core import Epoch
 

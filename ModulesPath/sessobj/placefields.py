@@ -9,7 +9,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
 from ..parsePath import Recinfo
 from ..plotUtil import Fig, pretty_plot
-from ..signal_process import ThetaParams
+from ..utils.signal_process import ThetaParams
 
 
 class PF1d:

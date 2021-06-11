@@ -9,7 +9,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 from scipy.ndimage import gaussian_filter
 
-from . import signal_process
+from .utils import signal_process
 from .parsePath import Recinfo
 
 
