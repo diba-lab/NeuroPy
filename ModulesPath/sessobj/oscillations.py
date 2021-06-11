@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 from ..utils import mathutil, signal_process
 from ..parsePath import Recinfo
+from scipy import stats
 
 
 class Hswa(core.Oscillation, core.Epoch):
@@ -151,7 +152,7 @@ class Hswa(core.Oscillation, core.Epoch):
         fig.suptitle(f"Delta wave detection of {subname}")
 
 
-class Theta(core.Oscillation, core.Epoch):
+class Theta(core.Epoch):
     """Everything related to theta oscillations
 
     Parameters
@@ -183,11 +184,12 @@ class Theta(core.Oscillation, core.Epoch):
 
         # ------- defining file names ---------
         filePrefix = self._obj.files.filePrefix
+        super().__init__(filename=filePrefix.with_suffix(".theta.npy"))
 
     def getBestChanlfp(self):
         return self._obj.geteeg(chans=self.bestchan)
 
-    def _getAUC(self, eeg):
+    def pxx_auc(self, chans, period):
         """Calculates area under the curve for frequency range 5-20 Hz
 
         Parameters
@@ -200,41 +202,20 @@ class Theta(core.Oscillation, core.Epoch):
         [type]
             [description]
         """
-        eegSrate = self._obj.lfpSrate
+        lfps = self._obj.geteeg(chans=chans, timeRange=period)
+        return signal_process.pxx_auc(lfps, fs=self._obj.lfpSrate)
 
-        assert isinstance(eeg, list), "list of lfps needs"
-        assert len(eeg) > 1, "More than one channel needed"
+    def detect(self, chans=None):
 
-        aucChans = []
-        for lfp in eeg:
+        if chans is None:
+            chans = self._obj.goodchans
 
-            f, pxx = sg.welch(
-                lfp,
-                fs=eegSrate,
-                nperseg=10 * eegSrate,
-                noverlap=5 * eegSrate,
-                axis=-1,
-            )
-            f_theta = np.where((f > 5) & (f < 20))[0]
-            area_in_freq = np.trapz(pxx[f_theta], x=f[f_theta])
+        lfps = self._obj.time_slice(chans=chans, period=[0, 3600])
+        hilbert_amplitudes = signal_process.hilbert_ampltiude_stat(lfps)
+        best_chan = chans[np.argmax(hilbert_amplitudes)]
 
-            aucChans.append(area_in_freq)
-
-        sorted_thetapow = np.argsort(np.asarray(aucChans))[::-1]
-
-        return sorted_thetapow
-
-    def detectBestChan(self, period):
-        """Selects the best channel by computing area under the curve of spectral density"""
-        channels = self._obj.goodchans
-        eeg = self._obj.geteeg(chans=channels, timeRange=period)
-        sorted_thetapow = self._getAUC(eeg=eeg)
-        chans_thetapow = channels[sorted_thetapow]
-
-        filename = self.files.bestThetachan
-        best_theta_chans = {"chanorder": chans_thetapow}
-        np.save(filename, best_theta_chans)
-        self._load()  # load result immediately into Theta object.
+        self.epochs, self.metadata = signal_process.detect_freq_band_epochs(best_chan)
+        self.save()
 
     def getParams(self, lfp, lowtheta=1, hightheta=25):
         """Calculating Various theta related parameters
@@ -307,50 +288,6 @@ class Theta(core.Oscillation, core.Epoch):
         strong_theta = np.take(lfp, theta_indices, axis=-1)
         weak_theta = np.delete(lfp, theta_indices, axis=-1)
         return strong_theta, weak_theta, theta_indices
-
-    @staticmethod
-    def phase_specfic_extraction(lfp, y, binsize=20, slideby=None):
-        """Breaks y into theta phase specific components
-
-        Parameters
-        ----------
-        lfp : array like
-            reference lfp from which theta phases are estimated
-        y : array like
-            timeseries which is broken into components
-        binsize : int, optional
-            width of each bin in degrees, by default 20
-        slideby : int, optional
-            slide each bin by this amount in degrees, by default None
-
-        Returns
-        -------
-        [list]
-            list of broken signal into phase components
-        """
-
-        assert len(lfp) == len(y), "Both signals should be of same length"
-        thetalfp = signal_process.filter_sig.bandpass(lfp, lf=1, hf=25)
-        hil_theta = signal_process.hilbertfast(thetalfp)
-        theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
-
-        if slideby is None:
-            slideby = binsize
-
-        # --- sliding windows--------
-        angle_bin = np.arange(0, 361)
-        slide_angles = np.lib.stride_tricks.sliding_window_view(angle_bin, binsize)[
-            ::slideby, :
-        ]
-        angle_centers = np.mean(slide_angles, axis=1)
-
-        y_at_phase = []
-        for phase in slide_angles:
-            y_at_phase.append(
-                y[np.where((theta_angle >= phase[0]) & (theta_angle <= phase[-1]))[0]]
-            )
-
-        return y_at_phase, angle_bin, angle_centers
 
     def plot(self):
         """Gives a comprehensive view of the detection process with some statistics and examples"""
