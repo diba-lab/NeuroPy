@@ -625,7 +625,7 @@ class Probemap:
 
         return reqchans.x.values, reqchans.y.values
 
-    def for_spyking_circus(self, rmv_badchans=True, shanksCombine=False):
+    def write_spyking_circus(self, rmv_badchans=True, shanksCombine=False):
         """Creates .prb file for spyking circus in the basepath folder
 
         Parameters

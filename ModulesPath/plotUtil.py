@@ -116,7 +116,7 @@ class Fig:
             )
 
         if style == "Pres":
-            mpl.rcParams["axes.linewidth"] = 2
+            mpl.rcParams["axes.linewidth"] = 3
             mpl.rcParams["axes.labelsize"] = 10
             mpl.rcParams["axes.titlesize"] = 10
             mpl.rcParams["xtick.labelsize"] = 10

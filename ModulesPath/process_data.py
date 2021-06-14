@@ -19,7 +19,7 @@ class ProcessData:
         self.spindle = sessobj.Spindle(self.recinfo)
         self.gamma = sessobj.Gamma(self.recinfo)
         self.ripple = sessobj.Ripple(self.recinfo)
-        self.expvar = sessobj.ExplainedVariance(self.recinfo, self.neurons)
+        self.expvar = sessobj.ExplainedVariance(self.neurons)
         self.assembly = sessobj.CellAssembly(self.recinfo, self.neurons)
         self.pf1d = sessobj.PF1d(self.recinfo)
         self.pf2d = sessobj.PF2d(self.recinfo)
@@ -53,7 +53,7 @@ class ProcessData:
 
 # test
 if __name__ == "__main__":
-    sess = processData("/data/Working/Opto/Jackie671/Jackie_propofol_2020-09-30")
+    sess = ProcessData("/data/Working/Opto/Jackie671/Jackie_propofol_2020-09-30")
     sess.spikes.load_rough_mua()
     sess.spikes.roughmua2neuroscope([7, 8, 6, 5, 9], [4, 4, 4, 4, 4])
 pass
