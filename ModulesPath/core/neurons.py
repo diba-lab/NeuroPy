@@ -16,6 +16,7 @@ class Neurons(DataWriter):
         ids=None,
         shankids=None,
         waveforms=None,
+        sampling_rate=1,
         filename=None,
     ) -> None:
         super().__init__(filename=filename)
@@ -26,7 +27,12 @@ class Neurons(DataWriter):
         self.ids = ids
         self.waveforms = waveforms
         self.instfiring = None
-        self.metadata = None
+        self._sampling_rate = sampling_rate
+        self.metadata = {}
+
+    @property
+    def sampling_rate(self):
+        return self._sampling_rate
 
     @property
     def n_neurons(self):
@@ -73,6 +79,7 @@ class Neurons(DataWriter):
             "shankids": self.shankids,
             "waveforms": self.waveforms,
             "instfiring": self.instfiring,
+            "sampling_rate": self.sampling_rate,
             "metadata": self.metadata,
         }
         super().save(data)
