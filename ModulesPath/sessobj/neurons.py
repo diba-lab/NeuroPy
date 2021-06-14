@@ -746,7 +746,10 @@ class SessNeurons(Neurons):
             self._obj = Recinfo(basepath)
 
         filePrefix = self._obj.files.filePrefix
-        super().__init__(filename=filePrefix.with_suffix(".neurons.npy"))
+        super().__init__(
+            sampling_rate=self._obj.sampfreq,
+            filename=filePrefix.with_suffix(".neurons.npy"),
+        )
 
         self.stability = Stability(basepath)
         self.load()
