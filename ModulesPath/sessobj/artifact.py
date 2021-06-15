@@ -6,6 +6,7 @@ import numpy as np
 import scipy.stats as stat
 from ..parsePath import Recinfo
 from ..core import Epoch
+from ..core import Analogsignal
 
 
 class Artifact(Epoch):
@@ -22,16 +23,13 @@ class Artifact(Epoch):
         removes noisy timestamps
     """
 
-    def __init__(self, obj):
+    def __init__(self, signal: Analogsignal, filename=None):
 
-        if isinstance(obj, Recinfo):
-            self._obj = obj
-        else:
-            self._obj = Recinfo(obj)
-
+        assert isinstance(signal, Analogsignal)
+        self._obj = signal
         # ----- defining file names ---------
-        filePrefix = self._obj.files.filePrefix
-        filename = filePrefix.with_suffix(".artifact.npy")
+        # filePrefix = self._obj.files.filePrefix
+        # filename = filePrefix.with_suffix(".artifact.npy")
         super().__init__(filename=filename)
 
     def removefrom(self, lfp, timepoints):
@@ -59,7 +57,7 @@ class Artifact(Epoch):
         return lfp
 
     def getframes(self):
-        eegSrate = self._obj.lfpSrate
+        eegSrate = self._obj.sampling_rate
         noisy_intervals = (self.time * eegSrate).astype(int) - 1  # zero indexing
         noisy_frames = np.concatenate(
             [np.arange(beg, end) for (beg, end) in noisy_intervals]
@@ -75,7 +73,7 @@ class Artifact(Epoch):
         if chans is None:
             chans = np.random.choice(self._obj.goodchans, 4)
 
-        eegSrate = self._obj.lfpSrate
+        eegSrate = self._obj.sampling_rate
         lfp = self._obj.geteeg(chans=chans)
         if isinstance(chans, list):
             lfp = np.asarray(lfp)
@@ -141,7 +139,7 @@ class Artifact(Epoch):
 
         zsc = np.abs(stat.zscore(lfp))
         factor = 5
-        downsample_srate = int(self._obj.lfpSrate / factor)
+        downsample_srate = int(self._obj.sampling_rate / factor)
         zsc_downsampled = zsc[::factor]
         epochs = np.asarray(self.epochs[["start", "stop"]])
         artifact = epochs * downsample_srate

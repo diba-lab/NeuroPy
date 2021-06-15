@@ -67,6 +67,7 @@ class Recinfo:
             if file.endswith(".xml"):
                 xmlfile = self.basePath / file
                 filePrefix = xmlfile.with_suffix("")
+
             elif file.endswith(".eeg"):
                 eegfile = self.basePath / file
                 filePrefix = eegfile.with_suffix("")

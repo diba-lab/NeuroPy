@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from .datawriter import DataWriter
 
 
 class Shank:
@@ -113,8 +114,10 @@ class Probe:
         pass
 
 
-class ProbeGroup:
-    def __init__(self) -> None:
+class ProbeGroup(DataWriter):
+    def __init__(self, filename=None) -> None:
+
+        super().__init__(filename=filename)
         self.probes: list[Probe] = []
 
     @property

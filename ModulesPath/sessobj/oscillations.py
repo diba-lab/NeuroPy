@@ -5,6 +5,7 @@ from pathlib import Path
 from ..utils import mathutil, signal_process
 from ..parsePath import Recinfo
 from scipy import stats
+from ..core import Analogsignal, ProbeGroup
 
 
 class Hswa(core.Oscillation, core.Epoch):
@@ -488,16 +489,15 @@ class Spindle(core.Oscillation, core.Epoch):
 class Ripple(core.Oscillation, core.Epoch):
     """Ripple class to detect ripple epochs"""
 
-    def __init__(self, basepath):
+    def __init__(self, signal: Analogsignal, probe: ProbeGroup, filename=None):
 
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
-
-        filePrefix = self._obj.files.filePrefix
-        filename = filePrefix.with_suffix(".ripples.npy")
-        super().__init__(freq_band=(150, 250), fs=self._obj.lfpSrate, filename=filename)
+        assert isinstance(signal, Analogsignal)
+        assert isinstance(probe, ProbeGroup)
+        self._obj = signal
+        self._probe = probe
+        super().__init__(
+            freq_band=(150, 250), fs=signal.sampling_rate, filename=filename
+        )
         self.load()
 
     @property

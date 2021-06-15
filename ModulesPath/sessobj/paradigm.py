@@ -9,16 +9,11 @@ from .. import plotting
 class Paradigm(Epoch):
     """Class for epochs within a session. Such as pre, maze and post."""
 
-    def __init__(self, basepath):
-
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
+    def __init__(self, filename=None):
 
         # ---- defining filenames --------
-        filePrefix = self._obj.files.filePrefix
-        filename = filePrefix.with_suffix(".paradigm.npy")
+        # filePrefix = self._obj.files.filePrefix
+        # filename = filePrefix.with_suffix(".paradigm.npy")
         super().__init__(filename=filename)
         self.load()
         if self._epochs is not None:
@@ -45,12 +40,12 @@ class Paradigm(Epoch):
         epoch_label = self._epochs[self._epochs["label"] == label_name]
         return epoch_label[["start", "stop"]].values.tolist()[0]
 
-    def all_maze(self):
-        """Make the entire session a maze epoch if that's all you are analyzing"""
-        maze_time = [0, self._obj.duration]
-        self.add_epochs(
-            pd.DataFrame({"start": [0], "stop": [maze_time], "label": ["maze"]})
-        )
+    # def all_maze(self):
+    #     """Make the entire session a maze epoch if that's all you are analyzing"""
+    #     maze_time = [0, self._obj.duration]
+    #     self.add_epochs(
+    #         pd.DataFrame({"start": [0], "stop": [maze_time], "label": ["maze"]})
+    #     )
 
     def plot_epochs(self, ax, unit="h"):
         epochs = self.epochs.copy()
