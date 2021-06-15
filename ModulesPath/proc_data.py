@@ -1,42 +1,58 @@
 from .io import NeuroscopeIO, RawBinarySignalIO
 import pickle
 from . import sessobj
+from .core import ProbeGroup
+from pathlib import Path
 
 
 class ProcessData:
-    def __init__(self, basepath, data_format="NeuroscopeIO", dtype="int16"):
-        self.recinfo = NeuroscopeIO(basepath)
+    def __init__(self, basepath, data_format="NeuroscopeIO"):
+        basepath = Path(basepath)
+        xml_files = sorted(basepath.glob("*.xml"))
+        assert len(xml_files) == 1, "Found more than one .xml file"
+
+        self.filePrefix = xml_files[0].with_suffix("")
+        self.recinfo = NeuroscopeIO(xml_files[0])
         self.eegfile = RawBinarySignalIO(
             self.recinfo.eeg_filename,
-            n_chans=self.recinfo.n_chans,
-            sampling_rate=self.recinfo.eeg_file_sampling_rate,
+            n_chans=self.recinfo.n_channels,
+            sampling_rate=self.recinfo.eeg_sampling_rate,
         )
         self.datfile = RawBinarySignalIO(
             self.recinfo.dat_filename,
-            n_chans=self.recinfo.n_chans,
-            sampling_rate=self.recinfo.dat_file_sampling_rate,
+            n_chans=self.recinfo.n_channels,
+            sampling_rate=self.recinfo.dat_sampling_rate,
         )
 
-        self.artifact = sessobj.Artifact(self.recinfo)
-        self.paradigm = sessobj.Paradigm(self.recinfo)
-        self.position = sessobj.SessPosition(self.recinfo)
-        self.track = sessobj.SessTrack(basepath=self.recinfo, position=self.position)
+        self.probegroup = ProbeGroup(filename=self.filePrefix.with_suffix(".prb.npy"))
+        self.artifact = sessobj.Artifact(
+            signal=self.eegfile, filename=self.filePrefix.with_suffix(".artifact.npy")
+        )
+        self.paradigm = sessobj.Paradigm(
+            filename=self.filePrefix.with_suffix(".paradigm.npy")
+        )
+        # self.position = sessobj.SessPosition(self.recinfo)
+        # self.track = sessobj.SessTrack(basepath=self.recinfo, position=self.position)
 
-        self.neurons = sessobj.SessNeurons(self.recinfo)
-        self.brainstates = sessobj.BrainStates(self.recinfo)
-        self.swa = sessobj.Hswa(self.recinfo)
-        self.theta = sessobj.Theta(self.recinfo)
-        self.spindle = sessobj.Spindle(self.recinfo)
-        self.gamma = sessobj.Gamma(self.recinfo)
-        self.ripple = sessobj.Ripple(self.recinfo)
-        self.expvar = sessobj.ExplainedVariance(self.recinfo, self.neurons)
-        self.assembly = sessobj.CellAssembly(self.recinfo, self.neurons)
-        self.pf1d = sessobj.PF1d(self.recinfo)
-        self.pf2d = sessobj.PF2d(self.recinfo)
-        self.decode1D = sessobj.Decode1d(self.pf1d)
-        self.decode2D = sessobj.Decode2d(self.pf2d)
-        self.localsleep = sessobj.LocalSleep(self.recinfo)
-        self.pbe = sessobj.Pbe(self.recinfo)
+        # self.neurons = sessobj.SessNeurons(self.recinfo)
+        # self.brainstates = sessobj.BrainStates(self.recinfo)
+        # self.swa = sessobj.Hswa(self.recinfo)
+        # self.theta = sessobj.Theta(self.recinfo)
+        # self.spindle = sessobj.Spindle(self.recinfo)
+        # self.gamma = sessobj.Gamma(self.recinfo)
+        self.ripple = sessobj.Ripple(
+            self.eegfile,
+            self.probegroup,
+            filename=self.filePrefix.with_suffix(".ripples.npy"),
+        )
+        # self.expvar = sessobj.ExplainedVariance(self.recinfo, self.neurons)
+        # self.assembly = sessobj.CellAssembly(self.recinfo, self.neurons)
+        # self.pf1d = sessobj.PF1d(self.recinfo)
+        # self.pf2d = sessobj.PF2d(self.recinfo)
+        # self.decode1D = sessobj.Decode1d(self.pf1d)
+        # self.decode2D = sessobj.Decode2d(self.pf2d)
+        # self.localsleep = sessobj.LocalSleep(self.recinfo)
+        # self.pbe = sessobj.Pbe(self.recinfo)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
