@@ -1,4 +1,4 @@
-from ..io import NeuroscopeIO, RawBinarySignalIO
+from .io import NeuroscopeIO, RawBinarySignalIO
 import pickle
 from . import sessobj
 
