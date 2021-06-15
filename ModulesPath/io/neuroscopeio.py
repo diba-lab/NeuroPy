@@ -11,6 +11,7 @@ class NeuroscopeIO:
         self.skipped_channels = None
         self.channel_groups = None
         self.discarded_channels = None
+        self._parse_xml_file()
 
     def _parse_xml_file(self):
         """Uses .xml file to parse anatomical groups
@@ -27,67 +28,40 @@ class NeuroscopeIO:
             channels recording accelerometer data or velocity, by default None
         """
 
-        myroot = Etree.parse(self.recfiles.xmlfile).getroot()
+        tree = Etree.parse(self.source_file)
+        myroot = tree.getroot()
+        nbits = int(myroot.find("acquisitionSystem").find("nBits").text)
 
-        chan_session, channelgroups, badchans = [], [], []
+        dat_sampling_rate = n_channels = None
+        for sf in myroot.findall("acquisitionSystem"):
+            dat_sampling_rate = int(sf.find("samplingRate").text)
+            n_channels = int(sf.find("nChannels").text)
+
+        eeg_sampling_rate = None
+        for val in myroot.findall("fieldPotentials"):
+            eeg_sampling_rate = int(val.find("lfpSamplingRate").text)
+
+        channel_groups, skipped_channels = [], []
         for x in myroot.findall("anatomicalDescription"):
             for y in x.findall("channelGroups"):
                 for z in y.findall("group"):
                     chan_group = []
                     for chan in z.findall("channel"):
-                        if int(chan.text) not in skulleeg + emg + motion:
-                            chan_session.append(int(chan.text))
-                            if int(chan.attrib["skip"]) == 1:
-                                badchans.append(int(chan.text))
+                        if int(chan.attrib["skip"]) == 1:
+                            skipped_channels.append(int(chan.text))
 
-                            chan_group.append(int(chan.text))
+                        chan_group.append(int(chan.text))
                     if chan_group:
-                        channelgroups.append(chan_group)
+                        channel_groups.append(np.array(chan_group))
 
-        sampfreq = nChans = None
-        for sf in myroot.findall("acquisitionSystem"):
-            sampfreq = int(sf.find("samplingRate").text)
-            nChans = int(sf.find("nChannels").text)
-
-        lfpSrate = None
-        for val in myroot.findall("fieldPotentials"):
-            lfpSrate = int(val.find("lfpSamplingRate").text)
-
-        auxchans = np.setdiff1d(
-            np.arange(nChans), np.array(chan_session + skulleeg + emg + motion)
+        discarded_channels = np.setdiff1d(
+            np.arange(n_channels), np.concatenate(channel_groups)
         )
-        if auxchans.size == 0:
-            auxchans = None
 
-        if nShanks is None:
-            nShanks = len(channelgroups)
-
-        nShanksProbe = [nShanks] if isinstance(nShanks, int) else nShanks
-        nProbes = len(nShanksProbe)
-        nShanks = np.sum(nShanksProbe)
-
-        if motion is not None:
-            pass
-
-        basics = {
-            "sampfreq": sampfreq,
-            "channels": chan_session,
-            "nChans": nChans,
-            "channelgroups": channelgroups,
-            "nShanks": nShanks,
-            "nProbes": nProbes,
-            "nShanksProbe": nShanksProbe,
-            "subname": self.session.subname,
-            "sessionName": self.session.sessionName,
-            "lfpSrate": lfpSrate,
-            "badchans": badchans,
-            "auxchans": auxchans,
-            "skulleeg": skulleeg,
-            "emgChans": emg,
-            "motionChans": motion,
-        }
-
-        np.save(self.files.basics, basics)
-        print(f"_basics.npy created for {self.session.sessionName}")
-
-        # laods attributes in runtime so doesn't lead reloading of entire class instance
+        self.sig_dtype = nbits
+        self.dat_sampling_rate = dat_sampling_rate
+        self.eeg_sampling_rate = eeg_sampling_rate
+        self.n_channels = n_channels
+        self.channel_groups = np.array(channel_groups, dtype="object")
+        self.discarded_channels = discarded_channels
+        self.skipped_channels = np.array(skipped_channels)
