@@ -14,19 +14,6 @@ class NeuroscopeIO:
         self._parse_xml_file()
 
     def _parse_xml_file(self):
-        """Uses .xml file to parse anatomical groups
-
-        Parameters
-        ----------
-        nShanks : int or list of int, optional
-            number of shanks, if None then this equals to number of anatomical grps excluding channels mentioned in skulleeg, emg, motion
-        skulleeg : list, optional
-            any channels recorded from the skull, by default None
-        emg : list, optional
-            emg channels, by default None
-        motion : list, optional
-            channels recording accelerometer data or velocity, by default None
-        """
 
         tree = Etree.parse(self.source_file)
         myroot = tree.getroot()
@@ -65,3 +52,6 @@ class NeuroscopeIO:
         self.channel_groups = np.array(channel_groups, dtype="object")
         self.discarded_channels = discarded_channels
         self.skipped_channels = np.array(skipped_channels)
+
+    def __str__(self) -> str:
+        return f"filename: {self.source_file} \n# channels: {self.n_channels}\nsampling rate: {self.dat_sampling_rate}\nlfp Srate (downsampled): {self.eeg_sampling_rate}"
