@@ -30,6 +30,7 @@ class Shank:
         self.x = positions[:, 0]
         self.y = positions[:, 1]
         self.connected = np.ones(np.sum(contacts_per_column), dtype=bool)
+        self.contact_id = np.arange(np.sum(contacts_per_column))
 
         if channel_id is None:
             self.channel_id = np.arange(np.sum(contacts_per_column))
@@ -53,12 +54,13 @@ class Shank:
         layout = {
             "x": self.x,
             "y": self.y,
+            "contact_id": self.contact_id,
             "channel_id": self.channel_id,
             "connected": self.connected,
         }
         return layout
 
-    def set_disconnected(self, channel_ids):
+    def set_disconnected_channels(self, channel_ids):
         self.connected[np.isin(self.channel_id, channel_ids)] = False
 
     def to_dataframe(self):
@@ -80,7 +82,7 @@ class Probe:
             assert np.all([_.__class__.__name__ == "Shank" for _ in shanks])
 
         self._data = pd.DataFrame(
-            columns=["x", "y", "channel_id", "connected", "shank_id"]
+            columns=["x", "y", "contact_id", "channel_id", "connected", "shank_id"]
         )
         x = np.arange(len(shanks)) * shank_pitch[0]
         y = np.arange(len(shanks)) * shank_pitch[1]
@@ -148,6 +150,7 @@ class ProbeGroup(DataWriter):
             {
                 "x": np.array([]),
                 "y": np.array([]),
+                "contact_id": np.array([]),
                 "channel_id": np.array([]),
                 "shank_id": np.array([]),
                 "connected": np.array([], dtype=bool),
