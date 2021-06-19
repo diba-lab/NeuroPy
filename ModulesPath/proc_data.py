@@ -1,8 +1,9 @@
 from .io import NeuroscopeIO, RawBinarySignalIO
 import pickle
 from . import sessobj
-from .core import ProbeGroup
+from . import core
 from pathlib import Path
+import numpy as np
 
 
 class ProcessData:
@@ -24,29 +25,40 @@ class ProcessData:
             sampling_rate=self.recinfo.dat_sampling_rate,
         )
 
-        self.probegroup = ProbeGroup(filename=self.filePrefix.with_suffix(".prb.npy"))
+        self.probegroup = core.ProbeGroup(
+            filename=self.filePrefix.with_suffix(".prb.npy")
+        )
         self.artifact = sessobj.Artifact(
             signal=self.eegfile, filename=self.filePrefix.with_suffix(".artifact.npy")
         )
         self.paradigm = sessobj.Paradigm(
             filename=self.filePrefix.with_suffix(".paradigm.npy")
         )
-        # self.position = sessobj.SessPosition(self.recinfo)
-        # self.track = sessobj.SessTrack(basepath=self.recinfo, position=self.position)
-
-        # self.neurons = sessobj.SessNeurons(self.recinfo)
-        # self.brainstates = sessobj.BrainStates(self.recinfo)
-        # self.swa = sessobj.Hswa(self.recinfo)
-        # self.theta = sessobj.Theta(self.recinfo)
-        # self.spindle = sessobj.Spindle(self.recinfo)
-        # self.gamma = sessobj.Gamma(self.recinfo)
-        self.ripple = sessobj.Ripple(
-            self.eegfile,
-            self.probegroup,
-            filename=self.filePrefix.with_suffix(".ripples.npy"),
+        self.brainstates = sessobj.BrainStates(self.recinfo)
+        self.position = core.Position(
+            filename=self.filePrefix.with_suffix(".position.npy")
         )
-        # self.expvar = sessobj.ExplainedVariance(self.recinfo, self.neurons)
-        # self.assembly = sessobj.CellAssembly(self.recinfo, self.neurons)
+
+        if (f := self.filePrefix.with_suffix(".neurons.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.neurons = core.Neurons.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".ripple.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.ripple = core.Epoch.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".theta.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.theta = core.Epoch.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".gamma.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.gamma = core.Epoch.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".spindle.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.spindle = core.Epoch.from_dict(d)
+
         # self.pf1d = sessobj.PF1d(self.recinfo)
         # self.pf2d = sessobj.PF2d(self.recinfo)
         # self.decode1D = sessobj.Decode1d(self.pf1d)

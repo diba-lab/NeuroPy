@@ -16,7 +16,12 @@ class DataWriter:
         else:
             return None
 
-    def save(self, data):
+    def to_dict(self):
+        return NotImplementedError
+
+    def save(self):
+
+        data = self.to_dict()
         np.save(self.filename, data)
         print("data saved")
 

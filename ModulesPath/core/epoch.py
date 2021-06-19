@@ -5,9 +5,7 @@ from .datawriter import DataWriter
 
 
 class Epoch(DataWriter):
-    def __init__(
-        self, epochs: pd.DataFrame = None, metadata=None, filename=None
-    ) -> None:
+    def __init__(self, epochs: pd.DataFrame, metadata=None, filename=None) -> None:
         super().__init__(filename=filename)
         self._epochs = epochs
         self._metadata = metadata
@@ -76,6 +74,13 @@ class Epoch(DataWriter):
         self._check_epochs(epochs)
         self.epochs = self.epochs.append(epochs)
         print("epochs added")
+
+    def to_dict(self):
+        return {"epochs": self._epochs, "metadata": self._metadata}
+
+    @staticmethod
+    def from_dict(d):
+        pass
 
     def fill_blank(self, method="from_left"):
 

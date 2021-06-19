@@ -33,7 +33,6 @@ class Paradigm(Epoch):
         self._epochs.drop_duplicates(
             subset=["label"], keep="last", inplace=True, ignore_index=True
         )
-        self.save()
         print("epochs updated/added")
 
     def __getitem__(self, label_name):

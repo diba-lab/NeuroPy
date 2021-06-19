@@ -1148,10 +1148,6 @@ class SessNeurons(Neurons):
         self._check_neurons()
         self.save()
 
-    def to_neuroscope(self, ids):
-
-        super().to_neuroscope(ids, self._obj.sampfreq, self._obj.files.filePrefix)
-
     def roughmua2neuroscope(self, chans, shankIDs):
         """Exports all threshold crossings on electrodes entered to view in neuroscope to .clu.shankID and .res.shankID
         files for viewing in neuroscope.  Must run Spikes.load_mua first. Cluster ids correspond to electrodes.

@@ -1,6 +1,7 @@
 import numpy as np
 from pathlib import Path
 import xml.etree.ElementTree as Etree
+from .. import core
 
 
 class NeuroscopeIO:
@@ -55,3 +56,39 @@ class NeuroscopeIO:
 
     def __str__(self) -> str:
         return f"filename: {self.source_file} \n# channels: {self.n_channels}\nsampling rate: {self.dat_sampling_rate}\nlfp Srate (downsampled): {self.eeg_sampling_rate}"
+
+    def write_neurons(self, neurons: core.Neurons):
+        """To view spikes in neuroscope, spikes are exported to .clu.1 and .res.1 files in the basepath.
+        You can order the spikes in a way to view sequential activity in neuroscope.
+
+        Parameters
+        ----------
+        spks : list
+            list of spike times.
+        """
+
+        spks = neurons.get_spiketrains()
+        srate = neurons.sampling_rate
+        nclu = len(spks)
+        spk_frame = np.concatenate([(cell * srate).astype(int) for cell in spks])
+        clu_id = np.concatenate([[_] * len(spks[_]) for _ in range(nclu)])
+
+        sort_ind = np.argsort(spk_frame)
+        spk_frame = spk_frame[sort_ind]
+        clu_id = clu_id[sort_ind]
+        clu_id = np.append(nclu, clu_id)
+
+        file_clu = self.source_file.with_suffix(".clu.1")
+        file_res = self.source_file.with_suffix(".res.1")
+
+        with file_clu.open("w") as f_clu, file_res.open("w") as f_res:
+            for item in clu_id:
+                f_clu.write(f"{item}\n")
+            for frame in spk_frame:
+                f_res.write(f"{frame}\n")
+
+    def write_epochs(self):
+        pass
+
+    def write_position(self):
+        pass
