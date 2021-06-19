@@ -1,6 +1,6 @@
 from .io import NeuroscopeIO, RawBinarySignalIO
 import pickle
-from . import sessobj
+from . import analyses
 from . import core
 from pathlib import Path
 import numpy as np
@@ -28,13 +28,13 @@ class ProcessData:
         self.probegroup = core.ProbeGroup(
             filename=self.filePrefix.with_suffix(".prb.npy")
         )
-        self.artifact = sessobj.Artifact(
+        self.artifact = analyses.Artifact(
             signal=self.eegfile, filename=self.filePrefix.with_suffix(".artifact.npy")
         )
-        self.paradigm = sessobj.Paradigm(
+        self.paradigm = analyses.Paradigm(
             filename=self.filePrefix.with_suffix(".paradigm.npy")
         )
-        self.brainstates = sessobj.BrainStates(self.recinfo)
+        self.brainstates = analyses.BrainStates(self.recinfo)
         self.position = core.Position(
             filename=self.filePrefix.with_suffix(".position.npy")
         )

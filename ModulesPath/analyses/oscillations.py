@@ -5,7 +5,7 @@ from pathlib import Path
 from ..utils import mathutil, signal_process
 from ..parsePath import Recinfo
 from scipy import stats
-from ..core import Analogsignal, ProbeGroup
+from . import Analogsignal, ProbeGroup
 
 
 def _detect_freq_band_epochs(
