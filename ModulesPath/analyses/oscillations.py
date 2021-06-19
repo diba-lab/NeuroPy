@@ -1,11 +1,9 @@
-from .. import core
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from ..utils import mathutil, signal_process
-from ..parsePath import Recinfo
 from scipy import stats
-from . import Analogsignal, ProbeGroup
+from ..core import Analogsignal, ProbeGroup
 
 
 def _detect_freq_band_epochs(
@@ -288,7 +286,7 @@ def detect_gamma_epochs():
     pass
 
 
-class Ripple(core.Oscillation, core.Epoch):
+class Ripple:
     """Ripple class to detect ripple epochs"""
 
     def __init__(self, signal: Analogsignal, probe: ProbeGroup, filename=None):
@@ -437,7 +435,7 @@ class Ripple(core.Oscillation, core.Epoch):
             ax.axvspan(epoch.start, epoch.end, facecolor=color, alpha=0.7)
 
 
-class Gamma(core.Oscillation, core.Epoch):
+class Gamma:
     """Events and analysis related to gamma oscillations"""
 
     def __init__(self, basepath):

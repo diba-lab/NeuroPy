@@ -1,5 +1,4 @@
 from .epoch import Epoch
-from . import oscillations
 from .position import Position
 from .datawriter import DataWriter
 from .neurons import Neurons
