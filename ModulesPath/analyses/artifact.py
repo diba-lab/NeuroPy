@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 import scipy.stats as stat
 from ..core import Epoch
-from ..core import Analogsignal
+from ..core import Signal
 
 
-def detect_artifact_epochs(signal: Analogsignal, thresh=4, method="zscore"):
+def detect_artifact_epochs(signal: Signal, thresh=4, method="zscore"):
     """
     calculating periods to exclude for analysis using simple z-score measure
     """

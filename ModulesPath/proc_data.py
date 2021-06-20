@@ -1,4 +1,6 @@
-from .io import NeuroscopeIO, BinarySignalIO
+from .io import NeuroscopeIO, BinarysignalIO
+
+# from .core import Animal
 import pickle
 from . import core
 from pathlib import Path
@@ -13,16 +15,18 @@ class ProcessData:
 
         self.filePrefix = xml_files[0].with_suffix("")
         self.recinfo = NeuroscopeIO(xml_files[0])
-        self.eegfile = BinarySignalIO(
+        self.eegfile = BinarysignalIO(
             self.recinfo.eeg_filename,
-            n_chans=self.recinfo.n_channels,
+            n_channels=self.recinfo.n_channels,
             sampling_rate=self.recinfo.eeg_sampling_rate,
         )
-        self.datfile = BinarySignalIO(
-            self.recinfo.dat_filename,
-            n_chans=self.recinfo.n_channels,
-            sampling_rate=self.recinfo.dat_sampling_rate,
-        )
+
+        if self.recinfo.dat_filename.is_file():
+            self.datfile = BinarysignalIO(
+                self.recinfo.dat_filename,
+                n_channels=self.recinfo.n_channels,
+                sampling_rate=self.recinfo.dat_sampling_rate,
+            )
 
         self.probegroup = core.ProbeGroup(
             filename=self.filePrefix.with_suffix(".prb.npy")
