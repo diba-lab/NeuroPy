@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 
 from ..utils import signal_process
 from ..parsePath import Recinfo
-from ..core import Epoch, Analogsignal
+from ..core import Epoch, Signal
 
 try:
     import ephyviewer
@@ -80,7 +80,7 @@ class BrainStates:
     }
     labels = ["nrem", "rem", "quiet", "active"]
 
-    def __init__(self, signal: Analogsignal):
+    def __init__(self, signal: Signal):
 
         if isinstance(basepath, Recinfo):
             self._obj = basepath

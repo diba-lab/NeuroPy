@@ -60,6 +60,9 @@ class Shank:
         }
         return layout
 
+    def from_dict(self):
+        pass
+
     def set_disconnected_channels(self, channel_ids):
         self.connected[np.isin(self.channel_id, channel_ids)] = False
 
@@ -92,7 +95,7 @@ class Probe:
             shank_df["y"] += y[i]
             shank_df["shank_id"] = i * np.ones(shank.n_contacts)
             self._data = self._data.append(shank_df)
-        self._data = self._data.reset_index()
+        self._data = self._data.reset_index(drop=True)
         self._data["contact_id"] = np.arange(len(self._data))
 
     @property
@@ -188,6 +191,27 @@ class ProbeGroup(DataWriter):
     def shank_id(self):
         return self._data["shank_id"].values
 
+    def get_probe(self):
+        pass
+
+    def get_connected_channels(self, groupby="shank"):
+        df = self.to_dataframe()
+        df = df[df["connected"] == True]
+        chans = []
+        probe_grp = df.groupby("probe_id")
+
+        if groupby == "probe":
+            for i in range(self.n_probes):
+                chans.append(probe_grp.get_group(i).channel_id.values)
+        if groupby == "shank":
+            probe_grp = df.groupby("probe_id")
+            for i in range(self.n_probes):
+                shank_grp = probe_grp.get_group(i).groupby("shank_id")
+                for i1 in range(len(shank_grp)):
+                    chans.append(shank_grp.get_group(i1).channel_id.values)
+
+        return np.array(chans, dtype=object)
+
     @property
     def probe_id(self):
         return self._data["probe_id"].values
@@ -223,4 +247,4 @@ class ProbeGroup(DataWriter):
         return pd.DataFrame(self._data)
 
     def remove_probes(self, probe_id=None):
-        self.probes = []
+        self._data = {}

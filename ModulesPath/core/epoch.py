@@ -12,8 +12,6 @@ class Epoch(DataWriter):
         self._epochs = epochs
         self._metadata = metadata
 
-        self.load()
-
     @property
     def epochs(self):
         return self._epochs
@@ -52,9 +50,9 @@ class Epoch(DataWriter):
         if data is not None:
             self.epochs, self.metadata = data["epochs"], data["metadata"]
 
-    def save(self):
-        data = {"epochs": self._epochs, "metadata": self._metadata}
-        super().save(data)
+    # def save(self):
+    #     data = {"epochs": self._epochs, "metadata": self._metadata}
+    #     super().save(data)
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
