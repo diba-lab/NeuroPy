@@ -148,12 +148,6 @@ class Position(DataWriter):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
         pass
 
-
-class Track:
-    def __init__(self, position: Position, **kwargs) -> None:
-        self._position = position
-        super().__init__(**kwargs)
-
     def calculate_run_epochs(
         self,
         period,
@@ -162,7 +156,6 @@ class Track:
         min_dur=2,
         smooth_speed=50,
         min_dist=50,
-        plot=True,
     ):
         """Divide running epochs into forward and backward
 

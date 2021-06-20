@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from ..parsePath import Recinfo
-from ..core import Track, Position, Epoch
+from ..core import Position, Epoch
 from ..utils import position_util
 from .. import plotting
 
@@ -197,34 +197,3 @@ class SessPosition(Position):
 
     def plot(self):
         plotting.plot_position(self.x, self.y)
-
-
-class SessTrack(Track, Epoch):
-    def __init__(self, basepath: Recinfo, position: Position):
-        self._obj = basepath
-        filePrefix = self._obj.files.filePrefix
-        filename = filePrefix.with_suffix(".track.npy")
-
-        super().__init__(position=position, filename=filename)
-        self.load()
-
-    def calculate_run_epochs(
-        self, period, speedthresh, merge_dur, min_dur, smooth_speed, min_dist, plot
-    ):
-
-        run_ep = super().calculate_run_epochs(
-            period,
-            speedthresh=speedthresh,
-            merge_dur=merge_dur,
-            min_dur=min_dur,
-            smooth_speed=smooth_speed,
-            min_dist=min_dist,
-            plot=plot,
-        )
-
-        run_epochs = pd.concat(run_ep)
-        self.add_epochs(run_epochs)
-        self.save()
-
-    def plot(self):
-        plotting.plot_run_epochs()

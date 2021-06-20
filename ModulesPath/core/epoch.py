@@ -12,8 +12,6 @@ class Epoch(DataWriter):
         self._epochs = epochs
         self._metadata = metadata
 
-        self.load()
-
     @property
     def epochs(self):
         return self._epochs
@@ -52,9 +50,9 @@ class Epoch(DataWriter):
         if data is not None:
             self.epochs, self.metadata = data["epochs"], data["metadata"]
 
-    def save(self):
-        data = {"epochs": self._epochs, "metadata": self._metadata}
-        super().save(data)
+    # def save(self):
+    #     data = {"epochs": self._epochs, "metadata": self._metadata}
+    #     super().save(data)
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
@@ -76,6 +74,13 @@ class Epoch(DataWriter):
         self._check_epochs(epochs)
         self.epochs = self.epochs.append(epochs)
         print("epochs added")
+
+    def to_dict(self):
+        return {"epochs": self._epochs, "metadata": self._metadata}
+
+    @staticmethod
+    def from_dict(d):
+        return Epoch(d["epochs"], d["metadata"])
 
     def fill_blank(self, method="from_left"):
 
@@ -141,6 +146,33 @@ class Epoch(DataWriter):
                 ep_labels = np.append(ep_labels, ep_labels[i])
                 ep_ids = np.append(ep_ids, self._next_id)
                 self._next_id += 1
+
+    def proportion(self, period=None):
+
+        if period is None:
+            period = [self.states.iloc[0].start, self.states.iloc[-1].end]
+
+        period_duration = np.diff(period)
+
+        ep = self.epochs.copy()
+        ep = ep[(ep.stop > period[0]) & (ep.start < period[1])].reset_index(drop=True)
+
+        if ep["start"].iloc[0] < period[0]:
+            ep.at[0, "start"] = period[0]
+
+        if ep["stop"].iloc[-1] > period[1]:
+            ep.at[ep.index[-1], "stop"] = period[1]
+
+        ep["duration"] = ep.stop - ep.start
+
+        ep_group = ep.groupby("label").sum().duration / period_duration
+
+        states_proportion = {"rem": 0.0, "nrem": 0.0, "quiet": 0.0, "active": 0.0}
+
+        for state in ep_group.index.values:
+            states_proportion[state] = ep_group[state]
+
+        return states_proportion
 
     def to_neuroscope(self, ext="evt"):
         with self.filename.with_suffix(f".evt.{ext}").open("w") as a:

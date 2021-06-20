@@ -746,7 +746,10 @@ class SessNeurons(Neurons):
             self._obj = Recinfo(basepath)
 
         filePrefix = self._obj.files.filePrefix
-        super().__init__(filename=filePrefix.with_suffix(".neurons.npy"))
+        super().__init__(
+            sampling_rate=self._obj.sampfreq,
+            filename=filePrefix.with_suffix(".neurons.npy"),
+        )
 
         self.stability = Stability(basepath)
         self.load()
@@ -1144,10 +1147,6 @@ class SessNeurons(Neurons):
 
         self._check_neurons()
         self.save()
-
-    def to_neuroscope(self, ids):
-
-        super().to_neuroscope(ids, self._obj.sampfreq, self._obj.files.filePrefix)
 
     def roughmua2neuroscope(self, chans, shankIDs):
         """Exports all threshold crossings on electrodes entered to view in neuroscope to .clu.shankID and .res.shankID

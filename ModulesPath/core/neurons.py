@@ -11,22 +11,31 @@ class Neurons(DataWriter):
 
     def __init__(
         self,
-        spiketrains=None,
-        labels=None,
-        ids=None,
+        spiketrains,
+        t_stop,
+        t_start=0.0,
+        sampling_rate=1,
+        neuron_type=None,
         shankids=None,
         waveforms=None,
+        peak_channel=None,
         filename=None,
     ) -> None:
         super().__init__(filename=filename)
 
         self.spiketrains = spiketrains
         self.shankids = shankids
-        self.labels = labels
-        self.ids = ids
+        self.ids = np.arange(len(self.spiketrains))
         self.waveforms = waveforms
         self.instfiring = None
-        self.metadata = None
+        self._sampling_rate = sampling_rate
+        self.t_start = t_start
+        self.t_stop = t_stop
+        self.metadata = {}
+
+    @property
+    def sampling_rate(self):
+        return self._sampling_rate
 
     @property
     def n_neurons(self):
@@ -62,7 +71,7 @@ class Neurons(DataWriter):
             for key in data:
                 setattr(self, key, data[key])
 
-    def save(self):
+    def to_dict(self):
 
         self._check_neurons()
 
@@ -73,9 +82,19 @@ class Neurons(DataWriter):
             "shankids": self.shankids,
             "waveforms": self.waveforms,
             "instfiring": self.instfiring,
+            "sampling_rate": self.sampling_rate,
             "metadata": self.metadata,
         }
-        super().save(data)
+        return data
+
+    @staticmethod
+    def from_dict(d):
+
+        spiketrains = d["spiketrains"]
+        neuron_type = d["neuron_type"]
+
+        neurons = Neurons(spiketrains)
+        return Neurons
 
     def firing_rate(self, period, ids=None):
         if ids is None:
@@ -248,35 +267,6 @@ class Neurons(DataWriter):
 
         return corr, time_points
 
-    def to_neuroscope(self, ids, srate, filename):
-        """To view spikes in neuroscope, spikes are exported to .clu.1 and .res.1 files in the basepath.
-        You can order the spikes in a way to view sequential activity in neuroscope.
-
-        Parameters
-        ----------
-        spks : list
-            list of spike times.
-        """
-        spks = self.get_spiketrains(ids)
-        nclu = len(spks)
-        spk_frame = np.concatenate([(cell * srate).astype(int) for cell in spks])
-        clu_id = np.concatenate([[_] * len(spks[_]) for _ in range(nclu)])
-
-        sort_ind = np.argsort(spk_frame)
-        spk_frame = spk_frame[sort_ind]
-        clu_id = clu_id[sort_ind]
-        clu_id = np.append(nclu, clu_id)
-
-        filename = Path(filename)
-        file_clu = filename.with_suffix(".clu.1")
-        file_res = filename.with_suffix(".res.1")
-
-        with file_clu.open("w") as f_clu, file_res.open("w") as f_res:
-            for item in clu_id:
-                f_clu.write(f"{item}\n")
-            for frame in spk_frame:
-                f_res.write(f"{frame}\n")
-
     def ccg_temporal(self, ids):
         spikes = self.get_spiketrains(ids)
         ccgs = np.zeros((len(spikes), len(spikes), 251)) * np.nan
@@ -307,3 +297,104 @@ class Neurons(DataWriter):
 
     def add_jitter(self):
         pass
+
+    def estimate_neuron_type(self):
+        """Auto label cell type using firing rate, burstiness and waveform shape followed by kmeans clustering.
+
+        Reference
+        ---------
+        Csicsvari, J., Hirase, H., Czurko, A., & Buzsáki, G. (1998). Reliability and state dependence of pyramidal cell–interneuron synapses in the hippocampus: an ensemble approach in the behaving rat. Neuron, 21(1), 179-189.
+        """
+        spikes = self.times
+        self.info["celltype"] = None
+        ccgs = self.get_acg(spikes=spikes, bin_size=0.001, window_size=0.05)
+        ccg_width = ccgs.shape[-1]
+        ccg_center_ind = int(ccg_width / 2)
+
+        # -- calculate burstiness (mean duration of right ccg)------
+        ccg_right = ccgs[:, ccg_center_ind + 1 :]
+        t_ccg_right = np.arange(ccg_right.shape[1])  # timepoints
+        mean_isi = np.sum(ccg_right * t_ccg_right, axis=1) / np.sum(ccg_right, axis=1)
+
+        # --- calculate frate ------------
+        frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
+
+        # ------ calculate peak ratio of waveform ----------
+        templates = self.templates
+        waveform = np.asarray(
+            [cell[np.argmax(np.ptp(cell, axis=1)), :] for cell in templates]
+        )
+        n_t = waveform.shape[1]  # waveform width
+        center = np.int(n_t / 2)
+        wave_window = int(0.25 * (self._obj.sampfreq / 1000))
+        from_peak = int(0.18 * (self._obj.sampfreq / 1000))
+        left_peak = np.trapz(
+            waveform[:, center - from_peak - wave_window : center - from_peak], axis=1
+        )
+        right_peak = np.trapz(
+            waveform[:, center + from_peak : center + from_peak + wave_window], axis=1
+        )
+
+        diff_auc = left_peak - right_peak
+
+        # ---- refractory contamination ----------
+        isi = [np.diff(_) for _ in spikes]
+        isi_bin = np.arange(0, 0.1, 0.001)
+        isi_hist = np.asarray([np.histogram(_, bins=isi_bin)[0] for _ in isi])
+        n_spikes_ref = np.sum(isi_hist[:, :2], axis=1) + 1e-16
+        ref_period_ratio = (np.max(isi_hist, axis=1) / n_spikes_ref) * 100
+        mua_cells = np.where(ref_period_ratio < 400)[0]
+        good_cells = np.where(ref_period_ratio >= 400)[0]
+
+        self.info.loc[mua_cells, "celltype"] = "mua"
+
+        param1 = frate[good_cells]
+        param2 = mean_isi[good_cells]
+        param3 = diff_auc[good_cells]
+
+        features = np.vstack((param1, param2, param3)).T
+        features = StandardScaler().fit_transform(features)
+        kmeans = KMeans(n_clusters=2).fit(features)
+        y_means = kmeans.predict(features)
+
+        interneuron_label = np.argmax(kmeans.cluster_centers_[:, 0])
+        intneur_id = np.where(y_means == interneuron_label)[0]
+        pyr_id = np.where(y_means != interneuron_label)[0]
+        self.info.loc[good_cells[intneur_id], "celltype"] = "intneur"
+        self.info.loc[good_cells[pyr_id], "celltype"] = "pyr"
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        ax.scatter(
+            frate[mua_cells],
+            mean_isi[mua_cells],
+            diff_auc[mua_cells],
+            c=self.colors["mua"],
+            s=50,
+            label="mua",
+        )
+
+        ax.scatter(
+            param1[pyr_id],
+            param2[pyr_id],
+            param3[pyr_id],
+            c=self.colors["pyr"],
+            s=50,
+            label="pyr",
+        )
+
+        ax.scatter(
+            param1[intneur_id],
+            param2[intneur_id],
+            param3[intneur_id],
+            c=self.colors["intneur"],
+            s=50,
+            label="int",
+        )
+        ax.legend()
+        ax.set_xlabel("Firing rate (Hz)")
+        ax.set_ylabel("Mean isi (ms)")
+        ax.set_zlabel("Difference of \narea under shoulders")
+
+        data = np.load(self.files.spikes, allow_pickle=True).item()
+        data["info"] = self.info

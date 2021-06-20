@@ -11,19 +11,15 @@ from sklearn.decomposition import PCA, FastICA
 
 from ..utils.mathutil import getICA_Assembly, parcorr_mult
 from ..parsePath import Recinfo
-from ..core import Neurons
+from ..core import Neurons, DataWriter
 
 
-class ExplainedVariance:
+class ExplainedVariance(DataWriter):
     colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
 
-    def __init__(self, basepath, neurons: Neurons):
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
-
+    def __init__(self, neurons: Neurons, filename=None):
         self._neurons = neurons
+        super().__init__(filename=filename)
 
     def compute(
         self,
@@ -276,7 +272,6 @@ class ExplainedVariance:
         rev_std = np.nanstd(self.rev.squeeze(), axis=0)
 
         if ax is None:
-            plt.clf()
             fig = plt.figure(1, figsize=(10, 15))
             gs = gridspec.GridSpec(1, 1, figure=fig)
             fig.subplots_adjust(hspace=0.3)

@@ -16,9 +16,18 @@ class DataWriter:
         else:
             return None
 
-    def save(self, data):
-        np.save(self.filename, data)
-        print("data saved")
+    def to_dict(self):
+        return NotImplementedError
+
+    def save(self):
+
+        data = self.to_dict()
+        if self.filename is not None:
+            assert isinstance(self.filename, Path)
+            np.save(self.filename, data)
+            print("data saved")
+        else:
+            print("filename not understood")
 
     def delete_file(self):
         self.filename.unlink()
