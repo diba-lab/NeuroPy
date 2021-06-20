@@ -80,7 +80,7 @@ class Epoch(DataWriter):
 
     @staticmethod
     def from_dict(d):
-        pass
+        return Epoch(d["epochs"], d["metadata"])
 
     def fill_blank(self, method="from_left"):
 

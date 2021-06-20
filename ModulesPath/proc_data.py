@@ -48,7 +48,7 @@ class ProcessData:
             d = np.load(f, allow_pickle=True).item()
             self.brainstates = core.Epoch.from_dict(d)
 
-        if (f := self.filePrefix.with_suffix(".ripple.npy").is_file()) :
+        if (f := self.filePrefix.with_suffix(".ripple.npy")).is_file():
             d = np.load(f, allow_pickle=True).item()
             self.ripple = core.Epoch.from_dict(d)
 
