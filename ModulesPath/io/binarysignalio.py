@@ -1,15 +1,31 @@
 import numpy as np
-from ..core import Analogsignal
+from ..core import Signal
 
 
-class RawBinarySignalIO(Analogsignal):
+class BinarysignalIO:
     def __init__(self, filename, dtype="int16", n_chans=2, sampling_rate=30000) -> None:
         pass
 
+        self._raw_signal = np.memmap(filename, dtype=dtype)
         self.sampling_rate = sampling_rate
         self.n_chans = n_chans
         self.dtype = dtype
         self.source_file = filename
+
+    def get_signal(self, chans=None, t_start=None, t_stop=None):
+
+        if isinstance(chans, int):
+            chans = [chans]
+
+        if t_start is None:
+            frame_start = int(t_start * self.sampling_rate)
+        frame_stop = int(t_stop * self.sampling_rate)
+        if chans is None:
+            sig = self._raw_signal[frame_start:frame_stop, :]
+        else:
+            sig = self._raw_signal[frame_start:frame_stop, chans]
+
+        return Signal(sig, self.sampling_rate, t_start, t_stop)
 
     def time_slice(self, chans, period=None):
         """Returns eeg signal for given channels. If multiple channels provided then it is list of lfps.

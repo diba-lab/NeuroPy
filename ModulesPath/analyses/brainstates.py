@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 
 from ..utils import signal_process
 from ..parsePath import Recinfo
-from ..core import Epoch
+from ..core import Epoch, Analogsignal
 
 try:
     import ephyviewer
@@ -70,7 +70,7 @@ def hmmfit1d(Data):
     return hmmlabels
 
 
-class BrainStates(Epoch):
+class BrainStates:
     # TODO add support for bad time points
     colors = {
         "nrem": "#6b90d1",
@@ -80,7 +80,7 @@ class BrainStates(Epoch):
     }
     labels = ["nrem", "rem", "quiet", "active"]
 
-    def __init__(self, basepath):
+    def __init__(self, signal: Analogsignal):
 
         if isinstance(basepath, Recinfo):
             self._obj = basepath
@@ -334,98 +334,6 @@ class BrainStates(Epoch):
 
         print("emg calculation done")
         return emg_lfp
-
-    def proportion(self, period=None):
-
-        if period is None:
-            period = [self.states.iloc[0].start, self.states.iloc[-1].end]
-
-        period_duration = np.diff(period)
-
-        ep = self.epochs.copy()
-        ep = ep[(ep.stop > period[0]) & (ep.start < period[1])].reset_index(drop=True)
-
-        if ep["start"].iloc[0] < period[0]:
-            ep.at[0, "start"] = period[0]
-
-        if ep["stop"].iloc[-1] > period[1]:
-            ep.at[ep.index[-1], "stop"] = period[1]
-
-        ep["duration"] = ep.stop - ep.start
-
-        ep_group = ep.groupby("label").sum().duration / period_duration
-
-        states_proportion = {"rem": 0.0, "nrem": 0.0, "quiet": 0.0, "active": 0.0}
-
-        for state in ep_group.index.values:
-            states_proportion[state] = ep_group[state]
-
-        return states_proportion
-
-    def plot_hypnogram(self, ax=None, tstart=0.0, unit="s", collapsed=False):
-        """Plot hypnogram
-
-        Parameters
-        ----------
-        ax : [type], optional
-            axis to plot onto, by default None
-        tstart : float, optional
-            start of hypnogram, by default 0.0, helps in positioning of hypnogram
-        unit : str, optional
-            unit of timepoints, 's'=seconds or 'h'=hour, by default "s"
-        collapsed : bool, optional
-            if true then all states have same vertical spans, by default False and has classic look
-
-        Returns
-        -------
-        [type]
-            [description]
-        """
-        if ax is None:
-            _, ax = plt.subplots(1, 1)
-
-        unit_norm = None
-        if unit == "s":
-            unit_norm = 1
-        elif unit == "h":
-            unit_norm = 3600
-
-        span_ = {
-            "nrem": [0, 0.25],
-            "rem": [0.25, 0.5],
-            "quiet": [0.5, 0.75],
-            "active": [0.75, 1],
-        }
-
-        for state in span_:
-            ax.annotate(
-                state,
-                (1, span_[state][1] - 0.15),
-                xycoords="axes fraction",
-                fontsize=7,
-                color=self.colors[state],
-            )
-        if collapsed:
-            span_ = {
-                "nrem": [0, 1],
-                "rem": [0, 1],
-                "quiet": [0, 1],
-                "active": [0, 1],
-            }
-
-        for state in self.epochs.itertuples():
-            if state.label in self.colors.keys():
-                ax.axvspan(
-                    (state.start - tstart) / unit_norm,
-                    (state.stop - tstart) / unit_norm,
-                    ymin=span_[state.label][0],
-                    ymax=span_[state.label][1],
-                    facecolor=self.colors[state.label],
-                    alpha=0.7,
-                )
-        ax.axis("off")
-
-        return ax
 
     def editor(self, chan, spikes=None):
         class StatesSource(ephyviewer.WritableEpochSource):

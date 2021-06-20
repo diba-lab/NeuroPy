@@ -1,2 +1,4 @@
 from .neuroscopeio import NeuroscopeIO
-from .rawbinarysignalio import RawBinarySignalIO
+from .binarysignalio import BinarySignalIO
+from .phyio import PhyIO
+from .optitrackio import OptitrackIO

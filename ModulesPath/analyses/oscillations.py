@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from ..utils import mathutil, signal_process
 from scipy import stats
-from ..core import Analogsignal, ProbeGroup
+from ..core import Signal, ProbeGroup, Epoch
 
 
 def _detect_freq_band_epochs(
@@ -230,9 +229,7 @@ def detect_ripple_epochs(
     )
 
     metadata["channels"] = selected_chans
-    self.epochs = epochs
-    self.metadata = metadata
-    self.save()
+    return Epoch(epochs, metadata)
 
 
 def detect_theta_epochs():

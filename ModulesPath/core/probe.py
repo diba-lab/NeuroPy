@@ -92,6 +92,8 @@ class Probe:
             shank_df["y"] += y[i]
             shank_df["shank_id"] = i * np.ones(shank.n_contacts)
             self._data = self._data.append(shank_df)
+        self._data = self._data.reset_index()
+        self._data["contact_id"] = np.arange(len(self._data))
 
     @property
     def n_contacts(self):
@@ -207,18 +209,18 @@ class ProbeGroup(DataWriter):
         self._data = self._data.append(probe_df)
 
     def to_dict(self):
-        return self._data
+        return {
+            "probemap": self._data,
+            "filename": self.filename,
+            "metadata": self.metadata,
+        }
 
-    def from_dict(self, d: dict):
-        if d is not None:
-            self._data = d
+    @staticmethod
+    def from_dict(d: dict):
+        pass
 
     def to_dataframe(self):
         return pd.DataFrame(self._data)
 
     def remove_probes(self, probe_id=None):
         self.probes = []
-
-    def save(self):
-        data = self.to_dict()
-        return super().save(data)

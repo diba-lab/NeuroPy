@@ -1,25 +1,24 @@
-from .io import NeuroscopeIO, RawBinarySignalIO
+from .io import NeuroscopeIO, BinarySignalIO
 import pickle
-from . import analyses
 from . import core
 from pathlib import Path
 import numpy as np
 
 
 class ProcessData:
-    def __init__(self, basepath, data_format="NeuroscopeIO"):
+    def __init__(self, basepath):
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
         assert len(xml_files) == 1, "Found more than one .xml file"
 
         self.filePrefix = xml_files[0].with_suffix("")
         self.recinfo = NeuroscopeIO(xml_files[0])
-        self.eegfile = RawBinarySignalIO(
+        self.eegfile = BinarySignalIO(
             self.recinfo.eeg_filename,
             n_chans=self.recinfo.n_channels,
             sampling_rate=self.recinfo.eeg_sampling_rate,
         )
-        self.datfile = RawBinarySignalIO(
+        self.datfile = BinarySignalIO(
             self.recinfo.dat_filename,
             n_chans=self.recinfo.n_channels,
             sampling_rate=self.recinfo.dat_sampling_rate,
@@ -28,20 +27,22 @@ class ProcessData:
         self.probegroup = core.ProbeGroup(
             filename=self.filePrefix.with_suffix(".prb.npy")
         )
-        self.artifact = analyses.Artifact(
-            signal=self.eegfile, filename=self.filePrefix.with_suffix(".artifact.npy")
-        )
-        self.paradigm = analyses.Paradigm(
-            filename=self.filePrefix.with_suffix(".paradigm.npy")
-        )
-        self.brainstates = analyses.BrainStates(self.recinfo)
+
+        if (f := self.filePrefix.with_suffix(".paradim.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.paradigm = core.Epoch.from_dict(d)
+
         self.position = core.Position(
             filename=self.filePrefix.with_suffix(".position.npy")
         )
 
-        if (f := self.filePrefix.with_suffix(".neurons.npy").is_file()) :
+        if (f := self.filePrefix.with_suffix(".artifact.npy").is_file()) :
             d = np.load(f, allow_pickle=True).item()
-            self.neurons = core.Neurons.from_dict(d)
+            self.artifact = core.Epoch.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".brainstates.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.brainstates = core.Epoch.from_dict(d)
 
         if (f := self.filePrefix.with_suffix(".ripple.npy").is_file()) :
             d = np.load(f, allow_pickle=True).item()
@@ -58,6 +59,24 @@ class ProcessData:
         if (f := self.filePrefix.with_suffix(".spindle.npy").is_file()) :
             d = np.load(f, allow_pickle=True).item()
             self.spindle = core.Epoch.from_dict(d)
+
+        # ---- spiketrains related ------------
+
+        if (f := self.filePrefix.with_suffix(".neurons.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.neurons = core.Neurons.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".pbe.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.pbe = core.Epoch.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".localsleep.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.pbe = core.Epoch.from_dict(d)
+
+        if (f := self.filePrefix.with_suffix(".lowstates.npy").is_file()) :
+            d = np.load(f, allow_pickle=True).item()
+            self.pbe = core.Epoch.from_dict(d)
 
         # self.pf1d = sessobj.PF1d(self.recinfo)
         # self.pf2d = sessobj.PF2d(self.recinfo)
