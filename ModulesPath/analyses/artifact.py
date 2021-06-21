@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import scipy.stats as stat
+from scipy import stats
 from ..core import Epoch
 from ..core import Signal
 
@@ -12,12 +12,12 @@ def detect_artifact_epochs(signal: Signal, thresh=4, method="zscore"):
 
     sampling_rate = signal.sampling_rate
 
-    if isinstance(chans, list):
-        lfp = np.asarray(lfp)
-        lfp = np.median(lfp, axis=0)
+    if signal.n_channels > 1:
+        sig = np.median(signal.traces, axis=0)
+    else:
+        sig = signal.traces.reshape((-1))
 
-    zsc = np.abs(stat.zscore(lfp))
-
+    zsc = np.abs(stats.zscore(sig, axis=-1))
     artifact_binary = np.where(zsc > thresh, 1, 0)
     artifact_binary = np.concatenate(([0], artifact_binary, [0]))
     artifact_diff = np.diff(artifact_binary)
@@ -26,7 +26,7 @@ def detect_artifact_epochs(signal: Signal, thresh=4, method="zscore"):
 
     firstPass = np.vstack((artifact_start - 10, artifact_end + 2)).T
 
-    minInterArtifactDist = 5 * eegSrate
+    minInterArtifactDist = 5 * sampling_rate
     secondPass = []
     artifact = firstPass[0]
     for i in range(1, len(artifact_start)):
@@ -39,11 +39,11 @@ def detect_artifact_epochs(signal: Signal, thresh=4, method="zscore"):
 
     secondPass.append(artifact)
 
-    artifact_s = np.asarray(secondPass) / eegSrate  # seconds
+    artifact_s = np.asarray(secondPass) / sampling_rate  # seconds
 
     epochs = pd.DataFrame(
         {"start": artifact_s[:, 0], "stop": artifact_s[:, 1], "label": ""}
     )
-    metadata = {"channels": chans, "thresh": thresh}
+    metadata = {"threshold": thresh}
 
     return Epoch(epochs, metadata)
