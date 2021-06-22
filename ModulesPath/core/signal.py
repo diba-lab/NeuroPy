@@ -15,6 +15,7 @@ class Signal:
         if channel_id is None:
             self.channel_id = np.arange(self.n_channels)
 
+    @property
     def t_stop(self):
         return self.t_start + self.duration
 

@@ -13,6 +13,14 @@ class Epoch(DataWriter):
         self._metadata = metadata
 
     @property
+    def starts(self):
+        return self._epochs.start.values
+
+    @property
+    def stops(self):
+        return self._epochs.stop.values
+
+    @property
     def epochs(self):
         return self._epochs
 

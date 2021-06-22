@@ -57,6 +57,12 @@ class NeuroscopeIO:
     def __str__(self) -> str:
         return f"filename: {self.source_file} \n# channels: {self.n_channels}\nsampling rate: {self.dat_sampling_rate}\nlfp Srate (downsampled): {self.eeg_sampling_rate}"
 
+    def set_datetime(self, datetime_epoch):
+        """Often a resulting recording file is creating after concatenating different blocks.
+        This method takes Epoch array containing datetime.
+        """
+        pass
+
     def write_neurons(self, neurons: core.Neurons):
         """To view spikes in neuroscope, spikes are exported to .clu.1 and .res.1 files in the basepath.
         You can order the spikes in a way to view sequential activity in neuroscope.
