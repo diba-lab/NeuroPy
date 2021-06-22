@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import ipywidgets
 import numpy as np
+from ..core import Signal
 
 
 def plot_spectrogram(sxx, time, freq, ax=None):
@@ -75,4 +76,27 @@ def plot_spectrogram(sxx, time, freq, ax=None):
             value=[0, 30], min=0, max=625, step=1, description="Freq. range:"
         ),
     )
+    return ax
+
+
+def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k"):
+
+    sig = signal.traces
+    sig = sig / np.max(sig)  # scaling
+    sig = sig - sig[:, 0][:, np.newaxis]  # np.min(sig, axis=1, keepdims=True)
+    pad_vals = np.linspace(0, len(sig) * pad, len(sig))[::-1]
+    sig = sig + pad_vals[:, np.newaxis]
+
+    if ax is None:
+        _, ax = plt.subplots(1, 1)
+
+    ax.clear()
+    ax.plot(sig.T, color=color)
+    ax.set_yticks(pad_vals)
+    ax.set_yticklabels(signal.channel_id)
+    ax.set_xticklabels([])
+    ax.spines["left"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.tick_params(axis="both", length=0)
+
     return ax
