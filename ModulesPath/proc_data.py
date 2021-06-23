@@ -40,7 +40,7 @@ class ProcessData:
             filename=self.filePrefix.with_suffix(".position.npy")
         )
 
-        if (f := self.filePrefix.with_suffix(".artifact.npy").is_file()) :
+        if (f := self.filePrefix.with_suffix(".artifact.npy")).is_file():
             d = np.load(f, allow_pickle=True).item()
             self.artifact = core.Epoch.from_dict(d)
 

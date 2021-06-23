@@ -13,6 +13,18 @@ class Epoch(DataWriter):
         self._metadata = metadata
 
     @property
+    def starts(self):
+        return self._epochs.start.values
+
+    @property
+    def stops(self):
+        return self._epochs.stop.values
+
+    @property
+    def durations(self):
+        return self._epochs.duration.values
+
+    @property
     def epochs(self):
         return self._epochs
 
@@ -173,6 +185,18 @@ class Epoch(DataWriter):
             states_proportion[state] = ep_group[state]
 
         return states_proportion
+
+    def count(self, t_start=None, t_stop=None, binsize=300):
+
+        if t_start is None:
+            t_start = 0
+
+        if t_stop is None:
+            t_stop = np.max(self.stops)
+
+        mid_times = self.starts + self.durations / 2
+        bins = np.arange(t_start, t_stop + binsize, binsize)
+        return np.histogram(mid_times, bins=bins)[0]
 
     def to_neuroscope(self, ext="evt"):
         with self.filename.with_suffix(f".evt.{ext}").open("w") as a:

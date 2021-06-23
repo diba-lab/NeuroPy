@@ -11,7 +11,7 @@ class OptitrackIO:
         self.datetime = None
         self.time = None
 
-    def from_optitrack(self, method="from_metadata", scale=1.0):
+    def _parse_files(self, method="from_metadata", scale=1.0):
         """get position data from files. All position related files should be in 'position' folder within basepath
 
         Parameters

@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from ..core import Epoch, Signal
+from scipy import stats
 
 
 def plot_epochs(ax, epochs, ymin=0.5, ymax=0.55, color="gray"):
@@ -127,28 +129,46 @@ def plot_epochs_with_raster(self, ax=None):
     )
 
 
-def plot_artifact_epochs(self):
+def plot_artifact_epochs(epochs: Epoch, signal: Signal, downsample_factor: int = 5):
+    """Plots artifact epochs against a signal
 
-    chans = self.metadata["channels"]
-    threshold = self.metadata["thresh"]
-    lfp = self._obj.geteeg(chans=chans)
-    if not isinstance(chans, int):
-        lfp = np.asarray(lfp)
-        lfp = np.median(lfp, axis=0)
+    Parameters
+    ----------
+    epochs : Epoch
+        [description]
+    signal : Signal
+        [description]
+    downsample_factor : int, optional
+        It is much faster to plot downsampled signal, by default 5
 
-    zsc = np.abs(stat.zscore(lfp))
-    factor = 5
-    downsample_srate = int(self._obj.sampling_rate / factor)
-    zsc_downsampled = zsc[::factor]
-    epochs = np.asarray(self.epochs[["start", "stop"]])
-    artifact = epochs * downsample_srate
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    assert signal.n_channels == 1, "signal should only have one trace"
+
+    threshold = epochs.metadata["threshold"]
+    sig = signal.traces.reshape((-1))
+    zsc = np.abs(stats.zscore(sig))
+
+    zsc_downsampled = zsc[::downsample_factor]
+    artifacts = np.vstack((epochs.starts, epochs.stops)).T
+    t = np.linspace(signal.t_start, signal.t_stop, len(zsc_downsampled))
 
     _, ax = plt.subplots(1, 1)
-    ax.plot(zsc_downsampled, "gray")
     ax.axhline(threshold, color="#37474F", ls="--")
-    ax.plot(artifact[:, 0], threshold * np.ones(artifact.shape[0]), "r|", ms="10")
-    ax.plot(artifact[:, 1], threshold * np.ones(artifact.shape[0]), "k|", ms="10")
-    ax.set_xlabel("frames")
+    for artifact in artifacts:
+        ax.axvspan(
+            artifact[0],
+            artifact[1],
+            facecolor="#ff928a",
+            ec="#ff6257",
+            alpha=0.7,
+        )
+    ax.plot(t, zsc_downsampled, "gray")
+    ax.set_xlabel("Time (s)")
     ax.set_ylabel("Absolute zscore")
 
-    ax.legend(["zsc-lfp", "threshold", "art-start", "art-end"])
+    return ax
