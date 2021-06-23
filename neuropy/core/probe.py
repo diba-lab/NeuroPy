@@ -207,7 +207,7 @@ class ProbeGroup(DataWriter):
             probe_grp = df.groupby("probe_id")
             for i in range(self.n_probes):
                 shank_grp = probe_grp.get_group(i).groupby("shank_id")
-                for i1 in range(len(shank_grp)):
+                for i1 in shank_grp.groups.keys():
                     chans.append(shank_grp.get_group(i1).channel_id.values)
 
         return np.array(chans, dtype=object)
