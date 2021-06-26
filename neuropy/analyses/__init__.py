@@ -1,4 +1,6 @@
-from .oscillations import *
+from . import oscillations
+from . import neurons_stability
+from . import neurons_correlation
 from .artifact import *
 from .paradigm import Paradigm
 from .brainstates import BrainStates
