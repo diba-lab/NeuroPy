@@ -21,26 +21,7 @@ from ..core import Neurons
 
 
 class Spikes:
-    """Spike related methods
-
-    Attributes
-    ----------
-    times : list
-        list of arrays representing spike times of all detected clusters
-    pyr : list
-        Each array within list representing spike times of pyramidal neurons
-    intneur : list
-        list of arrays representing spike times of interneurons neurons
-    mua : list
-        list of arrays representing spike times of mulitunits neurons
-
-
-    Methods
-    ----------
-    gen_instfiring()
-        generates instantenous firing rate and includes all spiking events (pyr, mua, intneur)
-
-    """
+    """Spike related methods"""
 
     colors = {"pyr": "#211c1c", "intneur": "#3a924d", "mua": "#b4b2b1"}
 
@@ -50,10 +31,6 @@ class Spikes:
             self._obj = basepath
         else:
             self._obj = Recinfo(basepath)
-
-        self.stability = Stability(basepath)
-        # self.dynamics = firingDynamics(basepath)
-        filePrefix = self._obj.files.filePrefix
 
         @dataclass
         class files:
@@ -80,11 +57,6 @@ class Spikes:
 
         # Now load it in
         self.rough_mua = h5py.File(mua_filename[0], "r+")
-
-    def get_spkcounts(self, cell_ids, period, binsize=0.25):
-        """Get binned spike counts within a period for the given cells"""
-        bins = np.arange(period[0], period[1] + binsize, binsize)
-        return np.asarray([np.histogram(self.times[_], bins=bins)[0] for _ in cell_ids])
 
     @property
     def instfiring(self):
@@ -120,119 +92,6 @@ class Spikes:
         gaussian = A * np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
 
         return gaussian
-
-    def plot_raster(
-        self,
-        spikes=None,
-        ax=None,
-        period=None,
-        sort_by_frate=False,
-        tstart=0,
-        color=None,
-        marker="|",
-        markersize=2,
-        add_vert_jitter=False,
-    ):
-        """creates raster plot using spike times
-
-        Parameters
-        ----------
-        spikes : list, optional
-            Each array within list represents spike times of that unit, by default None
-        ax : obj, optional
-            axis to plot onto, by default None
-        period : array like, optional
-            only plot raster for spikes within this period, by default None
-        sort_by_frate : bool, optional
-            If true then sorts spikes by the number of spikes (frate), by default False
-        tstart : int, optional
-            positions the x-axis labels to start from this, by default 0
-        color : [type], optional
-            color for raster plots, by default None
-        marker : str, optional
-            marker style, by default "|"
-        markersize : int, optional
-            size of marker, by default 2
-        add_vert_jitter: boolean, optional
-            adds vertical jitter to help visualize super dense spiking, not standardly used for rasters...
-        """
-        if ax is None:
-            fig = plt.figure(1, figsize=(6, 10))
-            gs = gridspec.GridSpec(1, 1, figure=fig)
-            fig.subplots_adjust(hspace=0.4)
-            ax = fig.add_subplot(gs[0])
-
-        if spikes is None:
-            pyr = self.pyr
-            intneur = self.intneur
-            mua = self.mua
-            spikes = mua + pyr + intneur
-
-            color = (
-                [self.colors["mua"]] * len(mua)
-                + [self.colors["pyr"]] * len(pyr)
-                + [self.colors["intneur"]] * len(intneur)
-            )
-
-            # --- mimics legend for labeling unit category ---------
-            y = 0.5
-            for cell in self.colors:
-                ax.annotate(
-                    cell,
-                    xy=(0.9, y),
-                    xycoords="figure fraction",
-                    color=self.colors[cell],
-                )
-                y -= 0.05
-        else:
-            assert isinstance(spikes, list), "Please provide a list of arrays"
-            if color is None:
-                color = ["#2d3143"] * len(spikes)
-            elif isinstance(color, str):
-
-                try:
-                    cmap = mpl.cm.get_cmap(color)
-                    color = [cmap(_ / len(spikes)) for _ in range(len(spikes))]
-                except:
-                    color = [color] * len(spikes)
-
-        # print(f"Plotting {len(spikes)} cells")
-        frate = [len(cell) for cell in spikes]  # number of spikes ~= frate
-
-        if period is not None:
-            period_duration = np.diff(period)
-            spikes = [
-                cell[np.where((cell > period[0]) & (cell < period[1]))[0]]
-                for cell in spikes
-            ]
-            frate = np.asarray(
-                [len(cell) / period_duration for cell in spikes]
-            ).squeeze()
-
-        if sort_by_frate:
-            sort_frate_indices = np.argsort(frate)
-            spikes = [spikes[indx] for indx in sort_frate_indices]
-
-        for cell, spk in enumerate(spikes):
-            if add_vert_jitter:
-                jitter_add = np.random.randn(len(spk)) * 0.1
-                alpha_use = 0.25
-            else:
-                jitter_add, alpha_use = 0, 0.5
-            ax.plot(
-                spk - tstart,
-                (cell + 1) * np.ones(len(spk)) + jitter_add,
-                marker,
-                markersize=markersize,
-                color=color[cell],
-                alpha=alpha_use,
-            )
-
-        ax.set_ylim([0.5, len(spikes) + 0.5])
-        ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Units")
-
-        return ax
 
     def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
 
