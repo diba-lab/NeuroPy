@@ -12,8 +12,8 @@ def estimate_neuron_type(neurons: core.Neurons):
     ---------
     Csicsvari, J., Hirase, H., Czurko, A., & Buzsáki, G. (1998). Reliability and state dependence of pyramidal cell–interneuron synapses in the hippocampus: an ensemble approach in the behaving rat. Neuron, 21(1), 179-189.
     """
-    spikes = self.times
-    self.info["celltype"] = None
+    spikes = neurons.spiketrains
+    sampling_rate = neurons.sampling_rate
     ccgs = calculate_neurons_acg(spikes=spikes, bin_size=0.001, window_size=0.05)
     ccg_width = ccgs.shape[-1]
     ccg_center_ind = int(ccg_width / 2)
@@ -27,14 +27,14 @@ def estimate_neuron_type(neurons: core.Neurons):
     frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
 
     # ------ calculate peak ratio of waveform ----------
-    templates = self.templates
+    templates = neurons.waveforms
     waveform = np.asarray(
         [cell[np.argmax(np.ptp(cell, axis=1)), :] for cell in templates]
     )
     n_t = waveform.shape[1]  # waveform width
     center = np.int(n_t / 2)
-    wave_window = int(0.25 * (self._obj.sampfreq / 1000))
-    from_peak = int(0.18 * (self._obj.sampfreq / 1000))
+    wave_window = int(0.25 * (sampling_rate / 1000))
+    from_peak = int(0.18 * (sampling_rate / 1000))
     left_peak = np.trapz(
         waveform[:, center - from_peak - wave_window : center - from_peak], axis=1
     )
