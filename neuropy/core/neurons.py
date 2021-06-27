@@ -99,15 +99,20 @@ class Neurons(DataWriter):
     def add_metadata(self):
         pass
 
-    def firing_rate(self, period, ids=None):
-        if ids is None:
-            ids = self.ids
+    def n_spikes(self, t_start=None, t_stop=None, ids=None):
+        spiketrains = self.get_spiketrains(ids)
+        if t_start is None:
+            t_start = self.t_start
 
-        spikes = self.get_spiketrains(ids)
-        duration = np.diff(period)
-        return (
-            np.concatenate([np.histogram(_, bins=period)[0] for _ in spikes]) / duration
+        if t_stop is None:
+            t_stop = self.t_stop
+
+        return np.concatenate(
+            [np.histogram(_, bins=[t_start, t_stop])[0] for _ in spiketrains]
         )
+
+    def firing_rate(self, t_start=None, t_stop=None, ids=None):
+        return self.n_spikes(t_start, t_stop, ids) / (t_stop - t_start)
 
     def binned_spiketrains(self, ids, period, binsize=0.25):
         """Get binned spike counts within a period for the given cells"""
