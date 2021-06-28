@@ -32,13 +32,13 @@ class ProcessData:
             filename=self.filePrefix.with_suffix(".prb.npy")
         )
 
-        if (f := self.filePrefix.with_suffix(".paradim.npy").is_file()) :
+        if (f := self.filePrefix.with_suffix(".paradigm.npy")).is_file():
             d = np.load(f, allow_pickle=True).item()
             self.paradigm = core.Epoch.from_dict(d)
 
-        self.position = core.Position(
-            filename=self.filePrefix.with_suffix(".position.npy")
-        )
+        # self.position = core.Position(
+        #     filename=self.filePrefix.with_suffix(".position.npy")
+        # )
 
         if (f := self.filePrefix.with_suffix(".artifact.npy")).is_file():
             d = np.load(f, allow_pickle=True).item()
@@ -92,21 +92,21 @@ class ProcessData:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.session.sessionName})"
 
-    def export_rearing_data(self):
-        """Export position/ripple/pbe data for rearing analysis"""
-        rearing_data = {
-            "time": self.position.data["time"],
-            "x": self.position.data["x"],
-            "y": self.position.data["y"],
-            "z": self.position.data["z"],
-            "datetime": self.position.data["datetime"],
-            "ripple": self.ripple.epochs,
-            "pbe": self.pbe.epochs,
-            "lfpsRate": self.recinfo.lfpSrate,
-            "video_start_time": self.position.video_start_time,
-        }
+    # def export_rearing_data(self):
+    #     """Export position/ripple/pbe data for rearing analysis"""
+    #     rearing_data = {
+    #         "time": self.position.data["time"],
+    #         "x": self.position.data["x"],
+    #         "y": self.position.data["y"],
+    #         "z": self.position.data["z"],
+    #         "datetime": self.position.data["datetime"],
+    #         "ripple": self.ripple.epochs,
+    #         "pbe": self.pbe.epochs,
+    #         "lfpsRate": self.recinfo.lfpSrate,
+    #         "video_start_time": self.position.video_start_time,
+    #     }
 
-        with open(
-            self.recinfo.files.filePrefix.with_suffix(".rearing_data.pkl"), "wb"
-        ) as f:
-            pickle.dump(rearing_data, f)
+    #     with open(
+    #         self.recinfo.files.filePrefix.with_suffix(".rearing_data.pkl"), "wb"
+    #     ) as f:
+    #         pickle.dump(rearing_data, f)

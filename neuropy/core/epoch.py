@@ -1,51 +1,41 @@
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from .datawriter import DataWriter
 
 
 class Epoch(DataWriter):
-    def __init__(
-        self, epochs: pd.DataFrame = None, metadata=None, filename=None
-    ) -> None:
+    def __init__(self, epochs: pd.DataFrame, metadata=None, filename=None) -> None:
         super().__init__(filename=filename)
-        self._epochs = epochs
+
+        self._check_epochs(epochs)
+        self._data = epochs.sort_values(by=["start"])
         self._metadata = metadata
 
     @property
     def starts(self):
-        return self._epochs.start.values
+        return self._data.start.values
 
     @property
     def stops(self):
-        return self._epochs.stop.values
+        return self._data.stop.values
 
     @property
     def durations(self):
-        return self._epochs.duration.values
+        return self.stops - self.starts
 
     @property
-    def epochs(self):
-        return self._epochs
+    def labels(self):
+        return self._data.label.values
 
-    @epochs.setter
-    def epochs(self, epochs):
-        """check epochs compatibility
+    @property
+    def to_dict(self):
+        d = {"epochs": self._data, "metadata": self.metadata}
+        return d
 
-        Parameters
-        ----------
-        df : pd.Datarame
-            pandas dataframe should have at least 3 columns with names 'start', 'stop', 'label'
-        """
-
-        if epochs is not None:
-            self._check_epochs(epochs)
-            epochs["duration"] = epochs["stop"] - epochs["start"]
-
-        else:
-            epochs = pd.DataFrame(columns=["start", "stop", "label"])
-
-        self._epochs = epochs
+    def to_dataframe(self):
+        df = self._data.copy()
+        df["duration"] = self.durations
+        return df
 
     @property
     def metadata(self):
@@ -57,42 +47,47 @@ class Epoch(DataWriter):
 
         self._metadata = metadata
 
-    def load(self):
-        data = super().load()
-        if data is not None:
-            self.epochs, self.metadata = data["epochs"], data["metadata"]
-
-    # def save(self):
-    #     data = {"epochs": self._epochs, "metadata": self._metadata}
-    #     super().save(data)
-
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
         assert (
             pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
-        ), "Epoch dataframe should have columns with names: start, stop, label"
+        ), "Epoch dataframe should at least have columns with names: start, stop, label"
 
     def __repr__(self) -> str:
-        return f"{len(self.epochs)} epochs"
+        return f"{len(self.starts)} epochs"
 
     def __str__(self) -> str:
         pass
 
-    def time_slice(self, period):
+    def __getitem__(self, slice_):
+
+        if isinstance(slice_, str):
+            indices = np.where(self.labels == slice_)[0]
+            if len(indices) > 1:
+                return np.vstack((self.starts[indices], self.stops[indices])).T
+            else:
+                return np.array([self.starts[indices], self.stops[indices]]).squeeze()
+        else:
+            return np.vstack((self.starts[slice_], self.stops[slice_])).T
+
+    def time_slice(self, t_start, t_stop):
         pass
 
-    def add_epochs(self, epochs: pd.DataFrame):
-
-        self._check_epochs(epochs)
-        self.epochs = self.epochs.append(epochs)
-        print("epochs added")
-
     def to_dict(self):
-        return {"epochs": self._epochs, "metadata": self._metadata}
+        return {
+            "epochs": self._data,
+            "metadata": self._metadata,
+            "filename": self.filename,
+        }
 
     @staticmethod
-    def from_dict(d):
-        return Epoch(d["epochs"], d["metadata"])
+    def from_dict(d: dict):
+        if "filename" not in d.keys():
+            filename = None
+        else:
+            filename = d["filename"]
+
+        return Epoch(d["epochs"], d["metadata"], filename)
 
     def fill_blank(self, method="from_left"):
 
@@ -159,25 +154,27 @@ class Epoch(DataWriter):
                 ep_ids = np.append(ep_ids, self._next_id)
                 self._next_id += 1
 
-    def proportion(self, period=None):
+    def proportion(self, t_start=None, t_stop=None):
 
-        if period is None:
-            period = [self.states.iloc[0].start, self.states.iloc[-1].end]
+        if t_start is None:
+            t_start = self.starts[0]
+        if t_stop is None:
+            t_stop = self.stops[-1]
 
-        period_duration = np.diff(period)
+        duration = t_stop - t_start
 
         ep = self.epochs.copy()
-        ep = ep[(ep.stop > period[0]) & (ep.start < period[1])].reset_index(drop=True)
+        ep = ep[(ep.stop > t_start) & (ep.start < t_stop)].reset_index(drop=True)
 
-        if ep["start"].iloc[0] < period[0]:
-            ep.at[0, "start"] = period[0]
+        if ep["start"].iloc[0] < t_start:
+            ep.at[0, "start"] = t_start
 
-        if ep["stop"].iloc[-1] > period[1]:
-            ep.at[ep.index[-1], "stop"] = period[1]
+        if ep["stop"].iloc[-1] > t_stop:
+            ep.at[ep.index[-1], "stop"] = t_stop
 
         ep["duration"] = ep.stop - ep.start
 
-        ep_group = ep.groupby("label").sum().duration / period_duration
+        ep_group = ep.groupby("label").sum().duration / duration
 
         states_proportion = {"rem": 0.0, "nrem": 0.0, "quiet": 0.0, "active": 0.0}
 
@@ -205,6 +202,3 @@ class Epoch(DataWriter):
 
     def as_array(self):
         return self.epochs[["start", "stop"]].to_numpy()
-
-    def plot(self):
-        pass

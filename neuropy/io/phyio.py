@@ -1,133 +1,65 @@
 import numpy as np
 from pathlib import Path
+import pandas as pd
 
 
 class PhyIO:
-    def __init__(self, dirname: Path) -> None:
-        pass
+    def __init__(self, dirname: Path, include_noise_clusters=False) -> None:
+        self.source_dir = dirname
+        self.sampling_rate = None
+        self.spiketrains = None
+        self.waveforms = None
+        self.peak_channels = None
+        self.include_noise_clusters = include_noise_clusters
+        self._parse_folder()
 
-    def _parse_files(self):
-        """Gets spike times from Phy (https://github.com/cortex-lab/phy) compatible files.
-        If shanks are in separate folder, then folder should have subfolders with names Shank1, Shank2, Shank3 and so on.
-
-        Parameters
-        ----------
-        folder : str
-            folder where Phy files are present
-        fileformat : str, optional
-            [description], by default "diff_folder"
-        """
-        spktimes = None
-        spkinfo = None
-
-        clufolder = Path(folder)
-        if fileformat == "diff_folder":
-            nShanks = self._obj.nShanks
-            sRate = self._obj.sampfreq
-            spkall, info, shankID, template_waveforms = [], [], [], []
-            for shank in range(1, nShanks + 1):
-                shank_folder = clufolder / f"Shank{shank}"
-                print(shank_folder)
-                if shank_folder.is_dir():
-                    spktime = np.load(shank_folder / "spike_times.npy")
-                    cluID = np.load(shank_folder / "spike_clusters.npy")
-                    spk_templates_id = np.load(shank_folder / "spike_templates.npy")
-                    spk_templates = np.load(shank_folder / "templates.npy")
-                    cluinfo = pd.read_csv(
-                        shank_folder / "cluster_info.tsv", delimiter="\t"
-                    )
-                    goodCellsID = cluinfo.id[cluinfo["q"] < 10].tolist()
-                    info.append(cluinfo.loc[cluinfo["q"] < 10])
-                    shankID.extend(shank * np.ones(len(goodCellsID)))
-
-                    for i in range(len(goodCellsID)):
-                        clu_spike_location = np.where(cluID == goodCellsID[i])[0]
-                        spkframes = spktime[clu_spike_location]
-                        cell_template_id, counts = np.unique(
-                            spk_templates_id[clu_spike_location], return_counts=True
-                        )
-                        spkall.append(spkframes / sRate)
-                        template_waveforms.append(
-                            spk_templates[cell_template_id[np.argmax(counts)]]
-                            .squeeze()
-                            .T
-                        )
-
-            spkinfo = pd.concat(info, ignore_index=True)
-            spkinfo["shank"] = shankID
-            spktimes = spkall
-
-        if fileformat == "same_folder":
-            nShanks = self._obj.nShanks
-            sRate = self._obj.sampfreq
-            changroup = self._obj.channelgroups
-
-            spktime = np.load(clufolder / "spike_times.npy")
-            cluID = np.load(clufolder / "spike_clusters.npy")
-            spk_templates_id = np.load(clufolder / "spike_templates.npy")
-            spk_templates = np.load(clufolder / "templates.npy")
-            cluinfo = pd.read_csv(clufolder / "cluster_info.tsv", delimiter="\t")
-            if "q" in cluinfo.keys():
-                goodCellsID = cluinfo.id[cluinfo["q"] < 10].tolist()
-                info = cluinfo.loc[cluinfo["q"] < 10]
-            else:
-                print(
-                    'No labels "q" found in phy data - using good for now, be sure to label with ":l q #"'
+    def _parse_folder(self):
+        params = {}
+        with (self.source_dir / "params.py").open("r") as f:
+            for line in f:
+                line_values = (
+                    line.replace("\n", "")
+                    .replace('r"', '"')
+                    .replace('"', "")
+                    .split("=")
                 )
-                goodCellsID = cluinfo.id[(cluinfo["group"] == "good")].tolist()
-                info = cluinfo.loc[(cluinfo["group"] == "good")]
+                params[line_values[0].strip()] = line_values[1].strip()
 
-            peakchan = info["ch"]
-            shankID = [
-                sh + 1
-                for chan in peakchan
-                for sh, grp in enumerate(changroup)
-                if chan in grp
-            ]
+        self.sampling_rate = int(float(params["sample_rate"]))
+        self.n_channels = int(params["n_channels_dat"])
+        self.n_features_per_channel = int(params["n_features_per_channel"])
 
-            spkall, template_waveforms = [], []
-            for i in range(len(goodCellsID)):
-                clu_spike_location = np.where(cluID == goodCellsID[i])[0]
-                spkframes = spktime[clu_spike_location]
-                cell_template_id, counts = np.unique(
-                    spk_templates_id[clu_spike_location], return_counts=True
-                )
-                spkall.append(spkframes / sRate)
-                template_waveforms.append(
-                    spk_templates[cell_template_id[np.argmax(counts)]].squeeze().T
-                )
+        spktime = np.load(self.source_dir / "spike_times.npy")
+        clu_ids = np.load(self.source_dir / "spike_clusters.npy")
+        spk_templates_id = np.load(self.source_dir / "spike_templates.npy")
+        spk_templates = np.load(self.source_dir / "templates.npy")
+        cluinfo = pd.read_csv(self.source_dir / "cluster_info.tsv", delimiter="\t")
 
-            info["shank"] = shankID
-            spkinfo = info
-            spktimes = spkall
-            # self.shankID = np.asarray(shankID)
-
-        spkinfo = spkinfo.reset_index()
-        if save_allspikes:
-            spikes_ = {
-                "times": spktimes,
-                "info": spkinfo.reset_index(),
-                "allspikes": spktime,
-                "allcluIDs": cluID,
-                "templates": template_waveforms,
-            }
+        if self.include_noise_clusters:
+            cluinfo = cluinfo[
+                cluinfo["group"].isin(["mua", "good", "noise"])
+            ].reset_index(drop=True)
         else:
-            spikes_ = {
-                "times": spktimes,
-                "info": spkinfo.reset_index(),
-                "templates": template_waveforms,
-            }
+            cluinfo = cluinfo[cluinfo["group"].isin(["mua", "good"])].reset_index(
+                drop=True
+            )
 
-        labels = np.empty(len(spktimes), dtype="object")
-        labels[np.where(spkinfo.q < 4)[0]] = "pyr"
-        labels[np.where(spkinfo.q == 8)[0]] = "intneur"
-        labels[np.where(spkinfo.q == 6)[0]] = "mua"
+        self.cluster_info = cluinfo.copy()
+        self.amplitudes = cluinfo["amp"].values
+        self.peak_channels = cluinfo["ch"].values
+        self.shank_ids = cluinfo["sh"].values
 
-        self.spiketrains = spikes_["times"]
-        self.labels = labels
-        self.shankids = spkinfo["shank"].to_numpy()
-        self.ids = np.arange(0, len(self.spiketrains))
+        spiketrains, template_waveforms = [], []
+        for clu in cluinfo.itertuples():
+            clu_spike_location = np.where(clu_ids == clu.id)[0]
+            spkframes = spktime[clu_spike_location]
+            cell_template_id, counts = np.unique(
+                spk_templates_id[clu_spike_location], return_counts=True
+            )
+            spiketrains.append(spkframes / self.sampling_rate)
+            template_waveforms.append(
+                spk_templates[cell_template_id[np.argmax(counts)]].squeeze().T
+            )
+
+        self.spiketrains = np.array(spiketrains, dtype="object")
         self.waveforms = template_waveforms
-        self.metadata = None
-
-        self._check_neurons()

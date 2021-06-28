@@ -191,6 +191,9 @@ class ProbeGroup(DataWriter):
     def shank_id(self):
         return self._data["shank_id"].values
 
+    def get_channel_ids(self):
+        return self._data["channel_id"].values
+
     def get_probe(self):
         pass
 
@@ -207,7 +210,7 @@ class ProbeGroup(DataWriter):
             probe_grp = df.groupby("probe_id")
             for i in range(self.n_probes):
                 shank_grp = probe_grp.get_group(i).groupby("shank_id")
-                for i1 in range(len(shank_grp)):
+                for i1 in shank_grp.groups.keys():
                     chans.append(shank_grp.get_group(i1).channel_id.values)
 
         return np.array(chans, dtype=object)
@@ -231,6 +234,8 @@ class ProbeGroup(DataWriter):
         probe_df = probe.to_dataframe()
         probe_df["probe_id"] = self.n_probes * np.ones(probe.n_contacts)
         self._data = self._data.append(probe_df)
+
+        _, counts = np.unique(self.get_channel_ids(), return_counts=True)
 
     def to_dict(self):
         return {
