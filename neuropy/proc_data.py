@@ -32,7 +32,7 @@ class ProcessData:
             filename=self.filePrefix.with_suffix(".prb.npy")
         )
 
-        if (f := self.filePrefix.with_suffix(".paradim.npy").is_file()) :
+        if (f := self.filePrefix.with_suffix(".paradigm.npy")).is_file():
             d = np.load(f, allow_pickle=True).item()
             self.paradigm = core.Epoch.from_dict(d)
 

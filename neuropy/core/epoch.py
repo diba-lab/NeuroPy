@@ -75,7 +75,7 @@ class Epoch(DataWriter):
 
     def to_dict(self):
         return {
-            "epochs": self._epochs,
+            "epochs": self._data,
             "metadata": self._metadata,
             "filename": self.filename,
         }
