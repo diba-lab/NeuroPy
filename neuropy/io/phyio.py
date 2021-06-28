@@ -6,6 +6,7 @@ import pandas as pd
 class PhyIO:
     def __init__(self, dirname: Path, include_noise_clusters=False) -> None:
         self.source_dir = dirname
+        self.sampling_rate = None
         self.spiketrains = None
         self.waveforms = None
         self.peak_channels = None

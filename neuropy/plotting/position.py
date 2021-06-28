@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from .. import core
 
 
 def _none_axis(ax):
@@ -8,10 +9,17 @@ def _none_axis(ax):
     return ax
 
 
-def plot_position(x, y, ax):
+def plot_position(position: core.Position, ax=None):
 
     ax = _none_axis(ax)
-    plt.plot(x, y)
+    ndim = position.ndim
+    if ndim == 1:
+        plt.plot(position.time, position.x)
+    if ndim == 2:
+        ax.plot(position.x, position.y)
+    if ndim == 3:
+        ax = plt.axes(projection="3d")
+        ax.plot3D(position.x, position.y, position.z)
     return ax
 
 

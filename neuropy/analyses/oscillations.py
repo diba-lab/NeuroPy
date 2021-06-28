@@ -132,7 +132,16 @@ def _detect_freq_band_epochs(
     return epochs, metadata
 
 
-def detect_hpc_slow_wave_epochs():
+def detect_hpc_slow_wave_epochs(
+    signal: Signal,
+    probegroup: ProbeGroup,
+    freq_band=(150, 250),
+    thresh=(1, 5),
+    mindur=0.05,
+    maxdur=0.450,
+    mergedist=0.05,
+    ignore_epochs: Epoch = None,
+):
     """Caculate delta events
 
     chan --> filter delta --> identify peaks and troughs within sws epochs only --> identifies a slow wave as trough to peak --> thresholds for 100ms minimum duration
@@ -233,7 +242,7 @@ def detect_ripple_epochs(
     )
 
     metadata["channels"] = selected_chans
-    return Epoch(epochs, metadata)
+    return Epoch(epochs=epochs, metadata=metadata)
 
 
 def detect_theta_epochs():

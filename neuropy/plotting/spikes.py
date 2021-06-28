@@ -80,12 +80,44 @@ def plot_spectrogram():
     pass
 
 
-def plot_ccg(ccgs, bin_size, ax=None):
+def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
+
+    """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
+    type: 'all' or 'ccg_only'.
+    ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type 'all'"""
+
+    def ccg_spike_assemble(clus_use):
+        """Assemble an array of sorted spike times and cluIDs for the input cluster ids the list clus_use """
+        spikes_all, clus_all = [], []
+        [
+            (
+                spikes_all.append(self.times[idc]),
+                clus_all.append(np.ones_like(self.times[idc]) * idc),
+            )
+            for idc in clus_use
+        ]
+        spikes_all, clus_all = np.concatenate(spikes_all), np.concatenate(clus_all)
+        spikes_sorted, clus_sorted = (
+            spikes_all[spikes_all.argsort()],
+            clus_all[spikes_all.argsort()],
+        )
+
+        return spikes_sorted, clus_sorted.astype("int")
+
+    spikes_sorted, clus_sorted = ccg_spike_assemble(clus_use)
+    ccgs = correlograms(
+        spikes_sorted,
+        clus_sorted,
+        sample_rate=self._obj.sampfreq,
+        bin_size=bin_size,
+        window_size=window_size,
+    )
+
+    if type == "ccgs_only":
+        ccgs = ccgs[0, 1, :].reshape(1, 1, -1)
 
     if ax is None:
         fig, ax = plt.subplots(ccgs.shape[0], ccgs.shape[1])
-
-    window_size = 2 * ccgs.shape[1]
 
     winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
     bins = np.linspace(0, 1, winsize_bins)
@@ -95,4 +127,6 @@ def plot_ccg(ccgs, bin_size, ax=None):
         a.set_xticklabels(np.ones((2,)) * np.round(window_size / 2, 2))
         a.set_xlabel("Time (s)")
         a.set_ylabel("Spike Count")
+        pretty_plot(a)
+
     return ax

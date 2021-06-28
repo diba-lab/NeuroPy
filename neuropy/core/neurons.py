@@ -144,7 +144,5 @@ class Neurons(DataWriter):
         instfiring = sg.convolve(spkcnt, gaussKernel, mode="same", method="direct")
         self.instfiring = pd.DataFrame({"time": bins[1:], "frate": instfiring})
 
-        self.save()
-
     def add_jitter(self):
         pass
