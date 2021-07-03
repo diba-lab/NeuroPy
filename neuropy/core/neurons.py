@@ -15,6 +15,7 @@ class Neurons(DataWriter):
         t_stop,
         t_start=0.0,
         sampling_rate=1,
+        neuron_ids=None,
         neuron_type=None,
         waveforms=None,
         peak_channels=None,
@@ -23,7 +24,8 @@ class Neurons(DataWriter):
         super().__init__(filename=filename)
 
         self.spiketrains = spiketrains
-        self.ids = np.arange(len(self.spiketrains))
+        if neuron_ids is None:
+            self.neuron_ids = np.arange(len(self.spiketrains))
         self.waveforms = waveforms
         self.neuron_type = neuron_type
         self.peak_channels = peak_channels
@@ -46,6 +48,9 @@ class Neurons(DataWriter):
         return spiketrains
 
     def time_slice(self):
+        pass
+
+    def neuron_slice(self, ids):
         pass
 
     def _check_integrity(self):
