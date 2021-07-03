@@ -51,6 +51,14 @@ class Position(DataWriter):
         self._time = time
 
     @property
+    def t_start(self):
+        return np.min(self.time)
+
+    @property
+    def t_stop(self):
+        return np.max(self.time)
+
+    @property
     def ndim(self):
         ndim = 1
 
