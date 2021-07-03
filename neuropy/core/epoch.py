@@ -73,6 +73,11 @@ class Epoch(DataWriter):
     def time_slice(self, t_start, t_stop):
         pass
 
+    def label_slice(self, label):
+        assert isinstance(label, str), "label must be string"
+        df = self._data[self._data["label"] == label].reset_index(drop=True)
+        return Epoch(epochs=df)
+
     def to_dict(self):
         return {
             "epochs": self._data,
