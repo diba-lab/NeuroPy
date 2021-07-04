@@ -10,9 +10,15 @@ class DataWriter:
         else:
             self.filename = None
 
-    def load(self):
-        if self.filename.is_file():
-            return np.load(self.filename, allow_pickle=True).item()
+    @staticmethod
+    def from_dict(d):
+        return NotImplementedError
+
+    @staticmethod
+    def from_file(f):
+        if f.is_file():
+            d = np.load(f, allow_pickle=True).item()
+            return d
         else:
             return None
 
