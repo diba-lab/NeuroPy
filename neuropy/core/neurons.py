@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 import scipy.signal as sg
 from .datawriter import DataWriter
-from ..utils.ccg import correlograms
-from pathlib import Path
 
 
 class Neurons(DataWriter):
@@ -103,6 +101,9 @@ class Neurons(DataWriter):
     def add_metadata(self):
         pass
 
+    def get_all_spikes(self):
+        return np.concatenate(self.spiketrains)
+
     def n_spikes(self, t_start=None, t_stop=None):
         if t_start is None:
             t_start = self.t_start
@@ -132,8 +133,11 @@ class Neurons(DataWriter):
 
         return BinnedSpiketrain(spike_counts, t_start, bin_size, self.neuron_ids)
 
-    def get_mua(self, t_start=None, t_stop=None):
-        pass
+    def get_mua(self, t_start, t_stop, bin_size):
+        all_spikes = self.get_all_spikes()
+        bins = np.arange(t_start, t_stop, bin_size)
+        frate = np.histogram(all_spikes, bins=bins)[0]
+        return Mua(frate, t_start, bin_size)
 
     def add_jitter(self):
         pass
@@ -141,7 +145,7 @@ class Neurons(DataWriter):
 
 class BinnedSpiketrain(DataWriter):
     def __init__(
-        self, neurons: Neurons=None, t_start, bin_size=0.5, neuron_ids=None
+        self, spike_counts: np.ndarray, t_start, bin_size=0.5, neuron_ids=None
     ) -> None:
         super().__init__()
         self.spike_counts = spike_counts
@@ -167,40 +171,66 @@ class BinnedSpiketrain(DataWriter):
         return self.t_start + self.duration
 
     def to_dict(self):
-        pass
+        return {
+            "spike_counts": self.spike_counts,
+            "t_start": self.t_start,
+            "bin_size": self.bin_size,
+            "neuron_ids": self.neuron_ids,
+        }
 
     @staticmethod
     def from_dict(d):
-        pass
+        return BinnedSpiketrain(
+            d["spike_counts"], d["t_start"], d["bin_size"], d["neuron_ids"]
+        )
 
 
 class Mua(DataWriter):
-    def __init__(self, neurons:Neurons=None, bin_size=None, sigma=None) -> None:
+    def __init__(self, frate: np.array, t_start: float, bin_size: float) -> None:
 
         super().__init__()
-        self.t_start = neurons.t_start
+        self.frate = frate
+        self.t_start = t_start
         self.bin_size = bin_size
-        if neurons is not None:
-            self._frate = self._calculate_frate(neurons)
-        else:
-            self._frate = None
-        self.sigma = sigma
 
     @property
     def frate(self):
         return self._frate
 
     @frate.setter
-    def frate(self, arr):
+    def frate(self, arr: np.ndarray):
+        assert arr.ndim == 1, "only 1 dimensional arrays are allowed"
         self._frate = arr
 
+    @property
+    def bin_size(self):
+        return self._bin_size
 
-    def _calculate_frate(self, neurons: Neurons):
-        spkall = np.concatenate(neurons.spiketrains)
-        bins = np.arange(neurons.t_start, neurons.t_stop, self.bin_size)
-        spkcnt = np.histogram(spkall, bins=bins)[0]
+    @bin_size.setter
+    def bin_size(self, val):
+        self._bin_size = val
+
+    @property
+    def n_bins(self):
+        return len(self.frate)
+
+    @property
+    def duration(self):
+        return self.n_bins * self.bin_size
+
+    @property
+    def t_stop(self):
+        return self.t_start + self.duration
+
+    @property
+    def time(self):
+        return np.linspace(self.t_start, self.t_stop, self.n_bins)
+
+    def smooth(self, sigma):
         gaussKernel = self._gaussian()
-        return sg.convolve(spkcnt, gaussKernel, mode="same", method="direct")
+        self._frate = sg.convolve(
+            self._frate, gaussKernel, mode="same", method="direct"
+        )
 
     def _gaussian(self):
         # TODO fix gaussian smoothing binsize
@@ -219,11 +249,15 @@ class Mua(DataWriter):
         return gaussian
 
     def to_dict(self):
-        pass
+        return {
+            "frate": self._frate,
+            "t_start": self.t_start,
+            "bin_size": self.bin_size,
+        }
 
     @staticmethod
     def from_dict(d):
-        pass
+        return Mua(d["frate"], d["t_start"], d["bin_size"])
 
-    def to_dataframe():
-        pass
+    def to_dataframe(self):
+        return pd.DataFrame({"time": self.time, "frate": self.frate})
