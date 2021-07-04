@@ -80,12 +80,11 @@ class Neurons(DataWriter):
         data = {
             "spiketrains": self.spiketrains,
             "neuron_type": self.neuron_type,
-            "ids": self.ids,
+            "neuron_ids": self.neuron_ids,
             "t_start": self.t_start,
             "t_stop": self.t_stop,
             "peak_channels": self.peak_channels,
             "waveforms": self.waveforms,
-            "instfiring": self.instfiring,
             "sampling_rate": self.sampling_rate,
             "filename": self.filename,
             "metadata": self.metadata,
@@ -104,8 +103,7 @@ class Neurons(DataWriter):
     def add_metadata(self):
         pass
 
-    def n_spikes(self, t_start=None, t_stop=None, ids=None):
-        spiketrains = self.get_spiketrains(ids)
+    def n_spikes(self, t_start=None, t_stop=None):
         if t_start is None:
             t_start = self.t_start
 
@@ -113,20 +111,99 @@ class Neurons(DataWriter):
             t_stop = self.t_stop
 
         return np.concatenate(
-            [np.histogram(_, bins=[t_start, t_stop])[0] for _ in spiketrains]
+            [np.histogram(_, bins=[t_start, t_stop])[0] for _ in self.spiketrains]
         )
 
-    def firing_rate(self, t_start=None, t_stop=None, ids=None):
-        return self.n_spikes(t_start, t_stop, ids) / (t_stop - t_start)
+    def firing_rate(self, t_start=None, t_stop=None):
+        return self.n_spikes(t_start, t_stop) / (t_stop - t_start)
 
-    def binned_spiketrains(self, ids, period, binsize=0.25):
+    def get_binned_spiketrains(self, t_start=None, t_stop=None, bin_size=0.25):
+        if t_start is None:
+            t_start = self.t_start
+
+        if t_stop is None:
+            t_stop = self.t_stop
+
         """Get binned spike counts within a period for the given cells"""
-        bins = np.arange(period[0], period[1] + binsize, binsize)
-        return np.asarray(
-            [np.histogram(self.spiketrains[_], bins=bins)[0] for _ in ids]
+        bins = np.arange(t_start, t_stop + bin_size, bin_size)
+        spike_counts = np.asarray(
+            [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
         )
+
+        return BinnedSpiketrain(spike_counts, t_start, bin_size, self.neuron_ids)
+
+    def get_mua(self, t_start=None, t_stop=None):
+        pass
+
+    def add_jitter(self):
+        pass
+
+
+class BinnedSpiketrain(DataWriter):
+    def __init__(
+        self, neurons: Neurons=None, t_start, bin_size=0.5, neuron_ids=None
+    ) -> None:
+        super().__init__()
+        self.spike_counts = spike_counts
+        self.bin_size = bin_size
+        self.t_start = t_start
+        if neuron_ids is None:
+            self.neuron_ids = np.arange(self.n_neurons)
+
+    @property
+    def n_neurons(self):
+        return self.spike_counts.shape[0]
+
+    @property
+    def n_bins(self):
+        return self.spike_counts.shape[1]
+
+    @property
+    def duration(self):
+        return self.n_bins * self.bin_size
+
+    @property
+    def t_stop(self):
+        return self.t_start + self.duration
+
+    def to_dict(self):
+        pass
+
+    @staticmethod
+    def from_dict(d):
+        pass
+
+
+class Mua(DataWriter):
+    def __init__(self, neurons:Neurons=None, bin_size=None, sigma=None) -> None:
+
+        super().__init__()
+        self.t_start = neurons.t_start
+        self.bin_size = bin_size
+        if neurons is not None:
+            self._frate = self._calculate_frate(neurons)
+        else:
+            self._frate = None
+        self.sigma = sigma
+
+    @property
+    def frate(self):
+        return self._frate
+
+    @frate.setter
+    def frate(self, arr):
+        self._frate = arr
+
+
+    def _calculate_frate(self, neurons: Neurons):
+        spkall = np.concatenate(neurons.spiketrains)
+        bins = np.arange(neurons.t_start, neurons.t_stop, self.bin_size)
+        spkcnt = np.histogram(spkall, bins=bins)[0]
+        gaussKernel = self._gaussian()
+        return sg.convolve(spkcnt, gaussKernel, mode="same", method="direct")
 
     def _gaussian(self):
+        # TODO fix gaussian smoothing binsize
         """Gaussian function for generating instantenous firing rate
 
         Returns:
@@ -141,13 +218,12 @@ class Neurons(DataWriter):
 
         return gaussian
 
-    def calculate_instfiring(self):
-        spkall = np.concatenate(self.spiketrains)
-        bins = np.arange(spkall.min(), spkall.max(), 0.001)
-        spkcnt = np.histogram(spkall, bins=bins)[0]
-        gaussKernel = self._gaussian()
-        instfiring = sg.convolve(spkcnt, gaussKernel, mode="same", method="direct")
-        self.instfiring = pd.DataFrame({"time": bins[1:], "frate": instfiring})
+    def to_dict(self):
+        pass
 
-    def add_jitter(self):
+    @staticmethod
+    def from_dict(d):
+        pass
+
+    def to_dataframe():
         pass
