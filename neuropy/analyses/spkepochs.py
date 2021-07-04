@@ -9,8 +9,7 @@ import scipy.signal as sg
 import scipy.stats as stats
 
 from ..utils.mathutil import threshPeriods
-from ..core import Epoch
-from ..parsePath import Recinfo
+from .. import core
 
 
 def detect_localsleep_epochs(self, period):
@@ -74,7 +73,9 @@ def detect_localsleep_epochs(self, period):
     self._load()
 
 
-def detect_pbe_epochs(self, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0):
+def detect_pbe_epochs(
+    mua: core.Mua, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0
+):
     """Detects putative population burst events
 
     Parameters
@@ -96,19 +97,18 @@ def detect_pbe_epochs(self, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=
         "max_dur": max_dur,
     }
 
-    spikes = Spikes(self._obj)
     min_dur = min_dur * 1000  # samp. rate of instfiring rate = 1000 (1ms bin size)
     merge_dur = merge_dur * 1000
-    instfiring = spikes.instfiring
+    mua = mua.frate
     events = threshPeriods(
-        stats.zscore(instfiring.frate),
+        stats.zscore(mua.frate),
         lowthresh=thresh[0],
         highthresh=thresh[1],
         minDuration=min_dur,
         minDistance=merge_dur,
     )
 
-    time = np.asarray(instfiring.time)
+    time = np.asarray(mua.time)
     pbe_times = time[events]
 
     events = pd.DataFrame(
@@ -122,8 +122,7 @@ def detect_pbe_epochs(self, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=
 
     events = events[events.duration < max_dur].reset_index(drop=True)
 
-    self.epochs = events
-    self.metadata = params
+    return core.Epoch(events, params)
 
 
 def detect_lowstates_epochs():

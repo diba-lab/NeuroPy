@@ -39,6 +39,10 @@ class Signal:
     def sampling_rate(self, srate):
         self._sampling_rate = srate
 
+    @property
+    def time(self):
+        return np.linspace(self.t_start, self.t_stop, self.n_frames)
+
     def time_slice(self, channel_id, t_start=None, t_stop=None):
         # TODO fix channel_index vs channel_id confusion
         if isinstance(channel_id, int):
