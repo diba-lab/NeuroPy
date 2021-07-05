@@ -4,16 +4,23 @@ from .datawriter import DataWriter
 
 
 class Shank:
-    def __init__(
-        self,
+    def __init__(self) -> None:
+
+        self._x = None
+        self._y = None
+        self._connected = None
+        self._contact_id = None
+        self._channel_id = None
+
+    @staticmethod
+    def auto_generate(
         columns=2,
         contacts_per_column=10,
         xpitch=15,
         ypitch=20,
         y_shift_per_column=None,
         channel_id=None,
-    ) -> None:
-
+    ):
         if isinstance(contacts_per_column, int):
             contacts_per_column = [contacts_per_column] * columns
 
@@ -27,15 +34,18 @@ class Shank:
             positions.append(np.hstack((x[:, None], y[:, None])))
         positions = np.vstack(positions)
 
-        self._x = positions[:, 0]
-        self._y = positions[:, 1]
-        self.connected = np.ones(np.sum(contacts_per_column), dtype=bool)
-        self.contact_id = np.arange(np.sum(contacts_per_column))
-
+        shank = Shank()
+        shank._x = positions[:, 0]
+        shank._y = positions[:, 1]
+        shank._channel_id = channel_id
+        shank._connected = np.ones(np.sum(contacts_per_column), dtype=bool)
+        shank._contact_id = np.arange(np.sum(contacts_per_column))
         if channel_id is None:
-            self.channel_id = np.arange(np.sum(contacts_per_column))
+            shank._channel_id = np.arange(np.sum(contacts_per_column))
         else:
-            self.channel_id = channel_id
+            shank._channel_id = channel_id
+
+        return shank
 
     @property
     def x(self):
@@ -60,6 +70,10 @@ class Shank:
         self._y = arr
 
     @property
+    def contact_id(self):
+        return self._contact_id
+
+    @property
     def channel_id(self):
         return self._channel_id
 
@@ -67,6 +81,14 @@ class Shank:
     def channel_id(self, chan_ids):
         assert self.n_contacts == len(chan_ids)
         self._channel_id = chan_ids
+
+    @property
+    def connected(self):
+        return self._connected
+
+    @connected.setter
+    def connected(self, arr):
+        self._connected = arr
 
     @property
     def n_contacts(self):
