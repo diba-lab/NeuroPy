@@ -9,6 +9,7 @@ class PhyIO:
         self.sampling_rate = None
         self.spiketrains = None
         self.waveforms = None
+        self.peak_waveforms = None
         self.peak_channels = None
         self.include_noise_clusters = include_noise_clusters
         self._parse_folder()
@@ -62,4 +63,7 @@ class PhyIO:
             )
 
         self.spiketrains = np.array(spiketrains, dtype="object")
-        self.waveforms = template_waveforms
+        self.waveforms = np.array(template_waveforms)
+        self.peak_waveforms = [
+            wav[np.argmax(np.max(wav, axis=1))] for wav in template_waveforms
+        ]
