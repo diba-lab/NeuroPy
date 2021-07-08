@@ -227,8 +227,14 @@ def detect_ripple_epochs(
         )
         selected_chans.append(changrp[np.argmax(hil_stat)])
 
-    print(selected_chans)
+    print(f"Selected channels for ripples: {selected_chans}")
+
     lfps = signal.time_slice(channel_id=selected_chans)
+
+    if ignore_epochs is not None:
+        ignore_times = ignore_epochs.as_array()
+    else:
+        ignore_times = None
 
     epochs, metadata = _detect_freq_band_epochs(
         signals=lfps,
@@ -238,7 +244,7 @@ def detect_ripple_epochs(
         maxdur=maxdur,
         mergedist=mergedist,
         fs=signal.sampling_rate,
-        ignore_times=ignore_epochs,
+        ignore_times=ignore_times,
     )
 
     metadata["channels"] = selected_chans

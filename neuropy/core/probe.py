@@ -4,16 +4,23 @@ from .datawriter import DataWriter
 
 
 class Shank:
-    def __init__(
-        self,
+    def __init__(self) -> None:
+
+        self._x = None
+        self._y = None
+        self._connected = None
+        self._contact_id = None
+        self._channel_id = None
+
+    @staticmethod
+    def auto_generate(
         columns=2,
         contacts_per_column=10,
         xpitch=15,
         ypitch=20,
         y_shift_per_column=None,
         channel_id=None,
-    ) -> None:
-
+    ):
         if isinstance(contacts_per_column, int):
             contacts_per_column = [contacts_per_column] * columns
 
@@ -27,15 +34,44 @@ class Shank:
             positions.append(np.hstack((x[:, None], y[:, None])))
         positions = np.vstack(positions)
 
-        self.x = positions[:, 0]
-        self.y = positions[:, 1]
-        self.connected = np.ones(np.sum(contacts_per_column), dtype=bool)
-        self.contact_id = np.arange(np.sum(contacts_per_column))
-
+        shank = Shank()
+        shank._x = positions[:, 0]
+        shank._y = positions[:, 1]
+        shank._channel_id = channel_id
+        shank._connected = np.ones(np.sum(contacts_per_column), dtype=bool)
+        shank._contact_id = np.arange(np.sum(contacts_per_column))
         if channel_id is None:
-            self.channel_id = np.arange(np.sum(contacts_per_column))
+            shank._channel_id = np.arange(np.sum(contacts_per_column))
         else:
-            self.channel_id = channel_id
+            shank._channel_id = channel_id
+
+        return shank
+
+    @property
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, arr):
+        assert (
+            len(arr) == self.n_contacts
+        ), "number of x coordinates should match number of contacts"
+        self._x = arr
+
+    @property
+    def y(self):
+        return self._y
+
+    @y.setter
+    def y(self, arr):
+        assert (
+            len(arr) == self.n_contacts
+        ), "number of y coordinates should match number of contacts"
+        self._y = arr
+
+    @property
+    def contact_id(self):
+        return self._contact_id
 
     @property
     def channel_id(self):
@@ -45,6 +81,14 @@ class Shank:
     def channel_id(self, chan_ids):
         assert self.n_contacts == len(chan_ids)
         self._channel_id = chan_ids
+
+    @property
+    def connected(self):
+        return self._connected
+
+    @connected.setter
+    def connected(self, arr):
+        self._connected = arr
 
     @property
     def n_contacts(self):
@@ -148,9 +192,9 @@ class Probe:
 
 
 class ProbeGroup(DataWriter):
-    def __init__(self, filename=None) -> None:
+    def __init__(self) -> None:
 
-        super().__init__(filename=filename)
+        super().__init__()
         self._data = pd.DataFrame(
             {
                 "x": np.array([]),
@@ -163,13 +207,6 @@ class ProbeGroup(DataWriter):
             }
         )
         self.metadata = {}
-        self.load()
-
-    def load(self):
-        if self.filename is not None:
-            data = super().load()
-            if data is not None:
-                self._data, self.metadata = data["probemap"], data["metadata"]
 
     @property
     def x(self):
@@ -191,8 +228,26 @@ class ProbeGroup(DataWriter):
     def shank_id(self):
         return self._data["shank_id"].values
 
-    def get_channel_ids(self):
-        return self._data["channel_id"].values
+    def get_shank_id_for_channels(self, channel_id):
+        """Get shank ids for the channels.
+
+        Parameters
+        ----------
+        channel_id : array
+            channel_ids, can have repeated values
+
+        Returns
+        -------
+        array
+            shank_ids corresponding to the channels
+        """
+        shank_ids = self.shank_id
+        channel_ids = self.channel_id
+
+        indx_location = np.concatenate(
+            list(map(lambda x: channel_ids[channel_ids == x]), channel_id)
+        )
+        return shank_ids[indx_location]
 
     def get_probe(self):
         pass
@@ -223,8 +278,9 @@ class ProbeGroup(DataWriter):
     def n_probes(self):
         return len(np.unique(self.probe_id))
 
+    @property
     def n_shanks(self):
-        return np.sum(np.unique(self.shank_id, return_counts=True))
+        return len(np.unique(self.shank_id))
 
     @property
     def get_disconnected(self):
@@ -233,20 +289,33 @@ class ProbeGroup(DataWriter):
     def add_probe(self, probe: Probe):
         probe_df = probe.to_dataframe()
         probe_df["probe_id"] = self.n_probes * np.ones(probe.n_contacts)
+        if self.n_probes > 0:
+            probe_df["shank_id"] = probe_df["shank_id"] + self.n_shanks
+
         self._data = self._data.append(probe_df)
 
-        _, counts = np.unique(self.get_channel_ids(), return_counts=True)
+        # _, counts = np.unique(self.get_channel_ids(), return_counts=True)
 
     def to_dict(self):
         return {
-            "probemap": self._data,
+            "data": self._data,
             "filename": self.filename,
             "metadata": self.metadata,
         }
 
     @staticmethod
     def from_dict(d: dict):
-        pass
+        prbgrp = ProbeGroup()
+        prbgrp._data = d["data"]
+        prbgrp.metadata = d["metadata"]
+        prbgrp.filename = d["filename"]
+        return prbgrp
+
+    @staticmethod
+    def from_file(f):
+        d = DataWriter.from_file(f)
+        if d is not None:
+            return ProbeGroup.from_dict(d)
 
     def to_dataframe(self):
         return pd.DataFrame(self._data)

@@ -17,14 +17,20 @@ class Neurons(DataWriter):
         neuron_type=None,
         waveforms=None,
         peak_channels=None,
+        shank_ids=None,
         filename=None,
+        metadata=None,
     ) -> None:
         super().__init__(filename=filename)
 
         self.spiketrains = spiketrains
         if neuron_ids is None:
             self.neuron_ids = np.arange(len(self.spiketrains))
+        assert (
+            waveforms.shape[0] == self.n_neurons
+        ), "Waveforms first dimension should match number of neurons"
         self.waveforms = waveforms
+        self.shank_ids = shank_ids
         self.neuron_type = neuron_type
         self.peak_channels = peak_channels
         self.instfiring = None
@@ -52,7 +58,7 @@ class Neurons(DataWriter):
         pass
 
     def _check_integrity(self):
-        assert isinstance(self.spiketrains, list)
+        assert isinstance(self.spiketrains, np.ndarray)
         # n_neurons = self.n_neurons
         # assert all(
         #     len(arr) == n_neurons
@@ -65,25 +71,38 @@ class Neurons(DataWriter):
         #     ]
         # )
 
-    def load(self):
-        data = super().load()
-        if data is not None:
-            for key in data:
-                setattr(self, key, data[key])
+    def _time_check(self, t_start, t_stop):
+        if t_start is None:
+            t_start = self.t_start
+
+        if t_stop is None:
+            t_stop = self.t_stop
+
+        return t_start, t_stop
+
+    def __str__(self) -> str:
+        return f"# neurons = {self.n_neurons}"
+
+    # def load(self):
+    #     data = super().load()
+    #     if data is not None:
+    #         for key in data:
+    #             setattr(self, key, data[key])
 
     def to_dict(self):
 
-        self._check_integrity()
+        # self._check_integrity()
 
         data = {
             "spiketrains": self.spiketrains,
-            "neuron_type": self.neuron_type,
-            "neuron_ids": self.neuron_ids,
-            "t_start": self.t_start,
             "t_stop": self.t_stop,
-            "peak_channels": self.peak_channels,
-            "waveforms": self.waveforms,
+            "t_start": self.t_start,
             "sampling_rate": self.sampling_rate,
+            "neuron_ids": self.neuron_ids,
+            "neuron_type": self.neuron_type,
+            "waveforms": self.waveforms,
+            "peak_channels": self.peak_channels,
+            "shank_ids": self.shank_ids,
             "filename": self.filename,
             "metadata": self.metadata,
         }
@@ -92,11 +111,20 @@ class Neurons(DataWriter):
     @staticmethod
     def from_dict(d):
 
-        spiketrains = d["spiketrains"]
-        neuron_type = d["neuron_type"]
-
-        neurons = Neurons(spiketrains)
-        return Neurons
+        neurons = Neurons(
+            d["spiketrains"],
+            d["t_stop"],
+            d["t_start"],
+            d["sampling_rate"],
+            d["neuron_ids"],
+            d["neuron_type"],
+            d["waveforms"],
+            d["peak_channels"],
+            d["shank_ids"],
+            d["filename"],
+            d["metadata"],
+        )
+        return neurons
 
     def add_metadata(self):
         pass
@@ -131,7 +159,14 @@ class Neurons(DataWriter):
             [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
         )
 
-        return BinnedSpiketrain(spike_counts, t_start, bin_size, self.neuron_ids)
+        return BinnedSpiketrain(
+            spike_counts,
+            t_start,
+            bin_size,
+            self.neuron_ids,
+            self.peak_channels,
+            self.shank_ids,
+        )
 
     def get_mua(self, t_start, t_stop, bin_size):
         all_spikes = self.get_all_spikes()
@@ -145,14 +180,25 @@ class Neurons(DataWriter):
 
 class BinnedSpiketrain(DataWriter):
     def __init__(
-        self, spike_counts: np.ndarray, t_start, bin_size=0.5, neuron_ids=None
+        self,
+        spike_counts: np.ndarray,
+        bin_size: float,
+        t_start=0.0,
+        neuron_ids=None,
+        peak_channels=None,
+        shank_ids=None,
+        metadata=None,
     ) -> None:
         super().__init__()
         self.spike_counts = spike_counts
         self.bin_size = bin_size
         self.t_start = t_start
+        self.peak_channels = peak_channels
+        self.shank_ids = shank_ids
         if neuron_ids is None:
             self.neuron_ids = np.arange(self.n_neurons)
+
+        self.metadata = metadata
 
     @property
     def n_neurons(self):
@@ -170,19 +216,46 @@ class BinnedSpiketrain(DataWriter):
     def t_stop(self):
         return self.t_start + self.duration
 
+    def add_metadata(self):
+        pass
+
     def to_dict(self):
         return {
             "spike_counts": self.spike_counts,
             "t_start": self.t_start,
             "bin_size": self.bin_size,
             "neuron_ids": self.neuron_ids,
+            "peak_channels": self.peak_channels,
+            "shank_ids": self.shank_ids,
+            "metadata": self.metadata,
         }
 
     @staticmethod
     def from_dict(d):
         return BinnedSpiketrain(
-            d["spike_counts"], d["t_start"], d["bin_size"], d["neuron_ids"]
+            d["spike_counts"],
+            d["t_start"],
+            d["bin_size"],
+            d["neuron_ids"],
+            d["peak_channels"],
+            d["shank_ids"],
+            d["metadata"],
         )
+
+    def get_pairwise_corr(self, cross_shanks=False, return_pair_id=False):
+
+        shank_ids = self.shank_ids
+        corr = np.corrcoef(self.spike_counts)
+
+        selected_pairs = np.tril_indices(self.n_neurons, k=-1)
+        if cross_shanks:
+            selected_pairs = np.nonzero(
+                np.tril(shank_ids.reshape(-1, 1) - shank_ids.reshape(1, -1))
+            )
+
+        corr = corr[selected_pairs]
+
+        return corr
 
 
 class Mua(DataWriter):
