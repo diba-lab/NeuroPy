@@ -228,8 +228,26 @@ class ProbeGroup(DataWriter):
     def shank_id(self):
         return self._data["shank_id"].values
 
-    def get_channel_ids(self):
-        return self._data["channel_id"].values
+    def get_shank_id_for_channels(self, channel_id):
+        """Get shank ids for the channels.
+
+        Parameters
+        ----------
+        channel_id : array
+            channel_ids, can have repeated values
+
+        Returns
+        -------
+        array
+            shank_ids corresponding to the channels
+        """
+        shank_ids = self.shank_id
+        channel_ids = self.channel_id
+
+        indx_location = np.concatenate(
+            list(map(lambda x: channel_ids[channel_ids == x]), channel_id)
+        )
+        return shank_ids[indx_location]
 
     def get_probe(self):
         pass
