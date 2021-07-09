@@ -135,37 +135,41 @@ class Epoch(DataWriter):
 
     def delete_in_between(self, t1, t2):
 
-        ep_starts = self.epochs["start"].values
-        ep_stops = self.epochs["stop"].values
-        ep_durations = self.epochs["duration"].values
-        ep_labels = self.epochs["label"].values
+        epochs_df = self.to_dataframe()[["start", "stop", "label"]]
+        # delete epochs if they are within t1, t2
+        epochs_df = epochs_df[~((epochs_df["start"] >= t1) & (epochs_df["stop"] <= t2))]
 
-        for i in range(len(ep_starts)):
+        # truncate stop if start is less than t1 but stop is within t1,t2
+        epochs_df.loc[
+            (epochs_df["start"] < t1)
+            & (t1 < epochs_df["stop"])
+            & (epochs_df["stop"] <= t2),
+            "stop",
+        ] = t1
 
-            # if epoch starts and ends inside range, delete it
-            if ep_starts[i] >= t1 and ep_stops[i] <= t2:
-                ep_durations[
-                    i
-                ] = -1  # non-positive duration flags this epoch for clean up
+        # truncate start if stop is greater than t2 but start is within t1,t2
+        epochs_df.loc[
+            (epochs_df["start"] > t1)
+            & (epochs_df["start"] <= t2)
+            & (epochs_df["stop"] > t2),
+            "start",
+        ] = t2
 
-            # if epoch starts before and ends inside range, truncate it
-            elif ep_starts[i] < t1 and (t1 < ep_stops[i] <= t2):
-                ep_durations[i] = t1 - ep_starts[i]
+        # if epoch starts before and ends after range,
+        flank_start = epochs_df[
+            (epochs_df["start"] < t1) & (epochs_df["stop"] > t2)
+        ].copy()
+        flank_start["stop"] = t1
+        flank_stop = epochs_df[
+            (epochs_df["start"] < t1) & (epochs_df["stop"] > t2)
+        ].copy()
+        flank_stop["start"] = t2
+        epochs_df = epochs_df[~((epochs_df["start"] < t1) & (epochs_df["stop"] > t2))]
+        epochs_df = epochs_df.append(flank_start)
+        epochs_df = epochs_df.append(flank_stop)
+        epochs_df = epochs_df.reset_index(drop=True)
 
-            # if epoch starts inside and ends after range, truncate it
-            elif (t1 <= ep_starts[i] < t2) and ep_stops[i] > t2:
-                ep_durations[i] = ep_stops[i] - t2
-                ep_starts[i] = t2
-
-            # if epoch starts before and ends after range,
-            # truncate the first part and add a new epoch for the end part
-            elif ep_starts[i] <= t1 and ep_stops[i] >= t2:
-                ep_durations[i] = t1 - ep_starts[i]
-                ep_starts = np.append(ep_starts, t2)
-                ep_durations = np.append(ep_durations, ep_stops[i] - t2)
-                ep_labels = np.append(ep_labels, ep_labels[i])
-                ep_ids = np.append(ep_ids, self._next_id)
-                self._next_id += 1
+        return Epoch(epochs_df)
 
     def proportion(self, t_start=None, t_stop=None):
 
