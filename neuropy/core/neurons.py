@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 from .datawriter import DataWriter
 
@@ -26,9 +27,12 @@ class Neurons(DataWriter):
         self.spiketrains = spiketrains
         if neuron_ids is None:
             self.neuron_ids = np.arange(len(self.spiketrains))
-        assert (
-            waveforms.shape[0] == self.n_neurons
-        ), "Waveforms first dimension should match number of neurons"
+
+        if waveforms is not None:
+            assert (
+                waveforms.shape[0] == self.n_neurons
+            ), "Waveforms first dimension should match number of neurons"
+
         self.waveforms = waveforms
         self.shank_ids = shank_ids
         self.neuron_type = neuron_type
@@ -37,7 +41,7 @@ class Neurons(DataWriter):
         self._sampling_rate = sampling_rate
         self.t_start = t_start
         self.t_stop = t_stop
-        self.metadata = {}
+        self.metadata: dict = metadata
 
     @property
     def sampling_rate(self):
@@ -168,7 +172,24 @@ class Neurons(DataWriter):
             self.shank_ids,
         )
 
-    def get_mua(self, t_start, t_stop, bin_size):
+    def get_mua(self, t_start=None, t_stop=None, bin_size=0.001):
+        """Get mua between two time points
+
+        Parameters
+        ----------
+        t_start : [type]
+            [description]
+        t_stop : [type]
+            [description]
+        bin_size : float, optional
+            [description], by default 0.001
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        t_start, t_stop = self._time_check(t_start, t_stop)
         all_spikes = self.get_all_spikes()
         bins = np.arange(t_start, t_stop, bin_size)
         frate = np.histogram(all_spikes, bins=bins)[0]
@@ -259,12 +280,15 @@ class BinnedSpiketrain(DataWriter):
 
 
 class Mua(DataWriter):
-    def __init__(self, frate: np.array, t_start: float, bin_size: float) -> None:
+    def __init__(
+        self, frate: np.array, t_start: float, bin_size: float, metadata=None
+    ) -> None:
 
         super().__init__()
         self.frate = frate
         self.t_start = t_start
         self.bin_size = bin_size
+        self.metadata = None
 
     @property
     def frate(self):
@@ -297,29 +321,32 @@ class Mua(DataWriter):
 
     @property
     def time(self):
-        return np.linspace(self.t_start, self.t_stop, self.n_bins)
+        return np.arange(self.t_start, self.t_stop + self.bin_size, self.bin_size)
 
-    def smooth(self, sigma):
-        gaussKernel = self._gaussian()
-        self._frate = sg.convolve(
-            self._frate, gaussKernel, mode="same", method="direct"
-        )
+    def get_smoothed(self, sigma=0.02, truncate=4.0):
+        t_gauss = np.arange(-truncate * sigma, truncate * sigma, self.bin_size)
+        gaussian = np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
+        gaussian /= np.sum(gaussian)
 
-    def _gaussian(self):
-        # TODO fix gaussian smoothing binsize
-        """Gaussian function for generating instantenous firing rate
+        frate = sg.fftconvolve(self._frate, gaussian, mode="same")
+        # frate = gaussian_filter1d(self._frate, sigma=sigma, **kwargs)
+        return Mua(frate, self.t_start, self.bin_size)
 
-        Returns:
-            [array] -- [gaussian kernel centered at zero and spans from -1 to 1 seconds]
-        """
+    # def _gaussian(self):
+    #     # TODO fix gaussian smoothing binsize
+    #     """Gaussian function for generating instantenous firing rate
 
-        sigma = 0.020
-        binSize = 0.001
-        t_gauss = np.arange(-1, 1, binSize)
-        A = 1 / np.sqrt(2 * np.pi * sigma ** 2)
-        gaussian = A * np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
+    #     Returns:
+    #         [array] -- [gaussian kernel centered at zero and spans from -1 to 1 seconds]
+    #     """
 
-        return gaussian
+    #     sigma = 0.020  # 20 ms
+    #     binSize = 0.001  # 1 ms
+    #     t_gauss = np.arange(-1, 1, binSize)
+    #     gaussian = np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
+    #     gaussian /= np.sum(gaussian)
+
+    #     return gaussian
 
     def to_dict(self):
         return {
