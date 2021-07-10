@@ -12,7 +12,7 @@ from ..utils.mathutil import threshPeriods
 from .. import core
 
 
-def detect_localsleep_epochs(self, period):
+def detect_local_sleep_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
     """Detects local OFF events in within period
 
     Parameters
@@ -22,17 +22,8 @@ def detect_localsleep_epochs(self, period):
 
     """
 
-    if period is None:
-        raise ValueError("please provide a valid time period")
-
-    assert len(period) == 2, "length of period should be 2"
-
-    instfiring = Spikes(self._obj).instfiring
-    instfiring = instfiring[
-        (instfiring.time > period[0]) & (instfiring.time < period[1])
-    ]
-    time = instfiring.time.to_numpy()
-    frate = instfiring.frate.to_numpy()
+    time = mua.time
+    frate = mua.frate
 
     # off periods
     off = np.diff(np.where(frate < np.median(frate), 1, 0))
@@ -65,12 +56,8 @@ def detect_localsleep_epochs(self, period):
             "duration": duration / 1000,
         }
     )
-    params = {"period": period}
 
-    data = {"events": events, "params": params}
-
-    np.save(self.files.events, data)
-    self._load()
+    return core.Epoch(events)
 
 
 def detect_pbe_epochs(
@@ -99,7 +86,6 @@ def detect_pbe_epochs(
 
     min_dur = min_dur * 1000  # samp. rate of instfiring rate = 1000 (1ms bin size)
     merge_dur = merge_dur * 1000
-    mua = mua.frate
     events = threshPeriods(
         stats.zscore(mua.frate),
         lowthresh=thresh[0],
