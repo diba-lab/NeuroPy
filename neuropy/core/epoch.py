@@ -4,8 +4,8 @@ from .datawriter import DataWriter
 
 
 class Epoch(DataWriter):
-    def __init__(self, epochs: pd.DataFrame, metadata=None, filename=None) -> None:
-        super().__init__(filename=filename)
+    def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
+        super().__init__()
 
         self._check_epochs(epochs)
         self._data = epochs.sort_values(by=["start"])
@@ -82,17 +82,11 @@ class Epoch(DataWriter):
         return {
             "epochs": self._data,
             "metadata": self._metadata,
-            "filename": self.filename,
         }
 
     @staticmethod
     def from_dict(d: dict):
-        if "filename" not in d.keys():
-            filename = None
-        else:
-            filename = d["filename"]
-
-        return Epoch(d["epochs"], d["metadata"], filename)
+        return Epoch(d["epochs"], d["metadata"])
 
     @staticmethod
     def from_file(f):

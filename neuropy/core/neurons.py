@@ -19,10 +19,9 @@ class Neurons(DataWriter):
         waveforms=None,
         peak_channels=None,
         shank_ids=None,
-        filename=None,
         metadata=None,
     ) -> None:
-        super().__init__(filename=filename)
+        super().__init__()
 
         self.spiketrains = spiketrains
         if neuron_ids is None:
@@ -97,7 +96,7 @@ class Neurons(DataWriter):
 
         # self._check_integrity()
 
-        data = {
+        return {
             "spiketrains": self.spiketrains,
             "t_stop": self.t_stop,
             "t_start": self.t_start,
@@ -107,15 +106,13 @@ class Neurons(DataWriter):
             "waveforms": self.waveforms,
             "peak_channels": self.peak_channels,
             "shank_ids": self.shank_ids,
-            "filename": self.filename,
             "metadata": self.metadata,
         }
-        return data
 
     @staticmethod
     def from_dict(d):
 
-        neurons = Neurons(
+        return Neurons(
             d["spiketrains"],
             d["t_stop"],
             d["t_start"],
@@ -124,11 +121,9 @@ class Neurons(DataWriter):
             d["neuron_type"],
             d["waveforms"],
             d["peak_channels"],
-            d["shank_ids"],
-            d["filename"],
-            d["metadata"],
+            shank_ids=d["shank_ids"],
+            metadata=d["metadata"],
         )
-        return neurons
 
     def add_metadata(self):
         pass
@@ -192,8 +187,8 @@ class Neurons(DataWriter):
         t_start, t_stop = self._time_check(t_start, t_stop)
         all_spikes = self.get_all_spikes()
         bins = np.arange(t_start, t_stop, bin_size)
-        frate = np.histogram(all_spikes, bins=bins)[0]
-        return Mua(frate, t_start, bin_size)
+        spike_counts = np.histogram(all_spikes, bins=bins)[0]
+        return Mua(spike_counts.astype("int"), t_start, bin_size)
 
     def add_jitter(self):
         pass
@@ -220,6 +215,14 @@ class BinnedSpiketrain(DataWriter):
             self.neuron_ids = np.arange(self.n_neurons)
 
         self.metadata = metadata
+
+    @property
+    def spike_counts(self):
+        return self._spike_counts
+
+    @spike_counts.setter
+    def spike_counts(self, arr):
+        self._spike_counts = arr
 
     @property
     def n_neurons(self):
@@ -254,13 +257,13 @@ class BinnedSpiketrain(DataWriter):
     @staticmethod
     def from_dict(d):
         return BinnedSpiketrain(
-            d["spike_counts"],
-            d["t_start"],
-            d["bin_size"],
-            d["neuron_ids"],
-            d["peak_channels"],
-            d["shank_ids"],
-            d["metadata"],
+            spike_counts=d["spike_counts"],
+            bin_size=d["bin_size"],
+            t_start=d["t_start"],
+            neuron_ids=d["neuron_ids"],
+            peak_channels=d["peak_channels"],
+            shank_ids=d["shank_ids"],
+            metadata=d["metadata"],
         )
 
     def get_pairwise_corr(self, cross_shanks=False, return_pair_id=False):
@@ -281,23 +284,27 @@ class BinnedSpiketrain(DataWriter):
 
 class Mua(DataWriter):
     def __init__(
-        self, frate: np.array, t_start: float, bin_size: float, metadata=None
+        self,
+        spike_counts: np.ndarray,
+        bin_size: float,
+        t_start: float = 0.0,
+        metadata=None,
     ) -> None:
 
         super().__init__()
-        self.frate = frate
+        self.spike_counts = spike_counts
         self.t_start = t_start
         self.bin_size = bin_size
-        self.metadata = None
+        self.metadata = metadata
 
     @property
-    def frate(self):
-        return self._frate
+    def spike_counts(self):
+        return self._spike_counts
 
-    @frate.setter
-    def frate(self, arr: np.ndarray):
+    @spike_counts.setter
+    def spike_counts(self, arr: np.ndarray):
         assert arr.ndim == 1, "only 1 dimensional arrays are allowed"
-        self._frate = arr
+        self._spike_counts = arr
 
     @property
     def bin_size(self):
@@ -309,7 +316,7 @@ class Mua(DataWriter):
 
     @property
     def n_bins(self):
-        return len(self.frate)
+        return len(self._spike_counts)
 
     @property
     def duration(self):
@@ -323,14 +330,18 @@ class Mua(DataWriter):
     def time(self):
         return np.arange(self.t_start, self.t_stop + self.bin_size, self.bin_size)
 
+    @property
+    def firing_rate(self):
+        return self.spike_counts / self.bin_size
+
     def get_smoothed(self, sigma=0.02, truncate=4.0):
         t_gauss = np.arange(-truncate * sigma, truncate * sigma, self.bin_size)
         gaussian = np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
         gaussian /= np.sum(gaussian)
 
-        frate = sg.fftconvolve(self._frate, gaussian, mode="same")
+        spike_counts = sg.fftconvolve(self._spike_counts, gaussian, mode="same")
         # frate = gaussian_filter1d(self._frate, sigma=sigma, **kwargs)
-        return Mua(frate, self.t_start, self.bin_size)
+        return Mua(spike_counts, self.t_start, self.bin_size)
 
     # def _gaussian(self):
     #     # TODO fix gaussian smoothing binsize
@@ -350,14 +361,15 @@ class Mua(DataWriter):
 
     def to_dict(self):
         return {
-            "frate": self._frate,
+            "spike_counts": self._spike_counts,
             "t_start": self.t_start,
             "bin_size": self.bin_size,
+            "metadata": self.metadata,
         }
 
     @staticmethod
     def from_dict(d):
-        return Mua(d["frate"], d["t_start"], d["bin_size"])
+        return Mua(d["spike_counts"], d["t_start"], d["bin_size"], d["metadata"])
 
     def to_dataframe(self):
-        return pd.DataFrame({"time": self.time, "frate": self.frate})
+        return pd.DataFrame({"time": self.time, "spike_counts": self.spike_counts})

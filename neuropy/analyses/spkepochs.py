@@ -23,7 +23,7 @@ def detect_local_sleep_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
     """
 
     time = mua.time
-    frate = mua.frate
+    frate = mua.firing_rate
 
     # off periods
     off = np.diff(np.where(frate < np.median(frate), 1, 0))
@@ -87,7 +87,7 @@ def detect_pbe_epochs(
     min_dur = min_dur * 1000  # samp. rate of instfiring rate = 1000 (1ms bin size)
     merge_dur = merge_dur * 1000
     events = threshPeriods(
-        stats.zscore(mua.frate),
+        stats.zscore(mua.firing_rate),
         lowthresh=thresh[0],
         highthresh=thresh[1],
         minDuration=min_dur,
