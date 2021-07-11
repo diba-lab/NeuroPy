@@ -1,14 +1,7 @@
-from dataclasses import dataclass
-from pathlib import Path
-
-import ipywidgets as widgets
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.signal as sg
 import scipy.stats as stats
-
-from ..utils.mathutil import threshPeriods
+from ..utils import mathutil
 from .. import core
 
 
@@ -84,9 +77,10 @@ def detect_pbe_epochs(
         "max_dur": max_dur,
     }
 
-    min_dur = min_dur * 1000  # samp. rate of instfiring rate = 1000 (1ms bin size)
-    merge_dur = merge_dur * 1000
-    events = threshPeriods(
+    sampling_rate = 1 / mua.bin_size  # sampling rate of mua
+    min_dur = min_dur * sampling_rate
+    merge_dur = merge_dur * sampling_rate
+    events = mathutil.threshPeriods(
         stats.zscore(mua.firing_rate),
         lowthresh=thresh[0],
         highthresh=thresh[1],

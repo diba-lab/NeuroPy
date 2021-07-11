@@ -188,7 +188,7 @@ class Neurons(DataWriter):
         all_spikes = self.get_all_spikes()
         bins = np.arange(t_start, t_stop, bin_size)
         spike_counts = np.histogram(all_spikes, bins=bins)[0]
-        return Mua(spike_counts.astype("int"), t_start, bin_size)
+        return Mua(spike_counts.astype("int"), t_start=t_start, bin_size=bin_size)
 
     def add_jitter(self):
         pass
@@ -328,7 +328,7 @@ class Mua(DataWriter):
 
     @property
     def time(self):
-        return np.arange(self.t_start, self.t_stop + self.bin_size, self.bin_size)
+        return np.arange(self.n_bins) * self.bin_size + self.t_start
 
     @property
     def firing_rate(self):
@@ -341,7 +341,7 @@ class Mua(DataWriter):
 
         spike_counts = sg.fftconvolve(self._spike_counts, gaussian, mode="same")
         # frate = gaussian_filter1d(self._frate, sigma=sigma, **kwargs)
-        return Mua(spike_counts, self.t_start, self.bin_size)
+        return Mua(spike_counts, t_start=self.t_start, bin_size=self.bin_size)
 
     # def _gaussian(self):
     #     # TODO fix gaussian smoothing binsize
@@ -369,7 +369,12 @@ class Mua(DataWriter):
 
     @staticmethod
     def from_dict(d):
-        return Mua(d["spike_counts"], d["t_start"], d["bin_size"], d["metadata"])
+        return Mua(
+            spike_counts=d["spike_counts"],
+            t_start=d["t_start"],
+            bin_size=d["bin_size"],
+            metadata=d["metadata"],
+        )
 
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "spike_counts": self.spike_counts})

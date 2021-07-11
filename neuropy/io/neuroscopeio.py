@@ -93,8 +93,10 @@ class NeuroscopeIO:
             for frame in spk_frame:
                 f_res.write(f"{frame}\n")
 
-    def write_epochs(self):
-        pass
+    def write_epochs(self, ext=".epc"):
+        with self.source_file.with_suffix(f".evt.{ext}").open("w") as a:
+            for event in self.epochs.itertuples():
+                a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
 
     def write_position(self):
         pass
