@@ -50,20 +50,21 @@ class PhyIO:
         self.peak_channels = cluinfo["ch"].values
         self.shank_ids = cluinfo["sh"].values
 
-        spiketrains, template_waveforms = [], []
-        for clu in cluinfo.itertuples():
-            clu_spike_location = np.where(clu_ids == clu.id)[0]
-            spkframes = spktime[clu_spike_location]
-            cell_template_id, counts = np.unique(
-                spk_templates_id[clu_spike_location], return_counts=True
-            )
-            spiketrains.append(spkframes / self.sampling_rate)
-            template_waveforms.append(
-                spk_templates[cell_template_id[np.argmax(counts)]].squeeze().T
-            )
+        if not self.cluster_info.empty:
+            spiketrains, template_waveforms = [], []
+            for clu in cluinfo.itertuples():
+                clu_spike_location = np.where(clu_ids == clu.id)[0]
+                spkframes = spktime[clu_spike_location]
+                cell_template_id, counts = np.unique(
+                    spk_templates_id[clu_spike_location], return_counts=True
+                )
+                spiketrains.append(spkframes / self.sampling_rate)
+                template_waveforms.append(
+                    spk_templates[cell_template_id[np.argmax(counts)]].squeeze().T
+                )
 
-        self.spiketrains = np.array(spiketrains, dtype="object")
-        self.waveforms = np.array(template_waveforms)
-        self.peak_waveforms = [
-            wav[np.argmax(np.max(wav, axis=1))] for wav in template_waveforms
-        ]
+            self.spiketrains = np.array(spiketrains, dtype="object")
+            self.waveforms = np.array(template_waveforms)
+            self.peak_waveforms = [
+                wav[np.argmax(np.max(wav, axis=1))] for wav in template_waveforms
+            ]

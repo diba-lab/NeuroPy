@@ -93,8 +93,21 @@ class NeuroscopeIO:
             for frame in spk_frame:
                 f_res.write(f"{frame}\n")
 
-    def write_epochs(self):
-        pass
+    def write_epochs(self, ext=".epc"):
+        with self.source_file.with_suffix(f".evt.{ext}").open("w") as a:
+            for event in self.epochs.itertuples():
+                a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
 
     def write_position(self):
         pass
+
+    def to_dict(self):
+        return {
+            "source_file": self.source_file,
+            "channel_groups": self.channel_groups,
+            "skipped_channels": self.skipped_channels,
+            "discarded_channels": self.discarded_channels,
+            "n_channels": self.n_channels,
+            "dat_sampling_rate": self.dat_sampling_rate,
+            "eeg_sampling_rate": self.eeg_sampling_rate,
+        }

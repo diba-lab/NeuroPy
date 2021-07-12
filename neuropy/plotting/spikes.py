@@ -76,7 +76,7 @@ def plot_mua(mua: core.Mua, ax=None, **kwargs):
     if ax is None:
         fig, ax = plt.subplots()
 
-    ax.plot(mua.time, mua.frate, **kwargs)
+    ax.plot(mua.time, mua.spike_counts, **kwargs)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Spike counts")
 

@@ -1,18 +1,11 @@
-from dataclasses import dataclass
-from pathlib import Path
-
-import ipywidgets as widgets
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.signal as sg
 import scipy.stats as stats
-
-from ..utils.mathutil import threshPeriods
+from ..utils import mathutil
 from .. import core
 
 
-def detect_localsleep_epochs(self, period):
+def detect_local_sleep_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
     """Detects local OFF events in within period
 
     Parameters
@@ -22,17 +15,8 @@ def detect_localsleep_epochs(self, period):
 
     """
 
-    if period is None:
-        raise ValueError("please provide a valid time period")
-
-    assert len(period) == 2, "length of period should be 2"
-
-    instfiring = Spikes(self._obj).instfiring
-    instfiring = instfiring[
-        (instfiring.time > period[0]) & (instfiring.time < period[1])
-    ]
-    time = instfiring.time.to_numpy()
-    frate = instfiring.frate.to_numpy()
+    time = mua.time
+    frate = mua.firing_rate
 
     # off periods
     off = np.diff(np.where(frate < np.median(frate), 1, 0))
@@ -65,12 +49,8 @@ def detect_localsleep_epochs(self, period):
             "duration": duration / 1000,
         }
     )
-    params = {"period": period}
 
-    data = {"events": events, "params": params}
-
-    np.save(self.files.events, data)
-    self._load()
+    return core.Epoch(events)
 
 
 def detect_pbe_epochs(
@@ -97,11 +77,11 @@ def detect_pbe_epochs(
         "max_dur": max_dur,
     }
 
-    min_dur = min_dur * 1000  # samp. rate of instfiring rate = 1000 (1ms bin size)
-    merge_dur = merge_dur * 1000
-    mua = mua.frate
-    events = threshPeriods(
-        stats.zscore(mua.frate),
+    sampling_rate = 1 / mua.bin_size  # sampling rate of mua
+    min_dur = min_dur * sampling_rate
+    merge_dur = merge_dur * sampling_rate
+    events = mathutil.threshPeriods(
+        stats.zscore(mua.firing_rate),
         lowthresh=thresh[0],
         highthresh=thresh[1],
         minDuration=min_dur,

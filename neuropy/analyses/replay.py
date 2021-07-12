@@ -11,21 +11,59 @@ from sklearn.decomposition import PCA, FastICA
 
 from ..utils.mathutil import getICA_Assembly, parcorr_mult
 from ..parsePath import Recinfo
-from ..core import Neurons, DataWriter
+from .. import core
+import pingouin as pg
 
 
-class ExplainedVariance(DataWriter):
+class ExplainedVariance(core.DataWriter):
     colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
 
-    def __init__(self, neurons: Neurons, filename=None):
-        self._neurons = neurons
-        super().__init__(filename=filename)
+    def __init__(
+        self,
+        neurons: core.Neurons,
+        template,
+        matching,
+        control,
+        bin_size=0.250,
+        window=900,
+        slideby=None,
+        cross_shanks=True,
+        ignore_epochs: core.Epoch = None,
+    ):
+        super().__init__()
+        self.template = template
+        self.matching = matching
+        self.control = control
+        self.neurons = neurons
+        self.bin_size = bin_size
+        self.window = window
+        self.slideby = slideby
+        self.cross_shanks = cross_shanks
+        self.ignore_epochs = ignore_epochs
+
+    def calculate(self):
+        epochs = np.array((self.template, self.matching, self.control))
+        epochs = core.Epoch(
+            pd.DataFrame(
+                {
+                    "start": epochs[:, 0],
+                    "stop": epochs[:, 1],
+                    "label": ["template", "matching", "control"],
+                }
+            )
+        )
+
+        for del_epoch in self.ignore_epochs.to_dataframe().itertuples():
+            epochs = epochs.delete_in_between(t1=del_epoch.start, t2=del_epoch.stop)
+
+        for epoch in epochs.to_dataframe().itertuples():
+            spktrn = self.neurons.get_binned_spiketrains(
+                epoch.start, epoch.stop, self.bin_size
+            )
+            pair_corr = spktrn.get_pairwise_corr(cross_shanks=self.cross_shanks)
 
     def compute(
         self,
-        template,
-        match,
-        control,
         neuron_ids,
         binSize=0.250,
         window=900,
@@ -312,7 +350,7 @@ class ExplainedVariance(DataWriter):
 
 
 class CellAssembly:
-    def __init__(self, basepath, neurons: Neurons):
+    def __init__(self, basepath, neurons: core.Neurons):
 
         if isinstance(basepath, Recinfo):
             self._obj = basepath
