@@ -244,10 +244,14 @@ class ProbeGroup(DataWriter):
         shank_ids = self.shank_id
         channel_ids = self.channel_id
 
-        indx_location = np.concatenate(
-            list(map(lambda x: channel_ids[channel_ids == x]), channel_id)
+        # indx_location = np.concatenate(
+        #     list(map(lambda x: channel_ids[channel_ids == x], channel_id))
+        # )
+
+        # return shank_ids[indx_location.astype(int)]
+        return np.concatenate(
+            [shank_ids[np.where(channel_ids == _)[0]] for _ in channel_id]
         )
-        return shank_ids[indx_location]
 
     def get_probe(self):
         pass
