@@ -71,7 +71,9 @@ class Epoch(DataWriter):
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
 
     def time_slice(self, t_start, t_stop):
-        pass
+        df = self.to_dataframe()
+        df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
+        return Epoch(df)
 
     def label_slice(self, label):
         assert isinstance(label, str), "label must be string"

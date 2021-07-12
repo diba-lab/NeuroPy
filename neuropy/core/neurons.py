@@ -268,6 +268,8 @@ class BinnedSpiketrain(DataWriter):
 
     def get_pairwise_corr(self, cross_shanks=False, return_pair_id=False):
 
+        assert self.n_neurons > 1, "Should have more than 1 neuron"
+
         shank_ids = self.shank_ids
         corr = np.corrcoef(self.spike_counts)
 
