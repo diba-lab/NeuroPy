@@ -47,6 +47,14 @@ class Shank:
 
         return shank
 
+    @staticmethod
+    def from_library(probe_name):
+        pass
+
+    @staticmethod
+    def set_contacts(positions, channel_ids):
+        pass
+
     @property
     def x(self):
         return self._x

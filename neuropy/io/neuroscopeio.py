@@ -100,3 +100,14 @@ class NeuroscopeIO:
 
     def write_position(self):
         pass
+
+    def to_dict(self):
+        return {
+            "source_file": self.source_file,
+            "channel_groups": self.channel_groups,
+            "skipped_channels": self.skipped_channels,
+            "discarded_channels": self.discarded_channels,
+            "n_channels": self.n_channels,
+            "dat_sampling_rate": self.dat_sampling_rate,
+            "eeg_sampling_rate": self.eeg_sampling_rate,
+        }
