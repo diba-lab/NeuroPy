@@ -84,7 +84,6 @@ class Position(DataWriter):
             "y": self.y[1:],
             "z": self.z[1:],
             "sampling_rate": self._sampling_rate,
-            "filename": self.filename,
         }
         return data
 
@@ -95,9 +94,8 @@ class Position(DataWriter):
         y = d["y"]
         z = d["z"]
         sampling_rate = d["sampling_rate"]
-        filename = d["filename"]
 
-        return Position(time, x, y, z, sampling_rate, filename)
+        return Position(time, x, y, z, sampling_rate)
 
     @property
     def speed(self):
