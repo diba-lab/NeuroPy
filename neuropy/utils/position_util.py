@@ -26,24 +26,24 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap"):
     xpos = position.x
     ypos = position.y
 
-    position = np.vstack((xpos, ypos)).T
+    xy_pos = np.vstack((xpos, ypos)).T
     xlinear = None
     if method == "pca":
         pca = PCA(n_components=1)
-        xlinear = pca.fit_transform(position).squeeze()
+        xlinear = pca.fit_transform(xy_pos).squeeze()
     elif method == "isomap":
         imap = Isomap(n_neighbors=5, n_components=2)
         # downsample points to reduce memory load and time
-        pos_ds = position[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
+        pos_ds = xy_pos[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
         imap.fit(pos_ds)
-        iso_pos = imap.transform(position)
+        iso_pos = imap.transform(xy_pos)
         # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
         if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
             iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
         xlinear = iso_pos[:, 0]
 
     return core.Position(
-        time=position.time, x=xlinear, sampling_rate=position.sampling_rate
+        traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
     )
 
 
