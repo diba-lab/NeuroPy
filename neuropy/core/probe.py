@@ -311,7 +311,6 @@ class ProbeGroup(DataWriter):
     def to_dict(self):
         return {
             "data": self._data,
-            "filename": self.filename,
             "metadata": self.metadata,
         }
 
@@ -320,7 +319,6 @@ class ProbeGroup(DataWriter):
         prbgrp = ProbeGroup()
         prbgrp._data = d["data"]
         prbgrp.metadata = d["metadata"]
-        prbgrp.filename = d["filename"]
         return prbgrp
 
     @staticmethod

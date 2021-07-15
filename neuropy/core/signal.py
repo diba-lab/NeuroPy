@@ -14,6 +14,8 @@ class Signal:
         self._sampling_rate = int(sampling_rate)
         if channel_id is None:
             self.channel_id = np.arange(self.n_channels)
+        else:
+            self.channel_id = channel_id
 
     @property
     def t_stop(self):
@@ -43,7 +45,7 @@ class Signal:
     def time(self):
         return np.linspace(self.t_start, self.t_stop, self.n_frames)
 
-    def time_slice(self, channel_id, t_start=None, t_stop=None):
+    def time_slice(self, channel_id=None, t_start=None, t_stop=None):
         # TODO fix channel_index vs channel_id confusion
         if isinstance(channel_id, int):
             channel_id = [channel_id]
@@ -62,4 +64,4 @@ class Signal:
         else:
             traces = self.traces[channel_id, frame_start:frame_stop]
 
-        return traces
+        return Signal(traces, self.sampling_rate, t_start, channel_id)

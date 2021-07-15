@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 from ..utils import position_util, mathutil
 from pathlib import Path
+from ..core import Position
 
 
 def getSampleRate(fileName):
@@ -313,10 +314,91 @@ def get_sync_info(_sync_file):
 class OptitrackIO:
     def __init__(self, dirname, scale_factor=1.0) -> None:
         self.dirname = dirname
+        self.scale_factor = scale_factor
         self.datetime = None
         self.time = None
+        self._parse_folder()
 
-    def _parse_files(self, method="from_metadata", scale=1.0):
+    def _parse_folder(self):
+        """get position data from files. All position related files should be in 'position' folder within basepath
+
+        Parameters
+        ----------
+        method : str, optional
+            method to grab file start times: "from_metadata" (default) grabs from metadata.csv file,
+                                             "from_files" grabs from timestamps.npy files in open-ephys folders
+        scale : float, optional
+            scale the extracted coordinates, by default 1.0
+        """
+
+        sampling_rate = getSampleRate(sorted((self.dirname).glob("*.csv"))[0])
+
+        # ------- collecting timepoints related to position tracking ------
+        posfiles = np.asarray(sorted(self.dirname.glob("*.csv")))
+        posfilestimes = np.asarray(
+            [
+                datetime.strptime(file.stem, "Take %Y-%m-%d %I.%M.%S %p")
+                for file in posfiles
+            ]
+        )
+        filesort_ind = np.argsort(posfilestimes).astype(int)
+        posfiles = posfiles[filesort_ind]
+
+        postime, posx, posy, posz = [], [], [], []
+        datetime_starts, datetime_stops, datetime_nframes = [], [], []
+
+        for file in posfiles:
+            print(file)
+            tbegin = getStartTime(file)
+
+            if file.with_suffix(".fbx").is_file():
+                # Get time ranges for position files
+                nframes_pos = getnframes(file)
+                duration = pd.Timedelta(nframes_pos / sampling_rate, unit="sec")
+                tend = tbegin + duration
+                trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
+
+                x, y, z = posfromFBX(file.with_suffix(".fbx"))
+
+                postime.extend(trange)
+
+            else:
+                x, y, z, trelative = posfromCSV(file)
+                # Make sure you arent't just importing the header, if so engage except
+                assert len(x) > 0
+                trange = tbegin + pd.to_timedelta(trelative, unit="s")
+                postime.extend(trange)
+
+            datetime_starts.append(tbegin)
+            datetime_stops.append(tend)
+            datetime_nframes.append(nframes_pos)
+            posx.extend(x)
+            posy.extend(y)
+            posz.extend(z)
+
+        postime = pd.to_datetime(postime[: len(posx)])
+        posx = np.asarray(posx)
+        posy = np.asarray(posy)
+        posz = np.asarray(posz)
+
+        self.x = posx * self.scale_factor
+        self.y = posy * self.scale_factor
+        self.z = posz * self.scale_factor
+        self.datetime_array = postime
+        self.datetime_starts = datetime_starts
+        self.datetime_stops = datetime_stops
+        self.datetime_nframes = datetime_nframes
+        self.sampling_rate = sampling_rate
+
+    def get_position_at_datetimes(self, dt):
+
+        x = np.interp(dt, self.datetime_array, self.x)
+        y = np.interp(dt, self.datetime_array, self.y)
+        z = np.interp(dt, self.datetime_array, self.z)
+
+        return x, y, z
+
+    def old_stuff(self):
         """get position data from files. All position related files should be in 'position' folder within basepath
 
         Parameters
@@ -355,9 +437,7 @@ class OptitrackIO:
 
         # grab timestamps directly from timestamps.npy files. Assumes you have preserved the OE file structure.
         elif method == "from_files":
-            times_all = position_util.timestamps_from_oe(
-                basePath, data_type="continuous"
-            )
+            times_all = timestamps_from_oe(basePath, data_type="continuous")
             for i, times in enumerate(times_all):
                 tbegin, tend = times[0], times[-1]
                 duration = tend - tbegin
@@ -434,6 +514,7 @@ class OptitrackIO:
         xdata = np.interp(data_time, postime, posx) * scale
         ydata = np.interp(data_time, postime, posy) * scale
         zdata = np.interp(data_time, postime, posz) * scale
+
         time = np.linspace(0, len(xdata) / tracking_sRate, len(xdata))
         posVar = {
             "x": xdata,
