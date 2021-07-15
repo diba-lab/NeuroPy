@@ -3,71 +3,81 @@ from ..utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
+from .signal import Signal
 from .datawriter import DataWriter
 
 
 class Position(DataWriter):
     def __init__(
-        self, time, x, y=None, z=None, sampling_rate=120, filename=None
+        self,
+        traces: np.ndarray,
+        t_start=0,
+        sampling_rate=120,
+        metadata=None,
+        filename=None,
     ) -> None:
 
-        self._time = time
-        self._x = x
-        self._y = y
-        self._z = z
+        if traces.ndim == 1:
+            traces = traces.reshape(1, -1)
+
+        assert traces.shape[0] <= 3, "Maximum dimension of position is 3"
+        self.traces = traces
+        self._t_start = t_start
         self._sampling_rate = sampling_rate
-        super().__init__(filename=filename)
+        self.metadata = metadata
+        DataWriter.__init__(filename=filename)
 
     @property
     def x(self):
-        return self._x
+        return self.traces[0]
 
     @x.setter
     def x(self, x):
-        self._x = x
+        self.traces[0] = x
 
     @property
     def y(self):
-        return self._y
+        return self.traces[1]
 
     @y.setter
     def y(self, y):
-        self._y = y
+        self.traces[1] = y
 
     @property
     def z(self):
-        return self._z
+        return self.traces[2]
 
     @z.setter
     def z(self, z):
-        self._z = z
-
-    @property
-    def time(self):
-        return self._time
-
-    @time.setter
-    def time(self, time):
-        self._time = time
+        self.traces[2] = z
 
     @property
     def t_start(self):
-        return np.min(self.time)
+        return self._t_start
+
+    @t_start.setter
+    def t_start(self, t):
+        self._t_start = t
+
+    @property
+    def n_frames(self):
+        return self.traces.shape[1]
+
+    @property
+    def duration(self):
+        return self.n_frames / self.sampling_rate
 
     @property
     def t_stop(self):
-        return np.max(self.time)
+        return self.t_start + self.duration
+
+    @property
+    def time(self):
+        return np.linspace(self.t_start, self.t_stop, self.n_frames)
 
     @property
     def ndim(self):
-        ndim = 1
-
-        if self._y is not None:
-            ndim += 1
-        if self._z is not None:
-            ndim += 1
-
-        return ndim
+        return self.traces.shape[0]
 
     @property
     def sampling_rate(self):
@@ -80,22 +90,21 @@ class Position(DataWriter):
     def to_dict(self):
         data = {
             "time": self.time[1:],
-            "x": self.x[1:],
-            "y": self.y[1:],
-            "z": self.z[1:],
+            "traces": self.traces,
             "sampling_rate": self._sampling_rate,
+            "metadata": self.metadata,
         }
         return data
 
     @staticmethod
     def from_dict(d):
         time = d["time"]
-        x = d["x"]
-        y = d["y"]
-        z = d["z"]
+        traces = d["traces"]
         sampling_rate = d["sampling_rate"]
-
-        return Position(time, x, y, z, sampling_rate)
+        metadata = d["metadata"]
+        return Position(
+            time, traces=traces, sampling_rate=sampling_rate, metadata=metadata
+        )
 
     @property
     def speed(self):
@@ -111,4 +120,16 @@ class Position(DataWriter):
         pass
 
     def time_slice(self, t_start, t_stop):
-        pass
+        if t_start is None:
+            t_start = self.t_start
+
+        if t_stop is None:
+            t_stop = self.t_stop
+
+        indices = (self.time > t_start) & (self.time < t_stop)
+
+        return Position(
+            self.time[indices],
+            traces=self.traces[:, indices],
+            sampling_rate=self.sampling_rate,
+        )
