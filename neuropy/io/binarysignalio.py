@@ -26,10 +26,10 @@ class BinarysignalIO:
     def n_frames(self):
         return self._raw_traces.shape[1]
 
-    def get_signal(self, channel_id=None, t_start=None, t_stop=None):
+    def get_signal(self, channel_indx=None, t_start=None, t_stop=None):
 
-        if isinstance(channel_id, int):
-            channel_id = [channel_id]
+        if isinstance(channel_indx, int):
+            channel_indx = [channel_indx]
 
         if t_start is None:
             t_start = 0.0
@@ -40,9 +40,9 @@ class BinarysignalIO:
         frame_start = int(t_start * self.sampling_rate)
         frame_stop = int(t_stop * self.sampling_rate)
 
-        if channel_id is None:
+        if channel_indx is None:
             sig = self._raw_traces[:, frame_start:frame_stop]
         else:
-            sig = self._raw_traces[channel_id, frame_start:frame_stop]
+            sig = self._raw_traces[channel_indx, frame_start:frame_stop]
 
-        return Signal(sig, self.sampling_rate, t_start)
+        return Signal(sig, self.sampling_rate, t_start, channel_id=channel_indx)
