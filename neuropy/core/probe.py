@@ -182,10 +182,18 @@ class Probe:
     def connected(self):
         return self._data["connected"].values
 
-    def add_shank(self, shank: Shank):
-        shank_df = shank.to_dataframe()
-        shank_df["shank_id"] = (self.n_shanks - 1) * np.ones(shank.n_contacts)
-        self._data = self._data.append(shank_df)
+    def add_shanks(self, shanks: Shank, shank_pitch=(150, 0)):
+
+        if isinstance(shanks, list):
+            assert np.all([_.__class__.__name__ == "Shank" for _ in shanks])
+        else:
+            assert isinstance(shanks, Shank)
+            shanks = [shanks]
+
+        for shank in shanks:
+            shank_df = shank.to_dataframe()
+            shank_df["shank_id"] = (self.n_shanks - 1) * np.ones(shank.n_contacts)
+            self._data = self._data.append(shank_df)
 
     def to_dict(self):
         return self._data.to_dict()
@@ -221,8 +229,24 @@ class ProbeGroup(DataWriter):
         return self._data["x"].values
 
     @property
+    def x_min(self):
+        return np.min(self.x)
+
+    @property
+    def x_max(self):
+        return np.max(self.x)
+
+    @property
     def y(self):
         return self._data["y"].values
+
+    @property
+    def y_min(self):
+        return np.min(self.y)
+
+    @property
+    def y_max(self):
+        return np.max(self.y)
 
     @property
     def n_contacts(self):
