@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from .. import core
@@ -12,9 +13,12 @@ def estimate_neuron_type(neurons: core.Neurons):
     ---------
     Csicsvari, J., Hirase, H., Czurko, A., & Buzsáki, G. (1998). Reliability and state dependence of pyramidal cell–interneuron synapses in the hippocampus: an ensemble approach in the behaving rat. Neuron, 21(1), 179-189.
     """
+
+    n_neurons = neurons.n_neurons
+    neuron_type = np.ones(n_neurons, dtype="U5")
     spikes = neurons.spiketrains
     sampling_rate = neurons.sampling_rate
-    ccgs = calculate_neurons_acg(spikes=spikes, bin_size=0.001, window_size=0.05)
+    ccgs = calculate_neurons_acg(neurons, bin_size=0.001, window_size=0.05)
     ccg_width = ccgs.shape[-1]
     ccg_center_ind = int(ccg_width / 2)
 
@@ -27,10 +31,11 @@ def estimate_neuron_type(neurons: core.Neurons):
     frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
 
     # ------ calculate peak ratio of waveform ----------
-    templates = neurons.waveforms
-    waveform = np.asarray(
-        [cell[np.argmax(np.ptp(cell, axis=1)), :] for cell in templates]
-    )
+    waveform = neurons.waveforms
+    # waveform = np.asarray(
+    #     [cell[np.argmax(np.ptp(cell, axis=1)), :] for cell in templates]
+    # )
+
     n_t = waveform.shape[1]  # waveform width
     center = np.int(n_t / 2)
     wave_window = int(0.25 * (sampling_rate / 1000))
@@ -53,7 +58,7 @@ def estimate_neuron_type(neurons: core.Neurons):
     mua_cells = np.where(ref_period_ratio < 400)[0]
     good_cells = np.where(ref_period_ratio >= 400)[0]
 
-    self.info.loc[mua_cells, "celltype"] = "mua"
+    neuron_type[mua_cells] = "mua"
 
     param1 = frate[good_cells]
     param2 = mean_isi[good_cells]
@@ -67,8 +72,8 @@ def estimate_neuron_type(neurons: core.Neurons):
     interneuron_label = np.argmax(kmeans.cluster_centers_[:, 0])
     intneur_id = np.where(y_means == interneuron_label)[0]
     pyr_id = np.where(y_means != interneuron_label)[0]
-    self.info.loc[good_cells[intneur_id], "celltype"] = "intneur"
-    self.info.loc[good_cells[pyr_id], "celltype"] = "pyr"
+    neuron_type[good_cells[intneur_id]] = "inter"
+    neuron_type[good_cells[pyr_id]] = "pyr"
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
@@ -76,7 +81,7 @@ def estimate_neuron_type(neurons: core.Neurons):
         frate[mua_cells],
         mean_isi[mua_cells],
         diff_auc[mua_cells],
-        c=self.colors["mua"],
+        c="#bcb8b8",
         s=50,
         label="mua",
     )
@@ -85,7 +90,7 @@ def estimate_neuron_type(neurons: core.Neurons):
         param1[pyr_id],
         param2[pyr_id],
         param3[pyr_id],
-        c=self.colors["pyr"],
+        c="#222020",
         s=50,
         label="pyr",
     )
@@ -94,7 +99,7 @@ def estimate_neuron_type(neurons: core.Neurons):
         param1[intneur_id],
         param2[intneur_id],
         param3[intneur_id],
-        c=self.colors["intneur"],
+        c="#5da42d",
         s=50,
         label="int",
     )
@@ -103,12 +108,11 @@ def estimate_neuron_type(neurons: core.Neurons):
     ax.set_ylabel("Mean isi (ms)")
     ax.set_zlabel("Difference of \narea under shoulders")
 
-    data = np.load(self.files.spikes, allow_pickle=True).item()
-    data["info"] = self.info
+    return neuron_type
 
 
 def calculate_neurons_acg(
-    self, spikes=None, bin_size=0.001, window_size=0.05
+    neurons: core.Neurons, bin_size=0.001, window_size=0.05
 ) -> np.ndarray:
     """Get autocorrelogram
 
@@ -122,9 +126,7 @@ def calculate_neurons_acg(
         [description], by default 0.05
     """
 
-    if isinstance(spikes, np.ndarray):
-        spikes = [spikes]
-    nCells = len(spikes)
+    spikes = neurons.spiketrains
 
     correlo = []
     for cell in spikes:
@@ -132,7 +134,7 @@ def calculate_neurons_acg(
         acg = correlograms(
             cell,
             cell_id,
-            sample_rate=self._obj.sampfreq,
+            sample_rate=neurons.sampling_rate,
             bin_size=bin_size,
             window_size=window_size,
         ).squeeze()
