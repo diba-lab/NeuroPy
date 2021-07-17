@@ -98,8 +98,18 @@ class NeuroscopeIO:
             for event in self.epochs.itertuples():
                 a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
 
-    def write_position(self):
-        pass
+    def write_position(self, position: core.Position):
+        # neuroscope only displays positive values so translating the coordinates
+        x, y = position.x, position.y
+        x = self.x + abs(min(self.x))
+        y = self.y + abs(min(self.y))
+        print(max(x))
+        print(max(y))
+
+        filename = self._obj.files.filePrefix.with_suffix(".pos")
+        with filename.open("w") as f:
+            for xpos, ypos in zip(x, y):
+                f.write(f"{xpos} {ypos}\n")
 
     def to_dict(self):
         return {
