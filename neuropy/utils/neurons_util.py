@@ -55,14 +55,14 @@ def estimate_neuron_type(neurons: core.Neurons):
     isi_hist = np.asarray([np.histogram(_, bins=isi_bin)[0] for _ in isi])
     n_spikes_ref = np.sum(isi_hist[:, :2], axis=1) + 1e-16
     ref_period_ratio = (np.max(isi_hist, axis=1) / n_spikes_ref) * 100
-    mua_cells = np.where(ref_period_ratio < 400)[0]
-    good_cells = np.where(ref_period_ratio >= 400)[0]
+    mua_id = np.where(ref_period_ratio < 400)[0]
+    # good_cells = np.where(ref_period_ratio >= 400)[0]
 
-    neuron_type[mua_cells] = "mua"
+    neuron_type[mua_id] = "mua"
 
-    param1 = frate[good_cells]
-    param2 = mean_isi[good_cells]
-    param3 = diff_auc[good_cells]
+    param1 = frate
+    param2 = mean_isi
+    param3 = diff_auc
 
     features = np.vstack((param1, param2, param3)).T
     features = StandardScaler().fit_transform(features)
@@ -72,15 +72,18 @@ def estimate_neuron_type(neurons: core.Neurons):
     interneuron_label = np.argmax(kmeans.cluster_centers_[:, 0])
     intneur_id = np.where(y_means == interneuron_label)[0]
     pyr_id = np.where(y_means != interneuron_label)[0]
-    neuron_type[good_cells[intneur_id]] = "inter"
-    neuron_type[good_cells[pyr_id]] = "pyr"
+
+    intneur_id = np.setdiff1d(intneur_id, mua_id)
+    pyr_id = np.setdiff1d(pyr_id, mua_id)
+    neuron_type[intneur_id] = "inter"
+    neuron_type[pyr_id] = "pyr"
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     ax.scatter(
-        frate[mua_cells],
-        mean_isi[mua_cells],
-        diff_auc[mua_cells],
+        param1[mua_id],
+        param2[mua_id],
+        param3[mua_id],
         c="#bcb8b8",
         s=50,
         label="mua",
@@ -112,7 +115,10 @@ def estimate_neuron_type(neurons: core.Neurons):
 
 
 def calculate_neurons_acg(
-    neurons: core.Neurons, bin_size=0.001, window_size=0.05
+    neurons: core.Neurons,
+    bin_size=0.001,
+    window_size=0.05,
+    plot=True,
 ) -> np.ndarray:
     """Get autocorrelogram
 
