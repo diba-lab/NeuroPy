@@ -26,6 +26,8 @@ class Neurons(DataWriter):
         self.spiketrains = spiketrains
         if neuron_ids is None:
             self.neuron_ids = np.arange(len(self.spiketrains))
+        else:
+            self.neuron_ids = neuron_ids
 
         if waveforms is not None:
             assert (
@@ -42,6 +44,41 @@ class Neurons(DataWriter):
         self.t_stop = t_stop
         self.metadata: dict = metadata
 
+    def __getitem__(self, i):
+        # copy object
+        spiketrains = self.spiketrains[i]
+        if self.neuron_type is not None:
+            neuron_type = self.neuron_type[i]
+        else:
+            neuron_type = self.neuron_type
+
+        if self.waveforms is not None:
+            waveforms = self.waveforms[i]
+        else:
+            waveforms = self.waveforms
+
+        if self.peak_channels is not None:
+            peak_channels = self.peak_channels[i]
+        else:
+            peak_channels = self.peak_channels
+
+        if self.shank_ids is not None:
+            shank_ids = self.shank_ids[i]
+        else:
+            shank_ids = self.shank_ids
+
+        return Neurons(
+            spiketrains=spiketrains,
+            t_start=self.t_start,
+            t_stop=self.t_stop,
+            sampling_rate=self.sampling_rate,
+            neuron_ids=self.neuron_ids[i],
+            neuron_type=neuron_type,
+            waveforms=waveforms,
+            peak_channels=peak_channels,
+            shank_ids=shank_ids,
+        )
+
     @property
     def sampling_rate(self):
         return self._sampling_rate
@@ -57,8 +94,9 @@ class Neurons(DataWriter):
     def time_slice(self):
         pass
 
-    def neuron_slice(self, ids):
-        pass
+    def get_neuron_type(self, neuron_type):
+        indices = self.neuron_type == neuron_type
+        return self[indices]
 
     def _check_integrity(self):
         assert isinstance(self.spiketrains, np.ndarray)

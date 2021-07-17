@@ -81,14 +81,6 @@ def plot_mua(mua: core.Mua, ax=None, **kwargs):
     ax.set_ylabel("Spike counts")
 
 
-def plot_placefields():
-    pass
-
-
-def plot_spectrogram():
-    pass
-
-
 def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
 
     """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.

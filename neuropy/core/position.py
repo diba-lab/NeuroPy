@@ -20,7 +20,7 @@ class Position(DataWriter):
         if traces.ndim == 1:
             traces = traces.reshape(1, -1)
 
-        assert traces.shape[0] <= 3, "Maximum dimension of position is 3"
+        assert traces.shape[0] <= 3, "Maximum possible dimension of position is 3"
         self.traces = traces
         self._t_start = t_start
         self._sampling_rate = sampling_rate
@@ -42,12 +42,12 @@ class Position(DataWriter):
 
     @y.setter
     def y(self, y):
-        assert self.ndim > 1, "No y for one-dimensional position"
+        assert self.ndim > 1, "Position data has only one dimension"
         self.traces[1] = y
 
     @property
     def z(self):
-        assert self.ndim > 2, "No z for two-dimensional position"
+        assert self.ndim == 3, "Position data is not three-dimensional"
         return self.traces[2]
 
     @z.setter
