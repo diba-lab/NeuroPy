@@ -254,6 +254,10 @@ class BinnedSpiketrain(DataWriter):
 
         self.metadata = metadata
 
+    @staticmethod
+    def from_neurons(neurons: Neurons, t_start=None, t_stop=None, bin_size=0.25):
+        pass
+
     @property
     def spike_counts(self):
         return self._spike_counts
