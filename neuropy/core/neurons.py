@@ -184,13 +184,30 @@ class Neurons(DataWriter):
         return self.n_spikes(t_start, t_stop) / (t_stop - t_start)
 
     def get_binned_spiketrains(self, t_start=None, t_stop=None, bin_size=0.25):
+
+        """Get binned spike counts within a period
+
+        Parameters
+        ----------
+        t_start : [type]
+            start time of binned spiketrains
+        t_stop : [type]
+            stop time of binned spiketrains
+        bin_size : float, optional
+            bin size in seconds, by default 0.25
+
+        Returns
+        -------
+        neuropy.core.BinnedSpiketrains
+
+        """
+
         if t_start is None:
             t_start = self.t_start
 
         if t_stop is None:
             t_stop = self.t_stop
 
-        """Get binned spike counts within a period for the given cells"""
         bins = np.arange(t_start, t_stop + bin_size, bin_size)
         spike_counts = np.asarray(
             [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
@@ -222,6 +239,7 @@ class Neurons(DataWriter):
         [type]
             [description]
         """
+
         t_start, t_stop = self._time_check(t_start, t_stop)
         all_spikes = self.get_all_spikes()
         bins = np.arange(t_start, t_stop, bin_size)
@@ -309,6 +327,20 @@ class BinnedSpiketrain(DataWriter):
         )
 
     def get_pairwise_corr(self, cross_shanks=False, return_pair_id=False):
+        """Pairwise correlation between pairs of binned of spiketrains
+
+        Parameters
+        ----------
+        cross_shanks : bool, optional
+            If cross_shanks is true then only pairs from different shanks are returned, by default False
+        return_pair_id : bool, optional
+            If true pair_ids are returned, by default False
+
+        Returns
+        -------
+        corr
+            1d vector of pairwise correlations
+        """
 
         assert self.n_neurons > 1, "Should have more than 1 neuron"
 
@@ -317,6 +349,7 @@ class BinnedSpiketrain(DataWriter):
 
         selected_pairs = np.tril_indices(self.n_neurons, k=-1)
         if cross_shanks:
+            assert shank_ids is not None, "shank_ids don't exist"
             selected_pairs = np.nonzero(
                 np.tril(shank_ids.reshape(-1, 1) - shank_ids.reshape(1, -1))
             )
