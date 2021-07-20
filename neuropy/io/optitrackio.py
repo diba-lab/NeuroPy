@@ -384,8 +384,10 @@ class OptitrackIO:
                 x, y, z, trelative = posfromCSV(file)
                 # Make sure you arent't just importing the header, if so engage except
                 assert len(x) > 0
+                nframes_pos = len(x)
                 trange = tbegin + pd.to_timedelta(trelative, unit="s")
                 postime.extend(trange)
+                tend = trange[-1]
 
             datetime_starts.append(tbegin)
             datetime_stops.append(tend)
