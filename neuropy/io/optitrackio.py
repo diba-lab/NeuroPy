@@ -46,6 +46,24 @@ def getnframes(fileName):
     return int(nframes_export)
 
 
+def getnframes_fbx(fileName):
+    fileName = str(fileName)
+
+    with open(fileName) as f:
+        next(f)
+        for i, line in enumerate(f):
+
+            m = "".join(line)
+
+            if "KeyCount" in m:
+                # print("break at i = " + str(i))
+                # line_frame = linecache.getline(fileName, i + 2).strip().split(" ")
+
+                break
+
+    return int(m.strip().split(":")[1].strip())
+
+
 def getunits(fileName):
     """determine if position data is in centimeters or meters"""
     toprow = pd.read_csv(fileName, nrows=1, header=None)
@@ -353,21 +371,23 @@ class OptitrackIO:
 
             if file.with_suffix(".fbx").is_file():
                 # Get time ranges for position files
-                nframes_pos = getnframes(file)
+                nframes_pos = getnframes_fbx(file.with_suffix(".fbx"))
                 duration = pd.Timedelta(nframes_pos / sampling_rate, unit="sec")
                 tend = tbegin + duration
                 trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
 
                 x, y, z = posfromFBX(file.with_suffix(".fbx"))
-
+                assert len(x) == nframes_pos
                 postime.extend(trange)
 
             else:
                 x, y, z, trelative = posfromCSV(file)
                 # Make sure you arent't just importing the header, if so engage except
                 assert len(x) > 0
+                nframes_pos = len(x)
                 trange = tbegin + pd.to_timedelta(trelative, unit="s")
                 postime.extend(trange)
+                tend = trange[-1]
 
             datetime_starts.append(tbegin)
             datetime_stops.append(tend)
@@ -376,10 +396,12 @@ class OptitrackIO:
             posy.extend(y)
             posz.extend(z)
 
-        postime = pd.to_datetime(postime[: len(posx)])
+        postime = pd.to_datetime(postime)
         posx = np.asarray(posx)
         posy = np.asarray(posy)
         posz = np.asarray(posz)
+
+        assert len(postime) == len(posx)
 
         self.x = posx * self.scale_factor
         self.y = posy * self.scale_factor
@@ -411,9 +433,7 @@ class OptitrackIO:
         """
         sRate = self._obj.sampfreq  # .dat file sampling frequency
         basePath = Path(self._obj.basePath)
-        metadata = self._obj.loadmetadata()
-
-        nfiles = metadata.count()["StartTime"]
+        metadata = self._obj.loadmetadata
 
         # ------- collecting timepoints related to .dat file  --------
         data_time = []

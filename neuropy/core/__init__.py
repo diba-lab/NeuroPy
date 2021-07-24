@@ -5,5 +5,4 @@ from .neurons import Neurons, BinnedSpiketrain, Mua
 from .probe import Shank, Probe, ProbeGroup
 from .signal import Signal
 from .ratemap import Ratemap
-
-# from .animal import Animal
+from .animal import Animal

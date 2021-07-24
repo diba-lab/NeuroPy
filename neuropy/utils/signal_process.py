@@ -10,7 +10,7 @@ from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
 
-from ..plotUtil import Fig
+from ..plotting import Fig
 
 
 class filter_sig:

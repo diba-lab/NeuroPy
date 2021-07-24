@@ -4,114 +4,118 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from .. import core
 from .ccg import correlograms
+from typing import List, Union
 
 
-def estimate_neuron_type(neurons: core.Neurons):
+def estimate_neuron_type(neurons: Union[core.Neurons, List[core.Neurons]]):
     """Auto label cell type using firing rate, burstiness and waveform shape followed by kmeans clustering.
 
     Reference
     ---------
     Csicsvari, J., Hirase, H., Czurko, A., & Buzsáki, G. (1998). Reliability and state dependence of pyramidal cell–interneuron synapses in the hippocampus: an ensemble approach in the behaving rat. Neuron, 21(1), 179-189.
     """
+    if isinstance(neurons, core.Neurons):
+        print("It is advisable to use this estimation across multiple neurons object")
+        all_neurons = [neurons]
+    else:
+        assert isinstance(neurons, list), "input can either be list or neurons"
+        all_neurons = neurons
 
-    n_neurons = neurons.n_neurons
-    neuron_type = np.ones(n_neurons, dtype="U5")
-    spikes = neurons.spiketrains
-    sampling_rate = neurons.sampling_rate
-    ccgs = calculate_neurons_acg(neurons, bin_size=0.001, window_size=0.05)
-    ccg_width = ccgs.shape[-1]
-    ccg_center_ind = int(ccg_width / 2)
+    features, ref_period_ratios, n_neurons = [], [], []
+    for neurons in all_neurons:
+        n_neurons.append(neurons.n_neurons)
+        spikes = neurons.spiketrains
+        sampling_rate = neurons.sampling_rate
+        ccgs = calculate_neurons_acg(neurons, bin_size=0.001, window_size=0.05)
+        ccg_width = ccgs.shape[-1]
+        ccg_center_ind = int(ccg_width / 2)
 
-    # -- calculate burstiness (mean duration of right ccg)------
-    ccg_right = ccgs[:, ccg_center_ind + 1 :]
-    t_ccg_right = np.arange(ccg_right.shape[1])  # timepoints
-    mean_isi = np.sum(ccg_right * t_ccg_right, axis=1) / np.sum(ccg_right, axis=1)
+        # -- calculate burstiness (mean duration of right ccg)------
+        ccg_right = ccgs[:, ccg_center_ind + 1 :]
+        t_ccg_right = np.arange(ccg_right.shape[1])  # timepoints
+        mean_isi = np.sum(ccg_right * t_ccg_right, axis=1) / np.sum(ccg_right, axis=1)
 
-    # --- calculate frate ------------
-    frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
+        # --- calculate frate ------------
+        frate = np.asarray([len(cell) / np.ptp(cell) for cell in spikes])
 
-    # ------ calculate peak ratio of waveform ----------
-    waveform = neurons.waveforms
-    # waveform = np.asarray(
-    #     [cell[np.argmax(np.ptp(cell, axis=1)), :] for cell in templates]
-    # )
+        # ------ calculate peak ratio of waveform ----------
+        waveform = neurons.waveforms
+        # waveform = np.asarray(
+        #     [cell[np.argmax(np.ptp(cell, axis=1)), :] for cell in templates]
+        # )
 
-    n_t = waveform.shape[1]  # waveform width
-    center = np.int(n_t / 2)
-    wave_window = int(0.25 * (sampling_rate / 1000))
-    from_peak = int(0.18 * (sampling_rate / 1000))
-    left_peak = np.trapz(
-        waveform[:, center - from_peak - wave_window : center - from_peak], axis=1
-    )
-    right_peak = np.trapz(
-        waveform[:, center + from_peak : center + from_peak + wave_window], axis=1
-    )
+        n_t = waveform.shape[1]  # waveform width
+        center = np.int(n_t / 2)
+        wave_window = int(0.25 * (sampling_rate / 1000))
+        from_peak = int(0.18 * (sampling_rate / 1000))
+        left_peak = np.trapz(
+            waveform[:, center - from_peak - wave_window : center - from_peak], axis=1
+        )
+        right_peak = np.trapz(
+            waveform[:, center + from_peak : center + from_peak + wave_window], axis=1
+        )
 
-    diff_auc = left_peak - right_peak
+        diff_auc = left_peak - right_peak
 
-    # ---- refractory contamination ----------
-    isi = [np.diff(_) for _ in spikes]
-    isi_bin = np.arange(0, 0.1, 0.001)
-    isi_hist = np.asarray([np.histogram(_, bins=isi_bin)[0] for _ in isi])
-    n_spikes_ref = np.sum(isi_hist[:, :2], axis=1) + 1e-16
-    ref_period_ratio = (np.max(isi_hist, axis=1) / n_spikes_ref) * 100
-    mua_id = np.where(ref_period_ratio < 400)[0]
-    # good_cells = np.where(ref_period_ratio >= 400)[0]
+        # ---- refractory contamination ----------
+        isi = [np.diff(_) for _ in spikes]
+        isi_bin = np.arange(0, 0.1, 0.001)
+        isi_hist = np.asarray([np.histogram(_, bins=isi_bin)[0] for _ in isi])
+        n_spikes_ref = np.sum(isi_hist[:, :2], axis=1) + 1e-16
 
-    neuron_type[mua_id] = "mua"
+        ref_period_ratios.append(n_spikes_ref / np.max(isi_hist, axis=1))
 
-    param1 = frate
-    param2 = mean_isi
-    param3 = diff_auc
+        features.append(np.vstack((frate, mean_isi, diff_auc)))
 
-    features = np.vstack((param1, param2, param3)).T
-    features = StandardScaler().fit_transform(features)
-    kmeans = KMeans(n_clusters=2).fit(features)
-    y_means = kmeans.predict(features)
+    neuron_type = np.ones(np.sum(n_neurons), dtype="U5")
 
+    # ---- auto selection of MUA ----------
+    ref_period_ratios = np.concatenate(ref_period_ratios)
+    ref_period_thresh = np.std(ref_period_ratios)
+    mua_id = np.where(ref_period_ratios > ref_period_thresh)[0]
+    good_id = np.where(ref_period_ratios <= ref_period_thresh)[0]
+
+    # print(ref_period_ratios)
+    features = np.hstack(features).T
+    features_good = features[good_id, :]
+    features_good = StandardScaler().fit_transform(features_good)
+    kmeans = KMeans(n_clusters=2).fit(features_good)
+    y_means = kmeans.predict(features_good)
+
+    # interneuron has higher firing rates
     interneuron_label = np.argmax(kmeans.cluster_centers_[:, 0])
     intneur_id = np.where(y_means == interneuron_label)[0]
     pyr_id = np.where(y_means != interneuron_label)[0]
 
-    intneur_id = np.setdiff1d(intneur_id, mua_id)
-    pyr_id = np.setdiff1d(pyr_id, mua_id)
-    neuron_type[intneur_id] = "inter"
-    neuron_type[pyr_id] = "pyr"
+    # intneur_id = np.setdiff1d(intneur_id, mua_id)
+    # pyr_id = np.setdiff1d(pyr_id, mua_id)
+    neuron_type[mua_id] = "mua"
+    neuron_type[good_id[intneur_id]] = "inter"
+    neuron_type[good_id[pyr_id]] = "pyr"
+
+    colors = np.ones(np.sum(n_neurons), dtype=object)
+    colors[mua_id] = "#bcb8b8"
+    colors[good_id[intneur_id]] = "#5da42d"
+    colors[good_id[pyr_id]] = "#222020"
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(
-        param1[mua_id],
-        param2[mua_id],
-        param3[mua_id],
-        c="#bcb8b8",
-        s=50,
-        label="mua",
-    )
+    ax = fig.add_subplot(121)
+    bins = np.arange(0, 1, 0.01)
+    ax.plot(bins[:-1], np.histogram(ref_period_ratios, bins=bins)[0], "gray")
+    ax.axvline(ref_period_thresh, ls="--", color="r")
+    ax.set_xlabel("Refractory period ratio (#spikes in 2ms)/max_peak_isi)")
+    ax.set_ylabel("No. of neurons")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
-    ax.scatter(
-        param1[pyr_id],
-        param2[pyr_id],
-        param3[pyr_id],
-        c="#222020",
-        s=50,
-        label="pyr",
-    )
+    ax = fig.add_subplot(122, projection="3d")
+    ax.scatter(features[:, 0], features[:, 1], features[:, 2], c=colors, s=50)
 
-    ax.scatter(
-        param1[intneur_id],
-        param2[intneur_id],
-        param3[intneur_id],
-        c="#5da42d",
-        s=50,
-        label="int",
-    )
-    ax.legend()
     ax.set_xlabel("Firing rate (Hz)")
     ax.set_ylabel("Mean isi (ms)")
     ax.set_zlabel("Difference of \narea under shoulders")
 
-    return neuron_type
+    return np.split(neuron_type, np.cumsum(n_neurons)[:-1])
 
 
 def calculate_neurons_acg(
