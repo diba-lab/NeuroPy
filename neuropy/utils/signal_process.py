@@ -11,6 +11,7 @@ from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
 
 from ..plotting import Fig
+from .. import core
 
 
 class filter_sig:
@@ -85,74 +86,99 @@ def whiten(strain, interp_psd, dt):
     return white_ht
 
 
-@dataclass
-class spectrogramBands:
-    lfp: Any
-    sampfreq: float = 1250.0
-    window: int = 1  # in seconds
-    overlap: float = 0.5  # in seconds
-    smooth: int = None
-    multitaper: bool = False
+class SpectrogramBands:
+    def __init__(
+        self,
+        signal: core.Signal,
+        window: float = 1,
+        overlap=0.5,
+        smooth=None,
+        multitaper=False,
+        norm_sig=True,
+    ):
 
-    def __post_init__(self):
+        assert signal.n_channels == 1, "signal should have only one trace"
+        fs = signal.sampling_rate
+        window = int(window * fs)
+        overlap = int(overlap * fs)
 
-        window = int(self.window * self.sampfreq)
-        overlap = int(self.overlap * self.sampfreq)
+        sig = signal.traces[0]
+        if norm_sig:
+            sig = stats.zscore(signal.traces[0])
+
         f = None
-        if self.multitaper:
+        if multitaper:
             tapers = sg.windows.dpss(M=window, NW=5, Kmax=6)
 
             sxx_taper = []
             for taper in tapers:
-                f, t, sxx = sg.spectrogram(
-                    self.lfp, window=taper, fs=self.sampfreq, noverlap=overlap
-                )
+                f, t, sxx = sg.spectrogram(sig, window=taper, fs=fs, noverlap=overlap)
                 sxx_taper.append(sxx)
             sxx = np.dstack(sxx_taper).mean(axis=2)
 
         else:
-            f, t, sxx = sg.spectrogram(
-                self.lfp, fs=self.sampfreq, nperseg=window, noverlap=overlap
-            )
+            f, t, sxx = sg.spectrogram(sig, fs=fs, nperseg=window, noverlap=overlap)
 
-        delta_ind = np.where((f > 0.5) & (f < 4))[0]
-        delta_sxx = np.mean(sxx[delta_ind, :], axis=0)
+        if smooth is not None:
+            sxx = filtSig.gaussian_filter1d(sxx, sigma=smooth, axis=-1)
 
-        deltaplus_ind = np.where(((f > 0.5) & (f < 4)) | ((f > 12) & (f < 15)))[0]
-        deltaplus_sxx = np.mean(sxx[deltaplus_ind, :], axis=0)
-
-        theta_ind = np.where((f > 5) & (f < 11))[0]
-        theta_sxx = np.mean(sxx[theta_ind, :], axis=0)
-
-        spindle_ind = np.where((f > 10) & (f < 20))[0]
-        spindle_sxx = np.mean(sxx[spindle_ind, :], axis=0)
-
-        gamma_ind = np.where((f > 30) & (f < 90))[0]
-        gamma_sxx = np.mean(sxx[gamma_ind, :], axis=0)
-
-        ripple_ind = np.where((f > 140) & (f < 250))[0]
-        ripple_sxx = np.mean(sxx[ripple_ind, :], axis=0)
-
-        if self.smooth is not None:
-            smooth = self.smooth
-            delta_sxx = filtSig.gaussian_filter1d(delta_sxx, smooth, axis=0)
-            deltaplus_sxx = filtSig.gaussian_filter1d(deltaplus_sxx, smooth, axis=0)
-            theta_sxx = filtSig.gaussian_filter1d(theta_sxx, smooth, axis=0)
-            spindle_sxx = filtSig.gaussian_filter1d(spindle_sxx, smooth, axis=0)
-            gamma_sxx = filtSig.gaussian_filter1d(gamma_sxx, smooth, axis=0)
-            ripple_sxx = filtSig.gaussian_filter1d(ripple_sxx, smooth, axis=0)
-
-        self.delta = delta_sxx
-        self.deltaplus = deltaplus_sxx
-        self.theta = theta_sxx
-        self.spindle = spindle_sxx
-        self.gamma = gamma_sxx
-        self.ripple = ripple_sxx
         self.freq = f
-        self.time = t
+        self.time = t + signal.t_start
         self.sxx = sxx
-        self.theta_delta_ratio = self.theta / self.delta
-        self.theta_deltaplus_ratio = self.theta / self.deltaplus
+        self.smooth = smooth
+
+    def get_band_power(self, f1=None, f2=None):
+
+        if f1 is None:
+            f1 = self.freq[0]
+
+        if f2 is None:
+            f2 = self.freq[-1]
+
+        assert f1 >= self.freq[0], "f1 should be greater than lowest frequency"
+        assert f2 <= self.freq[-1], "f2 should be lower than highest possible frequency"
+        assert f2 > f1, "f2 should be greater than f1"
+
+        ind = np.where((self.freq >= f1) & (self.freq <= f2))[0]
+        band_power = np.mean(self.sxx[ind, :], axis=0)
+        return band_power
+
+    @property
+    def delta(self):
+        return self.get_band_power(f1=0.5, f2=4)
+
+    @property
+    def deltaplus(self):
+        deltaplus_ind = np.where(
+            ((self.freq > 0.5) & (self.freq < 4))
+            | ((self.freq > 12) & (self.freq < 15))
+        )[0]
+        deltaplus_sxx = np.mean(self.sxx[deltaplus_ind, :], axis=0)
+        return deltaplus_sxx
+
+    @property
+    def theta(self):
+        return self.get_band_power(f1=5, f2=11)
+
+    @property
+    def spindle(self):
+        return self.get_band_power(f1=10, f2=20)
+
+    @property
+    def gamma(self):
+        return self.get_band_power(f1=30, f2=90)
+
+    @property
+    def ripple(self):
+        return self.get_band_power(f1=140, f2=250)
+
+    @property
+    def theta_delta_ratio(self):
+        return self.theta / self.delta
+
+    @property
+    def theta_deltaplus_ratio(self):
+        return self.theta / self.deltaplus
 
     def plotSpect(self, ax=None, freqRange=None):
 
@@ -918,7 +944,7 @@ class ThetaParams:
         return ax
 
 
-def pxx_auc(signals, freq_band, fs):
+def pxx_auc(signal: core.Signal, freq_band: tuple):
     """Calculates area under the power spectrum for a given frequency band
 
     Parameters
@@ -932,13 +958,16 @@ def pxx_auc(signals, freq_band, fs):
         [description]
     """
 
-    assert isinstance(signals, list), "list of lfps needs"
+    assert isinstance(
+        signal, core.Signal
+    ), "signal should be a neuropy.core.Signal object"
 
+    fs = signal.sampling_rate
     aucChans = []
-    for sig in signals:
+    for sig in signal.traces:
 
         f, pxx = sg.welch(
-            sig,
+            stats.zscore(sig),
             fs=fs,
             nperseg=10 * fs,
             noverlap=5 * fs,
@@ -948,8 +977,6 @@ def pxx_auc(signals, freq_band, fs):
         area_in_freq = np.trapz(pxx[f_theta], x=f[f_theta])
 
         aucChans.append(area_in_freq)
-
-    # sorted_thetapow = np.argsort(np.asarray(aucChans))[::-1]
 
     return aucChans
 
