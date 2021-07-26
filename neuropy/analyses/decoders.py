@@ -10,9 +10,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 from tqdm import tqdm
 
-from ..parsePath import Recinfo
 from .placefields import PF1d, PF2d
-from ..plotUtil import Fig
 
 
 class Decode1d:

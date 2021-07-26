@@ -8,8 +8,7 @@ from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
 
 from ..utils import signal_process
-from ..parsePath import Recinfo
-from ..core import Epoch, Signal
+from .. import core
 
 try:
     import ephyviewer
@@ -70,6 +69,170 @@ def hmmfit1d(Data):
     return hmmlabels
 
 
+def correlation_emg(
+    signal: core.Signal, probegroup: core.ProbeGroup, window, overlap, n_jobs=8
+):
+    """Calculating emg
+
+    Parameters
+    ----------
+    window : int
+        window size in seconds
+    overlap : float
+        overlap between windows in seconds
+    n_jobs: int,
+        number of cpu/processes to use
+
+    Returns
+    -------
+    array
+        emg calculated at each time window
+    """
+    print("starting emg calculation")
+    highfreq = 600
+    lowfreq = 300
+    sRate = signal.sampling_rate
+    nProbes = probegroup.n_probes
+    changrp = probegroup.get_connected_channels(groupby="probe")
+    nShanksProbe = self._obj.nShanksProbe
+    probesid = np.concatenate([[_] * nShanksProbe[_] for _ in range(nProbes)])
+
+    # ----selecting a fixed number of shanks from each probe-----
+    # max_shanks_probe = [np.min([3, _]) for _ in nShanksProbe]
+    # selected_shanks = []
+    # for probe in range(nProbes):
+    #     shanks_in_probe = [
+    #         changrp[_] for _ in np.where(probesid == probe)[0] if changrp[_]
+    #     ]
+    #     selected_shanks.append(
+    #         np.concatenate(
+    #             np.random.choice(
+    #                 shanks_in_probe, max_shanks_probe[probe], replace=False
+    #             )
+    #         )
+    #     )
+
+    # ---- selecting probe with most number of shanks -------
+    which_probe = np.argmax(nShanksProbe)
+    selected_shanks = np.where(probesid == which_probe)[0]
+    # making sure shanks are not empty
+    selected_shanks = [changrp[_] for _ in selected_shanks if changrp[_]]
+
+    emgChans = np.concatenate(selected_shanks)
+    nemgChans = len(emgChans)
+    eegdata = self._obj.geteeg(chans=0)
+    total_duration = len(eegdata) / sRate
+
+    timepoints = np.arange(0, total_duration - window, window - overlap)
+
+    # ---- Mean correlation across all selected channels calculated in parallel --
+    def corrchan(start):
+        lfp_req = np.asarray(
+            self._obj.geteeg(chans=emgChans, timeRange=[start, start + window])
+        )
+        yf = signal_process.filter_sig.bandpass(
+            lfp_req, lf=lowfreq, hf=highfreq, fs=sRate
+        )
+        ltriang = np.tril_indices(nemgChans, k=-1)
+        return np.corrcoef(yf)[ltriang].mean()
+
+    corr_per_frame = Parallel(n_jobs=n_jobs, require="sharedmem")(
+        delayed(corrchan)(start) for start in timepoints
+    )
+    emg_lfp = np.asarray(corr_per_frame)
+
+    print("emg calculation done")
+    return emg_lfp
+
+
+def detect_brainstates_epochs(
+    signal: core.Signal,
+    probegroup: core.ProbeGroup,
+    window=1,
+    overlap=0.2,
+    emg: core.Signal = None,
+    sigma=10,
+):
+    """detects sleep states for the recording
+
+    Parameters
+    ----------
+    chans : int, optional
+        channel you want to use for sleep detection, by default None
+    window : int, optional
+        bin size, by default 1
+    overlap : float, optional
+        seconds of overlap between adjacent window , by default 0.2
+    emgfile : bool, optional
+        if True load the emg file in the basepath, by default False
+
+    """
+    # artifact = findartifact(self._obj)
+    sRate = signal.sampling_rate
+
+    if emg is not None:
+        emg = correlation_emg(window=window, overlap=overlap)
+
+    emg = filtSig.gaussian_filter1d(emg, sigma=sigma)
+
+    if chans is None:
+        changroup = self._obj.goodchangrp
+        bottom_chans = [shank[-1] for shank in changroup if shank]
+        chans = np.random.choice(bottom_chans)
+
+    print(f"channel for sleep detection: {chans}")
+
+    lfp = self._obj.geteeg(chans=chans)
+    lfp = stats.zscore(lfp)
+    bands = signal_process.spectrogramBands(
+        lfp, sampfreq=sRate, window=window, overlap=overlap, smooth=sigma
+    )
+    time = bands.time
+    deltaplus = bands.deltaplus
+    theta = bands.theta
+    theta_deltaplus_ratio = theta / deltaplus
+    print(f"spectral properties calculated")
+
+    # if (noisy := artifact.time) is not None:
+    #     noisy_timepoints = []
+    #     for noisy_ind in range(noisy.shape[0]):
+    #         st = noisy[noisy_ind, 0]
+    #         en = noisy[noisy_ind, 1]
+    #         noisy_indices = np.where((time > st) & (time < en))[0]
+    #         noisy_timepoints.extend(noisy_indices)
+
+    #     theta_deltaplus_ratio[noisy_timepoints] = np.nan
+    #     emg[noisy_timepoints] = np.nan
+    #     deltaplus[noisy_timepoints] = np.nan
+
+    deltaplus_label = hmmfit1d(deltaplus)
+    theta_deltaplus_label = hmmfit1d(theta_deltaplus_ratio)
+    emg_label = hmmfit1d(emg)
+
+    states = self._label2states(theta_deltaplus_label, deltaplus_label, emg_label)
+    statetime = (self._states2time(states)).astype(int)
+
+    statetime = pd.DataFrame(
+        {
+            "start": time[statetime[:, 0]],
+            "stop": time[statetime[:, 1]],
+            "duration": time[statetime[:, 1]] - time[statetime[:, 0]],
+            "state": statetime[:, 2],
+        }
+    )
+
+    epochs = self._removetransient(statetime)
+
+    state_to_label = {1: "nrem", 2: "rem", 3: "quiet", 4: "active"}
+    epochs["label"] = epochs["state"].map(state_to_label)
+    epochs.drop("state", axis=1, inplace=True)
+
+    self.epochs = epochs
+    self.metadata = {"window": window, "overlap": overlap, "emg": emg}
+    self.save()
+    self.load()
+
+
 class BrainStates:
     # TODO add support for bad time points
     colors = {
@@ -80,7 +243,7 @@ class BrainStates:
     }
     labels = ["nrem", "rem", "quiet", "active"]
 
-    def __init__(self, signal: Signal):
+    def __init__(self, signal: core.Signal):
 
         if isinstance(basepath, Recinfo):
             self._obj = basepath

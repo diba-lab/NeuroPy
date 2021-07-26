@@ -8,8 +8,6 @@ from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
 from .. import core
-from ..parsePath import Recinfo
-from ..plotUtil import Fig, pretty_plot
 from ..utils.signal_process import ThetaParams
 from .. import plotting
 
