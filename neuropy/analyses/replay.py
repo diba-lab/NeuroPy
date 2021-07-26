@@ -10,7 +10,6 @@ from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 
 from ..utils.mathutil import getICA_Assembly, parcorr_mult
-from ..parsePath import Recinfo
 from .. import core
 import pingouin as pg
 
@@ -25,153 +24,83 @@ class ExplainedVariance(core.DataWriter):
         matching,
         control,
         bin_size=0.250,
-        window=900,
-        slideby=None,
+        window: int = 900,
+        slideby: int = None,
         cross_shanks=True,
         ignore_epochs: core.Epoch = None,
     ):
         super().__init__()
+        self.neurons = neurons
+        if cross_shanks:
+            assert self.neurons.shank_ids is not None, "neurons should have shank_ids"
+
         self.template = template
         self.matching = matching
         self.control = control
-        self.neurons = neurons
         self.bin_size = bin_size
         self.window = window
-        self.slideby = slideby
-        self.cross_shanks = cross_shanks
-        self.ignore_epochs = ignore_epochs
-
-    def calculate(self):
-        epochs = np.array((self.template, self.matching, self.control))
-        epochs = core.Epoch(
-            pd.DataFrame(
-                {
-                    "start": epochs[:, 0],
-                    "stop": epochs[:, 1],
-                    "label": ["template", "matching", "control"],
-                }
-            )
-        )
-
-        for del_epoch in self.ignore_epochs.to_dataframe().itertuples():
-            epochs = epochs.delete_in_between(t1=del_epoch.start, t2=del_epoch.stop)
-
-        for epoch in epochs.to_dataframe().itertuples():
-            spktrn = self.neurons.get_binned_spiketrains(
-                epoch.start, epoch.stop, self.bin_size
-            )
-            pair_corr = spktrn.get_pairwise_corr(cross_shanks=self.cross_shanks)
-
-    def compute(
-        self,
-        neuron_ids,
-        binSize=0.250,
-        window=900,
-        slideby=None,
-        cross_shanks=True,
-    ):
-        """Calucate explained variance (EV) and reverse EV
-
-        Parameters
-        ----------
-        template : list
-            template period
-        match : list
-            match period whose similarity is calculated to template
-        control : list
-            control period, correlations in this period will be accounted for
-        binSize : float,
-            bin size within each window, defaults 0.250 seconds
-        window : int,
-            size of window in which ev is calculated, defaults 900 seconds
-        slideby : int,
-            calculate EV by sliding window, seconds
-
-        References:
-        1) Kudrimoti 1999
-        2) Tastsuno et al. 2007
-        """
-
-        spks = self._neurons.get_spiketrains(neuron_ids)
-        shnkId = self._neurons.get_shankids(neuron_ids)
 
         if slideby is None:
-            slideby = window
+            self.slideby = window
+        else:
+            self.slideby = slideby
+        self.cross_shanks = cross_shanks
+        self.ignore_epochs = ignore_epochs
+        self._calculate()
 
-        # ----- choosing cells ----------------
-        # spks = spikes.times
-        # stability = spikes.stability.info
-        # stable_cells = np.where(stability.stable == 1)[0]
-        # pyr_id = spikes.pyrid
-        # stable_pyr = np.intersect1d(pyr_id, stable_cells, assume_unique=True)
-        # print(f"Calculating EV for {len(stable_pyr)} stable cells")
-        # spks = [spks[_] for _ in stable_pyr]
+    def _calculate(self):
 
-        # ------- windowing the time periods ----------
-        nbins_window = int(window / binSize)
-        nbins_slide = int(slideby / binSize)
+        template_corr = self.neurons.get_binned_spiketrains(
+            self.template[0], self.template[1], bin_size=self.bin_size
+        ).get_pairwise_corr(cross_shanks=self.cross_shanks)
 
-        # ---- function to calculate correlation in each window ---------
-        def cal_corr(period, windowing=True):
-            bin_period = np.arange(period[0], period[1], binSize)
-            spkcnt = np.array([np.histogram(x, bins=bin_period)[0] for x in spks])
+        matching = np.arange(self.matching[0], self.matching[1])
+        matching_windows = np.lib.stride_tricks.sliding_window_view(
+            matching, self.window
+        )[:: self.slideby, [0, -1]]
 
-            if windowing:
-                t = np.arange(period[0], period[1] - window, slideby) + window / 2
-                nwindow = len(t)
+        n_matching_windows = matching_windows.shape[0]
 
-                window_spkcnt = [
-                    spkcnt[:, i : i + nbins_window]
-                    for i in range(0, int(nwindow) * nbins_slide, nbins_slide)
-                ]
-
-                # if nwindow % 1 > 0.3:
-                #     window_spkcnt.append(spkcnt[:, int(nwindow) * nbins_window :])
-                #     t = np.append(t, t[-1] + round(nwindow % 1, 3) / 2)
-
-                corr = [
-                    np.corrcoef(window_spkcnt[x]) for x in range(len(window_spkcnt))
-                ]
-
-            else:
-                corr = np.corrcoef(spkcnt)
-                t = None
-
-            return corr, t
-
-        # ---- correlation for each time period -----------
-        control_corr, self.t_control = cal_corr(period=control)
-        template_corr, _ = cal_corr(period=template, windowing=False)
-        match_corr, self.t_match = cal_corr(period=match)
-
-        # ----- indices for cross shanks correlation -------
-        # shnkId = np.asarray(spikes.info.shank)
-        # shnkId = shnkId[stable_pyr]
-        assert len(shnkId) == len(spks)
-
-        selected_pairs = np.tril_indices(len(spks), k=-1)
-        if cross_shanks:
-            selected_pairs = np.nonzero(
-                np.tril(shnkId.reshape(-1, 1) - shnkId.reshape(1, -1))
+        matching_paircorr = []
+        for window in matching_windows:
+            matching_paircorr.append(
+                self.neurons.get_binned_spiketrains(
+                    window[0], window[1], self.bin_size
+                ).get_pairwise_corr(cross_shanks=self.cross_shanks)
             )
 
-        # --- selecting only pairwise correlations from different shanks -------
-        control_corr = [
-            control_corr[x][selected_pairs] for x in range(len(control_corr))
-        ]
-        template_corr = template_corr[selected_pairs]
-        match_corr = [match_corr[x][selected_pairs] for x in range(len(match_corr))]
+        control = np.arange(self.control[0], self.control[1])
+        control_windows = np.lib.stride_tricks.sliding_window_view(
+            control, self.window
+        )[:: self.slideby, [0, -1]]
+        n_control_windows = control_windows.shape[0]
+        control_paircorr = []
+        for window in control_windows:
+            control_paircorr.append(
+                self.neurons.get_binned_spiketrains(
+                    window[0], window[1], self.bin_size
+                ).get_pairwise_corr(cross_shanks=self.cross_shanks)
+            )
 
-        parcorr_template_vs_match, rev_corr = parcorr_mult(
-            [template_corr], match_corr, control_corr
-        )
+        partial_corr = np.zeros((n_control_windows, n_matching_windows))
+        rev_partial_corr = np.zeros((n_control_windows, n_matching_windows))
+        for m_i, m_pairs in enumerate(matching_paircorr):
+            for c_i, c_pairs in enumerate(control_paircorr):
+                df = pd.DataFrame({"t": template_corr, "m": m_pairs, "c": c_pairs})
+                partial_corr[c_i, m_i] = pg.partial_corr(df, x="t", y="m", covar="c").r
+                rev_partial_corr[c_i, m_i] = pg.partial_corr(
+                    df, x="t", y="c", covar="m"
+                ).r
 
-        ev_template_vs_match = parcorr_template_vs_match ** 2
-        rev_corr = rev_corr ** 2
-
-        self.ev = ev_template_vs_match
-        self.rev = rev_corr
-        self.npairs = template_corr.shape[0]
+        self.ev = np.nanmean(partial_corr ** 2, axis=0)
+        self.rev = np.nanmean(rev_partial_corr ** 2, axis=0)
+        self.ev_std = np.nanstd(partial_corr ** 2, axis=0)
+        self.rev_std = np.nanstd(rev_partial_corr ** 2, axis=0)
+        self.partial_corr = partial_corr
+        self.rev_partial_corr = rev_partial_corr
+        self.n_pairs = len(template_corr)
+        self.matching_time = np.mean(matching_windows, axis=1)
+        self.control_time = np.mean(control_windows, axis=1)
 
     def compute_shuffle(
         self,
@@ -302,12 +231,7 @@ class ExplainedVariance(core.DataWriter):
         self.rev = rev_all
         self.npairs = template_corr.shape[0]
 
-    def plot(self, ax=None, tstart=0, legend=True):
-
-        ev_mean = np.nanmean(self.ev.squeeze(), axis=0)
-        ev_std = np.nanstd(self.ev.squeeze(), axis=0)
-        rev_mean = np.nanmean(self.rev.squeeze(), axis=0)
-        rev_std = np.nanstd(self.rev.squeeze(), axis=0)
+    def plot(self, ax=None, t_start=0, legend=True):
 
         if ax is None:
             fig = plt.figure(1, figsize=(10, 15))
@@ -315,31 +239,29 @@ class ExplainedVariance(core.DataWriter):
             fig.subplots_adjust(hspace=0.3)
             ax = fig.add_subplot(gs[0])
 
-        t = (self.t_match - tstart) / 3600  # converting to hour
-
         # ---- plot rev first ---------
         ax.fill_between(
-            t,
-            rev_mean - rev_std,
-            rev_mean + rev_std,
+            (self.matching_time - t_start) / 3600,
+            self.rev - self.rev_std,
+            self.rev + self.rev_std,
             color=self.colors["rev"],
             zorder=1,
             alpha=0.5,
             label="REV",
         )
-        ax.plot(t, rev_mean, color=self.colors["rev"], zorder=2)
+        ax.plot(self.matching_time / 3600, self.rev, color=self.colors["rev"], zorder=2)
 
         # ------- plot ev -------
         ax.fill_between(
-            t,
-            ev_mean - ev_std,
-            ev_mean + ev_std,
+            (self.matching_time - t_start) / 3600,
+            self.ev - self.ev_std,
+            self.ev + self.ev_std,
             color=self.colors["ev"],
             zorder=3,
             alpha=0.5,
             label="EV",
         )
-        ax.plot(t, ev_mean, self.colors["ev"], zorder=4)
+        ax.plot(self.matching_time / 3600, self.ev, self.colors["ev"], zorder=4)
 
         ax.set_xlabel("Time (h)")
         ax.set_ylabel("Explained variance")
