@@ -163,14 +163,12 @@ class Fig:
             ha="right",
         )
 
-    def savefig(self, fname, scriptname=None, fig=None, folder=None):
+    def savefig(self, fname: Path, scriptname=None, fig=None):
 
-        if folder is None:
-            folder = "/home/bapung/Documents/figures/"
         if fig is None:
             fig = self.fig
 
-        filename = folder + fname + ".pdf"
+        filename = fname.with_suffix(".pdf")
 
         today = date.today().strftime("%m/%d/%y")
 
