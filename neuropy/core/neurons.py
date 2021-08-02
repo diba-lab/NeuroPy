@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 from .datawriter import DataWriter
+from copy import deepcopy
 
 
 class Neurons(DataWriter):
@@ -87,12 +88,26 @@ class Neurons(DataWriter):
     def n_neurons(self):
         return len(self.spiketrains)
 
-    def get_spiketrains(self, ids):
-        spiketrains = [self.spiketrains[_] for _ in ids]
-        return spiketrains
+    def time_slice(self, t_start=None, t_stop=None):
 
-    def time_slice(self):
-        pass
+        t_start, t_stop = self._time_check(t_start, t_stop)
+        neurons = deepcopy(self)
+        spiketrains = [
+            spktrn[(spktrn > t_start) & (spktrn < t_stop)]
+            for spktrn in neurons.spiketrains
+        ]
+
+        return Neurons(
+            spiketrains=spiketrains,
+            t_stop=t_stop,
+            t_start=t_start,
+            sampling_rate=neurons.sampling_rate,
+            neuron_ids=neurons.neuron_ids,
+            neuron_type=neurons.neuron_type,
+            waveforms=neurons.waveforms,
+            peak_channels=neurons.peak_channels,
+            shank_ids=neurons.shank_ids,
+        )
 
     def get_neuron_type(self, neuron_type):
         indices = self.neuron_type == neuron_type
@@ -169,30 +184,39 @@ class Neurons(DataWriter):
     def get_all_spikes(self):
         return np.concatenate(self.spiketrains)
 
-    def n_spikes(self, t_start=None, t_stop=None):
-        if t_start is None:
-            t_start = self.t_start
+    def get_n_spikes(self):
+        "number of spikes within each spiketrain"
+        return np.asarray([len(_) for _ in self.spiketrains])
 
-        if t_stop is None:
-            t_stop = self.t_stop
+    def firing_rate(self):
+        return self.n_spikes / (self.t_stop - self.t_start)
 
-        return np.concatenate(
-            [np.histogram(_, bins=[t_start, t_stop])[0] for _ in self.spiketrains]
-        )
-
-    def firing_rate(self, t_start=None, t_stop=None):
-        return self.n_spikes(t_start, t_stop) / (t_stop - t_start)
-
-    def get_binned_spiketrains(self, t_start=None, t_stop=None, bin_size=0.25):
-
-        """Get binned spike counts within a period
+    def get_isi(self, bin_size=0.001, n_bins=200):
+        """Interspike interval
 
         Parameters
         ----------
-        t_start : [type]
-            start time of binned spiketrains
-        t_stop : [type]
-            stop time of binned spiketrains
+        bin_size : float, optional
+            [description], by default 0.001
+        n_bins : int, optional
+            [description], by default 200
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        bins = np.arange(n_bins + 1) * bin_size
+        return np.asarray(
+            [np.histogram(np.diff(spktrn), bins=bins)[0] for spktrn in self.spiketrains]
+        )
+
+    def get_binned_spiketrains(self, bin_size=0.25):
+
+        """Get binned spike counts
+
+        Parameters
+        ----------
         bin_size : float, optional
             bin size in seconds, by default 0.25
 
@@ -202,24 +226,18 @@ class Neurons(DataWriter):
 
         """
 
-        if t_start is None:
-            t_start = self.t_start
-
-        if t_stop is None:
-            t_stop = self.t_stop
-
-        bins = np.arange(t_start, t_stop + bin_size, bin_size)
+        bins = np.arange(self.t_start, self.t_stop + bin_size, bin_size)
         spike_counts = np.asarray(
             [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
         )
 
         return BinnedSpiketrain(
             spike_counts,
-            t_start,
-            bin_size,
-            self.neuron_ids,
-            self.peak_channels,
-            self.shank_ids,
+            t_start=self.t_start,
+            bin_size=bin_size,
+            neuron_ids=self.neuron_ids,
+            peak_channels=self.peak_channels,
+            shank_ids=self.shank_ids,
         )
 
     def get_mua(self, t_start=None, t_stop=None, bin_size=0.001):
@@ -251,6 +269,8 @@ class Neurons(DataWriter):
 
 
 class BinnedSpiketrain(DataWriter):
+    """Class to hold binned spiketrains"""
+
     def __init__(
         self,
         spike_counts: np.ndarray,
