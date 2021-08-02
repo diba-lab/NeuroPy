@@ -40,6 +40,45 @@ def firing_rate_stability(neurons: core.Neurons, periods, thresh=0.3):
     return stbl
 
 
+def isi_stability(neurons: core.Neurons, window=3600, isi_thresh=4):
+    """stability using ISI contamination
+
+    References
+    ----------
+    1. Pacheco, A. T., Bottorff, J., Gao, Y., & Turrigiano, G. G. (2021). Sleep promotes downward firing rate homeostasis. Neuron, 109(3), 530-544.
+        "Some neurons were lost during the recording, presumably due to electrode drift or gliosis. To establish ‘‘on’’ and ‘‘off’’ times for neurons, we used ISI contamination: when hourly % of ISIs < 3 msec was above 4%, unit was considered to be offline. Based on these 'on' and 'off' times, only units that were online for 80% of the experiment were used for analysis."
+
+    Parameters
+    ----------
+    neurons : core.Neurons
+        neurons for calculating stability
+    window : int, optional
+        window size over which isi contamination to be calculated, by default 3600
+    isi_thresh : int, optional
+        isi percentage threshold above which neurons are considered off in that window, by default 4 percent
+
+    Returns
+    -------
+    boolean array, 1 ==> on, 0 ==> off
+        [description]
+    """
+    t_start, t_stop = neurons.t_start, neurons.t_stop
+
+    t_windows = np.arange(t_start, t_stop + window, window)
+
+    isi_contamination = []
+    for w in t_windows[:-1]:
+        neurons_window = neurons.time_slice(w, w + window)
+        isi_3ms = np.sum(neurons_window.get_isi(n_bins=3), axis=1)
+        n_spikes = neurons_window.get_n_spikes()
+        isi_contamination.append(isi_3ms / n_spikes)
+
+    isi_contamination = np.asarray(isi_contamination) * 100
+    isi_bool = np.where(isi_contamination > isi_thresh, 0, 1)
+
+    return isi_bool.T
+
+
 def waveform_similarity(self):
     pass
 
