@@ -22,14 +22,14 @@ def plot_spectrogram(sxx, time, freq, ax=None):
     """
 
     std_sxx = np.std(sxx)
-    time = np.linspace(time[0], time[1], sxx.shape[1])
-    freq = np.linspace(freq[0], freq[1], sxx.shape[0])
+    # time = np.linspace(time[0], time[1], sxx.shape[1])
+    # freq = np.linspace(freq[0], freq[1], sxx.shape[0])
 
     if ax is None:
         _, ax = plt.subplots(1, 1)
 
     # ---------- plotting ----------------
-    def plotspec(n_std, cmap, freq):
+    def plotspec(n_std, cmap, freq_lim):
         # slow to plot
         # ax.pcolormesh(
         #     spec.time,
@@ -48,12 +48,12 @@ def plot_spectrogram(sxx, time, freq, ax=None):
             vmax=n_std * std_sxx,
             rasterized=True,
             origin="lower",
-            extent=[time[0], time[1], freq[0], freq[1]],
+            extent=[time[0], time[-1], freq[0], freq[-1]],
             aspect="auto",
         )
-        ax.set_ylim(freq)
+        ax.set_ylim(freq_lim[0], freq_lim[1])
 
-    ax.set_xlim(time)
+    ax.set_xlim([time[0], time[-1]])
     ax.set_xlabel("Time")
     ax.set_ylabel("Frequency")
 
@@ -72,7 +72,7 @@ def plot_spectrogram(sxx, time, freq, ax=None):
             value="Spectral_r",
             description="Colormap:",
         ),
-        freq=ipywidgets.IntRangeSlider(
+        freq_lim=ipywidgets.IntRangeSlider(
             value=[0, 30], min=0, max=625, step=1, description="Freq. range:"
         ),
     )
