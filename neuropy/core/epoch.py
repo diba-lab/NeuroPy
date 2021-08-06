@@ -24,6 +24,10 @@ class Epoch(DataWriter):
         return self.stops - self.starts
 
     @property
+    def n_epochs(self):
+        return len(self.starts)
+
+    @property
     def labels(self):
         return self._data.label.values
 

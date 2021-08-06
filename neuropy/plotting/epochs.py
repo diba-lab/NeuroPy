@@ -1,17 +1,54 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from ..core import Epoch, Signal
 from scipy import stats
 
 
-def plot_epochs(ax, epochs, ymin=0.5, ymax=0.55, color="gray"):
+def plot_epochs(
+    ax, epochs: Epoch, ymin=0.5, ymax=0.55, color="Set3", style="step_blocks"
+):
+    """Plots epochs on a given axis, with different style of plotting
 
+    Parameters
+    ----------
+    ax : axis
+        [description]
+    epochs : [type]
+        [description]
+    ymin : float, optional
+        [description], by default 0.5
+    ymax : float, optional
+        [description], by default 0.55
+    color : str, optional
+        [description], by default "gray"
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     delta = 0
-    for epoch in epochs.itertuples():
-        ax.axvspan(epoch.start, epoch.stop, ymin + delta, ymax + delta)
-        ax.text(epoch.start + epoch.duration / 2, (ymax - ymin) / 2, epoch.label)
-        delta = delta + 0.01
+    n_epochs = epochs.n_epochs
+    cmap = mpl.cm.get_cmap(color)
+
+    for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+        ax.axvspan(
+            epoch.start,
+            epoch.stop,
+            ymin + delta,
+            ymax + delta,
+            color=cmap(i / n_epochs),
+            alpha=0.5,
+        )
+        # ax.text(
+        #     epochs.stops[-1],
+        #     ymax + delta,
+        #     epoch.label,
+        #     transform=ax.get_yaxis_transform(),
+        # )
+        delta = delta + 0.07
 
     return ax
 

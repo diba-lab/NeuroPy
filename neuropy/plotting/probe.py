@@ -24,3 +24,7 @@ def plot_probe(probe: ProbeGroup, channel_id=True, disconnected=True, ax=None):
     ax.set_title(f"Probe {probe.n_contacts}ch")
 
     return ax
+
+
+def plot_on_probe(probe: ProbeGroup):
+    pass
