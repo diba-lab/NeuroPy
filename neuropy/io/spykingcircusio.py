@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+from ..core import Epoch
 
 
 class SpykingCircusIO:
@@ -66,3 +67,11 @@ class SpykingCircusIO:
                     f_clu.write(f"{item}\n")
                 for frame in spikes_sorted:
                     f_res.write(f"{frame}\n")
+
+    @staticmethod
+    def write_epochs(file, epochs: Epoch):
+        with file.open("w") as a:
+            for event in epochs.to_dataframe().itertuples():
+                a.write(f"{event.start*1000} {event.stop*1000}\n")
+
+        print(f"{file.name} created")
