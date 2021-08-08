@@ -131,3 +131,48 @@ def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=No
         pretty_plot(a)
 
     return ax
+
+
+def plot_firing_rate(
+    neurons: core.Neurons,
+    bin_size=60,
+    stacked=False,
+    normalize=False,
+    sortby="frate",
+    cmap="tab20c",
+):
+
+    binned_neurons = neurons.get_binned_spiketrains(bin_size=bin_size)
+    n_neurons = neurons.n_neurons
+    time = binned_neurons.time
+    mean_frate = neurons.firing_rate
+    frate = binned_neurons.spike_counts / bin_size
+
+    if sortby == "frate":
+        sort_ind = np.argsort(mean_frate)
+        frate = frate[sort_ind, :]
+
+    cmap = mpl.cm.get_cmap(cmap)
+    if stacked:
+        fig, ax = plt.subplots(ncols=1, nrows=n_neurons, sharex=True)
+
+        for i, f in enumerate(frate):
+            ax[i].plot(time, f, color=cmap(i / n_neurons))
+            ax[i].spines["right"].set_visible(False)
+            ax[i].spines["top"].set_visible(False)
+            # ax[i].spines["left"].set_visible(False)
+
+        ax[i].set_ylabel("Firing rate")
+        ax[i].set_xlabel("Time (s)")
+        # ax[i].spines["left"].set_visible(True)
+    else:
+        fig, ax = plt.subplots()
+        for i, f in enumerate(frate):
+            ax.plot(time, f, color=cmap(i / n_neurons))
+        ax.set_yscale("log")
+        ax.set_xlabel("Time (s)")
+
+        ax.set_ylabel("Firing rate")
+        ax.set_xlabel("Time (s)")
+
+    fig.suptitle(f"{neurons.n_neurons} Neurons")

@@ -1,22 +1,59 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from ..core import Epoch, Signal
 from scipy import stats
 
 
-def plot_epochs(ax, epochs, ymin=0.5, ymax=0.55, color="gray"):
+def plot_epochs(
+    ax, epochs: Epoch, ymin=0.5, ymax=0.55, color="Set3", style="step_blocks"
+):
+    """Plots epochs on a given axis, with different style of plotting
 
+    Parameters
+    ----------
+    ax : axis
+        [description]
+    epochs : [type]
+        [description]
+    ymin : float, optional
+        [description], by default 0.5
+    ymax : float, optional
+        [description], by default 0.55
+    color : str, optional
+        [description], by default "gray"
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     delta = 0
-    for epoch in epochs.itertuples():
-        ax.axvspan(epoch.start, epoch.stop, ymin + delta, ymax + delta)
-        ax.text(epoch.start + epoch.duration / 2, (ymax - ymin) / 2, epoch.label)
-        delta = delta + 0.01
+    n_epochs = epochs.n_epochs
+    cmap = mpl.cm.get_cmap(color)
+
+    for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+        ax.axvspan(
+            epoch.start,
+            epoch.stop,
+            ymin + delta,
+            ymax + delta,
+            color=cmap(i / n_epochs),
+            alpha=0.5,
+        )
+        # ax.text(
+        #     epochs.stops[-1],
+        #     ymax + delta,
+        #     epoch.label,
+        #     transform=ax.get_yaxis_transform(),
+        # )
+        delta = delta + 0.07
 
     return ax
 
 
-def plot_hypnogram(self, epochs, ax=None, tstart=0.0, unit="s", collapsed=False):
+def plot_hypnogram(epochs: Epoch, ax=None, tstart=0.0, unit="s", collapsed=False):
     """Plot hypnogram
 
     Parameters
@@ -37,7 +74,7 @@ def plot_hypnogram(self, epochs, ax=None, tstart=0.0, unit="s", collapsed=False)
 
     """
     colors = {
-        "nrem": "#6b90d1",
+        "nrem": "#667cfa",
         "rem": "#eb9494",
         "quiet": "#b6afaf",
         "active": "#474343",
@@ -66,7 +103,7 @@ def plot_hypnogram(self, epochs, ax=None, tstart=0.0, unit="s", collapsed=False)
             (1, span_[state][1] - 0.15),
             xycoords="axes fraction",
             fontsize=7,
-            color=self.colors[state],
+            color=colors[state],
         )
     if collapsed:
         span_ = {
@@ -76,14 +113,14 @@ def plot_hypnogram(self, epochs, ax=None, tstart=0.0, unit="s", collapsed=False)
             "active": [0, 1],
         }
 
-    for state in self.epochs.itertuples():
-        if state.label in self.colors.keys():
+    for state in epochs.to_dataframe().itertuples():
+        if state.label in colors.keys():
             ax.axvspan(
                 (state.start - tstart) / unit_norm,
                 (state.stop - tstart) / unit_norm,
                 ymin=span_[state.label][0],
                 ymax=span_[state.label][1],
-                facecolor=self.colors[state.label],
+                facecolor=colors[state.label],
                 alpha=0.7,
             )
     ax.axis("off")

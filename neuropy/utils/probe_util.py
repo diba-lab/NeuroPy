@@ -1,8 +1,11 @@
 from ..core import ProbeGroup
 import numpy as np
+from pathlib import Path
 
 
-def write_spyking_circus(prb: ProbeGroup, rmv_badchans=True, shanksCombine=False):
+def write_spyking_circus(
+    file: Path, prb: ProbeGroup, rmv_badchans=True, shanksCombine=False
+):
     """Creates .prb file for spyking circus in the basepath folder
 
     Parameters
@@ -12,32 +15,33 @@ def write_spyking_circus(prb: ProbeGroup, rmv_badchans=True, shanksCombine=False
     shanksCombine : bool, optional
         if True then all shanks are combined in same channel group, by default False
     """
-    nShanks = prb.n_shanks
-    nChans = prb.n_contacts 
-    channelgroups = self._obj.channelgroups[:nShanks]
-    circus_prb = (self._obj.files.filePrefix).with_suffix(".prb")
-    coords = self.coords.set_index("chan")
 
+    nChans = prb.n_contacts
+    prb_data = prb.to_dataframe().set_index("channel_id")
+    channelgroups = prb.get_channels(groupby="shank")
     if rmv_badchans:
-        channelgroups = self._obj.goodchangrp[:nShanks]
+        channelgroups = prb.get_connected_channels(groupby="shank")
 
-    with circus_prb.open("w") as f:
+    with file.open("w") as f:
         f.write(f"total_nb_channels = {nChans}\n")
         f.write(f"radius = 120\n")
         f.write("channel_groups = {\n")
 
         if shanksCombine:
 
-            chan_list = np.concatenate(channelgroups[:nShanks])
+            chan_list = np.concatenate(channelgroups)
             f.write(f"1: {{\n")
             f.write(f"'channels' : {[int(_) for _ in chan_list]},\n")
             f.write("'graph' : [],\n")
             f.write("'geometry' : {\n")
 
             for i, shank in enumerate(channelgroups):
-                if shank:
+                if shank.any():
                     for chan in shank:
-                        x, y = coords.loc[chan]
+                        x, y = (
+                            prb_data.loc[[chan]].x.values[0],
+                            prb_data.loc[[chan]].y.values[0],
+                        )
                         f.write(f"{chan}: [{x+i*300},{y+i*400}],\n")
 
                     f.write("\n")
@@ -48,14 +52,17 @@ def write_spyking_circus(prb: ProbeGroup, rmv_badchans=True, shanksCombine=False
 
         else:
             for i, shank in enumerate(channelgroups):
-                if shank:
+                if shank.any():
                     f.write(f"{i+1}: {{\n")
                     f.write(f"'channels' : {[int(_) for _ in shank]},\n")
                     f.write("'graph' : [],\n")
                     f.write("'geometry' : {\n")
 
                     for chan in shank:
-                        x, y = coords.loc[chan]
+                        x, y = (
+                            prb_data.loc[[chan]].x.values[0],
+                            prb_data.loc[[chan]].y.values[0],
+                        )
                         f.write(f"{chan}: [{x+i*300},{y+i*400}],\n")
 
                     f.write("}\n")
@@ -63,4 +70,4 @@ def write_spyking_circus(prb: ProbeGroup, rmv_badchans=True, shanksCombine=False
 
             f.write("}\n")
 
-    print(".prb file created for Spyking Circus")
+    print(f"{file.name} file created for Spyking Circus")

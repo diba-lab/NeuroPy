@@ -184,10 +184,12 @@ class Neurons(DataWriter):
     def get_all_spikes(self):
         return np.concatenate(self.spiketrains)
 
-    def get_n_spikes(self):
+    @property
+    def n_spikes(self):
         "number of spikes within each spiketrain"
         return np.asarray([len(_) for _ in self.spiketrains])
 
+    @property
     def firing_rate(self):
         return self.n_spikes / (self.t_stop - self.t_start)
 
@@ -322,6 +324,10 @@ class BinnedSpiketrain(DataWriter):
 
     def add_metadata(self):
         pass
+
+    @property
+    def time(self):
+        return np.arange(self.n_bins) * self.bin_size + self.t_start
 
     def to_dict(self):
         return {

@@ -40,7 +40,7 @@ def firing_rate_stability(neurons: core.Neurons, periods, thresh=0.3):
     return stbl
 
 
-def isi_stability(neurons: core.Neurons, window=3600, isi_thresh=4):
+def isi_stability(neurons: core.Neurons, window=3600, isi_thresh=0.04, on_thresh=0.8):
     """stability using ISI contamination
 
     References
@@ -59,7 +59,7 @@ def isi_stability(neurons: core.Neurons, window=3600, isi_thresh=4):
 
     Returns
     -------
-    boolean array, 1 ==> on, 0 ==> off
+    boolean array
         [description]
     """
     t_start, t_stop = neurons.t_start, neurons.t_stop
@@ -70,13 +70,14 @@ def isi_stability(neurons: core.Neurons, window=3600, isi_thresh=4):
     for w in t_windows[:-1]:
         neurons_window = neurons.time_slice(w, w + window)
         isi_3ms = np.sum(neurons_window.get_isi(n_bins=3), axis=1)
-        n_spikes = neurons_window.get_n_spikes()
+        n_spikes = neurons_window.n_spikes
         isi_contamination.append(isi_3ms / n_spikes)
 
-    isi_contamination = np.asarray(isi_contamination) * 100
+    isi_contamination = np.asarray(isi_contamination).T
     isi_bool = np.where(isi_contamination > isi_thresh, 0, 1)
-
-    return isi_bool.T
+    on_window = np.sum(isi_bool, axis=1) / isi_bool.shape[1]
+    stability_bool = on_window > on_thresh
+    return stability_bool
 
 
 def waveform_similarity(self):

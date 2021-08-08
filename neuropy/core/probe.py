@@ -260,6 +260,17 @@ class ProbeGroup(DataWriter):
     def shank_id(self):
         return self._data["shank_id"].values
 
+    def get_channels(self, groupby="shank"):
+        prb = self.to_dataframe()
+
+        if groupby == "shank":
+            prb = prb.groupby("shank_id")
+            channels = []
+            for i in prb.groups.keys():
+                channels.append(prb.get_group(i).channel_id.values)
+
+        return np.array(channels, dtype="object")
+
     def get_shank_id_for_channels(self, channel_id):
         """Get shank ids for the channels.
 
