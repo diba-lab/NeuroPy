@@ -31,7 +31,7 @@ class DataWriter:
         if self.filename is not None:
             assert isinstance(self.filename, Path)
             np.save(self.filename, data)
-            print("data saved")
+            print(f"{self.filename.name} saved")
         else:
             print("filename not understood")
 
