@@ -50,9 +50,11 @@ class ExplainedVariance(core.DataWriter):
 
     def _calculate(self):
 
-        template_corr = self.neurons.get_binned_spiketrains(
-            self.template[0], self.template[1], bin_size=self.bin_size
-        ).get_pairwise_corr(cross_shanks=self.cross_shanks)
+        template_corr = (
+            self.neurons.time_slice(self.template[0], self.template[1])
+            .get_binned_spiketrains(bin_size=self.bin_size)
+            .get_pairwise_corr(cross_shanks=self.cross_shanks)
+        )
 
         matching = np.arange(self.matching[0], self.matching[1])
         matching_windows = np.lib.stride_tricks.sliding_window_view(
@@ -64,9 +66,9 @@ class ExplainedVariance(core.DataWriter):
         matching_paircorr = []
         for window in matching_windows:
             matching_paircorr.append(
-                self.neurons.get_binned_spiketrains(
-                    window[0], window[1], self.bin_size
-                ).get_pairwise_corr(cross_shanks=self.cross_shanks)
+                self.neurons.time_slice(window[0], window[1])
+                .get_binned_spiketrains(self.bin_size)
+                .get_pairwise_corr(cross_shanks=self.cross_shanks)
             )
 
         control = np.arange(self.control[0], self.control[1])
@@ -77,9 +79,9 @@ class ExplainedVariance(core.DataWriter):
         control_paircorr = []
         for window in control_windows:
             control_paircorr.append(
-                self.neurons.get_binned_spiketrains(
-                    window[0], window[1], self.bin_size
-                ).get_pairwise_corr(cross_shanks=self.cross_shanks)
+                self.neurons.time_slice(window[0], window[1])
+                .get_binned_spiketrains(self.bin_size)
+                .get_pairwise_corr(cross_shanks=self.cross_shanks)
             )
 
         partial_corr = np.zeros((n_control_windows, n_matching_windows))
