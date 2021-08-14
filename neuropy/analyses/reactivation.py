@@ -236,11 +236,7 @@ class ExplainedVariance(core.DataWriter):
     def plot(self, ax=None, t_start=0, legend=True):
 
         if ax is None:
-            fig = plt.figure(1, figsize=(10, 15))
-            gs = gridspec.GridSpec(1, 1, figure=fig)
-            fig.subplots_adjust(hspace=0.3)
-            ax = fig.add_subplot(gs[0])
-
+            fig, ax = plt.subplots()
         # ---- plot rev first ---------
         ax.fill_between(
             (self.matching_time - t_start) / 3600,
