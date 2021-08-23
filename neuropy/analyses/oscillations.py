@@ -249,6 +249,8 @@ def detect_ripple_epochs(
         fs=signal.sampling_rate,
         ignore_times=ignore_times,
     )
+    epochs["start"] = epochs["start"] + signal.t_start
+    epochs["stop"] = epochs["stop"] + signal.t_start
 
     metadata["channels"] = selected_chans
     return Epoch(epochs=epochs, metadata=metadata)

@@ -96,7 +96,7 @@ class NeuroscopeIO:
     def write_epochs(self, ext=".epc"):
         with self.source_file.with_suffix(f".evt.{ext}").open("w") as a:
             for event in self.epochs.itertuples():
-                a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
+                a.write(f"{event.start*1000} start\n{event.stop*1000} stop\n")
 
     def write_position(self, position: core.Position):
         # neuroscope only displays positive values so translating the coordinates

@@ -53,7 +53,7 @@ def plot_epochs(
     return ax
 
 
-def plot_hypnogram(epochs: Epoch, ax=None, tstart=0.0, unit="s", collapsed=False):
+def plot_hypnogram(epochs: Epoch, ax=None, t_start=0.0, unit="s", collapsed=False):
     """Plot hypnogram
 
     Parameters
@@ -116,8 +116,8 @@ def plot_hypnogram(epochs: Epoch, ax=None, tstart=0.0, unit="s", collapsed=False
     for state in epochs.to_dataframe().itertuples():
         if state.label in colors.keys():
             ax.axvspan(
-                (state.start - tstart) / unit_norm,
-                (state.stop - tstart) / unit_norm,
+                (state.start - t_start) / unit_norm,
+                (state.stop - t_start) / unit_norm,
                 ymin=span_[state.label][0],
                 ymax=span_[state.label][1],
                 facecolor=colors[state.label],

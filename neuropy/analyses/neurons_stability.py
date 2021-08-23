@@ -2,42 +2,33 @@ import numpy as np
 from .. import core
 
 
-def firing_rate_stability(neurons: core.Neurons, periods, thresh=0.3):
+def firing_rate_stability(neurons: core.Neurons, window=3600, thresh=0.3):
+    """Stability using firing rate
 
-    spikes = neurons.spiketrains
-    spks = spikes.times
-    nCells = len(spks)
+    Parameters
+    ----------
+    neurons : core.Neurons
+        [description]
+    periods : [type]
+        [description]
+    thresh : float, optional
+        [description], by default 0.3
 
-    # --- number of spikes in each bin ------
-    bin_dur = np.asarray([np.diff(window) for window in periods]).squeeze()
-    total_dur = np.sum(bin_dur)
-    nspks_period = np.asarray(
-        [np.histogram(cell, bins=np.concatenate(periods))[0][::2] for cell in spks]
-    )
-    assert nspks_period.shape[0] == nCells
+    Returns
+    -------
+    [type]
+        [description]
+    """
 
-    total_spks = np.sum(nspks_period, axis=1)
+    frate = (neurons.firing_rate).reshape(-1, 1)
+    binned_spk = neurons.get_binned_spiketrains(bin_size=window)
+    window_frate = binned_spk.spike_counts / binned_spk.bin_size
+    frate_ratio = window_frate / frate
+    stability_bool = np.where(frate_ratio > thresh, 1, 0)
+    good_windows = np.sum(stability_bool, axis=1)
+    neuron_bool = np.where(good_windows == binned_spk.n_bins, 1, 0)
 
-    nperiods = len(periods)
-    mean_frate = total_spks / total_dur
-
-    # --- calculate meanfr in each bin and the fraction of meanfr over all bins
-    frate_period = nspks_period / np.tile(bin_dur, (nCells, 1))
-    fraction = frate_period / mean_frate.reshape(-1, 1)
-    assert frate_period.shape == fraction.shape
-
-    isStable = np.where(fraction >= thresh, 1, 0)
-    spkinfo = spikes.info[["q", "shank"]].copy()
-    spkinfo["stable"] = isStable.all(axis=1).astype(int)
-
-    stbl = {
-        "stableinfo": spkinfo,
-        "isStable": isStable,
-        "bins": periods,
-        "thresh": thresh,
-    }
-
-    return stbl
+    return neuron_bool
 
 
 def isi_stability(neurons: core.Neurons, window=3600, isi_thresh=0.04, on_thresh=0.8):

@@ -94,7 +94,7 @@ class SpectrogramBands:
         overlap=0.5,
         smooth=None,
         multitaper=False,
-        norm_sig=True,
+        norm_sig=False,
     ):
 
         assert signal.n_channels == 1, "signal should have only one trace"
@@ -944,7 +944,7 @@ class ThetaParams:
         return ax
 
 
-def pxx_auc(signal: core.Signal, freq_band: tuple):
+def psd_auc(signal: core.Signal, freq_band: tuple, window=10, overlap=5):
     """Calculates area under the power spectrum for a given frequency band
 
     Parameters
@@ -969,8 +969,8 @@ def pxx_auc(signal: core.Signal, freq_band: tuple):
         f, pxx = sg.welch(
             stats.zscore(sig),
             fs=fs,
-            nperseg=10 * fs,
-            noverlap=5 * fs,
+            nperseg=int(window * fs),
+            noverlap=int(overlap * fs),
             axis=-1,
         )
         f_theta = np.where((f > freq_band[0]) & (f < freq_band[1]))[0]
