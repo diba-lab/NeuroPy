@@ -94,7 +94,7 @@ class SpectrogramBands:
         overlap=0.5,
         smooth=None,
         multitaper=False,
-        norm_sig=True,
+        norm_sig=False,
     ):
 
         assert signal.n_channels == 1, "signal should have only one trace"
