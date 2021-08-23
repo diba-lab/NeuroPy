@@ -21,12 +21,8 @@ def plot_raster(
         Each array within list represents spike times of that unit, by default None
     ax : obj, optional
         axis to plot onto, by default None
-    period : array like, optional
-        only plot raster for spikes within this period, by default None
     sort_by_frate : bool, optional
         If true then sorts spikes by the number of spikes (frate), by default False
-    tstart : int, optional
-        positions the x-axis labels to start from this, by default 0
     color : [type], optional
         color for raster plots, by default None
     marker : str, optional
@@ -88,7 +84,7 @@ def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=No
     ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type 'all'"""
 
     def ccg_spike_assemble(clus_use):
-        """Assemble an array of sorted spike times and cluIDs for the input cluster ids the list clus_use """
+        """Assemble an array of sorted spike times and cluIDs for the input cluster ids the list clus_use"""
         spikes_all, clus_all = [], []
         [
             (
