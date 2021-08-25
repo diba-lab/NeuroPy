@@ -173,7 +173,7 @@ class Epoch(DataWriter):
 
         return Epoch(epochs_df)
 
-    def proportion(self, t_start=None, t_stop=None):
+    def get_proportion_by_label(self, t_start=None, t_stop=None):
 
         if t_start is None:
             t_start = self.starts[0]
@@ -182,7 +182,7 @@ class Epoch(DataWriter):
 
         duration = t_stop - t_start
 
-        ep = self.epochs.copy()
+        ep = self._data.copy()
         ep = ep[(ep.stop > t_start) & (ep.start < t_stop)].reset_index(drop=True)
 
         if ep["start"].iloc[0] < t_start:

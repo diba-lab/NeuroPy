@@ -268,39 +268,56 @@ def detect_theta_epochs():
 
 
 def detect_spindle_epochs(
-    chans=None,
+    signal: Signal,
+    probegroup: ProbeGroup,
+    freq_band=(8, 16),
     thresh=(1, 5),
-    midur=0.4,
-    maxdur=1,
+    mindur=0.35,
+    maxdur=4,
     mergedist=0.05,
-    ignore_epochs=None,
+    ignore_epochs: Epoch = None,
+    method="hilbert",
 ):
-    if chans is None:
-        changrps = self._obj.goodchangrp
 
-        selected_chans = []
-        for changrp in changrps:
-            lfps = self._obj.geteeg(chans=changrp, timeRange=[0, 3600])
-            desc_order = super().get_best_channels(lfps=lfps)
-            selected_chans.append(changrp[desc_order[0]])
+    changrps = probegroup.get_connected_channels(groupby="shank")
+    selected_chans = []
+    for changrp in changrps:
+        # if changrp:
+        signal_slice = signal.time_slice(
+            channel_id=changrp.astype("int"), t_start=0, t_stop=3600
+        )
+        hil_stat = signal_process.hilbert_ampltiude_stat(
+            signal_slice.traces,
+            freq_band=freq_band,
+            fs=signal.sampling_rate,
+            statistic="mean",
+        )
+        selected_chans.append(changrp[np.argmax(hil_stat)])
+
+    print(f"Selected channels for ripples: {selected_chans}")
+
+    traces = signal.time_slice(channel_id=selected_chans).traces
+
+    if ignore_epochs is not None:
+        ignore_times = ignore_epochs.as_array()
     else:
-        selected_chans = chans
+        ignore_times = None
 
-    lfps = self._obj.geteeg(chans=selected_chans)
-
-    epochs, metadata = super().detect(
-        lfps=lfps,
+    epochs, metadata = _detect_freq_band_epochs(
+        signals=traces,
+        freq_band=freq_band,
         thresh=thresh,
-        mindur=midur,
+        mindur=mindur,
         maxdur=maxdur,
         mergedist=mergedist,
-        ignore_times=ignore_epochs,
+        fs=signal.sampling_rate,
+        ignore_times=ignore_times,
     )
+    epochs["start"] = epochs["start"] + signal.t_start
+    epochs["stop"] = epochs["stop"] + signal.t_start
 
     metadata["channels"] = selected_chans
-    self.epochs = epochs
-    self.metadata = metadata
-    self.save()
+    return Epoch(epochs=epochs, metadata=metadata)
 
 
 def detect_gamma_epochs():
