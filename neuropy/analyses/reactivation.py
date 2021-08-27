@@ -286,7 +286,7 @@ class CellAssembly:
 
         self._neurons = neurons
 
-    def getAssemblies(self, cell_ids, period, bnsz=0.25):
+    def get_assemblies(self, cell_ids, period, bnsz=0.25):
         """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive (as done in Gido M. van de Ven et al. 2016) V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights
 
         Arguments:
@@ -333,7 +333,7 @@ class CellAssembly:
         self.spikes = spikes
         return self.vectors
 
-    def getActivation(self, period, binsize=0.250):
+    def get_activation(self, period, binsize=0.250):
 
         V = self.vectors
         spks = self.spikes
