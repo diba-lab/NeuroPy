@@ -31,6 +31,9 @@ class Epoch(DataWriter):
     def labels(self):
         return self._data.label.values
 
+    def get_unique_labels(self):
+        return np.unique(self.labels)
+
     @property
     def to_dict(self):
         d = {"epochs": self._data, "metadata": self.metadata}
@@ -195,12 +198,14 @@ class Epoch(DataWriter):
 
         ep_group = ep.groupby("label").sum().duration / duration
 
-        states_proportion = {"rem": 0.0, "nrem": 0.0, "quiet": 0.0, "active": 0.0}
+        label_proportion = {}
+        for label in self.get_unique_labels():
+            label_proportion[label] = 0.0
 
         for state in ep_group.index.values:
-            states_proportion[state] = ep_group[state]
+            label_proportion[state] = ep_group[state]
 
-        return states_proportion
+        return label_proportion
 
     def count(self, t_start=None, t_stop=None, binsize=300):
 
