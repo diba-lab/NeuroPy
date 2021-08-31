@@ -151,13 +151,13 @@ class Fig:
         )
         return gs
 
-    def panel_label(self, ax, label):
+    def panel_label(self, ax, label, fontsize=12):
         ax.text(
             x=-0.08,
             y=1.15,
             s=label,
             transform=ax.transAxes,
-            fontsize=12,
+            fontsize=fontsize,
             fontweight="bold",
             va="top",
             ha="right",
