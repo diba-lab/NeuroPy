@@ -272,7 +272,12 @@ class ExplainedVariance(core.DataWriter):
         ax.set_ylabel("Explained variance")
         if legend:
             ax.legend()
-
+        ax.set_xlim(
+            [
+                (self.matching_time[0] - t_start) / 3600,
+                (self.matching_time[-1] - t_start) / 3600,
+            ]
+        )
         return ax
 
 
