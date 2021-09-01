@@ -31,7 +31,7 @@ class Signal:
 
     @property
     def n_frames(self):
-        return self.traces.shape[0]
+        return self.traces.shape[-1]
 
     @property
     def sampling_rate(self):
