@@ -101,7 +101,7 @@ def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1):
         colors = [color] * n_channels
 
     for i, trace in enumerate(sig):
-        ax.plot(trace, color=colors[i], lw=lw)
+        ax.plot(signal.time, trace, color=colors[i], lw=lw)
 
     ax.set_yticks(pad_vals)
     ax.set_yticklabels(signal.channel_id)
