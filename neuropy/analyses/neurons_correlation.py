@@ -1,39 +1,34 @@
 import numpy as np
 from .. import core
+import pandas as pd
 
 
-def corr_across_time_window(
-    neurons: core.Neurons, cell_ids, period, window=300, binsize=0.25
-):
-    """Correlation of pairwise correlation across a period by dividing into window size epochs
+def corr_across_time_window(neurons: core.Neurons, window=300, bin_size=0.25):
+    """Correlation of pairwise correlations across time
 
     Parameters
     ----------
-    period: array like
-        time period where the pairwise correlations are calculated, in seconds
+    neurons: core.Neruons
+        neurons used for calculation
     window : int, optional
-        dividing the period into this size window, by default 900
-    binsize : float, optional
+        dividing the period into this size window, by default 300 seconds
+    bin_size : float, optional
         [description], by default 0.25
     """
 
-    spikes = self.get_spiketrains(cell_ids)
-    epochs = np.arange(period[0], period[1], window)
+    n_windows = int((neurons.t_stop - neurons.t_start) / window)
+    window_starts = np.arange(n_windows) * window + neurons.t_start
 
-    pair_corr_epoch = []
-    for i in range(len(epochs) - 1):
-        epoch_bins = np.arange(epochs[i], epochs[i + 1], binsize)
-        spkcnt = np.asarray([np.histogram(x, bins=epoch_bins)[0] for x in spikes])
-        epoch_corr = np.corrcoef(spkcnt)
-        pair_corr_epoch.append(epoch_corr[np.tril_indices_from(epoch_corr, k=-1)])
-    pair_corr_epoch = np.asarray(pair_corr_epoch)
-
-    # masking nan values in the array
-    pair_corr_epoch = np.ma.array(pair_corr_epoch, mask=np.isnan(pair_corr_epoch))
-    corr = np.ma.corrcoef(pair_corr_epoch)  # correlation across windows
-    time = epochs[:-1] + window / 2
-    self.corr, self.time = corr, time
-    return np.asarray(corr), time
+    pair_corr = []
+    for start in window_starts:
+        pair_corr.append(
+            neurons.time_slice(start, start + window)
+            .get_binned_spiketrains(bin_size=bin_size)
+            .get_pairwise_corr(cross_shanks=False)
+        )
+    pair_corr = np.asarray(pair_corr).T
+    corr_across_time = pd.DataFrame(pair_corr).corr()
+    return corr_across_time.values
 
 
 def corr_pairwise(

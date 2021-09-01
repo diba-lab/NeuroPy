@@ -17,7 +17,11 @@ def write_spyking_circus(
     """
 
     nChans = prb.n_contacts
-    prb_data = prb.to_dataframe().set_index("channel_id")
+    prb_data = (
+        prb.to_dataframe()
+        .sort_values(by=["shank_id", "y"], ascending=[True, False])
+        .set_index("channel_id")
+    )
     channelgroups = prb.get_channels(groupby="shank")
     if rmv_badchans:
         channelgroups = prb.get_connected_channels(groupby="shank")

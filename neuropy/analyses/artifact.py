@@ -24,7 +24,7 @@ def detect_artifact_epochs(signal: Signal, thresh=4, method="zscore"):
     artifact_start = np.where(artifact_diff == 1)[0]
     artifact_end = np.where(artifact_diff == -1)[0]
 
-    firstPass = np.vstack((artifact_start - 10, artifact_end + 2)).T
+    firstPass = np.vstack((artifact_start - 10, artifact_end + 10)).T
 
     minInterArtifactDist = 5 * sampling_rate
     secondPass = []

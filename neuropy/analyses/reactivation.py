@@ -247,7 +247,12 @@ class ExplainedVariance(core.DataWriter):
             alpha=0.5,
             label="REV",
         )
-        ax.plot(self.matching_time / 3600, self.rev, color=self.colors["rev"], zorder=2)
+        ax.plot(
+            (self.matching_time - t_start) / 3600,
+            self.rev,
+            color=self.colors["rev"],
+            zorder=2,
+        )
 
         # ------- plot ev -------
         ax.fill_between(
@@ -259,13 +264,20 @@ class ExplainedVariance(core.DataWriter):
             alpha=0.5,
             label="EV",
         )
-        ax.plot(self.matching_time / 3600, self.ev, self.colors["ev"], zorder=4)
+        ax.plot(
+            (self.matching_time - t_start) / 3600, self.ev, self.colors["ev"], zorder=4
+        )
 
         ax.set_xlabel("Time (h)")
         ax.set_ylabel("Explained variance")
         if legend:
             ax.legend()
-
+        ax.set_xlim(
+            [
+                (self.matching_time[0] - t_start) / 3600,
+                (self.matching_time[-1] - t_start) / 3600,
+            ]
+        )
         return ax
 
 
@@ -279,7 +291,7 @@ class CellAssembly:
 
         self._neurons = neurons
 
-    def getAssemblies(self, cell_ids, period, bnsz=0.25):
+    def get_assemblies(self, cell_ids, period, bnsz=0.25):
         """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive (as done in Gido M. van de Ven et al. 2016) V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights
 
         Arguments:
@@ -326,7 +338,7 @@ class CellAssembly:
         self.spikes = spikes
         return self.vectors
 
-    def getActivation(self, period, binsize=0.250):
+    def get_activation(self, period, binsize=0.250):
 
         V = self.vectors
         spks = self.spikes

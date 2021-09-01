@@ -124,6 +124,7 @@ def plot_hypnogram(epochs: Epoch, ax=None, t_start=0.0, unit="s", collapsed=Fals
                 alpha=0.7,
             )
     ax.axis("off")
+    ax.set_xlim([t_start, epochs.stops[-1] - t_start])
 
     return ax
 

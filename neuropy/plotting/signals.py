@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import ipywidgets
 import numpy as np
+import matplotlib as mpl
 from ..core import Signal
 
 
@@ -79,8 +80,9 @@ def plot_spectrogram(sxx, time, freq, ax=None):
     return ax
 
 
-def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k"):
+def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1):
 
+    n_channels = signal.n_channels
     sig = signal.traces
     sig = sig / np.max(sig)  # scaling
     sig = sig - sig[:, 0][:, np.newaxis]  # np.min(sig, axis=1, keepdims=True)
@@ -91,7 +93,16 @@ def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k"):
         _, ax = plt.subplots(1, 1)
 
     ax.clear()
-    ax.plot(sig.T, color=color)
+
+    try:
+        cmap = mpl.cm.get_cmap(color)
+        colors = [cmap(_ / n_channels) for _ in range(n_channels)]
+    except:
+        colors = [color] * n_channels
+
+    for i, trace in enumerate(sig):
+        ax.plot(signal.time, trace, color=colors[i], lw=lw)
+
     ax.set_yticks(pad_vals)
     ax.set_yticklabels(signal.channel_id)
     ax.set_xticklabels([])

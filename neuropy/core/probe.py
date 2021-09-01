@@ -352,7 +352,7 @@ class ProbeGroup(DataWriter):
     @staticmethod
     def from_dict(d: dict):
         prbgrp = ProbeGroup()
-        prbgrp._data = d["data"]
+        prbgrp._data = d["data"].sort_values(["shank_id", "y"], ascending=[True, False])
         prbgrp.metadata = d["metadata"]
         return prbgrp
 
