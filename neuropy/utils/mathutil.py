@@ -7,6 +7,22 @@ from hmmlearn.hmm import GaussianHMM
 from .ccg import correlograms
 
 
+def min_max_scaler(x):
+    """Scales the values x to lie between 0 and 1
+
+    Parameters
+    ----------
+    x : np.array
+        1-D numpy array
+
+    Returns
+    -------
+    np.array
+        scaled array
+    """
+    return (x - np.min(x)) / (np.max(x) - np.min(x))
+
+
 def partialcorr(x, y, z):
     """
     correlation between x and y , with controlling for z
