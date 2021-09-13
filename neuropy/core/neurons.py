@@ -242,29 +242,24 @@ class Neurons(DataWriter):
             shank_ids=self.shank_ids,
         )
 
-    def get_mua(self, t_start=None, t_stop=None, bin_size=0.001):
+    def get_mua(self, bin_size=0.001):
         """Get mua between two time points
 
         Parameters
         ----------
-        t_start : [type]
-            [description]
-        t_stop : [type]
-            [description]
         bin_size : float, optional
             [description], by default 0.001
 
         Returns
         -------
-        [type]
+        MUA object
             [description]
         """
 
-        t_start, t_stop = self._time_check(t_start, t_stop)
         all_spikes = self.get_all_spikes()
-        bins = np.arange(t_start, t_stop, bin_size)
+        bins = np.arange(self.t_start, self.t_stop, bin_size)
         spike_counts = np.histogram(all_spikes, bins=bins)[0]
-        return Mua(spike_counts.astype("int"), t_start=t_start, bin_size=bin_size)
+        return Mua(spike_counts.astype("int"), t_start=self.t_start, bin_size=bin_size)
 
     def add_jitter(self):
         pass

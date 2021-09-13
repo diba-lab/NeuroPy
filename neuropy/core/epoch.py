@@ -8,6 +8,7 @@ class Epoch(DataWriter):
         super().__init__()
 
         self._check_epochs(epochs)
+        epochs["label"] = epochs["label"].astype("str")
         self._data = epochs.sort_values(by=["start"])
         self._metadata = metadata
 

@@ -53,7 +53,7 @@ def plot_epochs(
     return ax
 
 
-def plot_hypnogram(epochs: Epoch, ax=None, t_start=0.0, unit="s", collapsed=False):
+def plot_hypnogram(epochs: Epoch, ax=None, unit="s", collapsed=False, annotate=False):
     """Plot hypnogram
 
     Parameters
@@ -73,6 +73,7 @@ def plot_hypnogram(epochs: Epoch, ax=None, t_start=0.0, unit="s", collapsed=Fals
         [description]
 
     """
+
     colors = {
         "nrem": "#667cfa",
         "rem": "#eb9494",
@@ -97,14 +98,16 @@ def plot_hypnogram(epochs: Epoch, ax=None, t_start=0.0, unit="s", collapsed=Fals
         "active": [0.75, 1],
     }
 
-    for state in span_:
-        ax.annotate(
-            state,
-            (1, span_[state][1] - 0.15),
-            xycoords="axes fraction",
-            fontsize=7,
-            color=colors[state],
-        )
+    if annotate:
+        for state in span_:
+            ax.annotate(
+                state,
+                (1, span_[state][1] - 0.15),
+                xycoords="axes fraction",
+                fontsize=7,
+                color=colors[state],
+            )
+
     if collapsed:
         span_ = {
             "nrem": [0, 1],
@@ -116,15 +119,15 @@ def plot_hypnogram(epochs: Epoch, ax=None, t_start=0.0, unit="s", collapsed=Fals
     for state in epochs.to_dataframe().itertuples():
         if state.label in colors.keys():
             ax.axvspan(
-                (state.start - t_start) / unit_norm,
-                (state.stop - t_start) / unit_norm,
+                state.start / unit_norm,
+                state.stop / unit_norm,
                 ymin=span_[state.label][0],
                 ymax=span_[state.label][1],
                 facecolor=colors[state.label],
-                alpha=0.7,
+                # alpha=0.7,
             )
     ax.axis("off")
-    ax.set_xlim([t_start, epochs.stops[-1] - t_start])
+    ax.set_xlim([epochs.starts[0], epochs.stops[-1]])
 
     return ax
 
