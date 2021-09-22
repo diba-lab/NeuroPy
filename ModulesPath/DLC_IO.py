@@ -48,8 +48,8 @@ class DLC:
         self.animal_name = self.base_dir.parts[-2]
 
         # Grab tracking files and corresponding movie file.
-        tracking_files = sorted(self.base_dir.glob("*.h5"))
-        movie_files = sorted(self.base_dir.glob("*" + movie_type))
+        tracking_files = sorted(self.base_dir.glob("**/*.h5"))
+        movie_files = sorted(self.base_dir.glob("**/*" + movie_type))
         # if movie_type == ".avi":  # Not preferred
         #     movie_files = [
         #         Path(str(file)[0 : str(file).find("DLC")] + movie_type)
@@ -275,7 +275,6 @@ def get_matching_files(files, match_str=["habituation", "Camera 1"], exclude_str
     exclude_bool_array = np.asarray(exclude_bool).squeeze()
     if exclude_bool_array.ndim == 2:
         exclude_bool_array = exclude_bool_array.any(axis=0)
-
     match_ind = np.where(
         np.bitwise_and(find_bool_array, np.bitwise_not(exclude_bool_array))
     )[0]

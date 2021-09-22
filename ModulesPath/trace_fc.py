@@ -32,6 +32,10 @@ trace_params = {
         "Shock": {"pix2cm": 0.13, "camera": "_Shockbox"},
         "New": {"pix2cm": 0.26, "camera": "_newarena"},
     },
+    "Recording_Rats": {
+        "Shock": {"pix2cm": 0.13, "camera": "_Shockbox"},
+        "New": {"pix2cm": 0.26, "camera": "_Newarena"},
+    },
 }
 
 
@@ -218,10 +222,13 @@ class trace_behavior:
     def load_events(self):
         """Load events (start/end times, CS/US times, etc.) from .CSV file."""
         # Grab tracking files and corresponding movie file.
-        event_files = sorted(self.base_dir.glob("*.csv"))
+        event_files = sorted(self.base_dir.glob("**/*.csv"))
         self.event_file = dio.get_matching_files(
             event_files,
-            match_str=[self.session_type.replace("LTM", ""), self.session_date],
+            match_str=[
+                self.session_type.replace("LTM", "").replace("1", "").replace("2", ""),
+                self.session_date,
+            ],
             exclude_str=["test"],
         )[0]
 
@@ -361,7 +368,7 @@ class trace_behavior:
             fig = plt.figure(figsize=[14, 5.75])
             gs = GridSpec(1, 5, figure=fig)
             ax_bl = fig.add_subplot(gs[0, 0:2])
-            ax_trial = fig.add_subplot(gs[0, 2:])
+            ax_trial = fig.add_subplot(gs[0, 2:], sharey=ax_bl)
             ax_out = [ax_bl, ax_trial]
         elif ax is not None:
             ax_out = ax
@@ -407,6 +414,7 @@ class trace_behavior:
             ax_bl.set_xlabel("Time from session start (s)")
             ax_bl.set_ylabel("Speed (cm/s)")
             ax_bl.set_title("Baseline")
+            ax_bl.set_ylim()
             sns.despine(ax=ax_bl)
 
         return ax_out
@@ -417,38 +425,19 @@ class trace_animal:
     **kwargs can be anything from trace_behavior class."""
 
     def __init__(self, animal_dir, paradigm, **kwargs):
-        arenas = ["Shock", "Shock", "Shock", "Shock", "New", "New"]
-        sessions = [
-            "_habituation",
-            "_training",
-            "_recall",
-            "_LTMrecall",
-            "_recall",
-            "_LTMrecall",
-        ]
-        session_names = [
-            "habituation",
-            "training",
-            "ctx_recall",
-            "ctx_LTMrecall",
-            "tone_recall",
-            "tone_LTMrecall",
-        ]
 
-        self.titles = [
-            "Habituation",
-            "Training",
-            "CTX Recall",
-            "CTX LTM Recall",
-            "Tone Recall",
-            "Tone LTM Recall",
-        ]
+        names_dict = generate_session_names(paradigm)
 
+        arenas = names_dict["arenas"]
+        sessions = names_dict["sessions"]
+        session_names = names_dict["session_names"]
+        self.titles = names_dict["titles"]
         self.session_names = session_names
 
         animal_path = Path(animal_dir)
         self.data = {}
         for session, name, arena in zip(sessions, session_names, arenas):
+            print(session + " " + name + " " + arena)
             base_dir = sorted(animal_path.glob("*" + session))[0]
             params_use = trace_params[paradigm][arena]
 
@@ -506,6 +495,7 @@ class trace_animal:
         # Break-down by trial now
         if by_trial and session_type in [
             "habituation",
+            "training",
             "tone_recall",
             "tone_LTMrecall",
         ]:
@@ -553,6 +543,11 @@ class trace_group:
         # Set up base directory for paradigm
         self.paradigm_path = Path(base_dir) / paradigm
         self.animal_dirs = sorted(self.paradigm_path.glob("Rat*"))
+        self.animal_dirs = self.animal_dirs[
+            np.where([d.is_dir() for d in self.animal_dirs])[0][0]
+        ]  # Make sure you grab only directories
+        if type(self.animal_dirs) is not list:
+            self.animal_dirs = [self.animal_dirs]
         self.animal_names = [adir.parts[-1] for adir in self.animal_dirs]
         self.paradigm = paradigm
 
@@ -982,8 +977,61 @@ def fix_date(date_str):
     return date_fixed
 
 
+def generate_session_names(paradigm):
+    """Generates session names and titles for plots and such based on paradigm.
+
+    :param paradigm: 'Pilot1', 'Pilot2', or 'Recording1'
+    :return:
+    """
+    arenas = ["Shock", "Shock", "Shock", "Shock", "New", "New"]
+    sessions = [
+        "_habituation",
+        "_training",
+        "_recall",
+        "_LTMrecall",
+        "_recall",
+        "_LTMrecall",
+    ]
+    session_names = [
+        "habituation",
+        "training",
+        "ctx_recall",
+        "ctx_LTMrecall",
+        "tone_recall",
+        "tone_LTMrecall",
+    ]
+
+    titles = [
+        "Habituation",
+        "Training",
+        "CTX Recall",
+        "CTX LTM Recall",
+        "Tone Recall",
+        "Tone LTM Recall",
+    ]
+    if paradigm == "Recording_Rats":
+        arenas12 = ["Shock", "Shock"]
+        sessions12 = ["_habituation1", "_habituation2"]
+        session_names12 = ["habituation1", "habituation2"]
+        titles12 = ["Habituation 1", "Habituation 2"]
+
+        arenas12.extend(arenas[1:])
+        sessions12.extend(sessions[1:])
+        session_names12.extend(session_names[1:])
+        titles12.extend(titles[1:])
+
+        arenas, sessions = arenas12, sessions12
+        session_names, titles = session_names12, titles12
+
+    names_dict = {
+        "arenas": arenas,
+        "sessions": sessions,
+        "session_names": session_names,
+        "titles": titles,
+    }
+
+    return names_dict
+
+
 if __name__ == "__main__":
-    tg2 = trace_group("Pilot2", "/data2/Trace_FC")
-    tg2.plot_speed_summary(
-        "training", average_trials=False, baseline_time=30, baseline_end=350
-    )
+    trace_group("Recording_Rats", "/data2/Trace_FC")
