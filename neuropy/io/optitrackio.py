@@ -1,20 +1,15 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 import csv
-import os
 import linecache
-from datetime import datetime, timedelta
-from pathlib import Path
-from parsePath import Recinfo
-from mathutil import contiguous_regions
-import xml.etree.ElementTree as ET
 import re
-from glob import glob
-from dataclasses import dataclass
-import csv
-from sklearn.decomposition import PCA
-from sklearn.manifold import Isomap
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from pathlib import Path
+import numpy as np
+from datetime import datetime
+import pandas as pd
+from ..utils import position_util, mathutil
+from pathlib import Path
+from ..core import Position
 
 
 def getSampleRate(fileName):
@@ -30,7 +25,7 @@ def getSampleRate(fileName):
     if capture_FR != export_FR:
         print("Careful! capture FR does NOT match export FR. Using export only.")
 
-    return export_FR
+    return int(export_FR)
 
 
 def getnframes(fileName):
@@ -49,6 +44,24 @@ def getnframes(fileName):
         )
 
     return int(nframes_export)
+
+
+def getnframes_fbx(fileName):
+    fileName = str(fileName)
+
+    with open(fileName) as f:
+        next(f)
+        for i, line in enumerate(f):
+
+            m = "".join(line)
+
+            if "KeyCount" in m:
+                # print("break at i = " + str(i))
+                # line_frame = linecache.getline(fileName, i + 2).strip().split(" ")
+
+                break
+
+    return int(m.strip().split(":")[1].strip())
 
 
 def getunits(fileName):
@@ -121,7 +134,7 @@ def posfromCSV(fileName):
 def interp_missing_pos(x, y, z, t):
     """Interpolate missing data points"""
     xgood, ygood, zgood = x, y, z
-    idnan = contiguous_regions(np.isnan(x))  # identify missing data points
+    idnan = mathutil.contiguous_regions(np.isnan(x))  # identify missing data points
 
     for ids in idnan:
         missing_ids = range(ids[0], ids[-1])
@@ -254,66 +267,160 @@ def getStartTime(fileName):
     return tbegin
 
 
-class ExtractPosition:
-    def __init__(self, basepath):
-        """initiates position class
+def timestamps_from_oe(rec_folder, data_type="continuous"):
+    """Gets timestamps for all recordings/experiments in a given recording folder. Assumes you have recorded
+    in flat binary format in OpenEphys and left the directory structure intact. continuous data by default,
+    set data_type='events' for TTL timestamps"""
+    if isinstance(rec_folder, Path):
+        oefolder = rec_folder
+    else:
+        oefolder = Path(rec_folder)
 
-        Arguments:
-            obj {class instance} -- should have the following attributes
-                :param: obj.sessinfo.files.position --> filename for storing the positions
-                :param: tracking_sf: accounts for any mismatch between calibration wand size (125mm) and the size used in OptiTrack.
-                Prior to late 2020, we used a 500mm wand length in Motive (Calibration Box: Wanding->OptiWand->Wand Length)
-                by accident, so the default is 4.
+    # Identify and sort timestamp and settings files in ascending order
+    if data_type in ["continuous"]:
+        time_files = np.asarray(
+            sorted(
+                oefolder.glob("**/experiment*/**/" + data_type + "/**/timestamps.npy")
+            )
+        )
+    else:
+        raise ValueError("data_type must be " "continuous" "")
+    set_files = np.asarray(sorted(oefolder.glob("**/settings*.xml")))
+    sync_files = np.asarray(sorted(oefolder.glob("**/sync_messages.txt")))
+
+    # Loop through and establish timeframes for each file
+    times_abs = []
+    for time, set_, sync_file in zip(time_files, set_files, sync_files):
+        # load data
+        timedata = np.load(time)
+        myroot = ET.parse(set_).getroot()
+        setdict = {}
+        for elem in myroot[0]:
+            setdict[elem.tag] = elem.text
+        # setdict = XML2Dict(set_)
+        SRuse, sync_start = get_sync_info(sync_file)
+
+        # Identify absolute start times of each file...
+        tbegin = datetime.strptime(setdict["DATE"], "%d %b %Y %H:%M:%S")
+        tstamps = tbegin + pd.to_timedelta((timedata - sync_start) / SRuse, unit="sec")
+        if len(times_abs) > 0 and tstamps[0] < times_abs[-1][-1]:
+            raise Exception("Timestamps out of order - check directory structure!")
+        times_abs.append(tstamps)
+
+    return times_abs
+
+
+def get_sync_info(_sync_file):
+    sync_file_read = open(_sync_file).readlines()
+    SR = int(
+        sync_file_read[1][
+            re.search("@", sync_file_read[1])
+            .span()[1] : re.search("Hz", sync_file_read[1])
+            .span()[0]
+        ]
+    )
+    sync_start = int(
+        sync_file_read[1][
+            re.search("start time: ", sync_file_read[1])
+            .span()[1] : re.search("@[0-9]*Hz", sync_file_read[1])
+            .span()[0]
+        ]
+    )
+    return SR, sync_start
+
+
+class OptitrackIO:
+    def __init__(self, dirname, scale_factor=1.0) -> None:
+        self.dirname = dirname
+        self.scale_factor = scale_factor
+        self.datetime = None
+        self.time = None
+        self._parse_folder()
+
+    def _parse_folder(self):
+        """get position data from files. All position related files should be in 'position' folder within basepath
+
+        Parameters
+        ----------
+        method : str, optional
+            method to grab file start times: "from_metadata" (default) grabs from metadata.csv file,
+                                             "from_files" grabs from timestamps.npy files in open-ephys folders
+        scale : float, optional
+            scale the extracted coordinates, by default 1.0
         """
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
 
-        # ------- defining file names ---------
-        filePrefix = self._obj.files.filePrefix
+        sampling_rate = getSampleRate(sorted((self.dirname).glob("*.csv"))[0])
 
-        @dataclass
-        class files:
-            position: str = Path(str(filePrefix) + "_position.npy")
+        # ------- collecting timepoints related to position tracking ------
+        posfiles = np.asarray(sorted(self.dirname.glob("*.csv")))
+        posfilestimes = np.asarray(
+            [
+                datetime.strptime(file.stem, "Take %Y-%m-%d %I.%M.%S %p")
+                for file in posfiles
+            ]
+        )
+        filesort_ind = np.argsort(posfilestimes).astype(int)
+        posfiles = posfiles[filesort_ind]
 
-        self.files = files()
+        postime, posx, posy, posz = [], [], [], []
+        datetime_starts, datetime_stops, datetime_nframes = [], [], []
 
-        self._load()
+        for file in posfiles:
+            print(file)
+            tbegin = getStartTime(file)
 
-    def _load(self):
-        if (f := self.files.position).is_file():
-            posInfo = np.load(f, allow_pickle=True).item()
-            self.x = posInfo["x"]
-            self.y = posInfo["y"]
-            self.z = posInfo["z"]
-            self.t = posInfo["time"]  # in seconds
-            self.datetime = posInfo["datetime"]  # in seconds
-            self.tracking_sRate = posInfo["trackingsRate"]
-            self.speed = np.sqrt(np.diff(self.x) ** 2 + np.diff(self.y) ** 2) / (
-                1 / self.tracking_sRate
-            )
-            self.data = pd.DataFrame(
-                {
-                    "time": self.t[1:],
-                    "x": self.x[1:],
-                    "y": self.y[1:],
-                    "z": self.z[1:],
-                    "speed": self.speed,
-                    "datetime": self.datetime[1:],
-                }
-            )
+            if file.with_suffix(".fbx").is_file():
+                # Get time ranges for position files
+                nframes_pos = getnframes_fbx(file.with_suffix(".fbx"))
+                duration = pd.Timedelta(nframes_pos / sampling_rate, unit="sec")
+                tend = tbegin + duration
+                trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
 
-    def __getitem__(self, epochs):
-        pass
+                x, y, z = posfromFBX(file.with_suffix(".fbx"))
+                assert len(x) == nframes_pos
+                postime.extend(trange)
 
-    @property
-    def video_start_time(self):
-        posFolder = Path(self._obj.basePath) / "position"
-        posfiles = np.asarray(sorted(posFolder.glob("*.csv")))
-        return getStartTime(posfiles[0])
+            else:
+                x, y, z, trelative = posfromCSV(file)
+                # Make sure you arent't just importing the header, if so engage except
+                assert len(x) > 0
+                nframes_pos = len(x)
+                trange = tbegin + pd.to_timedelta(trelative, unit="s")
+                postime.extend(trange)
+                tend = trange[-1]
 
-    def getPosition(self, method="from_metadata", scale=1.0):
+            datetime_starts.append(tbegin)
+            datetime_stops.append(tend)
+            datetime_nframes.append(nframes_pos)
+            posx.extend(x)
+            posy.extend(y)
+            posz.extend(z)
+
+        postime = pd.to_datetime(postime)
+        posx = np.asarray(posx)
+        posy = np.asarray(posy)
+        posz = np.asarray(posz)
+
+        assert len(postime) == len(posx)
+
+        self.x = posx * self.scale_factor
+        self.y = posy * self.scale_factor
+        self.z = posz * self.scale_factor
+        self.datetime_array = postime
+        self.datetime_starts = datetime_starts
+        self.datetime_stops = datetime_stops
+        self.datetime_nframes = datetime_nframes
+        self.sampling_rate = sampling_rate
+
+    def get_position_at_datetimes(self, dt):
+
+        x = np.interp(dt, self.datetime_array, self.x)
+        y = np.interp(dt, self.datetime_array, self.y)
+        z = np.interp(dt, self.datetime_array, self.z)
+
+        return x, y, z
+
+    def old_stuff(self):
         """get position data from files. All position related files should be in 'position' folder within basepath
 
         Parameters
@@ -326,14 +433,12 @@ class ExtractPosition:
         """
         sRate = self._obj.sampfreq  # .dat file sampling frequency
         basePath = Path(self._obj.basePath)
-        metadata = self._obj.loadmetadata()
-
-        nfiles = metadata.count()["StartTime"]
+        metadata = self._obj.loadmetadata
 
         # ------- collecting timepoints related to .dat file  --------
         data_time = []
         # transfer start times from the settings*.xml file and nframes in .dat file to each row of the metadata file
-        tracking_sRate = getSampleRate(
+        tracking_sRate = position_util.getSampleRate(
             sorted((self._obj.basePath / "position").glob("*.csv"))[0]
         )
         durations = []
@@ -397,47 +502,25 @@ class ExtractPosition:
 
         for file in posfiles:
             print(file)
-            tbegin = getStartTime(file)
+            tbegin = position_util.getStartTime(file)
 
             if file.with_suffix(".fbx").is_file():
                 # Get time ranges for position files
-                nframes_pos = getnframes(file)
+                nframes_pos = position_util.getnframes(file)
                 duration = pd.Timedelta(nframes_pos / tracking_sRate, unit="sec")
                 tend = tbegin + duration
                 trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
 
-                x, y, z = posfromFBX(file.with_suffix(".fbx"))
+                x, y, z = position_util.posfromFBX(file.with_suffix(".fbx"))
 
                 postime.extend(trange)
 
             else:  # First try to load everything from CSV directly
-                x, y, z, trelative = posfromCSV(file)
+                x, y, z, trelative = position_util.posfromCSV(file)
                 # Make sure you arent't just importing the header, if so engage except
                 assert len(x) > 0
                 trange = tbegin + pd.to_timedelta(trelative, unit="s")
                 postime.extend(trange)
-            # try:  # First try to load everything from CSV directly
-            #     x, y, z, trelative = posfromCSV(file)
-            #     # Make sure you arent't just importing the header, if so engage except
-            #     assert len(x) > 0
-            #     trange = tbegin + pd.to_timedelta(trelative, unit="s")
-            #     postime.extend(trange)
-
-            # except (
-            #     FileNotFoundError,
-            #     KeyError,
-            #     pd.errors.ParserError,
-            # ):  # Get data from FBX file if not in CSV
-
-            #     # Get time ranges for position files
-            #     nframes_pos = getnframes(file)
-            #     duration = pd.Timedelta(nframes_pos / tracking_sRate, unit="sec")
-            #     tend = tbegin + duration
-            #     trange = pd.date_range(start=tbegin, end=tend, periods=nframes_pos)
-
-            #     x, y, z = posfromFBX(file.with_suffix(".fbx"))
-
-            #     postime.extend(trange)
 
             posx.extend(x)
             posy.extend(y)
@@ -448,9 +531,10 @@ class ExtractPosition:
         posz = np.asarray(posz)
 
         # -------- interpolating positions for recorded data ------------
-        xdata = np.interp(data_time, postime, posx) / scale
-        ydata = np.interp(data_time, postime, posy) / scale
-        zdata = np.interp(data_time, postime, posz) / scale
+        xdata = np.interp(data_time, postime, posx) * scale
+        ydata = np.interp(data_time, postime, posy) * scale
+        zdata = np.interp(data_time, postime, posz) * scale
+
         time = np.linspace(0, len(xdata) / tracking_sRate, len(xdata))
         posVar = {
             "x": xdata,
@@ -461,94 +545,10 @@ class ExtractPosition:
             "trackingsRate": tracking_sRate,
         }
 
-        np.save(self._obj.files.position, posVar)
+        self.x = xdata
+        self.y = zdata
+        self.z = ydata
+        self.time = time
+        self.tracking_srate = tracking_sRate
 
-        # now load this immediately into existence
-        self._load()
-
-    def plot(self):
-
-        plt.clf()
-        plt.plot(self.x, self.y)
-
-    def export2Neuroscope(self):
-
-        # neuroscope only displays positive values so translating the coordinates
-        x = self.x + abs(min(self.x))
-        y = self.y + abs(min(self.y))
-        print(max(x))
-        print(max(y))
-
-        filename = self._obj.files.filePrefix.with_suffix(".pos")
-        with filename.open("w") as f:
-            for xpos, ypos in zip(x, y):
-                f.write(f"{xpos} {ypos}\n")
-
-
-def timestamps_from_oe(rec_folder, data_type="continuous"):
-    """Gets timestamps for all recordings/experiments in a given recording folder. Assumes you have recorded
-    in flat binary format in OpenEphys and left the directory structure intact. continuous data by default,
-    set data_type='events' for TTL timestamps"""
-    if isinstance(rec_folder, Path):
-        oefolder = rec_folder
-    else:
-        oefolder = Path(rec_folder)
-
-    # Identify and sort timestamp and settings files in ascending order
-    if data_type in ["continuous"]:
-        time_files = np.asarray(
-            sorted(
-                oefolder.glob("**/experiment*/**/" + data_type + "/**/timestamps.npy")
-            )
-        )
-    else:
-        raise ValueError("data_type must be " "continuous" "")
-    set_files = np.asarray(sorted(oefolder.glob("**/settings*.xml")))
-    sync_files = np.asarray(sorted(oefolder.glob("**/sync_messages.txt")))
-
-    # Loop through and establish timeframes for each file
-    times_abs = []
-    for time, set_, sync_file in zip(time_files, set_files, sync_files):
-        # load data
-        timedata = np.load(time)
-        myroot = ET.parse(set_).getroot()
-        setdict = {}
-        for elem in myroot[0]:
-            setdict[elem.tag] = elem.text
-        # setdict = XML2Dict(set_)
-        SRuse, sync_start = get_sync_info(sync_file)
-
-        # Identify absolute start times of each file...
-        tbegin = datetime.strptime(setdict["DATE"], "%d %b %Y %H:%M:%S")
-        tstamps = tbegin + pd.to_timedelta((timedata - sync_start) / SRuse, unit="sec")
-        if len(times_abs) > 0 and tstamps[0] < times_abs[-1][-1]:
-            raise Exception("Timestamps out of order - check directory structure!")
-        times_abs.append(tstamps)
-
-    return times_abs
-
-
-def get_sync_info(_sync_file):
-    sync_file_read = open(_sync_file).readlines()
-    SR = int(
-        sync_file_read[1][
-            re.search("@", sync_file_read[1])
-            .span()[1] : re.search("Hz", sync_file_read[1])
-            .span()[0]
-        ]
-    )
-    sync_start = int(
-        sync_file_read[1][
-            re.search("start time: ", sync_file_read[1])
-            .span()[1] : re.search("@[0-9]*Hz", sync_file_read[1])
-            .span()[0]
-        ]
-    )
-    return SR, sync_start
-
-
-if __name__ == "__main__":
-    x, y, z, t = posfromCSV(
-        "/data/Working/Other Peoples Data/Bapun/circle_track/Take 2020-11-29 09.49.16 PM.csv"
-    )
-pass
+        self.save()

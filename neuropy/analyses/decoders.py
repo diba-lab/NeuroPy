@@ -4,83 +4,20 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from scipy import stats
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
-
-from behavior import behavior_epochs
-from getSpikes import Spikes
-from parsePath import Recinfo
-from pfPlot import pf1d, pf2d
-from plotUtil import Fig
-from joblib import Parallel, delayed
 from tqdm import tqdm
 
+from .placefields import PF1d, PF2d
 
-class Bayes:
+
+class Decode1d:
     binsize = 0.02
     n_jobs = 8
 
-    def __init__(self):
-        self._events = None
-        self.posterior = None
-        self.decodedPos = None
-
-    @property
-    def events(self):
-        return self._events
-
-    @events.setter
-    def events(self, events: pd.DataFrame):
-
-        if isinstance(events, pd.DataFrame):
-            assert (
-                pd.Series(["start", "end"]).isin(events.columns).all()
-            ), "events should have start and end as column names"
-        elif isinstance(events, np.ndarray):
-            events = pd.DataFrame({"start": events[:, 0], "end": events[:, 1]})
-        self._events = events
-
-    def _decoder(self, spkcount, ratemaps):
-        """
-        ===========================
-        Probability is calculated using this formula
-        prob = (1 / nspike!)* ((tau * frate)^nspike) * exp(-tau * frate)
-        where,
-            tau = binsize
-        ===========================
-        """
-        tau = self.binsize
-        nCells = spkcount.shape[0]
-        cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
-        for cell in range(nCells):
-            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
-            cell_ratemap = ratemaps[cell, :][:, np.newaxis]
-
-            coeff = 1 / (factorial(cell_spkcnt))
-            # broadcasting
-            cell_prob[:, :, cell] = (((tau * cell_ratemap) ** cell_spkcnt) * coeff) * (
-                np.exp(-tau * cell_ratemap)
-            )
-
-        posterior = np.prod(cell_prob, axis=2)
-        posterior /= np.sum(posterior, axis=0)
-
-        return posterior
-
-
-class DecodeBehav:
-    def __init__(self, pf1d_obj: pf1d, pf2d_obj: pf2d):
-
-        self.bayes1d = Bayes1d(pf1d_obj)
-        self.bayes2d = bayes2d(pf2d_obj)
-
-
-class Bayes1d:
-    binsize = 0.02
-    n_jobs = 8
-
-    def __init__(self, pf1d_obj: pf1d):
+    def __init__(self, pf1d_obj: PF1d):
         self._obj = pf1d_obj._obj
         self.ratemaps = pf1d_obj
         self._events = None
@@ -468,10 +405,10 @@ class Bayes1d:
                 axdec.set_xlabel("Time (ms)")
 
 
-class bayes2d(Bayes):
-    def __init__(self, pf2d_obj: pf2d):
+class Decode2d:
+    def __init__(self, pf2d_obj: PF2d):
 
-        assert isinstance(pf2d_obj, pf2d)
+        assert isinstance(pf2d_obj, PF2d)
         self._obj = pf2d_obj._obj
         self.pf2d = pf2d_obj
 

@@ -1,26 +1,38 @@
 from dataclasses import dataclass
 from typing import Any
-
+import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import axis
 import numpy as np
 import scipy.ndimage as filtSig
 import scipy.signal as sg
-from scipy import stats
 from joblib import Parallel, delayed
-from scipy import fftpack
+from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
-from plotUtil import Fig
+
+from ..plotting import Fig
+from .. import core
 
 
 class filter_sig:
     @staticmethod
     def bandpass(signal, hf, lf, fs=1250, order=3, ax=-1):
-        nyq = 0.5 * fs
 
-        b, a = sg.butter(order, [lf / nyq, hf / nyq], btype="bandpass")
-        yf = sg.filtfilt(b, a, signal, axis=ax)
+        if isinstance(signal, core.Signal):
+            y = signal.traces
+            nyq = 0.5 * signal.sampling_rate
+            b, a = sg.butter(order, [lf / nyq, hf / nyq], btype="bandpass")
+            yf = sg.filtfilt(b, a, y, axis=-1)
+            yf = core.Signal(
+                traces=yf,
+                sampling_rate=signal.sampling_rate,
+                t_start=signal.t_start,
+                channel_id=signal.channel_id,
+            )
+        else:
+            nyq = 0.5 * fs
+            b, a = sg.butter(order, [lf / nyq, hf / nyq], btype="bandpass")
+            yf = sg.filtfilt(b, a, signal, axis=ax)
 
         return yf
 
@@ -86,74 +98,99 @@ def whiten(strain, interp_psd, dt):
     return white_ht
 
 
-@dataclass
-class spectrogramBands:
-    lfp: Any
-    sampfreq: float = 1250.0
-    window: int = 1  # in seconds
-    overlap: float = 0.5  # in seconds
-    smooth: int = None
-    multitaper: bool = False
+class SpectrogramBands:
+    def __init__(
+        self,
+        signal: core.Signal,
+        window: float = 1,
+        overlap=0.5,
+        smooth=None,
+        multitaper=False,
+        norm_sig=False,
+    ):
 
-    def __post_init__(self):
+        assert signal.n_channels == 1, "signal should have only one trace"
+        fs = signal.sampling_rate
+        window = int(window * fs)
+        overlap = int(overlap * fs)
 
-        window = int(self.window * self.sampfreq)
-        overlap = int(self.overlap * self.sampfreq)
+        sig = signal.traces[0]
+        if norm_sig:
+            sig = stats.zscore(signal.traces[0])
+
         f = None
-        if self.multitaper:
+        if multitaper:
             tapers = sg.windows.dpss(M=window, NW=5, Kmax=6)
 
             sxx_taper = []
             for taper in tapers:
-                f, t, sxx = sg.spectrogram(
-                    self.lfp, window=taper, fs=self.sampfreq, noverlap=overlap
-                )
+                f, t, sxx = sg.spectrogram(sig, window=taper, fs=fs, noverlap=overlap)
                 sxx_taper.append(sxx)
             sxx = np.dstack(sxx_taper).mean(axis=2)
 
         else:
-            f, t, sxx = sg.spectrogram(
-                self.lfp, fs=self.sampfreq, nperseg=window, noverlap=overlap
-            )
+            f, t, sxx = sg.spectrogram(sig, fs=fs, nperseg=window, noverlap=overlap)
 
-        delta_ind = np.where((f > 0.5) & (f < 4))[0]
-        delta_sxx = np.mean(sxx[delta_ind, :], axis=0)
+        if smooth is not None:
+            sxx = filtSig.gaussian_filter1d(sxx, sigma=smooth, axis=-1)
 
-        deltaplus_ind = np.where(((f > 0.5) & (f < 4)) | ((f > 12) & (f < 15)))[0]
-        deltaplus_sxx = np.mean(sxx[deltaplus_ind, :], axis=0)
-
-        theta_ind = np.where((f > 5) & (f < 11))[0]
-        theta_sxx = np.mean(sxx[theta_ind, :], axis=0)
-
-        spindle_ind = np.where((f > 10) & (f < 20))[0]
-        spindle_sxx = np.mean(sxx[spindle_ind, :], axis=0)
-
-        gamma_ind = np.where((f > 30) & (f < 90))[0]
-        gamma_sxx = np.mean(sxx[gamma_ind, :], axis=0)
-
-        ripple_ind = np.where((f > 140) & (f < 250))[0]
-        ripple_sxx = np.mean(sxx[ripple_ind, :], axis=0)
-
-        if self.smooth is not None:
-            smooth = self.smooth
-            delta_sxx = filtSig.gaussian_filter1d(delta_sxx, smooth, axis=0)
-            deltaplus_sxx = filtSig.gaussian_filter1d(deltaplus_sxx, smooth, axis=0)
-            theta_sxx = filtSig.gaussian_filter1d(theta_sxx, smooth, axis=0)
-            spindle_sxx = filtSig.gaussian_filter1d(spindle_sxx, smooth, axis=0)
-            gamma_sxx = filtSig.gaussian_filter1d(gamma_sxx, smooth, axis=0)
-            ripple_sxx = filtSig.gaussian_filter1d(ripple_sxx, smooth, axis=0)
-
-        self.delta = delta_sxx
-        self.deltaplus = deltaplus_sxx
-        self.theta = theta_sxx
-        self.spindle = spindle_sxx
-        self.gamma = gamma_sxx
-        self.ripple = ripple_sxx
         self.freq = f
-        self.time = t
+        self.time = t + signal.t_start
         self.sxx = sxx
-        self.theta_delta_ratio = self.theta / self.delta
-        self.theta_deltaplus_ratio = self.theta / self.deltaplus
+        self.smooth = smooth
+
+    def get_band_power(self, f1=None, f2=None):
+
+        if f1 is None:
+            f1 = self.freq[0]
+
+        if f2 is None:
+            f2 = self.freq[-1]
+
+        assert f1 >= self.freq[0], "f1 should be greater than lowest frequency"
+        assert f2 <= self.freq[-1], "f2 should be lower than highest possible frequency"
+        assert f2 > f1, "f2 should be greater than f1"
+
+        ind = np.where((self.freq >= f1) & (self.freq <= f2))[0]
+        band_power = np.mean(self.sxx[ind, :], axis=0)
+        return band_power
+
+    @property
+    def delta(self):
+        return self.get_band_power(f1=0.5, f2=4)
+
+    @property
+    def deltaplus(self):
+        deltaplus_ind = np.where(
+            ((self.freq > 0.5) & (self.freq < 4))
+            | ((self.freq > 12) & (self.freq < 15))
+        )[0]
+        deltaplus_sxx = np.mean(self.sxx[deltaplus_ind, :], axis=0)
+        return deltaplus_sxx
+
+    @property
+    def theta(self):
+        return self.get_band_power(f1=5, f2=11)
+
+    @property
+    def spindle(self):
+        return self.get_band_power(f1=10, f2=20)
+
+    @property
+    def gamma(self):
+        return self.get_band_power(f1=30, f2=90)
+
+    @property
+    def ripple(self):
+        return self.get_band_power(f1=140, f2=250)
+
+    @property
+    def theta_delta_ratio(self):
+        return self.theta / self.delta
+
+    @property
+    def theta_deltaplus_ratio(self):
+        return self.theta / self.deltaplus
 
     def plotSpect(self, ax=None, freqRange=None):
 
@@ -917,3 +954,116 @@ class ThetaParams:
         fig.suptitle(f"Theta parameters estimation using {self.method}")
 
         return ax
+
+
+def psd_auc(signal: core.Signal, freq_band: tuple, window=10, overlap=5):
+    """Calculates area under the power spectrum for a given frequency band
+
+    Parameters
+    ----------
+    eeg : [array]
+        channels x time, has to be two dimensional
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    assert isinstance(
+        signal, core.Signal
+    ), "signal should be a neuropy.core.Signal object"
+
+    fs = signal.sampling_rate
+    aucChans = []
+    for sig in signal.traces:
+
+        f, pxx = sg.welch(
+            stats.zscore(sig),
+            fs=fs,
+            nperseg=int(window * fs),
+            noverlap=int(overlap * fs),
+            axis=-1,
+        )
+        f_theta = np.where((f > freq_band[0]) & (f < freq_band[1]))[0]
+        area_in_freq = np.trapz(pxx[f_theta], x=f[f_theta])
+
+        aucChans.append(area_in_freq)
+
+    return aucChans
+
+
+def hilbert_ampltiude_stat(signals, freq_band, fs, statistic="mean"):
+    """Calculates hilbert amplitude statistic over the entire signal
+
+    Parameters
+    ----------
+    signals : list of signals or np.array
+        [description]
+    statistic : str, optional
+        [description], by default "mean"
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    if statistic == "mean":
+        get_stat = lambda x: np.mean(x)
+    if statistic == "median":
+        get_stat = lambda x: np.median(x)
+    if statistic == "std":
+        get_stat = lambda x: np.std(x)
+
+    bandpower_stat = np.zeros(len(signals))
+    for i, sig in enumerate(signals):
+        filtered = filter_sig.bandpass(sig, lf=freq_band[0], hf=freq_band[1], fs=fs)
+        amplitude_envelope = np.abs(hilbertfast(filtered))
+        bandpower_stat[i] = get_stat(amplitude_envelope)
+
+    return bandpower_stat
+
+
+def theta_phase_specfic_extraction(signal, y, fs, binsize=20, slideby=None):
+    """Breaks y into theta phase specific components
+
+    Parameters
+    ----------
+    signal : array like
+        reference lfp from which theta phases are estimated
+    y : array like
+        timeseries which is broken into components
+    binsize : int, optional
+        width of each bin in degrees, by default 20
+    slideby : int, optional
+        slide each bin by this amount in degrees, by default None
+
+    Returns
+    -------
+    [list]
+        list of broken signal into phase components
+    """
+
+    assert len(signal) == len(y), "Both signals should be of same length"
+    thetalfp = filter_sig.bandpass(signal, lf=1, hf=25, fs=fs)
+    hil_theta = hilbertfast(thetalfp)
+    theta_angle = np.angle(hil_theta, deg=True) + 180  # range from 0-360 degree
+
+    if slideby is None:
+        slideby = binsize
+
+    # --- sliding windows--------
+    angle_bin = np.arange(0, 361)
+    slide_angles = np.lib.stride_tricks.sliding_window_view(angle_bin, binsize)[
+        ::slideby, :
+    ]
+    angle_centers = np.mean(slide_angles, axis=1)
+
+    y_at_phase = []
+    for phase in slide_angles:
+        y_at_phase.append(
+            y[np.where((theta_angle >= phase[0]) & (theta_angle <= phase[-1]))[0]]
+        )
+
+    return y_at_phase, angle_bin, angle_centers
