@@ -1,15 +1,15 @@
-import numpy as np
 from dataclasses import dataclass
-import matplotlib as mpl
-from matplotlib.colors import ListedColormap
 from datetime import date
 from pathlib import Path
-import matplotlib.pyplot as plt
+
+import matplotlib as mpl
 import matplotlib.gridspec as gridspec
-from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy as np
 from cycler import cycler
-from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Rectangle
 
 
 class Colormap:
@@ -116,10 +116,12 @@ class Fig:
             )
 
         if style == "Pres":
+            mpl.rcParams["axes.linewidth"] = 3
             mpl.rcParams["axes.labelsize"] = 10
             mpl.rcParams["axes.titlesize"] = 10
             mpl.rcParams["xtick.labelsize"] = 10
             mpl.rcParams["ytick.labelsize"] = 10
+            mpl.rcParams["axes.spines.right"] = False
             mpl.rcParams["axes.spines.top"] = False
 
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
@@ -149,26 +151,24 @@ class Fig:
         )
         return gs
 
-    def panel_label(self, ax, label):
+    def panel_label(self, ax, label, fontsize=12):
         ax.text(
             x=-0.08,
             y=1.15,
             s=label,
             transform=ax.transAxes,
-            fontsize=12,
+            fontsize=fontsize,
             fontweight="bold",
             va="top",
             ha="right",
         )
 
-    def savefig(self, fname, scriptname=None, fig=None, folder=None):
+    def savefig(self, fname: Path, scriptname=None, fig=None):
 
-        if folder is None:
-            folder = "/home/bapung/Documents/figures/"
         if fig is None:
             fig = self.fig
 
-        filename = folder + fname + ".pdf"
+        filename = fname.with_suffix(".pdf")
 
         today = date.today().strftime("%m/%d/%y")
 

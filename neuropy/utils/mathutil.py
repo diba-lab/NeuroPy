@@ -4,7 +4,23 @@ import pandas as pd
 from sklearn.decomposition import FastICA, PCA
 from scipy import stats
 from hmmlearn.hmm import GaussianHMM
-from ccg import correlograms
+from .ccg import correlograms
+
+
+def min_max_scaler(x):
+    """Scales the values x to lie between 0 and 1
+
+    Parameters
+    ----------
+    x : np.array
+        1-D numpy array
+
+    Returns
+    -------
+    np.array
+        scaled array
+    """
+    return (x - np.min(x)) / (np.max(x) - np.min(x))
 
 
 def partialcorr(x, y, z):
