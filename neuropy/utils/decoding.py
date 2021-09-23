@@ -1,4 +1,5 @@
 import numpy as np
+from math import factorial
 
 
 def bayesian_decoder(self, spkcount, ratemaps):

@@ -46,3 +46,22 @@ class BinarysignalIO:
             sig = self._raw_traces[channel_indx, frame_start:frame_stop]
 
         return Signal(sig, self.sampling_rate, t_start, channel_id=channel_indx)
+
+    def write_time_slice(self, write_filename, t_start, t_stop):
+
+        duration = t_stop - t_start
+
+        # read required chunk from the source file
+        read_data = np.memmap(
+            self.source_file,
+            dtype=self.dtype,
+            offset=2 * self.n_channels * self.sampling_rate * t_start,
+            mode="r",
+            shape=(self.n_channels * self.sampling_rate * duration),
+        )
+
+        # allocates space and writes data into the file
+        write_data = np.memmap(
+            write_filename, dtype=self.dtype, mode="w+", shape=(len(read_data))
+        )
+        write_data[: len(read_data)] = read_data
