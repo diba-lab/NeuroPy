@@ -19,6 +19,7 @@ class tracking_movie:
         self.initialize_movie(movie_path)
         self.get_nframes()
         self.get_frame_rate()
+        self.SampleRate = self.get_sample_rate()
 
     def initialize_movie(self, movie_path):
         """Load in movies"""
@@ -50,6 +51,9 @@ class tracking_movie:
         success, frame = self.vidobj.read()  # grab the frame
 
         return frame
+
+    def get_sample_rate(self):
+        return self.vidobj.get(cv2.CAP_PROP_FPS)
 
     def get_current_frame(self):
         return self.vidobj.get(cv2.CAP_PROP_POS_FRAMES)
@@ -97,17 +101,17 @@ class tracking_movie:
 
             plt.show()
 
-        elif plotter == "plotly":  # Works better in Colab!
-            fig = px.imshow(frame_to_plot)  # plot
-            fig.update_layout(title=title_str)  # label
-            fig.update_xaxes(showticklabels=False)  # Turn off axes to look nice
-            fig.update_yaxes(showticklabels=False)
+        #         elif plotter is 'plotly':  # Works better in Colab!
+        #           fig = px.imshow(frame_to_plot)  # plot
+        #           fig.update_layout(title=title_str)  # label
+        #           fig.update_xaxes(showticklabels=False)  # Turn off axes to look nice
+        #           fig.update_yaxes(showticklabels=False)
 
-            if animal_location is not None:
-                fig.update_xaxes(range=xlims)
-                fig.update_yaxes(range=ylims[[1, 0]])
+        #           if animal_location is not None:
+        #             fig.update_xaxes(range=xlims)
+        #             fig.update_yaxes(range=ylims[[1,0]])
 
-            fig.show()  # need this to actually show the figure
+        #           fig.show()  # need this to actually show the figure
 
         return ax
 
