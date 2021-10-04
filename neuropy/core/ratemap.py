@@ -10,7 +10,9 @@ class Ratemap:
         neuron_ids=None,
     ) -> None:
         self.tuning_curves = np.asarray(tuning_curves)
-        self.neuron_ids = neuron_ids
+        if neuron_ids is not None:
+            assert len(neuron_ids) == self.tuning_curves.shape[0]
+            self.neuron_ids = neuron_ids
         self.xbin = xbin
         self.ybin = ybin
 
