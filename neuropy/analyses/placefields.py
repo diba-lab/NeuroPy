@@ -44,13 +44,14 @@ class Pf1D:
         position_srate = position.sampling_rate
         x = position.x
         speed = position.speed
+        speed = gaussian_filter1d(speed, sigma=2)
         t = position.time
         t_start = position.t_start
         t_stop = position.t_stop
 
         xbin = np.arange(min(x), max(x), grid_bin)  # binning of x position
 
-        spk_pos, spk_t, ratemap = [], [], []
+        spk_pos, spk_t, tuning_curve = [], [], []
 
         # ------ if direction then restrict to those epochs --------
         if epochs is not None:
@@ -85,8 +86,8 @@ class Pf1D:
                 spk_pos.append(spk_x)
                 spk_t.append(cell)
 
-                # ratemap calculation
-                ratemap.append(
+                # tuning curve calculation
+                tuning_curve.append(
                     gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
                     / occupancy
                 )
@@ -114,8 +115,8 @@ class Pf1D:
                 spk_pos.append(spk_x[spd_ind])
                 spk_t.append(cell[spd_ind])
 
-                # ratemap calculation
-                ratemap.append(
+                # tuning curve calculation
+                tuning_curve.append(
                     gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
                     / occupancy
                 )
@@ -124,12 +125,14 @@ class Pf1D:
         thresh_neurons_indx = [
             neuron_indx
             for neuron_indx in range(n_neurons)
-            if np.max(ratemap[neuron_indx]) > frate_thresh
+            if np.max(tuning_curve[neuron_indx]) > frate_thresh
         ]
 
         get_elem = lambda list_: [list_[_] for _ in thresh_neurons_indx]
 
-        self.ratemap = core.Ratemap(ratemap, xbin=xbin, neuron_ids=neuron_ids)
+        tuning_curve = get_elem(tuning_curve)
+        tuning_curve = np.asarray(tuning_curve)
+        self.ratemap = core.Ratemap(tuning_curve, xbin=xbin, neuron_ids=neuron_ids)
         self.ratemap_spiketrains = get_elem(spk_t)
         self.ratemap_spiketrains_pos = get_elem(spk_pos)
         self.occupancy = occupancy
@@ -563,7 +566,7 @@ class PF2d:
         nfigures = nCells // np.prod(subplots) + 1
 
         if fignum is None:
-            if (f := plt.get_fignums()) :
+            if f := plt.get_fignums():
                 fignum = f[-1] + 1
             else:
                 fignum = 1

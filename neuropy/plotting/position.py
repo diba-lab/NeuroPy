@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from .. import core
+from .figure import Fig
 
 
 def _none_axis(ax):
@@ -11,15 +12,27 @@ def _none_axis(ax):
 
 def plot_position(position: core.Position, ax=None):
 
-    ax = _none_axis(ax)
     ndim = position.ndim
-    if ndim == 1:
-        plt.plot(position.time, position.x)
-    if ndim == 2:
-        ax.plot(position.x, position.y)
-    if ndim == 3:
-        ax = plt.axes(projection="3d")
-        ax.plot3D(position.x, position.y, position.z)
+    posdata = position.traces
+    time = position.time
+    dim_names = ["x", "y", "z"]
+
+    figure = Fig()
+    fig, gs = figure.draw(grid=(2, ndim), size=(8.5, 5))
+
+    for i, pos in enumerate(posdata):
+        ax = plt.subplot(gs[0, i])
+        ax.plot(time, pos, "gray", lw=1)
+        ax.set_xlabel("Time")
+        ax.set_ylabel(dim_names[i])
+
+    if ndim > 1:
+        ax = plt.subplot(gs[1, 0])
+        ax.plot(posdata[0], posdata[1], "gray", lw=1)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+
+    fig.suptitle(f"{ndim}D position data")
     return ax
 
 
