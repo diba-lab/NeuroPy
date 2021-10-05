@@ -8,7 +8,7 @@ from .. import core
 from ..utils.mathutil import contiguous_regions, threshPeriods
 
 
-def linearize_position(position: core.Position, sample_sec=3, method="isomap"):
+def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
 
@@ -22,7 +22,6 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap"):
         'PCA' (for straight tracks)
 
     """
-
     xpos = position.x
     ypos = position.y
 
@@ -42,6 +41,7 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap"):
             iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
         xlinear = iso_pos[:, 0]
 
+    xlinear = gaussian_filter1d(xlinear, sigma=sigma)
     return core.Position(
         traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
     )

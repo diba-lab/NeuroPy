@@ -7,20 +7,22 @@ from hmmlearn.hmm import GaussianHMM
 from .ccg import correlograms
 
 
-def min_max_scaler(x):
-    """Scales the values x to lie between 0 and 1
+def min_max_scaler(x, axis=-1):
+    """Scales the values x to lie between 0 and 1 along the specfied axis
 
     Parameters
     ----------
     x : np.array
-        1-D numpy array
+        numpy ndarray
 
     Returns
     -------
     np.array
         scaled array
     """
-    return (x - np.min(x)) / (np.max(x) - np.min(x))
+    return (x - np.min(x, axis=axis, keepdims=True)) / np.ptp(
+        x, axis=axis, keepdims=True
+    )
 
 
 def partialcorr(x, y, z):

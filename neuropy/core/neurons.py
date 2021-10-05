@@ -88,6 +88,9 @@ class Neurons(DataWriter):
     def n_neurons(self):
         return len(self.spiketrains)
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
+
     def time_slice(self, t_start=None, t_stop=None):
 
         t_start, t_stop = self._time_check(t_start, t_stop)

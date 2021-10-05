@@ -2,10 +2,18 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 from .. import core
+from ..utils import mathutil
+from .figure import Fig
 
 
-def plot_ratemaps(
-    ratemap: core.Ratemap, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"
+def plot_ratemap(
+    ratemap: core.Ratemap,
+    normalize_xbin=False,
+    ax=None,
+    pad=2,
+    normalize_tuning_curve=False,
+    sortby=None,
+    cmap="tab20b",
 ):
     """Plot 1D place fields stacked
 
@@ -31,40 +39,41 @@ def plot_ratemaps(
     """
     cmap = mpl.cm.get_cmap(cmap)
 
-    ratemaps = ratemap.tuning_curves
-    nCells = len(ratemaps)
-    bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
-    bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
+    tuning_curves = ratemap.tuning_curves
+    n_neurons = ratemap.n_neurons
+    bin_cntr = ratemap.xbin_centers
+    if normalize_xbin:
+        bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
     if ax is None:
         _, gs = Fig().draw(grid=(1, 1), size=(4.5, 11))
         ax = plt.subplot(gs[0])
 
-    if normalize:
-        ratemaps = [_ / np.max(_) for _ in ratemaps]
+    if normalize_tuning_curve:
+        tuning_curves = mathutil.min_max_scaler(tuning_curves)
         pad = 1
 
     if sortby is None:
-        sort_ind = np.argsort(np.argmax(np.asarray(ratemaps), axis=1))
+        sort_ind = np.argsort(np.argmax(tuning_curves, axis=1))
     elif isinstance(sortby, (list, np.ndarray)):
         sort_ind = sortby
     else:
-        sort_ind = np.arange(len(ratemaps))
-    for cellid, cell in enumerate(sort_ind):
-        color = cmap(cellid / len(sort_ind))
+        sort_ind = np.arange(n_neurons)
+    for i, neuron_ind in enumerate(sort_ind):
+        color = cmap(i / len(sort_ind))
 
         ax.fill_between(
             bin_cntr,
-            cellid * pad,
-            cellid * pad + ratemaps[cell],
+            i * pad,
+            i * pad + tuning_curves[neuron_ind],
             color=color,
             ec=None,
             alpha=0.5,
-            zorder=cellid + 1,
+            zorder=i + 1,
         )
         ax.plot(
             bin_cntr,
-            cellid * pad + ratemaps[cell],
+            i * pad + tuning_curves[neuron_ind],
             color=color,
             alpha=0.7,
         )
@@ -73,11 +82,12 @@ def plot_ratemaps(
     ax.set_yticklabels(list(sort_ind))
     ax.set_xlabel("Position")
     ax.spines["left"].set_visible(False)
-    ax.set_xlim([0, 1])
+    if normalize_xbin:
+        ax.set_xlim([0, 1])
     ax.tick_params("y", length=0)
     ax.set_ylim([0, len(sort_ind)])
-    if self.run_dir is not None:
-        ax.set_title(self.run_dir.capitalize() + " Runs only")
+    # if self.run_dir is not None:
+    #     ax.set_title(self.run_dir.capitalize() + " Runs only")
 
     return ax
 
