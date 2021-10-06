@@ -226,4 +226,4 @@ class Epoch(DataWriter):
                 a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
 
     def as_array(self):
-        return self.epochs[["start", "stop"]].to_numpy()
+        return self.to_dataframe()[["start", "stop"]].to_numpy()
