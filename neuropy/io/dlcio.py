@@ -1,6 +1,6 @@
 ﻿"""Class to deal with DeepLabCut data"""
 
-from .movie import tracking_movie
+from .movie import tracking_movie, deduce_starttime_from_file
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -9,7 +9,10 @@ import pandas as pd
 import scipy
 import seaborn as sns
 import re
+from pickle import dump, load
 import scipy.ndimage as simage
+
+from .optitrackio import getStartTime, posfromCSV
 
 
 class DLC:
@@ -18,19 +21,6 @@ class DLC:
     from directory structure in base_path, e.g. base_path = ...../Animal_Name/2021_02_22_training"""
 
     def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1):
-        # if isinstance(basepath, Recinfo):
-        #     self._obj = basepath
-        # else:
-        #     self._obj = Recinfo(basepath)
-        #
-        # # ------- defining file names ---------
-        # filePrefix = self._obj.files.filePrefix
-        #
-        # @dataclass
-        # class files:
-        #     DLC: str = filePrefix.with_suffix(".DLC.npy")
-        #
-        # self.files = files()
 
         # fix poorly annotated movie_type input
         if movie_type[0] != ".":
@@ -60,17 +50,14 @@ class DLC:
         # Pull out only the specific file you want if specified with a search_str above, otherwise grab first one only!
         # NRK todo: use walrus operator here to check and make sure output file list len == 1?
         if search_str is not None:
-            self.tracking_file = str(
+            self.tracking_file = Path(
                 get_matching_files(tracking_files, match_str=search_str)[0]
             )
-            self.movie_file = str(
-                get_matching_files(movie_files, match_str=search_str)[0]
-            )
+
         else:
             self.tracking_file = str(tracking_files[0])
-            self.movie_file = str(movie_files[0])
+            self.movie_file = self.tracking_file.with_suffix(movie_type)
         print("Using tracking file " + str(self.tracking_file))
-        print("Using movie file " + str(self.movie_file))
         self.pix2cm = pix2cm
 
         # First import position data as-is
@@ -86,12 +73,68 @@ class DLC:
         # Now convert from pixels to centimeters
         self.to_cm()
 
-        # Initialize movie
-        if self.movie_file is not None:
-            self.movie = tracking_movie(self.movie_file)
-            self.SampleRate = self.movie.get_sample_rate()
+        # Grab metadata for later access
+        self.get_metadata()
+
+    @property
+    def SampleRate(self):
+        try:
+            SampleRate = self.meta["data"]["fps"]
+        except KeyError:  # try to import from movie directly
+            # Initialize movie
+            if self.movie_file.is_file():
+                self.movie = tracking_movie(self.movie_file)
+                SampleRate = self.movie.get_sample_rate()
+            else:
+                SampleRate = None
+
+        return SampleRate
+
+    @property
+    def nframes(self):
+        try:
+            nframes = self.meta["data"]["nframes"]
+        except KeyError:  # try to import from movie directly
+            # Initialize movie
+            if self.movie_file.is_file():
+                self.movie = tracking_movie(self.movie_file)
+                nframes = self.movie.get_nframes()
+            else:
+                nframes = None
+
+        return nframes
+
+    def get_metadata(self):
+        """Load in meta-data corresponding to tracking file"""
+
+        meta_file = self.tracking_file.parent / (
+            self.tracking_file.stem + "_meta.pickle"
+        )
+
+        with open(meta_file, "rb") as f:
+            self.meta = load(f)
+
+    def get_timestamps(self):
+        """Tries to import timestamps from CSV file from optitrack, if not, infers it from timestamp in filename,
+        sample rate, and nframes"""
+
+        opti_file = self.tracking_file.parent / (
+            self.tracking_file.stem[: self.tracking_file.stem.find("-Camera")] + ".csv"
+        )
+        if opti_file.is_file():
+            start_time = getStartTime(opti_file)
+            _, _, _, t = posfromCSV(opti_file)
+
+            self.timestamps = start_time + pd.to_timedelta(t, unit="sec")
         else:
-            self.SampleRate = None
+            print(
+                "No Optitrack csv file found, inferring start time from file name. SECOND PRECISION IN START TIME!!!"
+            )
+            start_time = deduce_starttime_from_file(self.tracking_file)
+            time_deltas = pd.to_timedelta(
+                np.arange(self.nframes) / self.SampleRate, unit="sec"
+            )
+            self.timestamps = start_time + time_deltas
 
     def to_cm(self):
         """Convert pixels to centimeters in pos_data"""
