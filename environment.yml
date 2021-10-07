@@ -12,9 +12,9 @@ dependencies:
     - hmmlearn
     - ipywidgets
     - seaborn
+    - h5py
     - opencv
     - pytables
-    - pickle
     - easydict
     - ruamel.yaml
     # - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
