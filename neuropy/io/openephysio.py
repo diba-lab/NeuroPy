@@ -7,6 +7,57 @@ from xml.etree import ElementTree
 import pandas as pd
 
 
+def get_dat_timestamps(basepath):
+    """
+    Gets timestamps for each frame in your dat file(s) in a given directory.
+    :param basepath: str, path to parent directory, holding your 'experiment' folder(s).
+    :return:
+    """
+    basepath = Path(basepath)
+
+    timestamp_files = sorted(basepath.glob("**/continuous/**/*timestamps.npy"))
+
+    timestamps = []
+    for file in timestamp_files:
+        set_file = get_settings_filename(file)  # get settings file name
+        experiment_meta = XML2Dict(basepath / set_file)  # Get meta data
+        start_time = pd.Timestamp(
+            experiment_meta["INFO"]["DATE"]
+        )  # get start time frfom meta-data
+        SR, sync_frame = parse_sync_file(
+            file.parents[2] / "sync_messages.txt"
+        )  # Get SR and sync frame info
+        stamps = np.load(file)  # load in timestamps
+        timestamps.append(
+            (
+                start_time + pd.to_timedelta((stamps - sync_frame) / SR, unit="sec")
+            ).to_frame(index=False)
+        )  # Add in absolute timestamps, keep index of acquisition system
+
+    return pd.concat(timestamps)
+
+
+def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
+    """
+    Gets all timestamps corresponding to a downsampled lfp or eeg file
+    :param dat_times_or_folder: str, path to parent directory, holding your 'experiment' folder(s).
+    OR pandas dataframe of timestamps from .dat file.
+    :param SRdat: sample rate for .dat file
+    :param SRlfp: sample rate for .lfp file
+    :return:
+    """
+
+    if isinstance(dat_times_or_folder, (str, Path)):
+        dat_times = get_dat_timestamps(dat_times_or_folder)
+    elif isinstance(dat_times_or_folder, (pd.DataFrame, pd.Series)):
+        dat_times = dat_times_or_folder
+
+    assert (
+        np.round(SRdat / SRlfp) == SRdat / SRlfp
+    ), "SRdat file must be an integer multiple of SRlfp "
+    return dat_times.iloc[slice(0, None, int(SRdat / SRlfp))]
+
+
 def load_all_ttl_events(basepath, **kwargs):
     """Loads TTL events from digital input port on an OpenEphys box or Intan Recording Controller in BINARY format.
     Assumes you have left the directory structure intact! Flexible - can load from just one recording or all recordings.
