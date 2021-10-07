@@ -1,6 +1,8 @@
 ﻿import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import re
+import pandas as pd
 
 
 # import plotly.express as px
@@ -114,6 +116,34 @@ class tracking_movie:
         #           fig.show()  # need this to actually show the figure
 
         return ax
+
+
+def deduce_starttime_from_file(movie_file):
+    """Deduces file start time from filename. Fill in more as you see fit.
+    2021_10_05: NRK added functionality for optitrack and Windows Camera standard filename formats"""
+
+    if (
+        matchobj := re.search("[0-1][0-9]\.[0-6][0-9]\.[0-6][0-9]", str(movie_file))
+    ) is not None:  # Optritrack
+        start_time_delta = pd.to_timedelta(
+            "0 days " + matchobj.group(0).replace(".", ":")
+        )
+        start_date_str = re.search(
+            "[0-9]{4}-[0-1][0-9]-[0-3][0-9]", str(movie_file)
+        ).group(0)
+        start_date = pd.to_datetime(start_date_str)
+    elif (
+        matchobj := re.search("[0-1][0-9]_[0-6][0-9]_[0-6][0-9]", str(movie_file))
+    ) is not None:  # Windows Camera App
+        start_time_delta = pd.to_timedelta(
+            "0 days " + matchobj.group(0)[1:-1].replace("_", ":")
+        )
+        start_date_str = re.search(
+            "[0-9]{4}[0-1][0-9][0-3][0-9]", str(movie_file)
+        ).group(0)
+        start_date = pd.to_datetime(start_date_str)
+
+    return start_date + start_time_delta
 
 
 def nearest(items, pivot):
