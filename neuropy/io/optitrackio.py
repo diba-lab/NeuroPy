@@ -112,6 +112,7 @@ def posfromCSV(fileName):
 
     # if end frames are nan drop those
     # last_nan_region = contiguous_regions(np.isnan(x0))[-1]
+    # todo: potential bug here where csv file has missing timestamps at end that go to NaN and then don't get accounted for.
     if np.isnan(x0[-1]):
         t, x0, y0, z0 = t[:-1], x0[:-1], y0[:-1], z0[:-1]
 
