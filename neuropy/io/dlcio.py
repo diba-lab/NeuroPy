@@ -55,7 +55,7 @@ class DLC:
             )
 
         else:
-            self.tracking_file = str(tracking_files[0])
+            self.tracking_file = Path(tracking_files[0])
             self.movie_file = self.tracking_file.with_suffix(movie_type)
         print("Using tracking file " + str(self.tracking_file))
         self.pix2cm = pix2cm
