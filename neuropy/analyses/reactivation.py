@@ -281,32 +281,68 @@ class ExplainedVariance(core.DataWriter):
         return ax
 
 
-class CellAssembly:
-    def __init__(self, basepath, neurons: core.Neurons):
+class NeuronEnsembles(core.DataWriter):
+    """[summary]
 
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
+    Parameters
+    ----------
+    neurons : [type]
+        [description]
+    t_start : float
+        start of the ensemble detection period
+    t_stop : float
+        end of the ensemble detection period
+    bin_size : float
+        bining for calculating spike counts
+    frate_thresh : float
+        exclude neurons with firing rate below or equal to this number
+    ignore_epochs: core.Epoch
 
-        self._neurons = neurons
+    References
+    ----------
+    1) van de Ven, G. M., Trouche, S., McNamara, C. G., Allen, K., & Dupret, D. (2016). Hippocampal offline reactivation consolidates recently formed cell assembly patterns during sharp wave-ripples. Neuron, 92(5), 968-974.Gido M. van de Ven et al. 2016
+    """
 
-    def get_assemblies(self, cell_ids, period, bnsz=0.25):
-        """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive (as done in Gido M. van de Ven et al. 2016) V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights
+    def __init__(
+        self,
+        neurons: core.Neurons,
+        t_start=None,
+        t_stop=None,
+        bin_size=0.250,
+        frate_thresh=0,
+        ignore_epochs: core.Epoch = None,
+    ):
+        super().__init__()
 
-        Arguments:
-            x {[ndarray]} -- [an array of size n * m]
+        # ---- selecting neurons which are above frate_thresh ------
+        frate = neurons.time_slice(t_start, t_stop).firing_rate
+        neuron_indx_thresh = frate > frate_thresh
 
-        Returns:
-            [type] -- [Independent assemblies]
-        """
+        if len(np.argwhere(neuron_indx_thresh)) < neurons.n_neurons:
+            print(
+                f"Excluded neurons with ids: {neurons.neuron_ids[~neuron_indx_thresh]}"
+            )
+        self.neurons = neurons[neuron_indx_thresh]
 
-        spikes = self._neurons.get_spiketrains(cell_ids)
+        self.t_start = t_start
+        self.t_stop = t_stop
+        self.bin_size = bin_size
+        self.ignore_epochs = ignore_epochs
+        self.ensembles = None
+        self._estimate_ensembles()
 
-        template_bin = np.arange(period[0], period[1], bnsz)
-        template = np.asarray(
-            [np.histogram(cell, bins=template_bin)[0] for cell in spikes]
+    def _estimate_ensembles(self):
+        """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights"""
+
+        template = (
+            self.neurons.time_slice(self.t_start, self.t_stop)
+            .get_binned_spiketrains(bin_size=self.bin_size)
+            .spike_counts
         )
+        n_spikes = np.sum(template, axis=1)
+        assert np.all(
+            n_spikes > 0
+        ), f"You have neurons with no spikes between {self.t_start,self.t_stop} seconds."
 
         # --- removing very low firing cells -----
         # nspikes = np.sum(template, axis=1)
@@ -318,7 +354,6 @@ class CellAssembly:
 
         # corrmat = (zsc_x @ zsc_x.T) / x.shape[1]
         corrmat = np.corrcoef(zsc_template)
-
         lambda_max = (1 + np.sqrt(1 / (template.shape[1] / template.shape[0]))) ** 2
         eig_val, eig_mat = np.linalg.eigh(corrmat)
         get_sigeigval = np.where(eig_val > lambda_max)[0]
@@ -334,17 +369,19 @@ class CellAssembly:
         V[:, np.where(max_weight < 0)[0]] = (-1) * V[:, np.where(max_weight < 0)[0]]
         V /= np.sqrt(np.sum(V ** 2, axis=0))  # making sum of squares=1
 
-        self.vectors = V
-        self.spikes = spikes
-        return self.vectors
+        self.weights = V
 
-    def get_activation(self, period, binsize=0.250):
+    @property
+    def n_ensembles(self):
+        return self.weights.shape[1]
 
-        V = self.vectors
-        spks = self.spikes
+    def activation(self, t_start=None, t_stop=None, bin_size=0.250):
 
-        match_bin = np.arange(period[0], period[1], binsize)
-        match = np.asarray([np.histogram(cell, bins=match_bin)[0] for cell in spks])
+        V = self.weights
+        act_binspk = self.neurons.time_slice(t_start, t_stop).get_binned_spiketrains(
+            bin_size=bin_size
+        )
+        spkcnts = act_binspk.spike_counts
 
         activation = []
         for i in range(V.shape[1]):
@@ -352,21 +389,23 @@ class CellAssembly:
             np.fill_diagonal(projMat, 0)
             activation.append(
                 np.asarray(
-                    [match[:, t] @ projMat @ match[:, t] for t in range(match.shape[1])]
+                    [
+                        spkcnts[:, t] @ projMat @ spkcnts[:, t]
+                        for t in range(spkcnts.shape[1])
+                    ]
                 )
             )
 
         self.activation = np.asarray(activation)
-        self.match_bin = match_bin
+        self.activation_time = act_binspk.time
+        self.activation_bin_size = bin_size
 
-        return self.activation, self.match_bin
-
-    def plotActivation(self):
+    def plot_activation(self):
         activation = self.activation
         vectors = self.vectors
         nvec = activation.shape[0]
         nCells = vectors.shape[0]
-        t = self.match_bin[1:]
+        t = self.activation_time
 
         fig = plt.figure(num=None, figsize=(10, 15))
         gs = gridspec.GridSpec(nvec, 6, figure=fig)
@@ -393,3 +432,6 @@ class CellAssembly:
                 axvec.set_xticks([])
                 axvec.set_xticklabels([])
                 axvec.spines["bottom"].set_visible(False)
+
+    def plot_ensembles(self):
+        pass
