@@ -4,14 +4,14 @@ import pandas as pd
 
 
 class PhyIO:
-    def __init__(self, dirname: Path, include_noise_clusters=False) -> None:
+    def __init__(self, dirname: Path, included_groups=("mua", "good")) -> None:
         self.source_dir = dirname
         self.sampling_rate = None
         self.spiketrains = None
         self.waveforms = None
         self.peak_waveforms = None
         self.peak_channels = None
-        self.include_noise_clusters = include_noise_clusters
+        self.included_groups = included_groups
         self._parse_folder()
 
     def _parse_folder(self):
@@ -36,14 +36,18 @@ class PhyIO:
         spk_templates = np.load(self.source_dir / "templates.npy")
         cluinfo = pd.read_csv(self.source_dir / "cluster_info.tsv", delimiter="\t")
 
-        if self.include_noise_clusters:
-            cluinfo = cluinfo[
-                cluinfo["group"].isin(["mua", "good", "noise"])
-            ].reset_index(drop=True)
-        else:
-            cluinfo = cluinfo[cluinfo["group"].isin(["mua", "good"])].reset_index(
-                drop=True
-            )
+        # if self.include_noise_clusters:
+        #     cluinfo = cluinfo[
+        #         cluinfo["group"].isin(["mua", "good", "noise"])
+        #     ].reset_index(drop=True)
+        # else:
+        #     cluinfo = cluinfo[cluinfo["group"].isin(["mua", "good"])].reset_index(
+        #         drop=True
+        #     )
+
+        cluinfo = cluinfo[cluinfo["group"].isin(self.included_groups)].reset_index(
+            drop=True
+        )
 
         self.cluster_info = cluinfo.copy()
         self.amplitudes = cluinfo["amp"].values
@@ -53,7 +57,12 @@ class PhyIO:
         if not self.cluster_info.empty:
             spiketrains, template_waveforms = [], []
             for clu in cluinfo.itertuples():
-                clu_spike_location = np.where(clu_ids == clu.id)[0]
+
+                if hasattr(clu, "id"):
+                    clu_spike_location = np.where(clu_ids == clu.id)[0]
+                if hasattr(clu, "cluster_id"):
+                    clu_spike_location = np.where(clu_ids == clu.cluster_id)[0]
+
                 spkframes = spktime[clu_spike_location]
                 cell_template_id, counts = np.unique(
                     spk_templates_id[clu_spike_location], return_counts=True
