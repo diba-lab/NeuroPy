@@ -73,7 +73,7 @@ class NeuroscopeIO:
             list of spike times.
         """
 
-        spks = neurons.get_spiketrains()
+        spks = neurons.get_all_spikes()
         srate = neurons.sampling_rate
         nclu = len(spks)
         spk_frame = np.concatenate([(cell * srate).astype(int) for cell in spks])
