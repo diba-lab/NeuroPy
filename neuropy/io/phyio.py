@@ -4,14 +4,14 @@ import pandas as pd
 
 
 class PhyIO:
-    def __init__(self, dirname: Path, included_groups=("mua", "good")) -> None:
+    def __init__(self, dirname: Path, include_groups=("mua", "good")) -> None:
         self.source_dir = dirname
         self.sampling_rate = None
         self.spiketrains = None
         self.waveforms = None
         self.peak_waveforms = None
         self.peak_channels = None
-        self.included_groups = included_groups
+        self.include_groups = include_groups
         self._parse_folder()
 
     def _parse_folder(self):
@@ -45,12 +45,12 @@ class PhyIO:
         #         drop=True
         #     )
 
-        cluinfo = cluinfo[cluinfo["group"].isin(self.included_groups)].reset_index(
+        cluinfo = cluinfo[cluinfo["group"].isin(self.include_groups)].reset_index(
             drop=True
         )
         if "id" not in cluinfo:
             print(
-                "id column does not exist in cluster_info.tsv. Using cluster_id column."
+                "id column does not exist in cluster_info.tsv. Using cluster_id column instead."
             )
             cluinfo["id"] = cluinfo["cluster_id"]
 
