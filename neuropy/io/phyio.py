@@ -48,6 +48,11 @@ class PhyIO:
         cluinfo = cluinfo[cluinfo["group"].isin(self.included_groups)].reset_index(
             drop=True
         )
+        if "id" not in cluinfo:
+            print(
+                "id column does not exist in cluster_info.tsv. Using cluster_id column."
+            )
+            cluinfo["id"] = cluinfo["cluster_id"]
 
         self.cluster_info = cluinfo.copy()
         self.amplitudes = cluinfo["amp"].values
@@ -57,12 +62,7 @@ class PhyIO:
         if not self.cluster_info.empty:
             spiketrains, template_waveforms = [], []
             for clu in cluinfo.itertuples():
-
-                if hasattr(clu, "id"):
-                    clu_spike_location = np.where(clu_ids == clu.id)[0]
-                if hasattr(clu, "cluster_id"):
-                    clu_spike_location = np.where(clu_ids == clu.cluster_id)[0]
-
+                clu_spike_location = np.where(clu_ids == clu.id)[0]
                 spkframes = spktime[clu_spike_location]
                 cell_template_id, counts = np.unique(
                     spk_templates_id[clu_spike_location], return_counts=True
