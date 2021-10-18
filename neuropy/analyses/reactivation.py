@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA, FastICA
 
 from ..utils.mathutil import getICA_Assembly, parcorr_mult
 from .. import core
+from ..plotting import Fig
 import pingouin as pg
 
 
@@ -320,7 +321,7 @@ class NeuronEnsembles(core.DataWriter):
 
         if len(np.argwhere(neuron_indx_thresh)) < neurons.n_neurons:
             print(
-                f"Excluded neurons with ids: {neurons.neuron_ids[~neuron_indx_thresh]}"
+                f"Based on frate_thresh, excluded neuron_ids: {neurons.neuron_ids[~neuron_indx_thresh]}"
             )
         self.neurons = neurons[neuron_indx_thresh]
 
@@ -343,12 +344,6 @@ class NeuronEnsembles(core.DataWriter):
         assert np.all(
             n_spikes > 0
         ), f"You have neurons with no spikes between {self.t_start,self.t_stop} seconds."
-
-        # --- removing very low firing cells -----
-        # nspikes = np.sum(template, axis=1)
-        # good_cells = np.where(nspikes > 10)[0]
-        # template = template[good_cells, :]
-        # spikes = [spikes[_] for _ in good_cells]
 
         zsc_template = stats.zscore(template, axis=1)
 
@@ -375,17 +370,17 @@ class NeuronEnsembles(core.DataWriter):
     def n_ensembles(self):
         return self.weights.shape[1]
 
-    def activation(self, t_start=None, t_stop=None, bin_size=0.250):
+    def calculate_activation(self, t_start=None, t_stop=None, bin_size=0.250):
 
-        V = self.weights
+        W = self.weights
         act_binspk = self.neurons.time_slice(t_start, t_stop).get_binned_spiketrains(
             bin_size=bin_size
         )
         spkcnts = act_binspk.spike_counts
 
         activation = []
-        for i in range(V.shape[1]):
-            projMat = np.outer(V[:, i], V[:, i])
+        for i in range(W.shape[1]):
+            projMat = np.outer(W[:, i], W[:, i])
             np.fill_diagonal(projMat, 0)
             activation.append(
                 np.asarray(
@@ -400,38 +395,26 @@ class NeuronEnsembles(core.DataWriter):
         self.activation_time = act_binspk.time
         self.activation_bin_size = bin_size
 
-    def plot_activation(self):
+    def plot_activation(self, nrows=None, ncols=None):
         activation = self.activation
-        vectors = self.vectors
-        nvec = activation.shape[0]
-        nCells = vectors.shape[0]
         t = self.activation_time
 
-        fig = plt.figure(num=None, figsize=(10, 15))
-        gs = gridspec.GridSpec(nvec, 6, figure=fig)
-        fig.subplots_adjust(hspace=0.3)
+        if nrows is None:
+            nrows, ncols = self.n_ensembles // 2, 2
 
-        for vec in range(nvec):
-            axact = plt.subplot(gs[vec, 3:])
-            axact.plot(t / 3600, activation[vec, :])
+        _, ax = plt.subplots(nrows, ncols, sharex=True, squeeze=False, sharey=True)
+        ax = ax.reshape(-1)
+        for i, act in enumerate(activation):
+            ax[i].plot(t / 3600, act, color="#fa895c", lw=1)
+            Fig.remove_spines(ax[i])
+            Fig.set_spines_width(ax[i], lw=2)
 
-            axvec = plt.subplot(gs[vec, :2])
-            # axvec.stem(vectors[:, vec], markerfmt="C2o")
-            axvec.vlines(np.arange(nCells), ymin=0, ymax=vectors[:, vec])
-            if vec == nvec - 1:
-                axact.set_xlabel("Time")
-                axact.set_ylabel("Activation \n strength")
+        ax[i].set_xlabel("Time (h)")
+        ax[i].set_ylabel("Act.")
 
-                axvec.set_xlabel("Neurons")
-                axvec.set_ylabel("Weight")
+    def plot_ensembles(self, style="heatmap", sort=True):
+        weights = self.weights
 
-            else:
-                axact.set_xticks([])
-                axact.set_xticklabels([])
-
-                axvec.set_xticks([])
-                axvec.set_xticklabels([])
-                axvec.spines["bottom"].set_visible(False)
-
-    def plot_ensembles(self):
-        pass
+        if style == "heatmap":
+            _, ax = plt.subplots()
+            ax.pcolormesh(weights)
