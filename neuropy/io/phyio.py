@@ -4,14 +4,14 @@ import pandas as pd
 
 
 class PhyIO:
-    def __init__(self, dirname: Path, include_noise_clusters=False) -> None:
+    def __init__(self, dirname: Path, include_groups=("mua", "good")) -> None:
         self.source_dir = dirname
         self.sampling_rate = None
         self.spiketrains = None
         self.waveforms = None
         self.peak_waveforms = None
         self.peak_channels = None
-        self.include_noise_clusters = include_noise_clusters
+        self.include_groups = include_groups
         self._parse_folder()
 
     def _parse_folder(self):
@@ -36,14 +36,23 @@ class PhyIO:
         spk_templates = np.load(self.source_dir / "templates.npy")
         cluinfo = pd.read_csv(self.source_dir / "cluster_info.tsv", delimiter="\t")
 
-        if self.include_noise_clusters:
-            cluinfo = cluinfo[
-                cluinfo["group"].isin(["mua", "good", "noise"])
-            ].reset_index(drop=True)
-        else:
-            cluinfo = cluinfo[cluinfo["group"].isin(["mua", "good"])].reset_index(
-                drop=True
+        # if self.include_noise_clusters:
+        #     cluinfo = cluinfo[
+        #         cluinfo["group"].isin(["mua", "good", "noise"])
+        #     ].reset_index(drop=True)
+        # else:
+        #     cluinfo = cluinfo[cluinfo["group"].isin(["mua", "good"])].reset_index(
+        #         drop=True
+        #     )
+
+        cluinfo = cluinfo[cluinfo["group"].isin(self.include_groups)].reset_index(
+            drop=True
+        )
+        if "id" not in cluinfo:
+            print(
+                "id column does not exist in cluster_info.tsv. Using cluster_id column instead."
             )
+            cluinfo["id"] = cluinfo["cluster_id"]
 
         self.cluster_info = cluinfo.copy()
         self.amplitudes = cluinfo["amp"].values
