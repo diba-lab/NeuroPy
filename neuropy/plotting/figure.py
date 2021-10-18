@@ -191,6 +191,18 @@ class Fig:
         ax.spines["left"].set_visible(False)
         ax.tick_params("y", length=0)
 
+    @staticmethod
+    def remove_spines(ax, sides=("top", "right")):
+
+        for side in sides:
+            ax.spines[side].set_visible(False)
+
+    @staticmethod
+    def set_spines_width(ax, lw=2, sides=("bottom", "left")):
+
+        for side in sides:
+            ax.spines[side].set_linewidth(lw)
+
 
 def pretty_plot(ax, round_ylim=False):
     """Generic function to make plot pretty, bare bones for now, will need updating
