@@ -31,7 +31,7 @@ def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5):
     sampling_rate = signal.sampling_rate
 
     if signal.n_channels > 1:
-        sig = np.median(signal.traces, axis=0)
+        sig = np.mean(signal.traces, axis=0)
     else:
         sig = signal.traces.reshape((-1))
 
@@ -45,12 +45,15 @@ def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5):
     firstPass = np.vstack((artifact_start, artifact_end)).T
 
     # --- extending the edges of artifact region --------
-    edge_indx = np.where(zsc < edge_cutoff)[0]
-    for i in range(firstPass.shape[0]):
-        a, b = firstPass[i]
-        left = edge_indx[np.max(np.where((a - edge_indx) > 0)[0])]
-        right = edge_indx[np.min(np.where((edge_indx - b) > 0)[0])]
-        firstPass[i] = [left, right]
+    edge_binary = np.where(zsc > edge_cutoff, 1, 0)
+    edge_binary = np.concatenate(([0], edge_binary, [0]))
+    edge_diff = np.diff(edge_binary)
+    edge_start = np.where(edge_diff == 1)[0]
+    edge_end = np.where(edge_diff == -1)[0]
+
+    edge_start = edge_start[np.digitize(firstPass[:, 0], edge_start) - 1]
+    edge_end = edge_end[np.digitize(firstPass[:, 1], edge_end)]
+    firstPass[:, 0], firstPass[:, 1] = edge_start, edge_end
 
     # --- merging neighbours -------
     minInterArtifactDist = merge * sampling_rate
