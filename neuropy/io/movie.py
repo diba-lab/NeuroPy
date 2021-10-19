@@ -118,6 +118,29 @@ class tracking_movie:
         return ax
 
 
+def get_nframes_manual(fname: str) -> int:
+    """
+    Grab # frames using slower method if 'nb_frames' not in video.
+    :param fname:
+    :return:
+    """
+    video = cv2.VideoCapture(fname)
+    # initialize the total number of frames read
+    total = 0
+    # loop over the frames of the video
+    while True:
+        # grab the current frame
+        (grabbed, frame) = video.read()
+        # check to see if we have reached the end of the
+        # video
+        if not grabbed:
+            break
+        # increment the total number of frames read
+        total += 1
+    # return the total number of frames in the video file
+    return total
+
+
 def deduce_starttime_from_file(movie_file):
     """Deduces file start time from filename. Fill in more as you see fit.
     2021_10_05: NRK added functionality for optitrack and Windows Camera standard filename formats"""
