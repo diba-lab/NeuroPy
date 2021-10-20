@@ -25,6 +25,11 @@ def min_max_scaler(x, axis=-1):
     )
 
 
+def cdf(x, bins):
+    """Returns cummulative distribution for x at bins"""
+    return np.cumsum(np.histogram(x, bins, density=True)[0])
+
+
 def partialcorr(x, y, z):
     """
     correlation between x and y , with controlling for z
