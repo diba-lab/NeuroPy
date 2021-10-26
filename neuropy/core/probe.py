@@ -208,9 +208,9 @@ class Probe:
 
 
 class ProbeGroup(DataWriter):
-    def __init__(self) -> None:
+    def __init__(self, metadata=None) -> None:
 
-        super().__init__()
+        super().__init__(metadata=metadata)
         self._data = pd.DataFrame(
             {
                 "x": np.array([]),
@@ -222,7 +222,6 @@ class ProbeGroup(DataWriter):
                 "probe_id": np.array([]),
             }
         )
-        self.metadata = {}
 
     @property
     def x(self):
@@ -351,9 +350,8 @@ class ProbeGroup(DataWriter):
 
     @staticmethod
     def from_dict(d: dict):
-        prbgrp = ProbeGroup()
+        prbgrp = ProbeGroup(metadata=d["metadata"])
         prbgrp._data = d["data"].sort_values(["shank_id", "y"], ascending=[True, False])
-        prbgrp.metadata = d["metadata"]
         return prbgrp
 
     @staticmethod

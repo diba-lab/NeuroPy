@@ -22,9 +22,9 @@ class Neurons(DataWriter):
         shank_ids=None,
         metadata=None,
     ) -> None:
-        super().__init__()
+        super().__init__(metadata=metadata)
 
-        self.spiketrains = spiketrains
+        self.spiketrains = np.array(spiketrains, dtype="object")
         if neuron_ids is None:
             self.neuron_ids = np.arange(len(self.spiketrains))
         else:
@@ -43,7 +43,6 @@ class Neurons(DataWriter):
         self._sampling_rate = sampling_rate
         self.t_start = t_start
         self.t_stop = t_stop
-        self.metadata: dict = metadata
 
     def __getitem__(self, i):
         # copy object
@@ -195,6 +194,11 @@ class Neurons(DataWriter):
     @property
     def firing_rate(self):
         return self.n_spikes / (self.t_stop - self.t_start)
+
+    def get_above_firing_rate(self, thresh: float):
+        """Return neurons which have firing rate above thresh"""
+        indices = self.firing_rate > thresh
+        return self[indices]
 
     def get_isi(self, bin_size=0.001, n_bins=200):
         """Interspike interval
