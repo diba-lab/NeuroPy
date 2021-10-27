@@ -39,7 +39,6 @@ class Neurons(DataWriter):
         self.shank_ids = shank_ids
         self.neuron_type = neuron_type
         self.peak_channels = peak_channels
-        self.instfiring = None
         self._sampling_rate = sampling_rate
         self.t_start = t_start
         self.t_stop = t_stop
@@ -219,6 +218,12 @@ class Neurons(DataWriter):
         return np.asarray(
             [np.histogram(np.diff(spktrn), bins=bins)[0] for spktrn in self.spiketrains]
         )
+
+    def get_waveform_similarity(self):
+        waveforms = np.reshape(self.waveforms, (self.n_neurons, -1)).astype(float)
+        similarity = np.corrcoef(waveforms)
+        np.fill_diagonal(similarity, 0)
+        return similarity
 
     def get_binned_spiketrains(self, bin_size=0.25):
 
