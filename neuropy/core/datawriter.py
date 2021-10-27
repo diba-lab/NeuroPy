@@ -14,7 +14,7 @@ class DataWriter:
 
     @property
     def filename(self):
-        return self._metadata
+        return self._filename
 
     @filename.setter
     def filename(self, f):
@@ -55,7 +55,7 @@ class DataWriter:
             np.save(self.filename, data)
             print(f"{self.filename.name} saved")
         else:
-            print("filename not understood")
+            print("filename can not be None")
 
     def delete_file(self):
         self.filename.unlink()

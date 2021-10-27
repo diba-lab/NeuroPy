@@ -35,6 +35,7 @@ class PhyIO:
         spk_templates_id = np.load(self.source_dir / "spike_templates.npy")
         spk_templates = np.load(self.source_dir / "templates.npy")
         cluinfo = pd.read_csv(self.source_dir / "cluster_info.tsv", delimiter="\t")
+        similarity = np.load(self.source_dir / "similar_templates.npy")
 
         # if self.include_noise_clusters:
         #     cluinfo = cluinfo[
