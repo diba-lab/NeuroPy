@@ -359,13 +359,13 @@ class BinnedSpiketrain(DataWriter):
             metadata=d["metadata"],
         )
 
-    def get_pairwise_corr(self, cross_shanks=False, return_pair_id=False):
+    def get_pairwise_corr(self, pairs_bool=None, return_pair_id=False):
         """Pairwise correlation between pairs of binned of spiketrains
 
         Parameters
         ----------
-        cross_shanks : bool, optional
-            If cross_shanks is true then only pairs from different shanks are returned, by default False
+        pairs_bool : 2D bool/logical array, optional
+            Only these pairs are returned, by default None which means all pairs
         return_pair_id : bool, optional
             If true pair_ids are returned, by default False
 
@@ -376,20 +376,22 @@ class BinnedSpiketrain(DataWriter):
         """
 
         assert self.n_neurons > 1, "Should have more than 1 neuron"
-
-        shank_ids = self.shank_ids
         corr = np.corrcoef(self.spike_counts)
 
-        selected_pairs = np.tril_indices(self.n_neurons, k=-1)
-        if cross_shanks:
-            assert shank_ids is not None, "shank_ids don't exist"
-            selected_pairs = np.nonzero(
-                np.tril(shank_ids.reshape(-1, 1) - shank_ids.reshape(1, -1))
-            )
+        if pairs_bool is not None:
+            assert (
+                pairs_bool.shape[0] == pairs_bool.shape[1]
+            ), "pairs_bool should be sqare shpae"
+            assert (
+                pairs_bool.shape[0] == self.n_neurons
+            ), f"pairs_bool should be of {corr.shape} shape"
+            pairs_bool = pairs_bool.astype("bool")
+        else:
+            pairs_bool = np.ones(corr.shape).astype("bool")
 
-        corr = corr[selected_pairs]
+        pairs_bool = np.tril(pairs_bool, k=-1)
 
-        return corr
+        return corr[pairs_bool]
 
 
 class Mua(DataWriter):
