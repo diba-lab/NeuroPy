@@ -5,12 +5,11 @@ from .datawriter import DataWriter
 
 class Epoch(DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
-        super().__init__()
+        super().__init__(metadata=metadata)
 
         self._check_epochs(epochs)
         epochs["label"] = epochs["label"].astype("str")
         self._data = epochs.sort_values(by=["start"])
-        self._metadata = metadata
 
     @property
     def starts(self):
@@ -98,7 +97,7 @@ class Epoch(DataWriter):
 
     @staticmethod
     def from_dict(d: dict):
-        return Epoch(d["epochs"], d["metadata"])
+        return Epoch(d["epochs"], metadata=d["metadata"])
 
     @staticmethod
     def from_file(f):

@@ -132,6 +132,9 @@ class Fig:
         self.fig = fig
         return self.fig, gs
 
+    def add_subplot(self, subplot_spec):
+        return plt.subplot(subplot_spec)
+
     def subplot2grid(self, subplot_spec, grid=(1, 3), **kwargs):
         """Subplots within a subplot
 

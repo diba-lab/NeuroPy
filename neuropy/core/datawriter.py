@@ -3,12 +3,34 @@ from pathlib import Path
 
 
 class DataWriter:
-    def __init__(self, filename=None) -> None:
+    def __init__(self, metadata=None) -> None:
 
-        if filename is not None:
-            self.filename = Path(filename)
-        else:
-            self.filename = None
+        self._filename = None
+
+        if metadata is not None:
+            assert isinstance(metadata, dict), "Only dictionary accepted as metadata"
+
+        self._metadata: dict = metadata
+
+    @property
+    def filename(self):
+        return self._filename
+
+    @filename.setter
+    def filename(self, f):
+        assert isinstance(f, (str, Path))
+        self._filename = f
+
+    @property
+    def metadata(self):
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, d):
+        """metadata compatibility"""
+        if d is not None:
+            assert isinstance(d, dict), "Only dictionary accepted"
+            self._metadata = self._metadata | d
 
     @staticmethod
     def from_dict(d):
@@ -33,7 +55,7 @@ class DataWriter:
             np.save(self.filename, data)
             print(f"{self.filename.name} saved")
         else:
-            print("filename not understood")
+            print("filename can not be None")
 
     def delete_file(self):
         self.filename.unlink()
