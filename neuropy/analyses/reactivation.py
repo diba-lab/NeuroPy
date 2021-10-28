@@ -27,25 +27,23 @@ class ExplainedVariance(core.DataWriter):
         bin_size=0.250,
         window: int = 900,
         slideby: int = None,
-        cross_shanks=True,
+        pairs_bool=None,
         ignore_epochs: core.Epoch = None,
     ):
         super().__init__()
         self.neurons = neurons
-        if cross_shanks:
-            assert self.neurons.shank_ids is not None, "neurons should have shank_ids"
 
         self.template = template
         self.matching = matching
         self.control = control
         self.bin_size = bin_size
         self.window = window
+        self.pairs_bool = pairs_bool
 
         if slideby is None:
             self.slideby = window
         else:
             self.slideby = slideby
-        self.cross_shanks = cross_shanks
         self.ignore_epochs = ignore_epochs
         self._calculate()
 
@@ -54,7 +52,7 @@ class ExplainedVariance(core.DataWriter):
         template_corr = (
             self.neurons.time_slice(self.template[0], self.template[1])
             .get_binned_spiketrains(bin_size=self.bin_size)
-            .get_pairwise_corr(cross_shanks=self.cross_shanks)
+            .get_pairwise_corr(pairs_bool=self.pairs_bool)
         )
 
         matching = np.arange(self.matching[0], self.matching[1])
@@ -69,7 +67,7 @@ class ExplainedVariance(core.DataWriter):
             matching_paircorr.append(
                 self.neurons.time_slice(window[0], window[1])
                 .get_binned_spiketrains(self.bin_size)
-                .get_pairwise_corr(cross_shanks=self.cross_shanks)
+                .get_pairwise_corr(pairs_bool=self.pairs_bool)
             )
 
         control = np.arange(self.control[0], self.control[1])
@@ -82,7 +80,7 @@ class ExplainedVariance(core.DataWriter):
             control_paircorr.append(
                 self.neurons.time_slice(window[0], window[1])
                 .get_binned_spiketrains(self.bin_size)
-                .get_pairwise_corr(cross_shanks=self.cross_shanks)
+                .get_pairwise_corr(pairs_bool=self.pairs_bool)
             )
 
         partial_corr = np.zeros((n_control_windows, n_matching_windows))
