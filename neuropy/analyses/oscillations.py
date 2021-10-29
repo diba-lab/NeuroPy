@@ -294,7 +294,7 @@ def detect_spindle_epochs(
         )
         selected_chans.append(changrp[np.argmax(hil_stat)])
 
-    print(f"Selected channels for ripples: {selected_chans}")
+    print(f"Selected channels for spindles: {selected_chans}")
 
     traces = signal.time_slice(channel_id=selected_chans).traces
 

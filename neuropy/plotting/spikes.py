@@ -191,6 +191,7 @@ def plot_waveforms(neurons: core.Neurons, sort_order=None, color="#afadac"):
     ax
     """
     waves = neurons.waveforms
+    # waves = np.where(waves != 0, waves, np.nan)
 
     if sort_order is not None:
         assert (
