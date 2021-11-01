@@ -45,6 +45,7 @@ def _detect_freq_band_epochs(
 
     # ------hilbert transform --> binarize by > than lowthreshold
     maxPower = np.max(zscsignal, axis=0)
+
     ThreshSignal = np.where(zscsignal > lowthresh, 1, 0).sum(axis=0)
     ThreshSignal = np.diff(np.where(ThreshSignal > 0, 1, 0))
     start = np.where(ThreshSignal == 1)[0]
@@ -215,7 +216,11 @@ def detect_ripple_epochs(
     ignore_epochs: Epoch = None,
 ):
 
-    changrps = probegroup.get_connected_channels(groupby="shank")
+    if isinstance(probegroup, np.ndarray):
+        changrps = np.array(probegroup, dtype="object")
+    if isinstance(probegroup, ProbeGroup):
+        changrps = probegroup.get_connected_channels(groupby="shank")
+
     selected_chans = []
     for changrp in changrps:
         # if changrp:
