@@ -17,10 +17,12 @@ from .. import core
 class Decode1d:
     n_jobs = 8
 
-    def __init__(self, ratemap: core.Ratemap):
+    def __init__(self, neurons: core.Neurons, ratemap: core.Ratemap, bin_size=0.5):
         self.ratemap = ratemap
         self._events = None
         self.posterior = None
+        self.neurons = neurons
+        self.bin_size = bin_size
         self.decoded_position = None
 
     def _decoder(self, spkcount, ratemaps):
@@ -32,7 +34,7 @@ class Decode1d:
             tau = binsize
         ===========================
         """
-        tau = self.binsize
+        tau = self.bin_size
         nCells = spkcount.shape[0]
         cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
         for cell in range(nCells):
@@ -50,9 +52,7 @@ class Decode1d:
 
         return posterior
 
-    def decode_position(
-        self, neurons: core.Neurons, bin_size=0.5, epochs: core.Epoch = None, smooth=1
-    ):
+    def decode_position(self, epochs: core.Epoch = None):
 
         """Estimates position on track using ratemaps and spike counts during behavior
 
@@ -68,25 +68,16 @@ class Decode1d:
         bincntr = self.ratemap.xbin_centers
 
         if epochs is not None:
-            # ----- removing cells that fire < 1 HZ --------
-            good_cells = np.where(np.max(ratemaps, axis=1) > 1)[0]
-            spks = [spks[_] for _ in good_cells]
-            ratemaps = ratemaps[good_cells, :]
-
-            # --- sorting the cells according to pf location -------
-            sort_ind = np.argsort(np.argmax(ratemaps, axis=1))
-            spks = [spks[_] for _ in sort_ind]
-            ratemaps = ratemaps[sort_ind, :]
 
             # ----- calculating binned spike counts -------------
             nbins_events = np.zeros(epochs.n_epochs)  # number of bins in each event
             bins_events = []
             for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
-                bins = np.arange(epoch.start, epoch.stop, self.binsize)
+                bins = np.arange(epoch.start, epoch.stop, self.bin_size)
                 nbins_events[i] = len(bins) - 1
                 bins_events.extend(bins)
             spkcount = np.asarray(
-                [np.histogram(_, bins=bins_events)[0] for _ in neurons.spiketrains]
+                [np.histogram(_, bins=bins_events)[0] for _ in self.neurons.spiketrains]
             )
 
             # ---- deleting unwanted columns that represent time between events ------
@@ -115,12 +106,16 @@ class Decode1d:
             self.posterior = posterior
             self.spkcount = spkcount
             self.nbins_events = nbins_events
+            self.score, _ = self.score_posterior(self.posterior)
 
         else:
-            spkcount = neurons.get_binned_spiketrains(bin_size=bin_size).spike_counts
+            spkcount = self.neurons.get_binned_spiketrains(
+                bin_size=self.bin_size
+            ).spike_counts
 
             self.posterior = self._decoder(spkcount, tuning_curves)
             self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
+            self.score = None
 
     def decode_shuffle(self, n_iter=100, method="column"):
         """Decoding events like population bursts or ripples
@@ -136,32 +131,20 @@ class Decode1d:
         """
 
         # print(f"Using {kind} shuffle")
-        score = []
 
-        if method == "cellid":
-            spks = Spikes(self._obj).pyr
-            pf1d_obj = self.ratemaps
-
-            mapinfo = pf1d_obj.ratemaps
-            ratemaps = np.asarray(mapinfo["ratemaps"])
-            bincntr = pf1d_obj.bin + np.diff(pf1d_obj.bin).mean() / 2
-
-            # ----- removing cells that fire < 1 HZ --------
-            good_cells = np.where(np.max(ratemaps, axis=1) > 1)[0]
-            spks = [spks[_] for _ in good_cells]
-            ratemaps = ratemaps[good_cells, :]
+        if method == "neuron_id":
+            bincntr = self.ratemap.xbin_centers
 
             # --- sorting the cells according to pf location -------
-            sort_ind = np.argsort(np.argmax(ratemaps, axis=1))
-            spks = [spks[_] for _ in sort_ind]
-            ratemaps = ratemaps[sort_ind, :]
 
             posterior, decodedPos = [], []
+            score = []
             for i in range(n_iter):
-                np.random.shuffle(ratemaps)
+                tuning_curves = self.ratemap.tuning_curves.copy()
+                np.random.shuffle(tuning_curves)
 
-                posterior_ = self._decoder(np.hstack(self.spkcount), ratemaps)
-                decodedPos_ = bincntr[np.argmax(posterior_, axis=0)]
+                posterior_ = self._decoder(np.hstack(self.spkcount), tuning_curves)
+                # decodedPos_ = bincntr[np.argmax(posterior_, axis=0)]
                 cum_nbins = np.append(0, np.cumsum(self.nbins_events)).astype(int)
 
                 posterior.extend(
@@ -171,12 +154,14 @@ class Decode1d:
                     ]
                 )
 
-                decodedPos.extend(
-                    [
-                        decodedPos_[cum_nbins[i] : cum_nbins[i + 1]]
-                        for i in range(len(cum_nbins) - 1)
-                    ]
-                )
+                # decodedPos.extend(
+                #     [
+                #         decodedPos_[cum_nbins[i] : cum_nbins[i + 1]]
+                #         for i in range(len(cum_nbins) - 1)
+                #     ]
+                # )
+            score = self.score_posterior(posterior)[0]
+            score = score.reshape(n_iter, len(self.spkcount))
 
         if method == "column":
 
@@ -193,9 +178,10 @@ class Decode1d:
                 evt_shuff = [col_shuffle(arr) for arr in self.posterior]
                 score.append(self._score_events(evt_shuff)[0])
 
+        # score = np.concatenate(score)
         self.shuffle_score = np.array(score)
 
-    def score(self):
+    def score_posterior(self, p):
         """Scoring of events
 
         Returns
@@ -242,9 +228,7 @@ class Decode1d:
             slope = -(1 / np.tan(theta[max_line]))
             return posterior_sum[max_line], slope
 
-        results = Parallel(n_jobs=self.n_jobs)(
-            delayed(_score_epochs)(evt) for evt in self.posterior
-        )
+        results = Parallel(n_jobs=self.n_jobs)(delayed(_score_epochs)(evt) for evt in p)
         score = [res[0] for res in results]
         slope = [res[1] for res in results]
 
