@@ -140,6 +140,9 @@ class Neurons(DataWriter):
     def __str__(self) -> str:
         return f"# neurons = {self.n_neurons}"
 
+    def __len__(self):
+        return self.n_neurons
+
     # def load(self):
     #     data = super().load()
     #     if data is not None:
@@ -197,6 +200,11 @@ class Neurons(DataWriter):
     def get_above_firing_rate(self, thresh: float):
         """Return neurons which have firing rate above thresh"""
         indices = self.firing_rate > thresh
+        return self[indices]
+
+    def get_by_id(self, ids):
+        """Returns neurons object with neuron_ids equal to ids"""
+        indices = np.isin(self.neruon_ids, ids)
         return self[indices]
 
     def get_isi(self, bin_size=0.001, n_bins=200):
