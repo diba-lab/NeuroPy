@@ -207,7 +207,7 @@ def detect_hpc_slow_wave_epochs(
 
 def detect_ripple_epochs(
     signal: Signal,
-    probegroup: ProbeGroup,
+    probegroup: ProbeGroup = None,
     freq_band=(150, 250),
     thresh=(1, 5),
     mindur=0.05,
@@ -216,29 +216,32 @@ def detect_ripple_epochs(
     ignore_epochs: Epoch = None,
 ):
 
-    if isinstance(probegroup, np.ndarray):
-        changrps = np.array(probegroup, dtype="object")
-    if isinstance(probegroup, ProbeGroup):
-        changrps = probegroup.get_connected_channels(groupby="shank")
+    if probegroup is None:
+        selected_chans = signal.channel_id
+        traces = signal.traces
 
-    selected_chans = []
-    for changrp in changrps:
-        # if changrp:
-        signal_slice = signal.time_slice(
-            channel_id=changrp.astype("int"), t_start=0, t_stop=3600
-        )
-        hil_stat = signal_process.hilbert_ampltiude_stat(
-            signal_slice.traces,
-            freq_band=freq_band,
-            fs=signal.sampling_rate,
-            statistic="mean",
-        )
-        selected_chans.append(changrp[np.argmax(hil_stat)])
+    else:
+        if isinstance(probegroup, np.ndarray):
+            changrps = np.array(probegroup, dtype="object")
+        if isinstance(probegroup, ProbeGroup):
+            changrps = probegroup.get_connected_channels(groupby="shank")
+            # if changrp:
+        selected_chans = []
+        for changrp in changrps:
+            signal_slice = signal.time_slice(
+                channel_id=changrp.astype("int"), t_start=0, t_stop=3600
+            )
+            hil_stat = signal_process.hilbert_ampltiude_stat(
+                signal_slice.traces,
+                freq_band=freq_band,
+                fs=signal.sampling_rate,
+                statistic="mean",
+            )
+            selected_chans.append(changrp[np.argmax(hil_stat)])
+
+        traces = signal.time_slice(channel_id=selected_chans).traces
 
     print(f"Selected channels for ripples: {selected_chans}")
-
-    traces = signal.time_slice(channel_id=selected_chans).traces
-
     if ignore_epochs is not None:
         ignore_times = ignore_epochs.as_array()
     else:
