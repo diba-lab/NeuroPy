@@ -215,6 +215,7 @@ def detect_ripple_epochs(
     mergedist=0.05,
     ignore_epochs: Epoch = None,
 ):
+    # TODO chewing artifact frequency (>300 Hz) or emg based rejection of ripple epochs
 
     if probegroup is None:
         selected_chans = signal.channel_id
