@@ -204,7 +204,7 @@ class Neurons(DataWriter):
 
     def get_by_id(self, ids):
         """Returns neurons object with neuron_ids equal to ids"""
-        indices = np.isin(self.neruon_ids, ids)
+        indices = np.isin(self.neuron_ids, ids)
         return self[indices]
 
     def get_isi(self, bin_size=0.001, n_bins=200):
@@ -283,6 +283,11 @@ class Neurons(DataWriter):
 
     def add_jitter(self):
         pass
+
+    # def get_psth(self, t, bin_size, window=0.25):
+    #     """Get peri-stimulus time histograms w.r.t time points in t"""
+
+    #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
 
 
 class BinnedSpiketrain(DataWriter):
