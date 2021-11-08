@@ -15,16 +15,67 @@ from .. import core
 from ..utils import mathutil
 
 
+def epochs_spkcount(
+    neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, slideby=None
+):
+    # ---- Binning events and calculating spike counts --------
+    spkcount = []
+    nbins = np.zeros(epochs.n_epochs, dtype="int")
+
+    if slideby is None:
+        slideby = bin_size
+    # ----- little faster but requires epochs to be non-overlapping ------
+    # bins_epochs = []
+    # for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+    #     bins = np.arange(epoch.start, epoch.stop, bin_size)
+    #     nbins[i] = len(bins) - 1
+    #     bins_epochs.extend(bins)
+    # spkcount = np.asarray(
+    #     [np.histogram(_, bins=bins_epochs)[0] for _ in neurons.spiketrains]
+    # )
+
+    # deleting unwanted columns that represent time between events
+    # cumsum_nbins = np.cumsum(nbins)
+    # del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
+    # spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
+
+    for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+        # first dividing in 1ms
+        bins = np.arange(epoch.start, epoch.stop, 0.001)
+        spkcount_ = np.asarray(
+            [np.histogram(_, bins=bins)[0] for _ in neurons.spiketrains]
+        )
+        slide_view = np.lib.stride_tricks.sliding_window_view(
+            spkcount_, int(bin_size * 1000), axis=1
+        )[:, :: int(slideby * 1000), :].sum(axis=2)
+
+        nbins[i] = slide_view.shape[1]
+        spkcount.append(slide_view)
+
+    return spkcount, nbins
+
+
 class Decode1d:
     n_jobs = 8
 
-    def __init__(self, neurons: core.Neurons, ratemap: core.Ratemap, bin_size=0.5):
+    def __init__(
+        self,
+        neurons: core.Neurons,
+        ratemap: core.Ratemap,
+        epochs: core.Epoch = None,
+        bin_size=0.5,
+        slideby=None,
+    ):
         self.ratemap = ratemap
         self._events = None
         self.posterior = None
         self.neurons = neurons
         self.bin_size = bin_size
         self.decoded_position = None
+        self.epochs = epochs
+        self.slideby = slideby
+
+        self._estimate()
 
     def _decoder(self, spkcount, ratemaps):
         """
@@ -53,60 +104,24 @@ class Decode1d:
 
         return posterior
 
-    def decode_position(self, epochs: core.Epoch = None):
+    def _estimate(self):
 
-        """Estimates position on track using ratemaps and spike counts during behavior
-
-        TODO: Needs furthher improvement/polish
-
-        Parameters
-        ----------
-        binsize : float
-            binsize in seconds
-        """
+        """Estimates position within each"""
 
         tuning_curves = self.ratemap.tuning_curves
         bincntr = self.ratemap.xbin_centers
 
-        if epochs is not None:
+        if self.epochs is not None:
 
-            # ----- calculating binned spike counts -------------
-            nbins_events = np.zeros(epochs.n_epochs)  # number of bins in each event
-            bins_events = []
-            for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
-                bins = np.arange(epoch.start, epoch.stop, self.bin_size)
-                nbins_events[i] = len(bins) - 1
-                bins_events.extend(bins)
-            spkcount = np.asarray(
-                [np.histogram(_, bins=bins_events)[0] for _ in self.neurons.spiketrains]
-            )
-
-            # ---- deleting unwanted columns that represent time between events ------
-            cumsum_nbins = np.cumsum(nbins_events)
-            del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
-            spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
-
-            posterior = self._decoder(spkcount, tuning_curves)
+            spkcount, nbins = epochs_spkcount(self.neurons, self.epochs, self.bin_size)
+            posterior = self._decoder(np.hstack(spkcount), tuning_curves)
             decodedPos = bincntr[np.argmax(posterior, axis=0)]
-            cum_nbins = np.append(0, np.cumsum(nbins_events)).astype(int)
+            cum_nbins = np.cumsum(nbins)[:-1]
 
-            posterior = [
-                posterior[:, cum_nbins[i] : cum_nbins[i + 1]]
-                for i in range(len(cum_nbins) - 1)
-            ]
-
-            decodedPos = [
-                decodedPos[cum_nbins[i] : cum_nbins[i + 1]]
-                for i in range(len(cum_nbins) - 1)
-            ]
-            spkcount = [
-                spkcount[:, cum_nbins[i] : cum_nbins[i + 1]]
-                for i in range(len(cum_nbins) - 1)
-            ]
-            self.decoded_position = decodedPos
-            self.posterior = posterior
+            self.decoded_position = np.hsplit(decodedPos, cum_nbins)
+            self.posterior = np.hsplit(posterior, cum_nbins)
             self.spkcount = spkcount
-            self.nbins_events = nbins_events
+            self.nbins_epochs = nbins
             self.score, _ = self.score_posterior(self.posterior)
 
         else:
@@ -119,48 +134,19 @@ class Decode1d:
             self.score = None
 
     def decode_shuffle(self, n_iter=100, method="column"):
-        """Decoding events like population bursts or ripples
-
-        Parameters
-        ----------
-        events : pd.Dataframe
-            dataframe with column names start and end
-        binsize : float
-            bin size within each events
-        slideby : float
-            sliding window by this much, in seconds
-        """
+        """Shuffling and decoding epochs"""
 
         # print(f"Using {kind} shuffle")
 
         if method == "neuron_id":
-            bincntr = self.ratemap.xbin_centers
-
-            # --- sorting the cells according to pf location -------
-
-            posterior, decodedPos = [], []
-            score = []
+            posterior, score = [], []
             for i in range(n_iter):
                 tuning_curves = self.ratemap.tuning_curves.copy()
                 np.random.shuffle(tuning_curves)
+                post_ = self._decoder(np.hstack(self.spkcount), tuning_curves)
+                cum_nbins = np.cumsum(self.nbins_epochs)[::-1]
+                posterior.extend(np.hsplit(post_, cum_nbins))
 
-                posterior_ = self._decoder(np.hstack(self.spkcount), tuning_curves)
-                # decodedPos_ = bincntr[np.argmax(posterior_, axis=0)]
-                cum_nbins = np.append(0, np.cumsum(self.nbins_events)).astype(int)
-
-                posterior.extend(
-                    [
-                        posterior_[:, cum_nbins[i] : cum_nbins[i + 1]]
-                        for i in range(len(cum_nbins) - 1)
-                    ]
-                )
-
-                # decodedPos.extend(
-                #     [
-                #         decodedPos_[cum_nbins[i] : cum_nbins[i + 1]]
-                #         for i in range(len(cum_nbins) - 1)
-                #     ]
-                # )
             score = self.score_posterior(posterior)[0]
             score = score.reshape(n_iter, len(self.spkcount))
 
@@ -183,7 +169,7 @@ class Decode1d:
         self.shuffle_score = np.array(score)
 
     def score_posterior(self, p):
-        """Scoring of events
+        """Scoring of epochs
 
         Returns
         -------
@@ -195,7 +181,7 @@ class Decode1d:
         1) Kloosterman et al. 2012
         """
         results = Parallel(n_jobs=self.n_jobs)(
-            delayed(mathutil.radon_transform)(evt) for evt in p
+            delayed(mathutil.radon_transform)(epoch) for epoch in p
         )
         score = [res[0] for res in results]
         slope = [res[1] for res in results]
@@ -209,6 +195,9 @@ class Decode1d:
         diff_score = shuff_score - np.tile(self.score, (n_iter, 1))
         chance = np.where(diff_score > 0, 1, 0).sum(axis=0)
         return (chance + 1) / (n_iter + 1)
+
+    def plot_in_bokeh(self):
+        pass
 
     def plot_replay_epochs(self, pval=0.05, speed_thresh=True, cmap="hot"):
         pval_events = self.p_val_events
@@ -364,20 +353,7 @@ class Decode2d:
         ratemaps = self.pf2d.ratemaps
         gridcenter = self.pf2d.gridcenter
 
-        # ---- Binning events and calculating spike counts --------
-        nbins = np.zeros(len(events), dtype="int")
-        spkcount = []
-        for i, event in enumerate(events.itertuples()):
-            # first dividing in 1ms
-            bins = np.arange(event.start, event.end, 0.001)
-            spkcount_ = np.asarray([np.histogram(_, bins=bins)[0] for _ in spks])
-            slide_view = np.lib.stride_tricks.sliding_window_view(
-                spkcount_, int(binsize * 1000), axis=1
-            )[:, :: int(slideby * 1000), :].sum(axis=2)
-
-            nbins[i] = slide_view.shape[1]
-            spkcount.append(slide_view)
-        spkcount = np.hstack(spkcount)
+        nbins, spkcount = epochs_spkcount(binsize, slideby, events, spks)
 
         # ---- linearize 2d ratemaps -------
         ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
