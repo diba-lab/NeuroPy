@@ -256,9 +256,3 @@ def correlograms(
         return _symmetrize_correlograms(correlograms)
     else:
         return correlograms
-
-
-if __name__ == "__main__":
-    from callfunc import processData
-
-    pass

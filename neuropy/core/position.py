@@ -14,7 +14,6 @@ class Position(DataWriter):
         t_start=0,
         sampling_rate=120,
         metadata=None,
-        filename=None,
     ) -> None:
 
         if traces.ndim == 1:
@@ -25,7 +24,7 @@ class Position(DataWriter):
         self._t_start = t_start
         self._sampling_rate = sampling_rate
         self.metadata = metadata
-        super().__init__(filename=filename)
+        super().__init__()
 
     @property
     def x(self):

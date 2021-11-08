@@ -45,7 +45,7 @@ class Pf1D:
         position_srate = position.sampling_rate
         x = position.x
         speed = position.speed
-        speed = gaussian_filter1d(speed, sigma=2)
+        speed = gaussian_filter1d(speed, sigma=20)
         t = position.time
         t_start = position.t_start
         t_stop = position.t_stop
@@ -100,9 +100,7 @@ class Pf1D:
                 spktrn[(spktrn > t_start) & (spktrn < t_stop)] for spktrn in spiketrains
             ]
             indx = np.where(speed >= speed_thresh)[0]
-            x = x[indx]
-            speed = speed[indx]
-            t = t[indx]
+            x, speed, t = x[indx], speed[indx], t[indx]
 
             occupancy = np.histogram(x, bins=xbin)[0] / position_srate + 1e-16
             occupancy = gaussian_filter1d(occupancy, sigma=smooth)
@@ -133,7 +131,9 @@ class Pf1D:
 
         tuning_curve = get_elem(tuning_curve)
         tuning_curve = np.asarray(tuning_curve)
-        self.ratemap = core.Ratemap(tuning_curve, xbin=xbin, neuron_ids=neuron_ids)
+        self.ratemap = core.Ratemap(
+            tuning_curve, xbin=xbin, neuron_ids=get_elem(neuron_ids)
+        )
         self.ratemap_spiketrains = get_elem(spk_t)
         self.ratemap_spiketrains_pos = get_elem(spk_pos)
         self.occupancy = occupancy
