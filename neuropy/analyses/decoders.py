@@ -74,6 +74,8 @@ class Decode1d:
         self.decoded_position = None
         self.epochs = epochs
         self.slideby = slideby
+        self.score = None
+        self.shuffle_score = None
 
         self._estimate()
 
@@ -133,7 +135,7 @@ class Decode1d:
             self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
             self.score = None
 
-    def decode_shuffle(self, n_iter=100, method="column"):
+    def calculate_shuffle_score(self, n_iter=100, method="column"):
         """Shuffling and decoding epochs"""
 
         # print(f"Using {kind} shuffle")
