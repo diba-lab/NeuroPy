@@ -115,7 +115,9 @@ class Decode1d:
 
         if self.epochs is not None:
 
-            spkcount, nbins = epochs_spkcount(self.neurons, self.epochs, self.bin_size)
+            spkcount, nbins = epochs_spkcount(
+                self.neurons, self.epochs, self.bin_size, self.slideby
+            )
             posterior = self._decoder(np.hstack(spkcount), tuning_curves)
             decodedPos = bincntr[np.argmax(posterior, axis=0)]
             cum_nbins = np.cumsum(nbins)[:-1]
