@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from .placefields import PF1d, PF2d
 from .. import core
+from ..utils import mathutil
 
 
 class Decode1d:
@@ -193,42 +194,9 @@ class Decode1d:
         ----------
         1) Kloosterman et al. 2012
         """
-        # ------ similar to radon transform ------------
-        def _score_epochs(evt):
-            t = np.arange(evt.shape[1])
-            nt = len(t)
-            tmid = (nt + 1) / 2
-            pos = np.arange(evt.shape[0])
-            npos = len(pos)
-            pmid = (npos + 1) / 2
-            evt = np.apply_along_axis(np.convolve, axis=0, arr=evt, v=np.ones(3))
-
-            nlines = 5000
-            theta = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
-            diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
-            intercept = np.random.uniform(
-                low=-diag_len / 2, high=diag_len / 2, size=nlines
-            )
-
-            cmat = np.tile(intercept, (nt, 1)).T
-            mmat = np.tile(theta, (nt, 1)).T
-            tmat = np.tile(t, (nlines, 1))
-            posterior = np.zeros((nlines, nt))
-
-            y_line = (
-                ((cmat - (tmat - tmid) * np.cos(mmat)) / np.sin(mmat)) + pmid
-            ).astype(int)
-            t_out = np.where((y_line < 0) | (y_line > npos - 1))
-            t_in = np.where((y_line >= 0) & (y_line <= npos - 1))
-            posterior[t_out] = np.median(evt[:, t_out[1]], axis=0)
-            posterior[t_in] = evt[y_line[t_in], t_in[1]]
-
-            posterior_sum = np.nanmean(posterior, axis=1)
-            max_line = np.argmax(posterior_sum)
-            slope = -(1 / np.tan(theta[max_line]))
-            return posterior_sum[max_line], slope
-
-        results = Parallel(n_jobs=self.n_jobs)(delayed(_score_epochs)(evt) for evt in p)
+        results = Parallel(n_jobs=self.n_jobs)(
+            delayed(mathutil.radon_transform)(evt) for evt in p
+        )
         score = [res[0] for res in results]
         slope = [res[1] for res in results]
 
