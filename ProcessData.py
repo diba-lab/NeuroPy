@@ -54,3 +54,16 @@ def processData(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
     sess = ProcessData(basedir)
     return sess
 
+
+
+if __name__ == "__main__":
+    # Now initiate the class
+    # basedir = '/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39'  # fill in here
+    basedir = '/Volumes/iNeo/Data/Bapun/Day5TwoNovel'
+    sess = processData(basedir)
+    print(sess.recinfo)
+    sess.epochs.to_dataframe()
+    sess.neurons.get_all_spikes()
+    sess.position.sampling_rate # 60
+    
+    pass
