@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import json
+import pickle
 
 
 class MiniscopeIO:
@@ -23,7 +24,22 @@ class MiniscopeIO:
             "A": np.load(self.minian_folder / "A.npy"),
             "C": np.load(self.minian_folder / "C.npy"),
             "S": np.load(self.minian_folder / "S.npy"),
+            "YrA": None,
+            "curated_neurons": None,
         }
+
+        # Load in YrA (raw traces) if saved
+        try:
+            self.minian["YrA"] = np.load(self.minian_folder / "YrA.npy")
+        except FileNotFoundError:
+            print('No raw traces found. "YrA" variable not loaded')
+
+        # try to load in curated neurons if you have done so in the NRK modified minian pipeline
+        try:
+            with open(self.minian_folder / "curated_neurons.pkl", "rb") as f:
+                self.minian["curated_neurons"] = pickle.load(f)
+        except:
+            print("No curated neurons file found")
 
     def load_all_timestamps(self, format="UCLA"):
         """Loads multiple timestamps from multiple videos in the UCLA miniscope software file format
@@ -49,6 +65,19 @@ class MiniscopeIO:
             times_list.append(times_temp)
 
         self.times_all = pd.concat(times_list)
+
+        # Remove any timestamps corresponding to frames you've removed.
+        try:
+            good_frames_bool = np.load(self.minian_folder / "good_frames.npy")
+            print(
+                "Keeping "
+                + str(good_frames_bool.sum())
+                + ' good frames found in "good_frames.npy" file'
+            )
+            self.times_all = self.times_all[good_frames_bool]
+        except:
+            print("no " + str(self.minian_folder / "good_frames.npy") + " file found")
+            pass
 
         return self.times_all
 
@@ -106,33 +135,38 @@ def load_timestamps(rec_folder, corrupted_videos=None):
             len(corrupt_file := sorted(vid_folder.glob("corrupted_videos.csv"))) <= 1
         ), ("More than one " "corrupted_videos.csv" " file found")
         if len(corrupt_file) == 1:
-            corrupted_videos = pd.read_csv(corrupt_file[0], header=None)[0]
-        else:
-            corrupted_videos = []
-
-        for corrupt_vid in corrupted_videos:
-            print(
-                "Eliminating timestamps from corrupted video"
-                + str(corrupt_vid)
-                + " in "
-                + str(rec_folder.parts[-1] + " folder.")
+            corrupt_array = (
+                pd.read_csv(corrupt_file[0], header=None).to_numpy().reshape(-1)
             )
-            good_frame_bool[
-                range(
-                    corrupt_vid * f_per_file,
-                    np.min((f_per_file * (corrupt_vid + 1), nframes)),
-                )
-            ] = 0
+        else:
+            corrupt_array = []
+    elif isinstance(corrupted_videos, (list, np.ndarray)):
+        corrupt_array = corrupted_videos
 
-        times = times[good_frame_bool]
+    for corrupt_vid in corrupt_array:
+        print(
+            "Eliminating timestamps from corrupted video"
+            + str(corrupt_vid)
+            + " in "
+            + str(rec_folder.parts[-1] + " folder.")
+        )
+        good_frame_bool[
+            range(
+                corrupt_vid * f_per_file,
+                np.min((f_per_file * (corrupt_vid + 1), nframes)),
+            )
+        ] = 0
+
+    times = times[good_frame_bool]
+    print(str(sum(good_frame_bool)) + " total good frames found")
 
     return times, rec_metadata, vid_metadata, rec_start
 
 
 if __name__ == "__main__":
-    basedir = Path("/data/Working/Trace_FC/Recording_Rats/Rat698/2021_06_30_recall")
+    basedir = Path("/data/Working/Trace_FC/Recording_Rats/Rat698/2021_06_29_training")
     basedir2 = Path(
         "/data/Working/Trace_FC/Recording_Rats/Rat698/2021_06_30_recall/2_tone_recall"
     )
-    msobj = MiniscopeIO()
-    msobj.load_all_timestamps(basedir)
+    msobj = MiniscopeIO(basedir)
+    msobj.load_all_timestamps()

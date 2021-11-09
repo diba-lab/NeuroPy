@@ -7,15 +7,16 @@ from xml.etree import ElementTree
 import pandas as pd
 
 
-def get_dat_timestamps(basepath):
+def get_dat_timestamps(basepath: str or Path, sync: bool = True):
     """
     Gets timestamps for each frame in your dat file(s) in a given directory.
     :param basepath: str, path to parent directory, holding your 'experiment' folder(s).
+    :param sync: True = use 'synchronized_timestamps.npy' file, default = False
     :return:
     """
     basepath = Path(basepath)
 
-    timestamp_files = sorted(basepath.glob("**/continuous/**/*timestamps.npy"))
+    timestamp_files = get_timestamp_files(basepath, type="continuous", sync=sync)
 
     timestamps = []
     for file in timestamp_files:
@@ -35,6 +36,35 @@ def get_dat_timestamps(basepath):
         )  # Add in absolute timestamps, keep index of acquisition system
 
     return pd.concat(timestamps)
+
+
+def get_timestamp_files(
+    basepath: str or Path, type: str in ["continuous", "TTL"], sync: bool = False
+):
+    """
+    Identify all timestamp files of a certain type
+    :param basepath: str of Path object of folder containing timestamp file(s)
+    :param type: 'continuous' or 'TTL'
+    :param sync: False(default) for 'timestamps.npy', True for 'synchronized_timestamps.npy'
+    :return: list of all files in that directory matching the inputs
+    """
+
+    timestamps_list = sorted(basepath.glob("**/*timestamps.npy"))
+    continuous_bool = ["continuous" in str(file_name) for file_name in timestamps_list]
+    TTL_bool = ["TTL" in str(file_name) for file_name in timestamps_list]
+    sync_bool = ["synchronized" in str(file_name) for file_name in timestamps_list]
+    no_sync_bool = np.bitwise_not(sync_bool)
+
+    if type == "continuous" and not sync:
+        file_inds = np.where(np.bitwise_and(continuous_bool, no_sync_bool))[0]
+    elif type == "continuous" and sync:
+        file_inds = np.where(np.bitwise_and(continuous_bool, sync_bool))[0]
+    elif type == "TTL" and not sync:
+        file_inds = np.where(np.bitwise_and(TTL_bool, no_sync_bool))[0]
+    elif type == "TTL" and sync:
+        file_inds = np.where(np.bitwise_and(TTL_bool, sync_bool))[0]
+
+    return [timestamps_list[ind] for ind in file_inds]
 
 
 def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
@@ -58,34 +88,40 @@ def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
     return dat_times.iloc[slice(0, None, int(SRdat / SRlfp))]
 
 
-def load_all_ttl_events(basepath, **kwargs):
+def load_all_ttl_events(basepath: str or Path, sync: bool = False, **kwargs):
     """Loads TTL events from digital input port on an OpenEphys box or Intan Recording Controller in BINARY format.
     Assumes you have left the directory structure intact! Flexible - can load from just one recording or all recordings.
     Combines all events into one dataframe with datetimes.
 
     :param TTLpath: folder where TTL files live
+    :param sync: continuous data timestamps to use for alignment. False(default) = use 'timestamps.npy',
+    True = use 'synchronized_timestamps.npy'
     :param kwargs: accepts all kwargs to load_ttl_events
     """
     basepath = Path(basepath)
-    TTLpaths = sorted(basepath.glob("**/TTL*"))
+    TTLpaths = sorted(basepath.glob("**/TTL*"))  # get all TTL folders
+    # Grab corresponding continuous data folders
+    exppaths = [file.parents[3] for file in TTLpaths]
 
     # Concatenate everything together into one list
-    events_all = []
-    for TTLfolder in TTLpaths:
+    events_all, nframes_dat = [], []
+    for TTLfolder, expfolder in zip(TTLpaths, exppaths):
         events = load_ttl_events(TTLfolder, **kwargs)
         events_all.append(events)
+        nframes_dat.append(get_dat_timestamps(expfolder, sync=sync))
 
     # Now loop through and make everything into a datetime in case you are forced to use system times to synchronize everything later
     times_list = []
-    for events in events_all:
+    for ide, events in enumerate(events_all):
         times_list.append(events_to_datetime(events))
+        # NRK todo: start here 11/1/2021 - make a continuous running index here to match up with concatenated .dat files!
 
     # NRK todo: add in recording # as a column for easy reference
 
     return pd.concat(times_list)
 
 
-def load_ttl_events(TTLfolder, zero_timestamps=True, event_names=None):
+def load_ttl_events(TTLfolder, zero_timestamps=True, event_names=""):
     """Loads TTL events for one recording folder and spits out a dictionary.
 
     :param TTLfolder: folder where your TTLevents live, recorded in BINARY format.
@@ -114,7 +150,24 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names=None):
 
     # Grab start time from .xml file and keep it with events just in case
     settings_file = TTLfolder.parents[4] / get_settings_filename(TTLfolder)
-    events["start_time"] = pd.to_datetime(XML2Dict(settings_file)["INFO"]["DATE"])
+    try:
+        events["start_time"] = pd.to_datetime(XML2Dict(settings_file)["INFO"]["DATE"])
+    except FileNotFoundError:
+        print("Settings file: " + str(settings_file) + " NOT FOUND")
+
+        # Find start time using filename
+        p = re.compile(
+            "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-2]+[0-9]+-[0-6]+[0-9]+-[0-6]+[0-9]+"
+        )
+        events["start_time"] = pd.to_datetime(
+            p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
+        )
+
+        # Print to screen to double check!
+        print(
+            str(events["start_time"])
+            + " loaded from folder structure, be sure to double check!"
+        )
 
     # Last add in event_names dict
     events["event_names"] = event_names
@@ -132,11 +185,12 @@ def events_to_datetime(events):
     )
 
     # Now dump any event names into the appropriate rows
-    event_names = np.empty_like(events["timestamps"], dtype=np.dtype(("U", 10)))
-    for key in events["event_names"]:
-        # Allocate appropriate name to all timestamps for a channel
-        event_names[events["channels"] == key] = events["event_names"][key]
-    sub_dict["event_name"] = event_names
+    if events["event_names"] is not None:
+        event_names = np.empty_like(events["timestamps"], dtype=np.dtype(("U", 10)))
+        for key in events["event_names"]:
+            # Allocate appropriate name to all timestamps for a channel
+            event_names[events["channel_states"] == key] = events["event_names"][key]
+        sub_dict["event_name"] = event_names
 
     return pd.DataFrame.from_dict(sub_dict)
 
@@ -453,3 +507,8 @@ def GetRecChs(File):
                 )
 
     return (RecChs, ProcNames)
+
+
+if __name__ == "__main__":
+    basepath = "/data/Working/Opto/Rat694/2021_08_03_1_placestim3"
+    times = load_all_ttl_events(basepath)
