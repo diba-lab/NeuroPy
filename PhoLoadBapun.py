@@ -13,8 +13,8 @@ print('sys.path: {}'.format(sys.path))
 try:
     from neuropy import core
 except ImportError:
-    # sys.path.append(r'C:\Users\Pho\repos\NeuroPy')
-	sys.path.append('/Users/pho/repo/Python Projects/NeuroPy')
+    sys.path.append(r'C:\Users\Pho\repos\NeuroPy')
+	# sys.path.append('/Users/pho/repo/Python Projects/NeuroPy')
     print('neuropy module not found, adding directory to sys.path. \nUpdated sys.path: {}'.format(sys.path))
 	from neuropy import core
 
