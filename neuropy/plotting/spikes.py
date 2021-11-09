@@ -172,3 +172,38 @@ def plot_firing_rate(
         ax.set_xlabel("Time (s)")
 
     fig.suptitle(f"{neurons.n_neurons} Neurons")
+
+
+def plot_waveforms(neurons: core.Neurons, sort_order=None, color="#afadac"):
+    """Plot waveforms in the neurons object
+
+    Parameters
+    ----------
+    neurons : core.Neurons
+        [description]
+    sort_order : array, optional
+        sorting order for the neurons, by default None
+    color : str, optional
+        [description], by default "#afadac"
+
+    Returns
+    -------
+    ax
+    """
+    waves = neurons.waveforms
+    # waves = np.where(waves != 0, waves, np.nan)
+
+    if sort_order is not None:
+        assert (
+            len(sort_order) == neurons.n_neurons
+        ), "sort_order should match the number of neurons"
+        waves = waves[sort_order, :, :]
+
+    waves = waves.transpose(1, 0, 2).reshape(waves.shape[1], -1)
+    waves = waves + np.linspace(0, 1000, waves.shape[0]).reshape(-1, 1)
+
+    _, ax = plt.subplots()
+
+    ax.plot(waves.T, color=color, alpha=0.5)
+
+    return ax

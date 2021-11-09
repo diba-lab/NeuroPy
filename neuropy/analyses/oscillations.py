@@ -45,6 +45,7 @@ def _detect_freq_band_epochs(
 
     # ------hilbert transform --> binarize by > then lowthreshold
     maxPower = np.max(zscsignal, axis=0)
+
     ThreshSignal = np.where(zscsignal > lowthresh, 1, 0).sum(axis=0)
     ThreshSignal = np.diff(np.where(ThreshSignal > 0, 1, 0))
     start = np.where(ThreshSignal == 1)[0]
@@ -206,7 +207,7 @@ def detect_hpc_slow_wave_epochs(
 
 def detect_ripple_epochs(
     signal: Signal,
-    probegroup: ProbeGroup,
+    probegroup: ProbeGroup = None,
     freq_band=(150, 250),
     thresh=(1, 5),
     mindur=0.05,
@@ -214,26 +215,34 @@ def detect_ripple_epochs(
     mergedist=0.05,
     ignore_epochs: Epoch = None,
 ):
+    # TODO chewing artifact frequency (>300 Hz) or emg based rejection of ripple epochs
 
-    changrps = probegroup.get_connected_channels(groupby="shank")
-    selected_chans = []
-    for changrp in changrps:
-        # if changrp:
-        signal_slice = signal.time_slice(
-            channel_id=changrp.astype("int"), t_start=0, t_stop=3600
-        )
-        hil_stat = signal_process.hilbert_ampltiude_stat(
-            signal_slice.traces,
-            freq_band=freq_band,
-            fs=signal.sampling_rate,
-            statistic="mean",
-        )
-        selected_chans.append(changrp[np.argmax(hil_stat)])
+    if probegroup is None:
+        selected_chans = signal.channel_id
+        traces = signal.traces
+
+    else:
+        if isinstance(probegroup, np.ndarray):
+            changrps = np.array(probegroup, dtype="object")
+        if isinstance(probegroup, ProbeGroup):
+            changrps = probegroup.get_connected_channels(groupby="shank")
+            # if changrp:
+        selected_chans = []
+        for changrp in changrps:
+            signal_slice = signal.time_slice(
+                channel_id=changrp.astype("int"), t_start=0, t_stop=3600
+            )
+            hil_stat = signal_process.hilbert_ampltiude_stat(
+                signal_slice.traces,
+                freq_band=freq_band,
+                fs=signal.sampling_rate,
+                statistic="mean",
+            )
+            selected_chans.append(changrp[np.argmax(hil_stat)])
+
+        traces = signal.time_slice(channel_id=selected_chans).traces
 
     print(f"Selected channels for ripples: {selected_chans}")
-
-    traces = signal.time_slice(channel_id=selected_chans).traces
-
     if ignore_epochs is not None:
         ignore_times = ignore_epochs.as_array()
     else:
@@ -294,7 +303,7 @@ def detect_spindle_epochs(
         )
         selected_chans.append(changrp[np.argmax(hil_stat)])
 
-    print(f"Selected channels for ripples: {selected_chans}")
+    print(f"Selected channels for spindles: {selected_chans}")
 
     traces = signal.time_slice(channel_id=selected_chans).traces
 

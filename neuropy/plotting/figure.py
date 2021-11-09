@@ -132,6 +132,9 @@ class Fig:
         self.fig = fig
         return self.fig, gs
 
+    def add_subplot(self, subplot_spec):
+        return plt.subplot(subplot_spec)
+
     def subplot2grid(self, subplot_spec, grid=(1, 3), **kwargs):
         """Subplots within a subplot
 
@@ -190,6 +193,18 @@ class Fig:
     def pf_1D(ax):
         ax.spines["left"].set_visible(False)
         ax.tick_params("y", length=0)
+
+    @staticmethod
+    def remove_spines(ax, sides=("top", "right")):
+
+        for side in sides:
+            ax.spines[side].set_visible(False)
+
+    @staticmethod
+    def set_spines_width(ax, lw=2, sides=("bottom", "left")):
+
+        for side in sides:
+            ax.spines[side].set_linewidth(lw)
 
 
 def pretty_plot(ax, round_ylim=False):
