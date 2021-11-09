@@ -66,3 +66,12 @@ class Animal(DataWriter):
             brain_region=d["brain_region"],
             metadata=d["metadata"],
         )
+
+    @staticmethod
+    def from_file(f):
+        d = DataWriter.from_file(f)
+        if d is not None:
+            return Animal.from_dict(d)
+        else:
+            return None
+

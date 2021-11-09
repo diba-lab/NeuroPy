@@ -34,8 +34,12 @@ class ProcessData:
                 sampling_rate=self.recinfo.dat_sampling_rate,
             )
 
+        self.neurons = core.Neurons.from_file(fp.with_suffix(".neurons.npy"))
         self.probegroup = core.ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
-
+        self.position = core.Position.from_file(fp.with_suffix(".position.npy"))
+        
+        # self.paradigm = core.Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
+        self.epochs = core.Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
 
 
     def __repr__(self) -> str:

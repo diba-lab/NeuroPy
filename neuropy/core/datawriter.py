@@ -48,7 +48,6 @@ class DataWriter:
         return NotImplementedError
 
     def save(self):
-
         data = self.to_dict()
         if self.filename is not None:
             assert isinstance(self.filename, Path)

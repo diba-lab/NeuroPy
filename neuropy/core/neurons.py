@@ -168,7 +168,6 @@ class Neurons(DataWriter):
 
     @staticmethod
     def from_dict(d):
-
         return Neurons(
             d["spiketrains"],
             d["t_stop"],
@@ -181,6 +180,15 @@ class Neurons(DataWriter):
             shank_ids=d["shank_ids"],
             metadata=d["metadata"],
         )
+
+    @staticmethod
+    def from_file(f):
+        d = DataWriter.from_file(f)
+        if d is not None:
+            return Neurons.from_dict(d)
+        else:
+            return None
+
 
     def add_metadata(self):
         pass
