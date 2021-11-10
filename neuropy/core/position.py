@@ -127,14 +127,22 @@ class Position(DataWriter):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
         pass
 
-    def time_slice(self, t_start, t_stop):
+    def time_slice_indicies(self, t_start, t_stop):
         if t_start is None:
             t_start = self.t_start
 
         if t_stop is None:
             t_stop = self.t_stop
 
-        indices = (self.time > t_start) & (self.time < t_stop)
+        return (self.time > t_start) & (self.time < t_stop)
+
+
+    def time_slice(self, t_start, t_stop):
+        if t_start is None:
+            t_start = self.t_start
+        if t_stop is None:
+            t_stop = self.t_stop
+        self.time_slice_indicies(t_start, t_stop)
 
         return Position(
             traces=self.traces[:, indices],
