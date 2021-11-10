@@ -56,6 +56,61 @@ class ProcessData:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
 
+    ## Linearize Position:
+    @staticmethod
+    def compute_linearized_position(session, epochLabelName='maze1'):
+        from neuropy.utils import position_util
+        active_epoch_times = session.epochs[epochLabelName] # array([11070, 13970], dtype=int64)
+        active_epoch_pos = session.position.time_slice(active_epoch_times[0], active_epoch_times[1])
+        linear_pos = position_util.linearize_position(active_epoch_pos)
+        return active_epoch_pos, linear_pos
+
+    # active_positions_maze1, linearized_positions_maze1 = compute_linearized_position(sess, 'maze1')
+    # active_positions_maze2, linearized_positions_maze2 = compute_linearized_position(sess, 'maze2')
+
+
+
+    ## Ripple epochs
+    #To detect ripples one also needs probegroup.
+    @staticmethod
+    def compute_neurons_ripples(session):
+        print('computing ripple epochs for session...\n')
+        from neuropy.analyses import oscillations
+        signal = session.eegfile.get_signal()
+        ripple_epochs = oscillations.detect_ripple_epochs(signal, session.probegroup)
+        ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
+        print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename))
+        ripple_epochs.save()
+        print('done.\n')
+        return ripple_epochs
+
+    # sess.ripple = compute_neurons_ripples(sess)
+
+    ## BinnedSpiketrain and Mua objects using Neurons
+    @staticmethod
+    def compute_neurons_mua(session):
+        print('computing neurons mua for session...\n')
+        mua = session.neurons.get_mua()
+        mua.filename = session.filePrefix.with_suffix(".mua.npy")
+        print('Saving mua results to {}...'.format(mua.filename))
+        mua.save()
+        print('done.\n')
+        return mua    
+    # sess.mua = compute_neurons_mua(sess) # Set the .mua field on the session object once complete
+
+    @staticmethod
+    def compute_pbe_epochs(session):
+        from neuropy.analyses import detect_pbe_epochs
+        print('computing PBE epochs for session...\n')
+        smth_mua = sess.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
+        pbe = detect_pbe_epochs(smth_mua)
+        pbe.filename = sess.filePrefix.with_suffix('.pbe')
+        print('Saving pbe results to {}...'.format(pbe.filename))
+        pbe.save()
+        print('done.\n')
+        return pbe
+
+    # sess.pbe = compute_pbe_epochs(sess)
 
 # def ratN():
 #     basepath='/data/Clustering/sessions/RatN_Day1_test_neuropy'
