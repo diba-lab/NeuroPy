@@ -77,6 +77,9 @@ class Epoch(DataWriter):
         else:
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
 
+    def __len__(self):
+        return self.n_epochs
+
     def time_slice(self, t_start, t_stop):
         # TODO time_slice should also include partial epochs
         # falling in between the timepoints
