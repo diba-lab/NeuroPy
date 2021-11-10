@@ -94,14 +94,14 @@ class ProcessData:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
 
 
-    @staticmethod
-    def load_or_compute(session, load_filepath, fallback_compute_function):
-        found_datafile = DataWriter.from_file(load_filepath)
-        if found_datafile is not None:
-            return Epoch.from_dict(found_datafile)
-        else:
-            # Otherwise load failed, perform the fallback computation
-            return None
+    # @staticmethod
+    # def load_or_compute(session, load_filepath, fallback_compute_function):
+    #     found_datafile = DataWriter.from_file(load_filepath)
+    #     if found_datafile is not None:
+    #         return Epoch.from_dict(found_datafile)
+    #     else:
+    #         # Otherwise load failed, perform the fallback computation
+    #         return None
 
 
     ## Linearize Position:
