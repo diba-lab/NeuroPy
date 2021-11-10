@@ -55,25 +55,37 @@ class ProcessData:
         # Extended properties:
         
         ## Ripples:
-        found_datafile = core.DataWriter.from_file(fp.with_suffix('.ripple.npy'))
+        active_file_suffix = '.ripple.npy'
+        found_datafile = core.DataWriter.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
-            print('Loading success: {}\n'.format('.ripple.npy'))
+            print('Loading success: {}\n'.format(active_file_suffix))
             self.ripple = core.Epoch.from_dict(found_datafile)
         else:
             # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format('.ripple.npy'))
-            self.ripple = compute_neurons_ripples(self)
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            self.ripple = ProcessData.compute_neurons_ripples(self)
 
         ## MUA:
-        found_datafile = core.DataWriter.from_file(fp.with_suffix('.mua.npy'))
+        active_file_suffix = '.mua.npy'
+        found_datafile = core.DataWriter.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
-            print('Loading success: {}\n'.format('.mua.npy'))
+            print('Loading success: {}\n'.format(active_file_suffix))
             self.mua = core.Mua.from_dict(found_datafile)
         else:
             # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format('.mua.npy'))
-            self.mua = compute_neurons_mua(self)
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            self.mua = ProcessData.compute_neurons_mua(self)
 
+        ## PBE Epochs:
+        active_file_suffix = '.pbe.npy'
+        found_datafile = core.DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        if found_datafile is not None:
+            print('Loading success: {}\n'.format(active_file_suffix))
+            self.pbe = core.Epoch.from_dict(found_datafile)
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            self.pbe = ProcessData.compute_pbe_epochs(self)
 
 
 
@@ -140,7 +152,7 @@ class ProcessData:
         print('computing PBE epochs for session...\n')
         smth_mua = session.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
         pbe = detect_pbe_epochs(smth_mua)
-        pbe.filename = session.filePrefix.with_suffix('.pbe')
+        pbe.filename = session.filePrefix.with_suffix('.pbe.npy')
         print('Saving pbe results to {}...'.format(pbe.filename))
         pbe.save()
         print('done.\n')
