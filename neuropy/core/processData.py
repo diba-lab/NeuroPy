@@ -1,16 +1,18 @@
 import sys
 import numpy as np
 from pathlib import Path
-# print('sys.path: {}'.format(sys.path))
-try:
-    from neuropy import core
-except ImportError:
-    sys.path.append(r'C:\Users\Pho\repos\NeuroPy')
-    # sys.path.append(r'/Users/pho/repo/Python Projects/NeuroPy')
-    print('neuropy module not found, adding directory to sys.path. \nUpdated sys.path: {}'.format(sys.path))
-    from neuropy import core
 
-from neuropy.io import NeuroscopeIO, BinarysignalIO
+# Local imports:
+## Core:
+from .datawriter import DataWriter
+from .neurons import Neurons, BinnedSpiketrain, Mua
+from .probe import ProbeGroup
+from .position import Position
+from .epoch import Epoch
+from .signal import Signal
+
+from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import NeuroscopeIO, BinarysignalIO
+
 
 class ProcessData:
     def __init__(self, basepath):
@@ -46,12 +48,12 @@ class ProcessData:
         else:
             self.datfile = None
 
-        self.neurons = core.Neurons.from_file(fp.with_suffix(".neurons.npy"))
-        self.probegroup = core.ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
-        self.position = core.Position.from_file(fp.with_suffix(".position.npy"))
+        self.neurons = Neurons.from_file(fp.with_suffix(".neurons.npy"))
+        self.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
+        self.position = Position.from_file(fp.with_suffix(".position.npy"))
         
-        # self.paradigm = core.Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        self.epochs = core.Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
+        # self.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
+        self.epochs = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
 
 
         # Load or compute linear positions if needed:
@@ -75,10 +77,10 @@ class ProcessData:
         
         ## Ripples:
         active_file_suffix = '.ripple.npy'
-        found_datafile = core.DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
-            self.ripple = core.Epoch.from_dict(found_datafile)
+            self.ripple = Epoch.from_dict(found_datafile)
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
@@ -86,10 +88,10 @@ class ProcessData:
 
         ## MUA:
         active_file_suffix = '.mua.npy'
-        found_datafile = core.DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
-            self.mua = core.Mua.from_dict(found_datafile)
+            self.mua = Mua.from_dict(found_datafile)
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
@@ -97,10 +99,10 @@ class ProcessData:
 
         ## PBE Epochs:
         active_file_suffix = '.pbe.npy'
-        found_datafile = core.DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
-            self.pbe = core.Epoch.from_dict(found_datafile)
+            self.pbe = Epoch.from_dict(found_datafile)
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
@@ -112,50 +114,21 @@ class ProcessData:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
 
 
-    # @staticmethod
-    # def load_or_compute(session, load_filepath, fallback_compute_function):
-    #     found_datafile = DataWriter.from_file(load_filepath)
-    #     if found_datafile is not None:
-    #         return Epoch.from_dict(found_datafile)
-    #     else:
-    #         # Otherwise load failed, perform the fallback computation
-    #         return None
-
-    # def update_active_epochs_linearized_positions(self, activeEpochLabelNames):
-    #     print('computing linear positions for all active epochs for session...\n')
-    #      # compute linear positions:
-    #     # end result will be self.computed_traces of the same length as self.traces in terms of frames, with all non-maze times holding NaN values
-    #     self.computed_traces = np.full([1, traces.shape[1]], np.nan)
-
-    #     acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = ProcessData.compute_linearized_position(self, 'maze1')
-    #     acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = ProcessData.compute_linearized_position(self, 'maze2')
-
-    #     self.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1
-    #     self.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2
-    #     self.positions.filename = session.filePrefix.with_suffix('.position.npy')
-    #     print('Saving updated position results to {}...'.format(ripple_epochs.filename))
-    #     ripple_epochs.save()
-    #     print('done.\n')
-
-
     ## Linearize Position:
     @staticmethod
     def compute_linearized_position(session, epochLabelName='maze1'):
-        # returns core.Position objects for active_epoch_pos and linear_pos
+        # returns Position objects for active_epoch_pos and linear_pos
         from neuropy.utils import position_util
         active_epoch_times = session.epochs[epochLabelName] # array([11070, 13970], dtype=int64)
         acitve_epoch_timeslice_indicies = session.position.time_slice_indicies(active_epoch_times[0], active_epoch_times[1])
         active_epoch_pos = session.position.time_slice(active_epoch_times[0], active_epoch_times[1])
         linear_pos = position_util.linearize_position(active_epoch_pos)
         return acitve_epoch_timeslice_indicies, active_epoch_pos, linear_pos
-
     #  acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = compute_linearized_position(sess, 'maze1')
     #  acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = compute_linearized_position(sess, 'maze2')
 
-
-
     ## Ripple epochs
-    #To detect ripples one also needs probegroup.
+    #   To detect ripples one also needs probegroup.
     @staticmethod
     def compute_neurons_ripples(session):
         print('computing ripple epochs for session...\n')
@@ -167,7 +140,6 @@ class ProcessData:
         ripple_epochs.save()
         print('done.\n')
         return ripple_epochs
-
     # sess.ripple = compute_neurons_ripples(sess)
 
     ## BinnedSpiketrain and Mua objects using Neurons
@@ -193,19 +165,17 @@ class ProcessData:
         pbe.save()
         print('done.\n')
         return pbe
-
     # sess.pbe = compute_pbe_epochs(sess)
 
-# def ratN():
-#     basepath='/data/Clustering/sessions/RatN_Day1_test_neuropy'
-#     return ProcessData(basepath)
 
+
+# Helper function that processed the data in a given directory
 def processData(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
     sess = ProcessData(basedir)
     return sess
 
 
-
+## Main:
 if __name__ == "__main__":
     # Now initiate the class
     # basedir = '/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39'  # fill in here
