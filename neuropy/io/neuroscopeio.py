@@ -89,7 +89,7 @@ class NeuroscopeIO:
 
         with file_clu.open("w") as f_clu, file_res.open("w") as f_res:
             for item in clu_id:
-                f_clu.write(f"{item}\n")
+                f_clu.write(f"{int(item)}\n")
             for frame in spk_frame:
                 f_res.write(f"{frame}\n")
 
