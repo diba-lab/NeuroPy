@@ -14,7 +14,7 @@ from .signal import Signal
 from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import NeuroscopeIO, BinarysignalIO
 
 
-class ProcessData:
+class DataSession:
     def __init__(self, basepath):
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
@@ -62,8 +62,8 @@ class ProcessData:
             print('computing linear positions for all active epochs for session...')
             # end result will be self.computed_traces of the same length as self.traces in terms of frames, with all non-maze times holding NaN values
             self.position.computed_traces = np.full([1, self.position.traces.shape[1]], np.nan)
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = ProcessData.compute_linearized_position(self, 'maze1')
-            acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = ProcessData.compute_linearized_position(self, 'maze2')
+            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(self, 'maze1')
+            acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(self, 'maze2')
             self.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
             self.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
             self.position.filename = self.filePrefix.with_suffix(".position.npy")
@@ -84,7 +84,7 @@ class ProcessData:
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            self.ripple = ProcessData.compute_neurons_ripples(self)
+            self.ripple = DataSession.compute_neurons_ripples(self)
 
         ## MUA:
         active_file_suffix = '.mua.npy'
@@ -95,7 +95,7 @@ class ProcessData:
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            self.mua = ProcessData.compute_neurons_mua(self)
+            self.mua = DataSession.compute_neurons_mua(self)
 
         ## PBE Epochs:
         active_file_suffix = '.pbe.npy'
@@ -106,7 +106,7 @@ class ProcessData:
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            self.pbe = ProcessData.compute_pbe_epochs(self)
+            self.pbe = DataSession.compute_pbe_epochs(self)
 
 
 
@@ -170,8 +170,8 @@ class ProcessData:
 
 
 # Helper function that processed the data in a given directory
-def processData(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
-    sess = ProcessData(basedir)
+def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
+    sess = DataSession(basedir)
     return sess
 
 
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     # basedir = '/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39'  # fill in here
     basedir = 'R:\data\Bapun\Day5TwoNovel'
     # basedir = '/Volumes/iNeo/Data/Bapun/Day5TwoNovel'
-    sess = processData(basedir)
+    sess = processDataSession(basedir)
     print(sess.recinfo)
     sess.epochs.to_dataframe()
     sess.neurons.get_all_spikes()
