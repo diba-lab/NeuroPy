@@ -3,6 +3,7 @@ channels:
     - conda-forge
 dependencies:
     - python=3.9
+    - pip
     - numpy=1.20.2
     - scipy=1.6.2
     - matplotlib
@@ -21,7 +22,8 @@ dependencies:
     # - ruamel.yaml
     # - pingouin
     # - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
-    # mamba install pingouin cupy ruamel.yaml easydict
+    # mamba install scikit-learn hmmlearn joblib pytables tqdm
+    # mamba install pingouin cupy ruamel.yaml easydict pingouin cupy ruamel.yaml easydict
     
     # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
     - pip:
