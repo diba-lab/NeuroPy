@@ -53,8 +53,8 @@ class DataSession:
         self.position = Position.from_file(fp.with_suffix(".position.npy"))
         
         # self.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        self.epochs = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-
+        self.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
+        self.epochs = self.paradigm # "epoch" is an alias for "paradigm". 
 
         # Load or compute linear positions if needed:
         if (not self.position.has_linear_pos):
