@@ -113,7 +113,7 @@ class Position(DataWriter):
         return np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
 
     def to_dataframe(self):
-        return pd.DataFrame(self.to_dict)
+        return pd.DataFrame({"time": self.time, "x": self.x})
 
     def speed_in_epochs(self, epochs: Epoch):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
