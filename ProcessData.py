@@ -59,14 +59,11 @@ class ProcessData:
             # compute linear positions:
             print('computing linear positions for all active epochs for session...')
             # end result will be self.computed_traces of the same length as self.traces in terms of frames, with all non-maze times holding NaN values
-            # self.position.computed_traces = np.full([1, self.position.traces.shape[1]], np.nan)
-
-            # computed_traces = np.full([1, self.position.traces.shape[1]], np.nan)
-            # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = ProcessData.compute_linearized_position(self, 'maze1')
-            # acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = ProcessData.compute_linearized_position(self, 'maze2')
-
-            # self.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            # self.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+            self.position.computed_traces = np.full([1, self.position.traces.shape[1]], np.nan)
+            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = ProcessData.compute_linearized_position(self, 'maze1')
+            acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = ProcessData.compute_linearized_position(self, 'maze2')
+            self.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            self.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
             self.position.filename = self.filePrefix.with_suffix(".position.npy")
             print('Saving updated position results to {}...'.format(self.position.filename))
             self.position.save()
@@ -108,7 +105,6 @@ class ProcessData:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             self.pbe = ProcessData.compute_pbe_epochs(self)
-
 
 
 
