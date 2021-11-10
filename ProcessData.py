@@ -52,9 +52,45 @@ class ProcessData:
         # self.paradigm = core.Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
         self.epochs = core.Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
 
+        # Extended properties:
+        
+        ## Ripples:
+        found_datafile = core.DataWriter.from_file(fp.with_suffix('.ripple.npy'))
+        if found_datafile is not None:
+            print('Loading success: {}\n'.format('.ripple.npy'))
+            self.ripple = core.Epoch.from_dict(found_datafile)
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format('.ripple.npy'))
+            self.ripple = compute_neurons_ripples(self)
+
+        ## MUA:
+        found_datafile = core.DataWriter.from_file(fp.with_suffix('.mua.npy'))
+        if found_datafile is not None:
+            print('Loading success: {}\n'.format('.mua.npy'))
+            self.mua = core.Mua.from_dict(found_datafile)
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format('.mua.npy'))
+            self.mua = compute_neurons_mua(self)
+
+
+
+
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
+
+
+    @staticmethod
+    def load_or_compute(session, load_filepath, fallback_compute_function):
+        found_datafile = DataWriter.from_file(load_filepath)
+        if found_datafile is not None:
+            return Epoch.from_dict(found_datafile)
+        else:
+            # Otherwise load failed, perform the fallback computation
+            return None
+
 
     ## Linearize Position:
     @staticmethod
@@ -102,9 +138,9 @@ class ProcessData:
     def compute_pbe_epochs(session):
         from neuropy.analyses import detect_pbe_epochs
         print('computing PBE epochs for session...\n')
-        smth_mua = sess.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
+        smth_mua = session.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
         pbe = detect_pbe_epochs(smth_mua)
-        pbe.filename = sess.filePrefix.with_suffix('.pbe')
+        pbe.filename = session.filePrefix.with_suffix('.pbe')
         print('Saving pbe results to {}...'.format(pbe.filename))
         pbe.save()
         print('done.\n')
