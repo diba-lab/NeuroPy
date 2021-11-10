@@ -11,7 +11,7 @@ class Position(DataWriter):
     def __init__(
         self,
         traces: np.ndarray,
-        computed_traces: np.ndarray,
+        computed_traces: np.ndarray=None,
         t_start=0,
         sampling_rate=120,
         metadata=None,
@@ -175,10 +175,11 @@ class Position(DataWriter):
             t_start = self.t_start
         if t_stop is None:
             t_stop = self.t_stop
-        self.time_slice_indicies(t_start, t_stop)
+        indices = self.time_slice_indicies(t_start, t_stop)
 
         return Position(
             traces=self.traces[:, indices],
+            computed_traces=self.computed_traces[:, indices],
             t_start=t_start,
             sampling_rate=self.sampling_rate,
         )
