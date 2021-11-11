@@ -205,6 +205,7 @@ class Neurons(DataWriter):
         # return flattened_spike_identities[sorted_indicies], flattened_spike_times[sorted_indicies]
         
         return FlattenedSpiketrains(
+            sorted_indicies,
             flattened_spike_identities[sorted_indicies],
             flattened_spike_times[sorted_indicies],
             t_start=self.t_start
@@ -318,19 +319,31 @@ class Neurons(DataWriter):
 
 class FlattenedSpiketrains(DataWriter):
     """Class to hold flattened spikes for all cells"""
-
+    # flattened_sort_indicies: allow you to sort any naively flattened array (such as position info) using naively_flattened_variable[self.flattened_sort_indicies]
     def __init__(
         self,
+        flattened_sort_indicies: np.ndarray,
         flattened_spike_identities: np.ndarray,
         flattened_spike_times: np.ndarray,
         t_start=0.0,
         metadata=None,
     ) -> None:
         super().__init__()
+        self.flattened_sort_indicies = flattened_sort_indicies
         self.flattened_spike_identities = flattened_spike_identities
         self.flattened_spike_times = flattened_spike_times
         self.t_start = t_start
         self.metadata = metadata
+
+    @property
+    def flattened_sort_indicies(self):
+        return self._flattened_sort_indicies
+
+    @flattened_sort_indicies.setter
+    def flattened_sort_indicies(self, arr):
+        self._flattened_sort_indicies = arr
+
+
 
     @property
     def flattened_spike_identities(self):
@@ -367,6 +380,7 @@ class FlattenedSpiketrains(DataWriter):
 
     def to_dict(self):
         return {
+            "flattened_sort_indicies": self.flattened_sort_indicies,
             "flattened_spike_identities": self.flattened_spike_identities,
             "flattened_spike_times": self.flattened_spike_times,
             "t_start": self.t_start,
@@ -376,6 +390,7 @@ class FlattenedSpiketrains(DataWriter):
     @staticmethod
     def from_dict(d):
         return FlattenedSpiketrains(
+            flattened_sort_indicies=d["flattened_sort_indicies"],
             flattened_spike_times=d["flattened_spike_times"],
             flattened_spike_identities=d["flattened_spike_identities"],
             t_start=d["t_start"],
