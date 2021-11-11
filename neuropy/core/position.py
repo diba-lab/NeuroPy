@@ -56,6 +56,18 @@ class Position(DataWriter):
         self.traces[2] = z
 
     @property
+    def linear_pos_obj(self):
+        # returns a Position object containing only the linear_pos as its trace. This is used for compatibility with Bapun's Pf1D function 
+        return Position(
+            traces=self.linear_pos,
+            computed_traces=self.linear_pos,
+            t_start=self.t_start,
+            sampling_rate=self.sampling_rate,
+            metadata=self.metadata,
+        )
+
+
+    @property
     def linear_pos(self):
         assert self.computed_traces.shape[0] >= 1, "Linear Position data has not yet been computed."
         return self.computed_traces[0]
