@@ -6,9 +6,7 @@ from ..core import Epoch, Signal
 from scipy import stats
 
 
-def plot_epochs(
-    ax, epochs: Epoch, ymin=0.5, ymax=0.55, color="Set3", style="step_blocks"
-):
+def plot_epochs(ax, epochs: Epoch, height=1, y_shift=0, colors="Set3", alpha=1):
     """Plots epochs on a given axis, with different style of plotting
 
     Parameters
@@ -29,26 +27,34 @@ def plot_epochs(
     [type]
         [description]
     """
-    delta = 0
     n_epochs = epochs.n_epochs
-    cmap = mpl.cm.get_cmap(color)
 
+    if height is None:
+        height = 1
+    if y_shift is None:
+        y_shift = 0
+
+    if isinstance(colors, str):
+        try:
+            cmap = mpl.cm.get_cmap(colors)
+            colors = [cmap(i / n_epochs) for i in range(n_epochs)]
+        except:
+            colors = [colors] * n_epochs
+    elif isinstance(colors, dict):
+        colors = [colors[label] for label in epochs.labels]
+
+    y = 0
     for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
         ax.axvspan(
             epoch.start,
             epoch.stop,
-            ymin + delta,
-            ymax + delta,
-            color=cmap(i / n_epochs),
-            alpha=0.5,
+            y,
+            y + height,
+            color=colors[i],
+            edgecolor=None,
+            alpha=alpha,
         )
-        # ax.text(
-        #     epochs.stops[-1],
-        #     ymax + delta,
-        #     epoch.label,
-        #     transform=ax.get_yaxis_transform(),
-        # )
-        delta = delta + 0.07
+        y += y_shift
 
     return ax
 
