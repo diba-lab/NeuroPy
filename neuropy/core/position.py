@@ -132,10 +132,6 @@ class Position(DataWriter):
 
     @staticmethod
     def from_dict(d):
-        # np.full([1, d["traces"].shape[1]], np.nan)
-        # if not 'computed_traces' in d:
-        #     d['computed_traces'] = None
-
         return Position(
             traces=d["traces"],
             computed_traces=d.get('computed_traces', np.full([1, d["traces"].shape[1]], np.nan)),
@@ -143,14 +139,6 @@ class Position(DataWriter):
             sampling_rate=d["sampling_rate"],
             metadata=d["metadata"],
         )
-
-        # return Position(
-        #     traces=d["traces"],
-        #     computed_traces=d['computed_traces'],
-        #     t_start=d["t_start"],
-        #     sampling_rate=d["sampling_rate"],
-        #     metadata=d["metadata"],
-        # )
     
     @staticmethod
     def from_file(f):
@@ -188,7 +176,6 @@ class Position(DataWriter):
         if t_stop is None:
             t_stop = self.t_stop
         indices = self.time_slice_indicies(t_start, t_stop)
-
         return Position(
             traces=self.traces[:, indices],
             computed_traces=self.computed_traces[:, indices],
