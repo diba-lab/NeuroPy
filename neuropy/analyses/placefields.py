@@ -219,13 +219,11 @@ class Pf1D:
 
         return ax
 
-    def plot_ratemaps(
-        self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"
-    ):
-        return plotting.plot_ratemaps()
+    def plot_ratemaps(self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"):
+        return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
 
     def plot_raw(self, ax=None, subplots=(8, 9)):
-        return plotting.plot_raw_ratemaps()
+        return plotting.plot_raw(ax=ax, subplots=subplots)
 
 
 class PF1d:

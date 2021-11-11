@@ -198,20 +198,14 @@ class Neurons(DataWriter):
         # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
         flattened_spike_identities = np.concatenate([np.full((self.n_spikes[i],), self.neuron_ids[i]) for i in np.arange(self.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
         flattened_spike_times = np.concatenate(self.spiketrains)
-
         # Get the indicies required to sort the flattened_spike_times
         sorted_indicies = np.argsort(flattened_spike_times)
-
-        # return flattened_spike_identities[sorted_indicies], flattened_spike_times[sorted_indicies]
-        
         return FlattenedSpiketrains(
             sorted_indicies,
             flattened_spike_identities[sorted_indicies],
             flattened_spike_times[sorted_indicies],
             t_start=self.t_start
         )
-
-
 
     @property
     def n_spikes(self):
