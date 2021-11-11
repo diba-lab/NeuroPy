@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def write_spyking_circus(
-    file: Path, prb: ProbeGroup, rmv_badchans=True, combine_shanks=False
+    file: Path, prb: ProbeGroup, rmv_badchans=True, combine_shanks=False, nb_chans=None
 ):
     """Creates .prb file for spyking circus in the basepath folder
 
@@ -14,9 +14,16 @@ def write_spyking_circus(
         if True then removes badchannels from the .prb file, by default True
     combine_shanks : bool, optional
         if True then all shanks are combined in same channel group, by default False
+    nb_chans:
+        int for total # channels or None (default) = calculate automatically from #contacts on probe. May need to
+        change later manually in file if you have auxiliary or additional analog channels in your recording
+
     """
 
-    nChans = prb.n_contacts
+    if nb_chans is None:
+        nChans = prb.n_contacts
+    elif type(nb_chans) == int:
+        nChans = nb_chans
     prb_data = (
         prb.to_dataframe()
         .sort_values(by=["shank_id", "y"], ascending=[True, False])
