@@ -90,14 +90,12 @@ class Neurons(DataWriter):
         return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
 
     def time_slice(self, t_start=None, t_stop=None):
-
         t_start, t_stop = self._time_check(t_start, t_stop)
         neurons = deepcopy(self)
         spiketrains = [
             spktrn[(spktrn > t_start) & (spktrn < t_stop)]
             for spktrn in neurons.spiketrains
         ]
-
         return Neurons(
             spiketrains=spiketrains,
             t_stop=t_stop,
@@ -195,6 +193,24 @@ class Neurons(DataWriter):
 
     def get_all_spikes(self):
         return np.concatenate(self.spiketrains)
+
+    def get_flattened_spikes(self):
+        # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
+        flattened_spike_identities = np.concatenate([np.full((self.n_spikes[i],), self.neuron_ids[i]) for i in np.arange(self.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+        flattened_spike_times = np.concatenate(self.spiketrains)
+
+        # Get the indicies required to sort the flattened_spike_times
+        sorted_indicies = np.argsort(flattened_spike_times)
+
+        # return flattened_spike_identities[sorted_indicies], flattened_spike_times[sorted_indicies]
+        
+        return FlattenedSpiketrains(
+            flattened_spike_identities[sorted_indicies],
+            flattened_spike_times[sorted_indicies],
+            t_start=self.t_start
+        )
+
+
 
     @property
     def n_spikes(self):
@@ -296,6 +312,76 @@ class Neurons(DataWriter):
     #     """Get peri-stimulus time histograms w.r.t time points in t"""
 
     #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
+
+
+
+
+class FlattenedSpiketrains(DataWriter):
+    """Class to hold flattened spikes for all cells"""
+
+    def __init__(
+        self,
+        flattened_spike_identities: np.ndarray,
+        flattened_spike_times: np.ndarray,
+        t_start=0.0,
+        metadata=None,
+    ) -> None:
+        super().__init__()
+        self.flattened_spike_identities = flattened_spike_identities
+        self.flattened_spike_times = flattened_spike_times
+        self.t_start = t_start
+        self.metadata = metadata
+
+    @property
+    def flattened_spike_identities(self):
+        return self._flattened_spike_identities
+
+    @flattened_spike_identities.setter
+    def flattened_spike_identities(self, arr):
+        self._flattened_spike_identities = arr
+
+    @property
+    def flattened_spike_times(self):
+        return self._flattened_spike_times
+
+    @flattened_spike_times.setter
+    def flattened_spike_times(self, arr):
+        self._flattened_spike_times = arr
+
+    def add_metadata(self):
+        pass
+
+    def time_slice(self, t_start=None, t_stop=None):
+        # t_start, t_stop = self._time_check(t_start, t_stop)
+        flattened_spiketrains = deepcopy(self)
+        included_indicies = ((flattened_spiketrains.flattened_spike_times > t_start) & (flattened_spiketrains.flattened_spike_times < t_stop))
+        flattened_spike_times = flattened_spiketrains.flattened_spike_times[included_indicies]
+        flattened_spike_identities = flattened_spiketrains.flattened_spike_identities[included_indicies]
+        return FlattenedSpiketrains(
+            flattened_spike_times=flattened_spiketrains.flattened_spike_times[included_indicies],
+            flattened_spike_identities=flattened_spiketrains.flattened_spike_identities[included_indicies],
+            t_start=flattened_spiketrains.t_start,
+            metadata=flattened_spiketrains.metadata,
+        )
+
+
+    def to_dict(self):
+        return {
+            "flattened_spike_identities": self.flattened_spike_identities,
+            "flattened_spike_times": self.flattened_spike_times,
+            "t_start": self.t_start,
+            "metadata": self.metadata,
+        }
+
+    @staticmethod
+    def from_dict(d):
+        return FlattenedSpiketrains(
+            flattened_spike_times=d["flattened_spike_times"],
+            flattened_spike_identities=d["flattened_spike_identities"],
+            t_start=d["t_start"],
+            metadata=d["metadata"],
+        )
+
 
 
 class BinnedSpiketrain(DataWriter):
