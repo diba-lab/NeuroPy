@@ -220,6 +220,7 @@ class Pf1D:
         return ax
 
     def plot_ratemaps(self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"):
+        # returns: ax , sort_ind, colors
         return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
 
     def plot_raw(self, ax=None, subplots=(8, 9)):
