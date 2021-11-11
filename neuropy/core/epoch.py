@@ -34,6 +34,9 @@ class Epoch(DataWriter):
     def get_unique_labels(self):
         return np.unique(self.labels)
 
+    def is_labels_unique(self):
+        return len(np.unique(self.labels)) == len(self)
+
     @property
     def to_dict(self):
         d = {"epochs": self._data, "metadata": self.metadata}
