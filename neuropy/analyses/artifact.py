@@ -3,9 +3,9 @@ import numpy as np
 from scipy import stats
 from ..core import Epoch
 from ..core import Signal
+from ..utils import signal_process
 
-
-def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5):
+def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5, filt: list or np.ndarray = None):
     """
     calculating artifact periods using z-score measure
 
@@ -21,6 +21,9 @@ def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5):
         artifacts less than this seconds apart are merged, default 5 seconds
     method : str, optional
         [description], by default "zscore"
+    filt : list, optional 
+        lower and upper limits with which to filter signal, e.g. 3, 3000] -> 
+        bandpass between and 3000 Hz while [45, None] -> high-pass above 45.
 
     Returns
     -------
@@ -32,8 +35,24 @@ def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5):
 
     if signal.n_channels > 1:
         sig = np.mean(signal.traces, axis=0)
+
     else:
-        sig = signal.traces.reshape((-1))
+        sig_raw = signal.traces.reshape((-1))
+
+    # NRK todo: does this need to go BEFORE taking the median of the signal above?
+    # After condensing into one trace, filter things
+    if filt is not None:
+        assert len(filt) == 2, "Inputs for filtering signal must be length = 2"
+        if filt[0] is not None:  # highpass
+            sig = signal_process.filter_sig.highpass(sig_raw, filt[0], fs=sampling_rate)
+        elif filt[1] is not None:  # lowpass
+            sig = signal_process.filter_sig.lowpass(sig_raw, filt[1], fs=sampling_rate)
+        elif filt[0] is not None and filt[1] is not None:  # bandpass
+            sig = signal_process.filter_sig.bandpass(
+                sig_raw, filt[0], filt[1], fs=sampling_rate
+            )
+    elif filt is None:
+        sig = sig_raw
 
     # ---- zscoring and identifying start and stops---------
     zsc = np.abs(stats.zscore(sig, axis=-1))

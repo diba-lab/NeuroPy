@@ -18,6 +18,12 @@ class BinarysignalIO:
         self.dtype = dtype
         self.source_file = filename
 
+    def __str__(self) -> str:
+        return (
+            f"duration: {self.duration:.2f} seconds \n"
+            f"duration: {self.duration/3600:.2f} hours \n"
+        )
+
     @property
     def duration(self):
         return self._raw_traces.shape[1] / self.sampling_rate
