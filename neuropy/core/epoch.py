@@ -108,7 +108,6 @@ class Epoch(DataWriter):
             return None
 
     def fill_blank(self, method="from_left"):
-
         ep_starts = self.epochs["start"].values
         ep_stops = self.epochs["stop"].values
         ep_durations = self.epochs["duration"].values
@@ -139,7 +138,6 @@ class Epoch(DataWriter):
         self.epochs["duration"] = ep_durations
 
     def delete_in_between(self, t1, t2):
-
         epochs_df = self.to_dataframe()[["start", "stop", "label"]]
         # delete epochs if they are within t1, t2
         epochs_df = epochs_df[~((epochs_df["start"] >= t1) & (epochs_df["stop"] <= t2))]

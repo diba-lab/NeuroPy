@@ -22,7 +22,6 @@ class DataSession:
 
         fp = xml_files[0].with_suffix("")
         self.filePrefix = fp
-
         self.recinfo = NeuroscopeIO(xml_files[0])
 
         # if self.recinfo.eeg_filename.is_file():
