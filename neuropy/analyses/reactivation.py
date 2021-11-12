@@ -181,29 +181,40 @@ class NeuronEnsembles(core.DataWriter):
         bin_size=0.250,
         frate_thresh=0,
         ignore_epochs: core.Epoch = None,
+    
     ):
         super().__init__()
 
         # ---- selecting neurons which are above frate_thresh ------
-        frate = neurons.time_slice(t_start, t_stop).firing_rate
-        neuron_indx_thresh = frate > frate_thresh
-
-        if len(np.argwhere(neuron_indx_thresh)) < neurons.n_neurons:
+        neuron_included_indx_thresh = NeuronEnsembles.get_firing_rate_filter(neurons, t_start, t_stop, frate_thresh)
+        
+        if len(np.argwhere(neuron_included_indx_thresh)) < neurons.n_neurons:
             print(
-                f"Based on frate_thresh, excluded neuron_ids: {neurons.neuron_ids[~neuron_indx_thresh]}"
+                f"Based on frate_thresh, excluded neuron_ids: {neurons.neuron_ids[~neuron_included_indx_thresh]}"
             )
-        self.neurons = neurons[neuron_indx_thresh]
+        self.neurons = neurons[neuron_included_indx_thresh]
 
         self.t_start = t_start
         self.t_stop = t_stop
         self.bin_size = bin_size
         self.ignore_epochs = ignore_epochs
+        self.frate_thresh = frate_thresh
+        self.neuron_included_indx_thresh = neuron_included_indx_thresh
         self.ensembles = None
         self._estimate_ensembles()
-
-    def _estimate_ensembles(self):
-        """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights"""
-
+        
+    def get_firing_rate_filter_mask(self):
+        return NeuronEnsembles.get_firing_rate_filter(self.neurons, self.t_start, self.t_stop, self.frate_thresh)
+        
+    @staticmethod
+    def get_firing_rate_filter(neurons, t_start, t_stop, frate_thresh):
+        # ---- selecting neurons which are above frate_thresh ------
+        frate = neurons.time_slice(t_start, t_stop).firing_rate
+        neuron_indx_thresh = frate > frate_thresh
+        return neuron_indx_thresh
+        
+    def get_original_data(self):
+        # Gets the template matrix and the zscored version and returns them
         template = (
             self.neurons.time_slice(self.t_start, self.t_stop)
             .get_binned_spiketrains(bin_size=self.bin_size)
@@ -213,8 +224,13 @@ class NeuronEnsembles(core.DataWriter):
         assert np.all(
             n_spikes > 0
         ), f"You have neurons with no spikes between {self.t_start,self.t_stop} seconds."
-
         zsc_template = stats.zscore(template, axis=1)
+        return template, zsc_template
+
+    def _estimate_ensembles(self):
+        """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights"""
+
+        template, zsc_template = self.get_original_data()
 
         # corrmat = (zsc_x @ zsc_x.T) / x.shape[1]
         corrmat = np.corrcoef(zsc_template)
@@ -240,7 +256,6 @@ class NeuronEnsembles(core.DataWriter):
         return self.weights.shape[1]
 
     def calculate_activation(self, t_start=None, t_stop=None, bin_size=0.250):
-
         W = self.weights
         act_binspk = self.neurons.time_slice(t_start, t_stop).get_binned_spiketrains(
             bin_size=bin_size
@@ -277,9 +292,11 @@ class NeuronEnsembles(core.DataWriter):
             ax[i].plot(t / 3600, act, color="#fa895c", lw=1)
             Fig.remove_spines(ax[i])
             Fig.set_spines_width(ax[i], lw=2)
-
-        ax[i].set_xlabel("Time (h)")
-        ax[i].set_ylabel("Act.")
+            ax[i].set_xlabel("Time (h)")
+            ax[i].set_ylabel("ICA{} Act.".format(i))
+            # ax[i].set_title('ICA{}'.format(i))
+            
+        plt.title('ICA Ensemble Activations')
 
     def plot_ensembles(self, style="heatmap", sort=True):
         weights = self.weights
@@ -287,3 +304,6 @@ class NeuronEnsembles(core.DataWriter):
         if style == "heatmap":
             _, ax = plt.subplots()
             ax.pcolormesh(weights)
+            ax.set_xlabel('ICA Ensemble')
+            
+        plt.title('Ensembles')
