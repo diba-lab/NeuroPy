@@ -71,11 +71,12 @@ class Position(DataWriter):
 
     @property
     def t_stop(self):
-        return self.t_start + self.duration
+        return self.time[-1]
 
     @property
     def time(self):
-        return np.linspace(self.t_start, self.t_stop, self.n_frames)
+        # return np.linspace(self.t_start, self.t_stop, self.n_frames)
+        return np.arange(self.n_frames) * (1 / self.sampling_rate) + self.t_start
 
     @property
     def ndim(self):
@@ -126,7 +127,7 @@ class Position(DataWriter):
         if t_stop is None:
             t_stop = self.t_stop
 
-        indices = (self.time > t_start) & (self.time < t_stop)
+        indices = (self.time >= t_start) & (self.time <= t_stop)
 
         return Position(
             traces=self.traces[:, indices],
