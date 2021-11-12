@@ -42,10 +42,6 @@ class trace_behavior:
     """Class to analyze trace_conditioning behavioral data"""
 
     def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1):
-        # if isinstance(basepath, Recinfo):
-        #     self._obj = basepath
-        # else:
-        #     self._obj = Recinfo(basepath)
 
         # Make base directory into a pathlib object for easy manipulation
         self.base_dir = Path(base_path)
@@ -69,10 +65,10 @@ class trace_behavior:
         # make session type more specific if recall session
         if "recall" in self.session_type:
             if (
-                re.search("shock", self.dlc.tracking_file.lower()) is not None
+                re.search("shock", str(self.dlc.tracking_file).lower()) is not None
             ):  # check if in shock arena
                 self.session_type = "ctx_" + self.session_type
-            elif re.search("newarena", self.dlc.tracking_file.lower()) is not None:
+            elif re.search("newarena", str(self.dlc.tracking_file).lower()) is not None:
                 self.session_type = "tone_" + self.session_type
             else:
                 raise NameError("Error in input file names")
@@ -239,6 +235,27 @@ class trace_behavior:
             self.event_start = next(reader)
 
         self.events = pd.read_csv(self.event_file, header=1)
+
+        # Grab start time
+        header = pd.read_csv(self.event_file, header=None, nrows=1)
+        self.events_start_time = pd.Timestamp(header[1][0]) + pd.Timedelta(header[3][0] / 10 ** 6, unit='sec')
+
+        # Finally, add in absolutge timestamps to events pandas array
+        self.events['Timestamps'] = self.events_start_time + pd.to_timedelta(self.events['Time (s)'], unit='sec')
+
+    def get_event_times(self, event_type: str = 'CS'):
+        """
+        Get starts and ends of CS, US, sync tone, etc.
+        :param event_type:
+        :return: pandas arrays containing start and end times
+        """
+        start_bool = [event.find(event_type) >= 0 and event.find('start') >= 0 for event in self.events['Event']]
+        end_bool = [event.find(event_type) >= 0 and event.find('end') >= 0 for event in self.events['Event']]
+
+        start_times = self.events[start_bool]
+        end_times = self.events[end_bool]
+
+        return start_times, end_times
 
     def get_mean_speed(
         self,
