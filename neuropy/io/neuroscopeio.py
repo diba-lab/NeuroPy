@@ -13,6 +13,7 @@ class NeuroscopeIO:
         self.channel_groups = None
         self.discarded_channels = None
         self._parse_xml_file()
+        self._good_channels()
 
     def _parse_xml_file(self):
 
@@ -54,8 +55,21 @@ class NeuroscopeIO:
         self.discarded_channels = discarded_channels
         self.skipped_channels = np.array(skipped_channels)
 
+    def _good_channels(self):
+        good_chan = []
+        for n in range(self.n_channels):
+            if n not in self.discarded_channels and n not in self.skipped_channels:
+                good_chan.append(n)
+
+        self.good_channels = np.array(good_chan)
+
     def __str__(self) -> str:
-        return f"filename: {self.source_file} \n# channels: {self.n_channels}\nsampling rate: {self.dat_sampling_rate}\nlfp Srate (downsampled): {self.eeg_sampling_rate}"
+        return (
+            f"filename: {self.source_file} \n"
+            f"# channels: {self.n_channels}\n"
+            f"sampling rate: {self.dat_sampling_rate}\n"
+            f"lfp Srate (downsampled): {self.eeg_sampling_rate}\n"
+        )
 
     def set_datetime(self, datetime_epoch):
         """Often a resulting recording file is creating after concatenating different blocks.
