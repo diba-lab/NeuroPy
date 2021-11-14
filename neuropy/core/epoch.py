@@ -34,6 +34,9 @@ class Epoch(DataWriter):
     def get_unique_labels(self):
         return np.unique(self.labels)
 
+    def is_labels_unique(self):
+        return len(np.unique(self.labels)) == len(self)
+
     @property
     def to_dict(self):
         d = {"epochs": self._data, "metadata": self.metadata}
@@ -76,6 +79,9 @@ class Epoch(DataWriter):
                 return np.array([self.starts[indices], self.stops[indices]]).squeeze()
         else:
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
+
+    def __len__(self):
+        return self.n_epochs
 
     def time_slice(self, t_start, t_stop):
         # TODO time_slice should also include partial epochs
@@ -218,11 +224,6 @@ class Epoch(DataWriter):
         mid_times = self.starts + self.durations / 2
         bins = np.arange(t_start, t_stop + binsize, binsize)
         return np.histogram(mid_times, bins=bins)[0]
-
-    def to_neuroscope(self, ext="evt"):
-        with self.filename.with_suffix(f".evt.{ext}").open("w") as a:
-            for event in self.epochs.itertuples():
-                a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
 
     def as_array(self):
         return self.to_dataframe()[["start", "stop"]].to_numpy()
