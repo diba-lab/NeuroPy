@@ -52,6 +52,12 @@ class Epoch(DataWriter):
         data[name] = arr
         return Epoch(epochs=data, metadata=self.metadata)
 
+    def add_dataframe(self, df: pd.DataFrame):
+        assert isinstance(df, pd.DataFrame), "df should be a pandas dataframe"
+        data = self.to_dataframe()
+        data_new = pd.concat([data, df], axis=1)
+        return Epoch(epochs=data_new, metadata=self.metadata)
+
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
         assert (
