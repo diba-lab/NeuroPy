@@ -107,9 +107,10 @@ class Decode1d:
             cell_prob[:, :, cell] = (((tau * cell_ratemap) ** cell_spkcnt) * coeff) * (
                 np.exp(-tau * cell_ratemap)
             )
-
+        old_settings = np.seterr(all="ignore")
         posterior = np.prod(cell_prob, axis=2)
         posterior /= np.sum(posterior, axis=0)
+        np.seterr(**old_settings)
 
         return posterior
 
@@ -150,17 +151,14 @@ class Decode1d:
         # print(f"Using {kind} shuffle")
 
         if method == "neuron_id":
-            posterior, score = [], []
-            for i in range(n_iter):
+            score = []
+            for i in tqdm(range(n_iter)):
                 tuning_curves = self.ratemap.tuning_curves.copy()
                 np.random.shuffle(tuning_curves)
                 post_ = self._decoder(np.hstack(self.spkcount), tuning_curves)
-                cum_nbins = np.cumsum(self.nbins_epochs)[::-1]
-                posterior.extend(np.hsplit(post_, cum_nbins))
-
-            score = self.score_posterior(posterior)[0]
-            score = score.reshape(n_iter, len(self.spkcount))
-
+                cum_nbins = np.cumsum(self.nbins_epochs)[:-1]
+                score.append(self.score_posterior(np.hsplit(post_, cum_nbins))[0])
+            score = np.asarray(score)
         if method == "column":
 
             def col_shuffle(mat):
