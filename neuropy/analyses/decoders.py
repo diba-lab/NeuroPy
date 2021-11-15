@@ -10,7 +10,6 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 from tqdm import tqdm
 
-from .placefields import PF1d, PF2d
 from .. import core
 from ..utils import mathutil
 
@@ -45,6 +44,14 @@ def epochs_spkcount(
         spkcount_ = np.asarray(
             [np.histogram(_, bins=bins)[0] for _ in neurons.spiketrains]
         )
+
+        # if signficant portion at end of epoch is not included then append zeros
+        # if (frac := epoch.duration / bin_size % 1) > 0.7:
+        #     extra_columns = int(100 * (1 - frac))
+        #     spkcount_ = np.hstack(
+        #         (spkcount_, np.zeros((neurons.n_neurons, extra_columns)))
+        #     )
+
         slide_view = np.lib.stride_tricks.sliding_window_view(
             spkcount_, int(bin_size * 1000), axis=1
         )[:, :: int(slideby * 1000), :].sum(axis=2)
@@ -269,7 +276,7 @@ class Decode1d:
 
 
 class Decode2d:
-    def __init__(self, pf2d_obj: PF2d):
+    def __init__(self):
 
         assert isinstance(pf2d_obj, PF2d)
         self._obj = pf2d_obj._obj

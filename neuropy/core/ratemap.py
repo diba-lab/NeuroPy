@@ -40,5 +40,8 @@ class Ratemap(DataWriter):
     def ndim(self):
         return self.tuning_curves.ndim - 1
 
+    def peak_firing_rate(self):
+        return np.max(self.tuning_curves, axis=1)
+
     def get_field_locations(self):
         pass

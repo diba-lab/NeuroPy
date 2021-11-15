@@ -51,7 +51,12 @@ class BinarysignalIO:
         else:
             sig = self._raw_traces[channel_indx, frame_start:frame_stop]
 
-        return Signal(sig, self.sampling_rate, t_start, channel_id=channel_indx)
+        return Signal(
+            traces=sig,
+            sampling_rate=self.sampling_rate,
+            t_start=t_start,
+            channel_id=channel_indx,
+        )
 
     def write_time_slice(self, write_filename, t_start, t_stop):
 
