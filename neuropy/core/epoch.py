@@ -47,15 +47,10 @@ class Epoch(DataWriter):
         df["duration"] = self.durations
         return df
 
-    @property
-    def metadata(self):
-        return self._metadata
-
-    @metadata.setter
-    def metadata(self, metadata):
-        """metadata compatibility"""
-
-        self._metadata = metadata
+    def add_column(self, name: str, arr: np.ndarray):
+        data = self.to_dataframe()
+        data[name] = arr
+        return Epoch(epochs=data, metadata=self.metadata)
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
