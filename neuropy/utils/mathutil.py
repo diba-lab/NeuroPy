@@ -238,9 +238,11 @@ def radon_transform(arr, nlines=5000):
     posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
     posterior[t_in] = arr[y_line[t_in], t_in[1]]
 
+    old_settings = np.seterr(all="ignore")
     posterior_sum = np.nanmean(posterior, axis=1)
     max_line = np.argmax(posterior_sum)
     slope = -(1 / np.tan(theta[max_line]))
+    np.seterr(**old_settings)
 
     return posterior_sum[max_line], slope
 

@@ -59,7 +59,7 @@ class Pf1D:
             f, sigma / grid_bin, axis=-1
         )  # divide by grid_bin to account for discrete spacing
 
-        xbin = np.arange(min(x), max(x) + grid_bin, grid_bin)  # binning of x position
+        xbin = np.arange(np.min(x), np.max(x) + grid_bin, grid_bin)
 
         if epochs is not None:
             assert isinstance(epochs, core.Epoch), "epochs should be core.Epoch object"
@@ -88,25 +88,23 @@ class Pf1D:
             indx = np.where(speed >= speed_thresh)[0]
 
         # to avoid interpolation error, speed and position estimation for spiketrains should use time and speed of entire position (not only on threshold crossing time points)
-
-        spktrns_speed = [np.interp(_, t, speed) for _ in spiketrains]
-        spktrns_x = [np.interp(_, t, x) for _ in spiketrains]
-        x_keep = x[indx]
+        x_thresh = x[indx]
 
         spk_pos, spk_t, spkcounts = [], [], []
-        for i, spk_speed in enumerate(spktrns_speed):
-
+        for spktrn in spiketrains:
+            spk_spd = np.interp(spktrn, t, speed)
+            spk_x = np.interp(spktrn, t, x)
             if speed_thresh is not None:
-                indices = np.where(spk_speed >= speed_thresh)[0]
-            else:
-                indices = np.arange(len(spk_speed))
+                indices = np.where(spk_spd >= speed_thresh)[0]
+                spk_x = spk_x[indices]
+                spktrn = spktrn[indices]
 
-            spk_pos.append(spktrns_x[i][indices])
-            spk_t.append(spiketrains[i][indices])
-            spkcounts.append(np.histogram(spktrns_x[i][indices], bins=xbin)[0])
+            spk_pos.append(spk_x)
+            spk_t.append(spktrn)
+            spkcounts.append(np.histogram(spk_x, bins=xbin)[0])
 
         spkcounts = smooth_(np.asarray(spkcounts))
-        occupancy = np.histogram(x_keep, bins=xbin)[0] / position_srate + 1e-16
+        occupancy = np.histogram(x_thresh, bins=xbin)[0] / position_srate + 1e-16
         occupancy = smooth_(occupancy)
         tuning_curve = spkcounts / occupancy.reshape(1, -1)
 
