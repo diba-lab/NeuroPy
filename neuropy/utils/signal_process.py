@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
-
+from scipy.interpolate import interp2d
 from ..plotting import Fig
 from .. import core
 
@@ -214,6 +214,181 @@ class SpectrogramBands:
         )
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Frequency (Hz)")
+
+
+class TimeFrequency(core.Signal):
+    def __init__(
+        self,
+        signal: core.Signal,
+        freqs,
+        method="fourier",
+        norm_sig=True,
+        window=1,
+        overlap=0.5,
+        ncycles=3,
+        sigma=None,
+        n_cpu=1,
+    ) -> None:
+        """Time frequency analysis on core.Signal object
+
+        Parameters
+        ----------
+        signal : core.Signal
+            should have only a single channel
+        freqs : np.array
+            frequencies of query
+        method : str, optional
+            choose between fourier, fourierMT(multitaper) and wavelet, by default "fourier"
+        norm_sig : bool, optional
+            whether to normalize the signal, by default True
+        window : float, optional
+            length of each segment in seconds, ignored if using wavelet method, by default 1 s
+        overlap : float, optional
+            length of overlap between adjacent segments, ignored if using wavelet, by default 0.5
+        ncycles : int, optional
+            number of cycles for wavelet, ignored for fourier methods, by default 3 cycles
+        sigma : int, optional
+            smoothing to applied on spectrum, in units of seconds, by default 2 s
+        n_cpu : int, optional
+            number of cpus to use for faster calculation, only used for wavelet transform, by default 1
+        """
+
+        assert signal.n_channels == 1, "signal should have only a single channel"
+        trace = signal.traces[0]
+        if norm_sig:
+            trace = stats.zscore(trace)
+
+        if method == "fourier":
+            sxx, freqs_, t = self._ft(trace, signal.sampling_rate, window, overlap)
+            sampling_rate = int(1 / (t[1] - t[0]))
+            f = interp2d(t, freqs_, sxx)
+            sxx = f(t, freqs)
+
+        if method == "fourierMT":
+            sxx, freqs, t = self._ft(
+                trace, signal.sampling_rate, window, overlap, mt=True
+            )
+            sampling_rate = int(1 / (t[1] - t[0]))
+
+        if method == "wavelet":
+            sxx = self._wt(trace, freqs, signal.sampling_rate, ncycles, n_cpu)
+            sampling_rate = signal.sampling_rate
+
+        if sigma is not None:
+            # TODO it is slow for large array, maybe move to a method and use fastlen padding
+            sampling_period = 1 / sampling_rate
+            sxx = filtSig.gaussian_filter1d(sxx, sigma=sigma / sampling_period, axis=-1)
+
+        super().__init__(
+            traces=sxx,
+            sampling_rate=sampling_rate,
+            t_start=signal.t_start,
+            channel_id=freqs,
+        )
+
+    def _ft(self, signal, fs, window, overlap, mt=False):
+        """fourier transform"""
+        window = int(window * fs)
+        overlap = int(overlap * fs)
+
+        f = None
+        if mt:
+            tapers = sg.windows.dpss(M=window, NW=5, Kmax=6)
+
+            sxx_taper = []
+            for taper in tapers:
+                f, t, sxx = sg.spectrogram(
+                    signal, window=taper, fs=fs, noverlap=overlap
+                )
+                sxx_taper.append(sxx)
+            sxx = np.dstack(sxx_taper).mean(axis=2)
+
+        else:
+            f, t, sxx = sg.spectrogram(signal, fs=fs, nperseg=window, noverlap=overlap)
+
+        return sxx, f, t
+
+    def _wt(self, signal, freqs, fs, ncycles, n_cpu):
+        """wavelet transform calculation"""
+        n = len(signal)
+        fastn = next_fast_len(n)
+        signal = np.pad(signal, (0, fastn - n), "constant", constant_values=0)
+
+        conv_val = np.zeros((len(freqs), n), dtype=complex)
+
+        def wav_cal(freq):
+            t_wavelet = np.arange(-4, 4, 1 / fs)
+            sigma = ncycles / (2 * np.pi * freq)
+            A = (sigma * np.sqrt(np.pi)) ** -0.5
+            wavelet_at_freq = (
+                A
+                * np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
+                * np.exp(2j * np.pi * freq * t_wavelet)
+            )
+            return sg.fftconvolve(signal, wavelet_at_freq, mode="same", axes=-1)
+
+        conv_val = Parallel(n_jobs=n_cpu)(delayed(wav_cal)(freq) for freq in freqs)
+
+        conv_val = np.asarray(conv_val)[:, :n]
+        return np.abs(conv_val) ** 2
+
+    def time_slice(self, t_start=None, t_stop=None):
+        return super().time_slice(t_start=t_start, t_stop=t_stop)
+
+    def get_band_power(self, f1=None, f2=None):
+
+        if f1 is None:
+            f1 = self.channel_id[0]
+
+        if f2 is None:
+            f2 = self.channel_id[-1]
+
+        assert f1 >= self.channel_id[0], "f1 should be greater than lowest frequency"
+        assert (
+            f2 <= self.channel_id[-1]
+        ), "f2 should be lower than highest possible frequency"
+        assert f2 > f1, "f2 should be greater than f1"
+
+        ind = np.where((self.channel_id >= f1) & (self.channel_id <= f2))[0]
+        band_power = np.mean(self.traces[ind, :], axis=0)
+        return band_power
+
+    @property
+    def delta(self):
+        return self.get_band_power(f1=0.5, f2=4)
+
+    @property
+    def deltaplus(self):
+        deltaplus_ind = np.where(
+            ((self.channel_id > 0.5) & (self.channel_id < 4))
+            | ((self.channel_id > 12) & (self.channel_id < 15))
+        )[0]
+        deltaplus_sxx = np.mean(self.sxx[deltaplus_ind, :], axis=0)
+        return deltaplus_sxx
+
+    @property
+    def theta(self):
+        return self.get_band_power(f1=5, f2=11)
+
+    @property
+    def spindle(self):
+        return self.get_band_power(f1=10, f2=20)
+
+    @property
+    def gamma(self):
+        return self.get_band_power(f1=30, f2=90)
+
+    @property
+    def ripple(self):
+        return self.get_band_power(f1=140, f2=250)
+
+    @property
+    def theta_delta_ratio(self):
+        return self.theta / self.delta
+
+    @property
+    def theta_deltaplus_ratio(self):
+        return self.theta / self.deltaplus
 
 
 @dataclass
