@@ -409,16 +409,25 @@ class PF1d:
         return all_cells
 
 
-class PF2d:
-    def __init__(self, basepath, **kwargs):
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
 
-    def compute(
-        self, period, spikes=None, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2
-    ):
+
+## Old:
+class PF2d:
+    # def __init__(self, basepath, **kwargs):
+    #     if isinstance(basepath, Recinfo):
+    #         self._obj = basepath
+    #     else:
+    #         self._obj = Recinfo(basepath)
+
+    def __init__(self, period, spikes, cell_ids, x, y, t, trackingRate, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2):
+        self.perform_compute(period, spikes, cell_ids, x, y, t, trackingRate, gridbin, speed_thresh, frate_thresh, smooth)
+        # elif isinstance(basepath, Recinfo):
+        #     self._obj = basepath
+        # else:
+        #     self._obj = Recinfo(basepath)
+            
+            
+    def compute(self, period, spikes=None, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2):
         """Calculates 2D placefields
 
         Parameters
@@ -445,8 +454,6 @@ class PF2d:
         else:
             cell_ids = np.arange(len(spikes))
 
-        nCells = len(spikes)
-
         # ----- Position---------
         xcoord = position.x
         ycoord = position.y
@@ -457,7 +464,13 @@ class PF2d:
         x = xcoord[ind_maze]
         y = ycoord[ind_maze]
         t = time[ind_maze]
-
+        
+        return self.perform_compute(period, spikes, cell_ids, x, y, t, trackingRate, gridbin=gridbin, speed_thresh=speed_thresh, frate_thresh=frate_thresh, smooth=smooth)        
+        
+    # x, y, t, trackingRate
+    def perform_compute(self, period, spikes, cell_ids, x, y, t, trackingRate, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2):
+        nCells = len(spikes)
+        
         x_grid = np.arange(min(x), max(x) + gridbin, gridbin)
         y_grid = np.arange(min(y), max(y) + gridbin, gridbin)
         # x_, y_ = np.meshgrid(x_grid, y_grid)
@@ -508,9 +521,7 @@ class PF2d:
         occupancy = occupancy / trackingRate + 10e-16  # converting to seconds
         occupancy = gaussian_filter(occupancy, sigma=2)
 
-        maps, spk_pos, spk_t = make_pfs(
-            t, x, y, spikes, occupancy, speed_thresh, period, x_grid, y_grid
-        )
+        maps, spk_pos, spk_t = make_pfs(t, x, y, spikes, occupancy, speed_thresh, period, x_grid, y_grid)
 
         # ---- cells with peak frate abouve thresh ------
         good_cells_indx = [
