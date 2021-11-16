@@ -47,15 +47,16 @@ class Epoch(DataWriter):
         df["duration"] = self.durations
         return df
 
-    @property
-    def metadata(self):
-        return self._metadata
+    def add_column(self, name: str, arr: np.ndarray):
+        data = self.to_dataframe()
+        data[name] = arr
+        return Epoch(epochs=data, metadata=self.metadata)
 
-    @metadata.setter
-    def metadata(self, metadata):
-        """metadata compatibility"""
-
-        self._metadata = metadata
+    def add_dataframe(self, df: pd.DataFrame):
+        assert isinstance(df, pd.DataFrame), "df should be a pandas dataframe"
+        data = self.to_dataframe()
+        data_new = pd.concat([data, df], axis=1)
+        return Epoch(epochs=data_new, metadata=self.metadata)
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
@@ -104,6 +105,11 @@ class Epoch(DataWriter):
     @staticmethod
     def from_dict(d: dict):
         return Epoch(d["epochs"], metadata=d["metadata"])
+
+    @staticmethod
+    def from_array(starts, stops, labels=None):
+        df = pd.DataFrame({"start": starts, "stop": stops, "label": labels})
+        return Epoch(epochs=df)
 
     @staticmethod
     def from_file(f):

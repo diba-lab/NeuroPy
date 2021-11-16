@@ -134,7 +134,7 @@ class Decode1d:
             self.posterior = np.hsplit(posterior, cum_nbins)
             self.spkcount = spkcount
             self.nbins_epochs = nbins
-            self.score, _ = self.score_posterior(self.posterior)
+            self.score, self.slope = self.score_posterior(self.posterior)
 
         else:
             spkcount = self.neurons.get_binned_spiketrains(
