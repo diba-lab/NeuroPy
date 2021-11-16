@@ -410,6 +410,204 @@ class PF1d:
 
 
 
+class Pf2D_new:
+    def __init__(
+        self,
+        neurons: core.Neurons,
+        position: core.Position,
+        epochs: core.Epoch = None,
+        frate_thresh=1,
+        speed_thresh=5,
+        grid_bin=1,
+        smooth=1,
+    ):
+        """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
+        without speed thresholds.
+
+        Parameters
+        ----------
+        track_name : str
+            name of track
+        direction : forward, backward or None
+            direction of running, by default None which means direction is ignored
+        grid_bin : int
+            bin size of position bining, by default 5
+        speed_thresh : int
+            speed threshold for calculating place field
+        """
+
+        # assert position.ndim < 2, "Only 2+ dimensional position are acceptable"
+        spiketrains = neurons.spiketrains
+        neuron_ids = neurons.neuron_ids
+        n_neurons = neurons.n_neurons
+        position_srate = position.sampling_rate
+        x = position.x
+        y = position.y
+        t = position.time
+        t_start = position.t_start
+        t_stop = position.t_stop
+
+        xbin = np.arange(min(x), max(x) + grid_bin, grid_bin)  # binning of x position
+        ybin = np.arange(min(y), max(y) + grid_bin, grid_bin)  # binning of y position
+
+        diff_posx = np.diff(x)
+        diff_posy = np.diff(y)
+        speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / (1 / position_srate)
+        speed = gaussian_filter1d(speed, sigma=smooth)
+        
+        # 2D Unique:
+        dt = t[1] - t[0]
+        # running = np.where(speed / dt > speed_thresh)[0]
+
+        # x_thresh = x[running]
+        # y_thresh = y[running]
+        # t_thresh = t[running]
+        
+        def make_pfs(t_, x_, y_, spkAll_, occupancy_, speed_thresh_, maze_, x_grid_, y_grid_):
+            maps, spk_pos, spk_t = [], [], []
+            for cell in spkAll_:
+                # assemble spikes and position data
+                spk_maze = cell[np.where((cell > maze_[0]) & (cell < maze_[1]))]
+                spk_speed = np.interp(spk_maze, t_[1:], speed)
+                spk_y = np.interp(spk_maze, t_, y_)
+                spk_x = np.interp(spk_maze, t_, x_)
+
+                # speed threshold
+                spd_ind = np.where(spk_speed > speed_thresh_)
+                # spk_spd = spk_speed[spd_ind]
+                spk_x = spk_x[spd_ind]
+                spk_y = spk_y[spd_ind]
+
+                # Calculate maps
+                spk_map = np.histogram2d(spk_x, spk_y, bins=(x_grid_, y_grid_))[0]
+                spk_map = gaussian_filter(spk_map, sigma=smooth)
+                maps.append(spk_map / occupancy_)
+
+                spk_t.append(spk_maze[spd_ind])
+                spk_pos.append([spk_x, spk_y])
+
+            return maps, spk_pos, spk_t
+        
+        
+        
+        spk_pos, spk_t, tuning_maps = [], [], []
+
+        # ------ if direction then restrict to those epochs --------
+        if epochs is not None:
+            assert isinstance(epochs, core.Epoch), "epochs should be core.Epoch object"
+            # print(f" using {run_dir} running only")
+            spks = [
+                np.concatenate(
+                    [
+                        spktrn[(spktrn > epc.start) & (spktrn < epc.stop)]
+                        for epc in epochs.to_dataframe().itertuples()
+                    ]
+                )
+                for spktrn in spiketrains
+            ]
+            # changing x, speed, time to only run epochs so occupancy map is consistent with that
+            indx = np.concatenate(
+                [
+                    np.where((t > epc.start) & (t < epc.stop))[0]
+                    for epc in epochs.to_dataframe().itertuples()
+                ]
+            )
+            x = x[indx]
+            y = y[indx]
+            speed = speed[indx]
+            t = t[indx]
+            # occupancy = np.histogram(x, bins=xbin)[0] / position_srate + 1e-16
+            # occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+            
+            # --- occupancy map calculation -----------
+            # NRK todo: might need to normalize occupancy so sum adds up to 1
+            # occupancy = np.histogram2d(x_thresh, y_thresh, bins=(xbin, ybin))[0]
+            occupancy = np.histogram2d(x, y, bins=(xbin, ybin))[0]
+            occupancy = occupancy / position_srate + 10e-16  # converting to seconds
+            occupancy = gaussian_filter(occupancy, sigma=smooth) # 2d gaussian filter
+            
+
+            for cell in spks:
+                spk_spd = np.interp(cell, t, speed)
+                spk_x = np.interp(cell, t, x)
+                spk_y = np.interp(cell, t, y)
+                spk_pos.append([spk_x, spk_y])
+                spk_t.append(cell)
+
+                # tuning curve calculation
+                # tuning_curve.append(
+                #     gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
+                #     / occupancy
+                # )
+                tuning_maps.append(
+                    gaussian_filter(np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0], sigma=smooth)
+                    / occupancy
+                )
+
+        else:
+            # --- speed thresh occupancy----
+
+            spks = [
+                spktrn[(spktrn > t_start) & (spktrn < t_stop)] for spktrn in spiketrains
+            ]
+            # indx = np.where(speed >= speed_thresh)[0]
+            dt = t[1] - t[0]
+            indx = np.where(speed / dt > speed_thresh)[0]
+            x, y, speed, t = x[indx], y[indx], speed[indx], t[indx]
+
+            # occupancy = np.histogram(x, bins=xbin)[0] / position_srate + 1e-16
+            # occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+            
+            # --- occupancy map calculation -----------
+            # NRK todo: might need to normalize occupancy so sum adds up to 1
+            # occupancy = np.histogram2d(x_thresh, y_thresh, bins=(xbin, ybin))[0]
+            occupancy = np.histogram2d(x, y, bins=(xbin, ybin))[0]
+            occupancy = occupancy / position_srate + 10e-16  # converting to seconds
+            occupancy = gaussian_filter(occupancy, sigma=smooth) # 2d gaussian filter
+            
+            for cell in spks:
+                spk_spd = np.interp(cell, t, speed)
+                spk_x = np.interp(cell, t, x)
+                spk_y = np.interp(cell, t, y)
+
+                # speed threshold
+                spd_ind = np.where(spk_spd > speed_thresh)[0]
+                spk_pos.append([spk_x[spd_ind], spk_y[spd_ind]])
+                spk_t.append(cell[spd_ind])
+
+                # tuning curve calculation
+                # tuning_curve.append(
+                #     gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
+                #     / occupancy
+                # )
+                tuning_maps.append(
+                    gaussian_filter(np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0], sigma=smooth)
+                    / occupancy
+                )
+                
+
+        # ---- cells with peak frate abouve thresh ------
+        thresh_neurons_indx = [
+            neuron_indx
+            for neuron_indx in range(n_neurons)
+            if np.max(tuning_maps[neuron_indx]) > frate_thresh
+        ]
+
+        get_elem = lambda list_: [list_[_] for _ in thresh_neurons_indx]
+
+        tuning_maps = get_elem(tuning_maps)
+        tuning_maps = np.asarray(tuning_maps)
+        self.ratemap = core.Ratemap(
+            tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=get_elem(neuron_ids)
+        )
+        self.ratemap_spiketrains = get_elem(spk_t)
+        self.ratemap_spiketrains_pos = get_elem(spk_pos)
+        self.occupancy = occupancy
+        self.frate_thresh = frate_thresh
+        self.speed_thresh = speed_thresh
+
+
+
 
 ## Old:
 class PF2d:
@@ -420,12 +618,7 @@ class PF2d:
     #         self._obj = Recinfo(basepath)
 
     def __init__(self, period, spikes, cell_ids, x, y, t, trackingRate, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2):
-        self.perform_compute(period, spikes, cell_ids, x, y, t, trackingRate, gridbin, speed_thresh, frate_thresh, smooth)
-        # elif isinstance(basepath, Recinfo):
-        #     self._obj = basepath
-        # else:
-        #     self._obj = Recinfo(basepath)
-            
+        self.perform_compute(period, spikes, cell_ids, x, y, t, trackingRate, gridbin, speed_thresh, frate_thresh, smooth)            
             
     def compute(self, period, spikes=None, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2):
         """Calculates 2D placefields
@@ -488,9 +681,7 @@ class PF2d:
         y_thresh = y[running]
         t_thresh = t[running]
 
-        def make_pfs(
-            t_, x_, y_, spkAll_, occupancy_, speed_thresh_, maze_, x_grid_, y_grid_
-        ):
+        def make_pfs(t_, x_, y_, spkAll_, occupancy_, speed_thresh_, maze_, x_grid_, y_grid_):
             maps, spk_pos, spk_t = [], [], []
             for cell in spkAll_:
                 # assemble spikes and position data
@@ -519,7 +710,7 @@ class PF2d:
         # NRK todo: might need to normalize occupancy so sum adds up to 1
         occupancy = np.histogram2d(x_thresh, y_thresh, bins=(x_grid, y_grid))[0]
         occupancy = occupancy / trackingRate + 10e-16  # converting to seconds
-        occupancy = gaussian_filter(occupancy, sigma=2)
+        occupancy = gaussian_filter(occupancy, sigma=2) # 2d gaussian filter
 
         maps, spk_pos, spk_t = make_pfs(t, x, y, spikes, occupancy, speed_thresh, period, x_grid, y_grid)
 
@@ -532,6 +723,9 @@ class PF2d:
 
         get_elem = lambda list_: [list_[_] for _ in good_cells_indx]
 
+        # tuning_curve  ->  spk_pos
+        # neuron_indx   ->  cell_indx
+        # thresh_neurons_indx   ->  good_cells_indx
         self.spk_pos = get_elem(spk_pos)
         self.spk_t = get_elem(spk_t)
         self.ratemaps = get_elem(maps)
@@ -615,8 +809,7 @@ class PF2d:
             # cbar = fig.colorbar(im, cax=cbar_ax)
             # cbar.set_label("firing rate (Hz)")
 
-    def plotRaw(
-        self,
+    def plotRaw(self,
         subplots=(10, 8),
         fignum=None,
         alpha=0.5,
