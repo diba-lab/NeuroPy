@@ -107,6 +107,11 @@ class Epoch(DataWriter):
         return Epoch(d["epochs"], metadata=d["metadata"])
 
     @staticmethod
+    def from_array(starts, stops, labels=None):
+        df = pd.DataFrame({"start": starts, "stop": stops, "label": labels})
+        return Epoch(epochs=df)
+
+    @staticmethod
     def from_file(f):
         d = DataWriter.from_file(f)
         if d is not None:
