@@ -412,7 +412,7 @@ class PF1d:
 
 
 
-class Pf2D_new:
+class Pf2D:
     def __init__(
         self,
         neurons: core.Neurons,
@@ -557,7 +557,19 @@ class Pf2D_new:
         self.frate_thresh = frate_thresh
         self.speed_thresh = speed_thresh
 
-    def plotMap(self, subplots=(7, 4), fignum=None):
+    @property
+    def spk_pos(self):
+        return self.ratemap_spiketrains_pos
+    
+    @property
+    def cell_ids(self):
+        return self.ratemap.neuron_ids
+    
+    
+    # self.ratemap.xbin
+    # self.ratemap.ybin
+
+    def plotMap(self, subplots=(10, 8), figsize=(6, 10), fignum=None):
         """Plots heatmaps of placefields with peak firing rate
 
         Parameters
@@ -583,7 +595,7 @@ class Pf2D_new:
 
         figures, gs = [], []
         for fig_ind in range(nfigures):
-            fig = plt.figure(fignum + fig_ind, figsize=(6, 10), clear=True)
+            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
             gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
             fig.subplots_adjust(hspace=0.4)
             fig.suptitle(
@@ -632,7 +644,8 @@ class Pf2D_new:
             ), "Number of axes must match number of clusters to plot"
             fig = ax[0].get_figure()
 
-        spk_pos_use = self.spk_pos
+        # spk_pos_use = self.spk_pos
+        spk_pos_use = self.ratemap_spiketrains_pos
 
         if clus_use is not None:
             spk_pos_tmp = spk_pos_use
