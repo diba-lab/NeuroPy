@@ -12,6 +12,8 @@ from ..utils.signal_process import ThetaParams
 from .. import plotting
 
 
+
+
 class Pf1D:
     def __init__(
         self,
@@ -481,12 +483,9 @@ class Pf2D_new:
             y = y[indx]
             speed = speed[indx]
             t = t[indx]
-            # occupancy = np.histogram(x, bins=xbin)[0] / position_srate + 1e-16
-            # occupancy = gaussian_filter1d(occupancy, sigma=smooth)
-            
+
             # --- occupancy map calculation -----------
             # NRK todo: might need to normalize occupancy so sum adds up to 1
-            # occupancy = np.histogram2d(x_thresh, y_thresh, bins=(xbin, ybin))[0]
             occupancy = np.histogram2d(x, y, bins=(xbin, ybin))[0]
             occupancy = occupancy / position_srate + 10e-16  # converting to seconds
             occupancy = gaussian_filter(occupancy, sigma=smooth) # 2d gaussian filter
@@ -499,11 +498,7 @@ class Pf2D_new:
                 spk_pos.append([spk_x, spk_y])
                 spk_t.append(cell)
 
-                # tuning curve calculation
-                # tuning_curve.append(
-                #     gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
-                #     / occupancy
-                # )
+                # tuning curve calculation:               
                 tuning_maps.append(
                     gaussian_filter(np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0], sigma=smooth)
                     / occupancy
@@ -515,17 +510,12 @@ class Pf2D_new:
             spks = [
                 spktrn[(spktrn > t_start) & (spktrn < t_stop)] for spktrn in spiketrains
             ]
-            # indx = np.where(speed >= speed_thresh)[0]
             dt = t[1] - t[0]
             indx = np.where(speed / dt > speed_thresh)[0]
             x, y, speed, t = x[indx], y[indx], speed[indx], t[indx]
-
-            # occupancy = np.histogram(x, bins=xbin)[0] / position_srate + 1e-16
-            # occupancy = gaussian_filter1d(occupancy, sigma=smooth)
             
             # --- occupancy map calculation -----------
             # NRK todo: might need to normalize occupancy so sum adds up to 1
-            # occupancy = np.histogram2d(x_thresh, y_thresh, bins=(xbin, ybin))[0]
             occupancy = np.histogram2d(x, y, bins=(xbin, ybin))[0]
             occupancy = occupancy / position_srate + 10e-16  # converting to seconds
             occupancy = gaussian_filter(occupancy, sigma=smooth) # 2d gaussian filter
@@ -540,11 +530,7 @@ class Pf2D_new:
                 spk_pos.append([spk_x[spd_ind], spk_y[spd_ind]])
                 spk_t.append(cell[spd_ind])
 
-                # tuning curve calculation
-                # tuning_curve.append(
-                #     gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
-                #     / occupancy
-                # )
+                # tuning curve calculation:
                 tuning_maps.append(
                     gaussian_filter(np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0], sigma=smooth)
                     / occupancy
@@ -584,7 +570,7 @@ class Pf2D_new:
             figure number to start from, by default None
         """
 
-        map_use, thresh = self.ratemap, self.speed_thresh
+        map_use, thresh = self.ratemap.tuning_curves, self.speed_thresh
 
         nCells = len(map_use)
         nfigures = nCells // np.prod(subplots) + 1
@@ -612,8 +598,8 @@ class Pf2D_new:
             subplot_ind = cell % np.prod(subplots)
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
             im = ax1.pcolorfast(
-                self.xgrid,
-                self.ygrid,
+                self.ratemap.xbin,
+                self.ratemap.ybin,
                 np.rot90(np.fliplr(pfmap)) / np.max(pfmap),
                 cmap="jet",
                 vmin=0,
@@ -621,7 +607,7 @@ class Pf2D_new:
             # max_frate =
             ax1.axis("off")
             ax1.set_title(
-                f"Cell {self.cell_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
+                f"Cell {self.ratemap.neuron_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
             )
 
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])

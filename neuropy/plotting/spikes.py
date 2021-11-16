@@ -207,3 +207,14 @@ def plot_waveforms(neurons: core.Neurons, sort_order=None, color="#afadac"):
     ax.plot(waves.T, color=color, alpha=0.5)
 
     return ax
+
+
+
+def get_neuron_colors(sort_indicies, cmap="tab20b"):
+    # returns the list of colors
+    cmap = mpl.cm.get_cmap(cmap)
+    n_neurons = len(sort_indicies)
+    colors_array = np.zeros((4, n_neurons))
+    for i, neuron_ind in enumerate(sort_indicies):
+        colors_array[:, i] = cmap(i / len(sort_indicies))
+    return colors_array
