@@ -65,21 +65,21 @@ class Epoch(DataWriter):
         ), "Epoch dataframe should at least have columns with names: start, stop, label"
 
     def __repr__(self) -> str:
-        return f"{len(self.starts)} epochs"
+        return f"{len(self.starts)} epochs\nSnippet: \n {self._data.head(5)}"
 
     def __str__(self) -> str:
         pass
 
-    def __getitem__(self, slice_):
+    def __getitem__(self, i):
 
-        if isinstance(slice_, str):
-            indices = np.where(self.labels == slice_)[0]
-            if len(indices) > 1:
-                return np.vstack((self.starts[indices], self.stops[indices])).T
-            else:
-                return np.array([self.starts[indices], self.stops[indices]]).squeeze()
+        if isinstance(i, str):
+            data = self._data[self._data["label"] == i].copy()
+        elif isinstance(i, slice):
+            data = self._data.iloc[i].copy()
         else:
-            return np.vstack((self.starts[slice_], self.stops[slice_])).T
+            data = self._data.iloc[[i]].copy()
+
+        return Epoch(epochs=data.reset_index(drop=True))
 
     def __len__(self):
         return self.n_epochs
@@ -232,4 +232,11 @@ class Epoch(DataWriter):
         return np.histogram(mid_times, bins=bins)[0]
 
     def as_array(self):
+        """Returns starts and stops as 2d numpy array"""
         return self.to_dataframe()[["start", "stop"]].to_numpy()
+
+    def flatten(self):
+        """Returns 1d numpy array of alternating starts and stops
+        NOTE: returned array is monotonically increasing only if epochs are non-overlapping
+        """
+        return self.as_array().flatten("F")
