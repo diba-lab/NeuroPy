@@ -133,6 +133,14 @@ class TimeFrequency(core.Signal):
             smoothing to applied on spectrum, in units of seconds, by default 2 s
         n_cpu : int, optional
             number of cpus to use for faster calculation, only used for wavelet transform, by default 1
+
+        Suggestions/References
+        ----------------------
+
+        Wavelet :
+            ncycles = 7, [Colgin et al. 2009, Tallon-Baudry et al. 1997]
+            ncycles = 3, [MX Cohen, Analyzing neural time series data book, 2014]
+
         """
 
         assert signal.n_channels == 1, "signal should have only a single channel"
@@ -271,154 +279,6 @@ class TimeFrequency(core.Signal):
     @property
     def theta_deltaplus_ratio(self):
         return self.theta / self.deltaplus
-
-
-@dataclass
-class wavelet_decomp:
-    lfp: np.array
-    freqs: np.array = np.arange(1, 20)
-    sampfreq: int = 1250
-
-    def colgin2009(self):
-        """colgin
-
-
-        Returns:
-            [type]: [description]
-
-        References
-        ------------
-        1) Colgin, L. L., Denninger, T., Fyhn, M., Hafting, T., Bonnevie, T., Jensen, O., ... & Moser, E. I. (2009). Frequency of gamma oscillations routes flow of information in the hippocampus. Nature, 462(7271), 353-357.
-        2) Tallon-Baudry, C., Bertrand, O., Delpuech, C., & Pernier, J. (1997). Oscillatory γ-band (30–70 Hz) activity induced by a visual search task in humans. Journal of Neuroscience, 17(2), 722-734.
-        """
-        t_wavelet = np.arange(-4, 4, 1 / self.sampfreq)
-        freqs = self.freqs
-        n = len(self.lfp)
-        fastn = next_fast_len(n)
-        signal = np.pad(self.lfp, (0, fastn - n), "constant", constant_values=0)
-        # signal = np.tile(np.expand_dims(signal, axis=0), (len(freqs), 1))
-        # wavelet_at_freqs = np.zeros((len(freqs), len(t_wavelet)), dtype=complex)
-        conv_val = np.zeros((len(freqs), n), dtype=complex)
-        # for i, freq in enumerate(freqs):
-        def wav_cal(freq):
-            sigma = 7 / (2 * np.pi * freq)
-            A = (sigma * np.sqrt(np.pi)) ** -0.5
-            wavelet_at_freq = (
-                A
-                * np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
-                * np.exp(2j * np.pi * freq * t_wavelet)
-            )
-
-            return sg.fftconvolve(signal, wavelet_at_freq, mode="same", axes=-1)[:n]
-
-        conv_val = Parallel(n_jobs=10)(delayed(wav_cal)(freq) for freq in freqs)
-        conv_val = np.asarray(conv_val)
-
-        return np.abs(conv_val) ** 2
-
-    def quyen2008(self):
-        """colgin
-
-
-        Returns:
-            [type]: [description]
-
-        References
-        ------------
-        1) Le Van Quyen, M., Bragin, A., Staba, R., Crépon, B., Wilson, C. L., & Engel, J. (2008). Cell type-specific firing during ripple oscillations in the hippocampal formation of humans. Journal of Neuroscience, 28(24), 6104-6110.
-        """
-        t_wavelet = np.arange(-4, 4, 1 / self.sampfreq)
-        freqs = self.freqs
-        signal = self.lfp
-        signal = np.tile(np.expand_dims(signal, axis=0), (len(freqs), 1))
-
-        wavelet_at_freqs = np.zeros((len(freqs), len(t_wavelet)))
-        for i, freq in enumerate(freqs):
-            sigma = 5 / (6 * freq)
-            A = np.sqrt(freq)
-            wavelet_at_freqs[i, :] = (
-                A
-                * np.exp(-((t_wavelet) ** 2) / (sigma ** 2))
-                * np.exp(2j * np.pi * freq * t_wavelet)
-            )
-
-        conv_val = sg.fftconvolve(signal, wavelet_at_freqs, mode="same", axes=-1)
-
-        return np.abs(conv_val) ** 2
-
-    def bergel2018(self):
-        """colgin
-
-
-        Returns:
-            [type]: [description]
-
-        References:
-        ---------------
-        1) Bergel, A., Deffieux, T., Demené, C., Tanter, M., & Cohen, I. (2018). Local hippocampal fast gamma rhythms precede brain-wide hyperemic patterns during spontaneous rodent REM sleep. Nature communications, 9(1), 1-12.
-
-        """
-        signal = self.lfp
-        t_wavelet = np.arange(-4, 4, 1 / self.sampfreq)
-        freqs = self.freqs
-
-        wave_spec = []
-        for freq in freqs:
-            sigma = freq / (2 * np.pi * 7)
-            A = (sigma * np.sqrt(np.pi)) ** -0.5
-            my_wavelet = (
-                A
-                * np.exp(-((t_wavelet) ** 2) / (2 * sigma ** 2))
-                * np.exp(2j * np.pi * freq * t_wavelet)
-            )
-            # conv_val = np.convolve(signal, my_wavelet, mode="same")
-            conv_val = sg.fftconvolve(signal, my_wavelet, mode="same")
-
-            wave_spec.append(conv_val)
-
-        wave_spec = np.abs(np.asarray(wave_spec))
-        return wave_spec * np.linspace(1, 150, 100).reshape(-1, 1)
-
-    def torrenceCompo(self):
-        # wavelet = _check_parameter_wavelet("morlet")
-        # sj = 1 / (wavelet.flambda() * self.freqs)
-        # wave, period, scale, coi = wavelet(
-        #     self.lfp, 1 / self.sampfreq, pad=1, dj=0.25, s0, j1, mother
-        # )
-        pass
-
-    def cohen(self, ncycles=3):
-        """Implementation of ref. 1 chapter 13
-
-
-        Returns:
-            [type]: [description]
-
-        References:
-        ---------------
-        1) Cohen, M. X. (2014). Analyzing neural time series data: theory and practice. MIT press.
-
-        """
-        signal = self.lfp
-        t_wavelet = np.arange(-4, 4, 1 / self.sampfreq)
-        freqs = self.freqs
-
-        wave_spec = []
-        for freq in freqs:
-            s = ncycles / (2 * np.pi * freq)
-            A = (s * np.sqrt(np.pi)) ** -0.5
-            my_wavelet = (
-                A
-                * np.exp(-(t_wavelet ** 2) / (2 * s ** 2))
-                * np.exp(2j * np.pi * freq * t_wavelet)
-            )
-            # conv_val = np.convolve(signal, my_wavelet, mode="same")
-            conv_val = sg.fftconvolve(signal, my_wavelet, mode="same")
-
-            wave_spec.append(conv_val)
-
-        wave_spec = np.abs(np.asarray(wave_spec))
-        return wave_spec ** 2
 
 
 def hilbertfast(signal, ax=-1):
