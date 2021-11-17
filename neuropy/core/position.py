@@ -23,8 +23,7 @@ class Position(DataWriter):
         self.traces = traces
         self._t_start = t_start
         self._sampling_rate = sampling_rate
-        self.metadata = metadata
-        super().__init__()
+        super().__init__(metadata=metadata)
 
     @property
     def x(self):
