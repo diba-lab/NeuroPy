@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from .. import core
 from .ccg import correlograms
 from typing import List, Union
+from scipy.ndimage import gaussian_filter1d
 
 
 def estimate_neuron_type(neurons: Union[core.Neurons, List[core.Neurons]]):
@@ -182,3 +183,32 @@ def calculate_neurons_ccg(self, ids):
     non_redundant_indx = np.tril_indices_from(diff, k=-1)
 
     return diff[non_redundant_indx]
+
+
+def theta_modulation_index(neurons: core.Neurons, sigma=None):
+    """Theta modulation index based on auto-correlograms
+
+    Parameters
+    ----------
+    neurons : core.Neurons
+        neurons for which to calculate the index
+
+    Returns
+    -------
+    tmi
+        index for each neuron within neurons
+
+    #TODO finding the second peak/trough and take a window around it for tmi ???
+    """
+    acg = calculate_neurons_acg(neurons, bin_size=0.001, window_size=0.5)
+    acg_right = acg[:, acg.shape[1] // 2 :]
+
+    if sigma is not None:
+        acg_right = gaussian_filter1d(acg_right, axis=1, sigma=sigma)
+
+    trough, peak = (acg_right[:, 50:70]).mean(axis=1), (acg_right[:, 100:160]).mean(
+        axis=1
+    )
+    tmi = (peak - trough) / (peak + trough)
+
+    return tmi
