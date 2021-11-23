@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
 # Local imports:
@@ -13,6 +14,8 @@ from .signal import Signal
 
 from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import NeuroscopeIO, BinarysignalIO
 
+from ..utils.load_exported import import_mat_file
+
 
 class DataSessionLoader:
     def __init__(self, load_function, load_arguments=dict()):        
@@ -24,6 +27,44 @@ class DataSessionLoader:
             self.load_arguments = updated_load_arguments
                  
         return self.load_function(self.load_arguments)
+    
+    @staticmethod
+    def default_extended_postload(fp, session):
+        # Computes Common Extended properties:
+        ## Ripples:
+        active_file_suffix = '.ripple.npy'
+        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        if found_datafile is not None:
+            print('Loading success: {}.'.format(active_file_suffix))
+            session.ripple = Epoch.from_dict(found_datafile)
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            session.ripple = DataSession.compute_neurons_ripples(session)
+
+        ## MUA:
+        active_file_suffix = '.mua.npy'
+        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        if found_datafile is not None:
+            print('Loading success: {}.'.format(active_file_suffix))
+            session.mua = Mua.from_dict(found_datafile)
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            session.mua = DataSession.compute_neurons_mua(session)
+
+        ## PBE Epochs:
+        active_file_suffix = '.pbe.npy'
+        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        if found_datafile is not None:
+            print('Loading success: {}.'.format(active_file_suffix))
+            session.pbe = Epoch.from_dict(found_datafile)
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            session.pbe = DataSession.compute_pbe_epochs(session)
+        # return the session with the upadated member variables    
+        return session
     
     
     @staticmethod
@@ -49,9 +90,6 @@ class DataSessionLoader:
         except ValueError:
             print('session.recinfo.eeg_filename exists ({}) but file cannot be loaded in the appropriate format. Skipping. \n'.format(session.recinfo.eeg_filename))
             session.eegfile = None
-        # else:
-        #     session.eegfile = None
-
 
         if session.recinfo.dat_filename.is_file():
             session.datfile = BinarysignalIO(
@@ -87,44 +125,136 @@ class DataSessionLoader:
         else:
             print('linearized position loaded from file.')
 
-        # Extended properties:
-        
-        ## Ripples:
-        active_file_suffix = '.ripple.npy'
-        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
-        if found_datafile is not None:
-            print('Loading success: {}.'.format(active_file_suffix))
-            session.ripple = Epoch.from_dict(found_datafile)
-        else:
-            # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.ripple = DataSession.compute_neurons_ripples(session)
-
-        ## MUA:
-        active_file_suffix = '.mua.npy'
-        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
-        if found_datafile is not None:
-            print('Loading success: {}.'.format(active_file_suffix))
-            session.mua = Mua.from_dict(found_datafile)
-        else:
-            # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.mua = DataSession.compute_neurons_mua(session)
-
-        ## PBE Epochs:
-        active_file_suffix = '.pbe.npy'
-        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
-        if found_datafile is not None:
-            print('Loading success: {}.'.format(active_file_suffix))
-            session.pbe = Epoch.from_dict(found_datafile)
-        else:
-            # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.pbe = DataSession.compute_pbe_epochs(session)
+        # Common Extended properties:
+        session = DataSessionLoader.default_extended_postload(fp, session)
 
         return session # returns the session when done
 
+    
+    @staticmethod
+    def default_load_kamran_flat_spikes_mat_session_folder(args_dict):
+        basepath = args_dict['basepath']
+        session = args_dict['session_obj']
         
+        basepath = Path(basepath)
+        xml_files = sorted(basepath.glob("*.xml"))
+        assert len(xml_files) == 1, "Found more than one .xml file"
+
+        fp = xml_files[0].with_suffix("")
+        session.filePrefix = fp
+        session.recinfo = NeuroscopeIO(xml_files[0])
+
+        # if session.recinfo.eeg_filename.is_file():
+        try:
+            session.eegfile = BinarysignalIO(
+                session.recinfo.eeg_filename,
+                n_channels=session.recinfo.n_channels,
+                sampling_rate=session.recinfo.eeg_sampling_rate,
+            )
+        except ValueError:
+            print('session.recinfo.eeg_filename exists ({}) but file cannot be loaded in the appropriate format. Skipping. \n'.format(session.recinfo.eeg_filename))
+            session.eegfile = None
+
+        if session.recinfo.dat_filename.is_file():
+            session.datfile = BinarysignalIO(
+                session.recinfo.dat_filename,
+                n_channels=session.recinfo.n_channels,
+                sampling_rate=session.recinfo.dat_sampling_rate,
+            )
+        else:
+            session.datfile = None
+            
+        session_name = basepath.parts[-1]
+        print('\t basepath: {}\n\t session_name: {}'.format(basepath, session_name)) # session_name: 2006-6-08_14-26-15
+        # neuroscope_xml_file = Path(basepath).joinpath('{}.xml'.format(session_name))
+        spike_mat_file = Path(basepath).joinpath('{}.spikeII.mat'.format(session_name))
+        # print('\t neuroscope_xml_file: {}\n\t spike_mat_file: {}\n'.format(neuroscope_xml_file, spike_mat_file)) # session_name: 2006-6-08_14-26-15
+        if not spike_mat_file.is_file():
+            print('ERROR: file {} does not exist!'.format(spike_mat_file))
+            return None
+            
+        flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
+        # print('flat_spikes_mat_file.keys(): {}'.format(flat_spikes_mat_file.keys())) # flat_spikes_mat_file.keys(): dict_keys(['__header__', '__version__', '__globals__', 'spike'])
+        flat_spikes_data = flat_spikes_mat_file['spike']
+        # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
+        # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
+        mat_variables_to_extract = ['t', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap']
+        num_mat_variables = len(mat_variables_to_extract)
+        flat_spikes_out_dict = dict()
+        for i in np.arange(num_mat_variables):
+            curr_var_name = mat_variables_to_extract[i]
+            if curr_var_name == 'cluinfo':
+                temp = flat_spikes_data[curr_var_name][0,0] # a Nx4 array
+                temp = [tuple(temp[j,:]) for j in np.arange(np.shape(temp)[0])]
+                flat_spikes_out_dict[curr_var_name] = temp
+            else:
+                flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten()
+        spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
+        classNames = ['pyramidal','contaminated','interneurons']
+        classCutoffValues = [0, 4, 7, 9]
+        spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
+        # unique_cell_ids, unique_cell_id_indices = np.unique(flat_spikes_out_dict['aclu'], return_index=True)
+        unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
+        flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids] 
+        # print('flat_cell_ids: {}'.format(flat_cell_ids))
+        # Group by the aclu (cluster indicator) column
+        cell_grouped_spikes_df = spikes_df.groupby(['aclu'])
+        num_unique_cell_ids = len(flat_cell_ids)
+        spiketrains = list()
+        shank_ids = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
+        cell_quality = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
+        cell_type = list() # (108,) Array of float64
+        
+        for i in np.arange(num_unique_cell_ids):
+            curr_cell_id = flat_cell_ids[i] # actual cell ID
+            #curr_flat_cell_indicies = (flat_spikes_out_dict['aclu'] == curr_cell_id) # the indicies where the cell_id matches the current one
+            curr_cell_dataframe = cell_grouped_spikes_df.get_group(curr_cell_id)
+            spiketrains.append(curr_cell_dataframe['t'].to_numpy())
+            shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
+            cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
+            cell_type.append(curr_cell_dataframe['cell_type'].to_numpy()[0])
+            
+        spiketrains = np.array(spiketrains, dtype='object')
+        t_stop = np.max(flat_spikes_out_dict['t'])
+        
+        session.neurons = Neurons(spiketrains, t_stop, t_start=0,
+            sampling_rate=session.recinfo.dat_sampling_rate,
+            neuron_ids=flat_cell_ids,
+            neuron_type=cell_type,
+            shank_ids=shank_ids
+        )
+        # temp_position_traces = np.vstack((flat_spikes_out_dict['t'], flat_spikes_out_dict['x'], flat_spikes_out_dict['y'])) # (3 x Nf)
+        temp_position_traces = np.vstack((flat_spikes_out_dict['x'], flat_spikes_out_dict['y'])) # (2 x Nf)
+        session.position = Position(traces=temp_position_traces)
+
+        
+        session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
+        
+        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
+        session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
+        session.epochs = session.paradigm # "epoch" is an alias for "paradigm". 
+
+        # Load or compute linear positions if needed:
+        # if (not session.position.has_linear_pos):
+        #     # compute linear positions:
+        #     print('computing linear positions for all active epochs for session...')
+        #     # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
+        #     session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+        #     acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze1')
+        #     acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, 'maze2')
+        #     session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+        #     session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+        #     session.position.filename = session.filePrefix.with_suffix(".position.npy")
+        #     print('Saving updated position results to {}...'.format(session.position.filename))
+        #     session.position.save()
+        #     print('done.\n')
+        # else:
+        #     print('linearized position loaded from file.')
+
+        # Common Extended properties:
+        # session = DataSessionLoader.default_extended_postload(fp, session)
+
+        return session # returns the session when done
 
 
 class DataSession:
