@@ -224,6 +224,11 @@ class Fig:
         for side in sides:
             ax.spines[side].set_linewidth(lw)
 
+    @staticmethod
+    def center_spines(ax):
+        ax.spines["left"].set_position("zero")
+        ax.spines["bottom"].set_position("zero")
+
 
 def pretty_plot(ax, round_ylim=False):
     """Generic function to make plot pretty, bare bones for now, will need updating
