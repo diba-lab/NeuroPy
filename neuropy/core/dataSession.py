@@ -230,8 +230,15 @@ class DataSessionLoader:
         
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
         
+        # Range of the maze epoch (where position is valid):
+        t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] # 1048
+        t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] # 68159707
+        # spikes_df.t.min() # 88
+        # spikes_df.t.max() # 68624338
+        epochs_df = pd.DataFrame({'start':[0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, spikes_df.t.max()],'label':['pre','maze','post']})
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
+        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
+        session.paradigm = Epoch(epochs=epochs_df)
         session.epochs = session.paradigm # "epoch" is an alias for "paradigm". 
 
         # Load or compute linear positions if needed:
