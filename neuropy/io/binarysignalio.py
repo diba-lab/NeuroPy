@@ -51,6 +51,8 @@ class BinarysignalIO:
         else:
             sig = self._raw_traces[channel_indx, frame_start:frame_stop]
 
+        if sig.ndim == 1:
+            sig = sig.reshape(1, -1)
         return Signal(
             traces=sig,
             sampling_rate=self.sampling_rate,
