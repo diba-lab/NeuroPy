@@ -1,10 +1,10 @@
 from .epoch import Epoch
 from .position import Position
 from .datawriter import DataWriter
-from .neurons import Neurons, BinnedSpiketrain, Mua
+from .neurons import NeuronType, Neurons, BinnedSpiketrain, Mua
 from .probe import Shank, Probe, ProbeGroup
 from .signal import Signal
 from .ratemap import Ratemap
 from .animal import Animal
-from .dataSession import DataSession, processDataSession
+from .dataSession import DataSessionLoader, DataSession, processDataSession
 

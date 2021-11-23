@@ -6,7 +6,7 @@ from pathlib import Path
 # Local imports:
 ## Core:
 from .datawriter import DataWriter
-from .neurons import Neurons, BinnedSpiketrain, Mua
+from .neurons import NeuronType, Neurons, BinnedSpiketrain, Mua
 from .probe import ProbeGroup
 from .position import Position
 from .epoch import Epoch
@@ -135,6 +135,8 @@ class DataSessionLoader:
     def default_load_kamran_flat_spikes_mat_session_folder(args_dict):
         basepath = args_dict['basepath']
         session = args_dict['session_obj']
+        # timestamp_scale_factor = (1/1E6)
+        timestamp_scale_factor = (1/1E4)
         
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
@@ -190,9 +192,16 @@ class DataSessionLoader:
             else:
                 flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten()
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
-        classNames = ['pyramidal','contaminated','interneurons']
-        classCutoffValues = [0, 4, 7, 9]
-        spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
+        # classNames = ['pyramidal','contaminated','interneurons']
+        # classCutoffValues = [0, 4, 7, 9]
+        # spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
+        spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
+        
+        
+        # add times in seconds both to the dict and the spikes_df under a new key:
+        flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
+        spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
+        
         # unique_cell_ids, unique_cell_id_indices = np.unique(flat_spikes_out_dict['aclu'], return_index=True)
         unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
         flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids] 
@@ -205,28 +214,31 @@ class DataSessionLoader:
         cell_quality = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
         cell_type = list() # (108,) Array of float64
         
+        # active_time_variable_name = 't' # default
+        active_time_variable_name = 't_seconds' # use converted times (into seconds)
+        
         for i in np.arange(num_unique_cell_ids):
             curr_cell_id = flat_cell_ids[i] # actual cell ID
             #curr_flat_cell_indicies = (flat_spikes_out_dict['aclu'] == curr_cell_id) # the indicies where the cell_id matches the current one
             curr_cell_dataframe = cell_grouped_spikes_df.get_group(curr_cell_id)
-            spiketrains.append(curr_cell_dataframe['t'].to_numpy())
+            spiketrains.append(curr_cell_dataframe[active_time_variable_name].to_numpy())
             shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
             cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
             cell_type.append(curr_cell_dataframe['cell_type'].to_numpy()[0])
             
         spiketrains = np.array(spiketrains, dtype='object')
-        t_stop = np.max(flat_spikes_out_dict['t'])
-        
+        t_stop = np.max(flat_spikes_out_dict[active_time_variable_name])
+
+        flat_cell_ids = np.array(flat_cell_ids)
+        cell_type = np.array(cell_type)
+    
         session.neurons = Neurons(spiketrains, t_stop, t_start=0,
             sampling_rate=session.recinfo.dat_sampling_rate,
             neuron_ids=flat_cell_ids,
             neuron_type=cell_type,
             shank_ids=shank_ids
         )
-        # temp_position_traces = np.vstack((flat_spikes_out_dict['t'], flat_spikes_out_dict['x'], flat_spikes_out_dict['y'])) # (3 x Nf)
-        # temp_position_traces = np.vstack((flat_spikes_out_dict['x'], flat_spikes_out_dict['y'])) # (2 x Nf)
-        # session.position = Position(traces=temp_position_traces)
-        
+          
         session_position_mat_file_path = Path(basepath).joinpath('{}vt.mat'.format(session_name))
         # session.position = Position.from_vt_mat_file(position_mat_file_path=session_position_mat_file_path)
         position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
@@ -234,35 +246,40 @@ class DataSessionLoader:
         xx = position_mat_file['xx'] # 10 x 63192
         yy = position_mat_file['yy'] # 10 x 63192
         tt = tt.flatten()
-        tt_rel = tt - tt[0] # relative to start of position file timestamps
-        timestamps_conversion_factor = 1e6
+        # tt_rel = tt - tt[0] # relative to start of position file timestamps
+        # timestamps_conversion_factor = 1e6
         # timestamps_conversion_factor = 1e4
         # timestamps_conversion_factor = 1.0
-        t = tt / timestamps_conversion_factor  # (63192,)
-        t_rel = tt_rel / timestamps_conversion_factor  # (63192,)
+        t = tt * timestamp_scale_factor  # (63192,)
+        # t_rel = tt_rel * timestamp_scale_factor  # (63192,)
         position_sampling_rate_Hz = 1.0 / np.mean(np.diff(tt / 1e6)) # In Hz, returns 29.969777
-        num_samples = len(t);
+        num_samples = len(t)
         x = xx[0,:].flatten() # (63192,)
         y = yy[0,:].flatten() # (63192,)
-        active_t_start = t[0] # absolute t_start
+        # active_t_start = t[0] # absolute t_start
         # active_t_start = 0.0 # relative t_start
+        active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
         session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
-    
+
         
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
         
         # Range of the maze epoch (where position is valid):
         # t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] # 1048
         # t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] # 68159707
-       
+
+        t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor # 1048
+        t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] * timestamp_scale_factor # 68159707
+
         # Note needs to be absolute start/stop times: 
-        t_maze_start = session.position.t_start # 1048
-        t_maze_end = session.position.t_stop # 68159707 68,159,707
+        # t_maze_start = session.position.t_start # 1048
+        # t_maze_end = session.position.t_stop # 68159707 68,159,707
         
         # spikes_df.t.min() # 88
         # spikes_df.t.max() # 68624338
         # epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, spikes_df.t.max()],'label':['pre','maze','post']})
-        epochs_df = pd.DataFrame({'start':[session.neurons.t_start, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
+        # epochs_df = pd.DataFrame({'start':[session.neurons.t_start, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
+        epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
         
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))

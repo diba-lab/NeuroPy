@@ -4,8 +4,76 @@ from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 from .datawriter import DataWriter
 from copy import deepcopy
+from enum import Enum, unique, IntEnum
 
+@unique
+class NeuronType(Enum):
+    PYRAMIDAL = 0
+    CONTAMINATED = 1
+    INTERNEURONS = 2
+    
+    # [name for name, member in NeuronType.__members__.items() if member.name != name]    
+    # longClassNames = ['pyramidal','contaminated','interneurons']
+    # shortClassNames = ['pyr','cont','intr']
+    # classCutoffValues = [0, 4, 7, 9]
+    
+    def describe(self):
+        self.name, self.value
+    
+    @property
+    def shortClassName(self):
+        return NeuronType.shortClassNames()[self.value]
+        
+    @property
+    def longClassName(self):
+        return NeuronType.longClassNames()[self.value]
 
+    # def equals(self, string):
+    #     # return self.name == string
+    #     return ((self.shortClassName == string) or (self.longClassName == string))
+
+    # Static properties
+    @classmethod
+    def longClassNames(cls):
+        return np.array(['pyramidal','contaminated','interneurons'])
+    
+    @classmethod
+    def shortClassNames(cls):
+        return np.array(['pyr','cont','intr'])
+    
+    @classmethod
+    def classCutoffValues(cls):
+        return np.array([0, 4, 7, 9])
+    
+    @classmethod
+    def from_short_string(cls, string_value):
+        itemindex = np.where(cls.shortClassNames()==string_value)
+        return NeuronType(itemindex[0])
+    
+    @classmethod
+    def from_long_string(cls, string_value):
+        itemindex = np.where(cls.longClassNames()==string_value)
+        return NeuronType(itemindex[0])    
+    
+    @classmethod
+    def from_string(cls, string_value):
+        itemindex = np.where(cls.longClassNames()==string_value)
+        if len(itemindex[0]) < 1:
+            # if not found in longClassNames, try shortClassNames
+            itemindex = np.where(cls.shortClassNames()==string_value)
+        return NeuronType(itemindex[0])
+        
+    @classmethod
+    def from_qclu_series(cls, qclu_Series):
+        # qclu_Series: a Pandas Series object, such as qclu_Series=spikes_df['qclu']
+        # example: spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
+        temp_neuronTypeStrings = pd.cut(x=qclu_Series, bins=cls.classCutoffValues(), labels=cls.shortClassNames())
+        temp_neuronTypes = np.array([NeuronType.from_short_string(_) for _ in np.array(temp_neuronTypeStrings)])
+        return temp_neuronTypes
+        
+        
+
+    
 class Neurons(DataWriter):
     """Class to hold a group of spiketrains and their labels, ids etc."""
 
@@ -87,7 +155,8 @@ class Neurons(DataWriter):
         return len(self.spiketrains)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
+        return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}"
+        # return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
 
     def time_slice(self, t_start=None, t_stop=None):
         t_start, t_stop = self._time_check(t_start, t_stop)
@@ -109,7 +178,17 @@ class Neurons(DataWriter):
         )
 
     def get_neuron_type(self, neuron_type):
-        indices = self.neuron_type == neuron_type
+        if isinstance(neuron_type, NeuronType):
+            neuron_type = neuron_type
+        elif isinstance(neuron_type, str):
+            neuron_type_str = neuron_type
+            neuron_type = NeuronType.from_string(neuron_type_str) ## Works
+        else:
+            print('error!')
+            return []
+            
+        # indices = self.neuron_type == neuron_type # old
+        indices = self.neuron_type == neuron_type ## Works        
         return self[indices]
 
     def _check_integrity(self):
