@@ -182,3 +182,8 @@ class Position(DataWriter):
             t_start=t_start,
             sampling_rate=self.sampling_rate,
         )
+
+    @classmethod
+    def from_separate_arrays(cls, t, x, y):
+        # TODO: t is unused, and sampling rate isn't set correctly. Also, this class assumes uniform sampling!!
+        return cls(traces=np.vstack((x, y)))
