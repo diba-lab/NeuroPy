@@ -292,7 +292,7 @@ class DataSessionLoader:
             print('computing linear positions for all active epochs for session...')
             # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
             session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze')
+            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method="isomap")
             session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
             print('Saving updated position results to {}...'.format(session.position.filename))
@@ -343,13 +343,13 @@ class DataSession:
 
     ## Linearize Position:
     @staticmethod
-    def compute_linearized_position(session, epochLabelName='maze1'):
+    def compute_linearized_position(session, epochLabelName='maze1', method='isomap'):
         # returns Position objects for active_epoch_pos and linear_pos
         from neuropy.utils import position_util
         active_epoch_times = session.epochs[epochLabelName] # array([11070, 13970], dtype=int64)
         acitve_epoch_timeslice_indicies = session.position.time_slice_indicies(active_epoch_times[0], active_epoch_times[1])
         active_epoch_pos = session.position.time_slice(active_epoch_times[0], active_epoch_times[1])
-        linear_pos = position_util.linearize_position(active_epoch_pos)
+        linear_pos = position_util.linearize_position(active_epoch_pos, method=method)
         return acitve_epoch_timeslice_indicies, active_epoch_pos, linear_pos
     #  acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = compute_linearized_position(sess, 'maze1')
     #  acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = compute_linearized_position(sess, 'maze2')
