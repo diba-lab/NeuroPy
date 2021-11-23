@@ -5,7 +5,7 @@ from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
-
+from ..utils.load_exported import import_mat_file 
 
 class Position(DataWriter):
     def __init__(
@@ -187,3 +187,33 @@ class Position(DataWriter):
     def from_separate_arrays(cls, t, x, y):
         # TODO: t is unused, and sampling rate isn't set correctly. Also, this class assumes uniform sampling!!
         return cls(traces=np.vstack((x, y)))
+    
+    
+    @classmethod
+    def from_vt_mat_file(cls, position_mat_file_path):
+        # example: Position.from_vt_mat_file(position_mat_file_path = Path(basedir).joinpath('{}vt.mat'.format(session_name)))
+        position_mat_file = import_mat_file(mat_import_file=position_mat_file_path)
+        tt = position_mat_file['tt'] # 1, 63192
+        xx = position_mat_file['xx'] # 10 x 63192
+        yy = position_mat_file['yy'] # 10 x 63192
+        tt = tt.flatten()
+        tt_rel = tt - tt[0] # relative timestamps
+        # timestamps_conversion_factor = 1e6
+        # timestamps_conversion_factor = 1e4
+        timestamps_conversion_factor = 1.0
+        t = tt / timestamps_conversion_factor  # (63192,)
+        t_rel = tt_rel / timestamps_conversion_factor  # (63192,)
+        position_sampling_rate_Hz = 1.0 / np.mean(np.diff(tt / 1e6)) # In Hz, returns 29.969777
+        num_samples = len(t);
+        x = xx[0,:].flatten() # (63192,)
+        y = yy[0,:].flatten() # (63192,)
+        # active_t_start = t[0] # absolute t_start
+        active_t_start = 0.0 # relative t_start
+        return cls(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+    
+    # def __repr__(self):
+    #     return "<Test a:%s b:%s>" % (self.a, self.b)
+
+    # def __str__(self):
+    #     return "From str method of Test: a is %s, b is %s" % (self.a, self.b)
+    
