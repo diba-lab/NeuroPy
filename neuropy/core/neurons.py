@@ -322,7 +322,7 @@ class FlattenedSpiketrains(DataWriter):
         t_start=0.0,
         metadata=None,
     ) -> None:
-        super().__init__()
+        super().__init__(metadata=metadata)
         self.flattened_sort_indicies = flattened_sort_indicies
         self.flattened_spike_identities = flattened_spike_identities
         self.flattened_spike_times = flattened_spike_times
@@ -336,8 +336,6 @@ class FlattenedSpiketrains(DataWriter):
     @flattened_sort_indicies.setter
     def flattened_sort_indicies(self, arr):
         self._flattened_sort_indicies = arr
-
-
 
     @property
     def flattened_spike_identities(self):
