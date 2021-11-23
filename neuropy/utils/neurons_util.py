@@ -185,7 +185,7 @@ def calculate_neurons_ccg(self, ids):
     return diff[non_redundant_indx]
 
 
-def theta_modulation_index(neurons: core.Neurons, sigma=None):
+def theta_modulation_index(neurons: core.Neurons, sigma=None, return_acg=False):
     """Theta modulation index based on auto-correlograms
 
     Parameters
@@ -201,14 +201,17 @@ def theta_modulation_index(neurons: core.Neurons, sigma=None):
     #TODO finding the second peak/trough and take a window around it for tmi ???
     """
     acg = calculate_neurons_acg(neurons, bin_size=0.001, window_size=0.5)
+    if sigma is not None:
+        acg = gaussian_filter1d(acg, axis=1, sigma=sigma)
+
     acg_right = acg[:, acg.shape[1] // 2 :]
 
-    if sigma is not None:
-        acg_right = gaussian_filter1d(acg_right, axis=1, sigma=sigma)
-
-    trough, peak = (acg_right[:, 50:70]).mean(axis=1), (acg_right[:, 100:160]).mean(
+    trough, peak = (acg_right[:, 50:70]).mean(axis=1), (acg_right[:, 80:160]).mean(
         axis=1
     )
     tmi = (peak - trough) / (peak + trough)
 
-    return tmi
+    if return_acg:
+        return tmi, acg
+    else:
+        return tmi
