@@ -225,6 +225,9 @@ class TimeFrequency(core.Signal):
     def time_slice(self, t_start=None, t_stop=None):
         return super().time_slice(t_start=t_start, t_stop=t_stop)
 
+    def mean_power(self):
+        return np.mean(self.traces, axis=0)
+
     def get_band_power(self, f1=None, f2=None):
 
         if f1 is None:
