@@ -27,10 +27,10 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
 
     xy_pos = np.vstack((xpos, ypos)).T
     xlinear = None
-    if method == "pca":
+    if method.lower() == "pca":
         pca = PCA(n_components=1)
         xlinear = pca.fit_transform(xy_pos).squeeze()
-    elif method == "isomap":
+    elif method.lower() == "isomap":
         imap = Isomap(n_neighbors=5, n_components=2)
         # downsample points to reduce memory load and time
         pos_ds = xy_pos[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
@@ -40,6 +40,9 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
             iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
         xlinear = iso_pos[:, 0]
+    else:
+        print('ERROR: invalid method name: {}'.format(method))
+        
 
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
     return core.Position(
