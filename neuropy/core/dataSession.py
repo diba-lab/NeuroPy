@@ -156,92 +156,6 @@ class DataSession:
     #     xml_files = sorted(basepath.glob("*.xml"))
     #     assert len(xml_files) == 1, "Found more than one .xml file"
 
-    #     fp = xml_files[0].with_suffix("")
-    #     self.filePrefix = fp
-    #     self.recinfo = NeuroscopeIO(xml_files[0])
-
-    #     # if self.recinfo.eeg_filename.is_file():
-    #     try:
-    #         self.eegfile = BinarysignalIO(
-    #             self.recinfo.eeg_filename,
-    #             n_channels=self.recinfo.n_channels,
-    #             sampling_rate=self.recinfo.eeg_sampling_rate,
-    #         )
-    #     except ValueError:
-    #         print('self.recinfo.eeg_filename exists ({}) but file cannot be loaded in the appropriate format. Skipping. \n'.format(self.recinfo.eeg_filename))
-    #         self.eegfile = None
-    #     # else:
-    #     #     self.eegfile = None
-    #     if self.recinfo.dat_filename.is_file():
-    #         self.datfile = BinarysignalIO(
-    #             self.recinfo.dat_filename,
-    #             n_channels=self.recinfo.n_channels,
-    #             sampling_rate=self.recinfo.dat_sampling_rate,
-    #         )
-    #     else:
-    #         self.datfile = None
-
-    #     self.neurons = Neurons.from_file(fp.with_suffix(".neurons.npy"))
-    #     self.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
-    #     self.position = Position.from_file(fp.with_suffix(".position.npy"))
-        
-    #     # self.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-    #     self.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
-    #     self.epochs = self.paradigm # "epoch" is an alias for "paradigm". 
-
-    #     # Load or compute linear positions if needed:
-    #     if (not self.position.has_linear_pos):
-    #         # compute linear positions:
-    #         print('computing linear positions for all active epochs for session...')
-    #         # end result will be self.computed_traces of the same length as self.traces in terms of frames, with all non-maze times holding NaN values
-    #         self.position.computed_traces = np.full([1, self.position.traces.shape[1]], np.nan)
-    #         acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(self, 'maze1')
-    #         acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(self, 'maze2')
-    #         self.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-    #         self.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
-    #         self.position.filename = self.filePrefix.with_suffix(".position.npy")
-    #         print('Saving updated position results to {}...'.format(self.position.filename))
-    #         self.position.save()
-    #         print('done.\n')
-    #     else:
-    #         print('linearized position loaded from file.')
-
-    #     # Extended properties:
-        
-    #     ## Ripples:
-    #     active_file_suffix = '.ripple.npy'
-    #     found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
-    #     if found_datafile is not None:
-    #         print('Loading success: {}.'.format(active_file_suffix))
-    #         self.ripple = Epoch.from_dict(found_datafile)
-    #     else:
-    #         # Otherwise load failed, perform the fallback computation
-    #         print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-    #         self.ripple = DataSession.compute_neurons_ripples(self)
-
-    #     ## MUA:
-    #     active_file_suffix = '.mua.npy'
-    #     found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
-    #     if found_datafile is not None:
-    #         print('Loading success: {}.'.format(active_file_suffix))
-    #         self.mua = Mua.from_dict(found_datafile)
-    #     else:
-    #         # Otherwise load failed, perform the fallback computation
-    #         print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-    #         self.mua = DataSession.compute_neurons_mua(self)
-
-    #     ## PBE Epochs:
-    #     active_file_suffix = '.pbe.npy'
-    #     found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
-    #     if found_datafile is not None:
-    #         print('Loading success: {}.'.format(active_file_suffix))
-    #         self.pbe = Epoch.from_dict(found_datafile)
-    #     else:
-    #         # Otherwise load failed, perform the fallback computation
-    #         print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-    #         self.pbe = DataSession.compute_pbe_epochs(self)
-
-
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
@@ -307,7 +221,7 @@ def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
     # sess = DataSession(basedir)
     curr_args_dict = dict()
     curr_args_dict['basepath'] = basedir
-    curr_args_dict['session_obj'] = DataSession()
+    curr_args_dict['session_obj'] = DataSession() # Create an empty session object
     sess = DataSessionLoader.default_load_bapun_npy_session_folder(curr_args_dict)
     return sess
 
