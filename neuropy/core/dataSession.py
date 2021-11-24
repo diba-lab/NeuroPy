@@ -388,8 +388,8 @@ class DataSessionLoader:
             print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
             session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
         else:
-            print('session.position linear positions could not be computed. Skipping.')
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            # Successful!
+            print('session.position linear positions computed!')
             pass
 
         # Common Extended properties:
