@@ -31,6 +31,17 @@ class Epoch(DataWriter):
     def labels(self):
         return self._data.label.values
 
+    def set_labels(self, labels):
+        self._data["label"] = labels
+        return Epoch(epochs=self._data)
+
+    def __add__(self, epochs):
+        assert isinstance(epochs, Epoch), "Can only add two core.Epoch objects"
+        df1 = self._data[["start", "stop", "label"]]
+        df2 = epochs._data[["start", "stop", "label"]]
+        df_new = pd.concat([df1, df2]).reset_index(drop=True)
+        return Epoch(epochs=df_new)
+
     def get_unique_labels(self):
         return np.unique(self.labels)
 
