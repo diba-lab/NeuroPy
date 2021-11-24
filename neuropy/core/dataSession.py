@@ -214,6 +214,22 @@ class DataSessionLoader:
         # session_all_dataII_mat_file_path = Path(parent_dir).joinpath('IIdata.mat') # get the IIdata.mat in the parent directory
         # position_all_dataII_mat_file = import_mat_file(mat_import_file=session_all_dataII_mat_file_path)        
         
+        ## Epoch Data is loaded first so we can define timestamps relative to the absolute start timestamp
+        session_epochs_mat_file_path = Path(basepath).joinpath('{}.epochs_info.mat'.format(session_name))
+        epochs_mat_file = import_mat_file(mat_import_file=session_epochs_mat_file_path)
+        # ['epoch_data','microseconds_to_seconds_conversion_factor']
+        epoch_data_array = epochs_mat_file['epoch_data'] # 
+        n_epochs = np.shape(epoch_data_array)[0]
+        
+        session_absolute_start_timestamp = epoch_data_array[0,0].item()
+        epoch_data_array_rel = epoch_data_array - session_absolute_start_timestamp # convert to relative by subtracting the first timestamp
+        
+        # epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
+        epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0].item(), epoch_data_array_rel[0,1].item()],'stop':[epoch_data_array_rel[1,0].item(), epoch_data_array_rel[1,1].item()],'label':['maze1','maze2']}) # Use the epochs starting at session_absolute_start_timestamp (meaning the first epoch starts at 0.0
+        # session.paradigm = Epoch(epochs=epochs_df)
+        session.paradigm = Epoch(epochs=epochs_df_rel)
+        
+        ## Position Data loaded and zeroed to the same session_absolute_start_timestamp, which starts before the first timestamp in 't':
         session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
         position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
         # ['microseconds_to_seconds_conversion_factor','samplingRate', 'timestamps', 'x', 'y']
@@ -222,26 +238,15 @@ class DataSessionLoader:
         y = position_mat_file['y'].squeeze() # 10 x 63192
         position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
         microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
-        t_rel = t - t[0] # relative to start of position file timestamps
+        # t_rel = t - t[0] # relative to start of position file timestamps
+        t_rel = t - session_absolute_start_timestamp # relative to absolute start of the first epoch
         num_samples = len(t)
         
+        active_t_start = t_rel[0] # absolute to first epoch t_start
         # active_t_start = t[0] # absolute t_start
-        active_t_start = 0.0 # relative t_start
+        # active_t_start = 0.0 # relative t_start
         # active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
         session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
-
-        session_epochs_mat_file_path = Path(basepath).joinpath('{}.epochs_info.mat'.format(session_name))
-        epochs_mat_file = import_mat_file(mat_import_file=session_epochs_mat_file_path)
-        # ['epoch_data','microseconds_to_seconds_conversion_factor']
-        epoch_data_array = epochs_mat_file['epoch_data'] # 
-        n_epochs = np.shape(epoch_data_array)[0]
-        epoch_data_array_rel = epoch_data_array - epoch_data_array[0,0].item() # convert to relative by subtracting the first timestamp
-        
-        epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
-        # epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0], epoch_data_array_rel[0,1]],'stop':[epoch_data_array_rel[1,0], epoch_data_array_rel[1,1]],'label':['maze1','maze2']})
-        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
-        session.paradigm = Epoch(epochs=epochs_df)
         
         # return the session with the upadated member variables
         return session
@@ -307,17 +312,12 @@ class DataSessionLoader:
                 temp = [tuple(temp[j,:]) for j in np.arange(np.shape(temp)[0])]
                 flat_spikes_out_dict[curr_var_name] = temp
             else:
-                flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten()
+                flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten() # TODO: do we want .squeeze() instead of .flatten()??
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
-        # classNames = ['pyramidal','contaminated','interneurons']
-        # classCutoffValues = [0, 4, 7, 9]
-        # spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
         spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
         # add times in seconds both to the dict and the spikes_df under a new key:
         flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
-        spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
-        
-        # unique_cell_ids, unique_cell_id_indices = np.unique(flat_spikes_out_dict['aclu'], return_index=True)
+        spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor       
         unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
         flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids] 
         # print('flat_cell_ids: {}'.format(flat_cell_ids))
@@ -353,7 +353,6 @@ class DataSessionLoader:
         )
           
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
-        
         
         # *vt.mat file Position and Epoch:
         # session = DataSessionLoader.default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session)
