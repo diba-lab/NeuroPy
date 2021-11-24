@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+from pandas.core import base
+
 # Local imports:
 ## Core:
 from .datawriter import DataWriter
@@ -66,6 +68,31 @@ class DataSessionLoader:
         # return the session with the upadated member variables    
         return session
     
+    @staticmethod
+    def default_compute_linear_position_if_needed(session):
+        # TODO: this is not general, this is only used for this particular flat kind of file:
+            # Load or compute linear positions if needed:
+        if (not session.position.has_linear_pos):
+            # compute linear positions:
+            print('computing linear positions for all active epochs for session...')
+            # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
+            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
+            # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
+            acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
+            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+            
+            session.position.filename = session.filePrefix.with_suffix(".position.npy")
+            print('Saving updated position results to {}...'.format(session.position.filename))
+            session.position.save()
+            print('done.\n')
+        else:
+            print('linearized position loaded from file.')
+        # return the session with the upadated member variables
+        return session
+
     
     @staticmethod
     def default_load_bapun_npy_session_folder(args_dict):
@@ -108,7 +135,7 @@ class DataSessionLoader:
         session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
         session.epochs = session.paradigm # "epoch" is an alias for "paradigm". 
 
-        # Load or compute linear positions if needed:
+        # Load or compute linear positions if needed:        
         if (not session.position.has_linear_pos):
             # compute linear positions:
             print('computing linear positions for all active epochs for session...')
@@ -130,7 +157,97 @@ class DataSessionLoader:
 
         return session # returns the session when done
 
-    
+    @staticmethod
+    def default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session):
+        # Loads a *vt.mat file that contains position and epoch information for the session
+        session_position_mat_file_path = Path(basepath).joinpath('{}vt.mat'.format(session_name))
+        # session.position = Position.from_vt_mat_file(position_mat_file_path=session_position_mat_file_path)
+        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
+        tt = position_mat_file['tt'] # 1, 63192
+        xx = position_mat_file['xx'] # 10 x 63192
+        yy = position_mat_file['yy'] # 10 x 63192
+        tt = tt.flatten()
+        # tt_rel = tt - tt[0] # relative to start of position file timestamps
+        # timestamps_conversion_factor = 1e6
+        # timestamps_conversion_factor = 1e4
+        # timestamps_conversion_factor = 1.0
+        t = tt * timestamp_scale_factor  # (63192,)
+        # t_rel = tt_rel * timestamp_scale_factor  # (63192,)
+        position_sampling_rate_Hz = 1.0 / np.mean(np.diff(tt / 1e6)) # In Hz, returns 29.969777
+        num_samples = len(t)
+        x = xx[0,:].flatten() # (63192,)
+        y = yy[0,:].flatten() # (63192,)
+        # active_t_start = t[0] # absolute t_start
+        # active_t_start = 0.0 # relative t_start
+        active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
+        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+        
+        # Range of the maze epoch (where position is valid):
+        # t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] # 1048
+        # t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] # 68159707
+
+        t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor # 1048
+        t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] * timestamp_scale_factor # 68159707
+
+        # Note needs to be absolute start/stop times: 
+        # t_maze_start = session.position.t_start # 1048
+        # t_maze_end = session.position.t_stop # 68159707 68,159,707
+        
+        # spikes_df.t.min() # 88
+        # spikes_df.t.max() # 68624338
+        # epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, spikes_df.t.max()],'label':['pre','maze','post']})
+        # epochs_df = pd.DataFrame({'start':[session.neurons.t_start, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
+        epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
+        
+        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
+        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
+        session.paradigm = Epoch(epochs=epochs_df)
+        
+        # return the session with the upadated member variables
+        return session
+        
+    @staticmethod
+    def default_load_kamran_IIdata_mat(basepath, session_name, session):
+        # Loads a IIdata.mat file that contains position and epoch information for the session
+                
+        # parent_dir = Path(basepath).parent() # the directory above the individual session folder
+        # session_all_dataII_mat_file_path = Path(parent_dir).joinpath('IIdata.mat') # get the IIdata.mat in the parent directory
+        # position_all_dataII_mat_file = import_mat_file(mat_import_file=session_all_dataII_mat_file_path)        
+        
+        session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
+        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
+        # ['microseconds_to_seconds_conversion_factor','samplingRate', 'timestamps', 'x', 'y']
+        t = position_mat_file['timestamps'].squeeze() # 1, 63192
+        x = position_mat_file['x'].squeeze() # 10 x 63192
+        y = position_mat_file['y'].squeeze() # 10 x 63192
+        position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
+        microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
+        t_rel = t - t[0] # relative to start of position file timestamps
+        num_samples = len(t)
+        
+        # active_t_start = t[0] # absolute t_start
+        active_t_start = 0.0 # relative t_start
+        # active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
+        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+
+        session_epochs_mat_file_path = Path(basepath).joinpath('{}.epochs_info.mat'.format(session_name))
+        epochs_mat_file = import_mat_file(mat_import_file=session_epochs_mat_file_path)
+        # ['epoch_data','microseconds_to_seconds_conversion_factor']
+        epoch_data_array = epochs_mat_file['epoch_data'] # 
+        n_epochs = np.shape(epoch_data_array)[0]
+        epoch_data_array_rel = epoch_data_array - epoch_data_array[0,0].item() # convert to relative by subtracting the first timestamp
+        
+        epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
+        # epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0], epoch_data_array_rel[0,1]],'stop':[epoch_data_array_rel[1,0], epoch_data_array_rel[1,1]],'label':['maze1','maze2']})
+        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
+        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
+        session.paradigm = Epoch(epochs=epochs_df)
+        
+        # return the session with the upadated member variables
+        return session
+        
+        
+        
     @staticmethod
     def default_load_kamran_flat_spikes_mat_session_folder(args_dict):
         basepath = args_dict['basepath']
@@ -196,8 +313,6 @@ class DataSessionLoader:
         # classCutoffValues = [0, 4, 7, 9]
         # spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
         spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
-        
-        
         # add times in seconds both to the dict and the spikes_df under a new key:
         flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
         spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
@@ -228,10 +343,8 @@ class DataSessionLoader:
             
         spiketrains = np.array(spiketrains, dtype='object')
         t_stop = np.max(flat_spikes_out_dict[active_time_variable_name])
-
         flat_cell_ids = np.array(flat_cell_ids)
         cell_type = np.array(cell_type)
-    
         session.neurons = Neurons(spiketrains, t_stop, t_start=0,
             sampling_rate=session.recinfo.dat_sampling_rate,
             neuron_ids=flat_cell_ids,
@@ -239,67 +352,46 @@ class DataSessionLoader:
             shank_ids=shank_ids
         )
           
-        session_position_mat_file_path = Path(basepath).joinpath('{}vt.mat'.format(session_name))
-        # session.position = Position.from_vt_mat_file(position_mat_file_path=session_position_mat_file_path)
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
-        tt = position_mat_file['tt'] # 1, 63192
-        xx = position_mat_file['xx'] # 10 x 63192
-        yy = position_mat_file['yy'] # 10 x 63192
-        tt = tt.flatten()
-        # tt_rel = tt - tt[0] # relative to start of position file timestamps
-        # timestamps_conversion_factor = 1e6
-        # timestamps_conversion_factor = 1e4
-        # timestamps_conversion_factor = 1.0
-        t = tt * timestamp_scale_factor  # (63192,)
-        # t_rel = tt_rel * timestamp_scale_factor  # (63192,)
-        position_sampling_rate_Hz = 1.0 / np.mean(np.diff(tt / 1e6)) # In Hz, returns 29.969777
-        num_samples = len(t)
-        x = xx[0,:].flatten() # (63192,)
-        y = yy[0,:].flatten() # (63192,)
-        # active_t_start = t[0] # absolute t_start
-        # active_t_start = 0.0 # relative t_start
-        active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
-        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
-
-        
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
         
-        # Range of the maze epoch (where position is valid):
-        # t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] # 1048
-        # t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] # 68159707
-
-        t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor # 1048
-        t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] * timestamp_scale_factor # 68159707
-
-        # Note needs to be absolute start/stop times: 
-        # t_maze_start = session.position.t_start # 1048
-        # t_maze_end = session.position.t_stop # 68159707 68,159,707
         
-        # spikes_df.t.min() # 88
-        # spikes_df.t.max() # 68624338
-        # epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, spikes_df.t.max()],'label':['pre','maze','post']})
-        # epochs_df = pd.DataFrame({'start':[session.neurons.t_start, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
-        epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
+        # *vt.mat file Position and Epoch:
+        # session = DataSessionLoader.default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session)
         
-        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
-        session.paradigm = Epoch(epochs=epochs_df)
+        # IIdata.mat file Position and Epoch:
+        session = DataSessionLoader.default_load_kamran_IIdata_mat(basepath, session_name, session)
+        
         session.epochs = session.paradigm # "epoch" is an alias for "paradigm". 
 
         # Load or compute linear positions if needed:
-        if (not session.position.has_linear_pos):
-            # compute linear positions:
-            print('computing linear positions for all active epochs for session...')
-            # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
+        try:
+            session = DataSessionLoader.default_compute_linear_position_if_needed(session)
+            # if (not session.position.has_linear_pos):
+            #     # compute linear positions:
+            #     print('computing linear positions for all active epochs for session...')
+            #     # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
+            #     session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            #     # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
+            #     # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            #     acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
+            #     acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
+            #     session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            #     session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces                
+            #     # session.position.filename = session.filePrefix.with_suffix(".position.npy")
+            #     # print('Saving updated position results to {}...'.format(session.position.filename))
+            #     # session.position.save()
+            #     print('done.\n')
+            # else:
+            #     print('linearized position loaded from file.')
+            # pass
+        except Exception as e:
+            # raise e
+            print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
             session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method="isomap")
-            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            session.position.filename = session.filePrefix.with_suffix(".position.npy")
-            print('Saving updated position results to {}...'.format(session.position.filename))
-            session.position.save()
-            print('done.\n')
         else:
-            print('linearized position loaded from file.')
+            print('session.position linear positions could not be computed. Skipping.')
+            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            pass
 
         # Common Extended properties:
         # session = DataSessionLoader.default_extended_postload(fp, session)
