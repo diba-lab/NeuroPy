@@ -12,7 +12,7 @@ from ..utils.signal_process import ThetaParams
 from .. import plotting
 
 
-class Pf1D:
+class Pf1D(core.Ratemap):
     def __init__(
         self,
         neurons: core.Neurons,
@@ -115,7 +115,7 @@ class Pf1D:
         spk_t = [spk_t[_] for _ in frate_thresh_indx]
         spk_pos = [spk_pos[_] for _ in frate_thresh_indx]
 
-        self.ratemap = core.Ratemap(tuning_curve, xbin=xbin, neuron_ids=neuron_ids)
+        super().__init__(tuning_curves=tuning_curve, xbin=xbin, neuron_ids=neuron_ids)
         self.ratemap_spiketrains = spk_t
         self.ratemap_spiketrains_pos = spk_pos
         self.occupancy = occupancy

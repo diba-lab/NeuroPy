@@ -42,6 +42,7 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         xlinear = iso_pos[:, 0]
 
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
+    xlinear -= np.min(xlinear)
     return core.Position(
         traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
     )
