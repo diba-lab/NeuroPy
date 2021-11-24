@@ -109,7 +109,6 @@ class TimeFrequency(core.Signal):
         overlap=0.5,
         ncycles=3,
         sigma=None,
-        n_cpu=1,
     ) -> None:
         """Time frequency analysis on core.Signal object
 
@@ -131,8 +130,6 @@ class TimeFrequency(core.Signal):
             number of cycles for wavelet, ignored for fourier methods, by default 3 cycles
         sigma : int, optional
             smoothing to applied on spectrum, in units of seconds, by default 2 s
-        n_cpu : int, optional
-            number of cpus to use for faster calculation, only used for wavelet transform, by default 1
 
         Suggestions/References
         ----------------------
@@ -161,7 +158,7 @@ class TimeFrequency(core.Signal):
             sampling_rate = int(1 / (t[1] - t[0]))
 
         if method == "wavelet":
-            sxx = self._wt(trace, freqs, signal.sampling_rate, ncycles, n_cpu)
+            sxx = self._wt(trace, freqs, signal.sampling_rate, ncycles)
             sampling_rate = signal.sampling_rate
 
         if sigma is not None:
@@ -198,29 +195,26 @@ class TimeFrequency(core.Signal):
 
         return sxx, f, t
 
-    def _wt(self, signal, freqs, fs, ncycles, n_cpu):
-        """wavelet transform calculation"""
+    def _wt(self, signal, freqs, fs, ncycles):
+        """wavelet transform"""
         n = len(signal)
         fastn = next_fast_len(n)
         signal = np.pad(signal, (0, fastn - n), "constant", constant_values=0)
-
+        signal = np.tile(signal, (len(freqs), 1))
         conv_val = np.zeros((len(freqs), n), dtype=complex)
 
-        def wav_cal(freq):
-            t_wavelet = np.arange(-4, 4, 1 / fs)
-            sigma = ncycles / (2 * np.pi * freq)
-            A = (sigma * np.sqrt(np.pi)) ** -0.5
-            wavelet_at_freq = (
-                A
-                * np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
-                * np.exp(2j * np.pi * freq * t_wavelet)
-            )
-            return sg.fftconvolve(signal, wavelet_at_freq, mode="same", axes=-1)
+        freqs = freqs[:, np.newaxis]
+        t_wavelet = np.arange(-4, 4, 1 / fs)[np.newaxis, :]
 
-        conv_val = Parallel(n_jobs=n_cpu)(delayed(wav_cal)(freq) for freq in freqs)
+        sigma = ncycles / (2 * np.pi * freqs)
+        A = (sigma * np.sqrt(np.pi)) ** -0.5
+        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
+        img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
+        wavelets = A * real_part * img_part
 
+        conv_val = sg.fftconvolve(signal, wavelets, mode="same", axes=-1)
         conv_val = np.asarray(conv_val)[:, :n]
-        return np.abs(conv_val) ** 2
+        return np.abs(conv_val).astype("float32")
 
     def time_slice(self, t_start=None, t_stop=None):
         return super().time_slice(t_start=t_start, t_stop=t_stop)
