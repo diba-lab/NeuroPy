@@ -217,3 +217,21 @@ class Position(DataWriter):
     # def __str__(self):
     #     return "From str method of Test: a is %s, b is %s" % (self.a, self.b)
     
+    def print_debug_str(self):
+        print('<core.Position :: np.shape(traces): {}\t time: {}\n duration: {}\n time[-1]: {}\n time[0]: {}\n sampling_rate: {}\n t_start: {}\n t_stop: {}\n>\n'.format(np.shape(self.traces), self.time,
+            self.duration,
+            self.time[-1],
+            self.time[0],
+            self.sampling_rate,
+            self.t_start,
+            self.t_stop)
+        )
+        # print('self.time: {}\n self.duration: {}\n self.time[-1]: {}\n self.time[0]: {}\n self.sampling_rate: {}\n self.t_start: {}\n self.t_stop: {}\n>\n'.format(
+        #     self.time,
+        #     self.duration,
+        #     self.time[-1],
+        #     self.time[0],
+        #     self.sampling_rate,
+        #     self.t_start,
+        #     self.t_stop))
+        pass 
