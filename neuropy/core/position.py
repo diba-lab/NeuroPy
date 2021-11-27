@@ -140,7 +140,7 @@ class Position(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter
             sampling_rate=d["sampling_rate"],
             metadata=d["metadata"],
         )
-    
+            
     @staticmethod
     def from_file(f):
         d = DataWriter.from_file(f)
@@ -152,10 +152,23 @@ class Position(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter
     @property
     def speed(self):
         dt = 1 / self.sampling_rate
-        return np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
+        return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
+    
+
+    # def to_dataframe(self):
+    #     return pd.DataFrame(self.to_dict)
 
     def to_dataframe(self):
-        return pd.DataFrame(self.to_dict)
+        df = pd.DataFrame({"t": self.time.flatten().copy(), "x": self.x.flatten().copy()})
+        if self.has_linear_pos:
+            df["lin_pos"] = self.linear_pos.flatten().copy()
+        if self.ndim >= 2:
+            df["y"] = self.y.flatten().copy()
+        if self.ndim >= 3:
+            df["z"] = self.z.flatten().copy()
+        df["speed"] = self.speed.flatten()
+        return df
+
 
     def speed_in_epochs(self, epochs: Epoch):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
