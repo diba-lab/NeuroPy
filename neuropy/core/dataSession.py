@@ -184,7 +184,7 @@ class DataSessionLoader:
     @staticmethod
     def default_load_bapun_npy_session_folder(args_dict):
         basepath = args_dict['basepath']
-        session = args_dict.get('session_obj', DataSession())
+        session = args_dict['session_obj']
         
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
@@ -344,7 +344,7 @@ class DataSessionLoader:
     @staticmethod
     def default_load_kamran_flat_spikes_mat_session_folder(args_dict):
         basepath = args_dict['basepath']
-        session = args_dict.get('session_obj', DataSession())
+        session = args_dict['session_obj']
         # timestamp_scale_factor = (1/1E6)
         timestamp_scale_factor = (1/1E4)
         
@@ -462,14 +462,21 @@ class DataSessionLoader:
 
         # Common Extended properties:
         # session = DataSessionLoader.default_extended_postload(fp, session)
+        
+        session.is_loaded = True # indicate the session is loaded
+        
         return session # returns the session when done
 
 
 class DataSession:
-    def __init__(self, filePrefix = None, recinfo = None,
+    def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
                  ripple = None, mua = None):
+        
+        self.config = config
+        
+        self.is_loaded = False
         self.filePrefix = filePrefix
         self.recinfo = recinfo
         
@@ -487,17 +494,19 @@ class DataSession:
         # curr_args_dict['basepath'] = basepath
         # curr_args_dict['session'] = DataSession()
         # DataSessionLoader.default_load_bapun_npy_session_folder(curr_args_dict)
-        
-        
-    # def __init__(self, basepath):
-    #     basepath = Path(basepath)
-    #     xml_files = sorted(basepath.glob("*.xml"))
-    #     assert len(xml_files) == 1, "Found more than one .xml file"
-
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
-
+    @property
+    def is_resolved(self):
+        """The epochs property is an alias for self.paradigm."""
+        return self.config.is_resolved
+    
+    # @property
+    # def is_loaded(self):
+    #     """The epochs property is an alias for self.paradigm."""
+    #     return self.paradigm
+    
     @property
     def epochs(self):
         """The epochs property is an alias for self.paradigm."""
