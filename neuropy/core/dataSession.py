@@ -19,7 +19,73 @@ from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import Neuroscop
 from ..utils.load_exported import import_mat_file
 
 
+class SessionFolderSpec():
+    """ Documents the required and optional files for a given session format """
+    def __init__(self, required = [], optional = [], additional_validation_requirements=[]) -> None:
+        # additiona_validation_requirements: a list of callbacks that are passed the proposed_session_path on self.validate(...) and return True/False. All must return true for validate to succeed.
+        self.required_files = required
+        self.optional_files = optional
+        self.additional_validation_requirements = additional_validation_requirements
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}: {self.__dict__};>"
+
+
+    def resolved_paths(self, proposed_session_path):
+        """ Gets whether the proposed_session_path meets the requirements and returns the resolved paths if it can.
+            Does not check whether any of the files exist, it just builds the paths
+        """
+        proposed_session_path = Path(proposed_session_path)
+        # build absolute paths from the proposed_session_path and the files
+        resolved_required_files = [proposed_session_path.joinpath(a_path) for a_path in self.required_files]
+        resolved_optional_files = [proposed_session_path.joinpath(a_path) for a_path in self.optional_files]
+        return resolved_required_files, resolved_optional_files
+        
+    def validate(self, proposed_session_path):
+        """Check whether the proposed_session_path meets this folder spec's requirements
+        Args:
+            proposed_session_path ([Path]): [description]
+
+        Returns:
+            [Bool]: [description]
+        """
+        resolved_required_files, resolved_optional_files = self.resolved_paths(proposed_session_path=proposed_session_path)
+            
+        meets_spec = False
+        if not Path(proposed_session_path).exists():
+            meets_spec = False # the path doesn't even exist, it can't be valid
+        else:
+            # the path exists:
+            for a_required_file in resolved_required_files:
+                if not a_required_file.exists():
+                    print('Required File: {} does not exist.'.format(a_required_file))
+                    meets_spec = False
+                    break
+            for a_required_validation_function in self.additional_validation_requirements:
+                if not a_required_validation_function(Path(proposed_session_path)):
+                    print('Required additional_validation_requirements[i]({}) returned False'.format(proposed_session_path))
+                    meets_spec = False
+                    break
+            meets_spec = True # otherwise it exists
+            
+        return True, resolved_required_files, resolved_optional_files
+    
+
+# session_name = '2006-6-07_11-26-53'
+# SessionFolderSpec(required=['{}.xml'.format(session_name),
+#                             '{}.spikeII.mat'.format(session_name), 
+#                             '{}.position_info.mat'.format(session_name),
+#                             '{}.epochs_info.mat'.format(session_name), 
+# ])
+
+
+
+
 class DataSessionLoader:
+    """ An extensible class that performs session data loading operations. 
+        Data might be loaded into a Session object from many different source formats depending on lab, experimenter, and age of the data.
+        Often this data needs to be reverse engineered and translated into the correct format, which is a tedious and time-consuming process.
+        This class allows clearly defining and documenting the requirements of a given format once it's been reverse-engineered.    
+    """
     def __init__(self, load_function, load_arguments=dict()):        
         self.load_function = load_function
         self.load_arguments = load_arguments
@@ -97,13 +163,13 @@ class DataSessionLoader:
     @staticmethod
     def default_load_bapun_npy_session_folder(args_dict):
         basepath = args_dict['basepath']
-        session = args_dict['session_obj']
+        session = args_dict.get('session_obj', DataSession())
         
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
         assert len(xml_files) == 1, "Found more than one .xml file"
 
-        fp = xml_files[0].with_suffix("")
+        fp = xml_files[0].with_suffix("") # gets the session name (basically) without the .xml extension.
         session.filePrefix = fp
         session.recinfo = NeuroscopeIO(xml_files[0])
 
@@ -131,9 +197,15 @@ class DataSessionLoader:
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
         session.position = Position.from_file(fp.with_suffix(".position.npy"))
         
+        # ['.neurons.npy','.probegroup.npy','.position.npy','.paradigm.npy']
+        #  [fname.format(session_name) for fname in ['{}.xml','{}.neurons.npy','{}.probegroup.npy','{}.position.npy','{}.paradigm.npy']]
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
         session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
         session.epochs = session.paradigm # "epoch" is an alias for "paradigm". 
+        
+        
+        
+        
 
         # Load or compute linear positions if needed:        
         if (not session.position.has_linear_pos):
@@ -256,7 +328,7 @@ class DataSessionLoader:
     @staticmethod
     def default_load_kamran_flat_spikes_mat_session_folder(args_dict):
         basepath = args_dict['basepath']
-        session = args_dict['session_obj']
+        session = args_dict.get('session_obj', DataSession())
         # timestamp_scale_factor = (1/1E6)
         timestamp_scale_factor = (1/1E4)
         
@@ -365,24 +437,6 @@ class DataSessionLoader:
         # Load or compute linear positions if needed:
         try:
             session = DataSessionLoader.default_compute_linear_position_if_needed(session)
-            # if (not session.position.has_linear_pos):
-            #     # compute linear positions:
-            #     print('computing linear positions for all active epochs for session...')
-            #     # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-            #     session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-            #     # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
-            #     # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            #     acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
-            #     acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
-            #     session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            #     session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces                
-            #     # session.position.filename = session.filePrefix.with_suffix(".position.npy")
-            #     # print('Saving updated position results to {}...'.format(session.position.filename))
-            #     # session.position.save()
-            #     print('done.\n')
-            # else:
-            #     print('linearized position loaded from file.')
-            # pass
         except Exception as e:
             # raise e
             print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
@@ -394,7 +448,6 @@ class DataSessionLoader:
 
         # Common Extended properties:
         # session = DataSessionLoader.default_extended_postload(fp, session)
-
         return session # returns the session when done
 
 
