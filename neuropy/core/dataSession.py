@@ -11,18 +11,13 @@ from .datawriter import DataWriter
 from .neurons import NeuronType, Neurons, BinnedSpiketrain, Mua
 from .probe import ProbeGroup
 from .position import Position
-from .epoch import Epoch
+from .epoch import Epoch #, NamedEpoch
 from .signal import Signal
 
 from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import NeuroscopeIO, BinarysignalIO
 
 from ..utils.load_exported import import_mat_file
 from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
-
-class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):
-    def __init__(self, name, start_end_times):
-        self.name = name
-        self.start_end_times = start_end_times
         
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     def __init__(self, basepath, session_spec, session_name):
@@ -37,7 +32,6 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         # Session spec:
         self.session_spec=session_spec
         self.is_resolved, self.resolved_required_files, self.resolved_optional_files = self.session_spec.validate(self.basepath)
-
 
 
 class SessionFolderSpec():
@@ -105,17 +99,25 @@ class DataSessionLoader:
     """ An extensible class that performs session data loading operations. 
         Data might be loaded into a Session object from many different source formats depending on lab, experimenter, and age of the data.
         Often this data needs to be reverse engineered and translated into the correct format, which is a tedious and time-consuming process.
-        This class allows clearly defining and documenting the requirements of a given format once it's been reverse-engineered.    
-    """
-    def __init__(self, load_function, load_arguments=dict()):        
-        self.load_function = load_function
-        self.load_arguments = load_arguments
+        This class allows clearly defining and documenting the requirements of a given format once it's been reverse-engineered.
         
-    def load(self, updated_load_arguments=None):
-        if updated_load_arguments is not None:
-            self.load_arguments = updated_load_arguments
+        Primary usage methods:
+            DataSessionLoader.bapun_data_session(basedir)
+            DataSessionLoader.kdiba_old_format_session(basedir)
+    """
+    # def __init__(self, load_function, load_arguments=dict()):        
+    #     self.load_function = load_function
+    #     self.load_arguments = load_arguments
+        
+    # def load(self, updated_load_arguments=None):
+    #     if updated_load_arguments is not None:
+    #         self.load_arguments = updated_load_arguments
                  
-        return self.load_function(self.load_arguments)
+    #     return self.load_function(self.load_arguments)
+    
+    #######################################################
+    ## Public Methods:
+    #######################################################
     
     # KDiba Old Format:
     @staticmethod
@@ -155,9 +157,11 @@ class DataSessionLoader:
         assert session_config.is_resolved, "active_sess_config could not be resolved!"
         return get_session_obj(session_config)
     
-    
+    #######################################################
+    ## Internal Methods:
+    #######################################################
     @staticmethod
-    def default_extended_postload(fp, session):
+    def _default_extended_postload(fp, session):
         # Computes Common Extended properties:
         ## Ripples:
         active_file_suffix = '.ripple.npy'
@@ -195,7 +199,7 @@ class DataSessionLoader:
         return session
     
     @staticmethod
-    def default_compute_linear_position_if_needed(session):
+    def _default_compute_linear_position_if_needed(session):
         # TODO: this is not general, this is only used for this particular flat kind of file:
             # Load or compute linear positions if needed:
         if (not session.position.has_linear_pos):
@@ -280,12 +284,12 @@ class DataSessionLoader:
             print('linearized position loaded from file.')
 
         # Common Extended properties:
-        session = DataSessionLoader.default_extended_postload(fp, session)
+        session = DataSessionLoader._default_extended_postload(fp, session)
 
         return session # returns the session when done
 
     @staticmethod
-    def default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session):
+    def _default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session):
         # Loads a *vt.mat file that contains position and epoch information for the session
         session_position_mat_file_path = Path(basepath).joinpath('{}vt.mat'.format(session_name))
         # session.position = Position.from_vt_mat_file(position_mat_file_path=session_position_mat_file_path)
@@ -377,9 +381,7 @@ class DataSessionLoader:
         
         # return the session with the upadated member variables
         return session
-        
-        
-        
+    
     @staticmethod
     def _default_load_kamran_flat_spikes_mat_session_folder(args_dict):
         basepath = args_dict['basepath']
@@ -489,7 +491,7 @@ class DataSessionLoader:
         
         # Load or compute linear positions if needed:
         try:
-            session = DataSessionLoader.default_compute_linear_position_if_needed(session)
+            session = DataSessionLoader._default_compute_linear_position_if_needed(session)
         except Exception as e:
             # raise e
             print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
@@ -528,14 +530,11 @@ class DataSession:
         self.paradigm = paradigm
         self.ripple = ripple
         self.mua = mua
-        
-        # curr_args_dict = dict()
-        # curr_args_dict['basepath'] = basepath
-        # curr_args_dict['session'] = DataSession()
-        # DataSessionLoader.default_load_bapun_npy_session_folder(curr_args_dict)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
+    #######################################################
+    ## Passthru Accessor Properties:
     @property
     def is_resolved(self):
         return self.config.is_resolved

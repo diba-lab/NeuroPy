@@ -1,6 +1,13 @@
 import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
+from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+
+class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):
+    """ A simple named period of time with a known start and end time """
+    def __init__(self, name, start_end_times):
+        self.name = name
+        self.start_end_times = start_end_times
 
 
 class Epoch(DataWriter):
