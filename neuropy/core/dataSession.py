@@ -17,6 +17,27 @@ from .signal import Signal
 from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import NeuroscopeIO, BinarysignalIO
 
 from ..utils.load_exported import import_mat_file
+from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+
+class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):
+    def __init__(self, name, start_end_times):
+        self.name = name
+        self.start_end_times = start_end_times
+        
+class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
+    def __init__(self, basepath, session_spec, session_name):
+        """[summary]
+        Args:
+            basepath (pathlib.Path): [description].
+            session_spec (SessionFolderSpec): used to load the files
+            session_name (str, optional): [description].
+        """
+        self.basepath = basepath
+        self.session_name = session_name
+        # Session spec:
+        self.session_spec=session_spec
+        self.is_resolved, self.resolved_required_files, self.resolved_optional_files = self.session_spec.validate(self.basepath)
+
 
 
 class SessionFolderSpec():
@@ -200,13 +221,8 @@ class DataSessionLoader:
         # ['.neurons.npy','.probegroup.npy','.position.npy','.paradigm.npy']
         #  [fname.format(session_name) for fname in ['{}.xml','{}.neurons.npy','{}.probegroup.npy','{}.position.npy','{}.paradigm.npy']]
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
-        session.epochs = session.paradigm # "epoch" is an alias for "paradigm". 
+        session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) 
         
-        
-        
-        
-
         # Load or compute linear positions if needed:        
         if (not session.position.has_linear_pos):
             # compute linear positions:
@@ -432,8 +448,6 @@ class DataSessionLoader:
         # IIdata.mat file Position and Epoch:
         session = DataSessionLoader.default_load_kamran_IIdata_mat(basepath, session_name, session)
         
-        session.epochs = session.paradigm # "epoch" is an alias for "paradigm". 
-
         # Load or compute linear positions if needed:
         try:
             session = DataSessionLoader.default_compute_linear_position_if_needed(session)
@@ -484,6 +498,13 @@ class DataSession:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
 
+    @property
+    def epochs(self):
+        """The epochs property is an alias for self.paradigm."""
+        return self.paradigm
+    @epochs.setter
+    def epochs(self, value):
+        self.paradigm = value
 
     ## Linearize Position:
     @staticmethod
