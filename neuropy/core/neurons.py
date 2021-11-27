@@ -5,6 +5,7 @@ import scipy.signal as sg
 from .datawriter import DataWriter
 from copy import deepcopy
 from enum import Enum, unique, IntEnum
+from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 
 @unique
 class NeuronType(Enum):
@@ -74,7 +75,7 @@ class NeuronType(Enum):
         
 
     
-class Neurons(DataWriter):
+class Neurons(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold a group of spiketrains and their labels, ids etc."""
 
     def __init__(
@@ -159,7 +160,7 @@ class Neurons(DataWriter):
         # return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
 
     def time_slice(self, t_start=None, t_stop=None):
-        t_start, t_stop = self._time_check(t_start, t_stop)
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         neurons = deepcopy(self)
         spiketrains = [
             spktrn[(spktrn > t_start) & (spktrn < t_stop)]
@@ -204,15 +205,6 @@ class Neurons(DataWriter):
         #         self.instfiring,
         #     ]
         # )
-
-    def _time_check(self, t_start, t_stop):
-        if t_start is None:
-            t_start = self.t_start
-
-        if t_stop is None:
-            t_stop = self.t_stop
-
-        return t_start, t_stop
 
     def __str__(self) -> str:
         return f"# neurons = {self.n_neurons}"
@@ -390,7 +382,7 @@ class Neurons(DataWriter):
 
 
 
-class FlattenedSpiketrains(DataWriter):
+class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold flattened spikes for all cells"""
     # flattened_sort_indicies: allow you to sort any naively flattened array (such as position info) using naively_flattened_variable[self.flattened_sort_indicies]
     def __init__(
@@ -436,7 +428,7 @@ class FlattenedSpiketrains(DataWriter):
         pass
 
     def time_slice(self, t_start=None, t_stop=None):
-        # t_start, t_stop = self._time_check(t_start, t_stop)
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         flattened_spiketrains = deepcopy(self)
         included_indicies = ((flattened_spiketrains.flattened_spike_times > t_start) & (flattened_spiketrains.flattened_spike_times < t_stop))
         flattened_spike_times = flattened_spiketrains.flattened_spike_times[included_indicies]
