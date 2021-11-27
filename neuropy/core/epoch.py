@@ -10,6 +10,27 @@ class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):
     def __init__(self, name, start_end_times):
         self.name = name
         self.start_end_times = start_end_times
+        
+    @property
+    def t_start(self):
+        return self.start_end_times[0]
+    
+    @t_start.setter
+    def t_start(self, t):
+        self.start_end_times[0] = t
+
+    @property
+    def duration(self):
+        return self.t_stop - self.t_start
+    
+    @property
+    def t_stop(self):
+        return self.start_end_times[1]
+    
+    @t_stop.setter
+    def t_stop(self, t):
+        self.start_end_times[1] = t
+
 
 
 class Epoch(TimeSlicableObjectProtocol, DataWriter):

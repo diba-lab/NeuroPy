@@ -18,7 +18,7 @@ from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import Neuroscop
 
 from ..utils.load_exported import import_mat_file
 from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
-from ..utils.mixins.time_slicing import TimeSlicableIndiciesMixin
+from ..utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 
         
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
@@ -511,13 +511,12 @@ class DataSessionLoader:
         return session # returns the session when done
 
 
-
-class DataSession(TimeSlicableIndiciesMixin):
+    
+class DataSession(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol):
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
-                 ripple = None, mua = None):
-        
+                 ripple = None, mua = None):        
         self.config = config
         
         self.is_loaded = False
@@ -586,7 +585,41 @@ class DataSession(TimeSlicableIndiciesMixin):
     @epochs.setter
     def epochs(self, value):
         self.paradigm = value
+        
+    # for TimeSlicableObjectProtocol:
+    def time_slice(self, t_start, t_stop):
+        """ Implementors return a copy of themselves with each of their members sliced at the specified indicies """
+        active_epoch_times = [t_start, t_stop]
+        print('Constraining to epoch with times (start: {}, end: {})'.format(active_epoch_times[0], active_epoch_times[1]))
+        # make a copy of self:
+        # should implement __deepcopy__() and __copy__()??
+        copy_sess = DataSession.from_dict(self.to_dict())
+        # update the copy_session's time_sliceable objects
+        copy_sess.neurons = self.neurons.get_neuron_type('pyramidal').time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
+        copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid        
+        #  active_epoch_position_times_index_mask = copy_sess.position.time_slice_indicies(active_epoch_times[0], active_epoch_times[1]) # a Boolean selection mask
+        # active_epoch_position_times = copy_sess.position.time # The actual times
+        # active_epoch_relative_position_times = active_epoch_position_times - active_epoch_position_times[0] # Subtract off the first index, so that it becomes zero
+        # have active_epoch_position_times: the actual times each position sample occured in seconds, active_epoch_relative_position_times: the same as active_epoch_position_times but starting at zero. Finally, have a complete active_epoch_pos object
+        return copy_sess
 
+       
+    @staticmethod
+    def from_dict(d: dict):
+        return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
+                 eegfile = d['eegfile'], datfile = d['datfile'],
+                 neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
+                 ripple = d.get('ripple', None), mua = d.get('mua', None))
+        
+        
+    def to_dict(self, recurrsively=False):
+        simple_dict = self.__dict__
+        if recurrsively:
+            simple_dict['paradigm'] = simple_dict['paradigm'].to_dict()
+            simple_dict['position'] = simple_dict['position'].to_dict()
+            simple_dict['neurons'] = simple_dict['neurons'].to_dict()        
+        return simple_dict
+        
     ## Linearize Position:
     @staticmethod
     def compute_linearized_position(session, epochLabelName='maze1', method='isomap'):
