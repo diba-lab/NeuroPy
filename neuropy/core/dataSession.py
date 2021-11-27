@@ -117,6 +117,45 @@ class DataSessionLoader:
                  
         return self.load_function(self.load_arguments)
     
+    # KDiba Old Format:
+    @staticmethod
+    def bapun_data_session(basedir):
+        def bapun_data_get_session_name(basedir):
+            # Find the only .xml file to obtain the session name
+            xml_files = sorted(basedir.glob("*.xml"))        
+            assert len(xml_files) == 1, "Found more than one .xml file"
+            file_prefix = xml_files[0].with_suffix("") # gets the session name (basically) without the .xml extension. (R:\data\Bapun\Day5TwoNovel\RatS-Day5TwoNovel-2020-12-04_07-55-09)   
+            file_basename = xml_files[0].stem # file_basename: (RatS-Day5TwoNovel-2020-12-04_07-55-09)
+            # print('file_prefix: {}\nfile_basename: {}'.format(file_prefix, file_basename))
+            return file_basename # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
+        def get_session_obj(config):
+            curr_args_dict = dict()
+            curr_args_dict['basepath'] = config.basepath
+            curr_args_dict['session_obj'] = DataSession(config)
+            return DataSessionLoader._default_load_bapun_npy_session_folder(curr_args_dict)
+            
+        session_name = bapun_data_get_session_name(basedir) # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
+        session_spec = SessionFolderSpec(required=[fname.format(session_name) for fname in ['{}.xml','{}.neurons.npy','{}.probegroup.npy','{}.position.npy','{}.paradigm.npy']])
+        session_config = SessionConfig(basedir, session_spec=session_spec, session_name=session_name)
+        assert session_config.is_resolved, "active_sess_config could not be resolved!"
+        return get_session_obj(session_config)
+        
+    # KDiba Old Format:
+    def kdiba_old_format_session(basedir):
+        def kdiba_old_format_get_session_name(basedir):
+            return Path(basedir).parts[-1]
+        def get_session_obj(config):
+            curr_args_dict = dict()
+            curr_args_dict['basepath'] = config.basepath
+            curr_args_dict['session_obj'] = DataSession(config)
+            return DataSessionLoader._default_load_kamran_flat_spikes_mat_session_folder(curr_args_dict)
+        session_name = kdiba_old_format_get_session_name(basedir) # session_name = '2006-6-07_11-26-53'
+        session_spec = SessionFolderSpec(required=[fname.format(session_name) for fname in ['{}.xml','{}.spikeII.mat','{}.position_info.mat','{}.epochs_info.mat']])
+        session_config = SessionConfig(basedir, session_spec=session_spec, session_name=session_name)
+        assert session_config.is_resolved, "active_sess_config could not be resolved!"
+        return get_session_obj(session_config)
+    
+    
     @staticmethod
     def default_extended_postload(fp, session):
         # Computes Common Extended properties:
@@ -182,7 +221,7 @@ class DataSessionLoader:
 
     
     @staticmethod
-    def default_load_bapun_npy_session_folder(args_dict):
+    def _default_load_bapun_npy_session_folder(args_dict):
         basepath = args_dict['basepath']
         session = args_dict['session_obj']
         
@@ -342,7 +381,7 @@ class DataSessionLoader:
         
         
     @staticmethod
-    def default_load_kamran_flat_spikes_mat_session_folder(args_dict):
+    def _default_load_kamran_flat_spikes_mat_session_folder(args_dict):
         basepath = args_dict['basepath']
         session = args_dict['session_obj']
         # timestamp_scale_factor = (1/1E6)
@@ -499,8 +538,38 @@ class DataSession:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
     @property
     def is_resolved(self):
-        """The epochs property is an alias for self.paradigm."""
         return self.config.is_resolved
+    @property
+    def basepath(self):
+        return self.config.basepath
+    @property
+    def session_name(self):
+        return self.config.session_name
+    @property
+    def name(self):
+        return self.session_name
+    @property
+    def resolved_files(self):
+        return (self.config.resolved_required_files + self.config.resolved_optional_files)
+    # @property
+    # def is_resolved(self):
+    #     return self.config.is_resolved
+    # @property
+    # def is_resolved(self):
+    #     return self.config.is_resolved
+    # @property
+    # def is_resolved(self):
+    #     return self.config.is_resolved
+    # @property
+    # def is_resolved(self):
+    #     return self.config.is_resolved
+    # @property
+    # def is_resolved(self):
+    #     return self.config.is_resolved
+    # @property
+    # def is_resolved(self):
+    #     return self.config.is_resolved
+    
     
     # @property
     # def is_loaded(self):
@@ -576,7 +645,7 @@ def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
     curr_args_dict = dict()
     curr_args_dict['basepath'] = basedir
     curr_args_dict['session_obj'] = DataSession() # Create an empty session object
-    sess = DataSessionLoader.default_load_bapun_npy_session_folder(curr_args_dict)
+    sess = DataSessionLoader._default_load_bapun_npy_session_folder(curr_args_dict)
     return sess
 
 
