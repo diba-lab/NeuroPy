@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
 from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+from ..utils.mixins.time_slicing import TimeSlicableObjectProtocol
+
 
 class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):
     """ A simple named period of time with a known start and end time """
@@ -10,13 +12,18 @@ class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):
         self.start_end_times = start_end_times
 
 
-class Epoch(DataWriter):
+class Epoch(TimeSlicableObjectProtocol, DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
+        """[summary]
+        Args:
+            epochs (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
+            metadata (dict, optional): [description]. Defaults to None.
+        """
         super().__init__(metadata=metadata)
 
         self._check_epochs(epochs)
         epochs["label"] = epochs["label"].astype("str")
-        self._data = epochs.sort_values(by=["start"])
+        self._data = epochs.sort_values(by=["start"]) # sorts all values in ascending order
 
     @property
     def starts(self):
@@ -84,12 +91,17 @@ class Epoch(DataWriter):
         else:
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
 
+    # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         # TODO time_slice should also include partial epochs
         # falling in between the timepoints
         df = self.to_dataframe()
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
         return Epoch(df)
+        
+        
+
 
     def label_slice(self, label):
         assert isinstance(label, str), "label must be string"

@@ -6,8 +6,9 @@ from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
 from ..utils.load_exported import import_mat_file 
+from ..utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 
-class Position(DataWriter):
+class Position(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(
         self,
         traces: np.ndarray,
@@ -160,22 +161,10 @@ class Position(DataWriter):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
         pass
 
-    def time_slice_indicies(self, t_start, t_stop):
-        if t_start is None:
-            t_start = self.t_start
-
-        if t_stop is None:
-            t_stop = self.t_stop
-
-        return (self.time > t_start) & (self.time < t_stop)
-
-
+    # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
-        if t_start is None:
-            t_start = self.t_start
-        if t_stop is None:
-            t_stop = self.t_stop
-        indices = self.time_slice_indicies(t_start, t_stop)
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+        indices = self.time_slice_indicies(t_start, t_stop) # from TimeSlicableIndiciesMixin
         return Position(
             traces=self.traces[:, indices],
             computed_traces=self.computed_traces[:, indices],

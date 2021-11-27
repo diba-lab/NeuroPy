@@ -18,6 +18,8 @@ from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import Neuroscop
 
 from ..utils.load_exported import import_mat_file
 from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+from ..utils.mixins.time_slicing import TimeSlicableIndiciesMixin
+
         
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     def __init__(self, basepath, session_spec, session_name):
@@ -509,7 +511,8 @@ class DataSessionLoader:
         return session # returns the session when done
 
 
-class DataSession:
+
+class DataSession(TimeSlicableIndiciesMixin):
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
@@ -550,9 +553,10 @@ class DataSession:
     @property
     def resolved_files(self):
         return (self.config.resolved_required_files + self.config.resolved_optional_files)
-    # @property
-    # def is_resolved(self):
-    #     return self.config.is_resolved
+
+    @property
+    def position_sampling_rate(self):
+        return self.position.sampling_rate
     # @property
     # def is_resolved(self):
     #     return self.config.is_resolved
