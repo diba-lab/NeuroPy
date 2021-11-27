@@ -18,7 +18,7 @@ from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import Neuroscop
 
 from ..utils.load_exported import import_mat_file
 from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
-from ..utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 
         
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
@@ -511,8 +511,7 @@ class DataSessionLoader:
         return session # returns the session when done
 
 
-    
-class DataSession(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol):
+class DataSession(StartStopTimesMixin, TimeSlicableObjectProtocol):
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
@@ -597,10 +596,6 @@ class DataSession(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol):
         # update the copy_session's time_sliceable objects
         copy_sess.neurons = self.neurons.get_neuron_type('pyramidal').time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid        
-        #  active_epoch_position_times_index_mask = copy_sess.position.time_slice_indicies(active_epoch_times[0], active_epoch_times[1]) # a Boolean selection mask
-        # active_epoch_position_times = copy_sess.position.time # The actual times
-        # active_epoch_relative_position_times = active_epoch_position_times - active_epoch_position_times[0] # Subtract off the first index, so that it becomes zero
-        # have active_epoch_position_times: the actual times each position sample occured in seconds, active_epoch_relative_position_times: the same as active_epoch_position_times but starting at zero. Finally, have a complete active_epoch_pos object
         return copy_sess
 
        
