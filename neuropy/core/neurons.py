@@ -246,14 +246,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             metadata=d["metadata"],
         )
 
-    @staticmethod
-    def from_file(f):
-        d = DataWriter.from_file(f)
-        if d is not None:
-            return Neurons.from_dict(d)
-        else:
-            return None
-
 
     def add_metadata(self):
         pass

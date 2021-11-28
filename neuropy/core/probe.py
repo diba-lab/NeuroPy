@@ -354,12 +354,6 @@ class ProbeGroup(DataWriter):
         prbgrp._data = d["data"].sort_values(["shank_id", "y"], ascending=[True, False])
         return prbgrp
 
-    @staticmethod
-    def from_file(f):
-        d = DataWriter.from_file(f)
-        if d is not None:
-            return ProbeGroup.from_dict(d)
-
     def to_dataframe(self):
         return pd.DataFrame(self._data)
 

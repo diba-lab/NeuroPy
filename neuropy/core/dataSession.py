@@ -167,10 +167,10 @@ class DataSessionLoader:
         # Computes Common Extended properties:
         ## Ripples:
         active_file_suffix = '.ripple.npy'
-        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
-            session.ripple = Epoch.from_dict(found_datafile)
+            session.ripple = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
@@ -178,10 +178,10 @@ class DataSessionLoader:
 
         ## MUA:
         active_file_suffix = '.mua.npy'
-        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        found_datafile = Mua.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
-            session.mua = Mua.from_dict(found_datafile)
+            session.mua = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
@@ -189,10 +189,10 @@ class DataSessionLoader:
 
         ## PBE Epochs:
         active_file_suffix = '.pbe.npy'
-        found_datafile = DataWriter.from_file(fp.with_suffix(active_file_suffix))
+        found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
-            session.pbe = Epoch.from_dict(found_datafile)
+            session.pbe = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))

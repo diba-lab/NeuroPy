@@ -138,13 +138,6 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
     def from_dict(d: dict):
         return Epoch(d["epochs"], metadata=d["metadata"])
 
-    @staticmethod
-    def from_file(f):
-        d = DataWriter.from_file(f)
-        if d is not None:
-            return Epoch.from_dict(d)
-        else:
-            return None
 
     def fill_blank(self, method="from_left"):
         ep_starts = self.epochs["start"].values

@@ -34,14 +34,6 @@ class Laps(DataWriter):
     @property
     def n_laps(self):
         return len(self.lap_id)
-    
-    @staticmethod
-    def from_file(f):
-        d = DataWriter.from_file(f)
-        if d is not None:
-            return Laps.from_dict(d)
-        else:
-            return None
         
     @staticmethod
     def from_dict(d: dict):
