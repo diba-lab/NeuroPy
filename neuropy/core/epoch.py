@@ -207,7 +207,6 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         return Epoch(epochs_df)
 
     def get_proportion_by_label(self, t_start=None, t_stop=None):
-
         if t_start is None:
             t_start = self.starts[0]
         if t_stop is None:
@@ -238,7 +237,6 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         return label_proportion
 
     def count(self, t_start=None, t_stop=None, binsize=300):
-
         if t_start is None:
             t_start = 0
 

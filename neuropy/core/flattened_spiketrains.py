@@ -11,11 +11,11 @@ from .neurons import NeuronType
 
 
 # class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
-class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol):
+class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold flattened spikes for all cells"""
     # flattened_sort_indicies: allow you to sort any naively flattened array (such as position info) using naively_flattened_variable[self.flattened_sort_indicies]
     def __init__(self, spikes_df: pd.DataFrame, t_start=0.0, metadata=None):
-        # super().__init__(metadata=metadata)
+        super().__init__(metadata=metadata)
         self._spikes_df = spikes_df
         # self.flattened_sort_indicies = flattened_sort_indicies
         # self.flattened_spike_identities = flattened_spike_identities
@@ -75,32 +75,32 @@ class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectP
 
     # def add_metadata(self):
     #     pass
+    
+    def to_dict(self, recurrsively=False):
+        d = {'spikes_df': self._spikes_df, 't_start': self.t_start, 'metadata': self.metadata}
+        return d
+
+    @staticmethod
+    def from_dict(d: dict):
+        return FlattenedSpiketrains(d["spikes_df"], t_start=d.get('t_start',0.0), metadata=d.get('metadata',None))
+    
+    
+    def to_dataframe(self):
+        df = self._spikes_df.copy()
+        # df['t_start'] = self.t_start
+        return df
+
 
     def time_slice(self, t_start=None, t_stop=None):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         flattened_spiketrains = deepcopy(self)
         included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
-
-        # included_indicies = ((flattened_spiketrains.flattened_spike_times > t_start) & (flattened_spiketrains.flattened_spike_times < t_stop))
-        # flattened_spike_times = flattened_spiketrains.flattened_spike_times[included_indicies]
-        # flattened_spike_identities = flattened_spiketrains.flattened_spike_identities[included_indicies]
-        # return FlattenedSpiketrains(
-        #     flattened_spike_times=flattened_spiketrains.flattened_spike_times[included_indicies],
-        #     flattened_spike_identities=flattened_spiketrains.flattened_spike_identities[included_indicies],
-        #     t_start=flattened_spiketrains.t_start,
-        #     metadata=flattened_spiketrains.metadata,
-        # )
         
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
         """Returns neurons object with neuron_ids equal to ids"""
-        # indices = np.isin(self.neuron_ids, ids)
-        # return self[indices]
-        # indices = np.isin(self.flattened_spike_identities, ids)
-        # return self[indices]        
         flattened_spiketrains = deepcopy(self)
-        # included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
         included_df = flattened_spiketrains.spikes_df[np.isin(flattened_spiketrains.spikes_df.aclu, ids)]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
     
@@ -115,10 +115,6 @@ class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectP
         else:
             print('error!')
             return []
-            
-        # indices = self.neuron_type == neuron_type # old
-        # indices = self.neuron_type == query_neuron_type ## Works        
-        # return self[indices]
         flattened_spiketrains = deepcopy(self)
         included_df = flattened_spiketrains.spikes_df[(flattened_spiketrains.spikes_df.cell_type == query_neuron_type)]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)

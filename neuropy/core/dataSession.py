@@ -292,9 +292,9 @@ class DataSessionLoader:
         ## TODO: is flattened_spike_active_unitIdentities needed?
         # spikes_df['active_unitIdentities'] = flattened_spike_active_unitIdentities
         
-    
-        # _temp = np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in sess.neurons.neuron_ids])
-        # spikes_df['cell_type'] = [session.neurons.neuron_type[_temp[a_spike_unit_id]] for a_spike_unit_id in spikes_df['aclu'].values]
+        _temp = np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in session.neurons.neuron_ids])
+        spikes_df['cell_type'] = [session.neurons.neuron_type[_temp[a_spike_unit_id]] for a_spike_unit_id in spikes_df['aclu'].values]
+        
     
         # 'x':x, 'y':y, 'speed':speeds, 'linear_pos':linear_pos
         # 't':flattened_sort_indicies,
@@ -387,8 +387,9 @@ class DataSessionLoader:
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
         session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
         
-        ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
-        session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
+
+
+        # session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
         
         # Load or compute linear positions if needed:        
         if (not session.position.has_linear_pos):
@@ -407,6 +408,25 @@ class DataSessionLoader:
         else:
             print('linearized position loaded from file.')
 
+
+        ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
+        ## flattened.spikes:
+        active_file_suffix = '.flattened.spikes.npy'
+        found_datafile = FlattenedSpiketrains.from_file(fp.with_suffix(active_file_suffix))
+        if found_datafile is not None:
+            print('Loading success: {}.'.format(active_file_suffix))
+            session.flattened_spiketrains = found_datafile
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session) # sets session.flattened_spiketrains
+            session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
+            print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename))
+            session.flattened_spiketrains.save()
+            print('\t done.\n')
+        
+        
+        
         # Common Extended properties:
         session = DataSessionLoader._default_extended_postload(fp, session)
 
