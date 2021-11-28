@@ -13,6 +13,97 @@ from .. import plotting
 
 
 
+def perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, computation_config, active_epoch_placefields1D=None, active_epoch_placefields2D=None, should_force_recompute_placefields=True):
+    """ Computes both 1D and 2D placefields.
+    active_epoch_session_Neurons: 
+    active_epoch_pos: 
+    active_epoch_placefields1D (Pf1D, optional) & active_epoch_placefields2D (Pf2D, optional): allow you to pass already computed Pf1D and Pf2D objects from previous runs and it won't recompute them so long as should_force_recompute_placefields=False, which is useful in interactive Notebooks/scripts
+    Usage:
+        active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config, should_force_recompute_placefields=True)
+    """
+    ## Linearized (1D) Position Placefields:
+    if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
+        print('Recomputing active_epoch_placefields...')
+        active_epoch_placefields1D = Pf1D(neurons=active_epoch_session_Neurons, position=active_epoch_pos.linear_pos_obj,
+                                          speed_thresh=computation_config.speed_thresh, grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+        print('\t done.')
+    else:
+        print('active_epoch_placefields1D already exists, reusing it')
+
+    ## 2D Position Placemaps:
+    if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
+        print('Recomputing active_epoch_placefields2D...')
+        active_epoch_placefields2D = Pf2D(neurons=active_epoch_session_Neurons, position=active_epoch_pos,
+                                          speed_thresh=computation_config.speed_thresh, grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+        print('\t done.')
+    else:
+        print('active_epoch_placefields2D already exists, reusing it')
+    
+    return active_epoch_placefields1D, active_epoch_placefields2D
+
+
+def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config):
+    """ 
+    active_epoch_placefields1D: (Pf1D)
+    active_epoch_placefields2D: (Pf2D)
+    active_config:
+    Usage:
+        ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config)
+    """
+    active_epoch_name = active_config.active_epochs.name
+    ## Linearized (1D) Position Placefields:
+    if active_epoch_placefields1D is not None:
+        ax_pf_1D = active_epoch_placefields1D.plot_ratemaps()
+        active_pf_1D_identifier_string = '1D Placefields - {}'.format(active_epoch_name)
+        plt.title(active_pf_1D_identifier_string)
+        active_pf_1D_output_filename = '{}.pdf'.format(active_pf_1D_identifier_string)
+        active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
+        print('Saving 1D Placefield image out to "{}"...'.format(active_pf_1D_output_filepath))
+        plt.savefig(active_pf_1D_output_filepath)
+        print('done.')
+    else:
+        print('plot_all_placefields(...): active_epoch_placefields1D does not exist. Skipping it.')
+        ax_pf_1D = None
+
+    ## 2D Position Placemaps:
+    if active_epoch_placefields2D is not None:
+        active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)
+        occupancy_fig = plt.figure()
+        occupancy_ax = occupancy_fig.gca()
+        im = occupancy_ax.pcolorfast(
+            active_epoch_placefields2D.ratemap.xbin_centers,
+            active_epoch_placefields2D.ratemap.ybin_centers,
+            np.rot90(np.fliplr(active_epoch_placefields2D.occupancy)) / np.max(active_epoch_placefields2D.occupancy),
+            cmap="jet",
+            vmin=0,
+        )  # rot90(flipud... is necessary to match plotRaw configuration.
+        plt.title(active_pf_occupancy_2D_identifier_string)
+        plt.show()
+        # Save ocupancy figure out to disk:
+        active_pf_occupancy_2D_output_filename = '{}.pdf'.format(active_pf_occupancy_2D_identifier_string)
+        active_pf_occupancy_2D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_occupancy_2D_output_filename)
+        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_occupancy_2D_output_filepath))
+        occupancy_fig.savefig(active_pf_occupancy_2D_output_filepath)
+        print('\t done.')
+        ## 2D Tuning Curves Figure:
+        active_pf_2D_figures, active_pf_2D_gs = active_epoch_placefields2D.plotMap(subplots=(7, 7),figsize=(10, 10))
+        # active_epoch_placefields2D.plotRaw()
+        active_pf_2D_identifier_string = '2D Placefields - {}'.format(active_epoch_name)
+        # plt.title(active_pf_2D_identifier_string)
+        active_pf_2D_output_filename = '{}.pdf'.format(active_pf_2D_identifier_string)
+        active_pf_2D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_2D_output_filename)
+        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_2D_output_filepath))
+        for aFig in active_pf_2D_figures:
+            aFig.savefig(active_pf_2D_output_filepath)
+        print('\t done.')
+    else:
+        print('plot_all_placefields(...): active_epoch_placefields2D does not exist. Skipping it.')
+        occupancy_fig = None
+        active_pf_2D_figures = None
+    
+    return ax_pf_1D, occupancy_fig, active_pf_2D_figures
+
+    
 
 class Pf1D:
     def __init__(
