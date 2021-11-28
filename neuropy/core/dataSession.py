@@ -421,7 +421,7 @@ class DataSessionLoader:
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
         # Get only the rows with a lap != -1:
-        lap_grouped_spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
+        spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
         # Group by the lap column:
         lap_grouped_spikes_df = spikes_df.groupby(['lap']) #  as_index=False keeps the original index
         laps_first_spike_instances = lap_grouped_spikes_df.first()
