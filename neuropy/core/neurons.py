@@ -45,6 +45,10 @@ class NeuronType(Enum):
         return np.array(['pyr','cont','intr'])
     
     @classmethod
+    def bapunNpyFileStyleShortClassNames(cls):
+        return np.array(['pyr','mua','inter'])
+    
+    @classmethod
     def classCutoffValues(cls):
         return np.array([0, 4, 7, 9])
     
@@ -64,8 +68,17 @@ class NeuronType(Enum):
         if len(itemindex[0]) < 1:
             # if not found in longClassNames, try shortClassNames
             itemindex = np.where(cls.shortClassNames()==string_value)
+            if len(itemindex[0]) < 1:
+                # if not found in shortClassNames, try bapunNpyFileStyleShortClassNames
+                itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
         return NeuronType(itemindex[0])
         
+    @classmethod
+    def from_bapun_npy_style_string(cls, string_value):
+        itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
+        return NeuronType(itemindex[0])
+    
+    
     @classmethod
     def from_qclu_series(cls, qclu_Series):
         # qclu_Series: a Pandas Series object, such as qclu_Series=spikes_df['qclu']
@@ -74,6 +87,16 @@ class NeuronType(Enum):
         temp_neuronTypes = np.array([NeuronType.from_short_string(_) for _ in np.array(temp_neuronTypeStrings)])
         return temp_neuronTypes
         
+    @classmethod
+    def from_any_string_series(cls, neuron_types_strings):
+        # neuron_types_strings: a np.ndarray containing any acceptable style strings, such as: ['mua', 'mua', 'inter', 'pyr', ...]
+        return np.array([NeuronType.from_string(_) for _ in np.array(neuron_types_strings)])
+    
+    
+    @classmethod
+    def from_bapun_npy_style_series(cls, bapun_style_neuron_types):
+        # bapun_style_neuron_types: a np.ndarray containing Bapun-style strings, such as: ['mua', 'mua', 'inter', 'pyr', ...]
+        return np.array([NeuronType.from_bapun_npy_style_string(_) for _ in np.array(bapun_style_neuron_types)])
         
 
     
@@ -113,6 +136,31 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         self._sampling_rate = sampling_rate
         self.t_start = t_start
         self.t_stop = t_stop
+
+
+    @property
+    def neuron_type(self):
+        """The neuron_type property."""
+        return self._neuron_type
+    @neuron_type.setter
+    def neuron_type(self, value):
+        if value is not None:
+            if len(value) > 0:
+                # check to see if the neuron_type is the correct class (should be NeuronType) by checking the first element
+                if isinstance(value[0], NeuronType):
+                    # neuron_type already the correct type (np.array of NeuronType)
+                    pass
+                elif isinstance(value[0], str):
+                    # neuron_type is a raw string type, so it needs to be converted
+                    print('converting neuron_type strings to core.neurons.NeuronType objects...')
+                    neuron_type_str = value
+                    value = NeuronType.from_any_string_series(neuron_type_str) ## Works
+                    print('\t done.')
+                else:
+                    print('ERROR: neuron_type value was of unknown type!')
+                    raise NotImplementedError
+        self._neuron_type = value
+
 
     def __getitem__(self, i):
         # copy object
@@ -180,18 +228,19 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             shank_ids=neurons.shank_ids,
         )
 
-    def get_neuron_type(self, neuron_type):
-        if isinstance(neuron_type, NeuronType):
-            neuron_type = neuron_type
-        elif isinstance(neuron_type, str):
-            neuron_type_str = neuron_type
-            neuron_type = NeuronType.from_string(neuron_type_str) ## Works
+    def get_neuron_type(self, query_neuron_type):
+        """ filters self by the specified query_neuron_type, only returning neurons that match. """
+        if isinstance(query_neuron_type, NeuronType):
+            query_neuron_type = query_neuron_type
+        elif isinstance(query_neuron_type, str):
+            query_neuron_type_str = query_neuron_type
+            query_neuron_type = NeuronType.from_string(query_neuron_type_str) ## Works
         else:
             print('error!')
             return []
             
         # indices = self.neuron_type == neuron_type # old
-        indices = self.neuron_type == neuron_type ## Works        
+        indices = self.neuron_type == query_neuron_type ## Works        
         return self[indices]
 
     def _check_integrity(self):

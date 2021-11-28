@@ -445,16 +445,6 @@ class DataSessionLoader:
         lap_start_stop_time[:, 1] = np.array(laps_last_spike_instances[time_variable_name].values)
         # print('lap_start_stop_time: {}'.format(lap_start_stop_time))
         
-    #     lap_start_stop_t = np.empty([num_laps, 2])
-    #     lap_start_stop_t[:, 0] = np.array(laps_first_spike_instances.t.values)
-    #     lap_start_stop_t[:, 1] = np.array(laps_last_spike_instances.t.values)
-    #     # print('lap_start_stop_t: {}'.format(lap_start_stop_t))
-
-    #     lap_start_stop_t_seconds = np.empty([num_laps, 2])
-    #     lap_start_stop_t_seconds[:, 0] = np.array(laps_first_spike_instances.t_seconds.values)
-    #     lap_start_stop_t_seconds[:, 1] = np.array(laps_last_spike_instances.t_seconds.values)
-    #     # print('lap_start_stop_t_seconds: {}'.format(lap_start_stop_t_seconds))
-        
         return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
         
     @staticmethod
@@ -659,9 +649,21 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         # should implement __deepcopy__() and __copy__()??
         copy_sess = DataSession.from_dict(self.to_dict())
         # update the copy_session's time_sliceable objects
-        copy_sess.neurons = self.neurons.get_neuron_type('pyramidal').time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
+        copy_sess.neurons = self.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid        
         return copy_sess
+    
+
+    def get_neuron_type(self, query_neuron_type):
+        """ filters self by the specified query_neuron_type, only returning neurons that match. """
+        print('Constraining to units with type: {}'.format(query_neuron_type))
+        # make a copy of self:
+        copy_sess = DataSession.from_dict(self.to_dict())
+        # update the copy_session's neurons objects
+        copy_sess.neurons = self.neurons.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
+        return copy_sess
+    
+    
 
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
