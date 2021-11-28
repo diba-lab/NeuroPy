@@ -119,6 +119,8 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         super().__init__(metadata=metadata)
 
         self.spiketrains = np.array(spiketrains, dtype="object")
+        self._neuron_ids = None
+        self._reverse_cellID_index_map = None
         if neuron_ids is None:
             self.neuron_ids = np.arange(len(self.spiketrains))
         else:
@@ -136,6 +138,34 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         self._sampling_rate = sampling_rate
         self.t_start = t_start
         self.t_stop = t_stop
+
+    @property
+    def neuron_ids(self):
+        """The neuron_ids property."""
+        return self._neuron_ids
+    @neuron_ids.setter
+    def neuron_ids(self, value):
+        """ ensures the indicies are integers and builds the reverse index map upon setting this value """
+        if value is not None:
+            flat_cell_ids = np.array([int(cell_id) for cell_id in value]) # ensures integer indexes for IDs
+            self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(flat_cell_ids)
+            self._neuron_ids = flat_cell_ids
+        else:
+            self._reverse_cellID_index_map = None
+            self._neuron_ids = None
+
+
+    @property
+    def reverse_cellID_index_map(self):
+        """The reverse_cellID_index_map property: Allows reverse indexing into the linear imported array using the original cell ID indicies."""
+        return self._reverse_cellID_index_map
+    
+    @staticmethod
+    def __build_cellID_reverse_lookup_map(cell_ids):
+        # Allows reverse indexing into the linear imported array using the original cell ID indicies
+        flat_cell_ids = np.array([int(cell_id) for cell_id in cell_ids]) # ensures integer indexes for IDs
+        linear_flitered_ids = np.arange(len(flat_cell_ids))
+        return dict(zip(flat_cell_ids, linear_flitered_ids))
 
 
     @property
