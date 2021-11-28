@@ -235,7 +235,96 @@ class DataSessionLoader:
     #######################################################
     ## Bapun Nupy Format Only Methods:
     @staticmethod
-    def _default_load_bapun_npy_session_folder(args_dict):
+    def __default_compute_bapun_flattened_spikes(session):
+        def __unpack_variables(active_session):
+            # Spike variables: num_cells, spike_list, cell_ids, flattened_spikes
+            num_cells = active_session.neurons.n_neurons
+            spike_list = active_session.neurons.spiketrains
+            cell_ids = active_session.neurons.neuron_ids
+            # flattened_spikes = active_session.neurons.get_flattened_spikes() # get_flattened_spikes(..) returns a FlattenedSpiketrains object
+            
+            # session.neurons.get_flattened_spikes()
+            # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
+            flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+            flattened_spike_times = np.concatenate(active_session.neurons.spiketrains)
+            # Get the indicies required to sort the flattened_spike_times
+            flattened_sort_indicies = np.argsort(flattened_spike_times)
+            # flattened_spikes = FlattenedSpiketrains(
+            #     sorted_indicies,
+            #     flattened_spike_identities[sorted_indicies],
+            #     flattened_spike_times[sorted_indicies],
+            #     t_start=session.neurons.t_start
+            # )
+            
+            # flattened_spikes.flattened_spike_identities, flattened_spikes.flattened_spike_times
+            # flattened_spike_identities = flattened_spike_identities[sorted_indicies],
+            # flattened_spike_times = flattened_spike_times[sorted_indicies],
+            t_start = active_session.neurons.t_start
+            
+            # reverse_cellID_idx_lookup_map = build_cellID_reverse_lookup_map(cell_ids)
+            
+            reverse_cellID_idx_lookup_map = active_session.neurons._reverse_cellID_index_map
+            
+            
+            # reverse_cellID_idx_lookup_map = active_session.neurons.reverse_cellID_index_map
+            
+            # Position variables: t, x, y
+            t = active_session.position.time
+            x = active_session.position.x
+            y = active_session.position.y
+            linear_pos = active_session.position.linear_pos
+            speeds = active_session.position.speed 
+
+            return num_cells, spike_list, cell_ids, flattened_spike_identities, flattened_spike_times, flattened_sort_indicies, t_start, reverse_cellID_idx_lookup_map, t, x, y, linear_pos, speeds
+
+        num_cells, spike_list, cell_ids, flattened_spike_identities, flattened_spike_times, flattened_sort_indicies, t_start, reverse_cellID_idx_lookup_map, t, x, y, linear_pos, speeds = __unpack_variables(session)
+        
+        # flattened_spike_identities = flattened_spike_identities[flattened_sort_indicies],
+        # flattened_spike_times = flattened_spike_times[flattened_sort_indicies],
+            
+    
+        # Determine the x and y positions each spike occured for each cell
+        # spike_positions_list = build_spike_positions_list(session.neurons.spiketrains, t, x, y)
+
+        num_flattened_spikes = np.size(flattened_spike_times[flattened_sort_indicies])
+        print('num_flattened_spikes: {}'.format(num_flattened_spikes))
+
+        spikes_df = pd.DataFrame({'flat_spike_idx': np.arange(num_flattened_spikes),
+            't_seconds':flattened_spike_times[flattened_sort_indicies],
+            'aclu':flattened_spike_identities[flattened_sort_indicies],
+            'x':x, 'y':y, 'speed':speeds, 'linear_pos':linear_pos}
+        )
+        
+        # 't':flattened_sort_indicies,
+        
+        
+        # def build_spike_positions_list(spike_list, t, x, y):
+        # Determine the x and y positions each spike occured for each cell
+        num_cells = len(spike_list)
+        spike_positions_list = list()
+        for cell_id in np.arange(num_cells):
+            spike_positions_list.append(np.vstack((np.interp(spike_list[cell_id], t, x), np.interp(spike_list[cell_id], t, y))))
+            # spike_positions_list.append(np.hstack(x[spike_list[cell_id]], y[spike_list[cell_id]]))
+            # spike_speed = speeds[spike_list[cell_id]]
+        # return spike_positions_list
+        
+        # Gets the flattened spikes, sorted in ascending timestamp for all cells.
+        # num_flattened_spikes = np.size(flattened_spike_times[flattened_sort_indicies])
+        # print('num_flattened_spikes: {}'.format(num_flattened_spikes))
+        # Build the Active UnitIDs
+        flattened_spike_active_unitIdentities = np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]) # since flattened_spike_identities[flattened_sort_indicies] is already sorted, don't double sort
+        ## Build the flattened spike positions list
+        flattened_spike_positions_list = np.concatenate(tuple(spike_positions_list), axis=1) # needs tuple(...) to conver the list into a tuple, which is the format it expects
+        flattened_spike_positions_list = flattened_spike_positions_list[:, flattened_sort_indicies] # ensure the positions are ordered the same as the other flattened items so they line up
+        print('flattened_spike_positions_list: {}'.format(np.shape(flattened_spike_positions_list))) # (2, 19647)
+
+        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, t_start=t_start) # FlattenedSpiketrains(spikes_df)
+        
+        return session
+    
+    
+    @staticmethod
+    def _default_load_bapun_npy_session_folder(args_dict):        
         basepath = args_dict['basepath']
         session = args_dict['session_obj']
         
@@ -274,7 +363,10 @@ class DataSessionLoader:
         # ['.neurons.npy','.probegroup.npy','.position.npy','.paradigm.npy']
         #  [fname.format(session_name) for fname in ['{}.xml','{}.neurons.npy','{}.probegroup.npy','{}.position.npy','{}.paradigm.npy']]
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) 
+        session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
+        
+        ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
+        # session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
         
         # Load or compute linear positions if needed:        
         if (not session.position.has_linear_pos):
@@ -350,10 +442,8 @@ class DataSessionLoader:
         # active_time_variable_name = 't' # default
         active_time_variable_name = 't_seconds' # use converted times (into seconds)
         
-        # for debugging purposes, add spikes_df to the session
-        session.spikes_df = spikes_df
-        ## TODO
-        FlattenedSpiketrains(spikes_df)
+        # add the flat spikes to the session so they don't have to be recomputed:
+        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df)
         
         ## Laps:
         session = DataSessionLoader.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
@@ -589,7 +679,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
-                 ripple = None, mua = None, laps= None):        
+                 ripple = None, mua = None, laps= None, flattened_spiketrains = None):       
         self.config = config
         
         self.is_loaded = False
@@ -606,6 +696,8 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         self.ripple = ripple
         self.mua = mua
         self.laps = laps # core.laps.Laps
+        self.flattened_spiketrains = flattened_spiketrains # core.FlattenedSpiketrains
+        
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
@@ -644,9 +736,11 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
     # @property
     # def is_resolved(self):
     #     return self.config.is_resolved
-    # @property
-    # def is_resolved(self):
-    #     return self.config.is_resolved
+
+
+    @property
+    def spikes_df(self):
+        return self.flattened_spiketrains.spikes_df
     
     
     # @property
@@ -672,7 +766,8 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         copy_sess = DataSession.from_dict(self.to_dict())
         # update the copy_session's time_sliceable objects
         copy_sess.neurons = self.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
-        copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid        
+        copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
+        copy_sess.flattened_spiketrains = self.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid        
         return copy_sess
     
 
@@ -683,6 +778,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         copy_sess = DataSession.from_dict(self.to_dict())
         # update the copy_session's neurons objects
         copy_sess.neurons = self.neurons.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
+        copy_sess.flattened_spiketrains = self.flattened_spiketrains.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         return copy_sess
     
     
@@ -692,6 +788,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         """Implementors return a copy of themselves with neuron_ids equal to ids"""
         copy_sess = DataSession.from_dict(self.to_dict())
         copy_sess.neurons = self.neurons.get_by_id(ids)
+        copy_sess.flattened_spiketrains = self.flattened_spiketrains.get_by_id(ids)
         return copy_sess
 
   
@@ -700,15 +797,16 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
                  eegfile = d['eegfile'], datfile = d['datfile'],
                  neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
-                 ripple = d.get('ripple', None), mua = d.get('mua', None))
-        
+                 ripple = d.get('ripple', None), mua = d.get('mua', None), flattened_spiketrains = d.get('flattened_spiketrains', None))
+
         
     def to_dict(self, recurrsively=False):
         simple_dict = self.__dict__
         if recurrsively:
             simple_dict['paradigm'] = simple_dict['paradigm'].to_dict()
             simple_dict['position'] = simple_dict['position'].to_dict()
-            simple_dict['neurons'] = simple_dict['neurons'].to_dict()        
+            simple_dict['neurons'] = simple_dict['neurons'].to_dict() 
+            # simple_dict['flattened_spiketrains'] = simple_dict['flattened_spiketrains'].to_dict() ## TODO: implement .to_dict() for FlattenedSpiketrains object to make this work
         return simple_dict
         
     ## Linearize Position:

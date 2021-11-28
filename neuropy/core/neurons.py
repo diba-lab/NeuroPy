@@ -4,7 +4,7 @@ from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 
 from .datawriter import DataWriter
-from .flattened_spiketrains import FlattenedSpiketrains
+# from .flattened_spiketrains import FlattenedSpiketrains
 
 from copy import deepcopy
 from enum import Enum, unique, IntEnum
@@ -335,18 +335,18 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def get_all_spikes(self):
         return np.concatenate(self.spiketrains)
 
-    def get_flattened_spikes(self):
-        # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
-        flattened_spike_identities = np.concatenate([np.full((self.n_spikes[i],), self.neuron_ids[i]) for i in np.arange(self.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
-        flattened_spike_times = np.concatenate(self.spiketrains)
-        # Get the indicies required to sort the flattened_spike_times
-        sorted_indicies = np.argsort(flattened_spike_times)
-        return FlattenedSpiketrains(
-            sorted_indicies,
-            flattened_spike_identities[sorted_indicies],
-            flattened_spike_times[sorted_indicies],
-            t_start=self.t_start
-        )
+    # def get_flattened_spikes(self):
+    #     # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
+    #     flattened_spike_identities = np.concatenate([np.full((self.n_spikes[i],), self.neuron_ids[i]) for i in np.arange(self.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+    #     flattened_spike_times = np.concatenate(self.spiketrains)
+    #     # Get the indicies required to sort the flattened_spike_times
+    #     sorted_indicies = np.argsort(flattened_spike_times)
+    #     return FlattenedSpiketrains(
+    #         sorted_indicies,
+    #         flattened_spike_identities[sorted_indicies],
+    #         flattened_spike_times[sorted_indicies],
+    #         t_start=self.t_start
+    #     )
 
     @property
     def n_spikes(self):

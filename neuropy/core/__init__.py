@@ -8,3 +8,4 @@ from .ratemap import Ratemap
 from .animal import Animal
 from .dataSession import DataSessionLoader, DataSession, processDataSession
 from .laps import Laps
+from .flattened_spiketrains import FlattenedSpiketrains
