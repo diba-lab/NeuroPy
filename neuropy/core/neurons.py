@@ -6,6 +6,8 @@ from .datawriter import DataWriter
 from copy import deepcopy
 from enum import Enum, unique, IntEnum
 from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from ..utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+
 
 @unique
 class NeuronType(Enum):
@@ -75,7 +77,7 @@ class NeuronType(Enum):
         
 
     
-class Neurons(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
+class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold a group of spiketrains and their labels, ids etc."""
 
     def __init__(
@@ -212,12 +214,6 @@ class Neurons(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __len__(self):
         return self.n_neurons
 
-    # def load(self):
-    #     data = super().load()
-    #     if data is not None:
-    #         for key in data:
-    #             setattr(self, key, data[key])
-
     def to_dict(self):
 
         # self._check_integrity()
@@ -292,6 +288,7 @@ class Neurons(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         indices = self.firing_rate > thresh
         return self[indices]
 
+    # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
         """Returns neurons object with neuron_ids equal to ids"""
         indices = np.isin(self.neuron_ids, ids)
@@ -462,7 +459,7 @@ class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, Data
 
 
 
-class BinnedSpiketrain(DataWriter):
+class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
     """Class to hold binned spiketrains"""
 
     def __init__(
@@ -578,7 +575,36 @@ class BinnedSpiketrain(DataWriter):
 
         return corr[pairs_bool]
 
+    def __getitem__(self, i):
+        # copy object
+        spike_counts = self.spike_counts[i]
+        if self.peak_channels is not None:
+            peak_channels = self.peak_channels[i]
+        else:
+            peak_channels = self.peak_channels
 
+        if self.shank_ids is not None:
+            shank_ids = self.shank_ids[i]
+        else:
+            shank_ids = self.shank_ids
+
+        return BinnedSpiketrain(
+            spike_counts=spike_counts,
+            bin_size=self.bin_size,
+            t_start=self.t_start,
+            neuron_ids=self.neuron_ids[i],
+            peak_channels=peak_channels,
+            shank_ids=shank_ids,
+        )
+
+    # for NeuronUnitSlicableObjectProtocol:
+    def get_by_id(self, ids):
+        """Returns neurons object with neuron_ids equal to ids"""
+        indices = np.isin(self.neuron_ids, ids)
+        return self[indices]
+    
+    
+    
 class Mua(DataWriter):
     def __init__(
         self,

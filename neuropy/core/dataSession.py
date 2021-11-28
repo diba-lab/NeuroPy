@@ -19,7 +19,7 @@ from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import Neuroscop
 from ..utils.load_exported import import_mat_file
 from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
-
+from ..utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
         
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     def __init__(self, basepath, session_spec, session_name):
@@ -511,7 +511,7 @@ class DataSessionLoader:
         return session # returns the session when done
 
 
-class DataSession(StartStopTimesMixin, TimeSlicableObjectProtocol):
+class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol):
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
@@ -555,9 +555,11 @@ class DataSession(StartStopTimesMixin, TimeSlicableObjectProtocol):
     @property
     def position_sampling_rate(self):
         return self.position.sampling_rate
-    # @property
-    # def is_resolved(self):
-    #     return self.config.is_resolved
+
+    @property
+    def neuron_ids(self):
+        return self.neurons.neuron_ids
+    
     # @property
     # def is_resolved(self):
     #     return self.config.is_resolved
@@ -598,7 +600,14 @@ class DataSession(StartStopTimesMixin, TimeSlicableObjectProtocol):
         copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid        
         return copy_sess
 
-       
+    # for NeuronUnitSlicableObjectProtocol:
+    def get_by_id(self, ids):
+        """Implementors return a copy of themselves with neuron_ids equal to ids"""
+        copy_sess = DataSession.from_dict(self.to_dict())
+        copy_sess.neurons = self.neurons.get_by_id(ids)
+        return copy_sess
+
+  
     @staticmethod
     def from_dict(d: dict):
         return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
