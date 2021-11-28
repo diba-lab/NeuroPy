@@ -121,7 +121,7 @@ class Position(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter
     def sampling_rate(self, sampling_rate):
         self._sampling_rate = sampling_rate
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         data = {
             "traces": self.traces,
             "computed_traces": self.computed_traces,

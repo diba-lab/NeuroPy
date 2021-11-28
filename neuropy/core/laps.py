@@ -35,10 +35,25 @@ class Laps(DataWriter):
     def n_laps(self):
         return len(self.lap_id)
     
-	@staticmethod
+    @staticmethod
     def from_file(f):
         d = DataWriter.from_file(f)
         if d is not None:
             return Laps.from_dict(d)
         else:
             return None
+        
+    @staticmethod
+    def from_dict(d: dict):
+        return Laps(d['lap_id'], laps_spike_counts = d['laps_spike_counts'], lap_start_stop_flat_idx = d['lap_start_stop_flat_idx'],
+                    lap_start_stop_time = d['lap_start_stop_time'], metadata = d.get('metadata', None))
+        
+        
+    def to_dict(self, recurrsively=False):
+        simple_dict = self.__dict__
+        # if recurrsively:
+        #     simple_dict['paradigm'] = simple_dict['paradigm'].to_dict()
+        #     simple_dict['position'] = simple_dict['position'].to_dict()
+        #     simple_dict['neurons'] = simple_dict['neurons'].to_dict()        
+        return simple_dict
+    

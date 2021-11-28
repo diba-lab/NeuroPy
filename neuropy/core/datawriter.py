@@ -56,7 +56,7 @@ class DataWriter:
         else:
             return None
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return NotImplementedError
 
     def save(self):

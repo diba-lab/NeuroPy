@@ -32,7 +32,7 @@ class Animal(DataWriter):
     def write_csv(self):
         pass
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "name": self.name,
             "alias": self.alias,

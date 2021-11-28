@@ -69,8 +69,7 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
     def get_unique_labels(self):
         return np.unique(self.labels)
 
-    @property
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         d = {"epochs": self._data, "metadata": self.metadata}
         return d
 
@@ -129,7 +128,7 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         df = self._data[self._data["label"] == label].reset_index(drop=True)
         return Epoch(epochs=df)
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "epochs": self._data,
             "metadata": self._metadata,

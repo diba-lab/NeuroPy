@@ -214,7 +214,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def __len__(self):
         return self.n_neurons
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
 
         # self._check_integrity()
 
@@ -438,7 +438,7 @@ class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, Data
         )
 
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "flattened_sort_indicies": self.flattened_sort_indicies,
             "flattened_spike_identities": self.flattened_spike_identities,
@@ -518,7 +518,7 @@ class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
     def time(self):
         return np.arange(self.n_bins) * self.bin_size + self.t_start
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "spike_counts": self.spike_counts,
             "t_start": self.t_start,
@@ -682,7 +682,7 @@ class Mua(DataWriter):
 
     #     return gaussian
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "spike_counts": self._spike_counts,
             "t_start": self.t_start,
