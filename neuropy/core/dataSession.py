@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pandas.core import base
 
+from neuropy.core.laps import Laps
+
 # Local imports:
 ## Core:
 from .datawriter import DataWriter
@@ -416,7 +418,7 @@ class DataSessionLoader:
         return spikes_df, flat_spikes_out_dict 
 
     @staticmethod
-    def _default_spikeII_compute_laps_vars(spikes_df, time_variable_name='t_seconds'):
+    def _default_spikeII_compute_laps_vars(session, spikes_df, time_variable_name='t_seconds'):
         """ 
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
@@ -445,7 +447,11 @@ class DataSessionLoader:
         lap_start_stop_time[:, 1] = np.array(laps_last_spike_instances[time_variable_name].values)
         # print('lap_start_stop_time: {}'.format(lap_start_stop_time))
         
-        return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
+        # Build output Laps object to add to session
+        session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
+        
+        # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
+        return session
         
     @staticmethod
     def __default_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
@@ -530,8 +536,12 @@ class DataSessionLoader:
         # active_time_variable_name = 't' # default
         active_time_variable_name = 't_seconds' # use converted times (into seconds)
         
+        # for debugging purposes, add spikes_df to the session
+        session.spikes_df = spikes_df
+        
         ## Laps:
-        lap_number, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time = DataSessionLoader._default_spikeII_compute_laps_vars(spikes_df, active_time_variable_name)
+        # lap_number, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time = DataSessionLoader._default_spikeII_compute_laps_vars(spikes_df, active_time_variable_name)
+        session = DataSessionLoader._default_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
         
         ## Neurons (by Cell):
         session = DataSessionLoader.__default_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
@@ -568,7 +578,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
-                 ripple = None, mua = None):        
+                 ripple = None, mua = None, laps= None):        
         self.config = config
         
         self.is_loaded = False
@@ -584,6 +594,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         self.paradigm = paradigm
         self.ripple = ripple
         self.mua = mua
+        self.laps = laps # core.laps.Laps
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"

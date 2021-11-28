@@ -1,13 +1,17 @@
 import numpy as np
 import pandas as pd
+
+from neuropy.utils.mixins.print_helpers import SimplePrintable
 from .datawriter import DataWriter
 
 from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from ..utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
+## Import:
+# from neuropy.core.laps import Laps
 
 # TODO: implement: NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol
-class Laps(DataWriter):
+class Laps(SimplePrintable, DataWriter):
     """Class to hold computed info about laps and how they relate to other information like times, flat linear indicies, etc.
     
     ## TODO: Look at Epoch class for implementation guidance 

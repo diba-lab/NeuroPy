@@ -7,4 +7,4 @@ from .signal import Signal
 from .ratemap import Ratemap
 from .animal import Animal
 from .dataSession import DataSessionLoader, DataSession, processDataSession
-
+from .laps import Laps
