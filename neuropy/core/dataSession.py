@@ -535,33 +535,6 @@ class DataSessionLoader:
 
 
         ## .spikeII.mat file:
-        # spike_mat_file = Path(basepath).joinpath('{}.spikeII.mat'.format(session_name))
-        # if not spike_mat_file.is_file():
-        #     print('ERROR: file {} does not exist!'.format(spike_mat_file))
-        #     return None
-            
-        # flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
-        # # print('flat_spikes_mat_file.keys(): {}'.format(flat_spikes_mat_file.keys())) # flat_spikes_mat_file.keys(): dict_keys(['__header__', '__version__', '__globals__', 'spike'])
-        # flat_spikes_data = flat_spikes_mat_file['spike']
-        # # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
-        # # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
-        # mat_variables_to_extract = ['t', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap']
-        # num_mat_variables = len(mat_variables_to_extract)
-        # flat_spikes_out_dict = dict()
-        # for i in np.arange(num_mat_variables):
-        #     curr_var_name = mat_variables_to_extract[i]
-        #     if curr_var_name == 'cluinfo':
-        #         temp = flat_spikes_data[curr_var_name][0,0] # a Nx4 array
-        #         temp = [tuple(temp[j,:]) for j in np.arange(np.shape(temp)[0])]
-        #         flat_spikes_out_dict[curr_var_name] = temp
-        #     else:
-        #         flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-        # spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
-        # spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
-        # # add times in seconds both to the dict and the spikes_df under a new key:
-        # flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
-        # spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
-        
         spikes_df, flat_spikes_out_dict = DataSessionLoader._load_kamran_spikeII_mat(session, timestamp_scale_factor=timestamp_scale_factor)
         
         # active_time_variable_name = 't' # default
@@ -572,38 +545,6 @@ class DataSessionLoader:
         
         ## Neurons (by Cell):
         session = DataSessionLoader.__default_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
- 
-        # ## Get unique cell ids to enable grouping flattened results by cell:
-        # unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
-        # flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids]
-        # num_unique_cell_ids = len(flat_cell_ids)
-        # # print('flat_cell_ids: {}'.format(flat_cell_ids))
-        # # Group by the aclu (cluster indicator) column
-        # cell_grouped_spikes_df = spikes_df.groupby(['aclu'])
-        # spiketrains = list()
-        # shank_ids = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
-        # cell_quality = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
-        # cell_type = list() # (108,) Array of float64
-        
-        # for i in np.arange(num_unique_cell_ids):
-        #     curr_cell_id = flat_cell_ids[i] # actual cell ID
-        #     #curr_flat_cell_indicies = (flat_spikes_out_dict['aclu'] == curr_cell_id) # the indicies where the cell_id matches the current one
-        #     curr_cell_dataframe = cell_grouped_spikes_df.get_group(curr_cell_id)
-        #     spiketrains.append(curr_cell_dataframe[active_time_variable_name].to_numpy())
-        #     shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
-        #     cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
-        #     cell_type.append(curr_cell_dataframe['cell_type'].to_numpy()[0])
-            
-        # spiketrains = np.array(spiketrains, dtype='object')
-        # t_stop = np.max(flat_spikes_out_dict[active_time_variable_name])
-        # flat_cell_ids = np.array(flat_cell_ids)
-        # cell_type = np.array(cell_type)
-        # session.neurons = Neurons(spiketrains, t_stop, t_start=0,
-        #     sampling_rate=session.recinfo.dat_sampling_rate,
-        #     neuron_ids=flat_cell_ids,
-        #     neuron_type=cell_type,
-        #     shank_ids=shank_ids
-        # )
           
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
         
