@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pandas.core import base
 
-from neuropy.core.laps import Laps
+
 
 # Local imports:
 ## Core:
@@ -15,6 +15,9 @@ from .probe import ProbeGroup
 from .position import Position
 from .epoch import Epoch #, NamedEpoch
 from .signal import Signal
+from .laps import Laps
+from .flattened_spiketrains import FlattenedSpiketrains
+
 
 from ..io import NeuroscopeIO, BinarysignalIO # from neuropy.io import NeuroscopeIO, BinarysignalIO
 
@@ -23,6 +26,8 @@ from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from ..utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
         
+
+
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     def __init__(self, basepath, session_spec, session_name):
         """[summary]
@@ -154,7 +159,7 @@ class DataSessionLoader:
             curr_args_dict = dict()
             curr_args_dict['basepath'] = config.basepath
             curr_args_dict['session_obj'] = DataSession(config)
-            return DataSessionLoader._default_load_kamran_flat_spikes_mat_session_folder(curr_args_dict)
+            return DataSessionLoader._default_kdiba_flat_spikes_load_session_folder(curr_args_dict)
         session_name = kdiba_old_format_get_session_name(basedir) # session_name = '2006-6-07_11-26-53'
         session_spec = SessionFolderSpec(required=[fname.format(session_name) for fname in ['{}.xml','{}.spikeII.mat','{}.position_info.mat','{}.epochs_info.mat']])
         session_config = SessionConfig(basedir, session_spec=session_spec, session_name=session_name)
@@ -227,7 +232,8 @@ class DataSessionLoader:
         # return the session with the upadated member variables
         return session
 
-    
+    #######################################################
+    ## Bapun Nupy Format Only Methods:
     @staticmethod
     def _default_load_bapun_npy_session_folder(args_dict):
         basepath = args_dict['basepath']
@@ -292,8 +298,94 @@ class DataSessionLoader:
 
         return session # returns the session when done
 
+
+
+
+
+    #######################################################
+    ## KDiba Old Format Only Methods:
+    ## relies on _load_kamran_spikeII_mat, _default_spikeII_compute_laps_vars, __default_spikeII_compute_neurons, __default_load_kamran_exported_mats, _default_compute_linear_position_if_needed
     @staticmethod
-    def _default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session):
+    def _default_kdiba_flat_spikes_load_session_folder(args_dict):
+        ## relies on _load_kamran_spikeII_mat, _default_spikeII_compute_laps_vars, __default_spikeII_compute_neurons, default_load_kamran_IIdata_mat, _default_compute_linear_position_if_needed
+        basepath = args_dict['basepath']
+        session = args_dict['session_obj']
+        # timestamp_scale_factor = (1/1E6)
+        timestamp_scale_factor = (1/1E4)
+        
+        basepath = Path(basepath)
+        xml_files = sorted(basepath.glob("*.xml"))
+        assert len(xml_files) == 1, "Found more than one .xml file"
+
+        fp = xml_files[0].with_suffix("")
+        session.filePrefix = fp
+        session.recinfo = NeuroscopeIO(xml_files[0])
+
+        try:
+            session.eegfile = BinarysignalIO(
+                session.recinfo.eeg_filename,
+                n_channels=session.recinfo.n_channels,
+                sampling_rate=session.recinfo.eeg_sampling_rate,
+            )
+        except ValueError:
+            print('session.recinfo.eeg_filename exists ({}) but file cannot be loaded in the appropriate format. Skipping. \n'.format(session.recinfo.eeg_filename))
+            session.eegfile = None
+
+        if session.recinfo.dat_filename.is_file():
+            session.datfile = BinarysignalIO(
+                session.recinfo.dat_filename,
+                n_channels=session.recinfo.n_channels,
+                sampling_rate=session.recinfo.dat_sampling_rate,
+            )
+        else:
+            session.datfile = None
+            
+        session_name = session.name
+        print('\t basepath: {}\n\t session_name: {}'.format(basepath, session_name)) # session_name: 2006-6-08_14-26-15
+
+
+        ## .spikeII.mat file:
+        spikes_df, flat_spikes_out_dict = DataSessionLoader.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
+        
+        # active_time_variable_name = 't' # default
+        active_time_variable_name = 't_seconds' # use converted times (into seconds)
+        
+        # for debugging purposes, add spikes_df to the session
+        session.spikes_df = spikes_df
+        ## TODO
+        FlattenedSpiketrains(spikes_df)
+        
+        ## Laps:
+        session = DataSessionLoader.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
+        ## Neurons (by Cell):
+        session = DataSessionLoader.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
+        session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
+        
+        # *vt.mat file Position and Epoch:
+        # session = DataSessionLoader.default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session)
+        
+        # IIdata.mat file Position and Epoch:
+        session = DataSessionLoader.__default_kdiba_exported_load_mats(basepath, session_name, session)
+        
+        # Load or compute linear positions if needed:
+        try:
+            session = DataSessionLoader._default_compute_linear_position_if_needed(session)
+        except Exception as e:
+            # raise e
+            print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
+            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+        else:
+            # Successful!
+            print('session.position linear positions computed!')
+            pass
+
+        # Common Extended properties:
+        # session = DataSessionLoader.default_extended_postload(fp, session)
+        session.is_loaded = True # indicate the session is loaded
+        return session # returns the session when done
+
+    @staticmethod
+    def __default_kdiba_position_vt_load_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session):
         # Loads a *vt.mat file that contains position and epoch information for the session
         session_position_mat_file_path = Path(basepath).joinpath('{}vt.mat'.format(session_name))
         # session.position = Position.from_vt_mat_file(position_mat_file_path=session_position_mat_file_path)
@@ -340,9 +432,12 @@ class DataSessionLoader:
         
         # return the session with the upadated member variables
         return session
-        
+
     @staticmethod
-    def default_load_kamran_IIdata_mat(basepath, session_name, session):
+    def __default_kdiba_exported_load_mats(basepath, session_name, session):
+        """ Loads the *.epochs_info.mat & *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
+            Adds the Epoch and Position information to the session, and returns the updated Session object
+        """
         # Loads a IIdata.mat file that contains position and epoch information for the session
                 
         # parent_dir = Path(basepath).parent() # the directory above the individual session folder
@@ -387,7 +482,7 @@ class DataSessionLoader:
         return session
     
     @staticmethod
-    def _load_kamran_spikeII_mat(sess, timestamp_scale_factor=(1/1E4)):
+    def __default_kdiba_spikeII_load_mat(sess, timestamp_scale_factor=(1/1E4)):
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikeII.mat'.format(sess.session_name))
         if not spike_mat_file.is_file():
             print('ERROR: file {} does not exist!'.format(spike_mat_file))
@@ -418,7 +513,7 @@ class DataSessionLoader:
         return spikes_df, flat_spikes_out_dict 
 
     @staticmethod
-    def _default_spikeII_compute_laps_vars(session, spikes_df, time_variable_name='t_seconds'):
+    def __default_kdiba_spikeII_compute_laps_vars(session, spikes_df, time_variable_name='t_seconds'):
         """ 
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
@@ -454,7 +549,7 @@ class DataSessionLoader:
         return session
         
     @staticmethod
-    def __default_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
+    def __default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
         ## Get unique cell ids to enable grouping flattened results by cell:
         unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
         flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids]
@@ -488,90 +583,6 @@ class DataSessionLoader:
         )
         return session
 
-
-
-
-    @staticmethod
-    def _default_load_kamran_flat_spikes_mat_session_folder(args_dict):
-        basepath = args_dict['basepath']
-        session = args_dict['session_obj']
-        # timestamp_scale_factor = (1/1E6)
-        timestamp_scale_factor = (1/1E4)
-        
-        basepath = Path(basepath)
-        xml_files = sorted(basepath.glob("*.xml"))
-        assert len(xml_files) == 1, "Found more than one .xml file"
-
-        fp = xml_files[0].with_suffix("")
-        session.filePrefix = fp
-        session.recinfo = NeuroscopeIO(xml_files[0])
-
-        # if session.recinfo.eeg_filename.is_file():
-        try:
-            session.eegfile = BinarysignalIO(
-                session.recinfo.eeg_filename,
-                n_channels=session.recinfo.n_channels,
-                sampling_rate=session.recinfo.eeg_sampling_rate,
-            )
-        except ValueError:
-            print('session.recinfo.eeg_filename exists ({}) but file cannot be loaded in the appropriate format. Skipping. \n'.format(session.recinfo.eeg_filename))
-            session.eegfile = None
-
-        if session.recinfo.dat_filename.is_file():
-            session.datfile = BinarysignalIO(
-                session.recinfo.dat_filename,
-                n_channels=session.recinfo.n_channels,
-                sampling_rate=session.recinfo.dat_sampling_rate,
-            )
-        else:
-            session.datfile = None
-            
-        session_name = basepath.parts[-1]
-        print('\t basepath: {}\n\t session_name: {}'.format(basepath, session_name)) # session_name: 2006-6-08_14-26-15
-
-
-        ## .spikeII.mat file:
-        spikes_df, flat_spikes_out_dict = DataSessionLoader._load_kamran_spikeII_mat(session, timestamp_scale_factor=timestamp_scale_factor)
-        
-        # active_time_variable_name = 't' # default
-        active_time_variable_name = 't_seconds' # use converted times (into seconds)
-        
-        # for debugging purposes, add spikes_df to the session
-        session.spikes_df = spikes_df
-        
-        ## Laps:
-        # lap_number, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time = DataSessionLoader._default_spikeII_compute_laps_vars(spikes_df, active_time_variable_name)
-        session = DataSessionLoader._default_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
-        
-        ## Neurons (by Cell):
-        session = DataSessionLoader.__default_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
-          
-        session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
-        
-        # *vt.mat file Position and Epoch:
-        # session = DataSessionLoader.default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session)
-        
-        # IIdata.mat file Position and Epoch:
-        session = DataSessionLoader.default_load_kamran_IIdata_mat(basepath, session_name, session)
-        
-        # Load or compute linear positions if needed:
-        try:
-            session = DataSessionLoader._default_compute_linear_position_if_needed(session)
-        except Exception as e:
-            # raise e
-            print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-        else:
-            # Successful!
-            print('session.position linear positions computed!')
-            pass
-
-        # Common Extended properties:
-        # session = DataSessionLoader.default_extended_postload(fp, session)
-        
-        session.is_loaded = True # indicate the session is loaded
-        
-        return session # returns the session when done
 
 
 class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol):
