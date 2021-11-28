@@ -235,39 +235,25 @@ class DataSessionLoader:
     #######################################################
     ## Bapun Nupy Format Only Methods:
     @staticmethod
-    def __default_compute_bapun_flattened_spikes(session):
+    def __default_compute_bapun_flattened_spikes(session, timestamp_scale_factor=(1/1E4)):
         def __unpack_variables(active_session):
             # Spike variables: num_cells, spike_list, cell_ids, flattened_spikes
             num_cells = active_session.neurons.n_neurons
             spike_list = active_session.neurons.spiketrains
             cell_ids = active_session.neurons.neuron_ids
             # flattened_spikes = active_session.neurons.get_flattened_spikes() # get_flattened_spikes(..) returns a FlattenedSpiketrains object
-            
+
             # session.neurons.get_flattened_spikes()
             # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
             flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
             flattened_spike_times = np.concatenate(active_session.neurons.spiketrains)
             # Get the indicies required to sort the flattened_spike_times
             flattened_sort_indicies = np.argsort(flattened_spike_times)
-            # flattened_spikes = FlattenedSpiketrains(
-            #     sorted_indicies,
-            #     flattened_spike_identities[sorted_indicies],
-            #     flattened_spike_times[sorted_indicies],
-            #     t_start=session.neurons.t_start
-            # )
-            
-            # flattened_spikes.flattened_spike_identities, flattened_spikes.flattened_spike_times
-            # flattened_spike_identities = flattened_spike_identities[sorted_indicies],
-            # flattened_spike_times = flattened_spike_times[sorted_indicies],
             t_start = active_session.neurons.t_start
-            
+
             # reverse_cellID_idx_lookup_map = build_cellID_reverse_lookup_map(cell_ids)
-            
-            reverse_cellID_idx_lookup_map = active_session.neurons._reverse_cellID_index_map
-            
-            
-            # reverse_cellID_idx_lookup_map = active_session.neurons.reverse_cellID_index_map
-            
+            reverse_cellID_idx_lookup_map = active_session.neurons.reverse_cellID_index_map
+
             # Position variables: t, x, y
             t = active_session.position.time
             x = active_session.position.x
@@ -278,47 +264,83 @@ class DataSessionLoader:
             return num_cells, spike_list, cell_ids, flattened_spike_identities, flattened_spike_times, flattened_sort_indicies, t_start, reverse_cellID_idx_lookup_map, t, x, y, linear_pos, speeds
 
         num_cells, spike_list, cell_ids, flattened_spike_identities, flattened_spike_times, flattened_sort_indicies, t_start, reverse_cellID_idx_lookup_map, t, x, y, linear_pos, speeds = __unpack_variables(session)
-        
+
+        # len(t): 2538347
+        # len(speeds): 2538347
+        ## Note, t, x, y, ... other position variables are not the positions per spike, but instead the tracked positions!
+        # num_flattened_spikes: 16318817
+
         # flattened_spike_identities = flattened_spike_identities[flattened_sort_indicies],
         # flattened_spike_times = flattened_spike_times[flattened_sort_indicies],
-            
-    
+
         # Determine the x and y positions each spike occured for each cell
         # spike_positions_list = build_spike_positions_list(session.neurons.spiketrains, t, x, y)
-
         num_flattened_spikes = np.size(flattened_spike_times[flattened_sort_indicies])
+        print('len(t): {}'.format(len(t)))
+        print('len(speeds): {}'.format(len(speeds)))
         print('num_flattened_spikes: {}'.format(num_flattened_spikes))
 
         spikes_df = pd.DataFrame({'flat_spike_idx': np.arange(num_flattened_spikes),
             't_seconds':flattened_spike_times[flattened_sort_indicies],
             'aclu':flattened_spike_identities[flattened_sort_indicies],
-            'x':x, 'y':y, 'speed':speeds, 'linear_pos':linear_pos}
+            'unit_id': np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]),
+            }
         )
         
+        # flattened_spike_active_unitIdentities = np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]) # since flattened_spike_identities[flattened_sort_indicies] is already sorted, don't double sort
+        
+        ## TODO: is flattened_spike_active_unitIdentities needed?
+        # spikes_df['active_unitIdentities'] = flattened_spike_active_unitIdentities
+        
+    
+        # _temp = np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in sess.neurons.neuron_ids])
+        # spikes_df['cell_type'] = [session.neurons.neuron_type[_temp[a_spike_unit_id]] for a_spike_unit_id in spikes_df['aclu'].values]
+    
+        # 'x':x, 'y':y, 'speed':speeds, 'linear_pos':linear_pos
         # 't':flattened_sort_indicies,
-        
-        
+
         # def build_spike_positions_list(spike_list, t, x, y):
         # Determine the x and y positions each spike occured for each cell
+
+        print('__default_compute_bapun_flattened_spikes(session): interpolating {} position values over {} spike timepoints. This may take a minute...'.format(len(t), num_flattened_spikes))
+        ## TODO: spike_positions_list is in terms of cell_ids for some reason, maybe it's temporary?
         num_cells = len(spike_list)
         spike_positions_list = list()
         for cell_id in np.arange(num_cells):
-            spike_positions_list.append(np.vstack((np.interp(spike_list[cell_id], t, x), np.interp(spike_list[cell_id], t, y))))
+            spike_positions_list.append(np.vstack((np.interp(spike_list[cell_id], t, x), np.interp(spike_list[cell_id], t, y), np.interp(spike_list[cell_id], t, linear_pos), np.interp(spike_list[cell_id], t, speeds))))
             # spike_positions_list.append(np.hstack(x[spike_list[cell_id]], y[spike_list[cell_id]]))
             # spike_speed = speeds[spike_list[cell_id]]
         # return spike_positions_list
-        
+
         # Gets the flattened spikes, sorted in ascending timestamp for all cells.
-        # num_flattened_spikes = np.size(flattened_spike_times[flattened_sort_indicies])
-        # print('num_flattened_spikes: {}'.format(num_flattened_spikes))
         # Build the Active UnitIDs
-        flattened_spike_active_unitIdentities = np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]) # since flattened_spike_identities[flattened_sort_indicies] is already sorted, don't double sort
+        
+        # reverse_cellID_idx_lookup_map: get the current filtered index for this cell given using reverse_cellID_idx_lookup_map
+        
         ## Build the flattened spike positions list
         flattened_spike_positions_list = np.concatenate(tuple(spike_positions_list), axis=1) # needs tuple(...) to conver the list into a tuple, which is the format it expects
         flattened_spike_positions_list = flattened_spike_positions_list[:, flattened_sort_indicies] # ensure the positions are ordered the same as the other flattened items so they line up
         print('flattened_spike_positions_list: {}'.format(np.shape(flattened_spike_positions_list))) # (2, 19647)
 
+        spikes_df['x'] = flattened_spike_positions_list[0, :]
+        spikes_df['y'] = flattened_spike_positions_list[1, :]
+        spikes_df['linear_pos'] = flattened_spike_positions_list[2, :]
+        spikes_df['speed'] = flattened_spike_positions_list[3, :]
+        
+        # spikes_df['qclu'] = session.neurons.neuron_type[reverse_cellID_idx_lookup_map[spikes_df['aclu']] ]
+
+        # flattened_spike_active_unitIdentities = np.array([int(reverse_cellID_idx_lookup_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]) # since flattened_spike_identities[flattened_sort_indicies] 
+
+        # still needs: 'cell_type', 'lap', and maybe 't' to match the Diba format.
+        # note that the 'x', 'y' columns in the Diba df seem to be bound between 0.0-1.0 but this currently produces values like -50.946354 for x
+        # spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
+
+        # add times in seconds both to the dict and the spikes_df under a new key:
+        # spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
+        spikes_df['t'] = spikes_df['t_seconds'] / timestamp_scale_factor
+        # spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
         session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, t_start=t_start) # FlattenedSpiketrains(spikes_df)
+        print('\t Done!')
         
         return session
     
@@ -366,7 +388,7 @@ class DataSessionLoader:
         session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
         
         ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
-        # session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
+        session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
         
         # Load or compute linear positions if needed:        
         if (not session.position.has_linear_pos):
