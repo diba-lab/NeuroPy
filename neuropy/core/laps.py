@@ -53,3 +53,11 @@ class Laps(SimplePrintable, DataWriter):
         #     simple_dict['neurons'] = simple_dict['neurons'].to_dict()        
         return simple_dict
     
+
+    # def time_slice(self, t_start=None, t_stop=None):
+    #     # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+    #     flattened_spiketrains = deepcopy(self)
+    #     included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
+    #     return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
+        
+        
