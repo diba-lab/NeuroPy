@@ -278,7 +278,7 @@ class TimeFrequency(core.Signal):
         return self.theta / self.deltaplus
 
 
-def hilbertfast(signal, ax=-1):
+def hilbertfast(arr, ax=-1):
 
     """inputs a signal does padding to next power of 2 for faster computation of hilbert transform
 
@@ -288,10 +288,10 @@ def hilbertfast(signal, ax=-1):
     Returns:
         [type] -- [description]
     """
-    signal_length = signal.shape[-1]
-    hilbertsig = sg.hilbert(signal, fftpack.next_fast_len(signal_length), axis=ax)
+    signal_length = arr.shape[-1]
+    hilbertsig = sg.hilbert(arr, fftpack.next_fast_len(signal_length), axis=ax)
 
-    if np.ndim(signal) > 1:
+    if np.ndim(arr) > 1:
         hilbertsig = hilbertsig[:, :signal_length]
     else:
         hilbertsig = hilbertsig[:signal_length]
