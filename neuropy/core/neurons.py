@@ -18,6 +18,7 @@ class Neurons(DataWriter):
         neuron_ids=None,
         neuron_type=None,
         waveforms=None,
+        waveforms_amplitude=None,
         peak_channels=None,
         shank_ids=None,
         metadata=None,
@@ -34,6 +35,14 @@ class Neurons(DataWriter):
             assert (
                 waveforms.shape[0] == self.n_neurons
             ), "Waveforms first dimension should match number of neurons"
+
+        if waveforms_amplitude is not None:
+            assert len(waveforms_amplitude) == len(
+                self.spiketrains
+            ), "length should match"
+            self.waveforms_amplitude = waveforms_amplitude
+        else:
+            self.waveforms_amplitude = None
 
         self.waveforms = waveforms
         self.shank_ids = shank_ids
@@ -56,6 +65,11 @@ class Neurons(DataWriter):
         else:
             waveforms = self.waveforms
 
+        if self.waveforms_amplitude is not None:
+            waveforms_amplitude = self.waveforms_amplitude[i]
+        else:
+            waveforms_amplitude = self.waveforms_amplitude
+
         if self.peak_channels is not None:
             peak_channels = self.peak_channels[i]
         else:
@@ -74,6 +88,7 @@ class Neurons(DataWriter):
             neuron_ids=self.neuron_ids[i],
             neuron_type=neuron_type,
             waveforms=waveforms,
+            waveforms_amplitude=waveforms_amplitude,
             peak_channels=peak_channels,
             shank_ids=shank_ids,
         )
@@ -161,6 +176,7 @@ class Neurons(DataWriter):
             "neuron_ids": self.neuron_ids,
             "neuron_type": self.neuron_type,
             "waveforms": self.waveforms,
+            "waveforms_amplitude": self.waveforms_amplitude,
             "peak_channels": self.peak_channels,
             "shank_ids": self.shank_ids,
             "metadata": self.metadata,
@@ -169,15 +185,19 @@ class Neurons(DataWriter):
     @staticmethod
     def from_dict(d):
 
+        if "waveforms_amplitude" not in d:
+            d["waveforms_amplitude"] = None
+
         return Neurons(
-            d["spiketrains"],
-            d["t_stop"],
-            d["t_start"],
-            d["sampling_rate"],
-            d["neuron_ids"],
-            d["neuron_type"],
-            d["waveforms"],
-            d["peak_channels"],
+            spiketrains=d["spiketrains"],
+            t_stop=d["t_stop"],
+            t_start=d["t_start"],
+            sampling_rate=d["sampling_rate"],
+            neuron_ids=d["neuron_ids"],
+            neuron_type=d["neuron_type"],
+            waveforms=d["waveforms"],
+            waveforms_amplitude=d["waveforms_amplitude"],
+            peak_channels=d["peak_channels"],
             shank_ids=d["shank_ids"],
             metadata=d["metadata"],
         )
