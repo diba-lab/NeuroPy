@@ -5,22 +5,11 @@ from pathlib import Path
 class DataWriter:
     def __init__(self, metadata: dict = None) -> None:
 
-        self._filename = None
-
         if metadata is not None:
             assert isinstance(metadata, dict), "Only dictionary accepted as metadata"
             self._metadata: dict = metadata
         else:
             self._metadata: dict = {}
-
-    @property
-    def filename(self):
-        return self._filename
-
-    @filename.setter
-    def filename(self, f):
-        assert isinstance(f, (str, Path))
-        self._filename = f
 
     @property
     def metadata(self):
@@ -48,20 +37,9 @@ class DataWriter:
     def to_dict(self):
         return NotImplementedError
 
-    def save(self):
+    def save(self, fp):
 
+        assert isinstance(fp, (str, Path)), "filename is invalid"
         data = self.to_dict()
-        if self.filename is not None:
-            assert isinstance(self.filename, Path)
-            np.save(self.filename, data)
-            print(f"{self.filename.name} saved")
-        else:
-            print("filename can not be None")
-
-    def delete_file(self):
-        self.filename.unlink()
-
-        print("file removed")
-
-    def create_backup(self):
-        pass
+        np.save(fp, data)
+        print(f"{fp} saved")
