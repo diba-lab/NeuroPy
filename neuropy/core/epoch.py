@@ -5,7 +5,7 @@ from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol
 
 
-class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):
+class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
     """ A simple named period of time with a known start and end time """
     def __init__(self, name, start_end_times):
         self.name = name
@@ -68,6 +68,11 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
 
     def get_unique_labels(self):
         return np.unique(self.labels)
+    
+    
+    def get_named_timerange(self, epoch_name):
+        return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
+
 
     def to_dict(self, recurrsively=False):
         d = {"epochs": self._data, "metadata": self.metadata}

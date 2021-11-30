@@ -2,16 +2,10 @@ import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
-from pandas.core import base
-# from neuropy.core.session.data_session_loader import DataSessionLoader
-
-
+from neuropy.core.epoch import NamedTimerange
 
 # Local imports:
 ## Core:
-from neuropy.io import NeuroscopeIO, BinarysignalIO # from neuropy.io import NeuroscopeIO, BinarysignalIO
-
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
@@ -122,7 +116,36 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         copy_sess.neurons = self.neurons.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         copy_sess.flattened_spiketrains = self.flattened_spiketrains.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         return copy_sess
+    def get_named_epoch_timerange(self, epoch_name):
+        if isinstance(epoch_name, str):            
+            # convert the epoch_name string to a NamedTimerange object, get its time from self.epochs
+            active_custom_named_epoch = NamedTimerange(name=epoch_name, start_end_times=self.epochs[epoch_name])
+            return active_custom_named_epoch
+        return None
+ 
     
+
+    ## filtered_by_* functions:
+    
+    def filtered_by_time_slice(self, t_start=None, t_stop=None):
+        return self.time_slice(t_start, t_stop)
+        
+    def filtered_by_neuron_type(self, query_neuron_type):
+        return self.get_neuron_type(query_neuron_type)
+    
+    def filtered_by_epoch(self, epoch_specifier):
+        if isinstance(epoch_specifier, str):            
+            # convert the epoch_name string to a NamedTimerange object, get its time from self.epochs
+            active_custom_named_epoch = NamedTimerange(name=epoch_specifier, start_end_times=self.epochs[epoch_specifier])
+            return self.filtered_by_named_timerange(active_custom_named_epoch)
+        elif isinstance(epoch_specifier, NamedTimerange):
+            return self.filtered_by_named_timerange(epoch_specifier)
+        else:
+            raise TypeError
+
+
+    def filtered_by_named_timerange(self, custom_named_timerange_obj: NamedTimerange):
+        return self.time_slice(custom_named_timerange_obj.t_start, custom_named_timerange_obj.t_stop)
     
 
     # for NeuronUnitSlicableObjectProtocol:

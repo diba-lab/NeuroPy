@@ -10,7 +10,7 @@ from pandas.core import base
 # from .neurons import NeuronType, Neurons, BinnedSpiketrain, Mua
 # from .probe import ProbeGroup
 # from .position import Position
-# from .epoch import Epoch #, NamedEpoch
+# from .epoch import Epoch #, NamedTimerange
 # from .signal import Signal
 # from .laps import Laps
 # from .flattened_spiketrains import FlattenedSpiketrains
