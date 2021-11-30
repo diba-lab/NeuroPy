@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from .placefields import PF1d, PF2d
 from .. import core
-from ..utils import mathutil
+from neuropy.utils import mathutil
 
 
 def epochs_spkcount(

@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from ..utils import mathutil, signal_process
+from neuropy.utils import mathutil, signal_process
 from scipy import stats
 from ..core import Signal, ProbeGroup, Epoch
 

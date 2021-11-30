@@ -1,12 +1,12 @@
 import numpy as np
-from ..utils import mathutil
+from neuropy.utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
-from ..utils.load_exported import import_mat_file 
-from ..utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.load_exported import import_mat_file 
+from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 
 class Position(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(

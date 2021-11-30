@@ -1,5 +1,5 @@
 import numpy as np
-from ..utils import mathutil
+from neuropy.utils import mathutil
 from . import DataWriter
 
 

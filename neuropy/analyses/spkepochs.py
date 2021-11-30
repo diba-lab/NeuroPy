@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from ..utils import mathutil
+from neuropy.utils import mathutil
 from .. import core
 
 

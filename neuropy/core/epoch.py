@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
-from ..utils.mixins.print_helpers import SimplePrintable, OrderedMeta
-from ..utils.mixins.time_slicing import TimeSlicableObjectProtocol
+from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol
 
 
 class NamedEpoch(SimplePrintable, metaclass=OrderedMeta):

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 from .. import core
-from ..utils import mathutil
+from neuropy.utils import mathutil
 from .figure import Fig
 
 

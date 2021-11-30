@@ -4,8 +4,8 @@ from copy import deepcopy
 
 
 from .datawriter import DataWriter
-from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
-from ..utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
 from .neurons import NeuronType
 

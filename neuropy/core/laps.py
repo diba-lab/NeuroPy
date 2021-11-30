@@ -1,11 +1,12 @@
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 from .datawriter import DataWriter
 
-from ..utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
-from ..utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
 ## Import:
 # from neuropy.core.laps import Laps
@@ -54,10 +55,10 @@ class Laps(SimplePrintable, DataWriter):
         return simple_dict
     
 
-    # def time_slice(self, t_start=None, t_stop=None):
-    #     # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-    #     flattened_spiketrains = deepcopy(self)
-    #     included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
-    #     return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
+    def time_slice(self, t_start=None, t_stop=None):
+        # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+        laps_obj = deepcopy(self)
+        included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
+        return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
         
         

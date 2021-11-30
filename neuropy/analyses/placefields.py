@@ -8,7 +8,7 @@ from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
 from .. import core
-from ..utils.signal_process import ThetaParams
+from neuropy.utils.signal_process import ThetaParams
 from .. import plotting
 
 

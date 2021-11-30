@@ -5,7 +5,7 @@ from sklearn.manifold import Isomap
 from scipy.ndimage import gaussian_filter1d
 
 from .. import core
-from ..utils.mathutil import contiguous_regions, threshPeriods
+from neuropy.utils.mathutil import contiguous_regions, threshPeriods
 
 
 def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):

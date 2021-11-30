@@ -6,6 +6,7 @@ from .probe import Shank, Probe, ProbeGroup
 from .signal import Signal
 from .ratemap import Ratemap
 from .animal import Animal
-from .dataSession import DataSessionLoader, DataSession, processDataSession
+# from .session.data_session_loader import DataSessionLoader
+# from .session.dataSession import DataSession, processDataSession
 from .laps import Laps
 from .flattened_spiketrains import FlattenedSpiketrains
