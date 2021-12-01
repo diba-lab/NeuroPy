@@ -119,6 +119,17 @@ class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectP
         included_df = flattened_spiketrains.spikes_df[(flattened_spiketrains.spikes_df.cell_type == query_neuron_type)]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
         
+        
+    @staticmethod
+    def interpolate_spike_positions(spikes_df, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None, spike_timestamp_column_name='t_seconds'):
+        spikes_df['x'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_x)
+        spikes_df['y'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_y)
+        if position_linear_pos is not None:
+            spikes_df['linear_pos'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_linear_pos)
+        if position_speeds is not None:
+            spikes_df['speed'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_speeds)
+        return spikes_df
+        
     @staticmethod
     def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4)):
         flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
@@ -156,10 +167,12 @@ class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectP
         # flattened_spike_positions_list = flattened_spike_positions_list[:, flattened_sort_indicies] # ensure the positions are ordered the same as the other flattened items so they line up
         # ## flattened_spike_positions_list = np.vstack((np.interp(spike_list[cell_id], t, x), np.interp(spike_list[cell_id], t, y), np.interp(spike_list[cell_id], t, linear_pos), np.interp(spike_list[cell_id], t, speeds))
         
-        spikes_df['x'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.x)
-        spikes_df['y'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.y)
-        spikes_df['linear_pos'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.linear_pos)
-        spikes_df['speed'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.speed)
+        # spikes_df['x'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.x)
+        # spikes_df['y'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.y)
+        # spikes_df['linear_pos'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.linear_pos)
+        # spikes_df['speed'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.speed)
+        spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, active_session.position.time, active_session.position.x, active_session.position.y, position_linear_pos=active_session.position.linear_pos, position_speeds=active_session.position.speed, spike_timestamp_column_name='t_seconds')
+    
         
         ## TODO: you could reconstruct flattened_spike_positions_list if you wanted.         
         # print('flattened_spike_positions_list: {}'.format(np.shape(flattened_spike_positions_list))) # (2, 19647)
