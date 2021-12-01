@@ -105,6 +105,7 @@ class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectP
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
     
 
+    
     def get_neuron_type(self, query_neuron_type):
         """ filters self by the specified query_neuron_type, only returning neurons that match. """
         if isinstance(query_neuron_type, NeuronType):
