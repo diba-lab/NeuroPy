@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from .. import core
 from neuropy.utils.signal_process import ThetaParams
 from .. import plotting
-
+from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 
 
 def perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, computation_config, active_epoch_placefields1D=None, active_epoch_placefields2D=None, should_force_recompute_placefields=True):
@@ -105,7 +105,7 @@ def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D,
 
     
 
-class Pf1D:
+class Pf1D(SimplePrintable):
     def __init__(
         self,
         neurons: core.Neurons,
@@ -321,7 +321,7 @@ class Pf1D:
 
 
 
-class Pf2D:
+class Pf2D(SimplePrintable):
     def __init__(
         self,
         neurons: core.Neurons,
@@ -636,7 +636,7 @@ class Pf2D:
 
 
 
-class PF1d:
+class PF1d(SimplePrintable):
     def compute(
         self,
         track_name,
@@ -820,7 +820,7 @@ class PF1d:
 
 
 ## Old:
-class PF2d:
+class PF2d(SimplePrintable):
     # def __init__(self, basepath, **kwargs):
     #     if isinstance(basepath, Recinfo):
     #         self._obj = basepath
