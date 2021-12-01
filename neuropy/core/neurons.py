@@ -507,6 +507,10 @@ class BinnedSpiketrain(DataWriter):
 
         return corr[pairs_bool]
 
+    @property
+    def firing_rate(self):
+        return self.spike_counts / self.bin_size
+
 
 class Mua(DataWriter):
     def __init__(

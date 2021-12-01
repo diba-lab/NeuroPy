@@ -10,7 +10,6 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 from tqdm import tqdm
 
-from .placefields import PF1d, PF2d
 from .. import core
 from ..utils import mathutil
 
@@ -45,6 +44,14 @@ def epochs_spkcount(
         spkcount_ = np.asarray(
             [np.histogram(_, bins=bins)[0] for _ in neurons.spiketrains]
         )
+
+        # if signficant portion at end of epoch is not included then append zeros
+        # if (frac := epoch.duration / bin_size % 1) > 0.7:
+        #     extra_columns = int(100 * (1 - frac))
+        #     spkcount_ = np.hstack(
+        #         (spkcount_, np.zeros((neurons.n_neurons, extra_columns)))
+        #     )
+
         slide_view = np.lib.stride_tricks.sliding_window_view(
             spkcount_, int(bin_size * 1000), axis=1
         )[:, :: int(slideby * 1000), :].sum(axis=2)
@@ -100,9 +107,10 @@ class Decode1d:
             cell_prob[:, :, cell] = (((tau * cell_ratemap) ** cell_spkcnt) * coeff) * (
                 np.exp(-tau * cell_ratemap)
             )
-
+        old_settings = np.seterr(all="ignore")
         posterior = np.prod(cell_prob, axis=2)
         posterior /= np.sum(posterior, axis=0)
+        np.seterr(**old_settings)
 
         return posterior
 
@@ -126,7 +134,7 @@ class Decode1d:
             self.posterior = np.hsplit(posterior, cum_nbins)
             self.spkcount = spkcount
             self.nbins_epochs = nbins
-            self.score, _ = self.score_posterior(self.posterior)
+            self.score, self.slope = self.score_posterior(self.posterior)
 
         else:
             spkcount = self.neurons.get_binned_spiketrains(
@@ -143,17 +151,14 @@ class Decode1d:
         # print(f"Using {kind} shuffle")
 
         if method == "neuron_id":
-            posterior, score = [], []
-            for i in range(n_iter):
+            score = []
+            for i in tqdm(range(n_iter)):
                 tuning_curves = self.ratemap.tuning_curves.copy()
                 np.random.shuffle(tuning_curves)
                 post_ = self._decoder(np.hstack(self.spkcount), tuning_curves)
-                cum_nbins = np.cumsum(self.nbins_epochs)[::-1]
-                posterior.extend(np.hsplit(post_, cum_nbins))
-
-            score = self.score_posterior(posterior)[0]
-            score = score.reshape(n_iter, len(self.spkcount))
-
+                cum_nbins = np.cumsum(self.nbins_epochs)[:-1]
+                score.append(self.score_posterior(np.hsplit(post_, cum_nbins))[0])
+            score = np.asarray(score)
         if method == "column":
 
             def col_shuffle(mat):
@@ -269,7 +274,7 @@ class Decode1d:
 
 
 class Decode2d:
-    def __init__(self, pf2d_obj: PF2d):
+    def __init__(self):
 
         assert isinstance(pf2d_obj, PF2d)
         self._obj = pf2d_obj._obj

@@ -3,14 +3,15 @@ import pathlib
 from pathlib import Path
 
 class DataWriter:
-    def __init__(self, metadata=None) -> None:
+    def __init__(self, metadata: dict = None) -> None:
 
         self._filename = None
 
         if metadata is not None:
             assert isinstance(metadata, dict), "Only dictionary accepted as metadata"
-
-        self._metadata: dict = metadata
+            self._metadata: dict = metadata
+        else:
+            self._metadata: dict = {}
 
     @property
     def filename(self):
