@@ -543,13 +543,8 @@ class DataSessionLoader:
         
         # spikes_df.t.min() # 88
         # spikes_df.t.max() # 68624338
-        # epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, spikes_df.t.max()],'label':['pre','maze','post']})
-        # epochs_df = pd.DataFrame({'start':[session.neurons.t_start, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
         epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
-        
-        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
-        # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
-        session.paradigm = Epoch(epochs=epochs_df)
+        session.paradigm = Epoch(epochs=epochs_df)  # "epoch" field 
         
         # return the session with the upadated member variables
         return session

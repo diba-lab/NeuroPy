@@ -347,7 +347,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     #         flattened_spike_times[sorted_indicies],
     #         t_start=self.t_start
     #     )
-
+    
     @property
     def n_spikes(self):
         "number of spikes within each spiketrain"
