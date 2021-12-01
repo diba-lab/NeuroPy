@@ -467,7 +467,12 @@ class DataSessionLoader:
         session_name = session.name
         print('\t basepath: {}\n\t session_name: {}'.format(basepath, session_name)) # session_name: 2006-6-08_14-26-15
 
-
+        # *vt.mat file Position and Epoch:
+        # session = DataSessionLoader.default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session)
+    
+        # IIdata.mat file Position and Epoch:
+        session = DataSessionLoader.__default_kdiba_exported_load_mats(basepath, session_name, session)
+        
         ## .spikeII.mat file:
         spikes_df, flat_spikes_out_dict = DataSessionLoader.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
         # active_time_variable_name = 't' # default
@@ -476,11 +481,10 @@ class DataSessionLoader:
         ## Testing: Fixing spike positions
         spikes_df['x_loaded'] = spikes_df['x']
         spikes_df['y_loaded'] = spikes_df['y']
-        spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name='t_seconds')
+        spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=active_time_variable_name)
          
-        # add the flat spikes to the session so they don't have to be recomputed:
-        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df)
-        
+
+
         ## Laps:
         session = DataSessionLoader.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
         
@@ -488,12 +492,9 @@ class DataSessionLoader:
         session = DataSessionLoader.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
         
-        # *vt.mat file Position and Epoch:
-        # session = DataSessionLoader.default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session)
         
-        # IIdata.mat file Position and Epoch:
-        session = DataSessionLoader.__default_kdiba_exported_load_mats(basepath, session_name, session)
-        
+    
+                
         # Load or compute linear positions if needed:
         try:
             session = DataSessionLoader._default_compute_linear_position_if_needed(session)
@@ -506,6 +507,10 @@ class DataSessionLoader:
             print('session.position linear positions computed!')
             pass
 
+
+        # add the flat spikes to the session so they don't have to be recomputed:
+        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df)
+        
         # Common Extended properties:
         # session = DataSessionLoader.default_extended_postload(fp, session)
         session.is_loaded = True # indicate the session is loaded
@@ -705,5 +710,14 @@ class DataSessionLoader:
             neuron_type=cell_type,
             shank_ids=shank_ids
         )
+        ## Ensure we have the 'unit_id' field, and if not, compute it        
+        try:
+            test = spikes_df['unit_id']
+        except KeyError as e:
+            # build the valid key for unit_id:
+            spikes_df['unit_id'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
+
+
+
         return session
 

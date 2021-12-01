@@ -129,6 +129,8 @@ class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectP
         if position_speeds is not None:
             spikes_df['speed'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_speeds)
         return spikes_df
+    
+    
         
     @staticmethod
     def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4)):
