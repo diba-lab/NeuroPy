@@ -4,12 +4,14 @@ from neuropy.utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 
-from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
+
 from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
 from neuropy.utils.load_exported import import_mat_file 
 from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
+
 
 class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(
