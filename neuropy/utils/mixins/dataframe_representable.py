@@ -9,5 +9,6 @@ class DataFrameInitializable:
 	def from_dataframe(cls, df):
 		raise NotImplementedError
 
-
-
+class DataFrameRepresentable(DataFrameInitializable):
+	def to_dataframe(self):
+		raise NotImplementedError
