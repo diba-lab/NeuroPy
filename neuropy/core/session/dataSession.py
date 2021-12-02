@@ -167,7 +167,9 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
                  eegfile = d['eegfile'], datfile = d['datfile'],
                  neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
-                 ripple = d.get('ripple', None), mua = d.get('mua', None), flattened_spiketrains = d.get('flattened_spiketrains', None))
+                 ripple = d.get('ripple', None), mua = d.get('mua', None), 
+                 laps= d.get('laps', None),
+                 flattened_spiketrains = d.get('flattened_spiketrains', None))
 
         
     def to_dict(self, recurrsively=False):
