@@ -1,8 +1,13 @@
 import sys
+from typing import Sequence, Union
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from neuropy.core import neurons
 from neuropy.core.epoch import NamedTimerange
+from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
+from neuropy.core.position import Position
+from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
 # Local imports:
 ## Core:
@@ -11,7 +16,7 @@ from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableO
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
         
 
-class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol):
+class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
@@ -226,9 +231,46 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSli
         print('done.\n')
         return pbe
     # sess.pbe = compute_pbe_epochs(sess)
+    
+    # ## TODO: needs neuropy! Specifically: from neuropy.analyses import Pf1D, Pf2D, perform_compute_placefields, plot_all_placefields
+    # @staticmethod
+    # def compute_placefields_as_needed(active_session, computation_config=None, active_epoch_placefields1D = None, active_epoch_placefields2D = None, should_force_recompute_placefields=False, should_display_2D_plots=False):
+    #     if computation_config is None:
+    #         computation_config = PlacefieldComputationParameters(speed_thresh=9, grid_bin=2, smooth=0.5)
+    #     active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_session.neurons, active_session.position, computation_config, active_epoch_placefields1D, active_epoch_placefields2D, should_force_recompute_placefields=True)
+    #     # Plot the placefields computed and save them out to files:
+    #     if should_display_2D_plots:
+    #         ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config)
+    #     else:
+    #         print('skipping 2D placefield plots')
+    #     return active_epoch_placefields1D, active_epoch_placefields2D
 
 
-
+    # ConcatenationInitializable protocol:
+    @classmethod
+    def concat(cls, objList: Union[Sequence, np.array]):
+        print('!! WARNING: Session.concat(...) is not yet fully implemented, meaning the returned session is not fully valid. Continue with caution.') 
+        new_neurons = neurons.Neurons.concat([aSession.neurons for aSession in objList])
+        new_position = Position.concat([aSession.position for aSession in objList])
+        new_flattened_spiketrains = FlattenedSpiketrains.concat([aSession.flattened_spiketrains for aSession in objList])
+        
+        # TODO: eegfile, datfile, recinfo, filePrefix should all be checked to ensure they're the same, and if they aren't, should be set to None
+        # TODO: probegroup, paradigm should be checked to ensure that they're the same for all, and an exception should occur if they differ
+        # TODO: ripple, mua, and maybe others should be concatenated themselves once that functionality is implemented.
+        
+        return cls(objList[0].config, filePrefix = objList[0].filePrefix, recinfo = objList[0].recinfo,
+                 eegfile = objList[0].eegfile, datfile = objList[0].datfile,
+                 neurons = new_neurons, probegroup = objList[0].probegroup, position = new_position, paradigm = objList[0].paradigm,
+                 ripple = None, mua = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
+    
+    
+    def filtered_by_laps(self, lap_indicies=None):
+        """ Returns a copy of this session with all of its members filtered by the laps.
+        """
+        if lap_indicies is None:
+            lap_indices = np.arange(self.laps.n_laps) # all laps by default
+        raise NotImplementedError
+    
 # # Helper function that processed the data in a given directory
 # def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
 #     # sess = DataSession(basedir)

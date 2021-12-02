@@ -5,7 +5,7 @@ from copy import deepcopy
 from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
-# from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
+from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from .neurons import NeuronType
 
 
