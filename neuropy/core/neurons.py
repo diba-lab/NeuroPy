@@ -130,7 +130,10 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         if neuron_ids is None:
             self._neuron_ids = np.arange(len(self.spiketrains))
         else:
+            if neuron_ids is int:
+                neuron_ids = [neuron_ids] # if it's a single element, wrap it in a list.
             self._neuron_ids = np.array([int(cell_id) for cell_id in neuron_ids]) # ensures integer indexes for IDs
+            
         self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(self.neuron_ids)
         
         if waveforms is not None:
@@ -182,6 +185,8 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     @neuron_type.setter
     def neuron_type(self, value):
         if value is not None:
+            if value is int:
+                value = [value] # if it's a single element, wrap it in a list.
             if len(value) > 0:
                 # check to see if the neuron_type is the correct class (should be NeuronType) by checking the first element
                 if isinstance(value[0], NeuronType):
@@ -200,6 +205,10 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
 
 
     def __getitem__(self, i):
+        if i >= len(self):
+            raise IndexError
+    
+        # print('Neuron.__getitem__(i: {}): \n\t n_neurons: {}'.format(i, self.n_neurons))
         # copy object
         spiketrains = self.spiketrains[i]
         if self.neuron_type is not None:
@@ -461,27 +470,42 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     @classmethod
     def concat(cls, objList: Iterable):
         """ Concatenates the object list along the time axis """
-        objList = np.array(objList)
+        # objList = np.array(objList)
         t_start_times = np.array([obj.t_start for obj in objList])
         
         num_neurons_list = np.array([obj.n_neurons for obj in objList])
         #  test if all num_neurons are equal 
         assert np.array_equal(num_neurons_list, np.full_like(num_neurons_list, num_neurons_list[0])), " All objects must have the same number of neurons to be concatenated. The concatenation only occurs in respect to time."
-        
+        num_neurons = num_neurons_list[0]
         sort_idx = list(np.argsort(t_start_times))
         # print(sort_idx)
         # sort the objList by t_start
-        objList = objList[sort_idx]
+        # objList = objList[sort_idx]
+        
+        objList = [objList[i] for i in sort_idx]
+        
+        new_neuron_ids = objList[0].neuron_ids
         
         # Concatenate the elements:
-        spiketrains_list = np.concatenate([obj.spiketrains for obj in objList], axis=1)
+        # spiketrains_list = np.concatenate([obj.spiketrains for obj in objList], axis=1)
         
-        return cls(
+        # spiketrains_list = np.hstack([obj.spiketrains for obj in objList])
+        spiketrains_list = list()
+        
+        for neuron_idx in np.arange(num_neurons):
+            curr_neuron_spiketrains_list = np.concatenate([obj.spiketrains[neuron_idx] for obj in objList], axis=0)
+            spiketrains_list.append(curr_neuron_spiketrains_list)
+            
+            # for obj_idx in np.arange(len(objList)):
+            # # spiketrains_list[i] =  np.concatenate([obj.spiketrains for obj in objList], axis=0)
+            # spiketrains_list.append(np.concatenate([obj.spiketrains[neuron_idx] for neuron_idx in np.arange(num_neurons)], axis=0))
+        
+        return Neurons(
             spiketrains=spiketrains_list,
             t_stop=objList[-1].t_stop,
             t_start=objList[0].t_start,
             sampling_rate=objList[0].sampling_rate,
-            neuron_ids=objList[0].neuron_ids,
+            neuron_ids=new_neuron_ids,
             neuron_type=objList[0].neuron_type,
             waveforms=objList[0].waveforms,
             peak_channels=objList[0].peak_channels,
