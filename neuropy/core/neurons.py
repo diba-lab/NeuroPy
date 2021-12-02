@@ -1,3 +1,4 @@
+from typing import Iterable
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
@@ -10,6 +11,8 @@ from copy import deepcopy
 from enum import Enum, unique, IntEnum
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+
+from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
 
 @unique
@@ -103,7 +106,7 @@ class NeuronType(Enum):
         
 
     
-class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
+class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, ConcatenationInitializable, DataWriter):
     """Class to hold a group of spiketrains and their labels, ids etc."""
 
     def __init__(
@@ -297,38 +300,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def __len__(self):
         return self.n_neurons
 
-    def to_dict(self, recurrsively=False):
-
-        # self._check_integrity()
-
-        return {
-            "spiketrains": self.spiketrains,
-            "t_stop": self.t_stop,
-            "t_start": self.t_start,
-            "sampling_rate": self.sampling_rate,
-            "neuron_ids": self.neuron_ids,
-            "neuron_type": self.neuron_type,
-            "waveforms": self.waveforms,
-            "peak_channels": self.peak_channels,
-            "shank_ids": self.shank_ids,
-            "metadata": self.metadata,
-        }
-
-    @staticmethod
-    def from_dict(d):
-        return Neurons(
-            d["spiketrains"],
-            d["t_stop"],
-            d["t_start"],
-            d["sampling_rate"],
-            d["neuron_ids"],
-            d["neuron_type"],
-            d["waveforms"],
-            d["peak_channels"],
-            shank_ids=d["shank_ids"],
-            metadata=d["metadata"],
-        )
-
 
     def add_metadata(self):
         pass
@@ -450,6 +421,73 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     #     """Get peri-stimulus time histograms w.r.t time points in t"""
 
     #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
+
+    # DictionaryRepresentable Protocol:
+    def to_dict(self, recurrsively=False):
+
+        # self._check_integrity()
+
+        return {
+            "spiketrains": self.spiketrains,
+            "t_stop": self.t_stop,
+            "t_start": self.t_start,
+            "sampling_rate": self.sampling_rate,
+            "neuron_ids": self.neuron_ids,
+            "neuron_type": self.neuron_type,
+            "waveforms": self.waveforms,
+            "peak_channels": self.peak_channels,
+            "shank_ids": self.shank_ids,
+            "metadata": self.metadata,
+        }
+
+    @staticmethod
+    def from_dict(d):
+        return Neurons(
+            d["spiketrains"],
+            d["t_stop"],
+            d["t_start"],
+            d["sampling_rate"],
+            d["neuron_ids"],
+            d["neuron_type"],
+            d["waveforms"],
+            d["peak_channels"],
+            shank_ids=d["shank_ids"],
+            metadata=d["metadata"],
+        )
+
+
+
+    # ConcatenationInitializable protocol:
+    @classmethod
+    def concat(cls, objList: Iterable):
+        """ Concatenates the object list along the time axis """
+        objList = np.array(objList)
+        t_start_times = np.array([obj.t_start for obj in objList])
+        
+        num_neurons_list = np.array([obj.n_neurons for obj in objList])
+        #  test if all num_neurons are equal 
+        assert np.array_equal(num_neurons_list, np.full_like(num_neurons_list, num_neurons_list[0])), " All objects must have the same number of neurons to be concatenated. The concatenation only occurs in respect to time."
+        
+        sort_idx = list(np.argsort(t_start_times))
+        # print(sort_idx)
+        # sort the objList by t_start
+        objList = objList[sort_idx]
+        
+        # Concatenate the elements:
+        spiketrains_list = np.concatenate([obj.spiketrains for obj in objList], axis=1)
+        
+        return cls(
+            spiketrains=spiketrains_list,
+            t_stop=objList[-1].t_stop,
+            t_start=objList[0].t_start,
+            sampling_rate=objList[0].sampling_rate,
+            neuron_ids=objList[0].neuron_ids,
+            neuron_type=objList[0].neuron_type,
+            waveforms=objList[0].waveforms,
+            peak_channels=objList[0].peak_channels,
+            shank_ids=objList[0].shank_ids,
+            metadata=objList[0].metadata
+        )
 
 
 
@@ -695,3 +733,5 @@ class Mua(DataWriter):
 
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "spike_counts": self.spike_counts})
+
+    

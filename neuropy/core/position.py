@@ -214,7 +214,7 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     # def __str__(self):
     #     return "From str method of Test: a is %s, b is %s" % (self.a, self.b)
     
-    
+    # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Iterable):
         """ Concatenates the object list """
