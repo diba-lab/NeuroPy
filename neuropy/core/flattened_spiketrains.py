@@ -10,7 +10,7 @@ from .neurons import NeuronType
 
 
 # class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
-class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
+class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold flattened spikes for all cells"""
     # flattened_sort_indicies: allow you to sort any naively flattened array (such as position info) using naively_flattened_variable[self.flattened_sort_indicies]
     def __init__(self, spikes_df: pd.DataFrame, t_start=0.0, metadata=None):
