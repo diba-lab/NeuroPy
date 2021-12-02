@@ -125,25 +125,14 @@ class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectP
     def concat(cls, objList: Union[Sequence, np.array]):
         """ Concatenates the object list """
         objList = np.array(objList)
-        # t_start_times = np.array([obj.t_start for obj in objList])
-        # sort_idx = list(np.argsort(t_start_times))
-        # # print(sort_idx)
-        # # sort the objList by t_start
-        # objList = objList[sort_idx]
-        
-        # new_t_start = objList[0].t_start # new t_start is the earliest t_start in the array
-        # new_sampling_rate = objList[0].sampling_rate
-        
-        # # Concatenate the elements:
-        # traces_list = np.concatenate([obj.traces for obj in objList], axis=1)
-        # computed_traces_list = np.concatenate([obj.computed_traces for obj in objList], axis=1)
-        
-        # return cls(
-        #     traces=traces_list,
-        #     computed_traces=computed_traces_list,
-        #     t_start=new_t_start,
-        #     sampling_rate=new_sampling_rate,
-        # )
+        t_start_times = np.array([obj.t_start for obj in objList])
+        sort_idx = list(np.argsort(t_start_times))
+        # sort the objList by t_start
+        objList = objList[sort_idx]
+        new_t_start = objList[0].t_start # new t_start is the earliest t_start in the array
+        # Concatenate the elements:
+        new_df = pd.concat([obj.to_dataframe() for obj in objList])
+        return FlattenedSpiketrains(new_df, t_start=new_t_start, metadata=objList[0].metadata)
         
         
         
