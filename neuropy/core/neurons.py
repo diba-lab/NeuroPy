@@ -23,6 +23,33 @@ class Neurons(DataWriter):
         shank_ids=None,
         metadata=None,
     ) -> None:
+        """Initializes the Neurons instance
+
+        Parameters
+        ----------
+        spiketrains : np.array/list of numpy arrays
+            each array contains spiketimes in seconds, 5 arrays for 5 neurons
+        t_stop : float
+            time when the recording was stopped
+        t_start : float, optional
+            start time for the recording/spike trains, by default 0.0
+        sampling_rate : int, optional
+            at what sampling rate the spike times were recorded, by default 1
+        neuron_ids : array, optional
+            id for each spiketrain/neuron, by default None
+        neuron_type : array of strings, optional
+            what neuron type, by default None
+        waveforms : (n_neurons x n_channels x n_timepoints), optional
+            waveshape for each neuron, by default None
+        waveforms_amplitude : list/array of arrays, optional
+            the number of arrays should match spiketrains, each value gives scaling factor used for template waveform to extract that spike, by default None
+        peak_channels : array, optional
+            peak channel for waveform, by default None
+        shank_ids : array of int, optional
+            which shank of the probe each spiketrain was recorded from, by default None
+        metadata : dict, optional
+            any additional metadata, by default None
+        """
         super().__init__(metadata=metadata)
 
         self.spiketrains = np.array(spiketrains, dtype="object")
