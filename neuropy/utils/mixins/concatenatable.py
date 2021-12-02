@@ -1,13 +1,12 @@
 # concatenatable.py
-
-from typing import Iterable
-from typing import Iterable
+import numpy as np
+from typing import Sequence, Union
 
 class ConcatenationInitializable:
 	""" Implementors can be meaningfully concatenated together to produce a combined object of the same type
 	"""
 	@classmethod
-	def concat(cls, objList: Iterable):
+	def concat(cls, objList: Union[Sequence, np.array]):
 		"""Designed after Pandas `new_df = pd.concat([df1, df2, ...])` function.
 		Args:
 			objList (Iterable): a list of the objects to be concatenated

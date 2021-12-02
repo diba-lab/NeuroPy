@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Sequence, Union
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
@@ -468,7 +468,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
 
     # ConcatenationInitializable protocol:
     @classmethod
-    def concat(cls, objList: Iterable):
+    def concat(cls, objList: Union[Sequence, np.array]):
         """ Concatenates the object list along the time axis """
         # objList = np.array(objList)
         t_start_times = np.array([obj.t_start for obj in objList])

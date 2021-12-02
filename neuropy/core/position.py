@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Sequence, Union
 import numpy as np
 from neuropy.utils import mathutil
 import pandas as pd
@@ -216,7 +216,7 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     
     # ConcatenationInitializable protocol:
     @classmethod
-    def concat(cls, objList: Iterable):
+    def concat(cls, objList: Union[Sequence, np.array]):
         """ Concatenates the object list """
         objList = np.array(objList)
         t_start_times = np.array([obj.t_start for obj in objList])
