@@ -12,7 +12,7 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 # from neuropy.core.laps import Laps
 
 # TODO: implement: NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol
-class Laps(SimplePrintable, DataWriter):
+class Laps(DataWriter):
     """Class to hold computed info about laps and how they relate to other information like times, flat linear indicies, etc.
     
     ## TODO: Look at Epoch class for implementation guidance 
@@ -57,16 +57,17 @@ class Laps(SimplePrintable, DataWriter):
     #TODO: #WM: Fix this, it's not done! It should filter out the laps that occur outside of the start/end times that 
     def time_slice(self, t_start=None, t_stop=None):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        laps_obj = deepcopy(self)
-        included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
-        return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
+        raise NotImplementedError
+        # laps_obj = deepcopy(self)
+        # included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
+        # return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
         
         
-    def get_lap_flat_indicies(lap_id):
+    def get_lap_flat_indicies(self, lap_id):
         start_stop = self.lap_start_stop_flat_idx[lap_id,:] # array([ 15841., 900605.]) the start_stop time for the first lap
         return start_stop[0], start_stop[1]
 
-    def get_lap_times(lap_id):
+    def get_lap_times(self, lap_id):
         start_stop = self.lap_start_stop_time[lap_id,:] # array([ 886.4489000000001, 931.6386]) the start_stop time for the first lap
         return start_stop[0], start_stop[1]
 

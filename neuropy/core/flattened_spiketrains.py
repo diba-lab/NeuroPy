@@ -2,17 +2,15 @@ from typing import Sequence, Union
 import numpy as np
 import pandas as pd
 from copy import deepcopy
-
-
 from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
-from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
+# from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from .neurons import NeuronType
 
 
 # class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
-class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
+class FlattenedSpiketrains(NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold flattened spikes for all cells"""
     # flattened_sort_indicies: allow you to sort any naively flattened array (such as position info) using naively_flattened_variable[self.flattened_sort_indicies]
     def __init__(self, spikes_df: pd.DataFrame, t_start=0.0, metadata=None):
@@ -127,25 +125,25 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
     def concat(cls, objList: Union[Sequence, np.array]):
         """ Concatenates the object list """
         objList = np.array(objList)
-        t_start_times = np.array([obj.t_start for obj in objList])
-        sort_idx = list(np.argsort(t_start_times))
-        # print(sort_idx)
-        # sort the objList by t_start
-        objList = objList[sort_idx]
+        # t_start_times = np.array([obj.t_start for obj in objList])
+        # sort_idx = list(np.argsort(t_start_times))
+        # # print(sort_idx)
+        # # sort the objList by t_start
+        # objList = objList[sort_idx]
         
-        new_t_start = objList[0].t_start # new t_start is the earliest t_start in the array
-        new_sampling_rate = objList[0].sampling_rate
+        # new_t_start = objList[0].t_start # new t_start is the earliest t_start in the array
+        # new_sampling_rate = objList[0].sampling_rate
         
-        # Concatenate the elements:
-        traces_list = np.concatenate([obj.traces for obj in objList], axis=1)
-        computed_traces_list = np.concatenate([obj.computed_traces for obj in objList], axis=1)
+        # # Concatenate the elements:
+        # traces_list = np.concatenate([obj.traces for obj in objList], axis=1)
+        # computed_traces_list = np.concatenate([obj.computed_traces for obj in objList], axis=1)
         
-        return cls(
-            traces=traces_list,
-            computed_traces=computed_traces_list,
-            t_start=new_t_start,
-            sampling_rate=new_sampling_rate,
-        )
+        # return cls(
+        #     traces=traces_list,
+        #     computed_traces=computed_traces_list,
+        #     t_start=new_t_start,
+        #     sampling_rate=new_sampling_rate,
+        # )
         
         
         

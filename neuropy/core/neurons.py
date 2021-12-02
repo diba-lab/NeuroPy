@@ -204,10 +204,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         self._neuron_type = value
 
 
-    def __getitem__(self, i):
-        if i >= len(self):
-            raise IndexError
-    
+    def __getitem__(self, i):    
         # print('Neuron.__getitem__(i: {}): \n\t n_neurons: {}'.format(i, self.n_neurons))
         # copy object
         spiketrains = self.spiketrains[i]
