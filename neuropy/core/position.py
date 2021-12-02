@@ -1,14 +1,17 @@
+from typing import Iterable
 import numpy as np
 from neuropy.utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
+
+from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
 from neuropy.utils.load_exported import import_mat_file 
 from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 
-class Position(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter):
+class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(
         self,
         traces: np.ndarray,
@@ -211,6 +214,31 @@ class Position(TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter
     # def __str__(self):
     #     return "From str method of Test: a is %s, b is %s" % (self.a, self.b)
     
+    
+    @classmethod
+    def concat(cls, objList: Iterable):
+        """ Concatenates the object list """
+        objList = np.array(objList)
+        t_start_times = np.array([obj.t_start for obj in objList])
+        sort_idx = list(np.argsort(t_start_times))
+        # print(sort_idx)
+        # sort the objList by t_start
+        objList = objList[sort_idx]
+        
+        new_t_start = objList[0].t_start # new t_start is the earliest t_start in the array
+        new_sampling_rate = objList[0].sampling_rate
+        
+        # Concatenate the elements:
+        traces_list = np.concatenate([obj.traces for obj in objList], axis=1)
+        computed_traces_list = np.concatenate([obj.computed_traces for obj in objList], axis=1)
+        
+        return cls(
+            traces=traces_list,
+            computed_traces=computed_traces_list,
+            t_start=new_t_start,
+            sampling_rate=new_sampling_rate,
+        )
+        
     def print_debug_str(self):
         print('<core.Position :: np.shape(traces): {}\t time: {}\n duration: {}\n time[-1]: {}\n time[0]: {}\n sampling_rate: {}\n t_start: {}\n t_stop: {}\n>\n'.format(np.shape(self.traces), self.time,
             self.duration,
