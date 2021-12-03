@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 from .datawriter import DataWriter
+from . import Epoch
 from copy import deepcopy
 
 
@@ -335,6 +336,108 @@ class Neurons(DataWriter):
     #     """Get peri-stimulus time histograms w.r.t time points in t"""
 
     #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
+
+    def get_modulation_in_epochs(self, epochs: Epoch, n_bins):
+        """Total number of across all epochs where each epoch is divided into equal number of bins
+
+        Parameters
+        ----------
+        epochs : Epoch
+            epochs for calculation
+        n_bins : int
+            number of bins to divide each epoch
+
+        Returns
+        -------
+        2d array: n_neurons x n_bins
+            total number of spikes within each bin across all epochs
+        """
+        assert epochs.is_overlapping == False, "epochs should be non-overlapping"
+        assert isinstance(n_bins, int), "n_bins can only be integer"
+        starts = epochs.starts.reshape(-1, 1)
+        bin_size = (epochs.durations / n_bins).reshape(-1, 1)
+
+        # create 2D-array (n_epochs x n_bins+1) with bin_size spacing along columns
+        bins = np.arange(n_bins + 1) * bin_size
+
+        epoch_bins = (starts + bins).flatten()
+
+        # calculate spikes on flattened epochs and delete bins which represent spike counts between (not within) epochs and then sums across all epochs for each bin
+        counts = [
+            np.delete(
+                np.histogram(_, epoch_bins)[0],
+                np.arange(n_bins, epoch_bins.size, n_bins + 1)[:-1],
+            )
+            .reshape(-1, n_bins)
+            .sum(axis=0)
+            for _ in self.spiketrains
+        ]
+
+        return np.asarray(counts)
+
+    def get_spikes_in_epochs(self, epochs: Epoch, bin_size=0.01, slideby=None):
+        """A list of 2D arrays containing spike counts
+
+        Parameters
+        ----------
+        epochs : Epoch
+            start and stop times of epochs
+        bin_size : float, optional
+            bin size to be used to within each epoch, by default 0.01
+        slideby : [type], optional
+            if spike counts should have sliding window, by default None
+
+        Returns
+        -------
+        spkcount, nbins
+            list of arrays, number of bins within each epoch
+        """
+        spkcount = []
+        nbins = np.zeros(epochs.n_epochs, dtype="int")
+
+        # ----- little faster but requires epochs to be non-overlapping ------
+
+        if (~epochs.is_overlapping) and (slideby is None):
+            bins_epochs = []
+            for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+                bins = np.arange(epoch.start, epoch.stop, bin_size)
+                nbins[i] = len(bins) - 1
+                bins_epochs.extend(bins)
+            spkcount = np.asarray(
+                [np.histogram(_, bins=bins_epochs)[0] for _ in self.spiketrains]
+            )
+
+            # deleting unwanted columns that represent time between events
+            cumsum_nbins = np.cumsum(nbins)
+            del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
+            spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
+            spkcount = np.hsplit(spkcount, cumsum_nbins[:-1])
+
+        else:
+            if slideby is None:
+                slideby = bin_size
+            for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+                # first dividing in 1ms
+                bins = np.arange(epoch.start, epoch.stop, 0.001)
+                spkcount_ = np.asarray(
+                    [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
+                )
+
+                # if signficant portion at end of epoch is not included then append zeros
+                # if (frac := epoch.duration / bin_size % 1) > 0.7:
+                #     extra_columns = int(100 * (1 - frac))
+                #     spkcount_ = np.hstack(
+                #         (spkcount_, np.zeros((neurons.n_neurons, extra_columns)))
+                #     )
+
+                slide_view = np.lib.stride_tricks.sliding_window_view(
+                    spkcount_, int(bin_size * 1000), axis=1
+                )[:, :: int(slideby * 1000), :].sum(axis=2)
+
+                nbins[i] = slide_view.shape[1]
+                spkcount.append(slide_view)
+
+        return spkcount, nbins
 
 
 class BinnedSpiketrain(DataWriter):
