@@ -489,7 +489,7 @@ class DataSessionLoader:
         session = DataSessionLoader.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
         
         ## Neurons (by Cell):
-        session = DataSessionLoader.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
+        session, spikes_df = DataSessionLoader.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
         
         
@@ -645,8 +645,16 @@ class DataSessionLoader:
         """ 
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
+        spikes_df = spikes_df.copy() # duplicate spikes dataframe
         # Get only the rows with a lap != -1:
         spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
+        ## Deal with non-monotonically increasing lap numbers (such as when the lab_id is reset between epochs)
+        split_index = np.argwhere(np.diff(spikes_df.lap) < 0)[0].item() + 1 # add one to account for the 1 less element after np.diff        
+        spikes_df['maze_relative_lap'] = spikes_df.loc[:, 'lap'] # the old lap is now called the maze-relative lap        
+        # get the lap_id of the last lap in the pre-split
+        max_pre_split_lap_id = spikes_df.lap.values[(split_index-1)].item()
+        spikes_df.lap[split_index:] = spikes_df.lap[split_index:] + max_pre_split_lap_id # adding the last pre_split lap ID means that the first lap starts at max_pre_split_lap_id + 1, the second max_pre_split_lap_id + 2, etc
+                
         # Group by the lap column:
         lap_grouped_spikes_df = spikes_df.groupby(['lap']) #  as_index=False keeps the original index
         laps_first_spike_instances = lap_grouped_spikes_df.first()
@@ -675,7 +683,7 @@ class DataSessionLoader:
         session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
         
         # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
-        return session
+        return session, spikes_df
         
     @staticmethod
     def __default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):

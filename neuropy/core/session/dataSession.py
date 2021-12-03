@@ -72,6 +72,11 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
     @property
     def n_neurons(self):
         return self.neurons.n_neurons
+    
+    
+    # @property
+    # def n_total_spikes(self):
+    #     return self.neurons.n_neurons
     # @property
     # def is_resolved(self):
     #     return self.config.is_resolved
@@ -112,7 +117,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
         copy_sess.flattened_spiketrains = self.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid  
         
-        copy_sess.laps = self.      
+        # copy_sess.laps = self.      
         return copy_sess
     
 
