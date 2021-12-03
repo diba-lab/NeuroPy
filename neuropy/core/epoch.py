@@ -130,6 +130,13 @@ class Epoch(DataWriter):
         else:
             return None
 
+    @property
+    def is_overlapping(self):
+        starts = self.starts
+        stops = self.stops
+
+        return np.all((starts[1:] - stops[:-1]) < 0)
+
     def fill_blank(self, method="from_left"):
 
         ep_starts = self.epochs["start"].values
