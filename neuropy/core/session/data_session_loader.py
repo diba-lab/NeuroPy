@@ -647,13 +647,41 @@ class DataSessionLoader:
         """
         spikes_df = spikes_df.copy() # duplicate spikes dataframe
         # Get only the rows with a lap != -1:
-        spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
+        # spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
+        # neg_one_indicies = np.argwhere((spikes_df.lap != -1))
+        
+        neg_one_indicies = np.argwhere(spikes_df.lap.values == -1)
+        # non_neg_one_indicies = np.argwhere(spikes_df.lap.values != -1)
+        
+        
         ## Deal with non-monotonically increasing lap numbers (such as when the lab_id is reset between epochs)
-        split_index = np.argwhere(np.diff(spikes_df.lap) < 0)[0].item() + 1 # add one to account for the 1 less element after np.diff        
+        # split_index = np.argwhere(np.logical_and((np.append(np.diff(spikes_df.lap), np.zeros((1,))) < 0), (spikes_df.lap != -1)))[0].item() + 1 # add one to account for the 1 less element after np.
+            
+        # split_index = np.argwhere(np.logical_and((np.append(np.diff(spikes_df.lap), np.zeros((1,))) < 0), (spikes_df.lap != -1)))[0].item() + 1      
+        # split_index = np.argwhere(np.logical_and((np.insert(np.diff(spikes_df.lap), 0, 1) < 0), (spikes_df.lap != -1)))[0].item() + 1      
+                    
+        # way without removing the -1 entries:
+        found_idx = np.argwhere((np.append(np.diff(spikes_df.lap), 0) < 0))  
+        # np.where(spikes_df.lap.values[found_idx] == 1)
+        second_start_id_idx = np.argwhere(spikes_df.lap.values[found_idx] == 1)[1]
+        split_index = found_idx[second_start_id_idx[0]].item()
+
+        pre_split_lap_idx = found_idx[second_start_id_idx[0]-1].item()
+        # split_index = np.argwhere(np.diff(spikes_df.lap) < 0)[0].item() + 1 # add one to account for the 1 less element after np.
+        max_pre_split_lap_id = spikes_df.lap.values[pre_split_lap_idx].item()
+        
         spikes_df['maze_relative_lap'] = spikes_df.loc[:, 'lap'] # the old lap is now called the maze-relative lap        
         # get the lap_id of the last lap in the pre-split
-        max_pre_split_lap_id = spikes_df.lap.values[(split_index-1)].item()
+        # max_pre_split_lap_id = spikes_df.lap.values[(split_index-1)].item()
+        # spikes_df.lap[split_index:] = spikes_df.lap[split_index:] + max_pre_split_lap_id # adding the last pre_split lap ID means that the first lap starts at max_pre_split_lap_id + 1, the second max_pre_split_lap_id + 2, etc
+        
+        # spikes_df.lap[non_neg_one_indicies>=split_index] = spikes_df.lap[non_neg_one_indicies>=split_index] + max_pre_split_lap_id # adding the last pre_split lap ID means that the first lap starts at max_pre_split_lap_id + 1, the second max_pre_split_lap_id + 2, etc
+        
         spikes_df.lap[split_index:] = spikes_df.lap[split_index:] + max_pre_split_lap_id # adding the last pre_split lap ID means that the first lap starts at max_pre_split_lap_id + 1, the second max_pre_split_lap_id + 2, etc
+        
+        spikes_df.lap[neg_one_indicies>split_index] = spikes_df.lap[neg_one_indicies>split_index] - max_pre_split_lap_id 
+        
+        
                 
         # Group by the lap column:
         lap_grouped_spikes_df = spikes_df.groupby(['lap']) #  as_index=False keeps the original index
