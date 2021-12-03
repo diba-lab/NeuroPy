@@ -487,12 +487,19 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         # spiketrains_list = np.concatenate([obj.spiketrains for obj in objList], axis=1)
         
         # spiketrains_list = np.hstack([obj.spiketrains for obj in objList])
-        spiketrains_list = list()
+        # spiketrains_list = list()
         
-        for neuron_idx in np.arange(num_neurons):
-            curr_neuron_spiketrains_list = np.concatenate([obj.spiketrains[neuron_idx] for obj in objList], axis=0)
-            spiketrains_list.append(curr_neuron_spiketrains_list)
+        # for neuron_idx in np.arange(num_neurons):
+        #     curr_neuron_spiketrains_list = np.concatenate([obj.spiketrains[neuron_idx] for obj in objList], axis=0)
+        #     spiketrains_list.append(curr_neuron_spiketrains_list)
             
+        spiketrains_list = objList[0].spiketrains
+        for neuron_idx in np.arange(num_neurons):
+            for obj_idx in np.arange(1, len(objList)):
+                # spiketrains_list[neuron_idx].append(objList[obj_idx].spiketrains[neuron_idx])
+                spiketrains_list[neuron_idx] = np.append(spiketrains_list[neuron_idx], objList[obj_idx].spiketrains[neuron_idx])
+                
+        
             # for obj_idx in np.arange(len(objList)):
             # # spiketrains_list[i] =  np.concatenate([obj.spiketrains for obj in objList], axis=0)
             # spiketrains_list.append(np.concatenate([obj.spiketrains[neuron_idx] for neuron_idx in np.arange(num_neurons)], axis=0))

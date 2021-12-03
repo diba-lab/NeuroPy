@@ -16,9 +16,6 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
     def __init__(self, spikes_df: pd.DataFrame, t_start=0.0, metadata=None):
         super().__init__(metadata=metadata)
         self._spikes_df = spikes_df
-        # self.flattened_sort_indicies = flattened_sort_indicies
-        # self.flattened_spike_identities = flattened_spike_identities
-        # self.flattened_spike_times = flattened_spike_times
         self.t_start = t_start
         self.metadata = metadata
         

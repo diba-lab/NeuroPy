@@ -6,6 +6,7 @@ from pathlib import Path
 from neuropy.core import neurons
 from neuropy.core.epoch import NamedTimerange
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
+from neuropy.core.laps import Laps
 from neuropy.core.position import Position
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
@@ -98,17 +99,20 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         self.paradigm = value
         
     # for TimeSlicableObjectProtocol:
-    def time_slice(self, t_start, t_stop):
+    def time_slice(self, t_start, t_stop, enable_debug=True):
         """ Implementors return a copy of themselves with each of their members sliced at the specified indicies """
         active_epoch_times = [t_start, t_stop]
-        print('Constraining to epoch with times (start: {}, end: {})'.format(active_epoch_times[0], active_epoch_times[1]))
+        if enable_debug: 
+            print('Constraining to epoch with times (start: {}, end: {})'.format(active_epoch_times[0], active_epoch_times[1]))
         # make a copy of self:
         # should implement __deepcopy__() and __copy__()??
         copy_sess = DataSession.from_dict(self.to_dict())
         # update the copy_session's time_sliceable objects
         copy_sess.neurons = self.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
-        copy_sess.flattened_spiketrains = self.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid        
+        copy_sess.flattened_spiketrains = self.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid  
+        
+        copy_sess.laps = self.      
         return copy_sess
     
 
@@ -269,9 +273,15 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
     def filtered_by_laps(self, lap_indicies=None):
         """ Returns a copy of this session with all of its members filtered by the laps.
         """
+        lap_specific_subsessions, lap_specific_dataframes, lap_spike_indicies, lap_spike_t_seconds = Laps.build_lap_specific_lists(self, include_empty_lists=False)
+
         if lap_indicies is None:
-            lap_indices = np.arange(self.laps.n_laps) # all laps by default
-        raise NotImplementedError
+            lap_indices = np.arange(len(lap_specific_subsessions)) # all laps by default
+            
+        lap_specific_subsessions = [lap_specific_subsessions[i] for i in lap_indices] # filter by the desired number of laps 
+        ## Effectively build the new session using only the lap-specific spiketimes:
+        return DataSession.concat(lap_specific_subsessions)
+        # raise NotImplementedError
     
 # # Helper function that processed the data in a given directory
 # def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
