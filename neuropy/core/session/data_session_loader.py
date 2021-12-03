@@ -482,8 +482,6 @@ class DataSessionLoader:
         spikes_df['x_loaded'] = spikes_df['x']
         spikes_df['y_loaded'] = spikes_df['y']
         spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=active_time_variable_name)
-         
-
 
         ## Laps:
         session, spikes_df = DataSessionLoader.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
@@ -689,7 +687,8 @@ class DataSessionLoader:
         spikes_df.lap = lap_ids
 
         # Group by the lap column:
-        lap_grouped_spikes_df = spikes_df.groupby(['lap']) #  as_index=False keeps the original index
+        laps_only_spikes_df = spikes_df[(spikes_df.lap != -1)].copy()
+        lap_grouped_spikes_df = laps_only_spikes_df.groupby(['lap']) #  as_index=False keeps the original index
         laps_first_spike_instances = lap_grouped_spikes_df.first()
         laps_last_spike_instances = lap_grouped_spikes_df.last()
 
