@@ -9,6 +9,7 @@ from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
 from neuropy.core.laps import Laps
 from neuropy.core.position import Position
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
+from copy import deepcopy
 
 # Local imports:
 ## Core:
@@ -125,7 +126,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         """ filters self by the specified query_neuron_type, only returning neurons that match. """
         print('Constraining to units with type: {}'.format(query_neuron_type))
         # make a copy of self:
-        copy_sess = DataSession.from_dict(self.to_dict())
+        copy_sess = DataSession.from_dict(deepcopy(self.to_dict()))
         # update the copy_session's neurons objects
         copy_sess.neurons = self.neurons.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         copy_sess.flattened_spiketrains = self.flattened_spiketrains.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
@@ -166,6 +167,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
     def get_by_id(self, ids):
         """Implementors return a copy of themselves with neuron_ids equal to ids"""
         copy_sess = DataSession.from_dict(self.to_dict())
+        
         copy_sess.neurons = self.neurons.get_by_id(ids)
         copy_sess.flattened_spiketrains = self.flattened_spiketrains.get_by_id(ids)
         return copy_sess
@@ -182,7 +184,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
 
         
     def to_dict(self, recurrsively=False):
-        simple_dict = self.__dict__
+        simple_dict = deepcopy(self.__dict__)
         if recurrsively:
             simple_dict['paradigm'] = simple_dict['paradigm'].to_dict()
             simple_dict['position'] = simple_dict['position'].to_dict()
