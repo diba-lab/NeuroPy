@@ -88,6 +88,7 @@ class Laps(DataWriter):
             #curr_flat_cell_indicies = (flat_spikes_out_dict['aclu'] == active_epoch_placefields1D, active_epoch_placefields2D) # the indicies where the cell_id matches the current one
             # print('curr_lap_id: {}'.format(curr_lap_id))
             if curr_lap_id in lap_grouped_spikes_df.groups.keys():
+                
                 curr_lap_dataframe = lap_grouped_spikes_df.get_group(curr_lap_id)
                 lap_specific_dataframes.append(curr_lap_dataframe)
                 lap_spike_indicies.append(curr_lap_dataframe.flat_spike_idx.values)
@@ -113,4 +114,5 @@ class Laps(DataWriter):
             
     # @staticmethod
     # def build_lap_filtered_objects(active_epoch_session, include_empty_lists=True):
-        
+
+

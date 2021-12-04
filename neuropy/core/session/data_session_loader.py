@@ -474,7 +474,20 @@ class DataSessionLoader:
         session = DataSessionLoader.__default_kdiba_exported_load_mats(basepath, session_name, session)
         
         ## .spikeII.mat file:
-        spikes_df, flat_spikes_out_dict = DataSessionLoader.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
+        try:
+            spikes_df, flat_spikes_out_dict = DataSessionLoader.__default_kdiba_pho_exported_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
+            
+        except FileNotFoundError as e:
+            print('FileNotFoundError: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
+            spikes_df, flat_spikes_out_dict = DataSessionLoader.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
+            
+        except Exception as e:
+            # print('e: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
+            raise e
+        else:
+            pass
+        
+                
         # active_time_variable_name = 't' # default
         active_time_variable_name = 't_seconds' # use converted times (into seconds)
         
@@ -484,15 +497,22 @@ class DataSessionLoader:
         spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=active_time_variable_name)
 
         ## Laps:
-        session, spikes_df = DataSessionLoader.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
-        
+        # Load or compute linear positions if needed:
+        try:
+            session, laps_df = DataSessionLoader.__default_kdiba_spikeII_load_laps_vars(session, time_variable_name=active_time_variable_name)
+        except Exception as e:
+            # raise e
+            print('session.laps could not be loaded from .spikes.mat due to error {}. Computing.'.format(e))
+            session, spikes_df = DataSessionLoader.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
+        else:
+            # Successful!
+            print('session.laps loaded successfully!')
+            pass
+
         ## Neurons (by Cell):
         session = DataSessionLoader.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
-        
-        
-    
-                
+                        
         # Load or compute linear positions if needed:
         try:
             session = DataSessionLoader._default_compute_linear_position_if_needed(session)
@@ -603,15 +623,88 @@ class DataSessionLoader:
         # active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
         session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
         
+        
+        ## Extra files:
+        
+        
         # return the session with the upadated member variables
         return session
+    
+    @staticmethod
+    def __default_kdiba_pho_exported_spikeII_load_mat(sess, timestamp_scale_factor=(1/1E4)):
+        spike_mat_file = Path(sess.basepath).joinpath('{}.spikes.mat'.format(sess.session_name))
+        if not spike_mat_file.is_file():
+            print('ERROR: file {} does not exist!'.format(spike_mat_file))
+            raise FileNotFoundError
+        flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
+        # print('flat_spikes_mat_file.keys(): {}'.format(flat_spikes_mat_file.keys())) # flat_spikes_mat_file.keys(): dict_keys(['__header__', '__version__', '__globals__', 'spike'])
+        flat_spikes_data = flat_spikes_mat_file['spike']
+        # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
+        # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
+        # mat_variables_to_extract = ['t','t_seconds', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
+        mat_variables_to_extract = ['t','t_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
+        num_mat_variables = len(mat_variables_to_extract)
+        flat_spikes_out_dict = dict()
+        for i in np.arange(num_mat_variables):
+            curr_var_name = mat_variables_to_extract[i]
+            if curr_var_name == 'cluinfo':
+                temp = flat_spikes_data[curr_var_name] # a Nx4 array
+                temp = [tuple(temp[j,:]) for j in np.arange(np.shape(temp)[0])]
+                flat_spikes_out_dict[curr_var_name] = temp
+            else:
+                # flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten() # TODO: do we want .squeeze() instead of .flatten()??
+                flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
+                
+        # print(flat_spikes_out_dict)
+        
+        
+        spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
+        spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
+        # add times in seconds both to the dict and the spikes_df under a new key:
+        # flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
+        # spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
+        # spikes_df['qclu']
+        spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
+        
+        return spikes_df, flat_spikes_out_dict 
+    
+    @staticmethod
+    def __default_kdiba_spikeII_load_laps_vars(session, time_variable_name='t_seconds'):
+        """ 
+            time_variable_name = 't_seconds'
+            sess, laps_df = __default_kdiba_spikeII_load_laps_vars(sess, time_variable_name=time_variable_name)
+            laps_df
+        """
+        ## Get laps in/out
+        session_laps_mat_file_path = Path(session.basepath).joinpath('{}.laps_info.mat'.format(session.name))
+        laps_mat_file = import_mat_file(mat_import_file=session_laps_mat_file_path)
+        mat_variables_to_extract = ['lap_id','maze_id','start_spike_index', 'end_spike_index', 'start_t', 'end_t', 'start_t_seconds', 'end_t_seconds', 'duration_seconds']
+        num_mat_variables = len(mat_variables_to_extract)
+        flat_var_out_dict = dict()
+        for i in np.arange(num_mat_variables):
+            curr_var_name = mat_variables_to_extract[i]
+            flat_var_out_dict[curr_var_name] = laps_mat_file[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
+        laps_df = pd.DataFrame(flat_var_out_dict) # 1014937 rows × 11 columns
+        laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
+        laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index']
+
+        # Build output Laps object to add to session
+        print('setting laps object.')
+        if time_variable_name == 't_seconds':
+            t_variable_column_names = ['start_t_seconds', 'end_t_seconds']
+        else:
+            t_variable_column_names = ['start_t', 'end_t']
+
+        session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), laps_df[t_variable_column_names].to_numpy())
+        return session, laps_df
+
     
     @staticmethod
     def __default_kdiba_spikeII_load_mat(sess, timestamp_scale_factor=(1/1E4)):
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikeII.mat'.format(sess.session_name))
         if not spike_mat_file.is_file():
             print('ERROR: file {} does not exist!'.format(spike_mat_file))
-            return None
+            raise FileNotFoundError
         flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
         # print('flat_spikes_mat_file.keys(): {}'.format(flat_spikes_mat_file.keys())) # flat_spikes_mat_file.keys(): dict_keys(['__header__', '__version__', '__globals__', 'spike'])
         flat_spikes_data = flat_spikes_mat_file['spike']
@@ -648,17 +741,15 @@ class DataSessionLoader:
         # spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
         # neg_one_indicies = np.argwhere((spikes_df.lap != -1))
         spikes_df['maze_relative_lap'] = spikes_df.loc[:, 'lap'] # the old lap is now called the maze-relative lap        
-        spikes_df['lap_maze'] = np.full_like(spikes_df.lap, np.nan)
+        spikes_df['maze_id'] = np.full_like(spikes_df.lap, np.nan)
         lap_ids = spikes_df.lap.to_numpy()
         
         # neg_one_indicies = np.argwhere(lap_ids == -1)
         
         neg_one_indicies = np.squeeze(np.where(lap_ids == -1))
         
-        
         # spikes_df.laps[spikes_df.laps == -1] = np.Infinity
         # non_neg_one_indicies = np.argwhere(spikes_df.lap.values != -1)
-        
         
         ## Deal with non-monotonically increasing lap numbers (such as when the lab_id is reset between epochs)
         # split_index = np.argwhere(np.logical_and((np.append(np.diff(spikes_df.lap), np.zeros((1,))) < 0), (spikes_df.lap != -1)))[0].item() + 1 # add one to account for the 1 less element after np.
@@ -676,9 +767,9 @@ class DataSessionLoader:
         # split_index = np.argwhere(np.diff(spikes_df.lap) < 0)[0].item() + 1 # add one to account for the 1 less element after np.
         max_pre_split_lap_id = lap_ids[pre_split_lap_idx].item()
         
-        spikes_df.lap_maze[0:split_index] = 1
-        spikes_df.lap_maze[split_index:] = 2 # maze 2
-        spikes_df.lap_maze[neg_one_indicies] = np.nan # make sure all the -1 entries are not assigned a maze
+        spikes_df.maze_id[0:split_index] = 1
+        spikes_df.maze_id[split_index:] = 2 # maze 2
+        spikes_df.maze_id[neg_one_indicies] = np.nan # make sure all the -1 entries are not assigned a maze
         
         lap_ids[split_index:] = lap_ids[split_index:] + max_pre_split_lap_id # adding the last pre_split lap ID means that the first lap starts at max_pre_split_lap_id + 1, the second max_pre_split_lap_id + 2, etc 
         lap_ids[neg_one_indicies] = -1 # re-set any negative 1 indicies from the beginning back to negative 1
@@ -716,6 +807,8 @@ class DataSessionLoader:
         
         # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
         return session, spikes_df
+        
+        
         
     @staticmethod
     def __default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
