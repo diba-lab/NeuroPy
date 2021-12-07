@@ -293,6 +293,32 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         ## Effectively build the new session using only the lap-specific spiketimes:
         return DataSession.concat(lap_specific_subsessions)
         # raise NotImplementedError
+
+
+
+
+
+
+    def compute_position_laps(self):
+        """ laps_position_traces, curr_position_df = compute_position_laps(sess) """
+        curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
+        curr_position_df['lap'] = np.NaN # set all 'lap' column to NaN
+        lap_position_traces = []
+        lap_position_dataframes = []
+
+        for i in np.arange(len(self.laps.lap_id)):
+            curr_lap_id = self.laps.lap_id[i]
+            curr_lap_t_start, curr_lap_t_stop = self.laps.get_lap_times(i)
+            # print('lap[{}]: ({}, {}): '.format(curr_lap_id, curr_lap_t_start, curr_lap_t_stop))
+            curr_lap_position_df_is_included = curr_position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive=True) # returns a boolean array indicating inclusion in teh current lap
+            curr_lap_position_df = curr_position_df[curr_lap_position_df_is_included]
+            lap_position_dataframes.append(curr_lap_position_df)
+            curr_position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id
+            # curr_position_df.query('-0.5 <= t < 0.5')
+        
+        # return the extracted traces and the updated curr_position_df
+        return lap_position_traces, curr_position_df
+
     
 # # Helper function that processed the data in a given directory
 # def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
@@ -317,3 +343,5 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
 #     sess.position.sampling_rate # 60
     
 #     pass
+
+
