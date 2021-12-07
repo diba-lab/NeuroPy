@@ -16,11 +16,6 @@ from copy import deepcopy
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
-        
-
-class TimestampInfo:
-    def __init__(self, absolute_t_start) -> None:
-        self.absolute_t_start = absolute_t_start
 
 
 class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
@@ -117,7 +112,10 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
             print('Constraining to epoch with times (start: {}, end: {})'.format(active_epoch_times[0], active_epoch_times[1]))
         # make a copy of self:
         # should implement __deepcopy__() and __copy__()??
-        copy_sess = DataSession.from_dict(self.to_dict())
+        
+        copy_sess = DataSession.from_dict(deepcopy(self.to_dict()))
+        # copy_sess = DataSession.from_dict(self.to_dict())
+        
         # update the copy_session's time_sliceable objects
         copy_sess.neurons = self.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
