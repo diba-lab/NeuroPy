@@ -119,9 +119,9 @@ def getICA_Assembly(x):
     return V
 
 
-def threshPeriods(sig, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
+def threshPeriods(arr, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
 
-    ThreshSignal = np.diff(np.where(sig > lowthresh, 1, 0))
+    ThreshSignal = np.diff(np.where(arr > lowthresh, 1, 0))
     start = np.where(ThreshSignal == 1)[0]
     stop = np.where(ThreshSignal == -1)[0]
 
@@ -156,7 +156,7 @@ def threshPeriods(sig, lowthresh=1, highthresh=2, minDistance=30, minDuration=50
     fourthPass = []
     # peakNormalizedPower, peaktime = [], []
     for i in range(len(thirdPass)):
-        maxValue = max(sig[thirdPass[i, 0] : thirdPass[i, 1]])
+        maxValue = max(arr[thirdPass[i, 0] : thirdPass[i, 1]])
         if maxValue >= highthresh:
             fourthPass.append(thirdPass[i])
             # peakNormalizedPower.append(maxValue)
@@ -168,6 +168,63 @@ def threshPeriods(sig, lowthresh=1, highthresh=2, minDistance=30, minDuration=50
             # )
 
     return np.asarray(fourthPass)
+
+
+def thresh_epochs(
+    arr: np.ndarray,
+    thresh: float,
+    min_frames: int,
+    max_frames: int,
+    sep: int,
+    extend_to: float = None,
+    peak_value: float = None,
+):
+
+    threshsignal = np.diff(np.where(arr > thresh, 1, 0))
+    start = np.where(threshsignal == 1)[0]
+    stop = np.where(threshsignal == -1)[0]
+
+    if start[0] > stop[0]:
+        stop = stop[1:]
+    if start[-1] > stop[-1]:
+        start = start[:-1]
+
+    firstpass = np.vstack((start, stop)).t
+
+    # ----merging close events ------
+    secondpass = []
+    event = firstpass[0]
+    for i in range(1, len(firstpass)):
+        if firstpass[i, 0] - event[1] < sep:
+            # merging states
+            event = [event[0], firstpass[i, 1]]
+        else:
+            secondpass.append(event)
+            event = firstpass[i]
+
+    secondpass.append(event)
+    secondpass = np.asarray(secondpass)
+    event_duration = np.diff(secondpass, axis=1).squeeze()
+
+    # ---- delete very short events ------
+    dur_thresh = np.where(
+        (event_duration < min_frames) | (event_duration > max_frames)
+    )[0]
+    thirdpass = np.delete(secondpass, dur_thresh, 0)
+    event_duration = np.delete(event_duration, dur)
+
+    # ------- extend the epoch to certain threshold ------
+    if extend_to is not None:
+        assert extend_to < thresh, "extend_to can not be smaller than thresh"
+        extend_bool = np.diff()
+
+    # ------ keep epochs which has samples above peak_value-----
+    fourthpass = []
+    for i in range(len(thirdpass)):
+        maxvalue = max(arr[thirdpass[i, 0] : thirdpass[i, 1]])
+        if maxvalue >= peak_value:
+            fourthpass.append(thirdpass[i])
+    return np.asarray(fourthpass)
 
 
 def contiguous_regions(condition):
@@ -238,9 +295,11 @@ def radon_transform(arr, nlines=5000):
     posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
     posterior[t_in] = arr[y_line[t_in], t_in[1]]
 
+    old_settings = np.seterr(all="ignore")
     posterior_sum = np.nanmean(posterior, axis=1)
     max_line = np.argmax(posterior_sum)
     slope = -(1 / np.tan(theta[max_line]))
+    np.seterr(**old_settings)
 
     return posterior_sum[max_line], slope
 

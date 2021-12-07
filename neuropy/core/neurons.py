@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
+from .datawriter import DataWriter
+from . import Epoch
+from copy import deepcopy
 
 from .datawriter import DataWriter
 # from .flattened_spiketrains import FlattenedSpiketrains
@@ -118,10 +121,38 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         neuron_ids=None,
         neuron_type=None,
         waveforms=None,
+        waveforms_amplitude=None,
         peak_channels=None,
         shank_ids=None,
         metadata=None,
     ) -> None:
+        """Initializes the Neurons instance
+
+        Parameters
+        ----------
+        spiketrains : np.array/list of numpy arrays
+            each array contains spiketimes in seconds, 5 arrays for 5 neurons
+        t_stop : float
+            time when the recording was stopped
+        t_start : float, optional
+            start time for the recording/spike trains, by default 0.0
+        sampling_rate : int, optional
+            at what sampling rate the spike times were recorded, by default 1
+        neuron_ids : array, optional
+            id for each spiketrain/neuron, by default None
+        neuron_type : array of strings, optional
+            what neuron type, by default None
+        waveforms : (n_neurons x n_channels x n_timepoints), optional
+            waveshape for each neuron, by default None
+        waveforms_amplitude : list/array of arrays, optional
+            the number of arrays should match spiketrains, each value gives scaling factor used for template waveform to extract that spike, by default None
+        peak_channels : array, optional
+            peak channel for waveform, by default None
+        shank_ids : array of int, optional
+            which shank of the probe each spiketrain was recorded from, by default None
+        metadata : dict, optional
+            any additional metadata, by default None
+        """
         super().__init__(metadata=metadata)
 
         self.spiketrains = np.array(spiketrains, dtype="object")
@@ -140,6 +171,14 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             assert (
                 waveforms.shape[0] == self.n_neurons
             ), "Waveforms first dimension should match number of neurons"
+
+        if waveforms_amplitude is not None:
+            assert len(waveforms_amplitude) == len(
+                self.spiketrains
+            ), "length should match"
+            self.waveforms_amplitude = waveforms_amplitude
+        else:
+            self.waveforms_amplitude = None
 
         self.waveforms = waveforms
         self.shank_ids = shank_ids
@@ -218,6 +257,11 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         else:
             waveforms = self.waveforms
 
+        if self.waveforms_amplitude is not None:
+            waveforms_amplitude = self.waveforms_amplitude[i]
+        else:
+            waveforms_amplitude = self.waveforms_amplitude
+
         if self.peak_channels is not None:
             peak_channels = self.peak_channels[i]
         else:
@@ -236,6 +280,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             neuron_ids=self.neuron_ids[i],
             neuron_type=neuron_type,
             waveforms=waveforms,
+            waveforms_amplitude=waveforms_amplitude,
             peak_channels=peak_channels,
             shank_ids=shank_ids,
         )
@@ -306,6 +351,43 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def __len__(self):
         return self.n_neurons
 
+    def to_dict(self):
+
+        # self._check_integrity()
+
+        return {
+            "spiketrains": self.spiketrains,
+            "t_stop": self.t_stop,
+            "t_start": self.t_start,
+            "sampling_rate": self.sampling_rate,
+            "neuron_ids": self.neuron_ids,
+            "neuron_type": self.neuron_type,
+            "waveforms": self.waveforms,
+            "waveforms_amplitude": self.waveforms_amplitude,
+            "peak_channels": self.peak_channels,
+            "shank_ids": self.shank_ids,
+            "metadata": self.metadata,
+        }
+
+    @staticmethod
+    def from_dict(d):
+
+        if "waveforms_amplitude" not in d:
+            d["waveforms_amplitude"] = None
+
+        return Neurons(
+            spiketrains=d["spiketrains"],
+            t_stop=d["t_stop"],
+            t_start=d["t_start"],
+            sampling_rate=d["sampling_rate"],
+            neuron_ids=d["neuron_ids"],
+            neuron_type=d["neuron_type"],
+            waveforms=d["waveforms"],
+            waveforms_amplitude=d["waveforms_amplitude"],
+            peak_channels=d["peak_channels"],
+            shank_ids=d["shank_ids"],
+            metadata=d["metadata"],
+        )
 
     def add_metadata(self):
         pass
@@ -428,8 +510,108 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
 
     #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
 
-    # DictionaryRepresentable Protocol:
-    def to_dict(self, recurrsively=False):
+    def get_modulation_in_epochs(self, epochs: Epoch, n_bins):
+        """Total number of across all epochs where each epoch is divided into equal number of bins
+
+        Parameters
+        ----------
+        epochs : Epoch
+            epochs for calculation
+        n_bins : int
+            number of bins to divide each epoch
+
+        Returns
+        -------
+        2d array: n_neurons x n_bins
+            total number of spikes within each bin across all epochs
+        """
+        assert epochs.is_overlapping == False, "epochs should be non-overlapping"
+        assert isinstance(n_bins, int), "n_bins can only be integer"
+        starts = epochs.starts.reshape(-1, 1)
+        bin_size = (epochs.durations / n_bins).reshape(-1, 1)
+
+        # create 2D-array (n_epochs x n_bins+1) with bin_size spacing along columns
+        bins = np.arange(n_bins + 1) * bin_size
+
+        epoch_bins = (starts + bins).flatten()
+
+        # calculate spikes on flattened epochs and delete bins which represent spike counts between (not within) epochs and then sums across all epochs for each bin
+        counts = [
+            np.delete(
+                np.histogram(_, epoch_bins)[0],
+                np.arange(n_bins, epoch_bins.size, n_bins + 1)[:-1],
+            )
+            .reshape(-1, n_bins)
+            .sum(axis=0)
+            for _ in self.spiketrains
+        ]
+
+        return np.asarray(counts)
+
+    def get_spikes_in_epochs(self, epochs: Epoch, bin_size=0.01, slideby=None):
+        """A list of 2D arrays containing spike counts
+
+        Parameters
+        ----------
+        epochs : Epoch
+            start and stop times of epochs
+        bin_size : float, optional
+            bin size to be used to within each epoch, by default 0.01
+        slideby : [type], optional
+            if spike counts should have sliding window, by default None
+
+        Returns
+        -------
+        spkcount, nbins
+            list of arrays, number of bins within each epoch
+        """
+        spkcount = []
+        nbins = np.zeros(epochs.n_epochs, dtype="int")
+
+        # ----- little faster but requires epochs to be non-overlapping ------
+
+        if (~epochs.is_overlapping) and (slideby is None):
+            bins_epochs = []
+            for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+                bins = np.arange(epoch.start, epoch.stop, bin_size)
+                nbins[i] = len(bins) - 1
+                bins_epochs.extend(bins)
+            spkcount = np.asarray(
+                [np.histogram(_, bins=bins_epochs)[0] for _ in self.spiketrains]
+            )
+
+            # deleting unwanted columns that represent time between events
+            cumsum_nbins = np.cumsum(nbins)
+            del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
+            spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
+            spkcount = np.hsplit(spkcount, cumsum_nbins[:-1])
+
+        else:
+            if slideby is None:
+                slideby = bin_size
+            for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+                # first dividing in 1ms
+                bins = np.arange(epoch.start, epoch.stop, 0.001)
+                spkcount_ = np.asarray(
+                    [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
+                )
+
+                # if signficant portion at end of epoch is not included then append zeros
+                # if (frac := epoch.duration / bin_size % 1) > 0.7:
+                #     extra_columns = int(100 * (1 - frac))
+                #     spkcount_ = np.hstack(
+                #         (spkcount_, np.zeros((neurons.n_neurons, extra_columns)))
+                #     )
+
+                slide_view = np.lib.stride_tricks.sliding_window_view(
+                    spkcount_, int(bin_size * 1000), axis=1
+                )[:, :: int(slideby * 1000), :].sum(axis=2)
+
+                nbins[i] = slide_view.shape[1]
+                spkcount.append(slide_view)
+
+        return spkcount, nbins
+
 
         # self._check_integrity()
 
@@ -634,27 +816,10 @@ class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
 
         return corr[pairs_bool]
 
-    def __getitem__(self, i):
-        # copy object
-        spike_counts = self.spike_counts[i]
-        if self.peak_channels is not None:
-            peak_channels = self.peak_channels[i]
-        else:
-            peak_channels = self.peak_channels
+    @property
+    def firing_rate(self):
+        return self.spike_counts / self.bin_size
 
-        if self.shank_ids is not None:
-            shank_ids = self.shank_ids[i]
-        else:
-            shank_ids = self.shank_ids
-
-        return BinnedSpiketrain(
-            spike_counts=spike_counts,
-            bin_size=self.bin_size,
-            t_start=self.t_start,
-            neuron_ids=self.neuron_ids[i],
-            peak_channels=peak_channels,
-            shank_ids=shank_ids,
-        )
 
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):

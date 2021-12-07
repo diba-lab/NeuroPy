@@ -14,17 +14,9 @@ class DataWriter(FileRepresentable, DictRepresentable, SimplePrintable):
 
         if metadata is not None:
             assert isinstance(metadata, dict), "Only dictionary accepted as metadata"
-
-        self._metadata: dict = metadata
-
-    @property
-    def filename(self):
-        return self._filename
-
-    @filename.setter
-    def filename(self, f):
-        assert isinstance(f, (str, Path))
-        self._filename = f
+            self._metadata: dict = metadata
+        else:
+            self._metadata: dict = {}
 
     @property
     def metadata(self):
@@ -83,14 +75,9 @@ class DataWriter(FileRepresentable, DictRepresentable, SimplePrintable):
             print("filename can not be None")
 
 
-    def save(self):
+    def save(self, fp):
+
+        assert isinstance(fp, (str, Path)), "filename is invalid"
         data = self.to_dict()
-        DataWriter.to_file(data, self.filename)
-
-    def delete_file(self):
-        self.filename.unlink()
-
-        print("file removed")
-
-    def create_backup(self):
-        pass
+        np.save(fp, data)
+        print(f"{fp} saved")
