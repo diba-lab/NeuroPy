@@ -7,7 +7,6 @@ class Ratemap(DataWriter):
     def __init__(
         self,
         tuning_curves: np.ndarray,
-        tuning_curves,
         xbin=None,
         ybin=None,
         occupancy=None,
@@ -47,20 +46,19 @@ class Ratemap(DataWriter):
 
     def get_field_locations(self):
         pass
-    
-    
+
+
     @property
     def normalized_tuning_curves(self):
         return mathutil.min_max_scaler(self.tuning_curves)
-    
+
     def get_sort_indicies(self, sortby=None):
         curr_tuning_curves = self.normalized_tuning_curves
         ind = np.unravel_index(np.argsort(curr_tuning_curves, axis=None), curr_tuning_curves.shape)
-        
+
         if sortby is None:
             sort_ind = np.argsort(np.argmax(self.normalized_tuning_curves, axis=1))
         elif isinstance(sortby, (list, np.ndarray)):
             sort_ind = sortby
         else:
-            sort_ind = np.arange(n_neurons) 
-            sort_ind = np.arange(n_neurons) 
+            sort_ind = np.arange(n_neurons)
