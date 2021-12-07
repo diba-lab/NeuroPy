@@ -18,6 +18,11 @@ from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableO
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
         
 
+class TimestampInfo:
+    def __init__(self, absolute_t_start) -> None:
+        self.absolute_t_start = absolute_t_start
+
+
 class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,

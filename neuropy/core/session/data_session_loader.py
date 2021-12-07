@@ -435,7 +435,13 @@ class DataSessionLoader:
         basepath = args_dict['basepath']
         session = args_dict['session_obj']
         # timestamp_scale_factor = (1/1E6)
-        timestamp_scale_factor = (1/1E4)
+        # timestamp_scale_factor = (1/1E4)
+        timestamp_scale_factor = 1.0
+                     
+        # active_time_variable_name = 't' # default
+        # active_time_variable_name = 't_seconds' # use converted times (into seconds)
+        active_time_variable_name = 't_rel_seconds' # use converted times (into seconds)
+
         
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
@@ -471,7 +477,7 @@ class DataSessionLoader:
         # session = DataSessionLoader.default_load_kamran_position_vt_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session)
     
         # IIdata.mat file Position and Epoch:
-        session = DataSessionLoader.__default_kdiba_exported_load_mats(basepath, session_name, session)
+        session = DataSessionLoader.__default_kdiba_exported_load_mats(basepath, session_name, session, time_variable_name=active_time_variable_name)
         
         ## .spikeII.mat file:
         try:
@@ -486,10 +492,6 @@ class DataSessionLoader:
             raise e
         else:
             pass
-        
-                
-        # active_time_variable_name = 't' # default
-        active_time_variable_name = 't_seconds' # use converted times (into seconds)
         
         ## Testing: Fixing spike positions
         spikes_df['x_loaded'] = spikes_df['x']
@@ -579,7 +581,7 @@ class DataSessionLoader:
         return session
 
     @staticmethod
-    def __default_kdiba_exported_load_mats(basepath, session_name, session):
+    def __default_kdiba_exported_load_mats(basepath, session_name, session, time_variable_name='t_seconds'):
         """ Loads the *.epochs_info.mat & *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
             Adds the Epoch and Position information to the session, and returns the updated Session object
         """
@@ -597,32 +599,45 @@ class DataSessionLoader:
         n_epochs = np.shape(epoch_data_array)[0]
         
         session_absolute_start_timestamp = epoch_data_array[0,0].item()
-        epoch_data_array_rel = epoch_data_array - session_absolute_start_timestamp # convert to relative by subtracting the first timestamp
-        
-        # epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
-        epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0].item(), epoch_data_array_rel[0,1].item()],'stop':[epoch_data_array_rel[1,0].item(), epoch_data_array_rel[1,1].item()],'label':['maze1','maze2']}) # Use the epochs starting at session_absolute_start_timestamp (meaning the first epoch starts at 0.0
-        # session.paradigm = Epoch(epochs=epochs_df)
-        session.paradigm = Epoch(epochs=epochs_df_rel)
+        session.config.absolute_start_timestamp = epoch_data_array[0,0].item()
+
+
+        if time_variable_name == 't_rel_seconds':
+            epoch_data_array_rel = epoch_data_array - session_absolute_start_timestamp # convert to relative by subtracting the first timestamp
+            epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0].item(), epoch_data_array_rel[0,1].item()],'stop':[epoch_data_array_rel[1,0].item(), epoch_data_array_rel[1,1].item()],'label':['maze1','maze2']}) # Use the epochs starting at session_absolute_start_timestamp (meaning the first epoch starts at 0.0
+            session.paradigm = Epoch(epochs=epochs_df_rel)
+        elif time_variable_name == 't_seconds':
+            epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
+            session.paradigm = Epoch(epochs=epochs_df)            
+        else:
+            raise ValueError
         
         ## Position Data loaded and zeroed to the same session_absolute_start_timestamp, which starts before the first timestamp in 't':
         session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
         position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
         # ['microseconds_to_seconds_conversion_factor','samplingRate', 'timestamps', 'x', 'y']
-        t = position_mat_file['timestamps'].squeeze() # 1, 63192
+        t = position_mat_file['timestamps'].squeeze() # 1, 63192        
+        
         x = position_mat_file['x'].squeeze() # 10 x 63192
         y = position_mat_file['y'].squeeze() # 10 x 63192
         position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
         microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
-        # t_rel = t - t[0] # relative to start of position file timestamps
-        t_rel = t - session_absolute_start_timestamp # relative to absolute start of the first epoch
         num_samples = len(t)
         
-        active_t_start = t_rel[0] # absolute to first epoch t_start
-        # active_t_start = t[0] # absolute t_start
-        # active_t_start = 0.0 # relative t_start
-        # active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
-        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+        if time_variable_name == 't_rel_seconds':
+            t_rel = position_mat_file['timestamps_rel'].squeeze()
+            # t_rel = t - t[0] # relative to start of position file timestamps
+            # t_rel = t - session_absolute_start_timestamp # relative to absolute start of the first epoch
+            active_t_start = t_rel[0] # absolute to first epoch t_start
+        elif time_variable_name == 't_seconds':
+            # active_t_start = t_rel[0] # absolute to first epoch t_start         
+            active_t_start = t[0] # absolute t_start
+            # active_t_start = 0.0 # relative t_start
+            # active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
+        else:
+            raise ValueError
         
+        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
         
         ## Extra files:
         
@@ -631,7 +646,7 @@ class DataSessionLoader:
         return session
     
     @staticmethod
-    def __default_kdiba_pho_exported_spikeII_load_mat(sess, timestamp_scale_factor=(1/1E4)):
+    def __default_kdiba_pho_exported_spikeII_load_mat(sess, timestamp_scale_factor=1):
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikes.mat'.format(sess.session_name))
         if not spike_mat_file.is_file():
             print('ERROR: file {} does not exist!'.format(spike_mat_file))
@@ -642,7 +657,7 @@ class DataSessionLoader:
         # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
         # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
         # mat_variables_to_extract = ['t','t_seconds', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
-        mat_variables_to_extract = ['t','t_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
+        mat_variables_to_extract = ['t','t_seconds','t_rel_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
         num_mat_variables = len(mat_variables_to_extract)
         flat_spikes_out_dict = dict()
         for i in np.arange(num_mat_variables):
@@ -656,8 +671,6 @@ class DataSessionLoader:
                 flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
                 
         # print(flat_spikes_out_dict)
-        
-        
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
         spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
         # add times in seconds both to the dict and the spikes_df under a new key:
@@ -692,10 +705,18 @@ class DataSessionLoader:
         print('setting laps object.')
         if time_variable_name == 't_seconds':
             t_variable_column_names = ['start_t_seconds', 'end_t_seconds']
+            t_variable = laps_df[t_variable_column_names].to_numpy()
+        elif time_variable_name == 't_rel_seconds':
+            t_variable_column_names = ['start_t_seconds', 'end_t_seconds']
+            t_variable = laps_df[t_variable_column_names].to_numpy()
+            # TODO: need to subtract off the absolute start timestamp
+            t_variable = t_variable - session.config.absolute_start_timestamp
+            
         else:
             t_variable_column_names = ['start_t', 'end_t']
+            t_variable = laps_df[t_variable_column_names].to_numpy()
 
-        session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), laps_df[t_variable_column_names].to_numpy())
+        session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
         return session, laps_df
 
     

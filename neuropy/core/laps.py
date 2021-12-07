@@ -111,7 +111,10 @@ class Laps(DataWriter):
         return lap_specific_subsessions, lap_specific_dataframes, lap_spike_indicies, lap_spike_t_seconds
             
             
-            
+    def to_dataframe(self):
+        return pd.DataFrame({'id': self.lap_id, 'start':self.lap_start_stop_time[:,0],'stop':self.lap_start_stop_time[:,1],'label':self.lap_id})
+        
+        
     # @staticmethod
     # def build_lap_filtered_objects(active_epoch_session, include_empty_lists=True):
 
