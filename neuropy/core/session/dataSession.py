@@ -160,6 +160,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         elif isinstance(epoch_specifier, NamedTimerange):
             return self.filtered_by_named_timerange(epoch_specifier)
         else:
+            print('Type(epoch_specifier): {}'.format(type(epoch_specifier)))
             raise TypeError
 
 

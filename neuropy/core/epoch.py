@@ -106,6 +106,7 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         pass
 
     def __getitem__(self, slice_):
+        
         if isinstance(slice_, str):
             indices = np.where(self.labels == slice_)[0]
             if len(indices) > 1:
