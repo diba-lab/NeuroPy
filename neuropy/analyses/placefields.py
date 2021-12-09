@@ -756,6 +756,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             + ":, speed_thresh="
             + str(self.speed_thresh)
         )
+        return fig, ax
 
     def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
         if fig is None:
