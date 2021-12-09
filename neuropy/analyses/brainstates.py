@@ -6,7 +6,7 @@ import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
 
-from ..utils import signal_process
+from neuropy.utils import signal_process
 from .. import core
 
 

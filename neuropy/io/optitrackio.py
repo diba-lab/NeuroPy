@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from datetime import datetime
 import pandas as pd
-from ..utils import position_util, mathutil
+from neuropy.utils import position_util, mathutil
 from pathlib import Path
 from ..core import Position
 

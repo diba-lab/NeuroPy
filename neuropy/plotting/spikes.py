@@ -211,7 +211,7 @@ def plot_waveforms(neurons: core.Neurons, sort_order=None, color="#afadac"):
 
 
 def get_neuron_colors(sort_indicies, cmap="tab20b"):
-    # returns the list of colors
+    # returns the list of colors, an RGBA np.array of shape: 4 x n_neurons. 
     cmap = mpl.cm.get_cmap(cmap)
     n_neurons = len(sort_indicies)
     colors_array = np.zeros((4, n_neurons))

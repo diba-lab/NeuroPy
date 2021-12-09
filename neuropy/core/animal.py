@@ -32,7 +32,7 @@ class Animal(DataWriter):
     def write_csv(self):
         pass
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "name": self.name,
             "alias": self.alias,
@@ -66,12 +66,4 @@ class Animal(DataWriter):
             brain_region=d["brain_region"],
             metadata=d["metadata"],
         )
-
-    @staticmethod
-    def from_file(f):
-        d = DataWriter.from_file(f)
-        if d is not None:
-            return Animal.from_dict(d)
-        else:
-            return None
 

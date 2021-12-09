@@ -1,13 +1,19 @@
+from typing import Sequence, Union
 import numpy as np
-from ..utils import mathutil
+from neuropy.utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
+
+
 from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
+from neuropy.utils.load_exported import import_mat_file 
+from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
 
-class Position(DataWriter):
+class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(
         self,
         traces: np.ndarray,
@@ -98,7 +104,7 @@ class Position(DataWriter):
 
     @property
     def duration(self):
-        return self.n_frames / self.sampling_rate
+        return float(self.n_frames) / float(self.sampling_rate)
 
     @property
     def t_stop(self):
@@ -120,7 +126,7 @@ class Position(DataWriter):
     def sampling_rate(self, sampling_rate):
         self._sampling_rate = sampling_rate
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         data = {
             "traces": self.traces,
             "computed_traces": self.computed_traces,
@@ -139,43 +145,36 @@ class Position(DataWriter):
             sampling_rate=d["sampling_rate"],
             metadata=d["metadata"],
         )
-    
-    @staticmethod
-    def from_file(f):
-        d = DataWriter.from_file(f)
-        if d is not None:
-            return Position.from_dict(d)
-        else:
-            return None
-
+            
     @property
     def speed(self):
         dt = 1 / self.sampling_rate
-        return np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
+        return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
+    
+
+    # def to_dataframe(self):
+    #     return pd.DataFrame(self.to_dict)
 
     def to_dataframe(self):
-        return pd.DataFrame(self.to_dict)
+        df = pd.DataFrame({"t": self.time.flatten().copy(), "x": self.x.flatten().copy()})
+        if self.has_linear_pos:
+            df["lin_pos"] = self.linear_pos.flatten().copy()
+        if self.ndim >= 2:
+            df["y"] = self.y.flatten().copy()
+        if self.ndim >= 3:
+            df["z"] = self.z.flatten().copy()
+        df["speed"] = self.speed.flatten()
+        return df
+
 
     def speed_in_epochs(self, epochs: Epoch):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
         pass
 
-    def time_slice_indicies(self, t_start, t_stop):
-        if t_start is None:
-            t_start = self.t_start
-
-        if t_stop is None:
-            t_stop = self.t_stop
-
-        return (self.time > t_start) & (self.time < t_stop)
-
-
+    # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
-        if t_start is None:
-            t_start = self.t_start
-        if t_stop is None:
-            t_stop = self.t_stop
-        indices = self.time_slice_indicies(t_start, t_stop)
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+        indices = self.time_slice_indicies(t_start, t_stop) # from TimeSlicableIndiciesMixin
         return Position(
             traces=self.traces[:, indices],
             computed_traces=self.computed_traces[:, indices],
@@ -187,3 +186,76 @@ class Position(DataWriter):
     def from_separate_arrays(cls, t, x, y):
         # TODO: t is unused, and sampling rate isn't set correctly. Also, this class assumes uniform sampling!!
         return cls(traces=np.vstack((x, y)))
+    
+    
+    @classmethod
+    def from_vt_mat_file(cls, position_mat_file_path):
+        # example: Position.from_vt_mat_file(position_mat_file_path = Path(basedir).joinpath('{}vt.mat'.format(session_name)))
+        position_mat_file = import_mat_file(mat_import_file=position_mat_file_path)
+        tt = position_mat_file['tt'] # 1, 63192
+        xx = position_mat_file['xx'] # 10 x 63192
+        yy = position_mat_file['yy'] # 10 x 63192
+        tt = tt.flatten()
+        tt_rel = tt - tt[0] # relative timestamps
+        # timestamps_conversion_factor = 1e6
+        # timestamps_conversion_factor = 1e4
+        timestamps_conversion_factor = 1.0
+        t = tt / timestamps_conversion_factor  # (63192,)
+        t_rel = tt_rel / timestamps_conversion_factor  # (63192,)
+        position_sampling_rate_Hz = 1.0 / np.mean(np.diff(tt / 1e6)) # In Hz, returns 29.969777
+        num_samples = len(t);
+        x = xx[0,:].flatten() # (63192,)
+        y = yy[0,:].flatten() # (63192,)
+        # active_t_start = t[0] # absolute t_start
+        active_t_start = 0.0 # relative t_start
+        return cls(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+    
+    # def __repr__(self):
+    #     return "<Test a:%s b:%s>" % (self.a, self.b)
+
+    # def __str__(self):
+    #     return "From str method of Test: a is %s, b is %s" % (self.a, self.b)
+    
+    # ConcatenationInitializable protocol:
+    @classmethod
+    def concat(cls, objList: Union[Sequence, np.array]):
+        """ Concatenates the object list """
+        objList = np.array(objList)
+        t_start_times = np.array([obj.t_start for obj in objList])
+        sort_idx = list(np.argsort(t_start_times))
+        # print(sort_idx)
+        # sort the objList by t_start
+        objList = objList[sort_idx]
+        
+        new_t_start = objList[0].t_start # new t_start is the earliest t_start in the array
+        new_sampling_rate = objList[0].sampling_rate
+        
+        # Concatenate the elements:
+        traces_list = np.concatenate([obj.traces for obj in objList], axis=1)
+        computed_traces_list = np.concatenate([obj.computed_traces for obj in objList], axis=1)
+        
+        return cls(
+            traces=traces_list,
+            computed_traces=computed_traces_list,
+            t_start=new_t_start,
+            sampling_rate=new_sampling_rate,
+        )
+        
+    def print_debug_str(self):
+        print('<core.Position :: np.shape(traces): {}\t time: {}\n duration: {}\n time[-1]: {}\n time[0]: {}\n sampling_rate: {}\n t_start: {}\n t_stop: {}\n>\n'.format(np.shape(self.traces), self.time,
+            self.duration,
+            self.time[-1],
+            self.time[0],
+            self.sampling_rate,
+            self.t_start,
+            self.t_stop)
+        )
+        # print('self.time: {}\n self.duration: {}\n self.time[-1]: {}\n self.time[0]: {}\n self.sampling_rate: {}\n self.t_start: {}\n self.t_stop: {}\n>\n'.format(
+        #     self.time,
+        #     self.duration,
+        #     self.time[-1],
+        #     self.time[0],
+        #     self.sampling_rate,
+        #     self.t_start,
+        #     self.t_stop))
+        pass 

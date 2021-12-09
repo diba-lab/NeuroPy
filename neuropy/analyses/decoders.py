@@ -10,9 +10,11 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 from tqdm import tqdm
 
-from .placefields import PF1d, PF2d
+from neuropy.analyses.placefields import Pf2D
+
+# from .placefields import Pf1d, Pf2d
 from .. import core
-from ..utils import mathutil
+from neuropy.utils import mathutil
 
 
 def epochs_spkcount(
@@ -269,8 +271,8 @@ class Decode1d:
 
 
 class Decode2d:
-    def __init__(self, pf2d_obj: PF2d):
-
+    ## TODO: refactor to no longer use the obsolite PF2d and Spikes classes and instead use the Pf2d class
+    def __init__(self, pf2d_obj: Pf2D):
         assert isinstance(pf2d_obj, PF2d)
         self._obj = pf2d_obj._obj
         self.pf2d = pf2d_obj

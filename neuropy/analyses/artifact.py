@@ -3,7 +3,7 @@ import numpy as np
 from scipy import stats
 from ..core import Epoch
 from ..core import Signal
-from ..utils import signal_process
+from neuropy.utils import signal_process
 
 def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5, filt: list or np.ndarray = None):
     """

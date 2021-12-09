@@ -1,15 +1,50 @@
 import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
+from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol
 
 
-class Epoch(DataWriter):
+class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
+    """ A simple named period of time with a known start and end time """
+    def __init__(self, name, start_end_times):
+        self.name = name
+        self.start_end_times = start_end_times
+        
+    @property
+    def t_start(self):
+        return self.start_end_times[0]
+    
+    @t_start.setter
+    def t_start(self, t):
+        self.start_end_times[0] = t
+
+    @property
+    def duration(self):
+        return self.t_stop - self.t_start
+    
+    @property
+    def t_stop(self):
+        return self.start_end_times[1]
+    
+    @t_stop.setter
+    def t_stop(self, t):
+        self.start_end_times[1] = t
+
+
+
+class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
+        """[summary]
+        Args:
+            epochs (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
+            metadata (dict, optional): [description]. Defaults to None.
+        """
         super().__init__(metadata=metadata)
 
         self._check_epochs(epochs)
         epochs["label"] = epochs["label"].astype("str")
-        self._data = epochs.sort_values(by=["start"])
+        self._data = epochs.sort_values(by=["start"]) # sorts all values in ascending order
 
     @property
     def starts(self):
@@ -18,6 +53,42 @@ class Epoch(DataWriter):
     @property
     def stops(self):
         return self._data.stop.values
+    
+    @property
+    def t_start(self):
+        return self.starts[0]
+    
+    @t_start.setter
+    def t_start(self, t):
+        include_indicies = np.argwhere(t < self.stops)
+        if (np.size(include_indicies) == 0):
+            # this proposed t_start is after any contained epochs, so the returned object would be empty
+            print('Error: this proposed t_start ({}) is after any contained epochs, so the returned object would be empty'.format(t))
+            raise ValueError
+        first_include_index = include_indicies[0]
+        # print('\t first_include_index: {}'.format(first_include_index))
+        # print('\t changing ._data.loc[first_include_index, (\'start\')] from {} to {}'.format(self._data.loc[first_include_index, ('start')].item(), t))
+        
+        if (first_include_index > 0):
+            # drop the epochs preceeding the first_include_index:
+            drop_indicies = np.arange(first_include_index)
+            print('drop_indicies: {}'.format(drop_indicies))
+            raise NotImplementedError # doesn't yet drop the indicies before the first_include_index
+        self._data.loc[first_include_index, ('start')] = t # exclude the first short period where the animal isn't on the maze yet
+        
+        
+
+    @property
+    def duration(self):
+        return self.t_stop - self.t_start
+    
+    @property
+    def t_stop(self):
+        return self.stops[-1]
+    
+    # @t_stop.setter
+    # def t_stop(self, t):
+    #     self.start_end_times[1] = t
 
     @property
     def durations(self):
@@ -33,9 +104,13 @@ class Epoch(DataWriter):
 
     def get_unique_labels(self):
         return np.unique(self.labels)
+    
+    
+    def get_named_timerange(self, epoch_name):
+        return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
 
-    @property
-    def to_dict(self):
+
+    def to_dict(self, recurrsively=False):
         d = {"epochs": self._data, "metadata": self.metadata}
         return d
 
@@ -67,7 +142,7 @@ class Epoch(DataWriter):
         pass
 
     def __getitem__(self, slice_):
-
+        
         if isinstance(slice_, str):
             indices = np.where(self.labels == slice_)[0]
             if len(indices) > 1:
@@ -77,19 +152,24 @@ class Epoch(DataWriter):
         else:
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
 
+    # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         # TODO time_slice should also include partial epochs
         # falling in between the timepoints
         df = self.to_dataframe()
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
         return Epoch(df)
-
+        
     def label_slice(self, label):
-        assert isinstance(label, str), "label must be string"
-        df = self._data[self._data["label"] == label].reset_index(drop=True)
+        if isinstance(label, (list, np.ndarray)):
+            df = self._data[np.isin(self._data["label"], label)].reset_index(drop=True)
+        else:
+            assert isinstance(label, str), "label must be string"
+            df = self._data[self._data["label"] == label].reset_index(drop=True)
         return Epoch(epochs=df)
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "epochs": self._data,
             "metadata": self._metadata,
@@ -99,13 +179,6 @@ class Epoch(DataWriter):
     def from_dict(d: dict):
         return Epoch(d["epochs"], metadata=d["metadata"])
 
-    @staticmethod
-    def from_file(f):
-        d = DataWriter.from_file(f)
-        if d is not None:
-            return Epoch.from_dict(d)
-        else:
-            return None
 
     def fill_blank(self, method="from_left"):
         ep_starts = self.epochs["start"].values
@@ -175,7 +248,6 @@ class Epoch(DataWriter):
         return Epoch(epochs_df)
 
     def get_proportion_by_label(self, t_start=None, t_stop=None):
-
         if t_start is None:
             t_start = self.starts[0]
         if t_stop is None:
@@ -206,7 +278,6 @@ class Epoch(DataWriter):
         return label_proportion
 
     def count(self, t_start=None, t_stop=None, binsize=300):
-
         if t_start is None:
             t_start = 0
 
