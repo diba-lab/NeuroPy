@@ -734,26 +734,12 @@ class DataSessionLoader:
         for i in np.arange(num_mat_variables):
             curr_var_name = mat_variables_to_extract[i]
             flat_var_out_dict[curr_var_name] = laps_mat_file[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-        laps_df = pd.DataFrame(flat_var_out_dict) # 1014937 rows × 11 columns
-        laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
-        laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index']
-
-        # Build output Laps object to add to session
-        print('setting laps object.')
-        if time_variable_name == 't_seconds':
-            t_variable_column_names = ['start_t_seconds', 'end_t_seconds']
-            t_variable = laps_df[t_variable_column_names].to_numpy()
-        elif time_variable_name == 't_rel_seconds':
-            t_variable_column_names = ['start_t_seconds', 'end_t_seconds']
-            t_variable = laps_df[t_variable_column_names].to_numpy()
-            # TODO: need to subtract off the absolute start timestamp
-            t_variable = t_variable - session.config.absolute_start_timestamp
             
-        else:
-            t_variable_column_names = ['start_t', 'end_t']
-            t_variable = laps_df[t_variable_column_names].to_numpy()
-
-        session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
+        laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)  # 1014937 rows × 11 columns
+        session.laps = Laps(laps_df) # new DataFrame-based approach
+        
+        # session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
+        
         return session, laps_df
 
     
