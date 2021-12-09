@@ -104,7 +104,7 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
 
     @property
     def duration(self):
-        return self.n_frames / self.sampling_rate
+        return float(self.n_frames) / float(self.sampling_rate)
 
     @property
     def t_stop(self):

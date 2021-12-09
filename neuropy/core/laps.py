@@ -1,6 +1,7 @@
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+from neuropy.core.epoch import Epoch
 
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 from .datawriter import DataWriter
@@ -93,6 +94,9 @@ class Laps(DataWriter):
     def to_dataframe(self):
         return pd.DataFrame({'id': self.lap_id, 'start':self.lap_start_stop_time[:,0],'stop':self.lap_start_stop_time[:,1],'label':self.lap_id})
         
+    def as_epoch_obj(self):
+        """ Converts into a core.Epoch object containing the time periods """
+        return Epoch(self.to_dataframe())
         
     # @staticmethod
     # def build_lap_filtered_objects(active_epoch_session, include_empty_lists=True):

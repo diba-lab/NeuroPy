@@ -14,8 +14,7 @@ def plot_ratemap(
     pad=2,
     normalize_tuning_curve=False,
     sortby=None,
-    cmap="tab20b",
-):
+    cmap="tab20b"):
     """Plot 1D place fields stacked
 
     Parameters
