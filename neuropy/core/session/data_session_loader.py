@@ -209,28 +209,61 @@ class DataSessionLoader:
         return session
     
     @staticmethod
+    def _default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name='t_rel_seconds'):     
+        ## Positions:
+        active_file_suffix = '.interpolated_spike_positions.npy'
+        found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
+        if found_datafile is not None:
+            print('\t Loading success: {}.'.format(active_file_suffix))
+            session.flattened_spiketrains = found_datafile
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('\t Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
+            session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
+            print('\t Saving updated position results to {}...'.format(session.position.filename))
+            session.flattened_spiketrains.save()
+            print('\t done.\n')
+    
+        # return the session with the upadated member variables
+        return session, spikes_df
+    
+    
+    
+    @staticmethod
     def _default_compute_linear_position_if_needed(session):
         # TODO: this is not general, this is only used for this particular flat kind of file:
             # Load or compute linear positions if needed:
         if (not session.position.has_linear_pos):
-            # compute linear positions:
-            print('computing linear positions for all active epochs for session...')
-            # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-            # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
+            # # compute linear positions:
+            # print('computing linear positions for all active epochs for session...')
+            # # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
+            # session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            # # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
+            # # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
+            # acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
             # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
-            acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
-            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+            # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
             
-            session.position.filename = session.filePrefix.with_suffix(".position.npy")
-            print('Saving updated position results to {}...'.format(session.position.filename))
-            session.position.save()
+            ## Positions:
+            active_file_suffix = '.position.npy'
+            found_datafile = Position.from_file(session.filePrefix.with_suffix(active_file_suffix))
+            if found_datafile is not None:
+                print('Loading success: {}.'.format(active_file_suffix))
+                session.position = found_datafile
+            else:
+                # Otherwise load failed, perform the fallback computation
+                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+                session.position = DataSession.compute_linear_position(session)
+            
+            # session.position.filename = session.filePrefix.with_suffix(".position.npy")
+            # print('Saving updated position results to {}...'.format(session.position.filename))
+            # session.position.save()
             print('done.\n')
         else:
             print('linearized position loaded from file.')
-        # return the session with the upadated member variables
+            # return the session with the upadated member variables
         return session
 
     #######################################################
@@ -493,13 +526,27 @@ class DataSessionLoader:
         else:
             pass
         
+        
+        # Load or compute linear positions if needed:
+        try:
+            session = DataSessionLoader._default_compute_linear_position_if_needed(session)
+        except Exception as e:
+            # raise e
+            print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
+            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+        else:
+            # Successful!
+            print('session.position linear positions computed!')
+            pass
+        
+        
         ## Testing: Fixing spike positions
         spikes_df['x_loaded'] = spikes_df['x']
         spikes_df['y_loaded'] = spikes_df['y']
-        spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=active_time_variable_name)
-
+        session, spikes_df = DataSessionLoader._default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name=active_time_variable_name)
+        # spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=active_time_variable_name)
+        
         ## Laps:
-        # Load or compute linear positions if needed:
         try:
             session, laps_df = DataSessionLoader.__default_kdiba_spikeII_load_laps_vars(session, time_variable_name=active_time_variable_name)
         except Exception as e:
@@ -515,21 +562,13 @@ class DataSessionLoader:
         session = DataSessionLoader.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
                         
-        # Load or compute linear positions if needed:
-        try:
-            session = DataSessionLoader._default_compute_linear_position_if_needed(session)
-        except Exception as e:
-            # raise e
-            print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-        else:
-            # Successful!
-            print('session.position linear positions computed!')
-            pass
-
+       
+        
+        # add the linear_pos to the spikes_df before building the FlattenedSpiketrains object:
+        # spikes_df['linear_pos'] = session.position.linear_pos
 
         # add the flat spikes to the session so they don't have to be recomputed:
-        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df)
+        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
         
         # Common Extended properties:
         # session = DataSessionLoader.default_extended_postload(fp, session)
@@ -652,11 +691,7 @@ class DataSessionLoader:
             print('ERROR: file {} does not exist!'.format(spike_mat_file))
             raise FileNotFoundError
         flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
-        # print('flat_spikes_mat_file.keys(): {}'.format(flat_spikes_mat_file.keys())) # flat_spikes_mat_file.keys(): dict_keys(['__header__', '__version__', '__globals__', 'spike'])
         flat_spikes_data = flat_spikes_mat_file['spike']
-        # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
-        # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
-        # mat_variables_to_extract = ['t','t_seconds', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
         mat_variables_to_extract = ['t','t_seconds','t_rel_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
         num_mat_variables = len(mat_variables_to_extract)
         flat_spikes_out_dict = dict()
@@ -672,13 +707,15 @@ class DataSessionLoader:
                 
         # print(flat_spikes_out_dict)
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
+        spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']].astype('int') # convert integer calumns to correct datatype
+        
         spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
         # add times in seconds both to the dict and the spikes_df under a new key:
         # flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
         # spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
         # spikes_df['qclu']
         spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
-        
+        spikes_df[['flat_spike_idx']] = spikes_df[['flat_spike_idx']].astype('int') # convert integer calumns to correct datatype
         return spikes_df, flat_spikes_out_dict 
     
     @staticmethod
@@ -743,13 +780,14 @@ class DataSessionLoader:
             else:
                 flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten() # TODO: do we want .squeeze() instead of .flatten()??
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
+        spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']].astype('int') # convert integer calumns to correct datatype
         spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
         # add times in seconds both to the dict and the spikes_df under a new key:
         flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
         spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
         # spikes_df['qclu']
         spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
-        
+        spikes_df[['flat_spike_idx']] = spikes_df[['flat_spike_idx']].astype('int') # convert integer calumns to correct datatype
         return spikes_df, flat_spikes_out_dict 
 
     @staticmethod

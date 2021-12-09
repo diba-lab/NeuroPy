@@ -117,9 +117,9 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         # copy_sess = DataSession.from_dict(self.to_dict())
         
         # update the copy_session's time_sliceable objects
-        copy_sess.neurons = self.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
-        copy_sess.position = self.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
-        copy_sess.flattened_spiketrains = self.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid  
+        copy_sess.neurons = copy_sess.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
+        copy_sess.position = copy_sess.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
+        copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid  
         
         # copy_sess.laps = self.      
         return copy_sess
@@ -131,9 +131,10 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         # make a copy of self:
         copy_sess = DataSession.from_dict(deepcopy(self.to_dict()))
         # update the copy_session's neurons objects
-        copy_sess.neurons = self.neurons.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
-        copy_sess.flattened_spiketrains = self.flattened_spiketrains.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
+        copy_sess.neurons = copy_sess.neurons.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
+        copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.get_neuron_type(query_neuron_type) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         return copy_sess
+    
     def get_named_epoch_timerange(self, epoch_name):
         if isinstance(epoch_name, str):            
             # convert the epoch_name string to a NamedTimerange object, get its time from self.epochs
@@ -169,10 +170,10 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
         """Implementors return a copy of themselves with neuron_ids equal to ids"""
-        copy_sess = DataSession.from_dict(self.to_dict())
-        
-        copy_sess.neurons = self.neurons.get_by_id(ids)
-        copy_sess.flattened_spiketrains = self.flattened_spiketrains.get_by_id(ids)
+        # copy_sess = DataSession.from_dict(deepcopy(self.to_dict()))
+        copy_sess = deepcopy(self)
+        copy_sess.neurons = copy_sess.neurons.get_by_id(ids)
+        copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.get_by_id(ids)
         return copy_sess
 
   
@@ -248,6 +249,32 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         return pbe
     # sess.pbe = compute_pbe_epochs(sess)
     
+    @staticmethod
+    def compute_linear_position(session):
+        # compute linear positions:
+        print('Computing linear positions for all active epochs for session...')
+        # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
+        session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+        # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
+        # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+        for anEpochLabelName in session.epochs.labels:
+            curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
+            session.position.computed_traces[0,  curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
+        
+        # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
+        # acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
+        # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+        # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces        
+        session.position.filename = session.filePrefix.with_suffix(".position.npy")
+        print('\t Saving updated position results to {}...'.format(session.position.filename))
+        session.position.save()
+        print('\t done.\n')
+        return session.position
+        
+
+            
+            
+        
     # ## TODO: needs neuropy! Specifically: from neuropy.analyses import Pf1D, Pf2D, perform_compute_placefields, plot_all_placefields
     # @staticmethod
     # def compute_placefields_as_needed(active_session, computation_config=None, active_epoch_placefields1D = None, active_epoch_placefields2D = None, should_force_recompute_placefields=False, should_display_2D_plots=False):
@@ -280,30 +307,45 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
                  ripple = None, mua = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
     
     
+    # def filtered_by_laps(self, lap_indices=None):
+    #     """ Returns a copy of this session with all of its members filtered by the laps.
+    #     """
+    #     lap_specific_subsessions, lap_specific_dataframes, lap_spike_indicies, lap_spike_t_seconds = Laps.build_lap_specific_lists(self, include_empty_lists=True)
+
+    #     if lap_indices is None:
+    #         lap_indices = np.arange(1, len(lap_specific_subsessions)) # all laps by default, but exclude the 0 element since that's the -1 value
+            
+    #     print('filtering by laps: {}'.format(lap_indices))
+    #     lap_specific_subsessions = [lap_specific_subsessions[i] for i in lap_indices] # filter by the desired number of laps 
+    #     ## Effectively build the new session using only the lap-specific spiketimes:
+    #     return DataSession.concat(lap_specific_subsessions)
+    #     # raise NotImplementedError
+    
+    def split_by_laps(self):
+        """ Returns a list containing separate copies of this session with all of its members filtered by the laps, for each lap
+        """
+        return Laps.build_lap_specific_lists(self, include_empty_lists=True) # when surrounded by deepcopy, this causes memory problems
+    
+    
+    
     def filtered_by_laps(self, lap_indices=None):
         """ Returns a copy of this session with all of its members filtered by the laps.
         """
-        lap_specific_subsessions, lap_specific_dataframes, lap_spike_indicies, lap_spike_t_seconds = Laps.build_lap_specific_lists(self, include_empty_lists=True)
-
+        lap_specific_subsessions = Laps.build_lap_specific_lists(self, include_empty_lists=True)
         if lap_indices is None:
             lap_indices = np.arange(1, len(lap_specific_subsessions)) # all laps by default, but exclude the 0 element since that's the -1 value
-            
         print('filtering by laps: {}'.format(lap_indices))
         lap_specific_subsessions = [lap_specific_subsessions[i] for i in lap_indices] # filter by the desired number of laps 
         ## Effectively build the new session using only the lap-specific spiketimes:
         return DataSession.concat(lap_specific_subsessions)
-        # raise NotImplementedError
-
-
-
-
-
+        
 
     def compute_position_laps(self):
-        """ laps_position_traces, curr_position_df = compute_position_laps(sess) """
+        """ Adds a 'lap' column to the position dataframe:
+        Usage:
+            laps_position_traces, curr_position_df = compute_position_laps(sess) """
         curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
         curr_position_df['lap'] = np.NaN # set all 'lap' column to NaN
-        lap_position_traces = []
         lap_position_dataframes = []
 
         for i in np.arange(len(self.laps.lap_id)):
@@ -313,12 +355,13 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
             curr_lap_position_df_is_included = curr_position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive=True) # returns a boolean array indicating inclusion in teh current lap
             curr_lap_position_df = curr_position_df[curr_lap_position_df_is_included]
             lap_position_dataframes.append(curr_lap_position_df)
-            curr_position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id
+            curr_position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
             # curr_position_df.query('-0.5 <= t < 0.5')
         
         # return the extracted traces and the updated curr_position_df
-        return lap_position_traces, curr_position_df
+        return curr_position_df
 
+    
     
 # # Helper function that processed the data in a given directory
 # def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):

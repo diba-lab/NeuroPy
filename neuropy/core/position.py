@@ -31,7 +31,8 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         self.computed_traces = computed_traces
         self._t_start = t_start
         self._sampling_rate = sampling_rate
-        super().__init__(metadata=metadata)
+        self.metadata = metadata
+        super().__init__()
 
     @property
     def x(self):
@@ -107,12 +108,11 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
 
     @property
     def t_stop(self):
-        return self.time[-1]
+        return self.t_start + self.duration
 
     @property
     def time(self):
-        # return np.linspace(self.t_start, self.t_stop, self.n_frames)
-        return np.arange(self.n_frames) * (1 / self.sampling_rate) + self.t_start
+        return np.linspace(self.t_start, self.t_stop, self.n_frames)
 
     @property
     def ndim(self):
@@ -149,8 +149,11 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     @property
     def speed(self):
         dt = 1 / self.sampling_rate
-        speed = np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
-        return np.hstack(([0], speed))
+        return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
+    
+
+    # def to_dataframe(self):
+    #     return pd.DataFrame(self.to_dict)
 
     def to_dataframe(self):
         df = pd.DataFrame({"t": self.time.flatten().copy(), "x": self.x.flatten().copy()})

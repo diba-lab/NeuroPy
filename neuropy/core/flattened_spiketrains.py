@@ -13,8 +13,9 @@ from .neurons import NeuronType
 class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold flattened spikes for all cells"""
     # flattened_sort_indicies: allow you to sort any naively flattened array (such as position info) using naively_flattened_variable[self.flattened_sort_indicies]
-    def __init__(self, spikes_df: pd.DataFrame, t_start=0.0, metadata=None):
+    def __init__(self, spikes_df: pd.DataFrame, time_variable_name = 't_rel_seconds', t_start=0.0, metadata=None):
         super().__init__(metadata=metadata)
+        self._time_variable_name = time_variable_name
         self._spikes_df = spikes_df
         self.t_start = t_start
         self.metadata = metadata
@@ -63,7 +64,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         if self._spikes_df is None:
             return self._flattened_spike_times
         else:
-            return self._spikes_df['t_seconds'].values
+            return self._spikes_df[self._time_variable_name].values
 
     # @flattened_spike_times.setter
     # def flattened_spike_times(self, arr):
@@ -73,12 +74,13 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
     #     pass
     
     def to_dict(self, recurrsively=False):
-        d = {'spikes_df': self._spikes_df, 't_start': self.t_start, 'metadata': self.metadata}
+        d = {'spikes_df': self._spikes_df, 't_start': self.t_start, 'time_variable_name': self._time_variable_name, 'metadata': self.metadata}
         return d
 
     @staticmethod
     def from_dict(d: dict):
-        return FlattenedSpiketrains(d["spikes_df"], t_start=d.get('t_start',0.0), metadata=d.get('metadata',None))
+        return FlattenedSpiketrains(d["spikes_df"], t_start=d.get('t_start',0.0), time_variable_name=d.get('time_variable_name','t_rel_seconds'), metadata=d.get('metadata',None))
+    
     
     
     def to_dataframe(self):
@@ -87,10 +89,14 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         return df
 
 
+    # @classmethod
+    # def from_dataframe(cls, spikes_df, 
+
+    
     def time_slice(self, t_start=None, t_stop=None):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         flattened_spiketrains = deepcopy(self)
-        included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
+        included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df[self._time_variable_name] > t_start) & (flattened_spiketrains.spikes_df[self._time_variable_name] < t_stop))]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
         
     # for NeuronUnitSlicableObjectProtocol:
@@ -99,8 +105,6 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         flattened_spiketrains = deepcopy(self)
         included_df = flattened_spiketrains.spikes_df[np.isin(flattened_spiketrains.spikes_df.aclu, ids)]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
-    
-
     
     def get_neuron_type(self, query_neuron_type):
         """ filters self by the specified query_neuron_type, only returning neurons that match. """
@@ -115,8 +119,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         flattened_spiketrains = deepcopy(self)
         included_df = flattened_spiketrains.spikes_df[(flattened_spiketrains.spikes_df.cell_type == query_neuron_type)]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
-        
-        
+            
     # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Union[Sequence, np.array]):
@@ -134,7 +137,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         
         
     @staticmethod
-    def interpolate_spike_positions(spikes_df, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None, spike_timestamp_column_name='t_seconds'):
+    def interpolate_spike_positions(spikes_df, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None, spike_timestamp_column_name='t_rel_seconds'):
         spikes_df['x'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_x)
         spikes_df['y'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_y)
         if position_linear_pos is not None:
@@ -147,6 +150,8 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         
     @staticmethod
     def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4)):
+        raise NotImplementedError
+    
         flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
         flattened_spike_types = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_type[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_type for each spike that belongs to that neuron
         flattened_spike_linear_unit_spike_idx = np.concatenate([np.arange(active_session.neurons.n_spikes[i]) for i in np.arange(active_session.neurons.n_neurons)]) # gives the index that would be needed to index into a given spike's position within its unit's spiketrain.

@@ -1,3 +1,4 @@
+from ipywidgets import widgets
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -71,19 +72,18 @@ def plot_ratemap(
             i * pad + tuning_curves[neuron_ind],
             color=color,
             ec=None,
-            alpha=0.7,
+            alpha=0.5,
             zorder=i + 1,
         )
         ax.plot(
             bin_cntr,
             i * pad + tuning_curves[neuron_ind],
             color=color,
-            alpha=1,
-            lw=0.6,
+            alpha=0.7,
         )
 
     ax.set_yticks(list(range(len(sort_ind))))
-    ax.set_yticklabels(list(ratemap.neuron_ids[sort_ind]))
+    ax.set_yticklabels(list(sort_ind))
     ax.set_xlabel("Position")
     ax.spines["left"].set_visible(False)
     if normalize_xbin:
@@ -96,7 +96,7 @@ def plot_ratemap(
     return ax, sort_ind, colors_array
 
 
-def plot_raw(self, ax=None, subplots=(8, 9)):
+def plot_raw(ratemap: core.Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
     """Plot spike location on animal's path
 
     Parameters
@@ -109,16 +109,17 @@ def plot_raw(self, ax=None, subplots=(8, 9)):
         [description], by default (8, 9)
     """
 
-    mapinfo = self.ratemaps
+    # mapinfo = self.ratemaps
+    mapinfo = ratemap
     nCells = len(mapinfo["pos"])
 
     def plot_(cell, ax):
         if subplots is None:
             ax.clear()
-        ax.plot(self.x, self.t, color="gray", alpha=0.6)
+        ax.plot(x, t, color="gray", alpha=0.6)
         ax.plot(mapinfo["pos"][cell], mapinfo["spikes"][cell], ".", color="#ff5f5c")
         ax.set_title(
-            " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
+            " ".join(filter(None, ("Cell", str(cell), run_dir.capitalize())))
         )
         ax.invert_yaxis()
         ax.set_xlabel("Position (cm)")

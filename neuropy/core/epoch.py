@@ -66,17 +66,6 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
     def labels(self):
         return self._data.label.values
 
-    def set_labels(self, labels):
-        self._data["label"] = labels
-        return Epoch(epochs=self._data)
-
-    def __add__(self, epochs):
-        assert isinstance(epochs, Epoch), "Can only add two core.Epoch objects"
-        df1 = self._data[["start", "stop", "label"]]
-        df2 = epochs._data[["start", "stop", "label"]]
-        df_new = pd.concat([df1, df2]).reset_index(drop=True)
-        return Epoch(epochs=df_new)
-
     def get_unique_labels(self):
         return np.unique(self.labels)
     
@@ -84,11 +73,8 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
     def get_named_timerange(self, epoch_name):
         return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
 
-    def is_labels_unique(self):
-        return len(np.unique(self.labels)) == len(self)
 
-    @property
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         d = {"epochs": self._data, "metadata": self.metadata}
         return d
 
@@ -97,16 +83,15 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         df["duration"] = self.durations
         return df
 
-    def add_column(self, name: str, arr: np.ndarray):
-        data = self.to_dataframe()
-        data[name] = arr
-        return Epoch(epochs=data, metadata=self.metadata)
+    @property
+    def metadata(self):
+        return self._metadata
 
-    def add_dataframe(self, df: pd.DataFrame):
-        assert isinstance(df, pd.DataFrame), "df should be a pandas dataframe"
-        data = self.to_dataframe()
-        data_new = pd.concat([data, df], axis=1)
-        return Epoch(epochs=data_new, metadata=self.metadata)
+    @metadata.setter
+    def metadata(self, metadata):
+        """metadata compatibility"""
+
+        self._metadata = metadata
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
@@ -115,24 +100,21 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         ), "Epoch dataframe should at least have columns with names: start, stop, label"
 
     def __repr__(self) -> str:
-        return f"{len(self.starts)} epochs\nSnippet: \n {self._data.head(5)}"
+        return f"{len(self.starts)} epochs"
 
     def __str__(self) -> str:
         pass
 
-    def __getitem__(self, i):
+    def __getitem__(self, slice_):
 
-        if isinstance(i, str):
-            data = self._data[self._data["label"] == i].copy()
-        elif isinstance(i, slice):
-            data = self._data.iloc[i].copy()
+        if isinstance(slice_, str):
+            indices = np.where(self.labels == slice_)[0]
+            if len(indices) > 1:
+                return np.vstack((self.starts[indices], self.stops[indices])).T
+            else:
+                return np.array([self.starts[indices], self.stops[indices]]).squeeze()
         else:
-            data = self._data.iloc[[i]].copy()
-
-        return Epoch(epochs=data.reset_index(drop=True))
-
-    def __len__(self):
-        return self.n_epochs
+            return np.vstack((self.starts[slice_], self.stops[slice_])).T
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
@@ -161,17 +143,6 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
     def from_dict(d: dict):
         return Epoch(d["epochs"], metadata=d["metadata"])
 
-    @staticmethod
-    def from_array(starts, stops, labels=None):
-        return Epoch(epochs=df)
-        df = pd.DataFrame({"start": starts, "stop": stops, "label": labels})
-
-    @property
-    def is_overlapping(self):
-        starts = self.starts
-        stops = self.stops
-
-        return np.all((starts[1:] - stops[:-1]) < 0)
 
     def fill_blank(self, method="from_left"):
         ep_starts = self.epochs["start"].values
@@ -281,12 +252,10 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         bins = np.arange(t_start, t_stop + binsize, binsize)
         return np.histogram(mid_times, bins=bins)[0]
 
-    def as_array(self):
-        """Returns starts and stops as 2d numpy array"""
-        return self.to_dataframe()[["start", "stop"]].to_numpy()
+    def to_neuroscope(self, ext="evt"):
+        with self.filename.with_suffix(f".evt.{ext}").open("w") as a:
+            for event in self.epochs.itertuples():
+                a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
 
-    def flatten(self):
-        """Returns 1d numpy array of alternating starts and stops
-        NOTE: returned array is monotonically increasing only if epochs are non-overlapping
-        """
-        return self.as_array().flatten("F")
+    def as_array(self):
+        return self.to_dataframe()[["start", "stop"]].to_numpy()

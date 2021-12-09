@@ -11,7 +11,7 @@ class Signal:
     ) -> None:
         self.traces = traces
         self.t_start = t_start
-        self._sampling_rate = sampling_rate
+        self._sampling_rate = int(sampling_rate)
         if channel_id is None:
             self.channel_id = np.arange(self.n_channels)
         else:
@@ -51,17 +51,13 @@ class Signal:
             channel_id = [channel_id]
 
         if t_start is None:
-            t_start = self.t_start
-
-        assert t_start >= self.t_start, "t_start should be greater than signal.t_start"
+            t_start = 0.0
 
         if t_stop is None:
             t_stop = t_start + self.duration
 
-        assert t_stop <= self.t_stop, "t_stop should be less than signal.t_stop"
-
-        frame_start = int((t_start - self.t_start) * self.sampling_rate)
-        frame_stop = int((t_stop - self.t_stop) * self.sampling_rate)
+        frame_start = int(t_start * self.sampling_rate)
+        frame_stop = int(t_stop * self.sampling_rate)
 
         if channel_id is None:
             traces = self.traces[:, frame_start:frame_stop]
