@@ -178,9 +178,7 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         position_srate = position.sampling_rate
         self.x = position.x
         self.speed = position.speed
-        # print('np.shape(self.speed): {}'.format(np.shape(self.speed))) # (52121,)
         self.speed = gaussian_filter1d(self.speed, sigma=20)
-        
         self.t = position.time
         t_start = position.t_start
         t_stop = position.t_stop
@@ -209,11 +207,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
                     for epc in epochs.to_dataframe().itertuples()
                 ]
             )
-            print('t: {}'.format(indx))
-            print('np.shape(self.speed): {}'.format(np.shape(self.speed))) # (52121,)
-            # print('np.shape(self.t): {}'.format(np.shape(self.t)))
-            # print(np.shape(self.x))
-            
             self.x = self.x[indx] # (52121,)
             self.speed = self.speed[indx] # (52121,)
             self.t = self.t[indx] # (52121,)
@@ -453,8 +446,6 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         self.speed = position.speed
         self.speed = gaussian_filter1d(self.speed, sigma=smooth)
         
-        print('np.shape(self.speed): {}'.format(np.shape(self.speed))) # (52121,)
-        
         spk_pos, spk_t, tuning_maps = [], [], []
 
         # ------ if direction then restrict to those epochs --------
@@ -476,12 +467,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
                     np.where((self.t > epc.start) & (self.t < epc.stop))[0]
                     for epc in epochs.to_dataframe().itertuples()
                 ]
-            )
-            print('t: {}'.format(indx))
-            print('np.shape(self.speed): {}'.format(np.shape(self.speed))) # (52121,)
-            # print('np.shape(self.t): {}'.format(np.shape(self.t)))
-            # print(np.shape(self.x))
-            
+            ) 
             self.x = self.x[indx]
             self.y = self.y[indx]
             self.speed = self.speed[indx]
