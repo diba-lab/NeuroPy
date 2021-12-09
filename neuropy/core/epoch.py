@@ -106,7 +106,6 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         pass
 
     def __getitem__(self, slice_):
-
         if isinstance(slice_, str):
             indices = np.where(self.labels == slice_)[0]
             if len(indices) > 1:
@@ -125,12 +124,12 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
         df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
         return Epoch(df)
         
-        
-
-
     def label_slice(self, label):
-        assert isinstance(label, str), "label must be string"
-        df = self._data[self._data["label"] == label].reset_index(drop=True)
+        if isinstance(label, (list, np.ndarray)):
+            df = self._data[np.isin(self._data["label"], label)].reset_index(drop=True)
+        else:
+            assert isinstance(label, str), "label must be string"
+            df = self._data[self._data["label"] == label].reset_index(drop=True)
         return Epoch(epochs=df)
 
     def to_dict(self, recurrsively=False):
