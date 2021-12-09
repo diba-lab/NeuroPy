@@ -449,18 +449,18 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             # --- occupancy map calculation -----------
             # NRK todo: might need to normalize occupancy so sum adds up to 1
             # Please note that the histogram does not follow the Cartesian convention where x values are on the abscissa and y values on the ordinate axis. Rather, x is histogrammed along the first dimension of the array (vertical), and y along the second dimension of the array (horizontal).
-            occupancy, xedges, yedges = np.histogram2d(self.x, self.y, bins=(xbin, ybin))
-            occupancy = occupancy.T # transpose the occupancy before applying other operations
+            occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
+            # occupancy = occupancy.T # transpose the occupancy before applying other operations
             occupancy = occupancy / position_srate + 10e-16  # converting to seconds
-            occupancy = gaussian_filter(occupancy, sigma=smooth) # 2d gaussian filter
+            occupancy = gaussian_filter(occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
              # Histogram does not follow Cartesian convention (see Notes),
             # therefore transpose occupancy for visualization purposes.
             return occupancy, xedges, yedges
         
         def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy):
             tuning_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
-            tuning_map = tuning_map.T # transpose the tuning_map before applying other operations
-            tuning_map = gaussian_filter(tuning_map, sigma=smooth)
+            # tuning_map = tuning_map.T # transpose the tuning_map before applying other operations
+            tuning_map = gaussian_filter(tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
             tuning_map = tuning_map / occupancy
             return tuning_map
 
@@ -626,17 +626,23 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             )
             figures.append(fig)
 
+        mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin) 
+
         for cell, pfmap in enumerate(map_use):
             ind = cell // np.prod(subplots)
             subplot_ind = cell % np.prod(subplots)
+            curr_pfmap = np.array(pfmap)
+            curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) / np.nanmax(curr_pfmap)
+            # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
-            im = ax1.pcolorfast(
-                self.ratemap.xbin,
-                self.ratemap.ybin,
-                pfmap / np.nanmax(pfmap),
-                cmap="jet",
-                vmin=0,
-            )
+            ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
+            # im = ax1.pcolorfast(
+            #     self.ratemap.xbin,
+            #     self.ratemap.ybin,
+            #     curr_pfmap,
+            #     cmap="jet",
+            #     vmin=0,
+            # )
             # im = ax1.pcolorfast(
             #     self.ratemap.xbin,
             #     self.ratemap.ybin,
