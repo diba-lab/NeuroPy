@@ -41,6 +41,15 @@ class Laps(DataWriter):
     def n_laps(self):
         return len(self.lap_id)
         
+    @property
+    def starts(self):
+        return self.lap_start_stop_time[:,0]
+
+    @property
+    def stops(self):
+        return self.lap_start_stop_time[:,1]
+    
+    
     @staticmethod
     def from_dict(d: dict):
         return Laps(d['lap_id'], laps_spike_counts = d['laps_spike_counts'], lap_start_stop_flat_idx = d['lap_start_stop_flat_idx'],
@@ -58,12 +67,45 @@ class Laps(DataWriter):
     #TODO: #WM: Fix this, it's not done! It should filter out the laps that occur outside of the start/end times that 
     def time_slice(self, t_start=None, t_stop=None):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+        
+        sliced_copy = deepcopy(self) # get copy of the dataframe
+        
+        # slice forward: 
+        new_t_start = t_start
+        include_indicies = np.argwhere(new_t_start < sliced_copy.stops)
+        if (np.size(include_indicies) == 0):
+            # this proposed t_start is after any contained epochs, so the returned object would be empty
+            print('Error: this proposed new_t_start ({}) is after any contained epochs, so the returned object would be empty'.format(new_t_start))
+            raise ValueError
+        first_include_index = include_indicies[0]
+        # print('\t first_include_index: {}'.format(first_include_index))
+        # print('\t changing ._data.loc[first_include_index, (\'start\')] from {} to {}'.format(self._data.loc[first_include_index, ('start')].item(), t))
+        if (first_include_index > 0):
+            # drop the epochs preceeding the first_include_index:
+            drop_indicies = np.arange(first_include_index)
+            print('drop_indicies: {}'.format(drop_indicies))
+            raise NotImplementedError # doesn't yet drop the indicies before the first_include_index
+        
+        # np.unique(curr_position_df.lap.to_numpy())
+        
+        
         raise NotImplementedError
         # laps_obj = deepcopy(self)
         # included_df = flattened_spiketrains.spikes_df[((flattened_spiketrains.spikes_df.t_seconds > t_start) & (flattened_spiketrains.spikes_df.t_seconds < t_stop))]
         # return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
-        
-        
+    
+    def filtered_by_lap_flat_index(self, lap_indicies):
+        return self.filtered_by_lap_id(self.lap_id[lap_indicies])
+       
+    def filtered_by_lap_id(self, lap_ids):
+        sliced_copy = deepcopy(self) # get copy of the dataframe
+        included_indicies = np.isin(self.lap_id, lap_ids)
+        sliced_copy.lap_id = sliced_copy.lap_id[included_indicies]
+        sliced_copy.laps_spike_counts = sliced_copy.laps_spike_counts[included_indicies]
+        sliced_copy.lap_start_stop_flat_idx = sliced_copy.lap_start_stop_flat_idx[included_indicies, :]
+        sliced_copy.lap_start_stop_time = sliced_copy.lap_start_stop_time[included_indicies, :]
+        return sliced_copy
+    
     def get_lap_flat_indicies(self, lap_id):
         start_stop = self.lap_start_stop_flat_idx[lap_id,:] # array([ 15841., 900605.]) the start_stop time for the first lap
         return start_stop[0], start_stop[1]
