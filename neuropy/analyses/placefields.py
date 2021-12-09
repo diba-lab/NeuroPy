@@ -642,7 +642,8 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) / np.nanmax(curr_pfmap)
             # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
-            ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
+            # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
+            ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
             # im = ax1.pcolorfast(
             #     self.ratemap.xbin,
             #     self.ratemap.ybin,
