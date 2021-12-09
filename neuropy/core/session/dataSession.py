@@ -3,6 +3,7 @@ from typing import Sequence, Union
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from neuropy import core
 from neuropy.core import neurons
 from neuropy.core.epoch import NamedTimerange
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
@@ -157,7 +158,7 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
             # convert the epoch_name string to a NamedTimerange object, get its time from self.epochs
             active_custom_named_epoch = NamedTimerange(name=epoch_specifier, start_end_times=self.epochs[epoch_specifier])
             return self.filtered_by_named_timerange(active_custom_named_epoch)
-        elif isinstance(epoch_specifier, NamedTimerange):
+        elif isinstance(epoch_specifier, core.epoch.NamedTimerange):
             return self.filtered_by_named_timerange(epoch_specifier)
         else:
             print('Type(epoch_specifier): {}'.format(type(epoch_specifier)))

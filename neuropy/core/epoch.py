@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
-from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol
 
 
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
@@ -33,7 +33,7 @@ class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
 
 
 
-class Epoch(TimeSlicableObjectProtocol, DataWriter):
+class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
@@ -53,6 +53,42 @@ class Epoch(TimeSlicableObjectProtocol, DataWriter):
     @property
     def stops(self):
         return self._data.stop.values
+    
+    @property
+    def t_start(self):
+        return self.starts[0]
+    
+    @t_start.setter
+    def t_start(self, t):
+        include_indicies = np.argwhere(t < self.stops)
+        if (np.size(include_indicies) == 0):
+            # this proposed t_start is after any contained epochs, so the returned object would be empty
+            print('Error: this proposed t_start ({}) is after any contained epochs, so the returned object would be empty'.format(t))
+            raise ValueError
+        first_include_index = include_indicies[0]
+        # print('\t first_include_index: {}'.format(first_include_index))
+        # print('\t changing ._data.loc[first_include_index, (\'start\')] from {} to {}'.format(self._data.loc[first_include_index, ('start')].item(), t))
+        
+        if (first_include_index > 0):
+            # drop the epochs preceeding the first_include_index:
+            drop_indicies = np.arange(first_include_index)
+            print('drop_indicies: {}'.format(drop_indicies))
+            raise NotImplementedError # doesn't yet drop the indicies before the first_include_index
+        self._data.loc[first_include_index, ('start')] = t # exclude the first short period where the animal isn't on the maze yet
+        
+        
+
+    @property
+    def duration(self):
+        return self.t_stop - self.t_start
+    
+    @property
+    def t_stop(self):
+        return self.stops[-1]
+    
+    # @t_stop.setter
+    # def t_stop(self, t):
+    #     self.start_end_times[1] = t
 
     @property
     def durations(self):
