@@ -351,24 +351,6 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         curr_position_df = DataSession.compute_laps_position_df(curr_position_df, curr_laps_df)
         # lap_specific_position_dfs = [curr_position_df.groupby('lap').get_group(i)[['t','x','y','lin_pos']] for i in sess.laps.lap_id] # dataframes split for each ID:
         return curr_position_df
-        # curr_position_df['lap'] = np.NaN # set all 'lap' column to NaN
-        # curr_position_df['lap_dir'] = np.full_like(curr_position_df['lap'], -1) # set all 'lap_dir' to -1
-        # lap_position_dataframes = []
-
-        # for i in np.arange(len(self.laps.lap_id)):
-        #     curr_lap_id = self.laps.lap_id[i]
-        #     curr_lap_t_start, curr_lap_t_stop = self.laps.get_lap_times(i)
-        #     # print('lap[{}]: ({}, {}): '.format(curr_lap_id, curr_lap_t_start, curr_lap_t_stop))
-        #     curr_lap_position_df_is_included = curr_position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive=True) # returns a boolean array indicating inclusion in teh current lap
-        #     curr_lap_position_df = curr_position_df[curr_lap_position_df_is_included]
-        #     lap_position_dataframes.append(curr_lap_position_df)
-        #     curr_position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
-        #     # curr_position_df.query('-0.5 <= t < 0.5')
-        
-        # # update the lap_dir variable:
-        # curr_position_df.loc[np.logical_not(np.isnan(curr_position_df.lap.to_numpy())), 'lap_dir'] = np.mod(curr_position_df.loc[np.logical_not(np.isnan(curr_position_df.lap.to_numpy())), 'lap'], 2.0)
-        # # return the extracted traces and the updated curr_position_df
-        # return curr_position_df
 
     @staticmethod
     def compute_laps_position_df(position_df, laps_df):

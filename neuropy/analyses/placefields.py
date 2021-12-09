@@ -48,9 +48,11 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
         """The smooth_1D property."""
         return self.smooth[0]
 
-        
-    def str_for_filename(self):
-        return "speedThresh_{:.2f}-gridBin_{:.2f}-smooth_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin, self.smooth, self.frate_thresh)
+    def str_for_filename(self, is_2D):
+        if is_2D:
+            return "speedThresh_{:.2f}-gridBin_{:.2f}_{:.2f}-smooth_{:.2f}_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin[0], self.grid_bin[1], self.smooth[0], self.smooth[1], self.frate_thresh)
+        else:
+            return "speedThresh_{:.2f}-gridBin_{:.2f}-smooth_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin_1D, self.smooth_1D, self.frate_thresh)
         
         
 def perform_compute_placefields(active_session_Neurons, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
@@ -101,7 +103,7 @@ def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D,
         active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
         print('Saving 1D Placefield image out to "{}"...'.format(active_pf_1D_output_filepath))
         plt.savefig(active_pf_1D_output_filepath)
-        print('done.')
+        print('\t done.')
     else:
         print('plot_all_placefields(...): active_epoch_placefields1D does not exist. Skipping it.')
         ax_pf_1D = None
@@ -149,9 +151,8 @@ def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D,
     return ax_pf_1D, occupancy_fig, active_pf_2D_figures
 
 class PfnConfigMixin:
-    @property
-    def str_for_filename(self):
-        return self.config.str_for_filename()
+    def str_for_filename(self, is_2D=True):
+        return self.config.str_for_filename(is_2D)
 
     
 class PfnDMixin(SimplePrintable):
