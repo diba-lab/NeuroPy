@@ -781,6 +781,10 @@ class DataSessionLoader:
         """ 
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
+        
+        
+        
+        
         spikes_df = spikes_df.copy() # duplicate spikes dataframe
         # Get only the rows with a lap != -1:
         # spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
@@ -790,7 +794,6 @@ class DataSessionLoader:
         lap_ids = spikes_df.lap.to_numpy()
         
         # neg_one_indicies = np.argwhere(lap_ids == -1)
-        
         neg_one_indicies = np.squeeze(np.where(lap_ids == -1))
         
         # spikes_df.laps[spikes_df.laps == -1] = np.Infinity
@@ -830,6 +833,10 @@ class DataSessionLoader:
 
         lap_id = np.array(laps_first_spike_instances.index) # the lap_id (which serves to index the lap), like 1, 2, 3, 4, ...
         laps_spike_counts = np.array(lap_grouped_spikes_df.size().values) # number of spikes in each lap
+        # lap_maze_id should give the maze_id for each of the laps. 
+        lap_maze_id = np.full_like(lap_id, -1)
+        lap_maze_id[0:split_index] = 1 # maze 1
+        lap_maze_id[split_index:-1] = 2 # maze 2
 
         # print('lap_number: {}'.format(lap_number))
         # print('laps_spike_counts: {}'.format(laps_spike_counts))
@@ -846,9 +853,23 @@ class DataSessionLoader:
         lap_start_stop_time[:, 1] = np.array(laps_last_spike_instances[time_variable_name].values)
         # print('lap_start_stop_time: {}'.format(lap_start_stop_time))
         
+        
+        
         # Build output Laps object to add to session
         print('setting laps object.')
+        
         session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
+        
+        flat_var_out_dict = {'lap_id':lap_id,'maze_id':lap_maze_id,
+                             'start_spike_index':np.array(laps_first_spike_instances.flat_spike_idx.values), 'end_spike_index': np.array(laps_last_spike_instances.flat_spike_idx.values),
+                             'start_t':np.array(laps_first_spike_instances['t'].values), 'end_t':np.array(laps_last_spike_instances['t'].values),
+                             'start_t_seconds':np.array(laps_first_spike_instances[time_variable_name].values), 'end_t_seconds':np.array(laps_last_spike_instances[time_variable_name].values)
+                             }
+        laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)
+        session.laps = Laps(laps_df) # new DataFrame-based approach
+        
+        
+        # session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
         
         # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
         return session, spikes_df

@@ -135,7 +135,7 @@ class Laps(DataFrameRepresentable, DataWriter):
     def time_slice(self, t_start=None, t_stop=None):
         # raise NotImplementedError
         laps_obj = deepcopy(self)
-        included_indicies = (((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop)) & ((laps_obj._data.end >= t_start) & (laps_obj._data.end <= t_stop)))
+        included_indicies = (((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop)) & ((laps_obj._data.stop >= t_start) & (laps_obj._data.stop <= t_stop)))
         included_df = laps_obj._data[included_indicies]
         # included_df = laps_obj._data[((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop))]
         return Laps(included_df, metadata=laps_obj.metadata)
