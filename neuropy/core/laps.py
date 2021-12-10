@@ -27,10 +27,6 @@ class Laps(DataFrameRepresentable, DataWriter):
             metadata (dict, optional): [description]. Defaults to None.
         """
         super().__init__(metadata=metadata)
-        # df_fieldnames = ['lap_dir']
-        # position_df.loc[np.logical_not(np.isnan(position_df.lap.to_numpy())), 'lap_dir'] = np.mod(position_df.loc[np.logical_not(np.isnan(position_df.lap.to_numpy())), 'lap'], 2.0)
-        # laps["label"] = laps["label"].astype("str")
-        # self._data = laps.sort_values(by=['start']) # sorts all values in ascending order
         self._data = laps # set to the laps dataframe
         self._data = Laps._update_dataframe_computed_vars(self._data)
         self._data = self._data.sort_values(by=['start']) # sorts all values in ascending order
@@ -62,12 +58,6 @@ class Laps(DataFrameRepresentable, DataWriter):
         sliced_copy = deepcopy(self) # get copy of the dataframe
         sliced_copy._data = sliced_copy._data[np.isin(sliced_copy.lap_id, lap_ids)]
         return sliced_copy
-        # included_indicies = np.isin(self.lap_id, lap_ids)
-        # sliced_copy.lap_id = sliced_copy.lap_id[included_indicies]
-        # sliced_copy.laps_spike_counts = sliced_copy.laps_spike_counts[included_indicies]
-        # sliced_copy.lap_start_stop_flat_idx = sliced_copy.lap_start_stop_flat_idx[included_indicies, :]
-        # sliced_copy.lap_start_stop_time = sliced_copy.lap_start_stop_time[included_indicies, :]
-        # return sliced_copy
         
     @classmethod
     def _update_dataframe_computed_vars(cls, laps_df: pd.DataFrame):
@@ -108,17 +98,12 @@ class Laps(DataFrameRepresentable, DataWriter):
 
     def to_dataframe(self):
         return self._data
-        # return pd.DataFrame({'id': self.lap_id, 'start':self.lap_start_stop_time[:,0],'stop':self.lap_start_stop_time[:,1],'label':self.lap_id})
-                
+
     def get_lap_flat_indicies(self, lap_id):
         return self._data.loc[lap_id, ['start_spike_index', 'end_spike_index']].to_numpy()
-        # start_stop = self.lap_start_stop_flat_idx[lap_id,:] # array([ 15841., 900605.]) the start_stop time for the first lap
-        # return start_stop[0], start_stop[1]
 
     def get_lap_times(self, lap_id):
         return self._data.loc[lap_id, ['start', 'stop']].to_numpy()
-        # start_stop = self.lap_start_stop_time[lap_id,:] # array([ 886.4489000000001, 931.6386]) the start_stop time for the first lap
-        # return start_stop[0], start_stop[1]
     
     def as_epoch_obj(self):
         """ Converts into a core.Epoch object containing the time periods """
