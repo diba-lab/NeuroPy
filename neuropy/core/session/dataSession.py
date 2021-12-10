@@ -358,19 +358,15 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
             Also adds a 'lap_dir' column, containing 0 if it's an outbound trial, 1 if it's an inbound trial, and -1 if it's neither.
         Usage:
             laps_position_traces, curr_position_df = compute_position_laps(sess) """
-        # position_df = self.position.to_dataframe() # get the position dataframe from the session
         position_df['lap'] = np.NaN # set all 'lap' column to NaN
         position_df['lap_dir'] = np.full_like(position_df['lap'], -1) # set all 'lap_dir' to -1
-        # lap_position_dataframes = []
 
-        for i in np.arange(len(laps_df['id'])):
-            curr_lap_id = laps_df.loc[i, 'id']
+        for i in np.arange(len(laps_df['lap_id'])):
+            curr_lap_id = laps_df.loc[i, 'lap_id']
             curr_lap_t_start, curr_lap_t_stop = laps_df.loc[i, 'start'], laps_df.loc[i, 'stop']
             # curr_lap_t_start, curr_lap_t_stop = self.laps.get_lap_times(i)
             # print('lap[{}]: ({}, {}): '.format(curr_lap_id, curr_lap_t_start, curr_lap_t_stop))
             curr_lap_position_df_is_included = position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive=True) # returns a boolean array indicating inclusion in teh current lap
-            # curr_lap_position_df = position_df[curr_lap_position_df_is_included]
-            # lap_position_dataframes.append(curr_lap_position_df)
             position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
             # curr_position_df.query('-0.5 <= t < 0.5')
         

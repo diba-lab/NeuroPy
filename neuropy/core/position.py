@@ -152,9 +152,6 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
     
 
-    # def to_dataframe(self):
-    #     return pd.DataFrame(self.to_dict)
-
     def to_dataframe(self):
         df = pd.DataFrame({"t": self.time.flatten().copy(), "x": self.x.flatten().copy()})
         if self.has_linear_pos:
@@ -210,11 +207,6 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         active_t_start = 0.0 # relative t_start
         return cls(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
     
-    # def __repr__(self):
-    #     return "<Test a:%s b:%s>" % (self.a, self.b)
-
-    # def __str__(self):
-    #     return "From str method of Test: a is %s, b is %s" % (self.a, self.b)
     
     # ConcatenationInitializable protocol:
     @classmethod
@@ -258,4 +250,4 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         #     self.sampling_rate,
         #     self.t_start,
         #     self.t_stop))
-        pass 
+         
