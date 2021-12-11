@@ -221,7 +221,7 @@ def plot_occupancy_1D(active_epoch_placefields1D, max_normalized, drop_below_thr
 
 
 
-def _filter_by_frate(tuning_maps, frate_thresh, debug=True):
+def _filter_by_frate(tuning_maps, frate_thresh, debug=False):
     # ---- cells with peak frate abouve thresh ------
     n_neurons = len(tuning_maps)
     thresh_neurons_indx = [
