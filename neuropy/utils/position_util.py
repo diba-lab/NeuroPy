@@ -45,7 +45,7 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         
 
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
-    return core.Position(
+    return core.Position.init(
         traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
     )
 
@@ -79,8 +79,8 @@ def calculate_run_direction(
 
     assert position.ndim == 1, "Run direction only supports one dimensional position"
 
-    trackingsampling_rate = self._position.time
-    posdata = self._position.to_dataframe()
+    trackingsampling_rate = position.time
+    posdata = position.to_dataframe()
 
     posdata = posdata[(posdata.time > period[0]) & (posdata.time < period[1])]
     x = posdata.linear

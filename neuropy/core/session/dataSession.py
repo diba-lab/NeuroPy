@@ -256,17 +256,11 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         # compute linear positions:
         print('Computing linear positions for all active epochs for session...')
         # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-        session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-        # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
-        # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+        session.position.linear_pos = np.full_like(session.position.time, np.nan)
         for anEpochLabelName in session.epochs.labels:
             curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
-            session.position.computed_traces[0,  curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
-        
-        # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
-        # acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
-        # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-        # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces        
+            session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
+
         session.position.filename = session.filePrefix.with_suffix(".position.npy")
         print('\t Saving updated position results to {}...'.format(session.position.filename))
         session.position.save()

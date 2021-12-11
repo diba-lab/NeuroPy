@@ -235,17 +235,7 @@ class DataSessionLoader:
         # TODO: this is not general, this is only used for this particular flat kind of file:
             # Load or compute linear positions if needed:
         if (not session.position.has_linear_pos):
-            # # compute linear positions:
-            # print('computing linear positions for all active epochs for session...')
-            # # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-            # session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-            # # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
-            # # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
-            # acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
-            # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
-            
+            ## compute linear positions: 
             ## Positions:
             active_file_suffix = '.position.npy'
             found_datafile = Position.from_file(session.filePrefix.with_suffix(active_file_suffix))
@@ -260,9 +250,9 @@ class DataSessionLoader:
             # session.position.filename = session.filePrefix.with_suffix(".position.npy")
             # print('Saving updated position results to {}...'.format(session.position.filename))
             # session.position.save()
-            print('done.\n')
+            print('\t done.\n')
         else:
-            print('linearized position loaded from file.')
+            print('\t linearized position loaded from file.')
             # return the session with the upadated member variables
         return session
 
@@ -419,11 +409,11 @@ class DataSessionLoader:
             # compute linear positions:
             print('computing linear positions for all active epochs for session...')
             # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            session.position.linear_pos = np.full_like(session.position.time, np.nan)
             acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze1')
             acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, 'maze2')
-            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+            session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            session.position.linear_pos[acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
             print('Saving updated position results to {}...'.format(session.position.filename))
             session.position.save()
@@ -533,7 +523,7 @@ class DataSessionLoader:
         except Exception as e:
             # raise e
             print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            session.position.linear_pos = np.full_like(session.position.time, np.nan)
         else:
             # Successful!
             print('session.position linear positions computed!')
@@ -574,50 +564,6 @@ class DataSessionLoader:
         # session = DataSessionLoader.default_extended_postload(fp, session)
         session.is_loaded = True # indicate the session is loaded
         return session # returns the session when done
-
-    @staticmethod
-    def __default_kdiba_position_vt_load_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session):
-        # Loads a *vt.mat file that contains position and epoch information for the session
-        session_position_mat_file_path = Path(basepath).joinpath('{}vt.mat'.format(session_name))
-        # session.position = Position.from_vt_mat_file(position_mat_file_path=session_position_mat_file_path)
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
-        tt = position_mat_file['tt'] # 1, 63192
-        xx = position_mat_file['xx'] # 10 x 63192
-        yy = position_mat_file['yy'] # 10 x 63192
-        tt = tt.flatten()
-        # tt_rel = tt - tt[0] # relative to start of position file timestamps
-        # timestamps_conversion_factor = 1e6
-        # timestamps_conversion_factor = 1e4
-        # timestamps_conversion_factor = 1.0
-        t = tt * timestamp_scale_factor  # (63192,)
-        # t_rel = tt_rel * timestamp_scale_factor  # (63192,)
-        position_sampling_rate_Hz = 1.0 / np.mean(np.diff(tt / 1e6)) # In Hz, returns 29.969777
-        num_samples = len(t)
-        x = xx[0,:].flatten() # (63192,)
-        y = yy[0,:].flatten() # (63192,)
-        # active_t_start = t[0] # absolute t_start
-        # active_t_start = 0.0 # relative t_start
-        active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
-        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
-        
-        # Range of the maze epoch (where position is valid):
-        # t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] # 1048
-        # t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] # 68159707
-
-        t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor # 1048
-        t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] * timestamp_scale_factor # 68159707
-
-        # Note needs to be absolute start/stop times: 
-        # t_maze_start = session.position.t_start # 1048
-        # t_maze_end = session.position.t_stop # 68159707 68,159,707
-        
-        # spikes_df.t.min() # 88
-        # spikes_df.t.max() # 68624338
-        epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
-        session.paradigm = Epoch(epochs=epochs_df)  # "epoch" field 
-        
-        # return the session with the upadated member variables
-        return session
 
     @staticmethod
     def __default_kdiba_exported_load_mats(basepath, session_name, session, time_variable_name='t_seconds'):
@@ -676,7 +622,10 @@ class DataSessionLoader:
         else:
             raise ValueError
         
-        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+        
+        session.config.position_sampling_rate_Hz = position_sampling_rate_Hz
+        # session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+        session.position = Position.from_separate_arrays(t_rel, x, y)
         
         ## Extra files:
         
