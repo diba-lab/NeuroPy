@@ -1,3 +1,4 @@
+import traceback
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -209,10 +210,13 @@ class DataSessionLoader:
         return session
     
     @staticmethod
-    def _default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name='t_rel_seconds'):     
+    def _default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name='t_rel_seconds', force_recompute=True):     
         ## Positions:
         active_file_suffix = '.interpolated_spike_positions.npy'
-        found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
+        if not force_recompute:
+            found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
+        else:
+            found_datafile = None
         if found_datafile is not None:
             print('\t Loading success: {}.'.format(active_file_suffix))
             session.flattened_spiketrains = found_datafile
@@ -221,7 +225,9 @@ class DataSessionLoader:
             print('\t Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
             session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
-            print('\t Saving updated position results to {}...'.format(session.position.filename))
+            
+            session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)
+            print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename))
             session.flattened_spiketrains.save()
             print('\t done.\n')
     
@@ -231,14 +237,17 @@ class DataSessionLoader:
     
     
     @staticmethod
-    def _default_compute_linear_position_if_needed(session):
+    def _default_compute_linear_position_if_needed(session, force_recompute=True):
         # TODO: this is not general, this is only used for this particular flat kind of file:
             # Load or compute linear positions if needed:
         if (not session.position.has_linear_pos):
             ## compute linear positions: 
             ## Positions:
             active_file_suffix = '.position.npy'
-            found_datafile = Position.from_file(session.filePrefix.with_suffix(active_file_suffix))
+            if not force_recompute:
+                found_datafile = Position.from_file(session.filePrefix.with_suffix(active_file_suffix))
+            else:
+                found_datafile = None
             if found_datafile is not None:
                 print('Loading success: {}.'.format(active_file_suffix))
                 session.position = found_datafile
@@ -247,9 +256,9 @@ class DataSessionLoader:
                 print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
                 session.position = DataSession.compute_linear_position(session)
             
-            # session.position.filename = session.filePrefix.with_suffix(".position.npy")
-            # print('Saving updated position results to {}...'.format(session.position.filename))
-            # session.position.save()
+            session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
+            print('Saving updated position results to {}...'.format(session.position.filename))
+            session.position.save()
             print('\t done.\n')
         else:
             print('\t linearized position loaded from file.')
@@ -512,22 +521,28 @@ class DataSessionLoader:
             
         except Exception as e:
             # print('e: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
+            track = traceback.format_exc()
+            print(track)
+   
             raise e
         else:
             pass
         
         
         # Load or compute linear positions if needed:
-        try:
-            session = DataSessionLoader._default_compute_linear_position_if_needed(session)
-        except Exception as e:
-            # raise e
-            print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
-            session.position.linear_pos = np.full_like(session.position.time, np.nan)
-        else:
-            # Successful!
-            print('session.position linear positions computed!')
-            pass
+        # try:
+        session = DataSessionLoader._default_compute_linear_position_if_needed(session)
+        # except Exception as e:
+        #     # raise e
+        #     print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
+        #     track = traceback.format_exc()
+        #     print(track)
+        #     session.position.linear_pos = np.full_like(session.position.time, np.nan)
+
+        # else:
+        #     # Successful!
+        #     print('session.position linear positions computed!')
+        #     pass
         
         
         ## Testing: Fixing spike positions

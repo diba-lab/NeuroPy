@@ -34,27 +34,34 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         # self._data = Position._update_dataframe_computed_vars(self._data) # maybe initialize equivalent for laps
         self._data = self._data.sort_values(by=['t']) # sorts all values in ascending order
         
+    def time_slice_indicies(self, t_start, t_stop):
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+        indicies = np.where((self._data['t'].to_numpy() >= t_start) & (self._data['t'].to_numpy() <= t_stop))
+        print('time_slice_indicies(...): t_start: {}, t_stop: {}, indicies: {}'.format(t_start, t_stop, indicies))
+        return indicies
+    
         
     @classmethod
     def init(cls, traces: np.ndarray, computed_traces: np.ndarray=None, t_start=0, sampling_rate=120, metadata=None):
         """ Comatibility initializer """
         if traces.ndim == 1:
-            traces = traces.reshape(1, -1)
-
+            traces = traces.reshape(1, -1) # required before setting ndim
+            
         ndim = traces.shape[0]
         assert ndim <= 3, "Maximum possible dimension of position is 3"
-        x = traces[0]
+        
         # generate time vector:
         n_frames = traces.shape[1]
         duration = float(n_frames) / float(sampling_rate)
         t_stop = t_start + duration
         time = np.linspace(t_start, t_stop, n_frames)
 
+        x = traces[0].flatten().copy()       
         df = pd.DataFrame({'t': time, 'x': x})
         if computed_traces is not None:
             if computed_traces.ndim >= 1:
-                df["lin_pos"] = computed_traces[0]
-                
+                df["lin_pos"] = computed_traces[0].flatten().copy()
+        
         if ndim >= 2:
             y = traces[1]
             df["y"] = y.flatten().copy()
@@ -68,8 +75,9 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     @property
     def traces(self):
         """ Compatibility method for the old-style implementation. """
+        print('traces accessed with self.ndim of {}'.format(self.ndim))
         if self.ndim == 1:
-            return self._data[['x']].to_numpy().T.reshape(1, -1)
+            return self._data[['x']].to_numpy().T
         elif self.ndim >= 2:
             return self._data[['x','y']].to_numpy().T
         elif self.ndim >= 3:
@@ -185,7 +193,7 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     @staticmethod
     def from_dict(d):
         return Position(
-            traces=d["df"],
+            d["df"],
             metadata=d["metadata"],
         )
             
@@ -196,6 +204,12 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
     
 
+    # @staticmethod
+    # def is_fixed_sampling_rate(time):
+    #     dt = np.diff(time)
+        
+        
+    
     def to_dataframe(self):
         return self._data.copy()
 
