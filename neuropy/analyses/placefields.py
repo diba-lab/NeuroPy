@@ -220,6 +220,35 @@ def _bin_pos(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
     # print('ybin: {}'.format(ybin))
     return xbin, ybin, {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
 
+def _bin_pos_1D(x: np.ndarray, num_bins=None, bin_size=None):
+    """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
+    Usage:
+        ## Binning with Fixed Number of Bins:    
+        xbin, bin_info = _bin_pos_1D(pos_df.x.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
+        print(bin_info)
+        ## Binning with Fixed Bin Sizes:
+        xbin, bin_info = _bin_pos_1D(pos_df.x.to_numpy(), num_bins=num_bins) # num_bins mode
+        print(bin_info)
+    """
+    assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
+    assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
+    if num_bins is not None:
+        ## Binning with Fixed Number of Bins:
+        mode = 'num_bins'
+        xnum_bins = num_bins
+        xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
+    elif bin_size is not None:
+        ## Binning with Fixed Bin Sizes:
+        mode = 'bin_size'
+        xstep = bin_size
+        xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
+        xnum_bins = len(xbin)
+    # print('xbin: {}'.format(xbin))
+    # print('ybin: {}'.format(ybin))
+    return xbin, {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
+
+
+
 
 
 class PfnConfigMixin:
@@ -243,6 +272,26 @@ class PfnDMixin(SimplePrintable):
 
 
 class Pf1D(PfnConfigMixin, PfnDMixin):
+    
+    @staticmethod
+    def _compute_occupancy(x, xbin, position_srate, smooth):
+        # --- occupancy map calculation -----------
+        # NRK todo: might need to normalize occupancy so sum adds up to 1
+        occupancy, xedges = np.histogram(x, bins=xbin)
+        occupancy = occupancy / position_srate + 1e-16  # converting to seconds
+        if ((smooth is not None) and (smooth > 0.0)):
+            occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+        return occupancy, xedges
+     
+    @staticmethod   
+    def _compute_tuning_map(spk_x, xbin, occupancy, smooth):
+        tuning_map = np.histogram(spk_x, bins=xbin)[0]
+        if ((smooth is not None) and (smooth > 0.0)):
+            tuning_map = gaussian_filter1d(tuning_map, sigma=smooth)
+        tuning_map = tuning_map / occupancy
+        return tuning_map
+    
+    
     def __init__(
         self,
         neurons: Neurons,
@@ -278,12 +327,14 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         position_srate = position.sampling_rate
         self.x = position.x
         self.speed = position.speed
-        self.speed = gaussian_filter1d(self.speed, sigma=20)
+        if ((smooth is not None) and (smooth > 0.0)):
+            self.speed = gaussian_filter1d(self.speed, sigma=20)
         self.t = position.time
         t_start = position.t_start
         t_stop = position.t_stop
 
-        xbin = np.arange(min(self.x), max(self.x), grid_bin)  # binning of x position
+        # xbin = np.arange(min(self.x), max(self.x), grid_bin)  # binning of x position
+        xbin, bin_info = _bin_pos_1D(self.x, bin_size=grid_bin) # bin_size mode
 
         spk_pos, spk_t, tuning_curve = [], [], []
 
@@ -310,8 +361,8 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             self.x = self.x[indx] # (52121,)
             self.speed = self.speed[indx] # (52121,)
             self.t = self.t[indx] # (52121,)
-            occupancy = np.histogram(self.x, bins=xbin)[0] / position_srate + 1e-16
-            occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+            
+            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, position_srate, smooth)
 
             for cell in spks:
                 spk_spd = np.interp(cell, self.t, self.speed)
@@ -321,10 +372,7 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
                 spk_t.append(cell)
 
                 # tuning curve calculation
-                tuning_curve.append(
-                    gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
-                    / occupancy
-                )
+                tuning_curve.append(Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth))
 
         else:
             # --- speed thresh occupancy----
@@ -335,8 +383,10 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             indx = np.where(self.speed >= speed_thresh)[0]
             self.x, self.speed, self.t = self.x[indx], self.speed[indx], self.t[indx]
 
-            occupancy = np.histogram(self.x, bins=xbin)[0] / position_srate + 1e-16
-            occupancy = gaussian_filter1d(occupancy, sigma=smooth)
+            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, position_srate, smooth)
+            
+            # occupancy = np.histogram(self.x, bins=xbin)[0] / position_srate + 1e-16
+            # occupancy = gaussian_filter1d(occupancy, sigma=smooth)
 
             for cell in spks:
                 spk_spd = np.interp(cell, self.t, self.speed)
@@ -348,10 +398,7 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
                 spk_t.append(cell[spd_ind])
 
                 # tuning curve calculation
-                tuning_curve.append(
-                    gaussian_filter1d(np.histogram(spk_x, bins=xbin)[0], sigma=smooth)
-                    / occupancy
-                )
+                tuning_curve.append(Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth))
 
         # ---- cells with peak frate abouve thresh ------
         thresh_neurons_indx = [
@@ -499,6 +546,30 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 
 
 class Pf2D(PfnConfigMixin, PfnDMixin):
+
+    @staticmethod
+    def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth):
+        # --- occupancy map calculation -----------
+        # NRK todo: might need to normalize occupancy so sum adds up to 1
+        # Please note that the histogram does not follow the Cartesian convention where x values are on the abscissa and y values on the ordinate axis. Rather, x is histogrammed along the first dimension of the array (vertical), and y along the second dimension of the array (horizontal).
+        occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
+        # occupancy = occupancy.T # transpose the occupancy before applying other operations
+        occupancy = occupancy / position_srate + 10e-16  # converting to seconds
+        if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
+            occupancy = gaussian_filter(occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
+        # Histogram does not follow Cartesian convention (see Notes),
+        # therefore transpose occupancy for visualization purposes.
+        return occupancy, xedges, yedges
+     
+    @staticmethod   
+    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth):
+        tuning_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
+        if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
+            tuning_map = gaussian_filter(tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
+        tuning_map = tuning_map / occupancy
+        return tuning_map
+
+    
     def __init__(
         self,
         neurons: Neurons,
@@ -524,25 +595,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             speed threshold for calculating place field
         """
         
-        def _compute_occupancy(x, y, xbin, ybin):
-            # --- occupancy map calculation -----------
-            # NRK todo: might need to normalize occupancy so sum adds up to 1
-            # Please note that the histogram does not follow the Cartesian convention where x values are on the abscissa and y values on the ordinate axis. Rather, x is histogrammed along the first dimension of the array (vertical), and y along the second dimension of the array (horizontal).
-            occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
-            # occupancy = occupancy.T # transpose the occupancy before applying other operations
-            occupancy = occupancy / position_srate + 10e-16  # converting to seconds
-            occupancy = gaussian_filter(occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
-             # Histogram does not follow Cartesian convention (see Notes),
-            # therefore transpose occupancy for visualization purposes.
-            return occupancy, xedges, yedges
-        
-        def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy):
-            tuning_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
-            # tuning_map = tuning_map.T # transpose the tuning_map before applying other operations
-            tuning_map = gaussian_filter(tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
-            tuning_map = tuning_map / occupancy
-            return tuning_map
-
+    
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
         # assert position.ndim < 2, "Only 2+ dimensional position are acceptable"
@@ -570,7 +623,8 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         # diff_posy = np.diff(self.y)
         # self.speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / (1 / position_srate)
         self.speed = position.speed
-        self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
+        if ((smooth is not None) and (smooth[0] > 0.0)):
+            self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
         
         spk_pos, spk_t, tuning_maps = [], [], []
 
@@ -604,7 +658,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             # occupancy = np.histogram2d(self.x, self.y, bins=(xbin, ybin))[0]
             # occupancy = occupancy / position_srate + 10e-16  # converting to seconds
             # occupancy = gaussian_filter(occupancy, sigma=smooth) # 2d gaussian filter
-            occupancy, xedges, yedges = _compute_occupancy(self.x, self.y, xbin, ybin)
+            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, position_srate, smooth)
             # plot with:
             # X, Y = np.meshgrid(xedges, yedges) 
             # plt.pcolor(X, Y, occupancy)
@@ -618,7 +672,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
                 spk_t.append(cell)
 
                 # tuning curve calculation:               
-                tuning_maps.append(_compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy))
+                tuning_maps.append(Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth))
 
         else:
             # --- speed thresh occupancy----
@@ -631,7 +685,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             self.x, self.y, self.speed, self.t = self.x[indx], self.y[indx], self.speed[indx], self.t[indx]
             
             # --- occupancy map calculation -----------
-            occupancy, xedges, yedges = _compute_occupancy(self.x, self.y, xbin, ybin)
+            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, position_srate, smooth)
             
             
             # re-interpolate here too:
@@ -646,7 +700,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
                 spk_t.append(cell[spd_ind])
 
                 # tuning curve calculation:
-                tuning_maps.append(_compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy))
+                tuning_maps.append(Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth))
                 
 
         # ---- cells with peak frate abouve thresh ------
