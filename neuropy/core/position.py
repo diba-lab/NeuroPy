@@ -1,6 +1,7 @@
 from copy import deepcopy
 from typing import Sequence, Union
 import numpy as np
+from pandas.core.indexing import IndexingError
 from neuropy.utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
@@ -43,9 +44,6 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         ndim = traces.shape[0]
         assert ndim <= 3, "Maximum possible dimension of position is 3"
         x = traces[0]
-        y = traces[1]
-        z = traces[2]
-        
         # generate time vector:
         n_frames = traces.shape[1]
         duration = float(n_frames) / float(sampling_rate)
@@ -53,11 +51,15 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         time = np.linspace(t_start, t_stop, n_frames)
 
         df = pd.DataFrame({'t': time, 'x': x})
-        if computed_traces.ndim >= 1:
-            df["lin_pos"] = computed_traces[0]
-        if traces.ndim >= 2:
+        if computed_traces is not None:
+            if computed_traces.ndim >= 1:
+                df["lin_pos"] = computed_traces[0]
+                
+        if ndim >= 2:
+            y = traces[1]
             df["y"] = y.flatten().copy()
-        if traces.ndim >= 3:
+        if ndim >= 3:
+            z = traces[2]
             df["z"] = z.flatten().copy()
         return Position(df, metadata=metadata)
 
@@ -66,7 +68,14 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     @property
     def traces(self):
         """ Compatibility method for the old-style implementation. """
-        return self._data[['x','y']].to_numpy().T
+        if self.ndim == 1:
+            return self._data[['x']].to_numpy().T.reshape(1, -1)
+        elif self.ndim >= 2:
+            return self._data[['x','y']].to_numpy().T
+        elif self.ndim >= 3:
+            return self._data[['x','y','z']].to_numpy().T
+        else:
+            raise IndexingError
     
 
     @property
@@ -99,7 +108,9 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     @property
     def linear_pos_obj(self):
         # returns a Position object containing only the linear_pos as its trace. This is used for compatibility with Bapun's Pf1D function 
-        return Position(self._data['t','lin_pos'], metadata=self.metadata)
+        lin_pos_df = self._data[['t','lin_pos']].copy()
+        lin_pos_df.rename({'lin_pos':'x'}, axis='columns', errors='raise', inplace=True)
+        return Position(lin_pos_df, metadata=self.metadata)
 
 
     @property
@@ -122,7 +133,7 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
 
     @property
     def t_start(self):
-        return self._data.t[0].item()
+        return self._data['t'].iloc[0]
 
     @t_start.setter
     def t_start(self, t):
@@ -141,7 +152,7 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
 
     @property
     def t_stop(self):
-        return self._data.t[-1].item()
+        return self._data['t'].iloc[-1]
 
     @property
     def time(self):
@@ -155,11 +166,13 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
 
     @property
     def sampling_rate(self):
-        raise NotImplementedError
+        # raise NotImplementedError
+        return np.mean(np.diff(self.time))
 
     @sampling_rate.setter
     def sampling_rate(self, sampling_rate):
         raise NotImplementedError
+    
 
 
     def to_dict(self):
@@ -178,9 +191,9 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
             
     @property
     def speed(self):
-        raise NotImplementedError
         # dt = 1 / self.sampling_rate
-        # return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
+        dt = np.diff(self.time)
+        return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
     
 
     def to_dataframe(self):
@@ -200,13 +213,13 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         
 
     @classmethod
-    def from_separate_arrays(cls, t, x, y, z=None, lin_pos=None):
+    def from_separate_arrays(cls, t, x, y, z=None, lin_pos=None, metadata=None):
         temp_dict = {'t':t,'x':x,'y':y}
         if z is not None:
             temp_dict['z'] = z
         if lin_pos is not None:
             temp_dict['lin_pos'] = lin_pos
-        return cls(pd.DataFrame(temp_dict))                            
+        return cls(pd.DataFrame(temp_dict), metadata=metadata)                            
         # return cls(traces=np.vstack((x, y)))
     
     
