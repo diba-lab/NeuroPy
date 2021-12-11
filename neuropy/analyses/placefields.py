@@ -182,9 +182,17 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 def plot_placefield_occupancy(active_epoch_placefields2D):
     return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, max_normalized=True)
 
-def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None):
-    occupancy_fig = plt.figure()
-    occupancy_ax = occupancy_fig.gca()
+def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
+    if fig is None:
+        occupancy_fig = plt.figure()
+    else:
+        occupancy_fig = fig
+    
+    if ax is None:
+        occupancy_ax = occupancy_fig.gca()
+    else:
+        occupancy_ax = ax
+        
     only_visited_occupancy = occupancy
     # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
     if drop_below_threshold is not None:
@@ -202,9 +210,17 @@ def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_belo
     occupancy_cbar.minorticks_on()
     return occupancy_fig, occupancy_ax
 
-def plot_occupancy_1D(active_epoch_placefields1D, max_normalized, drop_below_threshold=None):
-    occupancy_fig = plt.figure()
-    occupancy_ax = occupancy_fig.gca()
+def plot_occupancy_1D(active_epoch_placefields1D, max_normalized, drop_below_threshold=None, fig=None, ax=None):
+    if fig is None:
+        occupancy_fig = plt.figure()
+    else:
+        occupancy_fig = fig
+    
+    if ax is None:
+        occupancy_ax = occupancy_fig.gca()
+    else:
+        occupancy_ax = ax
+
     only_visited_occupancy = active_epoch_placefields1D.occupancy.copy()
     # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
     if drop_below_threshold is not None:
