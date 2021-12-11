@@ -12,13 +12,12 @@ from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
 from neuropy.utils.load_exported import import_mat_file 
-from neuropy.utils.mixins.time_slicing import TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 
 
-
-class Position(ConcatenationInitializable, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
+class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
     def __init__(
         self,
         pos_df: pd.DataFrame,
@@ -204,7 +203,8 @@ class Position(ConcatenationInitializable, TimeSlicableObjectProtocol, DataFrame
     @property
     def speed(self):
         # dt = 1 / self.sampling_rate
-        dt = np.diff(self.time)
+        dt = np.mean(np.diff(self.time))
+        # dt = np.diff(self.time)
         return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
     
 

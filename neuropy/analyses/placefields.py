@@ -68,7 +68,8 @@ def perform_compute_placefields(active_session_Neurons, active_pos, computation_
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
         print('Recomputing active_epoch_placefields...')
         active_epoch_placefields1D = Pf1D(neurons=active_session_Neurons, position=deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
-                                          speed_thresh=computation_config.speed_thresh, grid_bin=computation_config.grid_bin_1D, smooth=computation_config.smooth_1D)
+                                          speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+                                          grid_bin=computation_config.grid_bin_1D, smooth=computation_config.smooth_1D)
         print('\t done.')
     else:
         print('active_epoch_placefields1D already exists, reusing it')
@@ -77,7 +78,8 @@ def perform_compute_placefields(active_session_Neurons, active_pos, computation_
     if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
         print('Recomputing active_epoch_placefields2D...')
         active_epoch_placefields2D = Pf2D(neurons=active_session_Neurons, position=deepcopy(active_pos), epochs=included_epochs,
-                                          speed_thresh=computation_config.speed_thresh, grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+                                          speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+                                          grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
         print('\t done.')
     else:
         print('active_epoch_placefields2D already exists, reusing it')
@@ -149,6 +151,76 @@ def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D,
         active_pf_2D_figures = None
     
     return ax_pf_1D, occupancy_fig, active_pf_2D_figures
+
+def plot_occupancy(active_epoch_placefields2D):
+    occupancy_fig = plt.figure()
+    occupancy_ax = occupancy_fig.gca()
+    only_visited_occupancy = active_epoch_placefields2D.occupancy
+    # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
+    only_visited_occupancy[np.where(only_visited_occupancy < 0.1)] = np.nan
+    im = occupancy_ax.pcolorfast(
+        active_epoch_placefields2D.ratemap.xbin_centers,
+        active_epoch_placefields2D.ratemap.ybin_centers,
+        np.rot90(np.fliplr(only_visited_occupancy)) / np.nanmax(only_visited_occupancy),
+        cmap="jet",
+        vmin=0,
+    )  # rot90(flipud... is necessary to match plotRaw configuration.
+    plt.title('Occupancy')
+    plt.show()
+    return occupancy_fig, occupancy_ax
+
+
+def _filter_by_frate(tuning_maps, frate_thresh, debug=True):
+    # ---- cells with peak frate abouve thresh ------
+    n_neurons = len(tuning_maps)
+    thresh_neurons_indx = [
+        neuron_indx
+        for neuron_indx in range(n_neurons)
+        if np.nanmax(tuning_maps[neuron_indx]) > frate_thresh
+    ]
+    if debug:
+        print('_filter_by_frate(...):')
+        print('\t frate_thresh: {}'.format(frate_thresh))
+        print('\t n_neurons: {}'.format(n_neurons))
+        print('\t thresh_neurons_indx: {}'.format(thresh_neurons_indx))
+    filter_function = lambda list_: [list_[_] for _ in thresh_neurons_indx]
+    # there is only one tuning_map per neuron that means the thresh_neurons_indx:
+    filtered_tuning_maps = np.asarray(filter_function(tuning_maps))
+    return filtered_tuning_maps, filter_function 
+
+def _bin_pos(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
+    """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
+    Usage:
+        ## Binning with Fixed Number of Bins:    
+        xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
+        print(bin_info)
+        ## Binning with Fixed Bin Sizes:
+        xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
+        print(bin_info)
+    """
+    assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
+    assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
+    if num_bins is not None:
+        ## Binning with Fixed Number of Bins:
+        mode = 'num_bins'
+        xnum_bins = num_bins[0]
+        ynum_bins = num_bins[1]
+        xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
+        ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position
+    elif bin_size is not None:
+        ## Binning with Fixed Bin Sizes:
+        mode = 'bin_size'
+        xstep = bin_size[0]
+        ystep = bin_size[1]
+        xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
+        ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
+        xnum_bins = len(xbin)
+        ynum_bins = len(ybin) 
+    # print('xbin: {}'.format(xbin))
+    # print('ybin: {}'.format(ybin))
+    return xbin, ybin, {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
+
+
 
 class PfnConfigMixin:
     def str_for_filename(self, is_2D=True):
@@ -285,7 +357,7 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         thresh_neurons_indx = [
             neuron_indx
             for neuron_indx in range(n_neurons)
-            if np.max(tuning_curve[neuron_indx]) > frate_thresh
+            if np.nanmax(tuning_curve[neuron_indx]) > frate_thresh
         ]
 
         get_elem = lambda list_: [list_[_] for _ in thresh_neurons_indx]
@@ -485,8 +557,10 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         t_start = position.t_start
         t_stop = position.t_stop
 
-        xbin = np.arange(min(self.x), max(self.x) + grid_bin[0], grid_bin[0])  # binning of x position
-        ybin = np.arange(min(self.y), max(self.y) + grid_bin[1], grid_bin[1])  # binning of y position
+        ## Binning with Fixed Number of Bins:    
+        xbin, ybin, bin_info = _bin_pos(self.x, self.y, bin_size=grid_bin) # bin_size mode
+        # xbin = np.arange(min(self.x), max(self.x) + grid_bin[0], grid_bin[0])  # binning of x position
+        # ybin = np.arange(min(self.y), max(self.y) + grid_bin[1], grid_bin[1])  # binning of y position
 
         # plot with:
             # X, Y = np.meshgrid(xbin, ybin) 
@@ -576,21 +650,24 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
                 
 
         # ---- cells with peak frate abouve thresh ------
-        thresh_neurons_indx = [
-            neuron_indx
-            for neuron_indx in range(n_neurons)
-            if np.max(tuning_maps[neuron_indx]) > frate_thresh
-        ]
+        # thresh_neurons_indx = [
+        #     neuron_indx
+        #     for neuron_indx in range(n_neurons)
+        #     if np.nanmax(tuning_maps[neuron_indx]) > frate_thresh
+        # ]
 
-        get_elem = lambda list_: [list_[_] for _ in thresh_neurons_indx]
+        # get_elem = lambda list_: [list_[_] for _ in thresh_neurons_indx]
         # there is only one tuning_map per neuron that means the thresh_neurons_indx:
-        tuning_maps = get_elem(tuning_maps)
-        tuning_maps = np.asarray(tuning_maps)
+        # tuning_maps = get_elem(tuning_maps)
+        # tuning_maps = np.asarray(tuning_maps)
+        
+        filtered_tuning_maps, filter_function = _filter_by_frate(tuning_maps.copy(), frate_thresh)
+
         self.ratemap = Ratemap(
-            tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=get_elem(neuron_ids)
+            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filter_function(neuron_ids)
         )
-        self.ratemap_spiketrains = get_elem(spk_t)
-        self.ratemap_spiketrains_pos = get_elem(spk_pos)
+        self.ratemap_spiketrains = filter_function(spk_t)
+        self.ratemap_spiketrains_pos = filter_function(spk_pos)
         self.occupancy = occupancy
         self.frate_thresh = frate_thresh
         self.speed_thresh = speed_thresh
