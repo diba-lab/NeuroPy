@@ -18,7 +18,7 @@ from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 
 
 
-class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
+class Position(ConcatenationInitializable, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
     def __init__(
         self,
         pos_df: pd.DataFrame,
@@ -36,9 +36,12 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         
     def time_slice_indicies(self, t_start, t_stop):
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        indicies = np.where((self._data['t'].to_numpy() >= t_start) & (self._data['t'].to_numpy() <= t_stop))
-        print('time_slice_indicies(...): t_start: {}, t_stop: {}, indicies: {}'.format(t_start, t_stop, indicies))
-        return indicies
+        # indicies = np.where((self._data['t'].to_numpy() >= t_start) & (self._data['t'].to_numpy() <= t_stop))[0]
+        # included_indicies = ((self._data['t'] >= t_start) & (self._data['t'] <= t_stop))
+        # print('time_slice_indicies(...): t_start: {}, t_stop: {}, included_indicies: {}'.format(t_start, t_stop, included_indicies))
+        included_indicies = self._data['t'].between(t_start, t_stop, inclusive=True) # returns a boolean array indicating inclusion in teh current lap
+        # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
+        return self._data.index[included_indicies]# note that this currently returns a Pandas.Series object. I could get the normal indicis by using included_indicies.to_numpy()
     
         
     @classmethod
@@ -117,7 +120,8 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     def linear_pos_obj(self):
         # returns a Position object containing only the linear_pos as its trace. This is used for compatibility with Bapun's Pf1D function 
         lin_pos_df = self._data[['t','lin_pos']].copy()
-        lin_pos_df.rename({'lin_pos':'x'}, axis='columns', errors='raise', inplace=True)
+        # lin_pos_df.rename({'lin_pos':'x'}, axis='columns', errors='raise', inplace=True)
+        lin_pos_df['x'] = lin_pos_df['lin_pos'].copy() # duplicate the lin_pos column to the 'x' column
         return Position(lin_pos_df, metadata=self.metadata)
 
 
@@ -208,7 +212,6 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
     # def is_fixed_sampling_rate(time):
     #     dt = np.diff(time)
         
-        
     
     def to_dataframe(self):
         return self._data.copy()
@@ -227,8 +230,10 @@ class Position(ConcatenationInitializable, TimeSlicableIndiciesMixin, TimeSlicab
         
 
     @classmethod
-    def from_separate_arrays(cls, t, x, y, z=None, lin_pos=None, metadata=None):
-        temp_dict = {'t':t,'x':x,'y':y}
+    def from_separate_arrays(cls, t, x, y=None, z=None, lin_pos=None, metadata=None):
+        temp_dict = {'t':t,'x':x}
+        if y is not None:
+            temp_dict['y'] = y
         if z is not None:
             temp_dict['z'] = z
         if lin_pos is not None:

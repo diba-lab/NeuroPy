@@ -22,10 +22,12 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         'PCA' (for straight tracks)
 
     """
-    xpos = position.x
-    ypos = position.y
-
-    xy_pos = np.vstack((xpos, ypos)).T
+    ## OLD:
+    # xpos = position.x
+    # ypos = position.y
+    # xy_pos = np.vstack((xpos, ypos)).T
+    pos_df = position.to_dataframe()
+    xy_pos = pos_df[['x','y']].to_numpy()
     xlinear = None
     if method.lower() == "pca":
         pca = PCA(n_components=1)
@@ -42,12 +44,14 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         xlinear = iso_pos[:, 0]
     else:
         print('ERROR: invalid method name: {}'.format(method))
-        
-
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
-    return core.Position.init(
-        traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
-    )
+    
+    return core.Position.from_separate_arrays(position.time, xlinear, lin_pos=xlinear, metadata=position.metadata)
+    # return core.Position(pd.DataFrame({'t':pos_df.time, 'x': xlinear}), metadata=position.metadata)
+    
+    # return core.Position.init(
+    #     traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
+    # )
 
 
 def calculate_run_direction(

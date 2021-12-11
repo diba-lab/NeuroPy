@@ -259,12 +259,15 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         session.position.linear_pos = np.full_like(session.position.time, np.nan)
         for anEpochLabelName in session.epochs.labels:
             curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
-            session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
+            # session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
+            print('curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
+            
+            session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_maze1.x
 
-        session.position.filename = session.filePrefix.with_suffix(".position.npy")
-        print('\t Saving updated position results to {}...'.format(session.position.filename))
-        session.position.save()
-        print('\t done.\n')
+        # session.position.filename = session.filePrefix.with_suffix(".position.npy")
+        # print('\t Saving updated position results to {}...'.format(session.position.filename))
+        # session.position.save()
+        # print('\t done.\n')
         return session.position
         
 

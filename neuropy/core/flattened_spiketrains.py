@@ -141,7 +141,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         spikes_df['x'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_x)
         spikes_df['y'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_y)
         if position_linear_pos is not None:
-            spikes_df['linear_pos'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_linear_pos)
+            spikes_df['lin_pos'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_linear_pos)
         if position_speeds is not None:
             spikes_df['speed'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_speeds)
         return spikes_df
@@ -189,7 +189,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         
         # spikes_df['x'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.x)
         # spikes_df['y'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.y)
-        # spikes_df['linear_pos'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.linear_pos)
+        # spikes_df['lin_pos'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.linear_pos)
         # spikes_df['speed'] = np.interp(spikes_df['t_seconds'], active_session.position.time, active_session.position.speed)
         spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, active_session.position.time, active_session.position.x, active_session.position.y, position_linear_pos=active_session.position.linear_pos, position_speeds=active_session.position.speed, spike_timestamp_column_name='t_seconds')
     
@@ -198,7 +198,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         # print('flattened_spike_positions_list: {}'.format(np.shape(flattened_spike_positions_list))) # (2, 19647)
         # spikes_df['x'] = flattened_spike_positions_list[0, :]
         # spikes_df['y'] = flattened_spike_positions_list[1, :]
-        # spikes_df['linear_pos'] = flattened_spike_positions_list[2, :]
+        # spikes_df['lin_pos'] = flattened_spike_positions_list[2, :]
         # spikes_df['speed'] = flattened_spike_positions_list[3, :]
         
         spikes_df['t'] = spikes_df['t_seconds'] / timestamp_scale_factor

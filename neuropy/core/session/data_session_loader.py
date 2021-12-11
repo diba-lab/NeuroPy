@@ -346,7 +346,7 @@ class DataSessionLoader:
 
         # spikes_df['x'] = flattened_spike_positions_list[0, :]
         # spikes_df['y'] = flattened_spike_positions_list[1, :]
-        # spikes_df['linear_pos'] = flattened_spike_positions_list[2, :]
+        # spikes_df['lin_pos'] = flattened_spike_positions_list[2, :]
         # spikes_df['speed'] = flattened_spike_positions_list[3, :]
         
         # # spikes_df['qclu'] = session.neurons.neuron_type[reverse_cellID_idx_lookup_map[spikes_df['aclu']] ]
@@ -570,7 +570,7 @@ class DataSessionLoader:
        
         
         # add the linear_pos to the spikes_df before building the FlattenedSpiketrains object:
-        # spikes_df['linear_pos'] = session.position.linear_pos
+        # spikes_df['lin_pos'] = session.position.linear_pos
 
         # add the flat spikes to the session so they don't have to be recomputed:
         session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
