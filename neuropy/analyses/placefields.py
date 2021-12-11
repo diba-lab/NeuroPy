@@ -152,22 +152,47 @@ def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D,
     
     return ax_pf_1D, occupancy_fig, active_pf_2D_figures
 
-def plot_occupancy(active_epoch_placefields2D):
+
+def plot_placefield_occupancy(active_epoch_placefields2D):
+    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers)
+
+def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None):
     occupancy_fig = plt.figure()
     occupancy_ax = occupancy_fig.gca()
-    only_visited_occupancy = active_epoch_placefields2D.occupancy
+    only_visited_occupancy = occupancy
     # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
-    only_visited_occupancy[np.where(only_visited_occupancy < 0.1)] = np.nan
+    if drop_below_threshold is not None:
+        only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
+    if max_normalized:
+        only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
     im = occupancy_ax.pcolorfast(
-        active_epoch_placefields2D.ratemap.xbin_centers,
-        active_epoch_placefields2D.ratemap.ybin_centers,
-        np.rot90(np.fliplr(only_visited_occupancy)) / np.nanmax(only_visited_occupancy),
-        cmap="jet",
-        vmin=0,
+        xbin,
+        ybin,
+        np.rot90(np.fliplr(only_visited_occupancy)),
+        cmap="jet", vmin=0.0
     )  # rot90(flipud... is necessary to match plotRaw configuration.
-    plt.title('Occupancy')
-    plt.show()
+    occupancy_ax.set_title('Custom Occupancy')
+    occupancy_cbar = occupancy_fig.colorbar(im, ax=occupancy_ax, location='right')
+    occupancy_cbar.minorticks_on()
     return occupancy_fig, occupancy_ax
+
+def plot_occupancy_1D(active_epoch_placefields1D, max_normalized, drop_below_threshold=None):
+    occupancy_fig = plt.figure()
+    occupancy_ax = occupancy_fig.gca()
+    only_visited_occupancy = active_epoch_placefields1D.occupancy.copy()
+    # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
+    if drop_below_threshold is not None:
+        only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
+    
+    if max_normalized:
+        only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
+    occupancy_ax.plot(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy)
+    occupancy_ax.scatter(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy, color='r')
+    occupancy_ax.set_ylim([0, np.nanmax(only_visited_occupancy)])
+    occupancy_ax.set_title('Occupancy 1D')
+    # plt.show()
+    return occupancy_fig, occupancy_ax
+
 
 
 def _filter_by_frate(tuning_maps, frate_thresh, debug=True):
@@ -247,8 +272,18 @@ def _bin_pos_1D(x: np.ndarray, num_bins=None, bin_size=None):
     # print('ybin: {}'.format(ybin))
     return xbin, {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
 
+def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
+    # raw occupancy is defined in terms of the number of samples that fall into each bin.
+    # if position_srate is not None:
+    #     dt = 1.0 / float(position_srate)
+    #  seconds_occupancy is the number of seconds spent in each bin. This is computed by multiplying the raw occupancy (in # samples) by the duration of each sample.
+    # seconds_occupancy = raw_occupancy * dt  # converting to seconds
+    seconds_occupancy = raw_occupancy / (float(position_srate) + 1e-16) # converting to seconds
+    # seconds_occupancy = occupancy / (position_srate + 1e-16)  # converting to seconds
+    # normalized occupancy gives the ratio of samples that feel in each bin. ALL BINS ADD UP TO ONE.
+    normalized_occupancy = raw_occupancy / np.nansum(raw_occupancy) # the normalized occupancy determines the relative number of samples spent in each bin
 
-
+    return seconds_occupancy, normalized_occupancy
 
 
 class PfnConfigMixin:
@@ -277,11 +312,12 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
     def _compute_occupancy(x, xbin, position_srate, smooth):
         # --- occupancy map calculation -----------
         # NRK todo: might need to normalize occupancy so sum adds up to 1
-        occupancy, xedges = np.histogram(x, bins=xbin)
-        occupancy = occupancy / position_srate + 1e-16  # converting to seconds
+        raw_occupancy, xedges = np.histogram(x, bins=xbin)
         if ((smooth is not None) and (smooth > 0.0)):
-            occupancy = gaussian_filter1d(occupancy, sigma=smooth)
-        return occupancy, xedges
+            raw_occupancy = gaussian_filter1d(raw_occupancy, sigma=smooth)
+        # # raw occupancy is defined in terms of the number of samples that fall into each bin.
+        seconds_occupancy, normalized_occupancy = _normalized_occupancy(raw_occupancy, position_srate=position_srate)
+        return seconds_occupancy, xedges
      
     @staticmethod   
     def _compute_tuning_map(spk_x, xbin, occupancy, smooth):
@@ -548,26 +584,37 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 class Pf2D(PfnConfigMixin, PfnDMixin):
 
     @staticmethod
-    def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth):
+    def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_raw_occupancy=False):
         # --- occupancy map calculation -----------
         # NRK todo: might need to normalize occupancy so sum adds up to 1
         # Please note that the histogram does not follow the Cartesian convention where x values are on the abscissa and y values on the ordinate axis. Rather, x is histogrammed along the first dimension of the array (vertical), and y along the second dimension of the array (horizontal).
-        occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
+        raw_occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
         # occupancy = occupancy.T # transpose the occupancy before applying other operations
-        occupancy = occupancy / position_srate + 10e-16  # converting to seconds
+        # raw_occupancy = raw_occupancy / position_srate + 10e-16  # converting to seconds
         if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
-            occupancy = gaussian_filter(occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
+            raw_occupancy = gaussian_filter(raw_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
         # Histogram does not follow Cartesian convention (see Notes),
         # therefore transpose occupancy for visualization purposes.
-        return occupancy, xedges, yedges
+        # raw occupancy is defined in terms of the number of samples that fall into each bin.
+        if should_return_raw_occupancy:
+            return raw_occupancy, xedges, yedges
+        else:   
+            seconds_occupancy, normalized_occupancy = _normalized_occupancy(raw_occupancy, position_srate=position_srate)
+            return seconds_occupancy, xedges, yedges
+
+
+        # return seconds_occupancy, xedges, yedges
      
     @staticmethod   
-    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth):
-        tuning_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
+    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_return_raw_tuning_map=False):
+        raw_tuning_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
         if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
-            tuning_map = gaussian_filter(tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
-        tuning_map = tuning_map / occupancy
-        return tuning_map
+            raw_tuning_map = gaussian_filter(raw_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
+        if should_return_raw_tuning_map:
+            return raw_tuning_map
+        else:
+            occupancy_weighted_tuning_map = raw_tuning_map / occupancy
+            return occupancy_weighted_tuning_map
 
     
     def __init__(
@@ -670,7 +717,6 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
                 spk_y = np.interp(cell, self.t, self.y)
                 spk_pos.append([spk_x, spk_y])
                 spk_t.append(cell)
-
                 # tuning curve calculation:               
                 tuning_maps.append(Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth))
 

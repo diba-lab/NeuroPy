@@ -178,13 +178,12 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
     @property
     def sampling_rate(self):
         # raise NotImplementedError
-        return np.mean(np.diff(self.time))
+        return 1.0/np.mean(np.diff(self.time))
 
     @sampling_rate.setter
     def sampling_rate(self, sampling_rate):
         raise NotImplementedError
     
-
 
     def to_dict(self):
         data = {
