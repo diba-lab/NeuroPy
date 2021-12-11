@@ -137,6 +137,9 @@ class Epoch(DataWriter):
 
         return np.all((starts[1:] - stops[:-1]) < 0)
 
+    def itertuples(self):
+        return self.to_dataframe().itertuples()
+
     def fill_blank(self, method="from_left"):
 
         ep_starts = self.epochs["start"].values
