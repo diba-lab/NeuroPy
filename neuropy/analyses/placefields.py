@@ -26,6 +26,10 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
     """A simple wrapper object for parameters used in placefield calcuations"""
     decimal_point_character=","
     param_sep_char='-'
+    variable_names=['speed_thresh', 'grid_bin', 'smooth', 'frate_thresh']
+    variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
+    variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
+    
     def __init__(self, speed_thresh=3, grid_bin=2, smooth=2, frate_thresh=1):
         self.speed_thresh = speed_thresh
         if not isinstance(grid_bin, (tuple, list)):
@@ -50,9 +54,21 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
 
     def str_for_filename(self, is_2D):
         if is_2D:
-            return "speedThresh_{:.2f}-gridBin_{:.2f}_{:.2f}-smooth_{:.2f}_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin[0], self.grid_bin[1], self.smooth[0], self.smooth[1], self.frate_thresh)
+            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}"])
+            # return "speedThresh_{:.2f}-gridBin_{:.2f}_{:.2f}-smooth_{:.2f}_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin[0], self.grid_bin[1], self.smooth[0], self.smooth[1], self.frate_thresh)
+            # return f"speedThresh_{self.speed_thresh:.2f}-gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}-smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}-frateThresh_{self.frate_thresh:.2f}"
         else:
-            return "speedThresh_{:.2f}-gridBin_{:.2f}-smooth_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin_1D, self.smooth_1D, self.frate_thresh)
+            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}"])
+            # return f"speedThresh_{self.speed_thresh:.2f}-gridBin_{self.grid_bin_1D:.2f}-smooth_{self.smooth_1D:.2f}-frateThresh_{self.frate_thresh:.2f}"
+        
+    def str_for_display(self, is_2D):
+        """ For rendering in a title, etc """
+        if is_2D:
+            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})"
+        else:
+            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})"
+
+
         
         
 def perform_compute_placefields(active_session_Neurons, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
@@ -87,22 +103,37 @@ def perform_compute_placefields(active_session_Neurons, active_pos, computation_
     return active_epoch_placefields1D, active_epoch_placefields2D
 
 
-def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config):
+def plot_all_placefields(active_placefields1D, active_placefields2D, active_config):
     """ 
-    active_epoch_placefields1D: (Pf1D)
-    active_epoch_placefields2D: (Pf2D)
+    active_placefields1D: (Pf1D)
+    active_placefields2D: (Pf2D)
     active_config:
     Usage:
         ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config)
     """
     active_epoch_name = active_config.active_epochs.name
+    common_parent_foldername = active_config.computation_config.str_for_filename(True)
+    
+    
+    
+    
     ## Linearized (1D) Position Placefields:
-    if active_epoch_placefields1D is not None:
-        ax_pf_1D = active_epoch_placefields1D.plot_ratemaps()
+    if active_placefields1D is not None:
+        ax_pf_1D = active_placefields1D.plot_ratemaps()
         active_pf_1D_identifier_string = '1D Placefields - {}'.format(active_epoch_name)
-        plt.title(active_pf_1D_identifier_string)
-        active_pf_1D_output_filename = '{}.pdf'.format(active_pf_1D_identifier_string)
-        active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
+        # plt.title(active_pf_1D_identifier_string)
+        # active_pf_1D_output_filename = '{}.pdf'.format(active_pf_1D_identifier_string)
+        # active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
+        
+        title_string = ' '.join([active_pf_1D_identifier_string])
+        subtitle_string = ' '.join([f'{active_placefields1D.config.str_for_display(False)}'])
+        
+        plt.gcf().suptitle(title_string, fontsize='14')
+        plt.gca().set_title(subtitle_string, fontsize='10')
+        # plt.title(active_pf_1D_identifier_string, fontsize=22)
+        # common_parent_basename = active_placefields1D.config.str_for_filename(False)
+        common_basename = active_placefields1D.str_for_filename(prefix_string=f'Placefield1D-{active_epoch_name}-')
+        active_pf_1D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
         print('Saving 1D Placefield image out to "{}"...'.format(active_pf_1D_output_filepath))
         plt.savefig(active_pf_1D_output_filepath)
         print('\t done.')
@@ -111,36 +142,31 @@ def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D,
         ax_pf_1D = None
 
     ## 2D Position Placemaps:
-    if active_epoch_placefields2D is not None:
-        active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)
-        occupancy_fig = plt.figure()
-        occupancy_ax = occupancy_fig.gca()
+    if active_placefields2D is not None:
+        active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)        
+        title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
+        subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
+        occupancy_fig, occupancy_ax = plot_placefield_occupancy(active_placefields2D)
+        occupancy_fig.suptitle(title_string, fontsize='14')
+        occupancy_ax.set_title(subtitle_string, fontsize='10')
         
-        only_visited_occupancy = active_epoch_placefields2D.occupancy
-        # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
-        only_visited_occupancy[np.where(only_visited_occupancy < 0.1)] = np.nan
-        im = occupancy_ax.pcolorfast(
-            active_epoch_placefields2D.ratemap.xbin_centers,
-            active_epoch_placefields2D.ratemap.ybin_centers,
-            np.rot90(np.fliplr(only_visited_occupancy)) / np.nanmax(only_visited_occupancy),
-            cmap="jet",
-            vmin=0,
-        )  # rot90(flipud... is necessary to match plotRaw configuration.
-        plt.title(active_pf_occupancy_2D_identifier_string)
-        plt.show()
         # Save ocupancy figure out to disk:
-        active_pf_occupancy_2D_output_filename = '{}.pdf'.format(active_pf_occupancy_2D_identifier_string)
-        active_pf_occupancy_2D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_occupancy_2D_output_filename)
+        common_basename = active_placefields2D.str_for_filename(prefix_string=f'Occupancy -{active_epoch_name}-')
+        active_pf_occupancy_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
         print('Saving 2D Placefield image out to "{}"...'.format(active_pf_occupancy_2D_output_filepath))
         occupancy_fig.savefig(active_pf_occupancy_2D_output_filepath)
         print('\t done.')
+        
         ## 2D Tuning Curves Figure:
-        active_pf_2D_figures, active_pf_2D_gs = active_epoch_placefields2D.plotMap(subplots=(7, 7),figsize=(30, 30))
-        # active_epoch_placefields2D.plotRaw()
         active_pf_2D_identifier_string = '2D Placefields - {}'.format(active_epoch_name)
-        # plt.title(active_pf_2D_identifier_string)
-        active_pf_2D_output_filename = '{}.pdf'.format(active_pf_2D_identifier_string)
-        active_pf_2D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_2D_output_filename)
+        title_string = ' '.join([active_pf_2D_identifier_string])
+        subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
+        
+        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plotMap(subplots=(7, 7),figsize=(30, 30))        
+        # occupancy_fig.suptitle(title_string, fontsize='22')
+        # occupancy_ax.set_title(subtitle_string, fontsize='16')        
+        common_basename = active_placefields2D.str_for_filename(prefix_string=f'Placefields-{active_epoch_name}-')
+        active_pf_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
         print('Saving 2D Placefield image out to "{}"...'.format(active_pf_2D_output_filepath))
         for aFig in active_pf_2D_figures:
             aFig.savefig(active_pf_2D_output_filepath)
@@ -154,7 +180,7 @@ def plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D,
 
 
 def plot_placefield_occupancy(active_epoch_placefields2D):
-    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers)
+    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, max_normalized=True)
 
 def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None):
     occupancy_fig = plt.figure()
@@ -326,6 +352,9 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             tuning_map = gaussian_filter1d(tuning_map, sigma=smooth)
         tuning_map = tuning_map / occupancy
         return tuning_map
+    
+    def str_for_filename(self, prefix_string=''):
+        return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_filename(False)}'])
     
     
     def __init__(
@@ -569,7 +598,7 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 
         # plot spikes on trajectory
         for a, pos in zip(ax, [spk_pos_[cellind]]):
-            a.plot(spk_t_[cellind], pos, ".", color=[1, 0, 0, alpha])
+            a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
 
         # Put info on title
         ax[0].set_title(
@@ -616,6 +645,12 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             occupancy_weighted_tuning_map = raw_tuning_map / occupancy
             return occupancy_weighted_tuning_map
 
+    def str_for_filename(self, prefix_string=''):
+        return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_filename(True)}'])
+    
+    def str_for_display(self, prefix_string=''):
+        return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
+    
     
     def __init__(
         self,
@@ -926,7 +961,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 
         # plot spikes on trajectory
         for a, pos in zip(ax, spk_pos_[cellind]):
-            a.plot(spk_t_[cellind], pos, ".", color=[1, 0, 0, alpha])
+            a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
 
         # Put info on title
         ax[0].set_title(

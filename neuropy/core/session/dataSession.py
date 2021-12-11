@@ -340,12 +340,17 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         
 
     def compute_position_laps(self):
-        """ Adds a 'lap' column to the position dataframe:
+        """ Adds the 'lap' and the 'lap_dir' columns to the position dataframe:
         Usage:
             laps_position_traces, curr_position_df = compute_position_laps(sess) """
         curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
         curr_laps_df = self.laps.to_dataframe()
         curr_position_df = DataSession.compute_laps_position_df(curr_position_df, curr_laps_df)
+        
+        # update:
+        self.position._data['lap'] = curr_position_df['lap']
+        self.position._data['lap_dir'] = curr_position_df['lap_dir']
+        
         # lap_specific_position_dfs = [curr_position_df.groupby('lap').get_group(i)[['t','x','y','lin_pos']] for i in sess.laps.lap_id] # dataframes split for each ID:
         return curr_position_df
 

@@ -202,11 +202,14 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
     @property
     def speed(self):
         # dt = 1 / self.sampling_rate
-        dt = np.mean(np.diff(self.time))
-        # dt = np.diff(self.time)
-        return np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
+        if 'speed' in self._data.columns:
+            return self._data['speed'].to_numpy()
+        else:
+            # dt = np.diff(self.time)
+            dt = np.mean(np.diff(self.time))
+            self._data['speed'] = np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)        
+        return self._data['speed'].to_numpy()
     
-
     # @staticmethod
     # def is_fixed_sampling_rate(time):
     #     dt = np.diff(time)
