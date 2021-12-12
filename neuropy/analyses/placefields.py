@@ -861,7 +861,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             )
             figures.append(fig)
 
-        mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin) 
+        mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
 
         for cell, pfmap in enumerate(map_use):
             ind = cell // np.prod(subplots)
