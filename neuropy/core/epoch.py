@@ -260,4 +260,4 @@ class Epoch(DataWriter):
         """Returns 1d numpy array of alternating starts and stops
         NOTE: returned array is monotonically increasing only if epochs are non-overlapping
         """
-        return self.as_array().flatten("F")
+        return self.as_array().flatten("C")
