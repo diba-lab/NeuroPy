@@ -46,12 +46,19 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
     @property
     def grid_bin_1D(self):
         """The grid_bin_1D property."""
-        return self.grid_bin[0]
+        if np.isscalar(self.grid_bin):
+            return self.grid_bin
+        else:
+            return self.grid_bin[0]
 
     @property
     def smooth_1D(self):
         """The smooth_1D property."""
-        return self.smooth[0]
+        if np.isscalar(self.smooth):
+            return self.smooth
+        else:
+            return self.smooth[0]
+
 
     def str_for_filename(self, is_2D):
         if is_2D:
