@@ -227,7 +227,7 @@ class DataSessionLoader:
             session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
             
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)
-            print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename))
+            print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
             print('\t done.\n')
     
@@ -257,7 +257,7 @@ class DataSessionLoader:
                 session.position = DataSession.compute_linear_position(session)
             
             session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
-            print('Saving updated position results to {}...'.format(session.position.filename))
+            print('Saving updated position results to {}...'.format(session.position.filename), end='')
             session.position.save()
             print('\t done.\n')
         else:
@@ -443,7 +443,7 @@ class DataSessionLoader:
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session) # sets session.flattened_spiketrains
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
-            print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename))
+            print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
             print('\t done.\n')
         

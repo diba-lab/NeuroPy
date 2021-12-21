@@ -82,23 +82,23 @@ def perform_compute_placefields(active_session_Neurons, active_pos, computation_
     """
     ## Linearized (1D) Position Placefields:
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields...')
+        print('Recomputing active_epoch_placefields...', end=' ')
         active_epoch_placefields1D = Pf1D(neurons=active_session_Neurons, position=deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                           grid_bin=computation_config.grid_bin_1D, smooth=computation_config.smooth_1D)
         print('\t done.')
     else:
-        print('active_epoch_placefields1D already exists, reusing it')
+        print('active_epoch_placefields1D already exists, reusing it.')
 
     ## 2D Position Placemaps:
     if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields2D...')
+        print('Recomputing active_epoch_placefields2D...', end=' ')
         active_epoch_placefields2D = Pf2D(neurons=active_session_Neurons, position=deepcopy(active_pos), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                           grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
         print('\t done.')
     else:
-        print('active_epoch_placefields2D already exists, reusing it')
+        print('active_epoch_placefields2D already exists, reusing it.')
     
     return active_epoch_placefields1D, active_epoch_placefields2D
 
@@ -113,9 +113,6 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
     """
     active_epoch_name = active_config.active_epochs.name
     common_parent_foldername = active_config.computation_config.str_for_filename(True)
-    
-    
-    
     
     ## Linearized (1D) Position Placefields:
     if active_placefields1D is not None:
@@ -134,7 +131,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         # common_parent_basename = active_placefields1D.config.str_for_filename(False)
         common_basename = active_placefields1D.str_for_filename(prefix_string=f'Placefield1D-{active_epoch_name}-')
         active_pf_1D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
-        print('Saving 1D Placefield image out to "{}"...'.format(active_pf_1D_output_filepath))
+        print('Saving 1D Placefield image out to "{}"...'.format(active_pf_1D_output_filepath), end='')
         plt.savefig(active_pf_1D_output_filepath)
         print('\t done.')
     else:
@@ -153,7 +150,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         # Save ocupancy figure out to disk:
         common_basename = active_placefields2D.str_for_filename(prefix_string=f'Occupancy -{active_epoch_name}-')
         active_pf_occupancy_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
-        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_occupancy_2D_output_filepath))
+        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_occupancy_2D_output_filepath), end='')
         occupancy_fig.savefig(active_pf_occupancy_2D_output_filepath)
         print('\t done.')
         
@@ -167,7 +164,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         # occupancy_ax.set_title(subtitle_string, fontsize='16')        
         common_basename = active_placefields2D.str_for_filename(prefix_string=f'Placefields-{active_epoch_name}-')
         active_pf_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
-        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_2D_output_filepath))
+        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_2D_output_filepath), end='')
         for aFig in active_pf_2D_figures:
             aFig.savefig(active_pf_2D_output_filepath)
         print('\t done.')
