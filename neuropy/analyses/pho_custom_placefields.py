@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
 
-from neuropy.analyses.placefields import PfnConfigMixin, PfnDMixin, PlacefieldComputationParameters, _bin_pos, plot_placefield_occupancy, plot_occupancy_custom, _filter_by_frate, Pf2D, _normalized_occupancy
+from neuropy.analyses.placefields import Pf1D, PfnConfigMixin, PfnDMixin, PlacefieldComputationParameters, _bin_pos_nD, plot_placefield_occupancy, plot_occupancy_custom, _filter_by_frate, Pf2D, _normalized_occupancy
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
@@ -34,10 +34,10 @@ def build_customPf2D_fromConfig(active_epoch_session, custom_computation_config)
     spk_df = active_epoch_session.spikes_df.copy()
 
     ## Binning with Fixed Number of Bins:    
-    xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=custom_computation_config.grid_bin) # bin_size mode
+    xbin, ybin, bin_info = _bin_pos_nD(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=custom_computation_config.grid_bin) # bin_size mode
     # print(bin_info)
     ## Binning with Fixed Bin Sizes:
-    # xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
+    # xbin, ybin, bin_info = _bin_pos_nD(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
     # print(bin_info)
 
     # print('xbin: {}'.format(xbin))
@@ -200,6 +200,60 @@ class PositionAccessor(TimeSlicedMixin):
     def time_variable_name(self):
         return PositionAccessor.__time_variable_name
     
+    @property
+    def ndim(self):
+        # returns the count of the spatial columns that the dataframe has
+        return np.sum(np.isin(['x','y','z'], self._obj.columns))
+        
+    @property
+    def dim_columns(self):
+        # returns the labels of the columns that correspond to spatial columns 
+        # If ndim == 1, returns ['x'], 
+        # if ndim == 2, returns ['x','y'], etc.
+        spatial_column_labels = np.array(['x','y','z'])
+        return list(spatial_column_labels[np.isin(spatial_column_labels, self._obj.columns)])
+    
+    @property
+    def n_frames(self):
+        return len(self._obj.index)
+    
+    @property
+    def speed(self):
+        # dt = 1 / self.sampling_rate
+        if 'speed' in self._obj.columns:
+            return self._obj['speed'].to_numpy()
+        else:
+            # dt = np.diff(self.time)
+            dt = np.mean(np.diff(self.time))
+            self._obj['speed'] = np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)        
+        return self._obj['speed'].to_numpy()
+    
+    
+    def compute_higher_order_derivatives(self, component_label: str):
+        """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
+        Args:
+            self (pd.DataFrame): [a pos_df]
+            component_label (str): [description]
+        Returns:
+            pd.DataFrame: The updated dataframe with the dt, velocity, and acceleration columns added.
+        """
+        # compute each component separately:
+        velocity_column_key = f'velocity_{component_label}'
+        acceleration_column_key = f'acceleration_{component_label}'
+                
+        dt = np.insert(np.diff(self._obj['t']), 0, np.nan)
+        velocity_comp = np.insert(np.diff(self._obj[component_label]), 0, 0.0) / dt
+        velocity_comp[np.isnan(velocity_comp)] = 0.0 # replace NaN components with zero
+        acceleration_comp = np.insert(np.diff(velocity_comp), 0, 0.0) / dt
+        acceleration_comp[np.isnan(acceleration_comp)] = 0.0 # replace NaN components with zero
+        dt[np.isnan(dt)] = 0.0 # replace NaN components with zero
+        
+        # add the columns to the dataframe:
+        self._obj['dt'] = dt
+        self._obj[velocity_column_key] = velocity_comp
+        self._obj[acceleration_column_key] = acceleration_comp
+        
+        return self._obj  
     
     
 @pd.api.extensions.register_dataframe_accessor("spikes")
@@ -246,7 +300,7 @@ class SpikesAccessor(TimeSlicedMixin):
 class PfND(PfnConfigMixin, PfnDMixin):
     def __init__(
         self,
-        neurons: Neurons,
+        spikes_df: pd.DataFrame,
         position: Position,
         epochs: Epoch = None,
         frate_thresh=1,
@@ -273,30 +327,98 @@ class PfND(PfnConfigMixin, PfnDMixin):
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
         # assert position.ndim < 2, "Only 2+ dimensional position are acceptable"
-        spiketrains = neurons.spiketrains
-        neuron_ids = neurons.neuron_ids
-        n_neurons = neurons.n_neurons
+        # spiketrains = neurons.spiketrains
+        # neuron_ids = neurons.neuron_ids
+        # n_neurons = neurons.n_neurons
         position_srate = position.sampling_rate
+ 
+        # Don't set these properties prematurely, filter first if needed       
+        # self.t = position.time
+        # t_start = position.t_start
+        # t_stop = position.t_stop
         
-        self.t = position.time
-        t_start = position.t_start
-        t_stop = position.t_stop
-        
-        self.x = position.x
-        if (position.ndim > 1):
-            self.y = position.y
-        
+        # self.x = position.x
+        # if (position.ndim > 1):
+        #     self.y = position.y
+
+        # Output lists, for compatibility with Pf1D and Pf2D:
+        spk_pos, spk_t, tuning_maps = [], [], []
+
         pos_df = position.to_dataframe().copy()
         # laps_df = active_epoch_session.laps.to_dataframe().copy()
-        spk_df = neurons.spikes_df.copy()
+        # spk_df = neurons.spikes_df.copy()
+        spk_df = spikes_df.copy()
 
-        ## Binning with Fixed Number of Bins:    
-        xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=custom_computation_config.grid_bin) # bin_size mode
-        
         # filtering:
         if epochs is not None:
             # filter the spikes_df:
             filtered_spikes_df = spk_df.spikes.time_sliced(epochs.starts, epochs.stops)
-
             # filter the pos_df:
             filtered_pos_df = pos_df.position.time_sliced(epochs.starts, epochs.stops) # 5378 rows × 18 columns
+        else:
+            # if no epochs filtering, set the filtered objects to be sliced by the available range of the position data (given by position.t_start, position.t_stop)
+            filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
+            filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
+
+        self.t = filtered_pos_df.t.to_numpy()
+        self.x = filtered_pos_df.x.to_numpy()
+        self.speed = filtered_pos_df.speed.to_numpy()
+        if ((smooth is not None) and (smooth[0] > 0.0)):
+            self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
+        
+        if (position.ndim > 1):
+            self.y = filtered_pos_df.y.to_numpy()
+        else:
+            self.y = None
+        
+        # Once filtering is done, apply the grouping:
+        # Group by the aclu (cluster indicator) column
+        cell_grouped_spikes_df = filtered_spikes_df.groupby(['aclu'])
+        cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
+
+        ## Binning with Fixed Number of Bins:    
+        # xbin, ybin, bin_info = _bin_pos(self.x, self.y, bin_size=grid_bin) # bin_size mode
+        
+        xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
+        
+        # --- occupancy map calculation -----------
+        if (position.ndim > 1):
+            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, position_srate, smooth)
+        else:
+            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, position_srate, smooth[0])
+        
+        # re-interpolate given the updated spks
+        for cell_df in cell_spikes_dfs:
+            cell_spike_times = cell_df['t_rel_seconds'].to_numpy()
+            spk_spd = np.interp(cell_spike_times, self.t, self.speed)
+            spk_x = np.interp(cell_spike_times, self.t, self.x)
+            
+            # update the dataframe 'x','speed' and 'y' properties:
+            # cell_df.loc[:, 'x'] = spk_x
+            # cell_df.loc[:, 'speed'] = spk_spd
+            if (position.ndim > 1):
+                spk_y = np.interp(cell_spike_times, self.t, self.y)
+                # cell_df.loc[:, 'y'] = spk_y
+                spk_pos.append([spk_x, spk_y])
+                curr_cell_tuning_map = Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth)
+            else:
+                # otherwise only 1D:
+                spk_pos.append([spk_x])
+                curr_cell_tuning_map = Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth[0])
+            
+            spk_t.append(cell_spike_times)
+            # tuning curve calculation:               
+            tuning_maps.append(curr_cell_tuning_map)
+                
+        # ---- cells with peak frate abouve thresh ------
+        filtered_tuning_maps, filter_function = _filter_by_frate(tuning_maps.copy(), frate_thresh)
+        self.ratemap = Ratemap(
+            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filter_function(filtered_spikes_df.spikes.neuron_ids)
+        )
+        self.ratemap_spiketrains = filter_function(spk_t)
+        self.ratemap_spiketrains_pos = filter_function(spk_pos)
+        self.occupancy = occupancy
+        self.frate_thresh = frate_thresh
+        self.speed_thresh = speed_thresh
+        # done!
+            

@@ -252,7 +252,7 @@ def _filter_by_frate(tuning_maps, frate_thresh, debug=False):
     filtered_tuning_maps = np.asarray(filter_function(tuning_maps))
     return filtered_tuning_maps, filter_function 
 
-def _bin_pos(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
+def _bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
     """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
     Usage:
         ## Binning with Fixed Number of Bins:    
@@ -264,28 +264,84 @@ def _bin_pos(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
     """
     assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
     assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
+    
+    bin_info_out_dict = dict()
+    
     if num_bins is not None:
         ## Binning with Fixed Number of Bins:
         mode = 'num_bins'
+        if np.isscalar(num_bins):
+            num_bins = [num_bins]
+        
         xnum_bins = num_bins[0]
         xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
 
-        ynum_bins = num_bins[1]
-        ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position
+        if y is not None:
+            ynum_bins = num_bins[1]
+            ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position       
+            
     elif bin_size is not None:
         ## Binning with Fixed Bin Sizes:
         mode = 'bin_size'
-
+        if np.isscalar(bin_size):
+            print(f'np.isscalar(bin_size): {bin_size}')
+            bin_size = [bin_size]
+            
         xstep = bin_size[0]
         xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
         xnum_bins = len(xbin)
 
-        ystep = bin_size[1]
-        ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
-        ynum_bins = len(ybin) 
+        if y is not None:
+            ystep = bin_size[1]
+            ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
+            ynum_bins = len(ybin)
+            
     # print('xbin: {}'.format(xbin))
     # print('ybin: {}'.format(ybin))
-    return xbin, ybin, {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
+    bin_info_out_dict = {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
+    if y is not None:
+        # if at least 2D output, add the y-axis properties to the info dictionary
+        bin_info_out_dict['ystep'], bin_info_out_dict['ynum_bins']  = ystep, ynum_bins
+    else:
+        ybin = None
+        
+    return xbin, ybin, bin_info_out_dict # {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
+
+
+# def _bin_pos(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
+#     """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
+#     Usage:
+#         ## Binning with Fixed Number of Bins:    
+#         xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
+#         print(bin_info)
+#         ## Binning with Fixed Bin Sizes:
+#         xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
+#         print(bin_info)
+#     """
+#     assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
+#     assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
+#     if num_bins is not None:
+#         ## Binning with Fixed Number of Bins:
+#         mode = 'num_bins'
+#         xnum_bins = num_bins[0]
+#         xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
+
+#         ynum_bins = num_bins[1]
+#         ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position
+#     elif bin_size is not None:
+#         ## Binning with Fixed Bin Sizes:
+#         mode = 'bin_size'
+
+#         xstep = bin_size[0]
+#         xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
+#         xnum_bins = len(xbin)
+
+#         ystep = bin_size[1]
+#         ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
+#         ynum_bins = len(ybin) 
+#     # print('xbin: {}'.format(xbin))
+#     # print('ybin: {}'.format(ybin))
+#     return xbin, ybin, {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
 
 ## TODO: refactor _bin_pos_1D into a simple wrapper for _bin_pos(...)
 def _bin_pos_1D(x: np.ndarray, num_bins=None, bin_size=None):
@@ -711,7 +767,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         t_stop = position.t_stop
 
         ## Binning with Fixed Number of Bins:    
-        xbin, ybin, bin_info = _bin_pos(self.x, self.y, bin_size=grid_bin) # bin_size mode
+        xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
         # xbin = np.arange(min(self.x), max(self.x) + grid_bin[0], grid_bin[0])  # binning of x position
         # ybin = np.arange(min(self.y), max(self.y) + grid_bin[1], grid_bin[1])  # binning of y position
 

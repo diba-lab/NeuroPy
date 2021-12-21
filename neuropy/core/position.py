@@ -122,8 +122,9 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
         lin_pos_df = self._data[['t','lin_pos']].copy()
         # lin_pos_df.rename({'lin_pos':'x'}, axis='columns', errors='raise', inplace=True)
         lin_pos_df['x'] = lin_pos_df['lin_pos'].copy() # duplicate the lin_pos column to the 'x' column
-        return Position(lin_pos_df, metadata=self.metadata)
-
+        out_obj = Position(lin_pos_df, metadata=self.metadata)
+        out_obj.speed; # ensure speed is calculated
+        return out_obj
 
     @property
     def linear_pos(self):
@@ -309,6 +310,7 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
         for dim_i in np.arange(self.ndim):
             curr_column_label = self.dim_columns[dim_i]
             self._data = Position._perform_compute_higher_order_derivatives(self._data, curr_column_label)
+            # self._data = self._data.position._perform_compute_higher_order_derivatives(curr_column_label) # uses the position accessor
         return self._data
                    
     
@@ -317,6 +319,7 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
     def _computed_column_component_labels(component_label):
         return [f'velocity_{component_label}', f'acceleration_{component_label}']
     
+    ## TODO: _perform_compute_higher_order_derivatives has been depricated in favor of factoring this functionality into the pho_custom_placefields "position" pandas Dataframe extension. (See PositionAccessor)
     @staticmethod
     def _perform_compute_higher_order_derivatives(pos_df: pd.DataFrame, component_label: str):
         """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
@@ -397,6 +400,8 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
         # indices = self.time_slice_indicies(t_start, t_stop) # from TimeSlicableIndiciesMixin
         included_df = deepcopy(self._data)
         included_df = included_df[((included_df['t'] >= t_start) & (included_df['t'] <= t_stop))]
+        
+        # df.query('Salary_in_1000 >= 100 & Age < 60 & FT_Team.str.startswith("S").values')
         return Position(included_df, metadata=deepcopy(self.metadata))
         
 
