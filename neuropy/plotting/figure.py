@@ -116,6 +116,8 @@ class Fig:
             mpl.rcParams["ytick.labelsize"] = 8
             mpl.rcParams["axes.spines.top"] = False
             mpl.rcParams["axes.spines.right"] = False
+            mpl.rcParams["xtick.major.width"] = 2
+            mpl.rcParams["ytick.major.width"] = 2
             mpl.rcParams["axes.prop_cycle"] = cycler(
                 "color",
                 [
