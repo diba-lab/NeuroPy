@@ -61,11 +61,23 @@ class Laps(DataFrameRepresentable, DataWriter):
         
     @classmethod
     def _update_dataframe_computed_vars(cls, laps_df: pd.DataFrame):
-        laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
-        laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index']
-        laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
-        laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
-        laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')
+        # laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
+        laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')
+        if 'maze_id' in laps_df.columns:
+            laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
+        if set(['start_spike_index','end_spike_index']).issubset(laps_df.columns):
+            laps_df[['start_spike_index', 'end_spike_index']] = laps_df[['start_spike_index', 'end_spike_index']].astype('int')
+            laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index']
+    
+        if 'lap_dir' in laps_df.columns:
+            laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')        
+            
+        else:
+            # compute the lap_dir if that field doesn't exist:
+            laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
+            laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
+            laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')
+        
         laps_df['label'] = laps_df['lap_id'].astype('str') # add the string "label" column
         return laps_df
      
@@ -91,6 +103,37 @@ class Laps(DataFrameRepresentable, DataWriter):
         # finally assign the 'start' and 'stop' time columns to the appropriate variable
         laps_df[['start','stop']] = t_variable # assign the active t_variable to the start & end columns of the DataFrame
         return laps_df
+
+    @classmethod
+    def from_estimated_laps(cls, pos_t_rel_seconds, desc_crossing_beginings, desc_crossing_endings, asc_crossing_beginings, asc_crossing_endings):
+        """Builds a Laps object from the output of the neuropy.analyses.laps.estimate_laps function.
+        Args:
+            pos_t_rel_seconds ([type]): [description]
+            desc_crossing_beginings ([type]): [description]
+            desc_crossing_endings ([type]): [description]
+            asc_crossing_beginings ([type]): [description]
+            asc_crossing_endings ([type]): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        ## Build a custom Laps dataframe from the found points:
+        ### Note that these crossing_* indicies are for the position dataframe, not the spikes_df (which is what the previous Laps object was computed from).
+            # This means we don't have 'start_spike_index' or 'end_spike_index', and we'd have to compute them if we want them.
+        custom_test_laps_df = pd.DataFrame({
+            'start_position_index': np.concatenate([desc_crossing_beginings, asc_crossing_beginings]),
+            'end_position_index': np.concatenate([desc_crossing_endings, asc_crossing_endings]),
+            'lap_dir': np.concatenate([np.zeros_like(desc_crossing_beginings), np.ones_like(asc_crossing_beginings)])
+        })
+        # Get start/end times from the indicies
+        custom_test_laps_df['start_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_beginings], pos_t_rel_seconds[asc_crossing_beginings]])
+        custom_test_laps_df['end_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_endings], pos_t_rel_seconds[asc_crossing_endings]])
+        custom_test_laps_df['start'] = custom_test_laps_df['start_t_rel_seconds']
+        custom_test_laps_df['stop'] = custom_test_laps_df['end_t_rel_seconds']
+        # Sort the laps based on the start time, reset the index, and finally assign lap_id's from the sorted laps
+        custom_test_laps_df = custom_test_laps_df.sort_values(by=['start']).reset_index(drop=True) # sorts all values in ascending order
+        custom_test_laps_df['lap_id'] = (custom_test_laps_df.index + 1) # set the lap_id column to the index starting at 1
+        return Laps(custom_test_laps_df)
 
     @classmethod
     def from_dataframe(cls, df):
