@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import Sequence, Union
+import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
 from pandas.core.indexing import IndexingError
 from neuropy.utils import mathutil
@@ -220,6 +221,7 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
     
     
     # TODO: implement velocity/acceleration properties that call the self.compute_higher_order_derivatives() if needed, otherwise return the appopriate column 
+    
     # @property
     # def velocity(self):
     #     # dt = 1 / self.sampling_rate
@@ -231,6 +233,76 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
     #         self._data['speed'] = np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)        
     #     return self._data['speed'].to_numpy()
     
+    @property
+    def dim_columns(self):
+        # returns the labels of the columns that correspond to spatial columns 
+        # If ndim == 1, returns ['x'], 
+        # if ndim == 2, returns ['x','y'], etc.
+        spatial_column_labels = np.array(['x','y','z'])
+        return list(spatial_column_labels[np.isin(spatial_column_labels, self._data.columns)])
+    
+    
+    
+    @property
+    def dt(self):
+        if 'dt' in self._data.columns:
+            return self._data['dt'].to_numpy()
+        else:
+            # compute the higher_order_derivatives if not already done upon first access
+            self._data = self.compute_higher_order_derivatives()   
+        return self._data['dt'].to_numpy()
+    
+    @property
+    def velocity_x(self):
+        if 'velocity_x' in self._data.columns:
+            return self._data['velocity_x'].to_numpy()
+        else:
+            # compute the higher_order_derivatives if not already done upon first access
+            self._data = self.compute_higher_order_derivatives()   
+        return self._data['velocity_x'].to_numpy()
+    
+    @property
+    def acceleration_x(self):
+        if 'acceleration_x' in self._data.columns:
+            return self._data['acceleration_x'].to_numpy()
+        else:
+            # compute the higher_order_derivatives if not already done upon first access
+            self._data = self.compute_higher_order_derivatives()   
+        return self._data['acceleration_x'].to_numpy()
+    
+    @property
+    def velocity_y(self):
+        if 'velocity_y' in self._data.columns:
+            return self._data['velocity_y'].to_numpy()
+        else:
+            # compute the higher_order_derivatives if not already done upon first access
+            self._data = self.compute_higher_order_derivatives()   
+        return self._data['velocity_y'].to_numpy()
+    
+    @property
+    def acceleration_y(self):
+        if 'acceleration_y' in self._data.columns:
+            return self._data['acceleration_y'].to_numpy()
+        else:
+            # compute the higher_order_derivatives if not already done upon first access
+            self._data = self.compute_higher_order_derivatives()   
+        return self._data['acceleration_y'].to_numpy()
+    
+    
+    
+    
+    @property
+    def dim_computed_columns(self, include_dt=False):
+        """ returns the labels for the computed columns
+            output: ['dt', 'velocity_x', 'acceleration_x', 'velocity_y', 'acceleration_y']
+        """
+        computed_column_labels = [Position._computed_column_component_labels(a_dim_label) for a_dim_label in self.dim_columns]
+        if include_dt:
+            computed_column_labels.insert(0, ['dt']) # insert 'dt' at the start of the list
+        # itertools.chain.from_iterable converts ['dt', ['velocity_x', 'acceleration_x'], ['velocity_y', 'acceleration_y']] to ['dt', 'velocity_x', 'acceleration_x', 'velocity_y', 'acceleration_y']
+        computed_column_labels = list(itertools.chain.from_iterable(computed_column_labels)) # ['dt', 'velocity_x', 'acceleration_x', 'velocity_y', 'acceleration_y']
+        return computed_column_labels
+    
     def compute_higher_order_derivatives(self):
         """Computes the higher-order positional derivatives for all spatial dimensional components of self._data. Adds the dt, velocity, and acceleration columns
         """
@@ -239,6 +311,11 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
             self._data = Position._perform_compute_higher_order_derivatives(self._data, curr_column_label)
         return self._data
                    
+    
+    
+    @staticmethod
+    def _computed_column_component_labels(component_label):
+        return [f'velocity_{component_label}', f'acceleration_{component_label}']
     
     @staticmethod
     def _perform_compute_higher_order_derivatives(pos_df: pd.DataFrame, component_label: str):
@@ -268,8 +345,40 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
         return pos_df  
     
     
+    def compute_smoothed_position_info(self, N: int = 20, non_smoothed_column_labels=None):
+        """Computes smoothed position variables and adds them as columns to the internal dataframe
+        Args:
+            N (int, optional): [description]. Defaults to 20.
+        Returns:
+            [type]: [description]
+        """
+        if non_smoothed_column_labels is None:
+            non_smoothed_column_labels = (self.dim_columns + self.dim_computed_columns)
+        self._data = Position._perform_compute_smoothed_position_info(self._data, non_smoothed_column_labels, N=N)
+        return self._data
     
-    
+        
+    @staticmethod
+    def _perform_compute_smoothed_position_info(pos_df: pd.DataFrame, non_smoothed_column_labels, N: int = 20):
+        """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
+        Args:
+            pos_df (pd.DataFrame): [description]
+            non_smoothed_column_labels (list(str)): a list of the columns to be smoothed
+            N (int): 20 # roll over the last N samples
+            
+        Returns:
+            pd.DataFrame: The updated dataframe with the dt, velocity, and acceleration columns added.
+            
+        Usage:
+            smoothed_pos_df = Position._perform_compute_smoothed_position_info(pos_df, (position_obj.dim_columns + position_obj.dim_computed_columns), N=20)
+        
+        """
+        smoothed_column_names = [f'{a_label}_smooth' for a_label in non_smoothed_column_labels]
+        # non_smoothed_column_labels = position_obj.dim_columns + position_obj.dim_computed_columns
+        # smoothed_pos_df = pos_df[non_smoothed_column_labels].rolling(window=N).mean()
+        pos_df[smoothed_column_names] = pos_df[non_smoothed_column_labels].rolling(window=N).mean()
+        return pos_df
+        
     # @staticmethod
     # def is_fixed_sampling_rate(time):
     #     dt = np.diff(time)
