@@ -46,6 +46,34 @@ from neuropy.core.laps import Laps
 #     desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = _perform_estimate_laps(pos_df, hardcoded_track_midpoint_x=hardcoded_track_midpoint_x)
 #     custom_test_laps_obj = _build_laps_object(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings)
 
+def compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame):
+    ## Determine the spikes included with each computed lap:
+    laps_obj._data = perform_compute_laps_spike_indicies(laps_obj._data, spikes_df) # adds the 'start_spike_index' and 'end_spike_index' columns to the dataframe
+    laps_obj._data = Laps._update_dataframe_computed_vars(laps_obj._data) # call this to update the column types and any computed columns that depend on the added columns (such as num_spikes)
+    return laps_obj
+
+
+def perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.DataFrame):
+    """ Adds the 'start_spike_index' and 'end_spike_index' columns to the laps_df
+    laps_df has two columns added: 'start_spike_index' and 'end_spike_index'
+    spikes_df is not modified
+    """
+    n_laps = len(laps_df['start'])
+    start_spike_index = np.zeros_like(laps_df['start'])
+    end_spike_index = np.zeros_like(laps_df['start'])
+    for i in np.arange(n_laps):
+        included_df = spikes_df[((spikes_df['t_rel_seconds'] >= laps_df.loc[i,'start']) & (spikes_df['t_rel_seconds'] <= laps_df.loc[i,'stop']))]
+        included_indicies = included_df.index
+        start_spike_index[i] = included_indicies[0]
+        end_spike_index[i] = included_indicies[-1]
+
+    # Add the start and end spike indicies to the laps df:
+    laps_df['start_spike_index'] = start_spike_index
+    laps_df['end_spike_index'] = end_spike_index
+
+    # laps_df['start_spike_index'] = spikes_df.loc[start_spike_index, 'flat_spike_idx']
+    # laps_df['end_spike_index'] = spikes_df.loc[end_spike_index, 'flat_spike_idx']
+    return laps_df
 
  
 def estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):

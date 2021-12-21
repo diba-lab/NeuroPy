@@ -742,7 +742,7 @@ class DataSessionLoader:
 
     @staticmethod
     def __default_kdiba_spikeII_compute_laps_vars(session, spikes_df, time_variable_name='t_seconds'):
-        """ 
+        """ Attempts to compute the Laps object from the loaded spikesII spikes, which have a 'lap' column.
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
         
