@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from neuropy.analyses.pho_custom_placefields import PfND
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
@@ -69,9 +70,7 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})"
 
 
-        
-        
-def perform_compute_placefields(active_session_Neurons, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
+def perform_compute_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
     """ Computes both 1D and 2D placefields.
     active_epoch_session_Neurons: 
     active_epoch_pos: a Position object
@@ -83,9 +82,14 @@ def perform_compute_placefields(active_session_Neurons, active_pos, computation_
     ## Linearized (1D) Position Placefields:
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
         print('Recomputing active_epoch_placefields...', end=' ')
-        active_epoch_placefields1D = Pf1D(neurons=active_session_Neurons, position=deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
+        # active_epoch_placefields1D = Pf1D(neurons=active_session_Neurons, position=deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
+        #                                   speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+        #                                   grid_bin=computation_config.grid_bin_1D, smooth=computation_config.smooth_1D)
+        # PfND version:
+        active_epoch_placefields1D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-                                          grid_bin=computation_config.grid_bin_1D, smooth=computation_config.smooth_1D)
+                                          grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+
         print('\t done.')
     else:
         print('active_epoch_placefields1D already exists, reusing it.')
@@ -93,144 +97,20 @@ def perform_compute_placefields(active_session_Neurons, active_pos, computation_
     ## 2D Position Placemaps:
     if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
         print('Recomputing active_epoch_placefields2D...', end=' ')
-        active_epoch_placefields2D = Pf2D(neurons=active_session_Neurons, position=deepcopy(active_pos), epochs=included_epochs,
+        # active_epoch_placefields2D = Pf2D(neurons=active_session_Neurons, position=deepcopy(active_pos), epochs=included_epochs,
+        #                                   speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+        #                                   grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+        # PfND version:
+        active_epoch_placefields2D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                           grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+
         print('\t done.')
     else:
         print('active_epoch_placefields2D already exists, reusing it.')
     
     return active_epoch_placefields1D, active_epoch_placefields2D
 
-
-def plot_all_placefields(active_placefields1D, active_placefields2D, active_config):
-    """ 
-    active_placefields1D: (Pf1D)
-    active_placefields2D: (Pf2D)
-    active_config:
-    Usage:
-        ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config)
-    """
-    active_epoch_name = active_config.active_epochs.name
-    common_parent_foldername = active_config.computation_config.str_for_filename(True)
-    
-    ## Linearized (1D) Position Placefields:
-    if active_placefields1D is not None:
-        ax_pf_1D = active_placefields1D.plot_ratemaps()
-        active_pf_1D_identifier_string = '1D Placefields - {}'.format(active_epoch_name)
-        # plt.title(active_pf_1D_identifier_string)
-        # active_pf_1D_output_filename = '{}.pdf'.format(active_pf_1D_identifier_string)
-        # active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
-        
-        title_string = ' '.join([active_pf_1D_identifier_string])
-        subtitle_string = ' '.join([f'{active_placefields1D.config.str_for_display(False)}'])
-        
-        plt.gcf().suptitle(title_string, fontsize='14')
-        plt.gca().set_title(subtitle_string, fontsize='10')
-        # plt.title(active_pf_1D_identifier_string, fontsize=22)
-        # common_parent_basename = active_placefields1D.config.str_for_filename(False)
-        common_basename = active_placefields1D.str_for_filename(prefix_string=f'Placefield1D-{active_epoch_name}-')
-        active_pf_1D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
-        print('Saving 1D Placefield image out to "{}"...'.format(active_pf_1D_output_filepath), end='')
-        plt.savefig(active_pf_1D_output_filepath)
-        print('\t done.')
-    else:
-        print('plot_all_placefields(...): active_epoch_placefields1D does not exist. Skipping it.')
-        ax_pf_1D = None
-
-    ## 2D Position Placemaps:
-    if active_placefields2D is not None:
-        active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)        
-        title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
-        subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
-        occupancy_fig, occupancy_ax = plot_placefield_occupancy(active_placefields2D)
-        occupancy_fig.suptitle(title_string, fontsize='14')
-        occupancy_ax.set_title(subtitle_string, fontsize='10')
-        
-        # Save ocupancy figure out to disk:
-        common_basename = active_placefields2D.str_for_filename(prefix_string=f'Occupancy -{active_epoch_name}-')
-        active_pf_occupancy_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
-        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_occupancy_2D_output_filepath), end='')
-        occupancy_fig.savefig(active_pf_occupancy_2D_output_filepath)
-        print('\t done.')
-        
-        ## 2D Tuning Curves Figure:
-        active_pf_2D_identifier_string = '2D Placefields - {}'.format(active_epoch_name)
-        title_string = ' '.join([active_pf_2D_identifier_string])
-        subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
-        
-        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plotMap(subplots=(7, 7),figsize=(30, 30))        
-        # occupancy_fig.suptitle(title_string, fontsize='22')
-        # occupancy_ax.set_title(subtitle_string, fontsize='16')        
-        common_basename = active_placefields2D.str_for_filename(prefix_string=f'Placefields-{active_epoch_name}-')
-        active_pf_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
-        print('Saving 2D Placefield image out to "{}"...'.format(active_pf_2D_output_filepath), end='')
-        for aFig in active_pf_2D_figures:
-            aFig.savefig(active_pf_2D_output_filepath)
-        print('\t done.')
-    else:
-        print('plot_all_placefields(...): active_epoch_placefields2D does not exist. Skipping it.')
-        occupancy_fig = None
-        active_pf_2D_figures = None
-    
-    return ax_pf_1D, occupancy_fig, active_pf_2D_figures
-
-
-def plot_placefield_occupancy(active_epoch_placefields2D):
-    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, max_normalized=True)
-
-def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
-    if fig is None:
-        occupancy_fig = plt.figure()
-    else:
-        occupancy_fig = fig
-    
-    if ax is None:
-        occupancy_ax = occupancy_fig.gca()
-    else:
-        occupancy_ax = ax
-        
-    only_visited_occupancy = occupancy
-    # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
-    if drop_below_threshold is not None:
-        only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
-    if max_normalized:
-        only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
-    im = occupancy_ax.pcolorfast(
-        xbin,
-        ybin,
-        np.rot90(np.fliplr(only_visited_occupancy)),
-        cmap="jet", vmin=0.0
-    )  # rot90(flipud... is necessary to match plotRaw configuration.
-    occupancy_ax.set_title('Custom Occupancy')
-    occupancy_cbar = occupancy_fig.colorbar(im, ax=occupancy_ax, location='right')
-    occupancy_cbar.minorticks_on()
-    return occupancy_fig, occupancy_ax
-
-def plot_occupancy_1D(active_epoch_placefields1D, max_normalized, drop_below_threshold=None, fig=None, ax=None):
-    if fig is None:
-        occupancy_fig = plt.figure()
-    else:
-        occupancy_fig = fig
-    
-    if ax is None:
-        occupancy_ax = occupancy_fig.gca()
-    else:
-        occupancy_ax = ax
-
-    only_visited_occupancy = active_epoch_placefields1D.occupancy.copy()
-    # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
-    if drop_below_threshold is not None:
-        only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
-    
-    if max_normalized:
-        only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
-    occupancy_ax.plot(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy)
-    occupancy_ax.scatter(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy, color='r')
-    occupancy_ax.set_ylim([0, np.nanmax(only_visited_occupancy)])
-    occupancy_ax.set_title('Occupancy 1D')
-    # plt.show()
-    return occupancy_fig, occupancy_ax
 
 
 
@@ -307,42 +187,6 @@ def _bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
         
     return xbin, ybin, bin_info_out_dict # {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
 
-
-# def _bin_pos(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
-#     """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
-#     Usage:
-#         ## Binning with Fixed Number of Bins:    
-#         xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
-#         print(bin_info)
-#         ## Binning with Fixed Bin Sizes:
-#         xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
-#         print(bin_info)
-#     """
-#     assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
-#     assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
-#     if num_bins is not None:
-#         ## Binning with Fixed Number of Bins:
-#         mode = 'num_bins'
-#         xnum_bins = num_bins[0]
-#         xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
-
-#         ynum_bins = num_bins[1]
-#         ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position
-#     elif bin_size is not None:
-#         ## Binning with Fixed Bin Sizes:
-#         mode = 'bin_size'
-
-#         xstep = bin_size[0]
-#         xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
-#         xnum_bins = len(xbin)
-
-#         ystep = bin_size[1]
-#         ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
-#         ynum_bins = len(ybin) 
-#     # print('xbin: {}'.format(xbin))
-#     # print('ybin: {}'.format(ybin))
-#     return xbin, ybin, {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
-
 ## TODO: refactor _bin_pos_1D into a simple wrapper for _bin_pos(...)
 def _bin_pos_1D(x: np.ndarray, num_bins=None, bin_size=None):
     """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
@@ -402,7 +246,199 @@ class PfnDMixin(SimplePrintable):
     @property
     def cell_ids(self):
         return self.ratemap.neuron_ids
+
+
+class PfnDPlottingMixin(PfnDMixin):
+    # Extracted fro the 1D figures:
+    def plot_ratemaps(self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"):
+        # returns: ax , sort_ind, colors
+        return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
     
+    # all extracted from the 2D figures
+    def plotMap(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True):
+        """Plots heatmaps of placefields with peak firing rate
+
+        Parameters
+        ----------
+        speed_thresh : bool, optional
+            [description], by default False
+        subplots : tuple, optional
+            number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
+        fignum : int, optional
+            figure number to start from, by default None
+        """
+
+        map_use, thresh = self.ratemap.tuning_curves, self.speed_thresh
+
+        nCells = len(map_use)
+        nfigures = nCells // np.prod(subplots) + 1
+
+        if fignum is None:
+            if f := plt.get_fignums():
+                fignum = f[-1] + 1
+            else:
+                fignum = 1
+
+        figures, gs = [], []
+        for fig_ind in range(nfigures):
+            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
+            gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
+            fig.subplots_adjust(hspace=0.4)
+            fig.suptitle(
+                "Place maps with peak firing rate (speed_threshold = "
+                + str(thresh)
+                + ")"
+            )
+            figures.append(fig)
+
+        mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
+
+        for cell, pfmap in enumerate(map_use):
+            ind = cell // np.prod(subplots)
+            subplot_ind = cell % np.prod(subplots)
+            curr_pfmap = np.array(pfmap)
+            curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) / np.nanmax(curr_pfmap)
+            # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
+            ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
+            # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
+            ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
+            # im = ax1.pcolorfast(
+            #     self.ratemap.xbin,
+            #     self.ratemap.ybin,
+            #     curr_pfmap,
+            #     cmap="jet",
+            #     vmin=0,
+            # )
+            # im = ax1.pcolorfast(
+            #     self.ratemap.xbin,
+            #     self.ratemap.ybin,
+            #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
+            #     cmap="jet",
+            #     vmin=0,
+            # )  # rot90(flipud... is necessary to match plotRaw configuration.
+            # im = ax1.pcolor(
+            #     self.ratemap.xbin,
+            #     self.ratemap.ybin,
+            #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
+            #     cmap="jet",
+            #     vmin=0,
+            # )
+            
+            # ax1.scatter(self.spk_pos[ind]) # tODO: add spikes
+            # max_frate =
+            
+            if enable_spike_overlay:
+                ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
+                # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
+            
+            ax1.axis("off")
+            ax1.set_title(
+                f"Cell {self.ratemap.neuron_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
+            )
+
+            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
+            # cbar = fig.colorbar(im, cax=cbar_ax)
+            # cbar.set_label("firing rate (Hz)")
+            
+        return figures, gs
+
+    def plot_raw(self,
+        subplots=(10, 8),
+        fignum=None,
+        alpha=0.5,
+        label_cells=False,
+        ax=None,
+        clus_use=None):
+        if ax is None:
+            fig = plt.figure(fignum, figsize=(6, 10))
+            gs = GridSpec(subplots[0], subplots[1], figure=fig)
+            # fig.subplots_adjust(hspace=0.4)
+        else:
+            assert len(ax) == len(
+                clus_use
+            ), "Number of axes must match number of clusters to plot"
+            fig = ax[0].get_figure()
+
+        # spk_pos_use = self.spk_pos
+        spk_pos_use = self.ratemap_spiketrains_pos
+
+        if clus_use is not None:
+            spk_pos_tmp = spk_pos_use
+            spk_pos_use = []
+            [spk_pos_use.append(spk_pos_tmp[a]) for a in clus_use]
+
+        for cell, (spk_x, spk_y) in enumerate(spk_pos_use):
+            if ax is None:
+                ax1 = fig.add_subplot(gs[cell])
+            else:
+                ax1 = ax[cell]
+            ax1.plot(self.x, self.y, color="#d3c5c5")
+            ax1.plot(spk_x, spk_y, '.', markersize=0.8, color=[1, 0, 0, alpha])
+            ax1.axis("off")
+            if label_cells:
+                # Put info on title
+                info = self.cell_ids[cell]
+                ax1.set_title(f"Cell {info}")
+
+        fig.suptitle(
+            f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})"
+        )
+
+    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(2, 1, sharex=True)
+            fig.set_size_inches([23, 9.7])
+
+        # plot trajectories
+        for a, pos, ylabel in zip(
+            ax, [self.x, self.y], ["X position (cm)", "Y position (cm)"]
+        ):
+            a.plot(self.t, pos)
+            a.set_xlabel("Time (seconds)")
+            a.set_ylabel(ylabel)
+            pretty_plot(a)
+
+        # Grab correct spike times/positions
+        if speed_thresh:
+            spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
+        else:
+            spk_pos_, spk_t_ = self.spk_pos, self.spk_t
+
+        # plot spikes on trajectory
+        for a, pos in zip(ax, spk_pos_[cellind]):
+            a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
+
+        # Put info on title
+        ax[0].set_title(
+            "Cell "
+            + str(self.cell_ids[cellind])
+            + ":, speed_thresh="
+            + str(self.speed_thresh)
+        )
+        return fig, ax
+
+    def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
+        if fig is None:
+            fig_use = plt.figure(figsize=[28.25, 11.75])
+        else:
+            fig_use = fig
+        gs = GridSpec(2, 4, figure=fig_use)
+        ax2d = fig_use.add_subplot(gs[0, 0])
+        axccg = np.asarray(fig_use.add_subplot(gs[1, 0]))
+        axx = fig_use.add_subplot(gs[0, 1:])
+        axy = fig_use.add_subplot(gs[1, 1:], sharex=axx)
+
+        self.plot_raw(speed_thresh=speed_thresh, clus_use=[cellind], ax=[ax2d])
+        self.plotRaw_v_time(
+            cellind, speed_thresh=speed_thresh, ax=[axx, axy], alpha=alpha
+        )
+        self._obj.spikes.plot_ccg(clus_use=[cellind], type="acg", ax=axccg)
+
+        return fig_use
+
+
+
+
 
 
 class Pf1D(PfnConfigMixin, PfnDMixin):
@@ -577,9 +613,7 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 
         self.ratemap_spiketrains_phases = phase
 
-    def plot_with_phase(
-        self, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)
-    ):
+    def plot_with_phase(self, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)):
         cmap = mpl.cm.get_cmap(cmap)
 
         mapinfo = self.ratemaps
@@ -684,7 +718,7 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         
 
 
-class Pf2D(PfnConfigMixin, PfnDMixin):
+class Pf2D(PfnConfigMixin, PfnDPlottingMixin):
 
     @staticmethod
     def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_raw_occupancy=False):
@@ -882,190 +916,5 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         self.speed_thresh = speed_thresh
 
    
-
-    def plotMap(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True):
-        """Plots heatmaps of placefields with peak firing rate
-
-        Parameters
-        ----------
-        speed_thresh : bool, optional
-            [description], by default False
-        subplots : tuple, optional
-            number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
-        fignum : int, optional
-            figure number to start from, by default None
-        """
-
-        map_use, thresh = self.ratemap.tuning_curves, self.speed_thresh
-
-        nCells = len(map_use)
-        nfigures = nCells // np.prod(subplots) + 1
-
-        if fignum is None:
-            if f := plt.get_fignums():
-                fignum = f[-1] + 1
-            else:
-                fignum = 1
-
-        figures, gs = [], []
-        for fig_ind in range(nfigures):
-            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
-            gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
-            fig.subplots_adjust(hspace=0.4)
-            fig.suptitle(
-                "Place maps with peak firing rate (speed_threshold = "
-                + str(thresh)
-                + ")"
-            )
-            figures.append(fig)
-
-        mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
-
-        for cell, pfmap in enumerate(map_use):
-            ind = cell // np.prod(subplots)
-            subplot_ind = cell % np.prod(subplots)
-            curr_pfmap = np.array(pfmap)
-            curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) / np.nanmax(curr_pfmap)
-            # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
-            ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
-            # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
-            ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
-            # im = ax1.pcolorfast(
-            #     self.ratemap.xbin,
-            #     self.ratemap.ybin,
-            #     curr_pfmap,
-            #     cmap="jet",
-            #     vmin=0,
-            # )
-            # im = ax1.pcolorfast(
-            #     self.ratemap.xbin,
-            #     self.ratemap.ybin,
-            #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-            #     cmap="jet",
-            #     vmin=0,
-            # )  # rot90(flipud... is necessary to match plotRaw configuration.
-            # im = ax1.pcolor(
-            #     self.ratemap.xbin,
-            #     self.ratemap.ybin,
-            #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-            #     cmap="jet",
-            #     vmin=0,
-            # )
-            
-            # ax1.scatter(self.spk_pos[ind]) # tODO: add spikes
-            # max_frate =
-            
-            if enable_spike_overlay:
-                ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
-                # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
-            
-            ax1.axis("off")
-            ax1.set_title(
-                f"Cell {self.ratemap.neuron_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
-            )
-
-            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-            # cbar = fig.colorbar(im, cax=cbar_ax)
-            # cbar.set_label("firing rate (Hz)")
-            
-        return figures, gs
-
-    def plotRaw(self,
-        subplots=(10, 8),
-        fignum=None,
-        alpha=0.5,
-        label_cells=False,
-        ax=None,
-        clus_use=None,
-    ):
-        if ax is None:
-            fig = plt.figure(fignum, figsize=(6, 10))
-            gs = GridSpec(subplots[0], subplots[1], figure=fig)
-            # fig.subplots_adjust(hspace=0.4)
-        else:
-            assert len(ax) == len(
-                clus_use
-            ), "Number of axes must match number of clusters to plot"
-            fig = ax[0].get_figure()
-
-        # spk_pos_use = self.spk_pos
-        spk_pos_use = self.ratemap_spiketrains_pos
-
-        if clus_use is not None:
-            spk_pos_tmp = spk_pos_use
-            spk_pos_use = []
-            [spk_pos_use.append(spk_pos_tmp[a]) for a in clus_use]
-
-        for cell, (spk_x, spk_y) in enumerate(spk_pos_use):
-            if ax is None:
-                ax1 = fig.add_subplot(gs[cell])
-            else:
-                ax1 = ax[cell]
-            ax1.plot(self.x, self.y, color="#d3c5c5")
-            ax1.plot(spk_x, spk_y, '.', markersize=0.8, color=[1, 0, 0, alpha])
-            ax1.axis("off")
-            if label_cells:
-                # Put info on title
-                info = self.cell_ids[cell]
-                ax1.set_title(f"Cell {info}")
-
-        fig.suptitle(
-            f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})"
-        )
-
-    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
-        if ax is None:
-            fig, ax = plt.subplots(2, 1, sharex=True)
-            fig.set_size_inches([23, 9.7])
-
-        # plot trajectories
-        for a, pos, ylabel in zip(
-            ax, [self.x, self.y], ["X position (cm)", "Y position (cm)"]
-        ):
-            a.plot(self.t, pos)
-            a.set_xlabel("Time (seconds)")
-            a.set_ylabel(ylabel)
-            pretty_plot(a)
-
-        # Grab correct spike times/positions
-        if speed_thresh:
-            spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
-        else:
-            spk_pos_, spk_t_ = self.spk_pos, self.spk_t
-
-        # plot spikes on trajectory
-        for a, pos in zip(ax, spk_pos_[cellind]):
-            a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
-
-        # Put info on title
-        ax[0].set_title(
-            "Cell "
-            + str(self.cell_ids[cellind])
-            + ":, speed_thresh="
-            + str(self.speed_thresh)
-        )
-        return fig, ax
-
-    def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
-        if fig is None:
-            fig_use = plt.figure(figsize=[28.25, 11.75])
-        else:
-            fig_use = fig
-        gs = GridSpec(2, 4, figure=fig_use)
-        ax2d = fig_use.add_subplot(gs[0, 0])
-        axccg = np.asarray(fig_use.add_subplot(gs[1, 0]))
-        axx = fig_use.add_subplot(gs[0, 1:])
-        axy = fig_use.add_subplot(gs[1, 1:], sharex=axx)
-
-        self.plotRaw(speed_thresh=speed_thresh, clus_use=[cellind], ax=[ax2d])
-        self.plotRaw_v_time(
-            cellind, speed_thresh=speed_thresh, ax=[axx, axy], alpha=alpha
-        )
-        self._obj.spikes.plot_ccg(clus_use=[cellind], type="acg", ax=axccg)
-
-        return fig_use
-
-
-
 
 

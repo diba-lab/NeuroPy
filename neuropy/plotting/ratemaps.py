@@ -7,8 +7,7 @@ from neuropy.utils import mathutil
 from .figure import Fig
 
 
-def plot_ratemap(
-    ratemap: core.Ratemap,
+def plot_ratemap(ratemap: core.Ratemap,
     normalize_xbin=False,
     ax=None,
     pad=2,
@@ -67,7 +66,6 @@ def plot_ratemap(
     # sorted_tuning_curves = tuning_curves[sorted_neuron_ids, :]
     sorted_neuron_id_labels = ['Cell[{}]'.format(a_neuron_id) for a_neuron_id in sorted_neuron_ids]
     
-
     colors_array = np.zeros((4, n_neurons))
     for i, neuron_ind in enumerate(sort_ind):
         color = cmap(i / len(sort_ind))

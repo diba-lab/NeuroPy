@@ -4,7 +4,8 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
 
-from neuropy.analyses.placefields import Pf1D, PfnConfigMixin, PfnDMixin, PlacefieldComputationParameters, _bin_pos_nD, plot_placefield_occupancy, plot_occupancy_custom, _filter_by_frate, Pf2D, _normalized_occupancy
+from neuropy.analyses.placefields import Pf1D, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin, PlacefieldComputationParameters, _bin_pos_nD, _filter_by_frate, Pf2D, _normalized_occupancy
+# plot_placefield_occupancy, plot_occupancy_custom
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
@@ -292,22 +293,33 @@ class SpikesAccessor(TimeSlicedMixin):
     def n_neurons(self):
         return len(self.neuron_ids)
     
-    
-    
-# class Spikes(ConcatenationInitializable):
-#     FlattenedSpiketrains
 
-class PfND(PfnConfigMixin, PfnDMixin):
-    def __init__(
-        self,
+class PfND(PfnConfigMixin, PfnDPlottingMixin):
+    
+    def str_for_filename(self, prefix_string=''):
+        if self.ndim <= 1:
+            return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_filename(False)}'])
+        else:
+            return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_filename(True)}'])
+    
+    def str_for_display(self, prefix_string=''):
+        if self.ndim <= 1:
+            return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_display(False)}', f'cell_{curr_cell_id:02d}'])
+        else:
+            return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
+        
+        
+    
+    
+    def __init__(self,
         spikes_df: pd.DataFrame,
         position: Position,
         epochs: Epoch = None,
         frate_thresh=1,
         speed_thresh=5,
         grid_bin=(1,1),
-        smooth=(1,1),
-    ):
+        smooth=(1,1)):
+        
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
 
@@ -340,6 +352,10 @@ class PfND(PfnConfigMixin, PfnDMixin):
         # self.x = position.x
         # if (position.ndim > 1):
         #     self.y = position.y
+        
+        # Set the dimensionality of the PfND object from the position's dimensionality
+        self.ndim = position.ndim
+        
 
         # Output lists, for compatibility with Pf1D and Pf2D:
         spk_pos, spk_t, tuning_maps = [], [], []
