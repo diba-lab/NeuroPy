@@ -268,22 +268,26 @@ def _bin_pos(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
         ## Binning with Fixed Number of Bins:
         mode = 'num_bins'
         xnum_bins = num_bins[0]
-        ynum_bins = num_bins[1]
         xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
+
+        ynum_bins = num_bins[1]
         ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position
     elif bin_size is not None:
         ## Binning with Fixed Bin Sizes:
         mode = 'bin_size'
+
         xstep = bin_size[0]
-        ystep = bin_size[1]
         xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
-        ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
         xnum_bins = len(xbin)
+
+        ystep = bin_size[1]
+        ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
         ynum_bins = len(ybin) 
     # print('xbin: {}'.format(xbin))
     # print('ybin: {}'.format(ybin))
     return xbin, ybin, {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
 
+## TODO: refactor _bin_pos_1D into a simple wrapper for _bin_pos(...)
 def _bin_pos_1D(x: np.ndarray, num_bins=None, bin_size=None):
     """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
     Usage:
@@ -432,13 +436,14 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             # changing x, speed, time to only run epochs so occupancy map is consistent with that
             indx = np.concatenate(
                 [
-                    np.where((self.t > epc.start) & (self.t < epc.stop))[0]
+                    np.where((self.t >= epc.start) & (self.t <= epc.stop))[0]
                     for epc in epochs.to_dataframe().itertuples()
                 ]
             )
             self.x = self.x[indx] # (52121,)
             self.speed = self.speed[indx] # (52121,)
             self.t = self.t[indx] # (52121,)
+            
             
             occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, position_srate, smooth)
 

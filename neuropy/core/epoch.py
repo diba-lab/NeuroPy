@@ -136,7 +136,17 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         ), "Epoch dataframe should at least have columns with names: start, stop, label"
 
     def __repr__(self) -> str:
-        return f"{len(self.starts)} epochs"
+        # return f"{len(self.starts)} epochs"
+        return f"{len(self.starts)} epochs\n{self.as_array().__repr__()}\n"
+
+
+    def _repr_pretty_(self, p, cycle=False):
+        """ The cycle parameter will be true if the representation recurses - e.g. if you put a container inside itself. """
+        # p.text(self.__repr__() if not cycle else '...')
+        p.text(self.to_dataframe().__repr__() if not cycle else '...')
+        
+        # return self.as_array().__repr__() # p.text(repr(self))
+
 
     def __str__(self) -> str:
         pass
