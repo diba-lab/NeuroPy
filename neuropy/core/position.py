@@ -78,7 +78,7 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
     @property
     def traces(self):
         """ Compatibility method for the old-style implementation. """
-        print('traces accessed with self.ndim of {}'.format(self.ndim))
+        # print('traces accessed with self.ndim of {}'.format(self.ndim))
         if self.ndim == 1:
             return self._data[['x']].to_numpy().T
         elif self.ndim >= 2:
