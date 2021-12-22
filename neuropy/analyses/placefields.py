@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 from matplotlib.image import NonUniformImage
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
-from neuropy.analyses.pho_custom_placefields import PfND
+# from neuropy.analyses.pho_custom_placefields import PfND
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
@@ -76,49 +76,6 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})"
         else:
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})"
-
-
-def perform_compute_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
-    """ Computes both 1D and 2D placefields.
-    active_epoch_session_Neurons: 
-    active_epoch_pos: a Position object
-    included_epochs: a Epoch object to filter with, only included epochs are included in the PF calculations
-    active_epoch_placefields1D (Pf1D, optional) & active_epoch_placefields2D (Pf2D, optional): allow you to pass already computed Pf1D and Pf2D objects from previous runs and it won't recompute them so long as should_force_recompute_placefields=False, which is useful in interactive Notebooks/scripts
-    Usage:
-        active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config, should_force_recompute_placefields=True)
-    """
-    ## Linearized (1D) Position Placefields:
-    if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields...', end=' ')
-        # active_epoch_placefields1D = Pf1D(neurons=active_session_Neurons, position=deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
-        #                                   speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-        #                                   grid_bin=computation_config.grid_bin_1D, smooth=computation_config.smooth_1D)
-        # PfND version:
-        active_epoch_placefields1D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
-                                          speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-                                          grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
-
-        print('\t done.')
-    else:
-        print('active_epoch_placefields1D already exists, reusing it.')
-
-    ## 2D Position Placemaps:
-    if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields2D...', end=' ')
-        # active_epoch_placefields2D = Pf2D(neurons=active_session_Neurons, position=deepcopy(active_pos), epochs=included_epochs,
-        #                                   speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-        #                                   grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
-        # PfND version:
-        active_epoch_placefields2D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
-                                          speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-                                          grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
-
-        print('\t done.')
-    else:
-        print('active_epoch_placefields2D already exists, reusing it.')
-    
-    return active_epoch_placefields1D, active_epoch_placefields2D
-
 
 
 
@@ -195,34 +152,6 @@ def _bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
         
     return xbin, ybin, bin_info_out_dict # {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
 
-## TODO: refactor _bin_pos_1D into a simple wrapper for _bin_pos(...)
-def _bin_pos_1D(x: np.ndarray, num_bins=None, bin_size=None):
-    """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
-    Usage:
-        ## Binning with Fixed Number of Bins:    
-        xbin, bin_info = _bin_pos_1D(pos_df.x.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
-        print(bin_info)
-        ## Binning with Fixed Bin Sizes:
-        xbin, bin_info = _bin_pos_1D(pos_df.x.to_numpy(), num_bins=num_bins) # num_bins mode
-        print(bin_info)
-    """
-    assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
-    assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
-    if num_bins is not None:
-        ## Binning with Fixed Number of Bins:
-        mode = 'num_bins'
-        xnum_bins = num_bins
-        xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
-    elif bin_size is not None:
-        ## Binning with Fixed Bin Sizes:
-        mode = 'bin_size'
-        xstep = bin_size
-        xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
-        xnum_bins = len(xbin)
-    # print('xbin: {}'.format(xbin))
-    # print('ybin: {}'.format(ybin))
-    return xbin, {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
-
 def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
     # raw occupancy is defined in terms of the number of samples that fall into each bin.
     # if position_srate is not None:
@@ -235,6 +164,7 @@ def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
     normalized_occupancy = raw_occupancy / np.nansum(raw_occupancy) # the normalized occupancy determines the relative number of samples spent in each bin
 
     return seconds_occupancy, normalized_occupancy
+
 
 
 class PfnConfigMixin:
