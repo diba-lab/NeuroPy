@@ -224,11 +224,12 @@ class PfnDPlottingMixin(PfnDMixin):
             fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
             gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
             fig.subplots_adjust(hspace=0.2)
-            fig.suptitle(
-                "Place maps with peak firing rate (speed_threshold = "
-                + str(thresh)
-                + ")"
-            )
+            
+            title_string = f'2D Placemaps Placemaps ({len(self.ratemap.neuron_ids)} good cells)'
+            if thresh is not None:
+                title_string = f'{title_string} (speed_threshold = {str(thresh)})'
+                
+            fig.suptitle(title_string)
             figures.append(fig)
 
         mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
@@ -236,12 +237,41 @@ class PfnDPlottingMixin(PfnDMixin):
         for cell, pfmap in enumerate(map_use):
             ind = cell // np.prod(subplots)
             subplot_ind = cell % np.prod(subplots)
-            curr_pfmap = np.array(pfmap)
-            curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) / np.nanmax(curr_pfmap)
-            # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
+ 
+            
+            # Working:
+            curr_pfmap = np.array(pfmap) / np.nanmax(pfmap)
+            # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
+            curr_pfmap = np.rot90(curr_pfmap)
+            curr_pfmap = np.fliplr(curr_pfmap)
+            # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
             # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
-            ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
+            # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
+            # occupancy_ax.minorticks_on()
+            # im = ax1.pcolorfast(
+            #     self.ratemap.xbin,
+            #     self.ratemap.ybin,
+            #     curr_pfmap,
+            #     cmap="jet", vmin=0.0
+            # )  # rot90(flipud... is necessary to match plotRaw configuration.
+            # , origin='lower'
+            
+            im = ax1.pcolorfast(
+                self.ratemap.xbin,
+                self.ratemap.ybin,
+                curr_pfmap,
+                cmap="jet", vmin=0.0
+            )
+                    
+            
+            # ax1.vlines(200, 'ymin'=0, 'ymax'=1, 'r')
+            # ax1.set_xticks([25, 50])
+            # ax1.vline(50, 'r')
+            # ax1.vlines([50], 0, 1, transform=ax1.get_xaxis_transform(), colors='r')
+            # ax1.vlines([50], 0, 1, colors='r')
+                
+
             # im = ax1.pcolorfast(
             #     self.ratemap.xbin,
             #     self.ratemap.ybin,
@@ -267,9 +297,9 @@ class PfnDPlottingMixin(PfnDMixin):
             # ax1.scatter(self.spk_pos[ind]) # tODO: add spikes
             # max_frate =
             
-            if enable_spike_overlay:
-                ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
-                # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
+            # if enable_spike_overlay:
+            #     ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
+            #     # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
             
             curr_cell_alt_id = self.ratemap.tuple_neuron_ids[cell]
             curr_cell_shank = curr_cell_alt_id[0]

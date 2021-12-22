@@ -99,7 +99,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         occupancy_fig = None
         active_pf_2D_figures = None
     
-    return ax_pf_1D, occupancy_fig, active_pf_2D_figures
+    return ax_pf_1D, occupancy_fig, active_pf_2D_figures, active_pf_2D_gs
 
 
 
