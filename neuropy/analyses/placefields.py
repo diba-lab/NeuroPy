@@ -693,7 +693,10 @@ class Pf2D(PfnConfigMixin, PfnDPlottingMixin):
         if should_return_raw_tuning_map:
             return raw_tuning_map
         else:
-            occupancy_weighted_tuning_map = raw_tuning_map / occupancy
+            occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero aftwards anyway
+            occupancy_weighted_tuning_map = raw_tuning_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+            occupancy_weighted_tuning_map = np.nan_to_num(occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+            occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
             return occupancy_weighted_tuning_map
 
     def str_for_filename(self, prefix_string=''):

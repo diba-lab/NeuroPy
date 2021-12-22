@@ -54,4 +54,4 @@ class Ratemap(DataWriter):
         elif isinstance(sortby, (list, np.ndarray)):
             sort_ind = sortby
         else:
-            sort_ind = np.arange(n_neurons) 
+            sort_ind = np.arange(self.n_neurons) 
