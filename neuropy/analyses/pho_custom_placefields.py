@@ -342,8 +342,11 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         # spiketrains = neurons.spiketrains
         # neuron_ids = neurons.neuron_ids
         # n_neurons = neurons.n_neurons
-        position_srate = position.sampling_rate
- 
+        self.position_srate = position.sampling_rate
+        # Set the dimensionality of the PfND object from the position's dimensionality
+        self.ndim = position.ndim
+        
+        
         # Don't set these properties prematurely, filter first if needed       
         # self.t = position.time
         # t_start = position.t_start
@@ -353,10 +356,7 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         # if (position.ndim > 1):
         #     self.y = position.y
         
-        # Set the dimensionality of the PfND object from the position's dimensionality
-        self.ndim = position.ndim
         
-
         # Output lists, for compatibility with Pf1D and Pf2D:
         spk_pos, spk_t, tuning_maps = [], [], []
 
@@ -376,33 +376,36 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
             filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
             filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
 
+        # Set animal observed position member variables:
         self.t = filtered_pos_df.t.to_numpy()
         self.x = filtered_pos_df.x.to_numpy()
         self.speed = filtered_pos_df.speed.to_numpy()
         if ((smooth is not None) and (smooth[0] > 0.0)):
             self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
         
-        if (position.ndim > 1):
+        
+        if (self.ndim > 1):
             self.y = filtered_pos_df.y.to_numpy()
         else:
             self.y = None
         
-        # Once filtering is done, apply the grouping:
-        # Group by the aclu (cluster indicator) column
-        cell_grouped_spikes_df = filtered_spikes_df.groupby(['aclu'])
-        cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
-
-        ## Binning with Fixed Number of Bins:    
-        # xbin, ybin, bin_info = _bin_pos(self.x, self.y, bin_size=grid_bin) # bin_size mode
         
+        ## Binning with Fixed Number of Bins:    
+        # xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
         xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
         
         # --- occupancy map calculation -----------
         if (position.ndim > 1):
-            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, position_srate, smooth)
+            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, self.position_srate, smooth)
         else:
-            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, position_srate, smooth[0])
+            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, self.position_srate, smooth[0])
         
+        
+        # Once filtering and binning is done, apply the grouping:
+        # Group by the aclu (cluster indicator) column
+        cell_grouped_spikes_df = filtered_spikes_df.groupby(['aclu'])
+        cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
+
         # re-interpolate given the updated spks
         for cell_df in cell_spikes_dfs:
             cell_spike_times = cell_df['t_rel_seconds'].to_numpy()

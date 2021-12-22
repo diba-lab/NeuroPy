@@ -6,7 +6,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
-from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from matplotlib.image import NonUniformImage
+from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
 from neuropy.analyses.pho_custom_placefields import PfND
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
