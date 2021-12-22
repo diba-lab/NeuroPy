@@ -63,8 +63,19 @@ def plot_ratemap(ratemap: core.Ratemap,
     # sorted_neuron_ids = ratemap.neuron_ids[sort_ind]
     
     sorted_neuron_ids = np.take_along_axis(np.array(ratemap.neuron_ids), sort_ind, axis=0)
+    
+    # sorted_alt_tuple_neuron_ids = np.take_along_axis(np.array(ratemap.metadata['tuple_neuron_ids']), sort_ind, axis=0)
+    # sorted_alt_tuple_neuron_ids = np.take_along_axis(np.array(ratemap.tuple_neuron_ids), sort_ind, axis=0)
+    
+    sorted_alt_tuple_neuron_ids = ratemap.metadata['tuple_neuron_ids'].copy()
+    # print(sorted_alt_tuple_neuron_ids)
+    # sorted_alt_tuple_neuron_ids = sorted_alt_tuple_neuron_ids[sort_ind]
+    sorted_alt_tuple_neuron_ids = [sorted_alt_tuple_neuron_ids[a_sort_idx] for a_sort_idx in sort_ind]
+    
+    
     # sorted_tuning_curves = tuning_curves[sorted_neuron_ids, :]
-    sorted_neuron_id_labels = ['Cell[{}]'.format(a_neuron_id) for a_neuron_id in sorted_neuron_ids]
+    # sorted_neuron_id_labels = [f'Cell[{a_neuron_id}]' for a_neuron_id in sorted_neuron_ids]
+    sorted_neuron_id_labels = [f'Cell[{sorted_neuron_ids[i]}] (s{sorted_alt_tuple_neuron_ids[i][0]},c{sorted_alt_tuple_neuron_ids[i][1]})' for i in np.arange(len(sorted_neuron_ids))]
     
     colors_array = np.zeros((4, n_neurons))
     for i, neuron_ind in enumerate(sort_ind):
@@ -87,7 +98,7 @@ def plot_ratemap(ratemap: core.Ratemap,
             color=color,
             alpha=0.7,
         )
-        ax.set_title('Cell[{}]'.format(curr_neuron_id))
+        ax.set_title('Cell[{}]'.format(curr_neuron_id)) # this doesn't appear to be visible, so what is it used for?
 
     # ax.set_yticks(list(range(len(sort_ind)) + 0.5))
     ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))

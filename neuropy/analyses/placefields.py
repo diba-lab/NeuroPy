@@ -222,7 +222,7 @@ class PfnDPlottingMixin(PfnDMixin):
         for fig_ind in range(nfigures):
             fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
             gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
-            fig.subplots_adjust(hspace=0.4)
+            fig.subplots_adjust(hspace=0.2)
             fig.suptitle(
                 "Place maps with peak firing rate (speed_threshold = "
                 + str(thresh)
@@ -270,9 +270,13 @@ class PfnDPlottingMixin(PfnDMixin):
                 ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
                 # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
             
+            curr_cell_alt_id = self.ratemap.tuple_neuron_ids[cell]
+            curr_cell_shank = curr_cell_alt_id[0]
+            curr_cell_cluster = curr_cell_alt_id[1]
+            
             ax1.axis("off")
             ax1.set_title(
-                f"Cell {self.ratemap.neuron_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
+                f"Cell {self.ratemap.neuron_ids[cell]} - (shank {curr_cell_shank}, cluster {curr_cell_cluster}) \n{round(np.nanmax(pfmap),2)} Hz"
             )
 
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])

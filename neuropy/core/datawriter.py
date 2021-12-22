@@ -35,8 +35,11 @@ class DataWriter(FileRepresentable, DictRepresentable, SimplePrintable):
         """metadata compatibility"""
         if d is not None:
             assert isinstance(d, dict), "Only dictionary accepted"
-            self._metadata = self._metadata | d
-
+            if self._metadata is not None:
+                self._metadata = self._metadata | d # if we already have valid metadata, merge the dicts
+            else:
+                self._metadata = d # otherwise we can just set it directly
+                
     ## DictRepresentable protocol:
     @staticmethod
     def from_dict(d):

@@ -450,7 +450,12 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         self.ratemap = Ratemap(
             filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids
         )
+        # {'tuple_neuron_ids':filtered_tuple_neuron_ids}
+        self.ratemap.metadata = {'tuple_neuron_ids':filtered_tuple_neuron_ids}
+        self.ratemap.tuple_neuron_ids = filtered_tuple_neuron_ids
         self.tuple_neuron_ids = filtered_tuple_neuron_ids
+
+        
         
         self.ratemap_spiketrains = filter_function(spk_t)
         self.ratemap_spiketrains_pos = filter_function(spk_pos)
