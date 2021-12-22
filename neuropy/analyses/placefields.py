@@ -248,14 +248,6 @@ class PfnDPlottingMixin(PfnDMixin):
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
             # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
             # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
-            # occupancy_ax.minorticks_on()
-            # im = ax1.pcolorfast(
-            #     self.ratemap.xbin,
-            #     self.ratemap.ybin,
-            #     curr_pfmap,
-            #     cmap="jet", vmin=0.0
-            # )  # rot90(flipud... is necessary to match plotRaw configuration.
-            # , origin='lower'
             
             im = ax1.pcolorfast(
                 self.ratemap.xbin,
@@ -316,57 +308,103 @@ class PfnDPlottingMixin(PfnDMixin):
             
         return figures, gs
 
-    def plot_raw(self,
-        subplots=(10, 8),
-        fignum=None,
-        alpha=0.5,
-        label_cells=False,
-        ax=None,
-        clus_use=None):
-        if ax is None:
-            fig = plt.figure(fignum, figsize=(6, 10))
-            gs = GridSpec(subplots[0], subplots[1], figure=fig)
-            # fig.subplots_adjust(hspace=0.4)
-        else:
-            assert len(ax) == len(
-                clus_use
-            ), "Number of axes must match number of clusters to plot"
-            fig = ax[0].get_figure()
-
-        # spk_pos_use = self.spk_pos
-        spk_pos_use = self.ratemap_spiketrains_pos
-
-        if clus_use is not None:
-            spk_pos_tmp = spk_pos_use
-            spk_pos_use = []
-            [spk_pos_use.append(spk_pos_tmp[a]) for a in clus_use]
-
-        for cell, (spk_x, spk_y) in enumerate(spk_pos_use):
+    def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):
+        if self.ndim < 2:
+            ## TODO: Pf1D Temporary Workaround:
+            return plotting.plot_raw(self.ratemap, self.t, self.x, 'BOTH', ax=ax, subplots=subplots)
+        else:        
             if ax is None:
-                ax1 = fig.add_subplot(gs[cell])
+                fig = plt.figure(fignum, figsize=(6, 10))
+                gs = GridSpec(subplots[0], subplots[1], figure=fig)
+                # fig.subplots_adjust(hspace=0.4)
             else:
-                ax1 = ax[cell]
-            ax1.plot(self.x, self.y, color="#d3c5c5")
-            ax1.plot(spk_x, spk_y, '.', markersize=0.8, color=[1, 0, 0, alpha])
-            ax1.axis("off")
-            if label_cells:
-                # Put info on title
-                info = self.cell_ids[cell]
-                ax1.set_title(f"Cell {info}")
+                assert len(ax) == len(
+                    clus_use
+                ), "Number of axes must match number of clusters to plot"
+                fig = ax[0].get_figure()
 
-        fig.suptitle(
-            f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})"
-        )
+            # spk_pos_use = self.spk_pos
+            spk_pos_use = self.ratemap_spiketrains_pos
 
+            if clus_use is not None:
+                spk_pos_tmp = spk_pos_use
+                spk_pos_use = []
+                [spk_pos_use.append(spk_pos_tmp[a]) for a in clus_use]
+
+            for cell, (spk_x, spk_y) in enumerate(spk_pos_use):
+                if ax is None:
+                    ax1 = fig.add_subplot(gs[cell])
+                else:
+                    ax1 = ax[cell]
+                ax1.plot(self.x, self.y, color="#d3c5c5")
+                ax1.plot(spk_x, spk_y, '.', markersize=0.8, color=[1, 0, 0, alpha])
+                ax1.axis("off")
+                if label_cells:
+                    # Put info on title
+                    info = self.cell_ids[cell]
+                    ax1.set_title(f"Cell {info}")
+
+            fig.suptitle(
+                f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})"
+            )
+            
+            
+
+    # def plotRaw_v_time_1D_ONLY(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
+    #     if ax is None:
+    #         fig, ax = plt.subplots(1, 1, sharex=True)
+    #         fig.set_size_inches([23, 9.7])
+            
+    #     if ax is not list:
+    #         ax = [ax]
+
+    #     # plot trajectories
+
+            
+    #     for a, pos, ylabel in zip(
+    #         ax, [self.x], ["X position (cm)"]
+    #     ):
+    #         a.plot(self.t, pos)
+    #         a.set_xlabel("Time (seconds)")
+    #         a.set_ylabel(ylabel)
+    #         pretty_plot(a)
+
+    #     # Grab correct spike times/positions
+    #     if speed_thresh:
+    #         spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
+    #     else:
+    #         spk_pos_, spk_t_ = self.spk_pos, self.spk_t
+
+    #     # plot spikes on trajectory
+    #     for a, pos in zip(ax, [spk_pos_[cellind]]):
+    #         a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
+
+    #     # Put info on title
+    #     ax[0].set_title(
+    #         "Cell "
+    #         + str(self.cell_ids[cellind])
+    #         + ":, speed_thresh="
+    #         + str(self.speed_thresh)
+    #     )
+        
+        
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
+        """ Updated to work with both 1D and 2D Placefields """   
         if ax is None:
-            fig, ax = plt.subplots(2, 1, sharex=True)
+            fig, ax = plt.subplots(self.ndim, 1, sharex=True)
             fig.set_size_inches([23, 9.7])
-
+        
+        if np.isscalar(ax):
+            ax = [ax]
+            
         # plot trajectories
-        for a, pos, ylabel in zip(
-            ax, [self.x, self.y], ["X position (cm)", "Y position (cm)"]
-        ):
+        if self.ndim < 2:
+            variable_array = [self.x]
+            label_array = ["X position (cm)"]
+        else:
+            variable_array = [self.x, self.y]
+            label_array = ["X position (cm)", "Y position (cm)"]
+        for a, pos, ylabel in zip(ax, variable_array, label_array):
             a.plot(self.t, pos)
             a.set_xlabel("Time (seconds)")
             a.set_ylabel(ylabel)
@@ -389,7 +427,7 @@ class PfnDPlottingMixin(PfnDMixin):
             + ":, speed_thresh="
             + str(self.speed_thresh)
         )
-        return fig, ax
+        return ax
 
     def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
         if fig is None:
@@ -652,44 +690,10 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         # return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
 
     def plot_raw(self, ax=None, subplots=(8, 9)):
-        return plotting.plot_raw(self.ratemap, self.t, self.x, 'BOTH', ax=ax, subplots=subplots)
-        # return plotting.plot_raw(self, ax=ax, subplots=subplots)
+        raise NotImplementedError # this isn't supposed to be used anymore!
+        # return plotting.plot_raw(self.ratemap, self.t, self.x, 'BOTH', ax=ax, subplots=subplots)
 
-    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, sharex=True)
-            fig.set_size_inches([23, 9.7])
-            
-            
-        if ax is not list:
-            ax = [ax]
-
-        # plot trajectories
-        for a, pos, ylabel in zip(
-            ax, [self.x], ["X position (cm)"]
-        ):
-            a.plot(self.t, pos)
-            a.set_xlabel("Time (seconds)")
-            a.set_ylabel(ylabel)
-            pretty_plot(a)
-
-        # Grab correct spike times/positions
-        if speed_thresh:
-            spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
-        else:
-            spk_pos_, spk_t_ = self.spk_pos, self.spk_t
-
-        # plot spikes on trajectory
-        for a, pos in zip(ax, [spk_pos_[cellind]]):
-            a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
-
-        # Put info on title
-        ax[0].set_title(
-            "Cell "
-            + str(self.cell_ids[cellind])
-            + ":, speed_thresh="
-            + str(self.speed_thresh)
-        )
+    
         
 
 
