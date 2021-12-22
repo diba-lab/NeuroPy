@@ -26,6 +26,7 @@ class NeuronIndex(SimplePrintable):
         shank_index: [1:12]
         cluster_index: [2:28]
         
+        ['shank','cluster']
     
     """
     def __init__(self, cell_uid, shank_index, cluster_index):

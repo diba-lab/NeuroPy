@@ -92,6 +92,7 @@ def _filter_by_frate(tuning_maps, frate_thresh, debug=False):
         print('\t frate_thresh: {}'.format(frate_thresh))
         print('\t n_neurons: {}'.format(n_neurons))
         print('\t thresh_neurons_indx: {}'.format(thresh_neurons_indx))
+    # filter_function: just indexes its passed list argument by thresh_neurons_indx (including only neurons that meet the thresholding criteria)
     filter_function = lambda list_: [list_[_] for _ in thresh_neurons_indx]
     # there is only one tuning_map per neuron that means the thresh_neurons_indx:
     filtered_tuning_maps = np.asarray(filter_function(tuning_maps))
