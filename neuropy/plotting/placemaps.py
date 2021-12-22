@@ -8,7 +8,7 @@ from neuropy.plotting.figure import pretty_plot
 
 
 
-def plot_all_placefields(active_placefields1D, active_placefields2D, active_config):
+def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None):
     """ 
     active_placefields1D: (Pf1D)
     active_placefields2D: (Pf2D)
@@ -23,6 +23,9 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
     if active_placefields1D is not None:
         ax_pf_1D = active_placefields1D.plot_ratemaps()
         active_pf_1D_identifier_string = '1D Placefields - {}'.format(active_epoch_name)
+        if variant_identifier_label is not None:
+            active_pf_1D_identifier_string = ' - '.join([active_pf_1D_identifier_string, variant_identifier_label])
+
         # plt.title(active_pf_1D_identifier_string)
         # active_pf_1D_output_filename = '{}.pdf'.format(active_pf_1D_identifier_string)
         # active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
@@ -34,7 +37,12 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         plt.gca().set_title(subtitle_string, fontsize='10')
         # plt.title(active_pf_1D_identifier_string, fontsize=22)
         # common_parent_basename = active_placefields1D.config.str_for_filename(False)
-        common_basename = active_placefields1D.str_for_filename(prefix_string=f'Placefield1D-{active_epoch_name}-')
+        
+        active_pf_1D_filename_prefix_string = f'Placefield1D-{active_epoch_name}'
+        if variant_identifier_label is not None:
+            active_pf_1D_filename_prefix_string = '-'.join([active_pf_1D_filename_prefix_string, variant_identifier_label])
+        active_pf_1D_filename_prefix_string = f'{active_pf_1D_filename_prefix_string}-' # it always ends with a '-' character
+        common_basename = active_placefields1D.str_for_filename(prefix_string=active_pf_1D_filename_prefix_string)
         active_pf_1D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
         print('Saving 1D Placefield image out to "{}"...'.format(active_pf_1D_output_filepath), end='')
         plt.savefig(active_pf_1D_output_filepath)
@@ -45,7 +53,10 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 
     ## 2D Position Placemaps:
     if active_placefields2D is not None:
-        active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)        
+        active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)
+        if variant_identifier_label is not None:
+            active_pf_occupancy_2D_identifier_string = ' - '.join([active_pf_occupancy_2D_identifier_string, variant_identifier_label])
+                    
         title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
         subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
         occupancy_fig, occupancy_ax = plot_placefield_occupancy(active_placefields2D)
@@ -53,7 +64,11 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         occupancy_ax.set_title(subtitle_string, fontsize='10')
         
         # Save ocupancy figure out to disk:
-        common_basename = active_placefields2D.str_for_filename(prefix_string=f'Occupancy -{active_epoch_name}-')
+        active_2D_occupancy_filename_prefix_string = f'Occupancy-{active_epoch_name}'
+        if variant_identifier_label is not None:
+            active_2D_occupancy_filename_prefix_string = '-'.join([active_2D_occupancy_filename_prefix_string, variant_identifier_label])
+        active_2D_occupancy_filename_prefix_string = f'{active_2D_occupancy_filename_prefix_string}-' # it always ends with a '-' character
+        common_basename = active_placefields2D.str_for_filename(prefix_string=active_2D_occupancy_filename_prefix_string)
         active_pf_occupancy_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
         print('Saving 2D Placefield image out to "{}"...'.format(active_pf_occupancy_2D_output_filepath), end='')
         occupancy_fig.savefig(active_pf_occupancy_2D_output_filepath)
@@ -61,13 +76,19 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         
         ## 2D Tuning Curves Figure:
         active_pf_2D_identifier_string = '2D Placefields - {}'.format(active_epoch_name)
+        if variant_identifier_label is not None:
+            active_pf_2D_identifier_string = ' - '.join([active_pf_2D_identifier_string, variant_identifier_label])
         title_string = ' '.join([active_pf_2D_identifier_string])
         subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
         
         active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plotMap(subplots=(7, 7),figsize=(30, 30))        
         # occupancy_fig.suptitle(title_string, fontsize='22')
-        # occupancy_ax.set_title(subtitle_string, fontsize='16')        
-        common_basename = active_placefields2D.str_for_filename(prefix_string=f'Placefields-{active_epoch_name}-')
+        # occupancy_ax.set_title(subtitle_string, fontsize='16')
+        active_pf_2D_filename_prefix_string = f'Placefields-{active_epoch_name}'
+        if variant_identifier_label is not None:
+            active_pf_2D_filename_prefix_string = '-'.join([active_pf_2D_filename_prefix_string, variant_identifier_label])
+        active_pf_2D_filename_prefix_string = f'{active_pf_2D_filename_prefix_string}-' # it always ends with a '-' character
+        common_basename = active_placefields2D.str_for_filename(prefix_string=active_pf_2D_filename_prefix_string)
         active_pf_2D_output_filepath = active_config.plotting_config.get_figure_save_path(common_parent_foldername, common_basename).with_suffix('.png')
         print('Saving 2D Placefield image out to "{}"...'.format(active_pf_2D_output_filepath), end='')
         for aFig in active_pf_2D_figures:
