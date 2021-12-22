@@ -45,7 +45,7 @@ def plot_ratemap(ratemap: core.Ratemap,
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
     if ax is None:
-        _, gs = Fig().draw(grid=(1, 1), size=(4.5, 11))
+        _, gs = Fig().draw(grid=(1, 1), size=(5.5, 11))
         ax = plt.subplot(gs[0])
 
     if normalize_tuning_curve:
@@ -53,8 +53,10 @@ def plot_ratemap(ratemap: core.Ratemap,
         pad = 1
 
     if sortby is None:
+        # sort by the location of the placefield's maximum
         sort_ind = np.argsort(np.argmax(tuning_curves, axis=1))
     elif isinstance(sortby, (list, np.ndarray)):
+        # use the provided sort indicies
         sort_ind = sortby
     else:
         sort_ind = np.arange(n_neurons)

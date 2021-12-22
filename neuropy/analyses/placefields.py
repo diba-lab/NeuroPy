@@ -189,9 +189,10 @@ class PfnDMixin(SimplePrintable):
 
 class PfnDPlottingMixin(PfnDMixin):
     # Extracted fro the 1D figures:
-    def plot_ratemaps(self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"):
+    def plot_ratemaps(self, ax=None, pad=2, normalize=True, sortby=None, cmap="tab20b"):
+        """ Note that normalize is required to fit all of the plots on this kind of stacked figure. """
         # returns: ax , sort_ind, colors
-        return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
+        return plotting.plot_ratemap(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
     
     # all extracted from the 2D figures
     def plotMap(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True):
@@ -617,7 +618,8 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 
     def plot_ratemaps(self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"):
         # returns: ax , sort_ind, colors
-        return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
+        raise NotImplementedError # this isn't supposed to be used anymore!
+        # return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
 
     def plot_raw(self, ax=None, subplots=(8, 9)):
         return plotting.plot_raw(self.ratemap, self.t, self.x, 'BOTH', ax=ax, subplots=subplots)

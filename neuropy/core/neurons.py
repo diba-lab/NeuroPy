@@ -29,13 +29,13 @@ class NeuronIndex(SimplePrintable):
         ['shank','cluster']
     
     """
-    def __init__(self, cell_uid, shank_index, cluster_index):
+    def __init__(self, cell_uid, shank_index, cluster_index, color=None):
         super(NeuronIndex, self).__init__()
         self.cell_uid = cell_uid
         self.shank_index = shank_index
         self.cluster_index = cluster_index
+        self.color = color
 
-        
         
 
 
