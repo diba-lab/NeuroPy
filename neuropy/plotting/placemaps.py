@@ -105,7 +105,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 
 
 def plot_placefield_occupancy(active_epoch_placefields2D):
-    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, max_normalized=True)
+    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, max_normalized=True, drop_below_threshold=1E-16)
 
 def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
     if fig is None:
@@ -118,7 +118,7 @@ def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_belo
     else:
         occupancy_ax = ax
         
-    only_visited_occupancy = occupancy
+    only_visited_occupancy = occupancy.copy()
     # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
     if drop_below_threshold is not None:
         only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan

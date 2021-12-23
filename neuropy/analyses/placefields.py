@@ -208,6 +208,8 @@ class PfnDPlottingMixin(PfnDMixin):
             figure number to start from, by default None
         """
 
+        should_null_out_occupancy = True
+        
         map_use, thresh = self.ratemap.tuning_curves, self.speed_thresh
 
         nCells = len(map_use)
@@ -238,9 +240,11 @@ class PfnDPlottingMixin(PfnDMixin):
             ind = cell // np.prod(subplots)
             subplot_ind = cell % np.prod(subplots)
  
-            
             # Working:
-            curr_pfmap = np.array(pfmap) / np.nanmax(pfmap)
+            curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap)
+            if should_null_out_occupancy:
+                curr_pfmap[(self.occupancy < 0.0000001)] = np.nan # null out the occupency
+                
             # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
             curr_pfmap = np.rot90(curr_pfmap)
             curr_pfmap = np.fliplr(curr_pfmap)
@@ -348,45 +352,6 @@ class PfnDPlottingMixin(PfnDMixin):
                 f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})"
             )
             
-            
-
-    # def plotRaw_v_time_1D_ONLY(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
-    #     if ax is None:
-    #         fig, ax = plt.subplots(1, 1, sharex=True)
-    #         fig.set_size_inches([23, 9.7])
-            
-    #     if ax is not list:
-    #         ax = [ax]
-
-    #     # plot trajectories
-
-            
-    #     for a, pos, ylabel in zip(
-    #         ax, [self.x], ["X position (cm)"]
-    #     ):
-    #         a.plot(self.t, pos)
-    #         a.set_xlabel("Time (seconds)")
-    #         a.set_ylabel(ylabel)
-    #         pretty_plot(a)
-
-    #     # Grab correct spike times/positions
-    #     if speed_thresh:
-    #         spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
-    #     else:
-    #         spk_pos_, spk_t_ = self.spk_pos, self.spk_t
-
-    #     # plot spikes on trajectory
-    #     for a, pos in zip(ax, [spk_pos_[cellind]]):
-    #         a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
-
-    #     # Put info on title
-    #     ax[0].set_title(
-    #         "Cell "
-    #         + str(self.cell_ids[cellind])
-    #         + ":, speed_thresh="
-    #         + str(self.speed_thresh)
-    #     )
-        
         
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
         """ Updated to work with both 1D and 2D Placefields """   
