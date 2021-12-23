@@ -189,13 +189,13 @@ class PfnDMixin(SimplePrintable):
 
 class PfnDPlottingMixin(PfnDMixin):
     # Extracted fro the 1D figures:
-    def plot_ratemaps(self, ax=None, pad=2, normalize=True, sortby=None, cmap="tab20b"):
+    def plot_ratemaps_1D(self, ax=None, pad=2, normalize=True, sortby=None, cmap="tab20b"):
         """ Note that normalize is required to fit all of the plots on this kind of stacked figure. """
         # returns: ax , sort_ind, colors
         return plotting.plot_ratemap(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
     
     # all extracted from the 2D figures
-    def plotMap(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True):
+    def plot_ratemaps_2D(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, should_null_out_occupancy = True):
         """Plots heatmaps of placefields with peak firing rate
 
         Parameters
@@ -208,8 +208,6 @@ class PfnDPlottingMixin(PfnDMixin):
             figure number to start from, by default None
         """
 
-        should_null_out_occupancy = True
-        
         map_use, thresh = self.ratemap.tuning_curves, self.speed_thresh
 
         nCells = len(map_use)
@@ -234,7 +232,7 @@ class PfnDPlottingMixin(PfnDMixin):
             fig.suptitle(title_string)
             figures.append(fig)
 
-        mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
+        # mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
 
         for cell, pfmap in enumerate(map_use):
             ind = cell // np.prod(subplots)
