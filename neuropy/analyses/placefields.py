@@ -723,6 +723,7 @@ class Pf2D(PfnConfigMixin, PfnDPlottingMixin):
      
     @staticmethod   
     def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_return_raw_tuning_map=False):
+        # raw_tuning_map: is the number of spike counts in each bin for this unit
         raw_tuning_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
         if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
             raw_tuning_map = gaussian_filter(raw_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
