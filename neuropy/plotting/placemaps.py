@@ -9,7 +9,7 @@ from neuropy.plotting.figure import pretty_plot
 
 
 def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None):
-    """ 
+    """ Main function to plot all aspects of 1D and 2D placefields
     active_placefields1D: (Pf1D)
     active_placefields2D: (Pf2D)
     active_config:
@@ -108,6 +108,17 @@ def plot_placefield_occupancy(active_epoch_placefields2D):
     return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, max_normalized=True, drop_below_threshold=1E-16)
 
 def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
+    """ Plots a 2D Heatmap of the animal's occupancy (the amount of time the animal spent in each posiution bin)
+
+    Args:
+        occupancy ([type]): [description]
+        xbin ([type]): [description]
+        ybin ([type]): [description]
+        max_normalized (bool): [description]
+        drop_below_threshold (float, optional): [description]. Defaults to None.
+        fig ([type], optional): [description]. Defaults to None.
+        ax ([type], optional): [description]. Defaults to None.
+    """
     if fig is None:
         occupancy_fig = plt.figure()
     else:

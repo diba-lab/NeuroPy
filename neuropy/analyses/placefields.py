@@ -194,19 +194,10 @@ class PfnDPlottingMixin(PfnDMixin):
         return plotting.plot_ratemap_1D(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
     
     # all extracted from the 2D figures
-    def plot_ratemaps_2D(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, should_null_out_occupancy = True):
-        """Plots heatmaps of placefields with peak firing rate
-
-        Parameters
-        ----------
-        speed_thresh : bool, optional
-            [description], by default False
-        subplots : tuple, optional
-            number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
-        fignum : int, optional
-            figure number to start from, by default None
-        """
-        return plotting.plot_ratemap_2D(self.ratemap, computation_config=self.config, subplots=subplots, figsize=figsize, fignum=fignum, enable_spike_overlay=enable_spike_overlay, should_null_out_occupancy = should_null_out_occupancy)
+    def plot_ratemaps_2D(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, drop_below_threshold: float=0.0000001):
+        """Plots heatmaps of placefields with peak firing rate """
+        
+        return plotting.plot_ratemap_2D(self.ratemap, computation_config=self.config, subplots=subplots, figsize=figsize, fignum=fignum, enable_spike_overlay=enable_spike_overlay, drop_below_threshold=drop_below_threshold)
     
 
     def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):

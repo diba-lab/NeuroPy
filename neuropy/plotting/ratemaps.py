@@ -11,8 +11,80 @@ from .figure import Fig
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
 
 
+def plot_single_tuning_curve_2D(xbin, ybin, pfmap, occupancy, drop_below_threshold: float=0.0000001, ax=None):
+    """Plots a single tuning curve Heatmap
+
+    Args:
+        xbin ([type]): [description]
+        ybin ([type]): [description]
+        pfmap ([type]): [description]
+        occupancy ([type]): [description]
+        drop_below_threshold (float, optional): [description]. Defaults to 0.0000001.
+        ax ([type], optional): [description]. Defaults to None.
+
+    Returns:
+        [type]: [description]
+    """
+    if ax is None:
+        ax = plt.gca()
+        
+    curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap)
+    if drop_below_threshold is not None:
+        curr_pfmap[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
+    
+    # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
+    curr_pfmap = np.rot90(curr_pfmap)
+    curr_pfmap = np.fliplr(curr_pfmap)
+    # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
+
+
+    # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
+    # ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
+    # ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
+
+    im = ax.pcolorfast(
+        xbin,
+        ybin,
+        curr_pfmap,
+        cmap="jet", vmin=0.0
+    )
+            
+    # ax.vlines(200, 'ymin'=0, 'ymax'=1, 'r')
+    # ax.set_xticks([25, 50])
+    # ax.vline(50, 'r')
+    # ax.vlines([50], 0, 1, transform=ax.get_xaxis_transform(), colors='r')
+    # ax.vlines([50], 0, 1, colors='r')
+
+    # im = ax.pcolorfast(
+    #     xbin,
+    #     ybin,
+    #     curr_pfmap,
+    #     cmap="jet",
+    #     vmin=0,
+    # )
+    # im = ax.pcolorfast(
+    #     self.xbin,
+    #     self.ratemap.ybin,
+    #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
+    #     cmap="jet",
+    #     vmin=0,
+    # )  # rot90(flipud... is necessary to match plotRaw configuration.
+    # im = ax.pcolor(
+    #     xbin,
+    #     ybin,
+    #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
+    #     cmap="jet",
+    #     vmin=0,
+    # )
+    
+    ax.axis("off")
+    
+    return im
+    
+    
+
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, should_null_out_occupancy = True):
+def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, drop_below_threshold: float=0.0000001):
     """Plots heatmaps of placefields with peak firing rate
 
     Parameters
@@ -50,64 +122,14 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
         fig.suptitle(title_string)
         figures.append(fig)
 
-    # mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
-
     for cell, pfmap in enumerate(map_use):
         ind = cell // np.prod(subplots)
         subplot_ind = cell % np.prod(subplots)
-
-        # Working:
-        curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap)
-        if should_null_out_occupancy:
-            curr_pfmap[(ratemap.occupancy < 0.0000001)] = np.nan # null out the occupency
-            
-        # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
-        curr_pfmap = np.rot90(curr_pfmap)
-        curr_pfmap = np.fliplr(curr_pfmap)
-        # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
         ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
-        # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
-        # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
         
-        im = ax1.pcolorfast(
-            ratemap.xbin,
-            ratemap.ybin,
-            curr_pfmap,
-            cmap="jet", vmin=0.0
-        )
-                
-        
-        # ax1.vlines(200, 'ymin'=0, 'ymax'=1, 'r')
-        # ax1.set_xticks([25, 50])
-        # ax1.vline(50, 'r')
-        # ax1.vlines([50], 0, 1, transform=ax1.get_xaxis_transform(), colors='r')
-        # ax1.vlines([50], 0, 1, colors='r')
-            
-
-        # im = ax1.pcolorfast(
-        #     self.ratemap.xbin,
-        #     self.ratemap.ybin,
-        #     curr_pfmap,
-        #     cmap="jet",
-        #     vmin=0,
-        # )
-        # im = ax1.pcolorfast(
-        #     self.ratemap.xbin,
-        #     self.ratemap.ybin,
-        #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-        #     cmap="jet",
-        #     vmin=0,
-        # )  # rot90(flipud... is necessary to match plotRaw configuration.
-        # im = ax1.pcolor(
-        #     self.ratemap.xbin,
-        #     self.ratemap.ybin,
-        #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-        #     cmap="jet",
-        #     vmin=0,
-        # )
+        im = plot_single_tuning_curve_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, drop_below_threshold=drop_below_threshold, ax=ax1)
         
         # ax1.scatter(self.spk_pos[ind]) # tODO: add spikes
-        # max_frate =
         
         # if enable_spike_overlay:
         #     ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
@@ -117,7 +139,6 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
         curr_cell_shank = curr_cell_alt_id[0]
         curr_cell_cluster = curr_cell_alt_id[1]
         
-        ax1.axis("off")
         ax1.set_title(
             f"Cell {ratemap.neuron_ids[cell]} - (shank {curr_cell_shank}, cluster {curr_cell_cluster}) \n{round(np.nanmax(pfmap),2)} Hz"
         )
