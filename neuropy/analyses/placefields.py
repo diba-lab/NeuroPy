@@ -188,14 +188,26 @@ class PfnDMixin(SimplePrintable):
 
 class PfnDPlottingMixin(PfnDMixin):
     # Extracted fro the 1D figures:
-    def plot_ratemaps(self, ax=None, pad=2, normalize=True, sortby=None, cmap="tab20b"):
+    def plot_ratemaps_1D(self, ax=None, pad=2, normalize=True, sortby=None, cmap="tab20b"):
         """ Note that normalize is required to fit all of the plots on this kind of stacked figure. """
         # returns: ax , sort_ind, colors
         return plotting.plot_ratemap_1D(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
     
     # all extracted from the 2D figures
-    def plotMap(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True):
-        return plotting.plot_ratemap_2D(self.ratemap, subplots=subplots, figsize=figsize, fignum=fignum, enable_spike_overlay=enable_spike_overlay)
+    def plot_ratemaps_2D(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, should_null_out_occupancy = True):
+        """Plots heatmaps of placefields with peak firing rate
+
+        Parameters
+        ----------
+        speed_thresh : bool, optional
+            [description], by default False
+        subplots : tuple, optional
+            number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
+        fignum : int, optional
+            figure number to start from, by default None
+        """
+        return plotting.plot_ratemap_2D(self.ratemap, computation_config=self.config, subplots=subplots, figsize=figsize, fignum=fignum, enable_spike_overlay=enable_spike_overlay, should_null_out_occupancy = should_null_out_occupancy)
+    
 
     def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):
         if self.ndim < 2:
@@ -237,45 +249,6 @@ class PfnDPlottingMixin(PfnDMixin):
                 f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})"
             )
             
-            
-
-    # def plotRaw_v_time_1D_ONLY(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
-    #     if ax is None:
-    #         fig, ax = plt.subplots(1, 1, sharex=True)
-    #         fig.set_size_inches([23, 9.7])
-            
-    #     if ax is not list:
-    #         ax = [ax]
-
-    #     # plot trajectories
-
-            
-    #     for a, pos, ylabel in zip(
-    #         ax, [self.x], ["X position (cm)"]
-    #     ):
-    #         a.plot(self.t, pos)
-    #         a.set_xlabel("Time (seconds)")
-    #         a.set_ylabel(ylabel)
-    #         pretty_plot(a)
-
-    #     # Grab correct spike times/positions
-    #     if speed_thresh:
-    #         spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
-    #     else:
-    #         spk_pos_, spk_t_ = self.spk_pos, self.spk_t
-
-    #     # plot spikes on trajectory
-    #     for a, pos in zip(ax, [spk_pos_[cellind]]):
-    #         a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
-
-    #     # Put info on title
-    #     ax[0].set_title(
-    #         "Cell "
-    #         + str(self.cell_ids[cellind])
-    #         + ":, speed_thresh="
-    #         + str(self.speed_thresh)
-    #     )
-        
         
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
         """ Updated to work with both 1D and 2D Placefields """   

@@ -133,6 +133,7 @@ class PositionAccessor(TimeSlicedMixin):
     
 @pd.api.extensions.register_dataframe_accessor("spikes")
 class SpikesAccessor(TimeSlicedMixin):
+    """ Part of the December 2021 Rewrite of the neuropy.core classes to be Pandas DataFrame based and easily manipulatable """
     __time_variable_name = 't_rel_seconds' # currently hardcoded
     
     def __init__(self, pandas_obj):
@@ -181,74 +182,33 @@ class SpikesAccessor(TimeSlicedMixin):
     
 
 class PfND(PfnConfigMixin, PfnDPlottingMixin):
-    
-    def str_for_filename(self, prefix_string=''):
-        if self.ndim <= 1:
-            return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_filename(False)}'])
-        else:
-            return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_filename(True)}'])
-    
-    def str_for_display(self, prefix_string=''):
-        if self.ndim <= 1:
-            return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_display(False)}', f'cell_{curr_cell_id:02d}'])
-        else:
-            return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
-        
-        
-    
-    
-    def __init__(self,
-        spikes_df: pd.DataFrame,
-        position: Position,
-        epochs: Epoch = None,
-        frate_thresh=1,
-        speed_thresh=5,
-        grid_bin=(1,1),
-        smooth=(1,1)):
-        
+    """Represents an N-dimensional Placefield """
+
+    def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
 
         Parameters
         ----------
-        track_name : str
-            name of track
-        direction : forward, backward or None
-            direction of running, by default None which means direction is ignored
+        spikes_df: pd.DataFrame
+        position : core.Position
+        epochs : core.Epoch
+            specifies the list of epochs to include.
         grid_bin : int
             bin size of position bining, by default 5
         speed_thresh : int
             speed threshold for calculating place field
         """
-        
-    
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
-        # assert position.ndim < 2, "Only 2+ dimensional position are acceptable"
-        # spiketrains = neurons.spiketrains
-        # neuron_ids = neurons.neuron_ids
-        # n_neurons = neurons.n_neurons
         self.position_srate = position.sampling_rate
         # Set the dimensionality of the PfND object from the position's dimensionality
         self.ndim = position.ndim
-        
-        
-        # Don't set these properties prematurely, filter first if needed       
-        # self.t = position.time
-        # t_start = position.t_start
-        # t_stop = position.t_stop
-        
-        # self.x = position.x
-        # if (position.ndim > 1):
-        #     self.y = position.y
-        
         
         # Output lists, for compatibility with Pf1D and Pf2D:
         spk_pos, spk_t, tuning_maps = [], [], []
 
         pos_df = position.to_dataframe().copy()
-        # laps_df = active_epoch_session.laps.to_dataframe().copy()
-        # spk_df = neurons.spikes_df.copy()
         spk_df = spikes_df.copy()
 
         # filtering:
@@ -268,13 +228,10 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         self.speed = filtered_pos_df.speed.to_numpy()
         if ((smooth is not None) and (smooth[0] > 0.0)):
             self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
-        
-        
         if (self.ndim > 1):
             self.y = filtered_pos_df.y.to_numpy()
         else:
             self.y = None
-        
         
         ## Binning with Fixed Number of Bins:    
         # xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
@@ -322,25 +279,53 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         filtered_tuple_neuron_ids = filter_function(filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
         self.ratemap = Ratemap(
-            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids
+            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, metadata={'tuple_neuron_ids':filtered_tuple_neuron_ids}
         )
-        # {'tuple_neuron_ids':filtered_tuple_neuron_ids}
-        self.ratemap.metadata = {'tuple_neuron_ids':filtered_tuple_neuron_ids}
         self.ratemap.tuple_neuron_ids = filtered_tuple_neuron_ids
         self.tuple_neuron_ids = filtered_tuple_neuron_ids
 
-        
-        
         self.ratemap_spiketrains = filter_function(spk_t)
         self.ratemap_spiketrains_pos = filter_function(spk_pos)
-        self.occupancy = occupancy
-        self.frate_thresh = frate_thresh
-        self.speed_thresh = speed_thresh
+        
         # done!
+    
+    ## ratemap convinence accessors
+    @property
+    def occupancy(self):
+        """The occupancy property."""
+        return self.ratemap.occupancy
+    @occupancy.setter
+    def occupancy(self, value):
+        self.ratemap.occupancy = value
+        
+    ## self.config convinence accessors. Mostly for compatibility with Pf1D and Pf2D
+    @property
+    def frate_thresh(self):
+        """The frate_thresh property."""
+        return self.config.frate_thresh
+    @property
+    def speed_thresh(self):
+        """The speed_thresh property."""
+        return self.config.speed_thresh
+    
+        
+        
+    
+    def str_for_filename(self, prefix_string=''):
+        if self.ndim <= 1:
+            return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_filename(False)}'])
+        else:
+            return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_filename(True)}'])
+    
+    def str_for_display(self, prefix_string=''):
+        if self.ndim <= 1:
+            return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_display(False)}', f'cell_{curr_cell_id:02d}'])
+        else:
+            return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
         
         
         
-
+    
 ## Old Testing Implementation from Notebook:
 # def build_customPf2D_fromConfig(active_epoch_session, custom_computation_config):
 
