@@ -39,6 +39,7 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
 
         self.grid_bin = grid_bin
         if not isinstance(smooth, (tuple, list)):
+        if np.isscalar(smooth):
             smooth = (smooth, smooth) # make it into a 2 element tuple
         self.smooth = smooth
         self.frate_thresh = frate_thresh
@@ -192,121 +193,11 @@ class PfnDPlottingMixin(PfnDMixin):
     def plot_ratemaps(self, ax=None, pad=2, normalize=True, sortby=None, cmap="tab20b"):
         """ Note that normalize is required to fit all of the plots on this kind of stacked figure. """
         # returns: ax , sort_ind, colors
-        return plotting.plot_ratemap(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
+        return plotting.plot_ratemap_1D(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
     
     # all extracted from the 2D figures
     def plotMap(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True):
-        """Plots heatmaps of placefields with peak firing rate
-
-        Parameters
-        ----------
-        speed_thresh : bool, optional
-            [description], by default False
-        subplots : tuple, optional
-            number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
-        fignum : int, optional
-            figure number to start from, by default None
-        """
-
-        map_use, thresh = self.ratemap.tuning_curves, self.speed_thresh
-
-        nCells = len(map_use)
-        nfigures = nCells // np.prod(subplots) + 1
-
-        if fignum is None:
-            if f := plt.get_fignums():
-                fignum = f[-1] + 1
-            else:
-                fignum = 1
-
-        figures, gs = [], []
-        for fig_ind in range(nfigures):
-            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
-            gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
-            fig.subplots_adjust(hspace=0.2)
-            
-            title_string = f'2D Placemaps Placemaps ({len(self.ratemap.neuron_ids)} good cells)'
-            if thresh is not None:
-                title_string = f'{title_string} (speed_threshold = {str(thresh)})'
-                
-            fig.suptitle(title_string)
-            figures.append(fig)
-
-        mesh_X, mesh_Y = np.meshgrid(self.ratemap.xbin, self.ratemap.ybin)
-
-        for cell, pfmap in enumerate(map_use):
-            ind = cell // np.prod(subplots)
-            subplot_ind = cell % np.prod(subplots)
- 
-            
-            # Working:
-            curr_pfmap = np.array(pfmap) / np.nanmax(pfmap)
-            # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
-            curr_pfmap = np.rot90(curr_pfmap)
-            curr_pfmap = np.fliplr(curr_pfmap)
-            # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
-            ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
-            # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
-            # ax1.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
-            
-            im = ax1.pcolorfast(
-                self.ratemap.xbin,
-                self.ratemap.ybin,
-                curr_pfmap,
-                cmap="jet", vmin=0.0
-            )
-                    
-            
-            # ax1.vlines(200, 'ymin'=0, 'ymax'=1, 'r')
-            # ax1.set_xticks([25, 50])
-            # ax1.vline(50, 'r')
-            # ax1.vlines([50], 0, 1, transform=ax1.get_xaxis_transform(), colors='r')
-            # ax1.vlines([50], 0, 1, colors='r')
-                
-
-            # im = ax1.pcolorfast(
-            #     self.ratemap.xbin,
-            #     self.ratemap.ybin,
-            #     curr_pfmap,
-            #     cmap="jet",
-            #     vmin=0,
-            # )
-            # im = ax1.pcolorfast(
-            #     self.ratemap.xbin,
-            #     self.ratemap.ybin,
-            #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-            #     cmap="jet",
-            #     vmin=0,
-            # )  # rot90(flipud... is necessary to match plotRaw configuration.
-            # im = ax1.pcolor(
-            #     self.ratemap.xbin,
-            #     self.ratemap.ybin,
-            #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-            #     cmap="jet",
-            #     vmin=0,
-            # )
-            
-            # ax1.scatter(self.spk_pos[ind]) # tODO: add spikes
-            # max_frate =
-            
-            # if enable_spike_overlay:
-            #     ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
-            #     # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
-            
-            curr_cell_alt_id = self.ratemap.tuple_neuron_ids[cell]
-            curr_cell_shank = curr_cell_alt_id[0]
-            curr_cell_cluster = curr_cell_alt_id[1]
-            
-            ax1.axis("off")
-            ax1.set_title(
-                f"Cell {self.ratemap.neuron_ids[cell]} - (shank {curr_cell_shank}, cluster {curr_cell_cluster}) \n{round(np.nanmax(pfmap),2)} Hz"
-            )
-
-            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-            # cbar = fig.colorbar(im, cax=cbar_ax)
-            # cbar.set_label("firing rate (Hz)")
-            
-        return figures, gs
+        return plotting.plot_ratemap_2D(self.ratemap, subplots=subplots, figsize=figsize, fignum=fignum, enable_spike_overlay=enable_spike_overlay)
 
     def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):
         if self.ndim < 2:
