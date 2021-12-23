@@ -21,7 +21,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
     
     ## Linearized (1D) Position Placefields:
     if active_placefields1D is not None:
-        ax_pf_1D = active_placefields1D.plot_ratemaps(sortby='id') # by passing a string ('id') the plot_ratemaps function chooses to use the normal range as the sort index (instead of sorting by the default)
+        ax_pf_1D = active_placefields1D.plot_ratemaps_1D(sortby='id') # by passing a string ('id') the plot_ratemaps_1D function chooses to use the normal range as the sort index (instead of sorting by the default)
         active_pf_1D_identifier_string = '1D Placefields - {}'.format(active_epoch_name)
         if variant_identifier_label is not None:
             active_pf_1D_identifier_string = ' - '.join([active_pf_1D_identifier_string, variant_identifier_label])
@@ -81,7 +81,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         title_string = ' '.join([active_pf_2D_identifier_string])
         subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
         
-        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plotMap(subplots=(7, 7),figsize=(30, 30))        
+        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(7, 7),figsize=(30, 30))        
         # occupancy_fig.suptitle(title_string, fontsize='22')
         # occupancy_ax.set_title(subtitle_string, fontsize='16')
         active_pf_2D_filename_prefix_string = f'Placefields-{active_epoch_name}'
