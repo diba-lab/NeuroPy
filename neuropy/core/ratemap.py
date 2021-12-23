@@ -43,7 +43,35 @@ class Ratemap(DataWriter):
     
     @property
     def normalized_tuning_curves(self):
-        return mathutil.min_max_scaler(self.tuning_curves)
+        return Ratemap.nanmin_nanmax_scaler(self.tuning_curves)
+        # return mathutil.min_max_scaler(self.tuning_curves)
+        # return Ratemap.NormalizeData(self.tuning_curves)
+
+    @staticmethod
+    def nan_ptp(a, **kwargs):
+        return np.ptp(a[np.isfinite(a)], **kwargs)
+
+    @staticmethod
+    def nanmin_nanmax_scaler(x, axis=-1, **kwargs):
+        """Scales the values x to lie between 0 and 1 along the specfied axis, ignoring NaNs!
+        Parameters
+        ----------
+        x : np.array
+            numpy ndarray
+        Returns
+        -------
+        np.array
+            scaled array
+        """
+        return (x - np.nanmin(x, axis=axis, keepdims=True)) / Ratemap.nan_ptp(x, axis=axis, keepdims=True, **kwargs)
+    
+    
+    @staticmethod    
+    def NormalizeData(data):
+        """ Simple alternative to the mathutil.min_max_scalar that doesn't produce so man NaN values. """
+        data[np.isnan(data)] = 0.0 # Set NaN values to 0.0
+        return (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))
+
     
     def get_sort_indicies(self, sortby=None):
         curr_tuning_curves = self.normalized_tuning_curves
