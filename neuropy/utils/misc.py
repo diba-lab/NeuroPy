@@ -1,4 +1,21 @@
+from enum import Enum, IntEnum, auto, unique
 import numpy as np
+
+
+class AutoNameEnum(Enum):
+    """ Inheriting enums will be able to auto generate their name from a string value.
+
+    Usage:
+        class Ordinal(AutoNameEnum):
+            NORTH = auto()
+            SOUTH = auto()
+            EAST = auto()
+            WEST = auto()
+    """
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+
 
 
 def get_interval(self, period, nwindows):

@@ -1,3 +1,4 @@
+from enum import Enum, IntEnum, auto, unique
 from ipywidgets import widgets
 from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
@@ -5,6 +6,7 @@ import matplotlib as mpl
 import numpy as np
 
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+from neuropy.utils.misc import AutoNameEnum
 from .. import core
 from neuropy.utils import mathutil
 from .figure import Fig
@@ -13,7 +15,27 @@ from .figure import Fig
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
 
 
-def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, ax=None):
+# class RatemapPlottingMixin:
+#     def plot(self):
+#         return plot_ratemap_2D(self)
+#         # if plot_mode == 'tuning_maps':
+#         #     map_use = self.tuning_curves
+#         #     title_substring = 'Placemaps'
+#         # elif plot_mode == 'firing_maps':
+#         #     map_use = self.firing_maps
+#         #     title_substring = 'Firing Maps'
+#         # else:
+#         #     raise ValueError
+
+@unique
+class TuningMap2DPlotMode(AutoNameEnum):
+    PCOLORFAST = auto() # DEFAULT
+    PCOLORMESH = auto() # UNTESTED
+    PCOLOR = auto() # UNTESTED
+    TEST = auto()
+
+    
+def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: TuningMap2DPlotMode=None, ax=None):
     """Plots a single tuning curve Heatmap
 
     Args:
@@ -27,9 +49,13 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     Returns:
         [type]: [description]
     """
+    if plot_mode is None:    
+        plot_mode = TuningMap2DPlotMode.PCOLORFAST
+        # plot_mode = PlotType.TEST
+    
     if ax is None:
         ax = plt.gca()
-        
+            
     curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap)
     if drop_below_threshold is not None:
         curr_pfmap[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
@@ -38,39 +64,65 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     # curr_pfmap = np.rot90(curr_pfmap)
     # curr_pfmap = np.fliplr(curr_pfmap) # I thought stopping after this was sufficient, as the values lined up with the 1D placefields... but it seems to be flipped vertically now!
     
-    
+    ## Seems to work:
     curr_pfmap = np.rot90(curr_pfmap, k=-1)
     curr_pfmap = np.fliplr(curr_pfmap)
-    
-    # curr_pfmap = np.flipud(curr_pfmap) # this seems to be required to get the mouse's entry trail (which goes outside the maze) corrently on the bottom instead of the top.
-    
-    
+        
     # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
 
-    # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
-    # ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
-    # ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
+    if plot_mode is TuningMap2DPlotMode.PCOLORFAST:
+        im = ax.pcolorfast(
+            xbin,
+            ybin,
+            curr_pfmap,
+            cmap="jet", vmin=0.0
+        )
+        
+    elif plot_mode is TuningMap2DPlotMode.PCOLORMESH:
+        raise DeprecationWarning # 'Code not maintained, may be out of date'  
+        mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
+        ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
+        # ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
+        
+    elif plot_mode is TuningMap2DPlotMode.PCOLOR: 
+        raise DeprecationWarning # 'Code not maintained, may be out of date'
+        im = ax.pcolor(
+            xbin,
+            ybin,
+            np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
+            cmap="jet",
+            vmin=0,
+        )    
+    elif plot_mode is TuningMap2DPlotMode.TEST:
+        """ Use the brightness to reflect the confidence in the outcome. Could also use opacity. """
+        mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
+        xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
+        # extent = (xmin, xmax, ymin, ymax)
+        extent = None
+        # We'll also create a black background into which the pixels will fade
+        background_black = np.full((*curr_pfmap.shape, 3), 70, dtype=np.uint8)
+        
+        vmax = np.abs(curr_pfmap).max()
+        imshow_kwargs = {
+            'vmax': vmax,
+            'vmin': 0,
+            'cmap': 'RdYlBu',
+            'extent': extent,
+        }
+        ax.imshow(background_black)
+        im = ax.imshow(curr_pfmap, **imshow_kwargs)
+        
 
-    im = ax.pcolorfast(
-        xbin,
-        ybin,
-        curr_pfmap,
-        cmap="jet", vmin=0.0
-    )
-            
+    else:
+        raise NotImplementedError   
+    
     # ax.vlines(200, 'ymin'=0, 'ymax'=1, 'r')
     # ax.set_xticks([25, 50])
     # ax.vline(50, 'r')
     # ax.vlines([50], 0, 1, transform=ax.get_xaxis_transform(), colors='r')
     # ax.vlines([50], 0, 1, colors='r')
 
-    # im = ax.pcolor(
-    #     xbin,
-    #     ybin,
-    #     np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-    #     cmap="jet",
-    #     vmin=0,
-    # )
+
     
     # ax.axis("off")
     extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
@@ -83,7 +135,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
 
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_mode='tuning_maps'):
+def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_unit_indicies=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_mode='tuning_maps'):
     """Plots heatmaps of placefields with peak firing rate
 
     Parameters
@@ -95,17 +147,31 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
     fignum : int, optional
         figure number to start from, by default None
     """
+    
+    if included_unit_indicies is None:
+        included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
+    
     if plot_mode == 'tuning_maps':
-        map_use = ratemap.tuning_curves
+        active_maps = ratemap.tuning_curves[included_unit_indicies]
         title_substring = 'Placemaps'
     elif plot_mode == 'firing_maps':
-        map_use = ratemap.firing_maps
+        active_maps = ratemap.firing_maps[included_unit_indicies]
         title_substring = 'Firing Maps'
     else:
         raise ValueError
 
-    nCells = len(map_use)
-    nfigures = nCells // np.prod(subplots) + 1
+    nCells = len(active_maps)
+    
+    #     # TODO: constrain the subplots values to just those that you need
+    #     # the subplot dimension with the fewest entries is the first candiate for removal
+        
+    #     if (subplots[0] < subplots[1]):
+    #         first_removal_candiate_dim = 1
+    #     else:
+    #         first_removal_candiate_dim = 0
+
+
+    nfigures = nCells // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
 
     if fignum is None:
         if f := plt.get_fignums():
@@ -120,6 +186,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
         fig.subplots_adjust(hspace=0.2)
         
         title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
+        
         if computation_config is not None:
             if computation_config.speed_thresh is not None:
                 title_string = f'{title_string} (speed_threshold = {str(computation_config.speed_thresh)})'
@@ -127,16 +194,18 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
         fig.suptitle(title_string)
         figures.append(fig)
 
-    for cell, pfmap in enumerate(map_use):
-        ind = cell // np.prod(subplots)
-        subplot_ind = cell % np.prod(subplots)
+    for active_map_idx, pfmap in enumerate(active_maps):
+        ind = active_map_idx // np.prod(subplots)
+        subplot_ind = active_map_idx % np.prod(subplots)
         ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
         
+        cell_idx = included_unit_indicies[active_map_idx]
+        
         # Plot the main heatmap for this pfmap:
-        im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell], drop_below_threshold=drop_below_threshold, ax=ax1)
+        im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, ax=ax1)
         
         if enable_spike_overlay:
-            ax1.scatter(spike_overlay_spikes[cell][0], spike_overlay_spikes[cell][1], s=2, c='white', alpha=0.10, marker=',')
+            ax1.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
             # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
         
         
