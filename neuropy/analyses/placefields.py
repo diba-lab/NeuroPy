@@ -186,19 +186,6 @@ class PfnDMixin(SimplePrintable):
         return self.ratemap.neuron_ids
 
 
-class PfnDPlottingMixin(PfnDMixin):
-    # Extracted fro the 1D figures:
-    def plot_ratemaps_1D(self, ax=None, pad=2, normalize=True, sortby=None, cmap="tab20b"):
-        """ Note that normalize is required to fit all of the plots on this kind of stacked figure. """
-        # returns: ax , sort_ind, colors
-        return plotting.plot_ratemap_1D(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
-    
-    # all extracted from the 2D figures
-    def plot_ratemaps_2D(self, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, drop_below_threshold: float=0.0000001):
-        """Plots heatmaps of placefields with peak firing rate """
-        return plotting.plot_ratemap_2D(self.ratemap, computation_config=self.config, subplots=subplots, figsize=figsize, fignum=fignum, 
-                                        enable_spike_overlay=enable_spike_overlay, spike_overlay_spikes=self.spk_pos,
-                                        drop_below_threshold=drop_below_threshold)
     
 
     def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):

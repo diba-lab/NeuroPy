@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
 
-from neuropy.analyses.placefields import Pf1D, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin, PlacefieldComputationParameters, _bin_pos_nD, _filter_by_frate, Pf2D, _normalized_occupancy
+from neuropy.analyses.placefields import Pf1D, PfnConfigMixin, PfnDMixin, PlacefieldComputationParameters, _bin_pos_nD, _filter_by_frate, Pf2D, _normalized_occupancy
 # plot_placefield_occupancy, plot_occupancy_custom
 from neuropy.core.epoch import Epoch
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
@@ -12,6 +12,7 @@ from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 
 from neuropy.core.ratemap import Ratemap
+from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
 # First, interested in answering the question "where did the animal spend its time on the track" to assess the relative frequency of events that occur in a given region. If the animal spends a lot of time in a certain region,
@@ -182,7 +183,7 @@ class SpikesAccessor(TimeSlicedMixin):
         return len(self.neuron_ids)
     
 
-class PfND(PfnConfigMixin, PfnDPlottingMixin):
+class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents an N-dimensional Placefield """
 
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):

@@ -7,6 +7,7 @@ from neuropy.plotting.figure import pretty_plot
 
 
 
+    
 
 def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None):
     """ Main function to plot all aspects of 1D and 2D placefields
@@ -53,15 +54,19 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 
     ## 2D Position Placemaps:
     if active_placefields2D is not None:
-        active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)
-        if variant_identifier_label is not None:
-            active_pf_occupancy_2D_identifier_string = ' - '.join([active_pf_occupancy_2D_identifier_string, variant_identifier_label])
+        # active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)
+        # if variant_identifier_label is not None:
+        #     active_pf_occupancy_2D_identifier_string = ' - '.join([active_pf_occupancy_2D_identifier_string, variant_identifier_label])
                     
-        title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
-        subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
-        occupancy_fig, occupancy_ax = plot_placefield_occupancy(active_placefields2D)
-        occupancy_fig.suptitle(title_string, fontsize='14')
-        occupancy_ax.set_title(subtitle_string, fontsize='10')
+        # title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
+        # subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
+        # occupancy_fig, occupancy_ax = plot_placefield_occupancy(active_placefields2D)
+        # occupancy_fig.suptitle(title_string, fontsize='14')
+        # occupancy_ax.set_title(subtitle_string, fontsize='10')
+        active_2D_occupancy_variant_identifier_list = [active_epoch_name]
+        if variant_identifier_label is not None:
+            active_2D_occupancy_variant_identifier_list = active_2D_occupancy_variant_identifier_list.append(variant_identifier_label)
+        occupancy_fig, occupancy_ax = active_placefields2D.plot_occupancy(identifier_details_list=active_2D_occupancy_variant_identifier_list)
         
         # Save ocupancy figure out to disk:
         active_2D_occupancy_filename_prefix_string = f'Occupancy-{active_epoch_name}'
@@ -100,8 +105,6 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         active_pf_2D_figures = None
     
     return ax_pf_1D, occupancy_fig, active_pf_2D_figures, active_pf_2D_gs
-
-
 
 
 def plot_placefield_occupancy(active_epoch_placefields2D):
