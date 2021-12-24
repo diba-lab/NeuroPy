@@ -1,3 +1,4 @@
+import traceback
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -209,10 +210,13 @@ class DataSessionLoader:
         return session
     
     @staticmethod
-    def _default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name='t_rel_seconds'):     
+    def _default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name='t_rel_seconds', force_recompute=True):     
         ## Positions:
         active_file_suffix = '.interpolated_spike_positions.npy'
-        found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
+        if not force_recompute:
+            found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
+        else:
+            found_datafile = None
         if found_datafile is not None:
             print('\t Loading success: {}.'.format(active_file_suffix))
             session.flattened_spiketrains = found_datafile
@@ -221,7 +225,9 @@ class DataSessionLoader:
             print('\t Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
             session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
-            print('\t Saving updated position results to {}...'.format(session.position.filename))
+            
+            session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)
+            print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
             print('\t done.\n')
     
@@ -231,24 +237,17 @@ class DataSessionLoader:
     
     
     @staticmethod
-    def _default_compute_linear_position_if_needed(session):
+    def _default_compute_linear_position_if_needed(session, force_recompute=True):
         # TODO: this is not general, this is only used for this particular flat kind of file:
             # Load or compute linear positions if needed:
         if (not session.position.has_linear_pos):
-            # # compute linear positions:
-            # print('computing linear positions for all active epochs for session...')
-            # # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-            # session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-            # # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze', method='pca')
-            # # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName='maze1', method='pca')
-            # acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, epochLabelName='maze2', method='pca')
-            # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            # session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
-            
+            ## compute linear positions: 
             ## Positions:
             active_file_suffix = '.position.npy'
-            found_datafile = Position.from_file(session.filePrefix.with_suffix(active_file_suffix))
+            if not force_recompute:
+                found_datafile = Position.from_file(session.filePrefix.with_suffix(active_file_suffix))
+            else:
+                found_datafile = None
             if found_datafile is not None:
                 print('Loading success: {}.'.format(active_file_suffix))
                 session.position = found_datafile
@@ -257,12 +256,12 @@ class DataSessionLoader:
                 print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
                 session.position = DataSession.compute_linear_position(session)
             
-            # session.position.filename = session.filePrefix.with_suffix(".position.npy")
-            # print('Saving updated position results to {}...'.format(session.position.filename))
-            # session.position.save()
-            print('done.\n')
+            session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
+            print('Saving updated position results to {}...'.format(session.position.filename), end='')
+            session.position.save()
+            print('\t done.\n')
         else:
-            print('linearized position loaded from file.')
+            print('\t linearized position loaded from file.')
             # return the session with the upadated member variables
         return session
 
@@ -347,7 +346,7 @@ class DataSessionLoader:
 
         # spikes_df['x'] = flattened_spike_positions_list[0, :]
         # spikes_df['y'] = flattened_spike_positions_list[1, :]
-        # spikes_df['linear_pos'] = flattened_spike_positions_list[2, :]
+        # spikes_df['lin_pos'] = flattened_spike_positions_list[2, :]
         # spikes_df['speed'] = flattened_spike_positions_list[3, :]
         
         # # spikes_df['qclu'] = session.neurons.neuron_type[reverse_cellID_idx_lookup_map[spikes_df['aclu']] ]
@@ -419,11 +418,11 @@ class DataSessionLoader:
             # compute linear positions:
             print('computing linear positions for all active epochs for session...')
             # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
+            session.position.linear_pos = np.full_like(session.position.time, np.nan)
             acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze1')
             acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, 'maze2')
-            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            session.position.computed_traces[0,  acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+            session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            session.position.linear_pos[acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
             print('Saving updated position results to {}...'.format(session.position.filename))
             session.position.save()
@@ -444,7 +443,7 @@ class DataSessionLoader:
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session) # sets session.flattened_spiketrains
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
-            print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename))
+            print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
             print('\t done.\n')
         
@@ -522,22 +521,28 @@ class DataSessionLoader:
             
         except Exception as e:
             # print('e: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
+            track = traceback.format_exc()
+            print(track)
+   
             raise e
         else:
             pass
         
         
         # Load or compute linear positions if needed:
-        try:
-            session = DataSessionLoader._default_compute_linear_position_if_needed(session)
-        except Exception as e:
-            # raise e
-            print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
-            session.position.computed_traces = np.full([1, session.position.traces.shape[1]], np.nan)
-        else:
-            # Successful!
-            print('session.position linear positions computed!')
-            pass
+        # try:
+        session = DataSessionLoader._default_compute_linear_position_if_needed(session)
+        # except Exception as e:
+        #     # raise e
+        #     print('session.position linear positions could not be computed due to error {}. Skipping.'.format(e))
+        #     track = traceback.format_exc()
+        #     print(track)
+        #     session.position.linear_pos = np.full_like(session.position.time, np.nan)
+
+        # else:
+        #     # Successful!
+        #     print('session.position linear positions computed!')
+        #     pass
         
         
         ## Testing: Fixing spike positions
@@ -565,7 +570,7 @@ class DataSessionLoader:
        
         
         # add the linear_pos to the spikes_df before building the FlattenedSpiketrains object:
-        # spikes_df['linear_pos'] = session.position.linear_pos
+        # spikes_df['lin_pos'] = session.position.linear_pos
 
         # add the flat spikes to the session so they don't have to be recomputed:
         session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
@@ -574,50 +579,6 @@ class DataSessionLoader:
         # session = DataSessionLoader.default_extended_postload(fp, session)
         session.is_loaded = True # indicate the session is loaded
         return session # returns the session when done
-
-    @staticmethod
-    def __default_kdiba_position_vt_load_mat(basepath, session_name, timestamp_scale_factor, spikes_df, session):
-        # Loads a *vt.mat file that contains position and epoch information for the session
-        session_position_mat_file_path = Path(basepath).joinpath('{}vt.mat'.format(session_name))
-        # session.position = Position.from_vt_mat_file(position_mat_file_path=session_position_mat_file_path)
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
-        tt = position_mat_file['tt'] # 1, 63192
-        xx = position_mat_file['xx'] # 10 x 63192
-        yy = position_mat_file['yy'] # 10 x 63192
-        tt = tt.flatten()
-        # tt_rel = tt - tt[0] # relative to start of position file timestamps
-        # timestamps_conversion_factor = 1e6
-        # timestamps_conversion_factor = 1e4
-        # timestamps_conversion_factor = 1.0
-        t = tt * timestamp_scale_factor  # (63192,)
-        # t_rel = tt_rel * timestamp_scale_factor  # (63192,)
-        position_sampling_rate_Hz = 1.0 / np.mean(np.diff(tt / 1e6)) # In Hz, returns 29.969777
-        num_samples = len(t)
-        x = xx[0,:].flatten() # (63192,)
-        y = yy[0,:].flatten() # (63192,)
-        # active_t_start = t[0] # absolute t_start
-        # active_t_start = 0.0 # relative t_start
-        active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
-        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
-        
-        # Range of the maze epoch (where position is valid):
-        # t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] # 1048
-        # t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] # 68159707
-
-        t_maze_start = spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor # 1048
-        t_maze_end = spikes_df.t.loc[spikes_df.x.last_valid_index()] * timestamp_scale_factor # 68159707
-
-        # Note needs to be absolute start/stop times: 
-        # t_maze_start = session.position.t_start # 1048
-        # t_maze_end = session.position.t_stop # 68159707 68,159,707
-        
-        # spikes_df.t.min() # 88
-        # spikes_df.t.max() # 68624338
-        epochs_df = pd.DataFrame({'start':[0.0, t_maze_start, t_maze_end],'stop':[t_maze_start, t_maze_end, session.neurons.t_stop],'label':['pre','maze','post']})
-        session.paradigm = Epoch(epochs=epochs_df)  # "epoch" field 
-        
-        # return the session with the upadated member variables
-        return session
 
     @staticmethod
     def __default_kdiba_exported_load_mats(basepath, session_name, session, time_variable_name='t_seconds'):
@@ -676,7 +637,10 @@ class DataSessionLoader:
         else:
             raise ValueError
         
-        session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+        
+        session.config.position_sampling_rate_Hz = position_sampling_rate_Hz
+        # session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
+        session.position = Position.from_separate_arrays(t_rel, x, y)
         
         ## Extra files:
         
@@ -734,26 +698,12 @@ class DataSessionLoader:
         for i in np.arange(num_mat_variables):
             curr_var_name = mat_variables_to_extract[i]
             flat_var_out_dict[curr_var_name] = laps_mat_file[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-        laps_df = pd.DataFrame(flat_var_out_dict) # 1014937 rows × 11 columns
-        laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
-        laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index']
-
-        # Build output Laps object to add to session
-        print('setting laps object.')
-        if time_variable_name == 't_seconds':
-            t_variable_column_names = ['start_t_seconds', 'end_t_seconds']
-            t_variable = laps_df[t_variable_column_names].to_numpy()
-        elif time_variable_name == 't_rel_seconds':
-            t_variable_column_names = ['start_t_seconds', 'end_t_seconds']
-            t_variable = laps_df[t_variable_column_names].to_numpy()
-            # TODO: need to subtract off the absolute start timestamp
-            t_variable = t_variable - session.config.absolute_start_timestamp
             
-        else:
-            t_variable_column_names = ['start_t', 'end_t']
-            t_variable = laps_df[t_variable_column_names].to_numpy()
-
-        session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
+        laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)  # 1014937 rows × 11 columns
+        session.laps = Laps(laps_df) # new DataFrame-based approach
+        
+        # session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
+        
         return session, laps_df
 
     
@@ -792,9 +742,13 @@ class DataSessionLoader:
 
     @staticmethod
     def __default_kdiba_spikeII_compute_laps_vars(session, spikes_df, time_variable_name='t_seconds'):
-        """ 
+        """ Attempts to compute the Laps object from the loaded spikesII spikes, which have a 'lap' column.
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
+        
+        
+        
+        
         spikes_df = spikes_df.copy() # duplicate spikes dataframe
         # Get only the rows with a lap != -1:
         # spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
@@ -804,7 +758,6 @@ class DataSessionLoader:
         lap_ids = spikes_df.lap.to_numpy()
         
         # neg_one_indicies = np.argwhere(lap_ids == -1)
-        
         neg_one_indicies = np.squeeze(np.where(lap_ids == -1))
         
         # spikes_df.laps[spikes_df.laps == -1] = np.Infinity
@@ -844,6 +797,10 @@ class DataSessionLoader:
 
         lap_id = np.array(laps_first_spike_instances.index) # the lap_id (which serves to index the lap), like 1, 2, 3, 4, ...
         laps_spike_counts = np.array(lap_grouped_spikes_df.size().values) # number of spikes in each lap
+        # lap_maze_id should give the maze_id for each of the laps. 
+        lap_maze_id = np.full_like(lap_id, -1)
+        lap_maze_id[0:split_index] = 1 # maze 1
+        lap_maze_id[split_index:-1] = 2 # maze 2
 
         # print('lap_number: {}'.format(lap_number))
         # print('laps_spike_counts: {}'.format(laps_spike_counts))
@@ -860,9 +817,23 @@ class DataSessionLoader:
         lap_start_stop_time[:, 1] = np.array(laps_last_spike_instances[time_variable_name].values)
         # print('lap_start_stop_time: {}'.format(lap_start_stop_time))
         
+        
+        
         # Build output Laps object to add to session
         print('setting laps object.')
+        
         session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
+        
+        flat_var_out_dict = {'lap_id':lap_id,'maze_id':lap_maze_id,
+                             'start_spike_index':np.array(laps_first_spike_instances.flat_spike_idx.values), 'end_spike_index': np.array(laps_last_spike_instances.flat_spike_idx.values),
+                             'start_t':np.array(laps_first_spike_instances['t'].values), 'end_t':np.array(laps_last_spike_instances['t'].values),
+                             'start_t_seconds':np.array(laps_first_spike_instances[time_variable_name].values), 'end_t_seconds':np.array(laps_last_spike_instances[time_variable_name].values)
+                             }
+        laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)
+        session.laps = Laps(laps_df) # new DataFrame-based approach
+        
+        
+        # session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
         
         # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
         return session, spikes_df

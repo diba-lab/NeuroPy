@@ -4,6 +4,8 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 
+from neuropy.utils.mixins.print_helpers import SimplePrintable
+
 from .datawriter import DataWriter
 # from .flattened_spiketrains import FlattenedSpiketrains
 
@@ -248,10 +250,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def n_neurons(self):
         return len(self.spiketrains)
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}"
-        # return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
-
+    
     def time_slice(self, t_start=None, t_stop=None):
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         neurons = deepcopy(self)
@@ -300,8 +299,15 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         #     ]
         # )
 
-    def __str__(self) -> str:
-        return f"# neurons = {self.n_neurons}"
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n n_total_spikes: {self.n_total_spikes}\n t_start: {self.t_start}\n t_stop: {self.t_stop}"
+
+    # def __str__(self) -> str:
+    #     # num_original_total_spikes = np.sum(self.n_spikes)
+    #     return f"# neurons = {self.n_neurons}"
+    
+    
 
     def __len__(self):
         return self.n_neurons
@@ -326,6 +332,10 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     #         t_start=self.t_start
     #     )
     
+    @property
+    def n_total_spikes(self):
+        return np.sum(self.n_spikes)
+        
     @property
     def n_spikes(self):
         "number of spikes within each spiketrain"
