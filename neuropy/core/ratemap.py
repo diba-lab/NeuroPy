@@ -8,6 +8,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, DataWriter):
     def __init__(
         self,
         tuning_curves,
+        firing_maps=None,
         xbin=None,
         ybin=None,
         occupancy=None,
@@ -18,6 +19,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, DataWriter):
         super().__init__()
 
         self.tuning_curves = np.asarray(tuning_curves)
+        self.firing_maps = np.asarray(firing_maps)
         if neuron_ids is not None:
             assert len(neuron_ids) == self.tuning_curves.shape[0]
             self._neuron_ids = neuron_ids

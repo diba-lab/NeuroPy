@@ -13,7 +13,7 @@ from .figure import Fig
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
 
 
-def plot_single_tuning_curve_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, ax=None):
+def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, ax=None):
     """Plots a single tuning curve Heatmap
 
     Args:
@@ -35,9 +35,16 @@ def plot_single_tuning_curve_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id
         curr_pfmap[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
     
     # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
-    curr_pfmap = np.rot90(curr_pfmap)
+    # curr_pfmap = np.rot90(curr_pfmap)
+    # curr_pfmap = np.fliplr(curr_pfmap) # I thought stopping after this was sufficient, as the values lined up with the 1D placefields... but it seems to be flipped vertically now!
+    
+    
+    curr_pfmap = np.rot90(curr_pfmap, k=-1)
     curr_pfmap = np.fliplr(curr_pfmap)
-    curr_pfmap = np.flipud(curr_pfmap) # this seems to be required to get the mouse's entry trail (which goes outside the maze) corrently on the bottom instead of the top.
+    
+    # curr_pfmap = np.flipud(curr_pfmap) # this seems to be required to get the mouse's entry trail (which goes outside the maze) corrently on the bottom instead of the top.
+    
+    
     # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
 
     # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
@@ -73,10 +80,10 @@ def plot_single_tuning_curve_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id
     
     return im
     
-    
+
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=True, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001):
+def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_mode='tuning_maps'):
     """Plots heatmaps of placefields with peak firing rate
 
     Parameters
@@ -88,8 +95,14 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
     fignum : int, optional
         figure number to start from, by default None
     """
-
-    map_use, thresh = ratemap.tuning_curves, computation_config.speed_thresh
+    if plot_mode == 'tuning_maps':
+        map_use = ratemap.tuning_curves
+        title_substring = 'Placemaps'
+    elif plot_mode == 'firing_maps':
+        map_use = ratemap.firing_maps
+        title_substring = 'Firing Maps'
+    else:
+        raise ValueError
 
     nCells = len(map_use)
     nfigures = nCells // np.prod(subplots) + 1
@@ -106,7 +119,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
         gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
         fig.subplots_adjust(hspace=0.2)
         
-        title_string = f'2D Placemaps Placemaps ({len(ratemap.neuron_ids)} good cells)'
+        title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
         if computation_config is not None:
             if computation_config.speed_thresh is not None:
                 title_string = f'{title_string} (speed_threshold = {str(computation_config.speed_thresh)})'
@@ -120,10 +133,10 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
         ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
         
         # Plot the main heatmap for this pfmap:
-        im = plot_single_tuning_curve_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell], drop_below_threshold=drop_below_threshold, ax=ax1)
+        im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell], drop_below_threshold=drop_below_threshold, ax=ax1)
         
         if enable_spike_overlay:
-            ax1.scatter(spike_overlay_spikes[cell][0], spike_overlay_spikes[cell][1], s=1, c='white', alpha=0.3, marker=',')
+            ax1.scatter(spike_overlay_spikes[cell][0], spike_overlay_spikes[cell][1], s=2, c='white', alpha=0.10, marker=',')
             # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
         
         

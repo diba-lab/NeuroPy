@@ -319,14 +319,22 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         # # raw occupancy is defined in terms of the number of samples that fall into each bin.
         seconds_occupancy, normalized_occupancy = _normalized_occupancy(raw_occupancy, position_srate=position_srate)
         return seconds_occupancy, xedges
-     
+    
     @staticmethod   
-    def _compute_tuning_map(spk_x, xbin, occupancy, smooth):
-        tuning_map = np.histogram(spk_x, bins=xbin)[0]
+    def _compute_firing_map(spk_x, xbin, smooth):
+        firing_map = np.histogram(spk_x, bins=xbin)[0]
         if ((smooth is not None) and (smooth > 0.0)):
-            tuning_map = gaussian_filter1d(tuning_map, sigma=smooth)
-        tuning_map = tuning_map / occupancy
-        return tuning_map
+            firing_map = gaussian_filter1d(firing_map, sigma=smooth)
+        return firing_map
+    
+    @staticmethod   
+    def _compute_tuning_map(spk_x, xbin, occupancy, smooth, should_also_return_intermediate_firing_map=False):
+        firing_map = Pf1D._compute_firing_map(spk_x, xbin, smooth)
+        tuning_map = firing_map / occupancy
+        if should_also_return_intermediate_firing_map:
+            return tuning_map, firing_map
+        else:
+            return tuning_map
     
     def str_for_filename(self, prefix_string=''):
         return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_filename(False)}'])
@@ -574,20 +582,27 @@ class Pf2D(PfnConfigMixin, PfnDPlottingMixin):
 
 
         # return seconds_occupancy, xedges, yedges
-     
+        
     @staticmethod   
-    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_return_raw_tuning_map=False):
-        # raw_tuning_map: is the number of spike counts in each bin for this unit
-        raw_tuning_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
+    def _compute_firing_map(spk_x, spk_y, xbin, ybin, smooth):
+        # firing_map: is the number of spike counts in each bin for this unit
+        firing_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
         if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
-            raw_tuning_map = gaussian_filter(raw_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
-        if should_return_raw_tuning_map:
-            return raw_tuning_map
+            firing_map = gaussian_filter(firing_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
+        return firing_map
+    
+    @staticmethod   
+    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_firing_map=False):
+        # raw_tuning_map: is the number of spike counts in each bin for this unit
+        firing_map = Pf2D._compute_firing_map(spk_x, spk_y, xbin, ybin, smooth)
+        occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero aftwards anyway
+        occupancy_weighted_tuning_map = firing_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        occupancy_weighted_tuning_map = np.nan_to_num(occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
+        
+        if should_also_return_intermediate_firing_map:
+            return occupancy_weighted_tuning_map, firing_map
         else:
-            occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero aftwards anyway
-            occupancy_weighted_tuning_map = raw_tuning_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
-            occupancy_weighted_tuning_map = np.nan_to_num(occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
-            occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
             return occupancy_weighted_tuning_map
 
     def str_for_filename(self, prefix_string=''):

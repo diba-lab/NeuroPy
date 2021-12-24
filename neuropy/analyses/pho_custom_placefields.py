@@ -200,6 +200,7 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         speed_thresh : int
             speed threshold for calculating place field
         """
+        _save_intermediate_firing_maps = True # False is not yet implemented
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
         self.position_srate = position.sampling_rate
@@ -207,7 +208,7 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         self.ndim = position.ndim
         
         # Output lists, for compatibility with Pf1D and Pf2D:
-        spk_pos, spk_t, tuning_maps = [], [], []
+        spk_pos, spk_t, firing_maps, tuning_maps = [], [], [], []
 
         pos_df = position.to_dataframe().copy()
         spk_df = spikes_df.copy()
@@ -244,7 +245,6 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         else:
             occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, self.position_srate, smooth[0])
         
-        
         # Once filtering and binning is done, apply the grouping:
         # Group by the aclu (cluster indicator) column
         cell_grouped_spikes_df = filtered_spikes_df.groupby(['aclu'])
@@ -263,24 +263,29 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
                 spk_y = np.interp(cell_spike_times, self.t, self.y)
                 # cell_df.loc[:, 'y'] = spk_y
                 spk_pos.append([spk_x, spk_y])
-                curr_cell_tuning_map = Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth)
+                # TODO: Make "firing maps" before "tuning maps"
+                # raw_tuning_maps = np.asarray([Pf2D._compute_tuning_map(neuron_split_spike_dfs[i].x.to_numpy(), neuron_split_spike_dfs[i].y.to_numpy(), xbin, ybin, occupancy, None, should_return_raw_tuning_map=True) for i in np.arange(len(neuron_split_spike_dfs))]) # dataframes split for each ID:
+                # tuning_maps = np.asarray([raw_tuning_maps[i] / occupancy for i in np.arange(len(raw_tuning_maps))])
+                # ratemap = Ratemap(tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=active_epoch_session.neuron_ids)
+                curr_cell_tuning_map, curr_cell_firing_map = Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_firing_map=_save_intermediate_firing_maps)
             else:
                 # otherwise only 1D:
                 spk_pos.append([spk_x])
-                curr_cell_tuning_map = Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth[0])
+                curr_cell_tuning_map, curr_cell_firing_map = Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth[0], should_also_return_intermediate_firing_map=_save_intermediate_firing_maps)
             
             spk_t.append(cell_spike_times)
             # tuning curve calculation:               
             tuning_maps.append(curr_cell_tuning_map)
+            firing_maps.append(curr_cell_firing_map)
                 
         # ---- cells with peak frate abouve thresh ------
         filtered_tuning_maps, filter_function = _filter_by_frate(tuning_maps.copy(), frate_thresh)
-
+        filtered_firing_maps = filter_function(firing_maps.copy())
         filtered_neuron_ids = filter_function(filtered_spikes_df.spikes.neuron_ids)        
         filtered_tuple_neuron_ids = filter_function(filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
         self.ratemap = Ratemap(
-            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids
+            filtered_tuning_maps, firing_maps=filtered_firing_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids
         )
         self.ratemap_spiketrains = filter_function(spk_t)
         self.ratemap_spiketrains_pos = filter_function(spk_pos)
