@@ -1,10 +1,11 @@
 import numpy as np
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
+from neuropy.plotting.mixins.ratemap_mixins import RatemapPlottingMixin
 from neuropy.utils import mathutil
 from . import DataWriter
 
 
-class Ratemap(NeuronIdentitiesDisplayerMixin, DataWriter):
+class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     def __init__(
         self,
         tuning_curves,
@@ -67,6 +68,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, DataWriter):
     def n_neurons(self):
         return self.tuning_curves.shape[0]
 
+    @property
     def ndim(self):
         return self.tuning_curves.ndim - 1
     

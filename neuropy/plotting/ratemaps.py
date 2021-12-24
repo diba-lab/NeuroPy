@@ -16,18 +16,6 @@ from .figure import Fig
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
 
 
-# class RatemapPlottingMixin:
-#     def plot(self):
-#         return plot_ratemap_2D(self)
-#         # if plot_mode == 'tuning_maps':
-#         #     map_use = self.tuning_curves
-#         #     title_substring = 'Placemaps'
-#         # elif plot_mode == 'firing_maps':
-#         #     map_use = self.firing_maps
-#         #     title_substring = 'Firing Maps'
-#         # else:
-#         #     raise ValueError
-
 @unique
 class enumTuningMap2DPlotMode(AutoNameEnum):
     PCOLORFAST = auto() # DEFAULT prior to 2021-12-24
