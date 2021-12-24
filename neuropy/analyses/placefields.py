@@ -336,230 +336,93 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         else:
             return tuning_map
     
-    def str_for_filename(self, prefix_string=''):
-        return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_filename(False)}'])
-    
-    
-    def __init__(
-        self,
-        neurons: Neurons,
-        position: Position,
-        epochs: Epoch = None,
-        frate_thresh=1,
-        speed_thresh=5,
-        grid_bin=1,
-        smooth=1,
-    ):
-        """computes 1d place field using linearized coordinates. It always computes two place maps with and
-        without speed thresholds.
+    def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=1, smooth=1, ):
+        raise DeprecationWarning
 
-        Parameters
-        ----------
-        track_name : str
-            name of track
-        direction : forward, backward or None
-            direction of running, by default None which means direction is ignored
-        grid_bin : int
-            bin size of position bining, by default 5
-        speed_thresh : int
-            speed threshold for calculating place field
-        """
+    # ## TO REFACTOR
+    # def estimate_theta_phases(self, signal: Signal):
+    #     """Calculates phase of spikes computed for placefields
 
-        assert position.ndim == 1, "Only 1 dimensional position are acceptable"
-        # save the config that was used to perform the computations
-        self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
+    #     Parameters
+    #     ----------
+    #     theta_chan : int
+    #         lfp channel to use for calculating theta phases
+    #     """
+    #     assert signal.n_channels == 1, "signal should have only a single trace"
+    #     sig_t = signal.time
+    #     thetaparam = ThetaParams(signal.traces, fs=signal.sampling_rate)
 
-        spiketrains = neurons.spiketrains
-        neuron_ids = neurons.neuron_ids
-        n_neurons = neurons.n_neurons
-        position_srate = position.sampling_rate
-        self.x = position.x
-        self.speed = position.speed
-        if ((smooth is not None) and (smooth > 0.0)):
-            self.speed = gaussian_filter1d(self.speed, sigma=20)
-        self.t = position.time
-        t_start = position.t_start
-        t_stop = position.t_stop
+    #     phase = []
+    #     for spiketrain in self.ratemap_spkitrains:
+    #         phase.append(np.interp(spiketrain, sig_t, thetaparam.angle))
 
-        # xbin = np.arange(min(self.x), max(self.x), grid_bin)  # binning of x position
-        xbin, bin_info = _bin_pos_1D(self.x, bin_size=grid_bin) # bin_size mode
+    #     self.ratemap_spiketrains_phases = phase
 
-        spk_pos, spk_t, tuning_curve = [], [], []
+    # def plot_with_phase(self, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)):
+    #     cmap = mpl.cm.get_cmap(cmap)
 
-        # ------ if direction then restrict to those epochs --------
-        if epochs is not None:
-            assert isinstance(epochs, Epoch), "epochs should be Epoch object"
-            # print(f" using {run_dir} running only")
-            spks = [
-                np.concatenate(
-                    [
-                        spktrn[(spktrn > epc.start) & (spktrn < epc.stop)]
-                        for epc in epochs.to_dataframe().itertuples()
-                    ]
-                )
-                for spktrn in spiketrains
-            ]
-            # changing x, speed, time to only run epochs so occupancy map is consistent with that
-            indx = np.concatenate(
-                [
-                    np.where((self.t >= epc.start) & (self.t <= epc.stop))[0]
-                    for epc in epochs.to_dataframe().itertuples()
-                ]
-            )
-            self.x = self.x[indx] # (52121,)
-            self.speed = self.speed[indx] # (52121,)
-            self.t = self.t[indx] # (52121,)
-            
-            
-            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, position_srate, smooth)
+    #     mapinfo = self.ratemaps
 
-            for cell in spks:
-                spk_spd = np.interp(cell, self.t, self.speed)
-                spk_x = np.interp(cell, self.t, self.x)
+    #     ratemaps = mapinfo["ratemaps"]
+    #     if normalize:
+    #         ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
+    #     phases = mapinfo["phases"]
+    #     position = mapinfo["pos"]
+    #     nCells = len(ratemaps)
+    #     bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
 
-                spk_pos.append(spk_x)
-                spk_t.append(cell)
+    #     def plot_(cell, ax, axphase):
+    #         color = cmap(cell / nCells)
+    #         if subplots is None:
+    #             ax.clear()
+    #             axphase.clear()
+    #         ax.fill_between(bin_cntr, 0, ratemaps[cell], color=color, alpha=0.3)
+    #         ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
+    #         ax.set_xlabel("Position (cm)")
+    #         ax.set_ylabel("Normalized frate")
+    #         ax.set_title(
+    #             " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
+    #         )
+    #         if normalize:
+    #             ax.set_ylim([0, 1])
+    #         axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
+    #         if stack:  # double up y-axis as is convention for phase precession plots
+    #             axphase.scatter(position[cell], phases[cell] + 360, c="k", s=0.6)
+    #         axphase.set_ylabel(r"$\theta$ Phase")
 
-                # tuning curve calculation
-                tuning_curve.append(Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth))
+    #     if ax is None:
 
-        else:
-            # --- speed thresh occupancy----
+    #         if subplots is None:
+    #             _, gs = plotting.Fig().draw(grid=(1, 1), size=(10, 5))
+    #             ax = plt.subplot(gs[0])
+    #             ax.spines["right"].set_visible(True)
+    #             axphase = ax.twinx()
+    #             widgets.interact(
+    #                 plot_,
+    #                 cell=widgets.IntSlider(
+    #                     min=0,
+    #                     max=nCells - 1,
+    #                     step=1,
+    #                     description="Cell ID:",
+    #                 ),
+    #                 ax=widgets.fixed(ax),
+    #                 axphase=widgets.fixed(axphase),
+    #             )
+    #         else:
+    #             _, gs = plotting.Fig().draw(grid=subplots, size=(15, 10))
+    #             for cell in range(nCells):
+    #                 ax = plt.subplot(gs[cell])
+    #                 axphase = ax.twinx()
+    #                 plot_(cell, ax, axphase)
 
-            spks = [
-                spktrn[(spktrn > t_start) & (spktrn < t_stop)] for spktrn in spiketrains
-            ]
-            indx = np.where(self.speed >= speed_thresh)[0]
-            self.x, self.speed, self.t = self.x[indx], self.speed[indx], self.t[indx]
+    #     return ax
 
-            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, position_srate, smooth)
-            
-            # occupancy = np.histogram(self.x, bins=xbin)[0] / position_srate + 1e-16
-            # occupancy = gaussian_filter1d(occupancy, sigma=smooth)
-
-            for cell in spks:
-                spk_spd = np.interp(cell, self.t, self.speed)
-                spk_x = np.interp(cell, self.t, self.x)
-
-                # speed threshold
-                spd_ind = np.where(spk_spd > speed_thresh)[0]
-                spk_pos.append(spk_x[spd_ind])
-                spk_t.append(cell[spd_ind])
-
-                # tuning curve calculation
-                tuning_curve.append(Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth))
-
-        # ---- cells with peak frate abouve thresh ------
-        thresh_neurons_indx = [
-            neuron_indx
-            for neuron_indx in range(n_neurons)
-            if np.nanmax(tuning_curve[neuron_indx]) > frate_thresh
-        ]
-
-        get_elem = lambda list_: [list_[_] for _ in thresh_neurons_indx]
-
-        tuning_curve = get_elem(tuning_curve)
-        tuning_curve = np.asarray(tuning_curve)
-        self.ratemap = Ratemap(
-            tuning_curve, xbin=xbin, neuron_ids=get_elem(neuron_ids)
-        )
-        self.ratemap_spiketrains = get_elem(spk_t)
-        self.ratemap_spiketrains_pos = get_elem(spk_pos)
-        self.occupancy = occupancy
-        self.frate_thresh = frate_thresh
-        self.speed_thresh = speed_thresh
-
-    def estimate_theta_phases(self, signal: Signal):
-        """Calculates phase of spikes computed for placefields
-
-        Parameters
-        ----------
-        theta_chan : int
-            lfp channel to use for calculating theta phases
-        """
-        assert signal.n_channels == 1, "signal should have only a single trace"
-        sig_t = signal.time
-        thetaparam = ThetaParams(signal.traces, fs=signal.sampling_rate)
-
-        phase = []
-        for spiketrain in self.ratemap_spkitrains:
-            phase.append(np.interp(spiketrain, sig_t, thetaparam.angle))
-
-        self.ratemap_spiketrains_phases = phase
-
-    def plot_with_phase(self, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)):
-        cmap = mpl.cm.get_cmap(cmap)
-
-        mapinfo = self.ratemaps
-
-        ratemaps = mapinfo["ratemaps"]
-        if normalize:
-            ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
-        phases = mapinfo["phases"]
-        position = mapinfo["pos"]
-        nCells = len(ratemaps)
-        bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
-
-        def plot_(cell, ax, axphase):
-            color = cmap(cell / nCells)
-            if subplots is None:
-                ax.clear()
-                axphase.clear()
-            ax.fill_between(bin_cntr, 0, ratemaps[cell], color=color, alpha=0.3)
-            ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
-            ax.set_xlabel("Position (cm)")
-            ax.set_ylabel("Normalized frate")
-            ax.set_title(
-                " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
-            )
-            if normalize:
-                ax.set_ylim([0, 1])
-            axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
-            if stack:  # double up y-axis as is convention for phase precession plots
-                axphase.scatter(position[cell], phases[cell] + 360, c="k", s=0.6)
-            axphase.set_ylabel(r"$\theta$ Phase")
-
-        if ax is None:
-
-            if subplots is None:
-                _, gs = plotting.Fig().draw(grid=(1, 1), size=(10, 5))
-                ax = plt.subplot(gs[0])
-                ax.spines["right"].set_visible(True)
-                axphase = ax.twinx()
-                widgets.interact(
-                    plot_,
-                    cell=widgets.IntSlider(
-                        min=0,
-                        max=nCells - 1,
-                        step=1,
-                        description="Cell ID:",
-                    ),
-                    ax=widgets.fixed(ax),
-                    axphase=widgets.fixed(axphase),
-                )
-            else:
-                _, gs = plotting.Fig().draw(grid=subplots, size=(15, 10))
-                for cell in range(nCells):
-                    ax = plt.subplot(gs[cell])
-                    axphase = ax.twinx()
-                    plot_(cell, ax, axphase)
-
-        return ax
-
-    def plot_ratemaps(self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"):
-        # returns: ax , sort_ind, colors
-        raise NotImplementedError # this isn't supposed to be used anymore!
-        # return plotting.plot_ratemap(self.ratemap, normalize_tuning_curve=True)
-
-    def plot_raw(self, ax=None, subplots=(8, 9)):
-        raise NotImplementedError # this isn't supposed to be used anymore!
-        # return plotting.plot_raw(self.ratemap, self.t, self.x, 'BOTH', ax=ax, subplots=subplots)
 
     
         
 
 
-class Pf2D(PfnConfigMixin, PfnDPlottingMixin):
+class Pf2D(PfnConfigMixin, PfnDMixin):
 
     @staticmethod
     def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_raw_occupancy=False):
@@ -605,168 +468,6 @@ class Pf2D(PfnConfigMixin, PfnDPlottingMixin):
         else:
             return occupancy_weighted_tuning_map
 
-    def str_for_filename(self, prefix_string=''):
-        return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_filename(True)}'])
-    
-    def str_for_display(self, prefix_string=''):
-        return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
-    
-    
-    def __init__(
-        self,
-        neurons: Neurons,
-        position: Position,
-        epochs: Epoch = None,
-        frate_thresh=1,
-        speed_thresh=5,
-        grid_bin=(1,1),
-        smooth=(1,1),
-    ):
-        """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
-        without speed thresholds.
-
-        Parameters
-        ----------
-        track_name : str
-            name of track
-        direction : forward, backward or None
-            direction of running, by default None which means direction is ignored
-        grid_bin : int
-            bin size of position bining, by default 5
-        speed_thresh : int
-            speed threshold for calculating place field
-        """
-        
-    
-        # save the config that was used to perform the computations
-        self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
-        # assert position.ndim < 2, "Only 2+ dimensional position are acceptable"
-        spiketrains = neurons.spiketrains
-        neuron_ids = neurons.neuron_ids
-        n_neurons = neurons.n_neurons
-        position_srate = position.sampling_rate
-        
-        self.x = position.x
-        self.y = position.y
-        self.t = position.time
-        t_start = position.t_start
-        t_stop = position.t_stop
-
-        ## Binning with Fixed Number of Bins:    
-        xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
-        # xbin = np.arange(min(self.x), max(self.x) + grid_bin[0], grid_bin[0])  # binning of x position
-        # ybin = np.arange(min(self.y), max(self.y) + grid_bin[1], grid_bin[1])  # binning of y position
-
-        # plot with:
-            # X, Y = np.meshgrid(xbin, ybin) 
-            # plt.pcolor(X, Y, occupancy)
-            
-        # diff_posx = np.diff(self.x)
-        # diff_posy = np.diff(self.y)
-        # self.speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / (1 / position_srate)
-        self.speed = position.speed
-        if ((smooth is not None) and (smooth[0] > 0.0)):
-            self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
-        
-        spk_pos, spk_t, tuning_maps = [], [], []
-
-        # ------ if direction then restrict to those epochs --------
-        if epochs is not None:
-            assert isinstance(epochs, Epoch), "epochs should be Epoch object"
-            # print(f" using {run_dir} running only")
-            spks = [
-                np.concatenate(
-                    [
-                        spktrn[(spktrn > epc.start) & (spktrn < epc.stop)]
-                        for epc in epochs.to_dataframe().itertuples()
-                    ]
-                )
-                for spktrn in spiketrains
-            ]
-            # changing x, speed, time to only run epochs so occupancy map is consistent with that
-            indx = np.concatenate(
-                [
-                    np.where((self.t > epc.start) & (self.t < epc.stop))[0]
-                    for epc in epochs.to_dataframe().itertuples()
-                ]
-            ) 
-            self.x = self.x[indx]
-            self.y = self.y[indx]
-            self.speed = self.speed[indx]
-            self.t = self.t[indx]
-
-            # --- occupancy map calculation -----------
-            # NRK todo: might need to normalize occupancy so sum adds up to 1
-            # occupancy = np.histogram2d(self.x, self.y, bins=(xbin, ybin))[0]
-            # occupancy = occupancy / position_srate + 10e-16  # converting to seconds
-            # occupancy = gaussian_filter(occupancy, sigma=smooth) # 2d gaussian filter
-            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, position_srate, smooth)
-            # plot with:
-            # X, Y = np.meshgrid(xedges, yedges) 
-            # plt.pcolor(X, Y, occupancy)
-            
-            # re-interpolate given the updated spks
-            for cell in spks:
-                spk_spd = np.interp(cell, self.t, self.speed)
-                spk_x = np.interp(cell, self.t, self.x)
-                spk_y = np.interp(cell, self.t, self.y)
-                spk_pos.append([spk_x, spk_y])
-                spk_t.append(cell)
-                # tuning curve calculation:               
-                tuning_maps.append(Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth))
-
-        else:
-            # --- speed thresh occupancy----
-
-            spks = [
-                spktrn[(spktrn > t_start) & (spktrn < t_stop)] for spktrn in spiketrains
-            ]
-            dt = self.t[1] - self.t[0]
-            indx = np.where(self.speed / dt > speed_thresh)[0]
-            self.x, self.y, self.speed, self.t = self.x[indx], self.y[indx], self.speed[indx], self.t[indx]
-            
-            # --- occupancy map calculation -----------
-            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, position_srate, smooth)
-            
-            
-            # re-interpolate here too:
-            for cell in spks:
-                spk_spd = np.interp(cell, self.t, self.speed)
-                spk_x = np.interp(cell, self.t, self.x)
-                spk_y = np.interp(cell, self.t, self.y)
-
-                # speed threshold
-                spd_ind = np.where(spk_spd > speed_thresh)[0]
-                spk_pos.append([spk_x[spd_ind], spk_y[spd_ind]])
-                spk_t.append(cell[spd_ind])
-
-                # tuning curve calculation:
-                tuning_maps.append(Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth))
-                
-
-        # ---- cells with peak frate abouve thresh ------
-        # thresh_neurons_indx = [
-        #     neuron_indx
-        #     for neuron_indx in range(n_neurons)
-        #     if np.nanmax(tuning_maps[neuron_indx]) > frate_thresh
-        # ]
-
-        # get_elem = lambda list_: [list_[_] for _ in thresh_neurons_indx]
-        # there is only one tuning_map per neuron that means the thresh_neurons_indx:
-        # tuning_maps = get_elem(tuning_maps)
-        # tuning_maps = np.asarray(tuning_maps)
-        
-        filtered_tuning_maps, filter_function = _filter_by_frate(tuning_maps.copy(), frate_thresh)
-
-        self.ratemap = Ratemap(
-            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filter_function(neuron_ids)
-        )
-        self.ratemap_spiketrains = filter_function(spk_t)
-        self.ratemap_spiketrains_pos = filter_function(spk_pos)
-        self.occupancy = occupancy
-        self.frate_thresh = frate_thresh
-        self.speed_thresh = speed_thresh
-
-   
-
+    def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1), ):
+        raise DeprecationWarning
 
