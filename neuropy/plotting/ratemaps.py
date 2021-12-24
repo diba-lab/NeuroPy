@@ -1,5 +1,6 @@
 from enum import Enum, IntEnum, auto, unique
 from ipywidgets import widgets
+from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -29,10 +30,10 @@ from .figure import Fig
 
 @unique
 class enumTuningMap2DPlotMode(AutoNameEnum):
-    PCOLORFAST = auto() # DEFAULT
+    PCOLORFAST = auto() # DEFAULT prior to 2021-12-24
     PCOLORMESH = auto() # UNTESTED
     PCOLOR = auto() # UNTESTED
-    TEST = auto()
+    IMSHOW = auto() # New Default as of 2021-12-24
 
     
 def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None):
@@ -50,8 +51,10 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         [type]: [description]
     """
     if plot_mode is None:    
-        plot_mode = enumTuningMap2DPlotMode.PCOLORFAST
-        # plot_mode = PlotType.TEST
+        # plot_mode = enumTuningMap2DPlotMode.PCOLORFAST
+        plot_mode = enumTuningMap2DPlotMode.IMSHOW
+    
+    use_alpha_by_occupancy = True # Only supported in IMSHOW mode
     
     if ax is None:
         ax = plt.gca()
@@ -93,7 +96,8 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
             cmap="jet",
             vmin=0,
         )    
-    elif plot_mode is enumTuningMap2DPlotMode.TEST:
+    elif plot_mode is enumTuningMap2DPlotMode.IMSHOW:
+        """ https://matplotlib.org/stable/tutorials/intermediate/imshow_extent.html """
         """ Use the brightness to reflect the confidence in the outcome. Could also use opacity. """
         # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
         xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
@@ -102,21 +106,14 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         # print(f'extent: {extent}')
         # extent = None
         # We'll also create a black background into which the pixels will fade
-        background_black = np.full((*curr_pfmap.shape, 3), 70, dtype=np.uint8)
+        background_black = np.full((*curr_pfmap.shape, 3), 0, dtype=np.uint8)
         
         vmax = np.abs(curr_pfmap).max()
-        # imshow_kwargs = {
-        #     'vmax': vmax,
-        #     'vmin': 0,
-        #     'cmap': 'RdYlBu',
-        #     'extent': extent,
-        # }
-        
+                
         imshow_shared_kwargs = {
             'origin': 'lower',
             'extent': extent,
         }
-        # imshow_shared_kwargs['origin'] = 'lower'
         
         main_plot_kwargs = imshow_shared_kwargs | {
             # 'vmax': vmax,
@@ -124,7 +121,21 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
             'cmap': 'jet',
         }
         
-                      
+        if use_alpha_by_occupancy:
+            # alphas = np.ones(curr_pfmap.shape)
+            # alphas[:, :] = np.linspace(1, 0, curr_pfmap.shape[1]) # Test, blend transparency linearly
+            # Normalize:
+            # Create an alpha channel based on weight values
+            # Any value whose absolute value is > .0001 will have zero transparency
+            alphas = Normalize(clip=True)(np.abs(occupancy))
+            # alphas = Normalize(0, .3, clip=True)(np.abs(occupancy))
+            # alphas = np.clip(alphas, .4, 1)  # alpha value clipped at the bottom at .4
+
+            main_plot_kwargs['alpha'] = alphas
+            pass
+        else:
+            main_plot_kwargs['alpha'] = None
+        
         ax.imshow(background_black, **imshow_shared_kwargs)
         im = ax.imshow(curr_pfmap, **main_plot_kwargs)
         
