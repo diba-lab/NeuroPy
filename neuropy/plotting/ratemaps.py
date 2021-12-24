@@ -28,14 +28,14 @@ from .figure import Fig
 #         #     raise ValueError
 
 @unique
-class TuningMap2DPlotMode(AutoNameEnum):
+class enumTuningMap2DPlotMode(AutoNameEnum):
     PCOLORFAST = auto() # DEFAULT
     PCOLORMESH = auto() # UNTESTED
     PCOLOR = auto() # UNTESTED
     TEST = auto()
 
     
-def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: TuningMap2DPlotMode=None, ax=None):
+def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None):
     """Plots a single tuning curve Heatmap
 
     Args:
@@ -50,7 +50,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         [type]: [description]
     """
     if plot_mode is None:    
-        plot_mode = TuningMap2DPlotMode.PCOLORFAST
+        plot_mode = enumTuningMap2DPlotMode.PCOLORFAST
         # plot_mode = PlotType.TEST
     
     if ax is None:
@@ -70,7 +70,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         
     # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
 
-    if plot_mode is TuningMap2DPlotMode.PCOLORFAST:
+    if plot_mode is enumTuningMap2DPlotMode.PCOLORFAST:
         im = ax.pcolorfast(
             xbin,
             ybin,
@@ -78,13 +78,13 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
             cmap="jet", vmin=0.0
         )
         
-    elif plot_mode is TuningMap2DPlotMode.PCOLORMESH:
+    elif plot_mode is enumTuningMap2DPlotMode.PCOLORMESH:
         raise DeprecationWarning # 'Code not maintained, may be out of date'  
         mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
         ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
         # ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
         
-    elif plot_mode is TuningMap2DPlotMode.PCOLOR: 
+    elif plot_mode is enumTuningMap2DPlotMode.PCOLOR: 
         raise DeprecationWarning # 'Code not maintained, may be out of date'
         im = ax.pcolor(
             xbin,
@@ -93,24 +93,40 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
             cmap="jet",
             vmin=0,
         )    
-    elif plot_mode is TuningMap2DPlotMode.TEST:
+    elif plot_mode is enumTuningMap2DPlotMode.TEST:
         """ Use the brightness to reflect the confidence in the outcome. Could also use opacity. """
-        mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
+        # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
         xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
-        # extent = (xmin, xmax, ymin, ymax)
-        extent = None
+        # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
+        extent = (xmin, xmax, ymin, ymax)
+        # print(f'extent: {extent}')
+        # extent = None
         # We'll also create a black background into which the pixels will fade
         background_black = np.full((*curr_pfmap.shape, 3), 70, dtype=np.uint8)
         
         vmax = np.abs(curr_pfmap).max()
-        imshow_kwargs = {
-            'vmax': vmax,
-            'vmin': 0,
-            'cmap': 'RdYlBu',
+        # imshow_kwargs = {
+        #     'vmax': vmax,
+        #     'vmin': 0,
+        #     'cmap': 'RdYlBu',
+        #     'extent': extent,
+        # }
+        
+        imshow_shared_kwargs = {
+            'origin': 'lower',
             'extent': extent,
         }
-        ax.imshow(background_black)
-        im = ax.imshow(curr_pfmap, **imshow_kwargs)
+        # imshow_shared_kwargs['origin'] = 'lower'
+        
+        main_plot_kwargs = imshow_shared_kwargs | {
+            # 'vmax': vmax,
+            'vmin': 0,
+            'cmap': 'jet',
+        }
+        
+                      
+        ax.imshow(background_black, **imshow_shared_kwargs)
+        im = ax.imshow(curr_pfmap, **main_plot_kwargs)
         
 
     else:
@@ -133,11 +149,14 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     return im
     
 
-
+@unique
+class enumTuningMap2DPlotVariables(AutoNameEnum):
+    TUNING_MAPS = auto() # DEFAULT
+    FIRING_MAPS = auto() 
+    
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_unit_indicies=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_mode='tuning_maps'):
+def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_unit_indicies=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
     """Plots heatmaps of placefields with peak firing rate
-
     Parameters
     ----------
     speed_thresh : bool, optional
@@ -151,10 +170,10 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
     if included_unit_indicies is None:
         included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
     
-    if plot_mode == 'tuning_maps':
+    if plot_variable is enumTuningMap2DPlotVariables.TUNING_MAPS:
         active_maps = ratemap.tuning_curves[included_unit_indicies]
         title_substring = 'Placemaps'
-    elif plot_mode == 'firing_maps':
+    elif plot_variable == enumTuningMap2DPlotVariables.FIRING_MAPS:
         active_maps = ratemap.firing_maps[included_unit_indicies]
         title_substring = 'Firing Maps'
     else:
@@ -202,7 +221,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
         cell_idx = included_unit_indicies[active_map_idx]
         
         # Plot the main heatmap for this pfmap:
-        im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, ax=ax1)
+        im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
         
         if enable_spike_overlay:
             ax1.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
