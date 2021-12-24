@@ -17,28 +17,6 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
 
-
-class NeuronIndex(SimplePrintable):
-    """NeuronIndex: A multi-facited identifier for a specific neuron/putative cell 
-        Used to retain a the identity associated with a value or set of values even after filtering and such.
-
-        cell_uid: (aclu) [2:65]
-        shank_index: [1:12]
-        cluster_index: [2:28]
-        
-        ['shank','cluster']
-    
-    """
-    def __init__(self, cell_uid, shank_index, cluster_index, color=None):
-        super(NeuronIndex, self).__init__()
-        self.cell_uid = cell_uid
-        self.shank_index = shank_index
-        self.cluster_index = cluster_index
-        self.color = color
-
-        
-
-
 @unique
 class NeuronType(Enum):
     PYRAMIDAL = 0

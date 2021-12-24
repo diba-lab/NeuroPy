@@ -7,6 +7,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from neuropy.analyses.placefields import Pf1D, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin, PlacefieldComputationParameters, _bin_pos_nD, _filter_by_frate, Pf2D, _normalized_occupancy
 # plot_placefield_occupancy, plot_occupancy_custom
 from neuropy.core.epoch import Epoch
+from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 
@@ -163,12 +164,12 @@ class SpikesAccessor(TimeSlicedMixin):
     
     @property
     def neuron_probe_tuple_ids(self):
-        """ returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
+        """ returns a list of NeuronExtendedIdentityTuple tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
         # groupby the multi-index [shank, cluster]:
         # shank_cluster_grouped_spikes_df = self._obj.groupby(['shank','cluster'])
         aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
-        shank_cluster_reference_df = aclu_grouped_spikes_df[['shank','cluster']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
-        output_tuples_list = [(an_id.shank, an_id.cluster) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
+        shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
+        output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
         return output_tuples_list
         
 
@@ -279,11 +280,8 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
         filtered_tuple_neuron_ids = filter_function(filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
         self.ratemap = Ratemap(
-            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, metadata={'tuple_neuron_ids':filtered_tuple_neuron_ids}
+            filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids
         )
-        self.ratemap.tuple_neuron_ids = filtered_tuple_neuron_ids
-        self.tuple_neuron_ids = filtered_tuple_neuron_ids
-
         self.ratemap_spiketrains = filter_function(spk_t)
         self.ratemap_spiketrains_pos = filter_function(spk_pos)
         
@@ -297,7 +295,14 @@ class PfND(PfnConfigMixin, PfnDPlottingMixin):
     @occupancy.setter
     def occupancy(self, value):
         self.ratemap.occupancy = value
-        
+    @property
+    def neuron_extended_ids(self):
+        """The neuron_extended_ids property."""
+        return self.ratemap.neuron_extended_ids
+    @neuron_extended_ids.setter
+    def neuron_extended_ids(self, value):
+        self.ratemap.neuron_extended_ids = value
+    
     ## self.config convinence accessors. Mostly for compatibility with Pf1D and Pf2D
     @property
     def frate_thresh(self):

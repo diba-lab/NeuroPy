@@ -1,9 +1,10 @@
 import numpy as np
+from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
 from neuropy.utils import mathutil
 from . import DataWriter
 
 
-class Ratemap(DataWriter):
+class Ratemap(NeuronIdentitiesDisplayerMixin, DataWriter):
     def __init__(
         self,
         tuning_curves,
@@ -11,6 +12,7 @@ class Ratemap(DataWriter):
         ybin=None,
         occupancy=None,
         neuron_ids=None,
+        neuron_extended_ids=None,
         metadata=None,
     ) -> None:
         super().__init__()
@@ -18,7 +20,13 @@ class Ratemap(DataWriter):
         self.tuning_curves = np.asarray(tuning_curves)
         if neuron_ids is not None:
             assert len(neuron_ids) == self.tuning_curves.shape[0]
-            self.neuron_ids = neuron_ids
+            self._neuron_ids = neuron_ids
+        if neuron_extended_ids is not None:
+            assert len(neuron_extended_ids) == self.tuning_curves.shape[0]
+            assert len(neuron_extended_ids) == len(self._neuron_ids)
+            # NeuronExtendedIdentityTuple objects
+            self._neuron_extended_ids = neuron_extended_ids   
+        
         self.xbin = xbin
         self.ybin = ybin
         self.occupancy = occupancy
@@ -32,6 +40,26 @@ class Ratemap(DataWriter):
     @property
     def ybin_centers(self):
         return self.ybin[:-1] + np.diff(self.ybin) / 2
+    
+    # NeuronIdentitiesDisplayerMixin requirements
+    @property
+    def neuron_ids(self):
+        """The neuron_ids property."""
+        return self._neuron_ids
+    @neuron_ids.setter
+    def neuron_ids(self, value):
+        self._neuron_ids = value
+       
+       
+    @property
+    def neuron_extended_ids(self):
+        """The neuron_extended_ids property."""
+        return self._neuron_extended_ids
+        # return self.metadata['tuple_neuron_ids']
+    @neuron_extended_ids.setter
+    def neuron_extended_ids(self, value):
+        self._neuron_extended_ids = value
+     
 
     @property
     def n_neurons(self):

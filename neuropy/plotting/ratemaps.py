@@ -3,6 +3,8 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+
+from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
 from .. import core
 from neuropy.utils import mathutil
 from .figure import Fig
@@ -11,7 +13,7 @@ from .figure import Fig
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
 
 
-def plot_single_tuning_curve_2D(xbin, ybin, pfmap, occupancy, drop_below_threshold: float=0.0000001, ax=None):
+def plot_single_tuning_curve_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, ax=None):
     """Plots a single tuning curve Heatmap
 
     Args:
@@ -78,6 +80,10 @@ def plot_single_tuning_curve_2D(xbin, ybin, pfmap, occupancy, drop_below_thresho
     # )
     
     ax.axis("off")
+    extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+    ax.set_title(
+            f"Cell {neuron_extended_id.id} - {extended_id_string} \n{round(np.nanmax(pfmap),2)} Hz"
+    ) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
     
     return im
     
@@ -127,22 +133,15 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, subplots=(10
         subplot_ind = cell % np.prod(subplots)
         ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
         
-        im = plot_single_tuning_curve_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, drop_below_threshold=drop_below_threshold, ax=ax1)
         
-        # ax1.scatter(self.spk_pos[ind]) # tODO: add spikes
+        
+        im = plot_single_tuning_curve_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell], drop_below_threshold=drop_below_threshold, ax=ax1)
         
         # if enable_spike_overlay:
         #     ax1.scatter(self.spk_pos[cell][0], self.spk_pos[cell][1], s=1, c='white', alpha=0.3, marker=',')
         #     # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
         
-        curr_cell_alt_id = ratemap.tuple_neuron_ids[cell]
-        curr_cell_shank = curr_cell_alt_id[0]
-        curr_cell_cluster = curr_cell_alt_id[1]
         
-        ax1.set_title(
-            f"Cell {ratemap.neuron_ids[cell]} - (shank {curr_cell_shank}, cluster {curr_cell_cluster}) \n{round(np.nanmax(pfmap),2)} Hz"
-        )
-
         # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
         # cbar = fig.colorbar(im, cax=cbar_ax)
         # cbar.set_label("firing rate (Hz)")
@@ -203,16 +202,13 @@ def plot_ratemap_1D(ratemap: core.Ratemap, normalize_xbin=False, ax=None, pad=2,
     
     sorted_neuron_ids = np.take_along_axis(np.array(ratemap.neuron_ids), sort_ind, axis=0)
     
-    # sorted_alt_tuple_neuron_ids = np.take_along_axis(np.array(ratemap.metadata['tuple_neuron_ids']), sort_ind, axis=0)
-    # sorted_alt_tuple_neuron_ids = np.take_along_axis(np.array(ratemap.tuple_neuron_ids), sort_ind, axis=0)
-
-    sorted_alt_tuple_neuron_ids = ratemap.metadata['tuple_neuron_ids'].copy()
+    sorted_alt_tuple_neuron_ids = ratemap.neuron_extended_ids.copy()
+    # sorted_alt_tuple_neuron_ids = ratemap.metadata['tuple_neuron_ids'].copy()
     sorted_alt_tuple_neuron_ids = [sorted_alt_tuple_neuron_ids[a_sort_idx] for a_sort_idx in sort_ind]
-    
     
     # sorted_tuning_curves = tuning_curves[sorted_neuron_ids, :]
     # sorted_neuron_id_labels = [f'Cell[{a_neuron_id}]' for a_neuron_id in sorted_neuron_ids]
-    sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i][0]}|{sorted_alt_tuple_neuron_ids[i][1]})' for i in np.arange(len(sorted_neuron_ids))]
+    sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i].shank}|{sorted_alt_tuple_neuron_ids[i].cluster})' for i in np.arange(len(sorted_neuron_ids))]
     
     colors_array = np.zeros((4, n_neurons))
     for i, neuron_ind in enumerate(sort_ind):
