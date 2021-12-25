@@ -7,7 +7,10 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 
+# from typing import TYPE_CHECKING
+# if TYPE_CHECKING:
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+
 from neuropy.utils.misc import AutoNameEnum, chunks
 from .. import core
 from neuropy.utils import mathutil
@@ -262,7 +265,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
         else:
             fignum = 1
 
-    figures, gs = [], []
+    figures, page_gs, page_axes = [], []
     for fig_ind in range(nfigures):
         
         
@@ -272,10 +275,10 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
         fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)        
         # gs.append(GridSpec(subplots[0], subplots[1], figure=fig))        
         if last_figure_subplots_same_layout:
-            gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
+            page_gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
         else:
-            print(f'fig_ind {fig_ind}: page_grid_sizes[fig_ind]: {page_grid_sizes[fig_ind]}')
-            gs.append(GridSpec(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns, figure=fig))
+            # print(f'fig_ind {fig_ind}: page_grid_sizes[fig_ind]: {page_grid_sizes[fig_ind]}')
+            page_gs.append(GridSpec(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns, figure=fig))
             
         
         fig.subplots_adjust(hspace=0.2)
@@ -302,7 +305,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
             curr_page_relative_row = np.mod(curr_row, page_grid_sizes[page_idx].num_rows)
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
             
-            print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
+            # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
             cell_idx = curr_included_unit_index
             pfmap = active_maps[a_linear_index]
@@ -310,7 +313,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
             # ax1 = figures[page_idx].add_subplot(gs[page_idx][a_linear_index])
             
             # ax1 = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
-            ax1 = figures[page_idx].add_subplot(gs[page_idx][curr_page_relative_linear_index])
+            ax1 = figures[page_idx].add_subplot(page_gs[page_idx][curr_page_relative_linear_index])
                         
             # Plot the main heatmap for this pfmap:
             im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
@@ -341,7 +344,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
     #     # cbar = fig.colorbar(im, cax=cbar_ax)
     #     # cbar.set_label("firing rate (Hz)")
         
-    return figures, gs
+    return figures, page_gs
     
 
 def plot_ratemap_1D(ratemap: core.Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap="tab20b"):
