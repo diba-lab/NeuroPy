@@ -63,6 +63,17 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     TUNING_MAPS = auto() # DEFAULT
     FIRING_MAPS = auto() 
     
+def compute_aspect_ratio(xbin, ybin):
+    xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
+    # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
+    extent = (xmin, xmax, ymin, ymax)
+    
+    width = xmax - xmin
+    height = ymax - ymin
+    
+    aspect_ratio = width / height
+    return aspect_ratio
+    
 
 
 
@@ -201,7 +212,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
 
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 8), figsize=(6, 10), fig_column_width:float=4.0, fig_row_height:float=1.0, resolution_multiplier:float=2.0, fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), figsize=None, fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -242,6 +253,9 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 
     nMapsToShow = len(active_maps)
     
+    data_aspect_ratio = compute_aspect_ratio(ratemap.xbin, ratemap.ybin)
+    print(f'data_aspect_ratio: {data_aspect_ratio}')
+    
     if (subplots.num_columns is None) or (subplots.num_rows is None):
         # This will disable pagination by setting an arbitrarily high value
         max_subplots_per_page = nMapsToShow
@@ -250,14 +264,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         # valid specified maximum subplots per page
         max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
     
-    # TODO: constrain the subplots values to just those that you need
-    # the subplot dimension with the fewest entries is the first candiate for removal
     
-    #     if (subplots[0] < subplots[1]):
-    #         first_removal_candiate_dim = 1
-    #     else:
-    #         first_removal_candiate_dim = 0
-    
+    # Constrain the subplots values to just those that you need
     subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
     num_pages = len(included_combined_indicies_pages)
 
@@ -275,12 +283,11 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     if grid_layout_mode == 'subplot':
         page_axes = []
         
-        
     for fig_ind in range(nfigures):
         # Dynamic Figure Sizing: 
         curr_fig_page_grid_size = page_grid_sizes[fig_ind]
         if resolution_multiplier is None:
-            resolution_multiplier = 2.0
+            resolution_multiplier = 1.0
         if (fig_column_width is not None) and (fig_row_height is not None):
             desired_single_map_width = fig_column_width * resolution_multiplier
             desired_single_map_height = fig_row_height * resolution_multiplier
@@ -288,6 +295,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             desired_single_map_width = 4.0 * resolution_multiplier
             desired_single_map_height = 1.0 * resolution_multiplier
          
+        ## Figure size should be (Width, height)
         required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
         print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}')
         # active_figure_size=figsize        
@@ -309,8 +317,10 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             # curr_cbar_mode = 'each'
             curr_cbar_mode = None
             
-            fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, clear=True)
-            grid = ImageGrid(fig, 111,  # similar to subplot(211)
+            grid_rect = (0.0, 0.0, 1.0, 0.9) # (left, bottom, width, height) 
+            
+            fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=100, clear=True, facecolor='r')
+            grid = ImageGrid(fig, grid_rect,  # similar to subplot(211)
                  nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
                  axes_pad=0.05,
                  label_mode="1",
