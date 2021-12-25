@@ -1,3 +1,5 @@
+from __future__ import annotations # otherwise have to do type like 'Ratemap'
+
 from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
 from ipywidgets import widgets
@@ -7,12 +9,19 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 
-# from typing import TYPE_CHECKING
-# if TYPE_CHECKING:
-from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
-
 from neuropy.utils.misc import AutoNameEnum, chunks
-from .. import core
+# from .. import core
+
+# from https://www.stefaanlippens.net/circular-imports-type-hints-python.html to avoid circular import issues
+# also you must add the following line to the beginning of this file:
+#   from __future__ import annotations # otherwise have to do type like 'Ratemap'
+#
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+    from neuropy.core.ratemap import Ratemap
+    
+
 from neuropy.utils import mathutil
 from .figure import Fig
 
@@ -212,7 +221,7 @@ def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_su
     
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_unit_indicies=None, subplots:SubplotGridSizeTuple=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:SubplotGridSizeTuple=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -347,7 +356,7 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
     return figures, page_gs
     
 
-def plot_ratemap_1D(ratemap: core.Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap="tab20b"):
+def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap="tab20b"):
     """Plot 1D place fields stacked
 
     Parameters
@@ -448,7 +457,7 @@ def plot_ratemap_1D(ratemap: core.Ratemap, normalize_xbin=False, ax=None, pad=2,
     return ax, sort_ind, colors_array
 
 
-def plot_raw(ratemap: core.Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
+def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
     """Plot spike location on animal's path
 
     Parameters

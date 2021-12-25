@@ -1,7 +1,6 @@
 
 
-from neuropy.plotting.ratemaps import enumTuningMap2DPlotVariables, enumTuningMap2DPlotMode, plot_ratemap_1D, plot_ratemap_2D
-
+from ..ratemaps import enumTuningMap2DPlotVariables, enumTuningMap2DPlotMode, plot_ratemap_1D, plot_ratemap_2D
 
 class RatemapPlottingMixin:
 	def plot(self, computation_config=None, included_unit_indicies=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, **kwargs):
