@@ -274,13 +274,13 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     
     if grid_layout_mode == 'subplot':
         page_axes = []
+        
+        
     for fig_ind in range(nfigures):
-
         # Dynamic Figure Sizing: 
         curr_fig_page_grid_size = page_grid_sizes[fig_ind]
         if resolution_multiplier is None:
             resolution_multiplier = 2.0
-        
         if (fig_column_width is not None) and (fig_row_height is not None):
             desired_single_map_width = fig_column_width * resolution_multiplier
             desired_single_map_height = fig_row_height * resolution_multiplier
@@ -304,6 +304,11 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             fig.subplots_adjust(hspace=0.2)
             
         elif grid_layout_mode == 'imagegrid':
+            ## Configure Colorbar options:
+            ### curr_cbar_mode: 'each', 'one', None
+            # curr_cbar_mode = 'each'
+            curr_cbar_mode = None
+            
             fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, clear=True)
             grid = ImageGrid(fig, 111,  # similar to subplot(211)
                  nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
@@ -311,7 +316,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                  label_mode="1",
                  share_all=True,
                  cbar_location="top",
-                 cbar_mode="each",
+                 cbar_mode=curr_cbar_mode,
                  cbar_size="7%",
                  cbar_pad="1%",
                  )
@@ -336,7 +341,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         print(f'page_idx: {page_idx}')
         if grid_layout_mode == 'imagegrid':
             active_page_grid = page_gs[page_idx]
-            print(f'active_page_grid: {active_page_grid}')
+            # print(f'active_page_grid: {active_page_grid}')
             
         for (a_linear_index, curr_row, curr_col, curr_included_unit_index) in included_combined_indicies_pages[page_idx]:
             # curr_included_unit_index = included_unit_indicies[a_linear_index]
@@ -369,6 +374,17 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
             # cbar = fig.colorbar(im, cax=cbar_ax)
             # cbar.set_label("firing rate (Hz)")
+
+        # Remove the unused axes if there are any:
+        if grid_layout_mode == 'imagegrid':
+            num_axes_to_remove = (len(active_page_grid) - 1) - curr_page_relative_linear_index
+            if (num_axes_to_remove > 0):
+                for a_removed_linear_index in np.arange(curr_page_relative_linear_index+1, len(active_page_grid)):
+                    removal_ax = active_page_grid[a_removed_linear_index]
+                    fig.delaxes(removal_ax)
+
+        # if (a_linear_index < len(active_page_grid)
+        
         
 
     # # Original version:
