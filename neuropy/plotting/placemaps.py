@@ -7,8 +7,6 @@ from neuropy.plotting.figure import pretty_plot
 
 
 
-    
-
 def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True):
     """ Main function to plot all aspects of 1D and 2D placefields
     active_placefields1D: (Pf1D)
