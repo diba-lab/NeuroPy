@@ -7,6 +7,7 @@ from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
 
 from neuropy.utils.misc import AutoNameEnum, chunks
@@ -27,6 +28,20 @@ from .figure import Fig
 
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to a single flat function (if that's appropriate).
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
+
+
+def add_inner_title(ax, title, loc, **kwargs):
+    from matplotlib.offsetbox import AnchoredText
+    from matplotlib.patheffects import withStroke
+    prop = dict(path_effects=[withStroke(foreground='w', linewidth=3)],
+                size=plt.rcParams['legend.fontsize'])
+    at = AnchoredText(title, loc=loc, prop=prop,
+                      pad=0., borderpad=0.5,
+                      frameon=False, **kwargs)
+    ax.add_artist(at)
+    return at
+
+
 
 
 @unique
@@ -166,7 +181,6 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     TUNING_MAPS = auto() # DEFAULT
     FIRING_MAPS = auto() 
     
-
 RequiredSubplotsTuple = namedtuple('RequiredSubplotsTuple', 'num_required_subplots num_columns num_rows combined_indicies')
 SubplotGridSizeTuple = namedtuple('SubplotGridSizeTuple', 'num_rows num_columns')
 PaginatedGridIndexSpecifierTuple = namedtuple('PaginatedGridIndexSpecifierTuple', 'linear_idx row_idx col_idx data_idx')
@@ -233,6 +247,11 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         figure number to start from, by default None
     """
     
+    # grid_layout_mode = 'gridspec'
+    grid_layout_mode = 'imagegrid'
+    # grid_layout_mode = 'subplot'
+    
+    
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
     
@@ -274,24 +293,43 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         else:
             fignum = 1
 
-    figures, page_gs, page_axes = [], []
+    figures, page_gs = [], []
+    
+    if grid_layout_mode == 'subplot':
+        page_axes = []
     for fig_ind in range(nfigures):
-        
-        
-        # fig, axs = plt.subplots(ncols=page_grid_sizes[fig_ind].num_columns, nrows=page_grid_sizes[fig_ind].num_rows, figsize=figsize, clear=True, constrained_layout=True)
-        # page_axes.append(axs)
 
-        fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)        
-        # gs.append(GridSpec(subplots[0], subplots[1], figure=fig))        
-        if last_figure_subplots_same_layout:
-            page_gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
-        else:
-            # print(f'fig_ind {fig_ind}: page_grid_sizes[fig_ind]: {page_grid_sizes[fig_ind]}')
-            page_gs.append(GridSpec(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns, figure=fig))
+
+        if grid_layout_mode == 'gridspec':
+            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
+            if last_figure_subplots_same_layout:
+                page_gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
+            else:
+                # print(f'fig_ind {fig_ind}: page_grid_sizes[fig_ind]: {page_grid_sizes[fig_ind]}')
+                page_gs.append(GridSpec(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns, figure=fig))
             
-        
-        fig.subplots_adjust(hspace=0.2)
-        
+            fig.subplots_adjust(hspace=0.2)
+            
+        elif grid_layout_mode == 'imagegrid':
+            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
+            grid = ImageGrid(fig, 111,  # similar to subplot(211)
+                 nrows_ncols=(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns),
+                 axes_pad=0.05,
+                 label_mode="1",
+                 share_all=True,
+                 cbar_location="top",
+                 cbar_mode="each",
+                 cbar_size="7%",
+                 cbar_pad="1%",
+                 )
+            page_gs.append(grid)
+            
+            
+        elif grid_layout_mode == 'subplot':
+            # otherwise uses subplots mode:
+            fig, axs = plt.subplots(ncols=page_grid_sizes[fig_ind].num_columns, nrows=page_grid_sizes[fig_ind].num_rows, figsize=figsize, clear=True, constrained_layout=True)
+            page_axes.append(axs)
+            
         title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
         
         if computation_config is not None:
@@ -304,26 +342,32 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     # New page-based version:
     for page_idx in np.arange(num_pages):
         print(f'page_idx: {page_idx}')
+        if grid_layout_mode == 'imagegrid':
+            active_page_grid = page_gs[page_idx]
+            print(f'active_page_grid: {active_page_grid}')
+            
         for (a_linear_index, curr_row, curr_col, curr_included_unit_index) in included_combined_indicies_pages[page_idx]:
             # curr_included_unit_index = included_unit_indicies[a_linear_index]
             # curr_included_unit_index = curr_data_idx[a_linear_index]
-            
             
             # Need to convert to page specific:
             curr_page_relative_linear_index = np.mod(a_linear_index, int(page_grid_sizes[page_idx].num_rows * page_grid_sizes[page_idx].num_columns))
             curr_page_relative_row = np.mod(curr_row, page_grid_sizes[page_idx].num_rows)
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
             
-            # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
+            print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
             cell_idx = curr_included_unit_index
             pfmap = active_maps[a_linear_index]
             # Get the axis to plot on:
-            # ax1 = figures[page_idx].add_subplot(gs[page_idx][a_linear_index])
+            if grid_layout_mode == 'gridspec':
+                ax1 = figures[page_idx].add_subplot(page_gs[page_idx][a_linear_index])
+                # ax1 = figures[page_idx].add_subplot(page_gs[page_idx][curr_page_relative_linear_index])
+            elif grid_layout_mode == 'imagegrid':
+                ax1 = active_page_grid[curr_page_relative_linear_index]
+            elif grid_layout_mode == 'subplot':
+                ax1 = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
             
-            # ax1 = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
-            ax1 = figures[page_idx].add_subplot(page_gs[page_idx][curr_page_relative_linear_index])
-                        
             # Plot the main heatmap for this pfmap:
             im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
             
