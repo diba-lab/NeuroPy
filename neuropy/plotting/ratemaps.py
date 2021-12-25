@@ -235,7 +235,7 @@ def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_su
     
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:SubplotGridSizeTuple=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:SubplotGridSizeTuple=(40, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -250,6 +250,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     # grid_layout_mode = 'gridspec'
     grid_layout_mode = 'imagegrid'
     # grid_layout_mode = 'subplot'
+    
+
     
     
     # last_figure_subplots_same_layout = False
@@ -299,21 +301,32 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         page_axes = []
     for fig_ind in range(nfigures):
 
-
+        # Dynamic Figure Sizing: 
+        curr_fig_page_grid_size = page_grid_sizes[fig_ind]
+        
+        multiplier = 5.0
+        desired_single_map_width = 4.0 * multiplier
+        desired_single_map_height = 1.0 * multiplier
+        required_figure_size = ((curr_fig_page_grid_size.num_columns * desired_single_map_width), (curr_fig_page_grid_size.num_rows * desired_single_map_height)) # (width, height)
+        print(f'required_figure_size: {required_figure_size}')
+        # active_figure_size=figsize        
+        active_figure_size=required_figure_size
+    
+    
         if grid_layout_mode == 'gridspec':
-            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
+            fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, clear=True)
             if last_figure_subplots_same_layout:
                 page_gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
             else:
-                # print(f'fig_ind {fig_ind}: page_grid_sizes[fig_ind]: {page_grid_sizes[fig_ind]}')
-                page_gs.append(GridSpec(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns, figure=fig))
+                # print(f'fig_ind {fig_ind}: curr_fig_page_grid_size: {curr_fig_page_grid_size}')
+                page_gs.append(GridSpec(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns, figure=fig))
             
             fig.subplots_adjust(hspace=0.2)
             
         elif grid_layout_mode == 'imagegrid':
-            fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
+            fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, clear=True)
             grid = ImageGrid(fig, 111,  # similar to subplot(211)
-                 nrows_ncols=(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns),
+                 nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
                  axes_pad=0.05,
                  label_mode="1",
                  share_all=True,
@@ -324,10 +337,9 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                  )
             page_gs.append(grid)
             
-            
         elif grid_layout_mode == 'subplot':
             # otherwise uses subplots mode:
-            fig, axs = plt.subplots(ncols=page_grid_sizes[fig_ind].num_columns, nrows=page_grid_sizes[fig_ind].num_rows, figsize=figsize, clear=True, constrained_layout=True)
+            fig, axs = plt.subplots(ncols=curr_fig_page_grid_size.num_columns, nrows=curr_fig_page_grid_size.num_rows, figsize=active_figure_size, clear=True, constrained_layout=True)
             page_axes.append(axs)
             
         title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
@@ -355,7 +367,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             curr_page_relative_row = np.mod(curr_row, page_grid_sizes[page_idx].num_rows)
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
             
-            print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
+            # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
             cell_idx = curr_included_unit_index
             pfmap = active_maps[a_linear_index]
