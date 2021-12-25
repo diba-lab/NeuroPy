@@ -1,4 +1,5 @@
 from enum import Enum, IntEnum, auto, unique
+from collections import namedtuple
 from ipywidgets import widgets
 from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
@@ -7,7 +8,7 @@ import matplotlib as mpl
 import numpy as np
 
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
-from neuropy.utils.misc import AutoNameEnum
+from neuropy.utils.misc import AutoNameEnum, chunks
 from .. import core
 from neuropy.utils import mathutil
 from .figure import Fig
@@ -42,7 +43,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         # plot_mode = enumTuningMap2DPlotMode.PCOLORFAST
         plot_mode = enumTuningMap2DPlotMode.IMSHOW
     
-    use_alpha_by_occupancy = True # Only supported in IMSHOW mode
+    use_alpha_by_occupancy = False # Only supported in IMSHOW mode
     
     if ax is None:
         ax = plt.gca()
@@ -153,8 +154,62 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     TUNING_MAPS = auto() # DEFAULT
     FIRING_MAPS = auto() 
     
+
+RequiredSubplotsTuple = namedtuple('RequiredSubplotsTuple', 'num_required_subplots num_columns num_rows combined_indicies')
+SubplotGridSizeTuple = namedtuple('SubplotGridSizeTuple', 'num_rows num_columns')
+PaginatedGridIndexSpecifierTuple = namedtuple('PaginatedGridIndexSpecifierTuple', 'linear_idx row_idx col_idx data_idx')
+
+
+
+def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_subplots_per_page, data_indicies=None, last_figure_subplots_same_layout=True):
+    """ Fills row-wise first 
+
+    Args:
+        num_required_subplots ([type]): [description]
+        max_num_columns ([type]): [description]
+        max_subplots_per_page ([type]): [description]
+        data_indicies ([type], optional): your indicies into your original data that will also be accessible in the main loop. Defaults to None.
+    """
+    
+    def _compute_subplots_grid_size(num_page_required_subplots, page_max_num_columns):
+        """ For a single page """
+        fixed_columns = min(page_max_num_columns, num_page_required_subplots) # if there aren't enough plots to even fill up a whole row, reduce the number of columns
+        total_needed_rows = int(np.ceil(num_page_required_subplots / fixed_columns))
+        return SubplotGridSizeTuple(total_needed_rows, fixed_columns)
+    
+    def _compute_num_subplots(num_required_subplots, max_num_columns, data_indicies=None):
+        linear_indicies = np.arange(num_required_subplots)
+        if data_indicies is None:
+            data_indicies = np.arange(num_required_subplots) # the data_indicies are just the same as the lienar indicies unless otherwise specified
+            
+        # fixed_columns = min(max_num_columns, num_required_subplots) # if there aren't enough plots to even fill up a whole row, reduce the number of columns
+        # total_needed_rows = int(np.ceil(num_required_subplots / fixed_columns))
+        
+        (total_needed_rows, fixed_columns) = _compute_subplots_grid_size(num_required_subplots, max_num_columns)
+        
+        all_row_column_indicies = np.unravel_index(linear_indicies, (total_needed_rows, fixed_columns)) # inverse is: np.ravel_multi_index(row_column_indicies, (needed_rows, fixed_columns))
+        all_combined_indicies = [PaginatedGridIndexSpecifierTuple(linear_indicies[i], all_row_column_indicies[0][i], all_row_column_indicies[1][i], data_indicies[i]) for i in np.arange(len(linear_indicies))]
+         
+        return RequiredSubplotsTuple(num_required_subplots, fixed_columns, total_needed_rows, all_combined_indicies)
+
+    subplot_no_pagination_configuration = _compute_num_subplots(num_required_subplots, max_num_columns=max_num_columns, data_indicies=data_indicies)
+    
+    # flat_row_indices = np.arange(subplot_no_pagination_configuration.num_rows)
+    
+    included_combined_indicies_pages = [list(chunk) for chunk in chunks(subplot_no_pagination_configuration.combined_indicies, max_subplots_per_page)]
+    
+    if last_figure_subplots_same_layout:
+        page_grid_sizes = [_compute_subplots_grid_size(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns) for a_page in included_combined_indicies_pages]
+        
+    else:
+        page_grid_sizes = [_compute_subplots_grid_size(len(a_page), subplot_no_pagination_configuration.num_columns) for a_page in included_combined_indicies_pages]
+
+    print(f'page_grid_sizes: {page_grid_sizes}')
+    return subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes
+    
+
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_unit_indicies=None, subplots=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
+def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_unit_indicies=None, subplots:SubplotGridSizeTuple=(10, 8), figsize=(6, 10), fignum=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -166,6 +221,11 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
         figure number to start from, by default None
     """
     
+    # last_figure_subplots_same_layout = False
+    last_figure_subplots_same_layout = True
+    
+    if not isinstance(subplots, SubplotGridSizeTuple):
+        subplots = SubplotGridSizeTuple(subplots[0], subplots[1])
     if included_unit_indicies is None:
         included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
     
@@ -178,18 +238,23 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
     else:
         raise ValueError
 
-    nCells = len(active_maps)
+    nMapsToShow = len(active_maps)
     
-    #     # TODO: constrain the subplots values to just those that you need
-    #     # the subplot dimension with the fewest entries is the first candiate for removal
-        
+    max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
+    
+    # TODO: constrain the subplots values to just those that you need
+    # the subplot dimension with the fewest entries is the first candiate for removal
+    
     #     if (subplots[0] < subplots[1]):
     #         first_removal_candiate_dim = 1
     #     else:
     #         first_removal_candiate_dim = 0
+    
+    subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
+    num_pages = len(included_combined_indicies_pages)
 
-
-    nfigures = nCells // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
+    nfigures = num_pages
+    # nfigures = nMapsToShow // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
 
     if fignum is None:
         if f := plt.get_fignums():
@@ -199,8 +264,20 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
 
     figures, gs = [], []
     for fig_ind in range(nfigures):
-        fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)
-        gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
+        
+        
+        # fig, axs = plt.subplots(ncols=page_grid_sizes[fig_ind].num_columns, nrows=page_grid_sizes[fig_ind].num_rows, figsize=figsize, clear=True, constrained_layout=True)
+        # page_axes.append(axs)
+
+        fig = plt.figure(fignum + fig_ind, figsize=figsize, clear=True)        
+        # gs.append(GridSpec(subplots[0], subplots[1], figure=fig))        
+        if last_figure_subplots_same_layout:
+            gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
+        else:
+            print(f'fig_ind {fig_ind}: page_grid_sizes[fig_ind]: {page_grid_sizes[fig_ind]}')
+            gs.append(GridSpec(page_grid_sizes[fig_ind].num_rows, page_grid_sizes[fig_ind].num_columns, figure=fig))
+            
+        
         fig.subplots_adjust(hspace=0.2)
         
         title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
@@ -212,24 +289,57 @@ def plot_ratemap_2D(ratemap: core.Ratemap, computation_config=None, included_uni
         fig.suptitle(title_string)
         figures.append(fig)
 
-    for active_map_idx, pfmap in enumerate(active_maps):
-        ind = active_map_idx // np.prod(subplots)
-        subplot_ind = active_map_idx % np.prod(subplots)
-        ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
+    # New page-based version:
+    for page_idx in np.arange(num_pages):
+        print(f'page_idx: {page_idx}')
+        for (a_linear_index, curr_row, curr_col, curr_included_unit_index) in included_combined_indicies_pages[page_idx]:
+            # curr_included_unit_index = included_unit_indicies[a_linear_index]
+            # curr_included_unit_index = curr_data_idx[a_linear_index]
+            
+            
+            # Need to convert to page specific:
+            curr_page_relative_linear_index = np.mod(a_linear_index, int(page_grid_sizes[page_idx].num_rows * page_grid_sizes[page_idx].num_columns))
+            curr_page_relative_row = np.mod(curr_row, page_grid_sizes[page_idx].num_rows)
+            curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
+            
+            print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
+            
+            cell_idx = curr_included_unit_index
+            pfmap = active_maps[a_linear_index]
+            # Get the axis to plot on:
+            # ax1 = figures[page_idx].add_subplot(gs[page_idx][a_linear_index])
+            
+            # ax1 = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
+            ax1 = figures[page_idx].add_subplot(gs[page_idx][curr_page_relative_linear_index])
+                        
+            # Plot the main heatmap for this pfmap:
+            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
+            
+            if enable_spike_overlay:
+                ax1.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
+            
+            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
+            # cbar = fig.colorbar(im, cax=cbar_ax)
+            # cbar.set_label("firing rate (Hz)")
         
-        cell_idx = included_unit_indicies[active_map_idx]
+
+    # # Original version:
+    # for active_map_idx, pfmap in enumerate(active_maps):
+    #     figure_idx = active_map_idx // np.prod(subplots)
+    #     subplot_ind = active_map_idx % np.prod(subplots)
+    #     ax1 = figures[figure_idx].add_subplot(gs[figure_idx][subplot_ind])
         
-        # Plot the main heatmap for this pfmap:
-        im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
+    #     cell_idx = included_unit_indicies[active_map_idx]
         
-        if enable_spike_overlay:
-            ax1.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
-            # ax1.scatter(self.spk_pos[cell][1], self.spk_pos[cell][0], s=1, c='white', alpha=0.3, marker=',')
+    #     # Plot the main heatmap for this pfmap:
+    #     im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
         
-        
-        # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-        # cbar = fig.colorbar(im, cax=cbar_ax)
-        # cbar.set_label("firing rate (Hz)")
+    #     if enable_spike_overlay:
+    #         ax1.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
+           
+    #     # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
+    #     # cbar = fig.colorbar(im, cax=cbar_ax)
+    #     # cbar.set_label("firing rate (Hz)")
         
     return figures, gs
     

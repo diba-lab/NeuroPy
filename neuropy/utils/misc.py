@@ -1,4 +1,5 @@
 from enum import Enum, IntEnum, auto, unique
+from itertools import islice
 import numpy as np
 
 
@@ -15,6 +16,24 @@ class AutoNameEnum(Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name
 
+
+def chunks(iterable, size=10):
+    """[summary]
+
+    Args:
+        iterable ([type]): [description]
+        size (int, optional): [description]. Defaults to 10.
+
+    Usage:
+        laps_pages = [list(chunk) for chunk in _chunks(sess.laps.lap_id, curr_num_subplots)]
+    """
+    iterator = iter(iterable)
+    for first in iterator:    # stops when iterator is depleted
+        def chunk():          # construct generator for next chunk
+            yield first       # yield element from for loop
+            for more in islice(iterator, size - 1):
+                yield more    # yield more elements from the iterator
+        yield chunk()         # in outer generator, yield next chunk
 
 
 
