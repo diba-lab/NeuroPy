@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 from neuropy.utils import mathutil
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple, PaginatedGridIndexSpecifierTuple, RequiredSubplotsTuple
+from neuropy.utils.colors_util import get_neuron_colors
+
 
 from .figure import Fig
 
@@ -566,9 +568,9 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     #     # cbar.set_label("firing rate (Hz)")
         
     return figures, page_gs
-    
 
-def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap="tab20b"):
+
+def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None):
     """Plot 1D place fields stacked
 
     Parameters
@@ -591,7 +593,9 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     [type]
         [description]
     """
-    cmap = mpl.cm.get_cmap(cmap)
+    
+    
+    # cmap = mpl.cm.get_cmap(cmap)
 
     tuning_curves = ratemap.tuning_curves
     n_neurons = ratemap.n_neurons
@@ -616,6 +620,9 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     else:
         sort_ind = np.arange(n_neurons)
 
+    # Use the get_neuron_colors function to generate colors for these neurons
+    neurons_colors_array = get_neuron_colors(sort_ind, cmap=cmap)
+
     ## TODO: actually sort the ratemap object's neuron_ids and tuning_curves by the sort_ind
     # sorted_neuron_ids = ratemap.neuron_ids[sort_ind]
     
@@ -629,10 +636,11 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     # sorted_neuron_id_labels = [f'Cell[{a_neuron_id}]' for a_neuron_id in sorted_neuron_ids]
     sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i].shank}|{sorted_alt_tuple_neuron_ids[i].cluster})' for i in np.arange(len(sorted_neuron_ids))]
     
-    colors_array = np.zeros((4, n_neurons))
+    # neurons_colors_array = np.zeros((4, n_neurons))
     for i, neuron_ind in enumerate(sort_ind):
-        color = cmap(i / len(sort_ind))
-        colors_array[:, i] = color
+        # color = cmap(i / len(sort_ind))
+        # neurons_colors_array[:, i] = color
+        color = neurons_colors_array[:, i]
         curr_neuron_id = sorted_neuron_ids[i]
 
         ax.fill_between(
@@ -666,7 +674,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     # if self.run_dir is not None:
     #     ax.set_title(self.run_dir.capitalize() + " Runs only")
 
-    return ax, sort_ind, colors_array
+    return ax, sort_ind, neurons_colors_array
 
 
 def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
