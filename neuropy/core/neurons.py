@@ -724,7 +724,7 @@ class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
 
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
-        """Returns neurons object with neuron_ids equal to ids"""
+        """Returns BinnedSpiketrain object with neuron_ids equal to ids"""
         indices = np.isin(self.neuron_ids, ids)
         return self[indices]
     

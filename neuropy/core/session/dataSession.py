@@ -381,7 +381,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         return position_df
     
     
-    
+    def __sizeof__(self) -> int:
+        """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
+        return super().__sizeof__() + int(np.sum([sys.getsizeof(self.spikes_df), sys.getsizeof(self.epochs.to_dataframe()), sys.getsizeof(self.position.to_dataframe())]))
 
 
     # DataSessionPanelMixin:
