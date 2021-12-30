@@ -18,7 +18,7 @@ from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
 
 @unique
-class NeuronType(int, Enum):
+class NeuronType(Enum):
     PYRAMIDAL = 0
     CONTAMINATED = 1
     INTERNEURONS = 2
