@@ -506,14 +506,10 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             # print(f'active_page_grid: {active_page_grid}')
             
         for (a_linear_index, curr_row, curr_col, curr_included_unit_index) in included_combined_indicies_pages[page_idx]:
-            # curr_included_unit_index = included_unit_indicies[a_linear_index]
-            # curr_included_unit_index = curr_data_idx[a_linear_index]
-            
             # Need to convert to page specific:
             curr_page_relative_linear_index = np.mod(a_linear_index, int(page_grid_sizes[page_idx].num_rows * page_grid_sizes[page_idx].num_columns))
             curr_page_relative_row = np.mod(curr_row, page_grid_sizes[page_idx].num_rows)
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
-            
             # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
             cell_idx = curr_included_unit_index
@@ -521,7 +517,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             # Get the axis to plot on:
             if grid_layout_mode == 'gridspec':
                 ax1 = figures[page_idx].add_subplot(page_gs[page_idx][a_linear_index])
-                # ax1 = figures[page_idx].add_subplot(page_gs[page_idx][curr_page_relative_linear_index])
             elif grid_layout_mode == 'imagegrid':
                 ax1 = active_page_grid[curr_page_relative_linear_index]
             elif grid_layout_mode == 'subplot':
@@ -545,27 +540,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                     removal_ax = active_page_grid[a_removed_linear_index]
                     fig.delaxes(removal_ax)
 
-        # if (a_linear_index < len(active_page_grid)
-        
-        
-
-    # # Original version:
-    # for active_map_idx, pfmap in enumerate(active_maps):
-    #     figure_idx = active_map_idx // np.prod(subplots)
-    #     subplot_ind = active_map_idx % np.prod(subplots)
-    #     ax1 = figures[figure_idx].add_subplot(gs[figure_idx][subplot_ind])
-        
-    #     cell_idx = included_unit_indicies[active_map_idx]
-        
-    #     # Plot the main heatmap for this pfmap:
-    #     im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
-        
-    #     if enable_spike_overlay:
-    #         ax1.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
-           
-    #     # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-    #     # cbar = fig.colorbar(im, cax=cbar_ax)
-    #     # cbar.set_label("firing rate (Hz)")
         
     return figures, page_gs
 
