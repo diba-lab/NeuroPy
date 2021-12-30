@@ -1,5 +1,6 @@
 import numpy as np
-from . import DataWriter
+
+# from .core import DataWriter
 
 
 class Signal:
@@ -72,7 +73,7 @@ class Signal:
         return Signal(traces, self.sampling_rate, t_start, channel_id)
 
 
-class TimeFrequency(Signal):
+class Spectrogram(Signal):
     def __init__(self, traces, freqs, sampling_rate=1, t_start=0) -> None:
         super().__init__(traces, sampling_rate, t_start=t_start, channel_id=freqs)
 
@@ -89,18 +90,18 @@ class TimeFrequency(Signal):
     def get_band_power(self, f1=None, f2=None):
 
         if f1 is None:
-            f1 = self.channel_id[0]
+            f1 = self.freqs[0]
 
         if f2 is None:
-            f2 = self.channel_id[-1]
+            f2 = self.freqs[-1]
 
-        assert f1 >= self.channel_id[0], "f1 should be greater than lowest frequency"
+        assert f1 >= self.freqs[0], "f1 should be greater than lowest frequency"
         assert (
-            f2 <= self.channel_id[-1]
+            f2 <= self.freqs[-1]
         ), "f2 should be lower than highest possible frequency"
         assert f2 > f1, "f2 should be greater than f1"
 
-        ind = np.where((self.channel_id >= f1) & (self.channel_id <= f2))[0]
+        ind = np.where((self.freqs >= f1) & (self.freqs <= f2))[0]
         band_power = np.mean(self.traces[ind, :], axis=0)
         return band_power
 
@@ -111,8 +112,8 @@ class TimeFrequency(Signal):
     @property
     def deltaplus(self):
         deltaplus_ind = np.where(
-            ((self.channel_id > 0.5) & (self.channel_id < 4))
-            | ((self.channel_id > 12) & (self.channel_id < 15))
+            ((self.freqs > 0.5) & (self.freqs < 4))
+            | ((self.freqs > 12) & (self.freqs < 15))
         )[0]
         deltaplus_sxx = np.mean(self.sxx[deltaplus_ind, :], axis=0)
         return deltaplus_sxx
