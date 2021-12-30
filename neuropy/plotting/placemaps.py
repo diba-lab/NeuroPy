@@ -54,15 +54,6 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 
     ## 2D Position Placemaps:
     if active_placefields2D is not None:
-        # active_pf_occupancy_2D_identifier_string = '2D Occupancy - {}'.format(active_epoch_name)
-        # if variant_identifier_label is not None:
-        #     active_pf_occupancy_2D_identifier_string = ' - '.join([active_pf_occupancy_2D_identifier_string, variant_identifier_label])
-                    
-        # title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
-        # subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
-        # occupancy_fig, occupancy_ax = plot_placefield_occupancy(active_placefields2D)
-        # occupancy_fig.suptitle(title_string, fontsize='14')
-        # occupancy_ax.set_title(subtitle_string, fontsize='10')
         active_2D_occupancy_variant_identifier_list = [active_epoch_name]
         if variant_identifier_label is not None:
             active_2D_occupancy_variant_identifier_list.append(variant_identifier_label)
@@ -87,9 +78,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         title_string = ' '.join([active_pf_2D_identifier_string])
         subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
         
-        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(80, 3), figsize=(30, 30))        
-        # occupancy_fig.suptitle(title_string, fontsize='22')
-        # occupancy_ax.set_title(subtitle_string, fontsize='16')
+        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(80, 3), figsize=(30, 30))
 
         if should_save_to_disk:
             active_pf_2D_filename_prefix_string = f'Placefields-{active_epoch_name}'

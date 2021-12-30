@@ -248,7 +248,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     use_special_overlayed_title = True
     
     # use_alpha_by_occupancy = False # Only supported in IMSHOW mode
-    use_alpha_by_occupancy = True # Only supported in IMSHOW mode
+    use_alpha_by_occupancy = False # Only supported in IMSHOW mode
     
     if ax is None:
         ax = plt.gca()
