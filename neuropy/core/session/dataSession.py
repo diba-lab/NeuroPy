@@ -12,14 +12,16 @@ from neuropy.core.position import Position
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from copy import deepcopy
 
+
 # Local imports:
 ## Core:
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+from neuropy.utils.mixins.panel import DataSessionPanelMixin
 
 
-class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
+class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
@@ -379,6 +381,13 @@ class DataSession(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, Concate
         return position_df
     
     
+    
+
+
+    # DataSessionPanelMixin:
+    def panel_dataframes_overview(self, max_page_items=20):
+        return DataSessionPanelMixin.panel_session_dataframes_overview(self, max_page_items=max_page_items)
+        
 # # Helper function that processed the data in a given directory
 # def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
 #     # sess = DataSession(basedir)
