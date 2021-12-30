@@ -13,11 +13,94 @@ from .epoch import Epoch
 from .signal import Signal
 from .datawriter import DataWriter
 from neuropy.utils.load_exported import import_mat_file 
-from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 
 
+""" --- """
+@pd.api.extensions.register_dataframe_accessor("position")
+class PositionAccessor(TimeSlicedMixin):
+    """ A Pandas DataFrame-based Position helper. """
+    __time_variable_name = 't' # currently hardcoded
+    
+    def __init__(self, pandas_obj):
+        self._validate(pandas_obj)
+        self._obj = pandas_obj
+
+    @staticmethod
+    def _validate(obj):
+        # verify there is a column for timestamps ('t') and a column for at least 1D positions ('x')
+        if "t" not in obj.columns:
+            raise AttributeError("Must have at least one time variable: either 't' and 't_seconds', or 't_rel_seconds'.")
+        if "x" not in obj.columns:
+            raise AttributeError("Must have at least one position dimension column 'x'.")
+        # if "lin_pos" not in obj.columns or "speed" not in obj.columns:
+        #     raise AttributeError("Must have 'lin_pos' column and 'x'.")
+
+    @property
+    def time_variable_name(self):
+        return PositionAccessor.__time_variable_name
+    
+    @property
+    def ndim(self):
+        """ returns the count of the spatial columns that the dataframe has """
+        return np.sum(np.isin(['x','y','z'], self._obj.columns))
+        
+    @property
+    def dim_columns(self):
+        """ returns the labels of the columns that correspond to spatial columns 
+            If ndim == 1, returns ['x'], 
+            if ndim == 2, returns ['x','y'], etc.
+        """
+        spatial_column_labels = np.array(['x','y','z'])
+        return list(spatial_column_labels[np.isin(spatial_column_labels, self._obj.columns)])
+    
+    @property
+    def n_frames(self):
+        return len(self._obj.index)
+    
+    @property
+    def speed(self):
+        # dt = 1 / self.sampling_rate
+        if 'speed' in self._obj.columns:
+            return self._obj['speed'].to_numpy()
+        else:
+            # dt = np.diff(self.time)
+            dt = np.mean(np.diff(self.time))
+            self._obj['speed'] = np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)        
+        return self._obj['speed'].to_numpy()
+    
+    
+    def compute_higher_order_derivatives(self, component_label: str):
+        """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
+        Args:
+            self (pd.DataFrame): [a pos_df]
+            component_label (str): [description]
+        Returns:
+            pd.DataFrame: The updated dataframe with the dt, velocity, and acceleration columns added.
+        """
+        # compute each component separately:
+        velocity_column_key = f'velocity_{component_label}'
+        acceleration_column_key = f'acceleration_{component_label}'
+                
+        dt = np.insert(np.diff(self._obj['t']), 0, np.nan)
+        velocity_comp = np.insert(np.diff(self._obj[component_label]), 0, 0.0) / dt
+        velocity_comp[np.isnan(velocity_comp)] = 0.0 # replace NaN components with zero
+        acceleration_comp = np.insert(np.diff(velocity_comp), 0, 0.0) / dt
+        acceleration_comp[np.isnan(acceleration_comp)] = 0.0 # replace NaN components with zero
+        dt[np.isnan(dt)] = 0.0 # replace NaN components with zero
+        
+        # add the columns to the dataframe:
+        self._obj['dt'] = dt
+        self._obj[velocity_column_key] = velocity_comp
+        self._obj[acceleration_column_key] = acceleration_comp
+        
+        return self._obj  
+    
+    
+    
+""" --- """
 class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
     def __init__(
         self,

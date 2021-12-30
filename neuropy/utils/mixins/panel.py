@@ -19,7 +19,17 @@ class DataSessionPanelMixin:
         def _print_df_shape(df):
             return f'{df.shape[0]} rows x {df.shape[1]} cols'
 
-        tabs_list = list()
+        # test_columns_dict = {
+        #     columns:[
+        #         {field:"Photo", title:"photo", formatter:"file"},
+        #     ],
+        # }
+        
+        # test_all_kwargs = {
+        #  'formatter':'money', 'formatterParams':{'precision':False}   
+        # }
+        
+        # tabs_list = list()
         epochs_df = sess.epochs.to_dataframe().copy()
         epochs_df_widget = pn.Column(pn.widgets.StaticText(name='epochs', value=f'Epochs {_print_df_shape(epochs_df)}'), 
                                     pn.widgets.Tabulator(epochs_df, disabled=True, width_policy='min'))

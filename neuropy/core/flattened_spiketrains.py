@@ -2,11 +2,68 @@ from typing import Sequence, Union
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+
+from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
 from .datawriter import DataWriter
-from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from .neurons import NeuronType
+
+
+
+
+
+@pd.api.extensions.register_dataframe_accessor("spikes")
+class SpikesAccessor(TimeSlicedMixin):
+    """ Part of the December 2021 Rewrite of the neuropy.core classes to be Pandas DataFrame based and easily manipulatable """
+    __time_variable_name = 't_rel_seconds' # currently hardcoded
+    
+    def __init__(self, pandas_obj):
+        self._validate(pandas_obj)
+        self._obj = pandas_obj
+
+    @staticmethod
+    def _validate(obj):
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
+        if "aclu" not in obj.columns or "cell_type" not in obj.columns:
+            raise AttributeError("Must have unit id column 'aclu' and 'cell_type' column.")
+        if "flat_spike_idx" not in obj.columns:
+            raise AttributeError("Must have 'flat_spike_idx' column.")
+        if "t" not in obj.columns and "t_seconds" not in obj.columns and "t_rel_seconds" not in obj.columns:
+            raise AttributeError("Must have at least one time column: either 't' and 't_seconds', or 't_rel_seconds'.")
+        
+    @property
+    def time_variable_name(self):
+        return SpikesAccessor.__time_variable_name
+        
+    @property
+    def neuron_ids(self):
+        """ return the unique cell identifiers (given by the unique values of the 'aclu' column) for this DataFrame """
+        unique_aclus = np.unique(self._obj['aclu'].values)
+        return unique_aclus
+    
+    
+    @property
+    def neuron_probe_tuple_ids(self):
+        """ returns a list of NeuronExtendedIdentityTuple tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
+        # groupby the multi-index [shank, cluster]:
+        # shank_cluster_grouped_spikes_df = self._obj.groupby(['shank','cluster'])
+        aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
+        shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
+        output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
+        return output_tuples_list
+        
+    @property
+    def n_total_spikes(self):
+        return np.shape(self._obj)[0]
+
+    @property
+    def n_neurons(self):
+        return len(self.neuron_ids)
+    
+
+
 
 
 # class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
