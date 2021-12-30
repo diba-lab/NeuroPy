@@ -61,6 +61,23 @@ class PositionAccessor(TimeSlicedMixin):
         return len(self._obj.index)
     
     @property
+    def time(self):
+        return self._obj[self.time_variable_name].to_numpy()
+    
+    @property
+    def traces(self):
+        """ Compatibility method for the old-style implementation. """
+        # print('traces accessed with self.ndim of {}'.format(self.ndim))
+        if self.ndim == 1:
+            return self._obj[['x']].to_numpy().T
+        elif self.ndim >= 2:
+            return self._obj[['x','y']].to_numpy().T
+        elif self.ndim >= 3:
+            return self._obj[['x','y','z']].to_numpy().T
+        else:
+            raise IndexingError
+        
+    @property
     def speed(self):
         # dt = 1 / self.sampling_rate
         if 'speed' in self._obj.columns:

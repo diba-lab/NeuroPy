@@ -495,6 +495,10 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             print('dataframe qclu column does not exist. Initializing it to the same as aclu')
             spikes_df['qclu'] = spikes_df['aclu']
             
+        if ('cluster' not in spikes_df.columns):
+            print('dataframe cluster column does not exist. Initializing it to the same as aclu')
+            spikes_df['cluster'] = spikes_df['aclu']
+            
         # return spikes_df
 
     @classmethod
