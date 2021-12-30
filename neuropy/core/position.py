@@ -75,6 +75,15 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
 
 
 ## Compatibility:
+    @classmethod
+    def legacy_from_dict(cls, dict_rep: dict):
+        """ Tries to load the dict using previous versions of this code. """
+        # Legacy fallback:
+        print(f'Position falling back to legacy loading protocol...: dict_rep: {dict_rep}')
+        return Position.init(**({'computed_traces': None, 't_start': 0, 'sampling_rate': 120, 'metadata': None} | dict_rep))
+        
+        
+
     @property
     def traces(self):
         """ Compatibility method for the old-style implementation. """

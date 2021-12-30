@@ -7,7 +7,15 @@ from neuropy.utils.mixins.file_representable import FileRepresentable
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 
 
-class DataWriter(FileRepresentable, DictRepresentable, SimplePrintable):
+class LegacyDataLoadingMixin:
+    @classmethod
+    def legacy_from_dict(cls, dict_rep: dict):
+        """ Tries to load the dict using previous versions of this code. """
+        raise NotImplementedError
+    
+        
+
+class DataWriter(FileRepresentable, DictRepresentable, LegacyDataLoadingMixin, SimplePrintable):
     def __init__(self, metadata=None) -> None:
 
         self._filename = None
@@ -68,7 +76,14 @@ class DataWriter(FileRepresentable, DictRepresentable, SimplePrintable):
             
             if dict_rep is not None:
                 # Convert to object
-                obj = cls.from_dict(dict_rep)
+                try:
+                    obj = cls.from_dict(dict_rep)
+                except KeyError as e:
+                    # print(f'f: {f}, dict_rep: {dict_rep}')
+                    # Tries to load using any legacy methods defined in the class
+                    obj = cls.legacy_from_dict(dict_rep)
+                    # raise e
+                
                 obj.filename = f
                 return obj
             return dict_rep

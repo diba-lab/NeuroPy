@@ -408,8 +408,6 @@ class DataSessionLoader:
         #  [fname.format(session_name) for fname in ['{}.xml','{}.neurons.npy','{}.probegroup.npy','{}.position.npy','{}.paradigm.npy']]
         # session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy")) # "epoch" field of file
         session.paradigm = Epoch.from_file(fp.with_suffix(".paradigm.npy"))
-        
-
 
         # session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
         
