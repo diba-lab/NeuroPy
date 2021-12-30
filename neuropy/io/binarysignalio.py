@@ -60,6 +60,31 @@ class BinarysignalIO:
             channel_id=channel_indx,
         )
 
+    def frame_slice(self, channel_indx=None, frame_start=None, frame_stop=None):
+
+        if isinstance(channel_indx, int):
+            channel_indx = [channel_indx]
+
+        if frame_start is None:
+            frame_start = 0
+
+        if frame_stop is None:
+            frame_stop = self.n_frames
+
+        if channel_indx is None:
+            sig = self._raw_traces[:, frame_start:frame_stop]
+        else:
+            sig = self._raw_traces[channel_indx, frame_start:frame_stop]
+
+        if sig.ndim == 1:
+            sig = sig.reshape(1, -1)
+        return Signal(
+            traces=sig,
+            sampling_rate=self.sampling_rate,
+            t_start=frame_start / self.sampling_rate,
+            channel_id=channel_indx,
+        )
+
     def write_time_slice(self, write_filename, t_start, t_stop):
 
         duration = t_stop - t_start
