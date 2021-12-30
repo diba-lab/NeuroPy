@@ -36,6 +36,11 @@ class SpikesAccessor(TimeSlicedMixin):
     @property
     def time_variable_name(self):
         return SpikesAccessor.__time_variable_name
+    
+    def set_time_variable_name(self, new_time_variable_name):
+        print(f'WARNING: SpikesAccessor.set_time_variable_name(new_time_variable_name: {new_time_variable_name}) has been called. Be careful!')
+        SpikesAccessor.__time_variable_name = new_time_variable_name
+        print('\t time variable changed!')
         
     @property
     def neuron_ids(self):

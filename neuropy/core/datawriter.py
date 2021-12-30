@@ -70,9 +70,6 @@ class DataWriter(FileRepresentable, DictRepresentable, LegacyDataLoadingMixin, S
                 # pathlib.PosixPath = pathlib.WindowsPath # Bad hack
                 pathlib.PosixPath = pathlib.PurePosixPath # Bad hack
                 dict_rep = np.load(f, allow_pickle=True).item()
-                # d['filename']
-                # print("Post hack decode: {}\n".format(d))
-                # return dict_rep
             
             if dict_rep is not None:
                 # Convert to object

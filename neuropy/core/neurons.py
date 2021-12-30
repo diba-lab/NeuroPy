@@ -500,11 +500,13 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         shank_ids = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
         cell_quality = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
         cell_type = list() # (108,) Array of float64
+                
         for i in np.arange(num_unique_cell_ids):
             curr_cell_id = flat_cell_ids[i] # actual cell ID
             #curr_flat_cell_indicies = (flat_spikes_out_dict['aclu'] == curr_cell_id) # the indicies where the cell_id matches the current one
             curr_cell_dataframe = cell_grouped_spikes_df.get_group(curr_cell_id)
             spiketrains.append(curr_cell_dataframe[time_variable_name].to_numpy())
+            
             shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
             cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
             cell_type.append(curr_cell_dataframe['cell_type'].to_numpy()[0])

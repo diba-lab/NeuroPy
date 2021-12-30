@@ -87,7 +87,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # re-interpolate given the updated spks
         for cell_df in cell_spikes_dfs:
             cell_spike_times = cell_df['t_rel_seconds'].to_numpy()
-            spk_spd = np.interp(cell_spike_times, self.t, self.speed)
+            # spk_spd = np.interp(cell_spike_times, self.t, self.speed)
             spk_x = np.interp(cell_spike_times, self.t, self.x)
             
             # update the dataframe 'x','speed' and 'y' properties:

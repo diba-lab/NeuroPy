@@ -30,6 +30,11 @@ class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
     @t_stop.setter
     def t_stop(self, t):
         self.start_end_times[1] = t
+    
+    
+    def to_Epoch(self):
+        return Epoch(pd.DataFrame({'start': [self.t_start], 'stop': [self.t_stop], 'label':[self.name]}))
+        
 
 
 
