@@ -98,19 +98,16 @@ def whiten(strain, interp_psd, dt):
     return white_ht
 
 
-class TimeFrequency(core.Signal):
+class WaveletSg(core.Spectrogram):
     def __init__(
         self,
         signal: core.Signal,
         freqs,
-        method="fourier",
         norm_sig=True,
-        window=1,
-        overlap=0.5,
-        ncycles=3,
+        ncycles=7,
         sigma=None,
     ) -> None:
-        """Time frequency analysis on core.Signal object
+        """Wavelet spectrogram on core.Signal object
 
         Parameters
         ----------
@@ -118,18 +115,12 @@ class TimeFrequency(core.Signal):
             should have only a single channel
         freqs : np.array
             frequencies of query
-        method : str, optional
-            choose between fourier, fourierMT(multitaper) and wavelet, by default "fourier"
         norm_sig : bool, optional
             whether to normalize the signal, by default True
-        window : float, optional
-            length of each segment in seconds, ignored if using wavelet method, by default 1 s
-        overlap : float, optional
-            length of overlap between adjacent segments, ignored if using wavelet, by default 0.5
         ncycles : int, optional
-            number of cycles for wavelet, ignored for fourier methods, by default 3 cycles
+            number of cycles for wavelet,higher number gives better frequency resolution at higher frequencies, by default 7 cycles
         sigma : int, optional
-            smoothing to applied on spectrum, in units of seconds, by default 2 s
+            smoothing to apply on spectrum along time axis for each frequency trace, in units of seconds, by default None
 
         Suggestions/References
         ----------------------
@@ -145,21 +136,8 @@ class TimeFrequency(core.Signal):
         if norm_sig:
             trace = stats.zscore(trace)
 
-        if method == "fourier":
-            sxx, freqs_, t = self._ft(trace, signal.sampling_rate, window, overlap)
-            sampling_rate = int(1 / (t[1] - t[0]))
-            f = interp2d(t, freqs_, sxx)
-            sxx = f(t, freqs)
-
-        if method == "fourierMT":
-            sxx, freqs, t = self._ft(
-                trace, signal.sampling_rate, window, overlap, mt=True
-            )
-            sampling_rate = int(1 / (t[1] - t[0]))
-
-        if method == "wavelet":
-            sxx = self._wt(trace, freqs, signal.sampling_rate, ncycles)
-            sampling_rate = signal.sampling_rate
+        sxx = self._wt(trace, freqs, signal.sampling_rate, ncycles)
+        sampling_rate = signal.sampling_rate
 
         if sigma is not None:
             # TODO it is slow for large array, maybe move to a method and use fastlen padding
@@ -167,10 +145,86 @@ class TimeFrequency(core.Signal):
             sxx = filtSig.gaussian_filter1d(sxx, sigma=sigma / sampling_period, axis=-1)
 
         super().__init__(
-            traces=sxx,
-            sampling_rate=sampling_rate,
-            t_start=signal.t_start,
-            channel_id=freqs,
+            traces=sxx, freqs=freqs, sampling_rate=sampling_rate, t_start=signal.t_start
+        )
+
+    def _wt(self, signal, freqs, fs, ncycles):
+        """wavelet transform"""
+        n = len(signal)
+        fastn = next_fast_len(n)
+        signal = np.pad(signal, (0, fastn - n), "constant", constant_values=0)
+        signal = np.tile(signal, (len(freqs), 1))
+        conv_val = np.zeros((len(freqs), n), dtype=complex)
+
+        freqs = freqs[:, np.newaxis]
+        t_wavelet = np.arange(-4, 4, 1 / fs)[np.newaxis, :]
+
+        sigma = ncycles / (2 * np.pi * freqs)
+        A = (sigma * np.sqrt(np.pi)) ** -0.5
+        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
+        img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
+        wavelets = A * real_part * img_part
+
+        conv_val = sg.fftconvolve(signal, wavelets, mode="same", axes=-1)
+        conv_val = np.asarray(conv_val)[:, :n]
+        return np.abs(conv_val).astype("float32")
+
+
+class FourierSg(core.Spectrogram):
+    def __init__(
+        self,
+        signal: core.Signal,
+        freqs,
+        window=1,
+        overlap=0.5,
+        norm_sig=True,
+        multitaper=False,
+        sigma=None,
+    ) -> None:
+        """Forier spectrogram on core.Signal object
+
+        Parameters
+        ----------
+        signal : core.Signal
+            should have only a single channel
+        freqs : np.array
+            frequencies of query
+        norm_sig : bool, optional
+            whether to normalize the signal, by default True
+        window : float, optional
+            length of each segment in seconds, ignored if using wavelet method, by default 1 s
+        overlap : float, optional
+            length of overlap between adjacent segments, ignored if using wavelet, by default 0.5
+        multitaper: bool,
+            whether to use multitaper for estimation, by default False
+        sigma : int, optional
+            smoothing to applied on spectrum, in units of seconds, by default 2 s
+
+        """
+
+        assert signal.n_channels == 1, "signal should have only a single channel"
+        trace = signal.traces[0]
+        if norm_sig:
+            trace = stats.zscore(trace)
+
+        if multitaper:
+            sxx, freqs, t = self._ft(
+                trace, signal.sampling_rate, window, overlap, mt=True
+            )
+            sampling_rate = int(1 / (t[1] - t[0]))
+        else:
+            sxx, freqs_, t = self._ft(trace, signal.sampling_rate, window, overlap)
+            sampling_rate = int(1 / (t[1] - t[0]))
+            f = interp2d(t, freqs_, sxx)
+            sxx = f(t, freqs)
+
+        if sigma is not None:
+            # TODO it is slow for large array, maybe move to a method and use fastlen padding
+            sampling_period = 1 / sampling_rate
+            sxx = filtSig.gaussian_filter1d(sxx, sigma=sigma / sampling_period, axis=-1)
+
+        super().__init__(
+            traces=sxx, sampling_rate=sampling_rate, freqs=freqs, t_start=signal.t_start
         )
 
     def _ft(self, signal, fs, window, overlap, mt=False):
@@ -194,88 +248,6 @@ class TimeFrequency(core.Signal):
             f, t, sxx = sg.spectrogram(signal, fs=fs, nperseg=window, noverlap=overlap)
 
         return sxx, f, t
-
-    def _wt(self, signal, freqs, fs, ncycles):
-        """wavelet transform"""
-        n = len(signal)
-        fastn = next_fast_len(n)
-        signal = np.pad(signal, (0, fastn - n), "constant", constant_values=0)
-        signal = np.tile(signal, (len(freqs), 1))
-        conv_val = np.zeros((len(freqs), n), dtype=complex)
-
-        freqs = freqs[:, np.newaxis]
-        t_wavelet = np.arange(-4, 4, 1 / fs)[np.newaxis, :]
-
-        sigma = ncycles / (2 * np.pi * freqs)
-        A = (sigma * np.sqrt(np.pi)) ** -0.5
-        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
-        img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
-        wavelets = A * real_part * img_part
-
-        conv_val = sg.fftconvolve(signal, wavelets, mode="same", axes=-1)
-        conv_val = np.asarray(conv_val)[:, :n]
-        return np.abs(conv_val).astype("float32")
-
-    def time_slice(self, t_start=None, t_stop=None):
-        return super().time_slice(t_start=t_start, t_stop=t_stop)
-
-    def mean_power(self):
-        return np.mean(self.traces, axis=0)
-
-    def get_band_power(self, f1=None, f2=None):
-
-        if f1 is None:
-            f1 = self.channel_id[0]
-
-        if f2 is None:
-            f2 = self.channel_id[-1]
-
-        assert f1 >= self.channel_id[0], "f1 should be greater than lowest frequency"
-        assert (
-            f2 <= self.channel_id[-1]
-        ), "f2 should be lower than highest possible frequency"
-        assert f2 > f1, "f2 should be greater than f1"
-
-        ind = np.where((self.channel_id >= f1) & (self.channel_id <= f2))[0]
-        band_power = np.mean(self.traces[ind, :], axis=0)
-        return band_power
-
-    @property
-    def delta(self):
-        return self.get_band_power(f1=0.5, f2=4)
-
-    @property
-    def deltaplus(self):
-        deltaplus_ind = np.where(
-            ((self.channel_id > 0.5) & (self.channel_id < 4))
-            | ((self.channel_id > 12) & (self.channel_id < 15))
-        )[0]
-        deltaplus_sxx = np.mean(self.sxx[deltaplus_ind, :], axis=0)
-        return deltaplus_sxx
-
-    @property
-    def theta(self):
-        return self.get_band_power(f1=5, f2=11)
-
-    @property
-    def spindle(self):
-        return self.get_band_power(f1=10, f2=20)
-
-    @property
-    def gamma(self):
-        return self.get_band_power(f1=30, f2=90)
-
-    @property
-    def ripple(self):
-        return self.get_band_power(f1=140, f2=250)
-
-    @property
-    def theta_delta_ratio(self):
-        return self.theta / self.delta
-
-    @property
-    def theta_deltaplus_ratio(self):
-        return self.theta / self.deltaplus
 
 
 def hilbertfast(arr, ax=-1):
