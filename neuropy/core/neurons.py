@@ -482,6 +482,20 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         df = self._spikes_df.copy()
         # df['t_start'] = self.t_start
         return df
+    
+    
+    @classmethod
+    def initialize_missing_spikes_df_columns(cls, spikes_df):
+        """ make sure the needed columns exist on spikes_df """
+        if ('shank' not in spikes_df.columns):
+            print('dataframe shank column does not exist. Initializing it to 1s')
+            spikes_df['shank'] = 1
+            
+        if ('qclu' not in spikes_df.columns):
+            print('dataframe qclu column does not exist. Initializing it to the same as aclu')
+            spikes_df['qclu'] = spikes_df['aclu']
+            
+        # return spikes_df
 
     @classmethod
     def from_dataframe(cls, spikes_df, dat_sampling_rate, time_variable_name='t_rel_seconds'):
