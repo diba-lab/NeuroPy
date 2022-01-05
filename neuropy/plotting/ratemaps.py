@@ -18,6 +18,7 @@ import numpy as np
 #   from __future__ import annotations # otherwise have to do type like 'Ratemap'
 #
 from typing import TYPE_CHECKING
+from neuropy.core.neuron_identities import PlotStringBrevityModeEnum
 if TYPE_CHECKING:
     from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
     from neuropy.core.ratemap import Ratemap
@@ -227,7 +228,7 @@ def compute_data_aspect_ratio(xbin, ybin, sorted_inputs=True):
 
 
 
-def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None):
+def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE):
     """Plots a single tuning curve Heatmap
 
     Args:
@@ -342,10 +343,18 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     # ax.vline(50, 'r')
     # ax.vlines([50], 0, 1, transform=ax.get_xaxis_transform(), colors='r')
     # ax.vlines([50], 0, 1, colors='r')
+    # brev_mode = PlotStringBrevityModeEnum.MINIMAL
     
-    extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+    # old way independent of brev_mode:
+    # extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+    # full_extended_id_string = f"Cell {neuron_extended_id.id} - {extended_id_string}"
+    # new brev_mode dependent way:
+    full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
     pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
-    final_string_components = [f"Cell {neuron_extended_id.id} - {extended_id_string}", pf_firing_rate_string]
+    final_string_components = [full_extended_id_string, pf_firing_rate_string]
+    
+    
+    
     
     if use_special_overlayed_title:
         final_title = ' - '.join(final_string_components)
@@ -363,7 +372,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
 
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), figsize=None, fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -416,7 +425,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
     
     
-    # Constrain the subplots values to just those that you need
+    # Paging Management: Constrain the subplots values to just those that you need
     subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
     num_pages = len(included_combined_indicies_pages)
 
@@ -470,13 +479,15 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             
             # grid_rect = (0.01, 0.05, 0.98, 0.9) # (left, bottom, width, height) 
             grid_rect = 111
-            fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=True)
+            # fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=True)
+            fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
             
             grid = ImageGrid(fig, grid_rect,  # similar to subplot(211)
                  nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
                  axes_pad=0.05,
                  label_mode="1",
                  share_all=True,
+                 aspect=True,
                  cbar_location="top",
                  cbar_mode=curr_cbar_mode,
                  cbar_size="7%",
@@ -516,17 +527,17 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             pfmap = active_maps[a_linear_index]
             # Get the axis to plot on:
             if grid_layout_mode == 'gridspec':
-                ax1 = figures[page_idx].add_subplot(page_gs[page_idx][a_linear_index])
+                curr_ax = figures[page_idx].add_subplot(page_gs[page_idx][a_linear_index])
             elif grid_layout_mode == 'imagegrid':
-                ax1 = active_page_grid[curr_page_relative_linear_index]
+                curr_ax = active_page_grid[curr_page_relative_linear_index]
             elif grid_layout_mode == 'subplot':
-                ax1 = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
+                curr_ax = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
             
             # Plot the main heatmap for this pfmap:
-            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, plot_mode=plot_mode, ax=ax1)
+            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
             
             if enable_spike_overlay:
-                ax1.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
+                curr_ax.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
             
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
             # cbar = fig.colorbar(im, cax=cbar_ax)

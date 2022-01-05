@@ -20,6 +20,72 @@ def build_units_colormap(neuron_ids):
     return pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap
 
 
+from enum import Enum
+
+
+class PlotStringBrevityModeEnum(Enum):
+    """Docstring for PlotStringBrevityModeEnum."""
+    VERBOSE = "VERBOSE"
+    DEFAULT = "DEFAULT"
+    CONCISE = "CONCISE"
+    MINIMAL = "MINIMAL"
+    NONE = "NONE"
+    
+    @property
+    def extended_identity_labels(self):
+        """The extended_identity_labels property."""
+        if self == PlotStringBrevityModeEnum.VERBOSE:
+            return {'cell_uid':'cell_uid', 'shank_index':'shank_index', 'cluster_index':'cluster_index'}
+        elif self == PlotStringBrevityModeEnum.DEFAULT:
+            return {'cell_uid':'id', 'shank_index':'shank', 'cluster_index':'cluster'}
+        elif self == PlotStringBrevityModeEnum.CONCISE:
+            return {'cell_uid':'', 'shank_index':'shk', 'cluster_index':'clu'}
+        elif self == PlotStringBrevityModeEnum.MINIMAL:
+            return {'cell_uid':'', 'shank_index':'s', 'cluster_index':'c'}
+        elif self == PlotStringBrevityModeEnum.NONE:
+            return {'cell_uid':'', 'shank_index':'', 'cluster_index':''}
+        else:
+            raise NameError
+
+
+    # @classmethod
+    # def extended_identity_formatting_string(cls, enum_value, neuron_extended_id):
+    #     """The extended_identity_labels property."""
+    #     if enum_value == PlotStringBrevityModeEnum.VERBOSE:
+    #         return f'Cell cell_uid: {neuron_extended_id.id} - (shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+    #     elif enum_value == PlotStringBrevityModeEnum.DEFAULT:
+    #         return f'Cell {neuron_extended_id.id} - (shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+    #     elif enum_value == PlotStringBrevityModeEnum.CONCISE:
+    #         return f'Cell {neuron_extended_id.id} - (shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+    #     elif enum_value == PlotStringBrevityModeEnum.MINIMAL:
+    #         return f'{neuron_extended_id.id} - s {neuron_extended_id.shank}, c {neuron_extended_id.cluster}'
+    #     elif enum_value == PlotStringBrevityModeEnum.NONE:
+    #         return f'{neuron_extended_id.id} - {neuron_extended_id.shank}, {neuron_extended_id.cluster}'
+    #     else:
+    #         print(f'self: {enum_value} is unknown type!')
+    #         raise NameError
+    
+    
+    def extended_identity_formatting_string(self, neuron_extended_id):
+        """The extended_identity_labels property."""
+        if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
+            return f'Cell cell_uid: {neuron_extended_id.id} - (shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
+            return f'Cell {neuron_extended_id.id} - (shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
+            return f'Cell {neuron_extended_id.id} - (shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
+            return f'{neuron_extended_id.id} - s{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            return f'{neuron_extended_id.id}-{neuron_extended_id.shank},{neuron_extended_id.cluster}'
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
+        # return PlotStringBrevityModeEnum.extended_identity_formatting_string(self, neuron_extended_id)
+        
+        
+
+
 class NeuronIdentity(SimplePrintable):
     """NeuronIdentity: A multi-facited identifier for a specific neuron/putative cell 
         Used to retain a the identity associated with a value or set of values even after filtering and such.
@@ -31,6 +97,24 @@ class NeuronIdentity(SimplePrintable):
         ['shank','cluster']
     
     """
+    @property
+    def extended_identity_tuple(self):
+        """The extended_identity_tuple property."""
+        return NeuronExtendedIdentityTuple(self.shank_index, self.cluster_index, self.cell_uid) # returns self as a NeuronExtendedIdentityTuple 
+    @extended_identity_tuple.setter
+    def extended_identity_tuple(self, value):
+        assert isinstance(value, NeuronExtendedIdentityTuple), "value should be a NeuronExtendedIdentityTuple"
+        self.cell_uid = value.id
+        self.shank_index = value.shank
+        self.cluster_index = value.cluster
+        
+    @property
+    def extended_id_string(self):
+        """The extended_id_string property."""
+        return self._extended_id_string
+    
+    
+    
     def __init__(self, cell_uid, shank_index, cluster_index, color=None):
         self.cell_uid = cell_uid
         self.shank_index = shank_index

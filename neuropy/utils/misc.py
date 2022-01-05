@@ -127,6 +127,25 @@ def get_interval(self, period, nwindows):
     interval = [[interval[i], interval[i + 1]] for i in range(nwindows)]
     return interval
 
+# Enum for size units
+class SIZE_UNIT(Enum):
+    BYTES = 1
+    KB = 2
+    MB = 3
+    GB = 4
+   
+def convert_unit(size_in_bytes, unit):
+    """ Convert the size from bytes to other units like KB, MB or GB"""
+    if unit == SIZE_UNIT.KB:
+        return size_in_bytes/1024
+    elif unit == SIZE_UNIT.MB:
+        return size_in_bytes/(1024*1024)
+    elif unit == SIZE_UNIT.GB:
+        return size_in_bytes/(1024*1024*1024)
+    else:
+        return size_in_bytes
+
+   
 
 def print_seconds_human_readable(seconds):
     """ prints the seconds arguments as a human-redable HH::MM:SS.FRACTIONAL time. """

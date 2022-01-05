@@ -171,6 +171,7 @@ class PfnDMixin(SimplePrintable):
         else:
             variable_array = [self.x, self.y]
             label_array = ["X position (cm)", "Y position (cm)"]
+            
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             a.plot(self.t, pos)
             a.set_xlabel("Time (seconds)")
@@ -208,9 +209,7 @@ class PfnDMixin(SimplePrintable):
         axy = fig_use.add_subplot(gs[1, 1:], sharex=axx)
 
         self.plot_raw(speed_thresh=speed_thresh, clus_use=[cellind], ax=[ax2d])
-        self.plotRaw_v_time(
-            cellind, speed_thresh=speed_thresh, ax=[axx, axy], alpha=alpha
-        )
+        self.plotRaw_v_time(cellind, speed_thresh=speed_thresh, ax=[axx, axy], alpha=alpha)
         self._obj.spikes.plot_ccg(clus_use=[cellind], type="acg", ax=axccg)
 
         return fig_use
