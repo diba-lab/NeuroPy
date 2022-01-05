@@ -16,6 +16,7 @@ from neuropy.core.ratemap import Ratemap
 from neuropy.core.signal import Signal
 
 from neuropy.plotting.figure import pretty_plot
+from neuropy.utils.misc import is_iterable
 
 # from .. import core
 # import neuropy.core as core
@@ -235,7 +236,7 @@ class PfnDMixin(SimplePrintable):
             fig, ax = plt.subplots(self.ndim, 1, sharex=True)
             fig.set_size_inches([23, 9.7])
         
-        if np.isscalar(ax):
+        if not is_iterable(ax):
             ax = [ax]
             
         # plot trajectories

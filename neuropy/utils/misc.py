@@ -1,7 +1,45 @@
+import types
 from collections import namedtuple
 from enum import Enum, IntEnum, auto, unique
 from itertools import islice
 import numpy as np
+from collections.abc import Iterable   # import directly from collections for Python < 3.3
+
+
+import collections
+import _collections_abc as cabc
+import abc
+
+
+## Solution from Alexander McFarlane, https://stackoverflow.com/questions/1055360/how-to-tell-a-variable-is-iterable-but-not-a-string. answered Jun 30 '20 at 13:25
+class NonStringIterable(metaclass=abc.ABCMeta):
+    __slots__ = ()
+
+    @abc.abstractmethod
+    def __iter__(self):
+        while False:
+            yield None
+
+    @classmethod
+    def __subclasshook__(cls, c):
+        if cls is NonStringIterable:
+            if issubclass(c, str):
+                return False
+            return cabc._check_methods(c, "__iter__")
+        return NotImplemented
+    
+
+def is_iterable(value):
+    """Returns true if the value is iterable but not a string.
+    Args:
+        value ([type]): [description]
+    Returns:
+        [type]: [description]
+    """
+    return isinstance(value, NonStringIterable) # use Alexander McFarlane's solution.
+    # return isinstance(value, Iterable) # this version works but neglects classes that are iterable through __getitem__
+
+
 
 
 class AutoNameEnum(Enum):
