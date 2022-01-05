@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 
@@ -138,6 +139,49 @@ def estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
         asc_crossing_beginings[a_asc_crossing_i] = curr_prev_transition_point
 
     return desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings
+
+
+
+def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False):
+    """ 2021-12-21 - Pho's lap estimation from the position data (only)
+    Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)"""
+    if should_plot_laps_2d:
+        from PhoPositionalData.plotting.laps import plot_laps_2d
+
+    # backup the extant laps object to prepare for the new one:
+    if should_backup_extant_laps_obj:
+        sess.old_laps_obj = deepcopy(sess.laps)
+        
+    if should_plot_laps_2d:
+        # plot originals:
+        fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=True)
+        out_axes_list[0].set_title('Old SpikeII computed Laps')
+    
+    position_obj = sess.position
+    # position_obj.dt
+    position_obj.compute_higher_order_derivatives()
+    pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
+    pos_df = position_obj.to_dataframe()
+    # custom_test_laps = deepcopy(sess.laps)
+    spikes_df = deepcopy(sess.spikes_df)
+
+    desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = estimate_laps(pos_df)
+    custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_endings, asc_crossing_beginings, asc_crossing_endings)
+    ## Determine the spikes included with each computed lap:
+    custom_test_laps_obj = compute_laps_spike_indicies(custom_test_laps_obj, spikes_df)
+    sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
+
+    if should_plot_laps_2d:
+        # plot computed:
+        fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=False)
+        out_axes_list[0].set_title('New Pho Position Thresholding Estimated Laps')
+
+    return sess
+
+
+
+
+
 
 # Load from the 'traj' variable of an exported SpikeII.mat file:
 

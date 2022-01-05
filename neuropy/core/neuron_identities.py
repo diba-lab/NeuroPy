@@ -1,15 +1,27 @@
 # neuron_identities
 from collections import namedtuple
 import numpy as np
-
 from neuropy.utils.mixins.print_helpers import SimplePrintable
+from neuropy.utils.colors_util import get_neuron_colors
+from matplotlib.colors import ListedColormap
 
 NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentity', 'shank cluster id')
 
+## Plotting Colors:
+def build_units_colormap(neuron_ids):
+    """ 
+    Usage:
+        pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap = build_units_colormap(good_placefield_neuronIDs)
+    """
+    pf_sort_ind = np.array([int(i) for i in np.arange(len(neuron_ids))]) # convert to integer scalar array
+    pf_colors = get_neuron_colors(pf_sort_ind, cmap=None) # [4 x n_neurons]: colors are by ascending index ID
+    pf_colormap = pf_colors.T # [n_neurons x 4] Make the colormap from the listed colors, used seemingly only by 'runAnalysis_PCAandICA(...)'
+    pf_listed_colormap = ListedColormap(pf_colormap)
+    return pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap
 
-class NeuronIndex(SimplePrintable):
-    ## TODO: Not yet used anywhere
-    """NeuronIndex: A multi-facited identifier for a specific neuron/putative cell 
+
+class NeuronIdentity(SimplePrintable):
+    """NeuronIdentity: A multi-facited identifier for a specific neuron/putative cell 
         Used to retain a the identity associated with a value or set of values even after filtering and such.
 
         cell_uid: (aclu) [2:65]
@@ -20,12 +32,20 @@ class NeuronIndex(SimplePrintable):
     
     """
     def __init__(self, cell_uid, shank_index, cluster_index, color=None):
-        super(NeuronIndex, self).__init__()
         self.cell_uid = cell_uid
         self.shank_index = shank_index
         self.cluster_index = cluster_index
         self.color = color
 
+    @classmethod
+    def init_from_NeuronExtendedIdentityTuple(cls, a_tuple: NeuronExtendedIdentityTuple, a_color=None):
+        """Iniitalizes from a NeuronExtendedIdentityTuple and optionally a color
+        Args:
+            a_tuple (NeuronExtendedIdentityTuple): [description]
+            a_color ([type], optional): [description]. Defaults to None.
+        """
+        return cls(a_tuple.id, a_tuple.shank, a_tuple.cluster, color=a_color)
+        
         
         
 class NeuronIdentityAccessingMixin:
