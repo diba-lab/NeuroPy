@@ -9,7 +9,6 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.image import NonUniformImage
 import pandas as pd
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
-# from neuropy.analyses.pho_custom_placefields import PfND
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
@@ -19,6 +18,8 @@ from neuropy.core.signal import Signal
 from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
+
+from PhoPositionalData.analysis.interactive_placeCell_config import InteractivePlaceCellConfig, PlottingConfig # for compute_placefields_as_needed type-hinting
 
 # from .. import core
 # import neuropy.core as core
@@ -78,64 +79,6 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})"
         else:
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})"
-
-
-
-
-def _bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
-    """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
-    Usage:
-        ## Binning with Fixed Number of Bins:    
-        xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
-        print(bin_info)
-        ## Binning with Fixed Bin Sizes:
-        xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
-        print(bin_info)
-    """
-    assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
-    assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
-    
-    bin_info_out_dict = dict()
-    
-    if num_bins is not None:
-        ## Binning with Fixed Number of Bins:
-        mode = 'num_bins'
-        if np.isscalar(num_bins):
-            num_bins = [num_bins]
-        
-        xnum_bins = num_bins[0]
-        xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
-
-        if y is not None:
-            ynum_bins = num_bins[1]
-            ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position       
-            
-    elif bin_size is not None:
-        ## Binning with Fixed Bin Sizes:
-        mode = 'bin_size'
-        if np.isscalar(bin_size):
-            print(f'np.isscalar(bin_size): {bin_size}')
-            bin_size = [bin_size]
-            
-        xstep = bin_size[0]
-        xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
-        xnum_bins = len(xbin)
-
-        if y is not None:
-            ystep = bin_size[1]
-            ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
-            ynum_bins = len(ybin)
-            
-    # print('xbin: {}'.format(xbin))
-    # print('ybin: {}'.format(ybin))
-    bin_info_out_dict = {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
-    if y is not None:
-        # if at least 2D output, add the y-axis properties to the info dictionary
-        bin_info_out_dict['ystep'], bin_info_out_dict['ynum_bins']  = ystep, ynum_bins
-    else:
-        ybin = None
-        
-    return xbin, ybin, bin_info_out_dict # {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
 
 def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
     # raw occupancy is defined in terms of the number of samples that fall into each bin.
@@ -491,8 +434,8 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             self.y = None
         
         ## Binning with Fixed Number of Bins:    
-        # xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
-        xbin, ybin, bin_info = _bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
+        # xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
+        xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
         
         # --- occupancy map calculation -----------
         if (position.ndim > 1):
@@ -606,11 +549,68 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         filtered_tuning_maps = np.asarray(filter_function(tuning_maps))
         return filtered_tuning_maps, filter_function 
 
+    @staticmethod
+    def _bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
+        """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
+        Usage:
+            ## Binning with Fixed Number of Bins:    
+            xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
+            print(bin_info)
+            ## Binning with Fixed Bin Sizes:
+            xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
+            print(bin_info)
+        """
+        assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
+        assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
+        
+        bin_info_out_dict = dict()
+        
+        if num_bins is not None:
+            ## Binning with Fixed Number of Bins:
+            mode = 'num_bins'
+            if np.isscalar(num_bins):
+                num_bins = [num_bins]
+            
+            xnum_bins = num_bins[0]
+            xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
+
+            if y is not None:
+                ynum_bins = num_bins[1]
+                ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position       
+                
+        elif bin_size is not None:
+            ## Binning with Fixed Bin Sizes:
+            mode = 'bin_size'
+            if np.isscalar(bin_size):
+                print(f'np.isscalar(bin_size): {bin_size}')
+                bin_size = [bin_size]
+                
+            xstep = bin_size[0]
+            xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
+            xnum_bins = len(xbin)
+
+            if y is not None:
+                ystep = bin_size[1]
+                ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
+                ynum_bins = len(ybin)
+                
+        # print('xbin: {}'.format(xbin))
+        # print('ybin: {}'.format(ybin))
+        bin_info_out_dict = {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
+        if y is not None:
+            # if at least 2D output, add the y-axis properties to the info dictionary
+            bin_info_out_dict['ystep'], bin_info_out_dict['ynum_bins']  = ystep, ynum_bins
+        else:
+            ybin = None
+            
+        return xbin, ybin, bin_info_out_dict # {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
 
 
+### Global Placefield Computation Functions
+""" Global Placefield perform Computation Functions """
 
 def perform_compute_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
-    """ Computes both 1D and 2D placefields.
+    """ Most general computation function. Computes both 1D and 2D placefields.
     active_epoch_session_Neurons: 
     active_epoch_pos: a Position object
     included_epochs: a Epoch object to filter with, only included epochs are included in the PF calculations
@@ -643,6 +643,32 @@ def perform_compute_placefields(active_session_spikes_df, active_pos, computatio
         print('active_epoch_placefields2D already exists, reusing it.')
     
     return active_epoch_placefields1D, active_epoch_placefields2D
+
+def compute_placefields_masked_by_epochs(sess, active_config, included_epochs=None, should_display_2D_plots=False):
+    """ Wrapps perform_compute_placefields to make the call simpler """
+    active_session = deepcopy(sess)
+    active_epoch_placefields1D, active_epoch_placefields2D = compute_placefields_as_needed(active_session, active_config.computation_config, active_config, None, None, included_epochs=included_epochs, should_force_recompute_placefields=True, should_display_2D_plots=should_display_2D_plots)
+    # Focus on the 2D placefields:
+    # active_epoch_placefields = active_epoch_placefields2D
+    # Get the updated session using the units that have good placefields
+    # active_session, active_config, good_placefield_neuronIDs = process_by_good_placefields(active_session, active_config, active_epoch_placefields)
+    # debug_print_spike_counts(active_session)
+    return active_epoch_placefields1D, active_epoch_placefields2D
+
+
+def compute_placefields_as_needed(active_session, computation_config:PlacefieldComputationParameters=None, general_config: InteractivePlaceCellConfig=None, active_placefields1D = None, active_placefields2D = None, included_epochs=None, should_force_recompute_placefields=True, should_display_2D_plots=False):
+    from neuropy.plotting.placemaps import plot_all_placefields
+    
+    if computation_config is None:
+        computation_config = PlacefieldComputationParameters(speed_thresh=9, grid_bin=2, smooth=0.5)
+    # active_placefields1D, active_placefields2D = perform_compute_placefields(active_session.neurons, active_session.position, computation_config, active_placefields1D, active_placefields2D, included_epochs=included_epochs, should_force_recompute_placefields=True)
+    active_placefields1D, active_placefields2D = perform_compute_placefields(active_session.spikes_df, active_session.position, computation_config, active_placefields1D, active_placefields2D, included_epochs=included_epochs, should_force_recompute_placefields=should_force_recompute_placefields)
+    # Plot the placefields computed and save them out to files:
+    if should_display_2D_plots:
+        ax_pf_1D, occupancy_fig, active_pf_2D_figures, active_pf_2D_gs = plot_all_placefields(active_placefields1D, active_placefields2D, general_config)
+    else:
+        print('skipping 2D placefield plots')
+    return active_placefields1D, active_placefields2D
 
 
 
