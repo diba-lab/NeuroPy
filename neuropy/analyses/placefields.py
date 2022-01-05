@@ -190,18 +190,17 @@ class PfnDMixin(SimplePrintable):
     
 
     def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):
+        """ Plots the Placefield raw spiking activity for all cells"""
         if self.ndim < 2:
             ## TODO: Pf1D Temporary Workaround:
             return plotting.plot_raw(self.ratemap, self.t, self.x, 'BOTH', ax=ax, subplots=subplots)
         else:        
             if ax is None:
-                fig = plt.figure(fignum, figsize=(6, 10))
+                fig = plt.figure(fignum, figsize=(12, 20))
                 gs = GridSpec(subplots[0], subplots[1], figure=fig)
                 # fig.subplots_adjust(hspace=0.4)
             else:
-                assert len(ax) == len(
-                    clus_use
-                ), "Number of axes must match number of clusters to plot"
+                assert len(ax) == len(clus_use), "Number of axes must match number of clusters to plot"
                 fig = ax[0].get_figure()
 
             # spk_pos_use = self.spk_pos
@@ -217,17 +216,16 @@ class PfnDMixin(SimplePrintable):
                     ax1 = fig.add_subplot(gs[cell])
                 else:
                     ax1 = ax[cell]
-                ax1.plot(self.x, self.y, color="#d3c5c5")
-                ax1.plot(spk_x, spk_y, '.', markersize=0.8, color=[1, 0, 0, alpha])
+                ax1.plot(self.x, self.y, color="#d3c5c5") # Plot the animal's position. This will be the same for all cells
+                ax1.plot(spk_x, spk_y, '.', markersize=0.8, color=[1, 0, 0, alpha]) # plot the cell-specific spike locations
                 ax1.axis("off")
                 if label_cells:
-                    # Put info on title
+                    # Put cell info (id, etc) on title
                     info = self.cell_ids[cell]
                     ax1.set_title(f"Cell {info}")
 
-            fig.suptitle(
-                f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})"
-            )
+            fig.suptitle(f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})")
+            return fig
             
         
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):

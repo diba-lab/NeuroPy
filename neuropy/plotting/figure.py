@@ -225,6 +225,35 @@ def pretty_plot(ax, round_ylim=False):
     return ax
 
 
+
+def debug_print_matplotlib_figure_size(F):
+    """ Prints the current figure size and DPI for a matplotlib figure F. 
+    See https://stackoverflow.com/questions/332289/how-do-you-change-the-size-of-figures-drawn-with-matplotlib 
+    Usage:
+        SizeInches, DPI = debug_print_matplotlib_figure_size(a_fig)
+    """
+    DPI = F.get_dpi()
+    print(f'DPI: {DPI}')
+    SizeInches = F.get_size_inches()
+    print(f'Default size in Inches: {SizeInches}')
+    print('Which should result in a {} x {} Image'.format(DPI*SizeInches[0], DPI*SizeInches[1]))
+    return SizeInches, DPI
+
+def rescale_figure_size(F, scale_multiplier=2.0, debug_print=False):
+    """ Scales up the Matplotlib Figure by a factor of scale_multiplier (in both width and height) without distorting the fonts or line sizes. 
+    Usage:
+        rescale_figure_size(a_fig, scale_multiplier=2.0, debug_print=True)
+    """
+    CurrentSize = F.get_size_inches()
+    F.set_size_inches((CurrentSize[0]*scale_multiplier, CurrentSize[1]*scale_multiplier))
+    if debug_print:
+        RescaledSize = F.get_size_inches()
+        print(f'Size in Inches: {RescaledSize}')
+    return F
+
+
+
+
 # class ScrollPlot:
 #     """
 #     Plot stuff then scroll through it! A bit hacked together as of 2/28/2020. Better would be to input a figure and axes
