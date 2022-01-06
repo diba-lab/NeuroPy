@@ -89,23 +89,23 @@ class DataWriter(FileRepresentable, DictRepresentable, LegacyDataLoadingMixin, S
             return None
         
     @classmethod
-    def to_file(cls, data: dict, f):
+    def to_file(cls, data: dict, f, status_print=True):
         if f is not None:
             assert isinstance(f, Path)
             np.save(f, data)
-            print(f"{f.name} saved")
+            if status_print:
+                print(f"{f.name} saved")
         else:
-            print("filename can not be None")
+            print("WARNING: filename can not be None")
 
 
-    def save(self):
+    def save(self, status_print=True):
         data = self.to_dict()
         DataWriter.to_file(data, self.filename)
 
     def delete_file(self):
         self.filename.unlink()
-
-        print("file removed")
+        print(f"file {self.filename} removed")
 
     def create_backup(self):
         pass

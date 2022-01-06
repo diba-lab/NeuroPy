@@ -15,7 +15,7 @@ from copy import deepcopy
 
 # Local imports:
 ## Core:
-from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta, print_file_progress_message
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.panel import DataSessionPanelMixin
@@ -222,9 +222,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         signal = session.eegfile.get_signal()
         ripple_epochs = oscillations.detect_ripple_epochs(signal, session.probegroup)
         ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
-        print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename))
-        ripple_epochs.save()
-        print('done.\n')
+        # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
+        with ProgressMessagePrinter(ripple_epochs.filename, 'Saving', 'ripple epochs'):
+            ripple_epochs.save()
+        # print('done.')
         return ripple_epochs
     # sess.ripple = compute_neurons_ripples(sess)
 
@@ -234,9 +235,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         print('computing neurons mua for session...\n')
         mua = session.neurons.get_mua()
         mua.filename = session.filePrefix.with_suffix(".mua.npy")
-        print('Saving mua results to {}...'.format(mua.filename))
-        mua.save()
-        print('done.\n')
+        # print('Saving mua results to {}...'.format(mua.filename), end=' ')
+        with ProgressMessagePrinter(mua.filename, 'Saving', 'mua results'):
+            mua.save()
+        # print('done.')
         return mua    
     # sess.mua = compute_neurons_mua(sess) # Set the .mua field on the session object once complete
 
@@ -247,22 +249,24 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         smth_mua = session.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
         pbe = detect_pbe_epochs(smth_mua)
         pbe.filename = session.filePrefix.with_suffix('.pbe.npy')
-        print('Saving pbe results to {}...'.format(pbe.filename))
-        pbe.save()
-        print('done.\n')
+        # print('Saving pbe results to {}...'.format(pbe.filename), end=' ')
+        with ProgressMessagePrinter(pbe.filename, 'Saving', 'pbe results'):
+            pbe.save()
+        # print('done.')
         return pbe
     # sess.pbe = compute_pbe_epochs(sess)
     
     @staticmethod
-    def compute_linear_position(session):
+    def compute_linear_position(session, debug_print=False):
         # compute linear positions:
-        print('Computing linear positions for all active epochs for session...')
+        print('Computing linear positions for all active epochs for session...', end=' ')
         # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
         session.position.linear_pos = np.full_like(session.position.time, np.nan)
         for anEpochLabelName in session.epochs.labels:
             curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
             # session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
-            print('curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
+            if debug_print:
+                print('\t curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
             
             session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_maze1.x
 

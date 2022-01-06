@@ -5,6 +5,8 @@ import pandas as pd
 import sys, os
 from pathlib import Path
 
+from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
+
 # Add Neuropy to the path as needed
 tests_folder = Path(os.path.dirname(__file__))
 
@@ -39,6 +41,14 @@ class TestUtilityMethods(unittest.TestCase):
         
         
 
+    def test_progress_message_printer(self):
+        # TODO: not sure how to test this
+        mat_import_file = 'data/RoyMaze1/positionAnalysis.mat'
+        with ProgressMessagePrinter(mat_import_file, 'Loading', 'matlab import file', returns_string=False):
+            print('\t inside the with statement', end=' ', file=sys.stdout)
+
+        # TODO: check the output buffer for something like this:
+        # 'Loading matlab import file results to data/RoyMaze1/positionAnalysis.mat... 	 inside the with statement done.'
 
 
 

@@ -27,7 +27,7 @@ from neuropy.io import NeuroscopeIO, BinarysignalIO
 
 
 from neuropy.utils.load_exported import import_mat_file
-from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     def __init__(self, basepath, session_spec, session_name):
@@ -237,9 +237,10 @@ class DataSessionLoader:
             session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
             
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)
-            print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename), end='')
-            session.flattened_spiketrains.save()
-            print('\t done.\n')
+            # print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename), end='')
+            with ProgressMessagePrinter(session.flattened_spiketrains.filename, '\t Saving', 'updated interpolated spike position results'):
+                session.flattened_spiketrains.save()
+            # print('\t done.\n')
     
         # return the session with the upadated member variables
         return session, spikes_df
@@ -267,9 +268,10 @@ class DataSessionLoader:
                 session.position = DataSession.compute_linear_position(session)
             
             session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
-            print('Saving updated position results to {}...'.format(session.position.filename), end='')
-            session.position.save()
-            print('\t done.\n')
+            # print('Saving updated position results to {}...'.format(session.position.filename), end='')
+            with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
+                session.position.save()
+            # print('\t done.\n')
         else:
             print('\t linearized position loaded from file.')
             # return the session with the upadated member variables
@@ -342,9 +344,10 @@ class DataSessionLoader:
             session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
             session.position.linear_pos[acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
-            print('Saving updated position results to {}...'.format(session.position.filename))
-            session.position.save()
-            print('done.\n')
+            # print('Saving updated position results to {}...'.format(session.position.filename))
+            with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
+                session.position.save()
+            # print('done.\n')
         else:
             print('linearized position loaded from file.')
 

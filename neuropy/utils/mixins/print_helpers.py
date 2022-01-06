@@ -35,3 +35,49 @@ class OrderedMeta(type):
         c._orderedKeys = clsdict.keys()
         return c
     
+
+def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=' ', returns_string=False):
+    """[summary]
+        
+        print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
+        ripple_epochs.save()
+        print('done.')
+        
+    Args:
+        filepath ([type]): [description]
+        action (str): [description]
+        contents_description (str): [description]
+    """
+    #  print_file_progress_message(ripple_epochs.filename, 'Saving', 'mua results') # replaces: print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
+    if returns_string:
+        out_string = f'{action} {contents_description} results to {str(filepath)}...'
+        print(out_string, end=print_line_ending)
+        return f'{out_string}{print_line_ending}'
+    else:
+        print(f'{action} {contents_description} results to {str(filepath)}...', end=print_line_ending)
+    
+    
+class ProgressMessagePrinter(object):
+    def __init__(self, filepath, action: str, contents_description: str, print_line_ending=' ', finished_message='done.', returns_string=False):
+        self.filepath = filepath
+        self.action = action
+        self.contents_description = contents_description
+        self.print_line_ending = print_line_ending
+        self.finished_message = finished_message
+        
+        self.returns_string = returns_string
+        if self.returns_string:
+            self.returned_string = ''
+        else:
+            self.returned_string = None    
+        
+        
+    def __enter__(self):
+        self.returned_string = print_file_progress_message(self.filepath, self.action, self.contents_description, self.print_line_ending, returns_string=self.returns_string)
+        
+  
+    def __exit__(self, *args):
+        print(self.finished_message)        
+        if self.returns_string:
+            self.returned_string = f'{self.returned_string}{self.finished_message}\n'
+            
