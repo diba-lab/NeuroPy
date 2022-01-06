@@ -52,7 +52,7 @@ class TimeSlicedMixin:
             # curr_lap_id = laps_df.loc[i, 'lap_id']
             # curr_lap_t_start, curr_lap_t_stop = laps_df.loc[i, 'start'], laps_df.loc[i, 'stop']
             curr_slice_t_start, curr_slice_t_stop = starts[i], stops[i]
-            curr_lap_position_df_is_included = self._obj[self.time_variable_name].between(curr_slice_t_start, curr_slice_t_stop, inclusive=True) # returns a boolean array indicating inclusion
+            curr_lap_position_df_is_included = self._obj[self.time_variable_name].between(curr_slice_t_start, curr_slice_t_stop, inclusive='both') # returns a boolean array indicating inclusion
             inclusion_mask[curr_lap_position_df_is_included] = True
             # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
             

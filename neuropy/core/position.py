@@ -139,7 +139,7 @@ class Position(ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObje
         # indicies = np.where((self._data['t'].to_numpy() >= t_start) & (self._data['t'].to_numpy() <= t_stop))[0]
         # included_indicies = ((self._data['t'] >= t_start) & (self._data['t'] <= t_stop))
         # print('time_slice_indicies(...): t_start: {}, t_stop: {}, included_indicies: {}'.format(t_start, t_stop, included_indicies))
-        included_indicies = self._data['t'].between(t_start, t_stop, inclusive=True) # returns a boolean array indicating inclusion in teh current lap
+        included_indicies = self._data['t'].between(t_start, t_stop, inclusive='both') # returns a boolean array indicating inclusion in teh current lap
         # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
         return self._data.index[included_indicies]# note that this currently returns a Pandas.Series object. I could get the normal indicis by using included_indicies.to_numpy()
     
