@@ -67,6 +67,19 @@ class SpikesAccessor(TimeSlicedMixin):
     def n_neurons(self):
         return len(self.neuron_ids)
     
+    
+    # sets the 'x','y' positions by interpolating over a position data frame
+    def interpolate_spike_positions(self, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None):
+        spike_timestamp_column_name=self.time_variable_name
+        self._obj['x'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_x)
+        self._obj['y'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_y)
+        if position_linear_pos is not None:
+            self._obj['lin_pos'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_linear_pos)
+        if position_speeds is not None:
+            self._obj['speed'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_speeds)
+        return self._obj
+    
+    
 
 
 
