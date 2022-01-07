@@ -29,9 +29,16 @@ class PositionDimDataMixin:
     
     @property
     def df(self):
+        """The df property."""
         raise NotImplementedError # must be overriden by implementor 
         # return self._obj # for PositionAccessor
         # return self._data # for Position
+    @df.setter
+    def df(self, value):
+        raise NotImplementedError # must be overriden by implementor 
+        # self._obj = value # for PositionAccessor
+        # self._data = value # for Position
+    
     
     # Position
     @property
@@ -81,10 +88,6 @@ class PositionDimDataMixin:
     @property
     def time(self):
         return self.df[self.time_variable_name].to_numpy()
-    @property
-    def time(self):
-        return self.df[self.time_variable_name].to_numpy()
-    
     @property
     def t_start(self):
         return self.df[self.time_variable_name].iloc[0]
@@ -142,7 +145,7 @@ class PositionComputedDataMixin:
 
     ## TODO: _perform_compute_higher_order_derivatives has been depricated in favor of factoring this functionality into the pho_custom_placefields "position" pandas Dataframe extension. (See PositionAccessor)
     @staticmethod
-    def _perform_compute_higher_order_derivatives(pos_df: pd.DataFrame, component_label: str):
+    def _perform_compute_higher_order_derivatives(pos_df: pd.DataFrame, component_label: str, time_variable_name: str = 't'):
         """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
         Args:
             pos_df (pd.DataFrame): [description]
@@ -154,7 +157,7 @@ class PositionComputedDataMixin:
         velocity_column_key = f'velocity_{component_label}'
         acceleration_column_key = f'acceleration_{component_label}'
                 
-        dt = np.insert(np.diff(pos_df[self.time_variable_name]), 0, np.nan)
+        dt = np.insert(np.diff(pos_df[time_variable_name]), 0, np.nan)
         velocity_comp = np.insert(np.diff(pos_df[component_label]), 0, 0.0) / dt
         velocity_comp[np.isnan(velocity_comp)] = 0.0 # replace NaN components with zero
         acceleration_comp = np.insert(np.diff(velocity_comp), 0, 0.0) / dt
@@ -162,6 +165,7 @@ class PositionComputedDataMixin:
         dt[np.isnan(dt)] = 0.0 # replace NaN components with zero
         
         # add the columns to the dataframe:
+        # pos_df.loc[:, 'dt'] = dt
         pos_df['dt'] = dt
         pos_df[velocity_column_key] = velocity_comp
         pos_df[acceleration_column_key] = acceleration_comp
@@ -173,7 +177,7 @@ class PositionComputedDataMixin:
         """
         for dim_i in np.arange(self.ndim):
             curr_column_label = self.dim_columns[dim_i]
-            self.df = PositionComputedDataMixin._perform_compute_higher_order_derivatives(self.df, curr_column_label)
+            self.df = PositionComputedDataMixin._perform_compute_higher_order_derivatives(self.df, curr_column_label, time_variable_name=self.time_variable_name)
             # self.df = self.df.position._perform_compute_higher_order_derivatives(curr_column_label) # uses the position accessor
         return self.df
     
@@ -315,7 +319,7 @@ class PositionComputedDataMixin:
     
 """ --- """
 @pd.api.extensions.register_dataframe_accessor("position")
-class PositionAccessor(TimeSlicedMixin, PositionDimDataMixin, PositionComputedDataMixin):
+class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlicedMixin):
     """ A Pandas DataFrame-based Position helper. """
     # __time_variable_name = 't' # currently hardcoded
     
@@ -337,7 +341,9 @@ class PositionAccessor(TimeSlicedMixin, PositionDimDataMixin, PositionComputedDa
     @property
     def df(self):
         return self._obj # for PositionAccessor
-    
+    @df.setter
+    def df(self, value):
+        self._obj = value # for PositionAccessor
     
     # @property
     # def time_variable_name(self):
@@ -488,7 +494,9 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
     @property
     def df(self):
         return self._data # for Position
-    
+    @df.setter
+    def df(self, value):
+        self._data = value # for Position
 
     # @property
     # def traces(self):
