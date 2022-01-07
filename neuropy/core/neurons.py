@@ -404,9 +404,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         """
 
         bins = np.arange(self.t_start, self.t_stop + bin_size, bin_size)
-        spike_counts = np.asarray(
-            [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
-        )
+        spike_counts = np.asarray([np.histogram(_, bins=bins)[0] for _ in self.spiketrains])
 
         return BinnedSpiketrain(
             spike_counts,

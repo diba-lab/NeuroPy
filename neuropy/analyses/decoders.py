@@ -116,10 +116,7 @@ class Decode1d:
         bincntr = self.ratemap.xbin_centers
 
         if self.epochs is not None:
-
-            spkcount, nbins = epochs_spkcount(
-                self.neurons, self.epochs, self.bin_size, self.slideby
-            )
+            spkcount, nbins = epochs_spkcount(self.neurons, self.epochs, self.bin_size, self.slideby)
             posterior = self._decoder(np.hstack(spkcount), tuning_curves)
             decodedPos = bincntr[np.argmax(posterior, axis=0)]
             cum_nbins = np.cumsum(nbins)[:-1]
@@ -131,9 +128,7 @@ class Decode1d:
             self.score, _ = self.score_posterior(self.posterior)
 
         else:
-            spkcount = self.neurons.get_binned_spiketrains(
-                bin_size=self.bin_size
-            ).spike_counts
+            spkcount = self.neurons.get_binned_spiketrains(bin_size=self.bin_size).spike_counts
 
             self.posterior = self._decoder(spkcount, tuning_curves)
             self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
