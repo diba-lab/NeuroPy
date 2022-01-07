@@ -156,7 +156,9 @@ class PfnDMixin(SimplePrintable):
             
         
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
-        """ Updated to work with both 1D and 2D Placefields """   
+        """ Builds one subplot for each dimension of the position data
+        Updated to work with both 1D and 2D Placefields
+        """   
         if ax is None:
             fig, ax = plt.subplots(self.ndim, 1, sharex=True)
             fig.set_size_inches([23, 9.7])
