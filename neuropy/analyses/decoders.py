@@ -17,9 +17,7 @@ from .. import core
 from neuropy.utils import mathutil
 
 
-def epochs_spkcount(
-    neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, slideby=None
-):
+def epochs_spkcount(neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, slideby=None):
     # ---- Binning events and calculating spike counts --------
     spkcount = []
     nbins = np.zeros(epochs.n_epochs, dtype="int")
