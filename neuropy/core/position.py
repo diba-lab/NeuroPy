@@ -327,7 +327,7 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
     def _validate(obj):
         # verify there is a column for timestamps ('t') and a column for at least 1D positions ('x')
         if "t" not in obj.columns:
-            raise AttributeError("Must have at least one time variable: either 't' and 't_seconds', or 't_rel_seconds'.")
+            raise AttributeError("Must have at least one time variable: specifically 't' for PositionAccessor.")
         if "x" not in obj.columns:
             raise AttributeError("Must have at least one position dimension column 'x'.")
         # if "lin_pos" not in obj.columns or "speed" not in obj.columns:

@@ -46,12 +46,12 @@ class TimeSlicedMixin:
         
         starts = t_start
         stops = t_stop
+        assert np.shape(starts) == np.shape(stops), f"starts and stops must be the same shape, but np.shape(starts): {np.shape(starts)} and np.shape(stops): {np.shape(stops)}"
         num_slices = len(starts)
         
         for i in np.arange(num_slices):
-            # curr_lap_id = laps_df.loc[i, 'lap_id']
-            # curr_lap_t_start, curr_lap_t_stop = laps_df.loc[i, 'start'], laps_df.loc[i, 'stop']
             curr_slice_t_start, curr_slice_t_stop = starts[i], stops[i]
+            # TODO: BUG: I think we'd be double-counting here?
             curr_lap_position_df_is_included = self._obj[self.time_variable_name].between(curr_slice_t_start, curr_slice_t_stop, inclusive='both') # returns a boolean array indicating inclusion
             inclusion_mask[curr_lap_position_df_is_included] = True
             # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
