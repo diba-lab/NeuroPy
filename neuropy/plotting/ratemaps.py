@@ -51,6 +51,64 @@ def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', text_f
     ax.add_artist(at)
     return at
 
+# refactored to pyPhoCoreHelpers.geometery_helpers but had to be bring back in explicitly
+Width_Height_Tuple = namedtuple('Width_Height_Tuple', 'width height')
+def compute_data_extent(xpoints, *other_1d_series):
+    """Computes the outer bounds, or "extent" of one or more 1D data series.
+
+    Args:
+        xpoints ([type]): [description]
+        other_1d_series: any number of other 1d data series
+
+    Returns:
+        xmin, xmax, ymin, ymax, imin, imax, ...: a flat list of paired min, max values for each data series provided.
+        
+    Usage:
+        # arbitrary number of data sequences:        
+        xmin, xmax, ymin, ymax, x_center_min, x_center_max, y_center_min, y_center_max = compute_data_extent(active_epoch_placefields2D.ratemap.xbin, active_epoch_placefields2D.ratemap.ybin, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers)
+        print(xmin, xmax, ymin, ymax, x_center_min, x_center_max, y_center_min, y_center_max)
+
+        # simple 2D extent:
+        extent = compute_data_extent(active_epoch_placefields2D.ratemap.xbin, active_epoch_placefields2D.ratemap.ybin)
+        print(extent)
+    """
+    num_total_series = len(other_1d_series) + 1 # + 1 for the x-series
+    # pre-allocate output:     
+    extent = np.empty(((2 * num_total_series),))
+    # Do first-required series:
+    xmin, xmax = min_max_1d(xpoints)
+    extent[0], extent[1] = [xmin, xmax]
+    # finish remaining series passed as inputs.
+    for (i, a_series) in enumerate(other_1d_series):
+        curr_min, curr_xmax = min_max_1d(a_series)
+        curr_start_idx = 2 * (i + 1)
+        extent[curr_start_idx] = curr_min
+        extent[curr_start_idx+1] = curr_xmax
+    return extent
+def compute_data_aspect_ratio(xbin, ybin, sorted_inputs=True):
+    """Computes the aspect ratio of the provided data
+
+    Args:
+        xbin ([type]): [description]
+        ybin ([type]): [description]
+        sorted_inputs (bool, optional): whether the input arrays are pre-sorted in ascending order or not. Defaults to True.
+
+    Returns:
+        float: The aspect ratio of the data such that multiplying any height by the returned float would result in a width in the same aspect ratio as the data.
+    """
+    if sorted_inputs:
+        xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1]) # assumes-pre-sourced events, which is valid for bins but not general
+    else:
+        xmin, xmax, ymin, ymax = compute_data_extent(xbin, ybin) # more general form.
+
+    # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
+    # extent = (xmin, xmax, ymin, ymax)
+    
+    width = xmax - xmin
+    height = ymax - ymin
+    
+    aspect_ratio = width / height
+    return aspect_ratio, Width_Height_Tuple(width, height)
 
 @unique
 class enumTuningMap2DPlotMode(AutoNameEnum):
@@ -207,7 +265,6 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
 
     return im
     
-
 
 # all extracted from the 2D figures
 def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):

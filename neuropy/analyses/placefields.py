@@ -113,9 +113,6 @@ class PfnDMixin(SimplePrintable):
     def cell_ids(self):
         return self.ratemap.neuron_ids
 
-
-    
-
     def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):
         """ Plots the Placefield raw spiking activity for all cells"""
         if self.ndim < 2:
@@ -409,7 +406,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # Output lists, for compatibility with Pf1D and Pf2D:
         spk_pos, spk_t, firing_maps, tuning_maps = [], [], [], []
 
-        pos_df = position.to_dataframe().copy()
+        pos_df = position.to_dataframe()
         spk_df = spikes_df.copy()
 
         # filtering:
