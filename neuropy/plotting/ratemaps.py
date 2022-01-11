@@ -181,17 +181,18 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     # ax.vlines([50], 0, 1, transform=ax.get_xaxis_transform(), colors='r')
     # ax.vlines([50], 0, 1, colors='r')
     # brev_mode = PlotStringBrevityModeEnum.MINIMAL
+
+    if neuron_extended_id is not None:    
+        # old way independent of brev_mode:
+        # extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+        # full_extended_id_string = f"Cell {neuron_extended_id.id} - {extended_id_string}"
+        # new brev_mode dependent way:
+        full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
+    else:
+        full_extended_id_string = ''
     
-    # old way independent of brev_mode:
-    # extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
-    # full_extended_id_string = f"Cell {neuron_extended_id.id} - {extended_id_string}"
-    # new brev_mode dependent way:
-    full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
     pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
     final_string_components = [full_extended_id_string, pf_firing_rate_string]
-    
-    
-    
     
     if use_special_overlayed_title:
         final_title = ' - '.join(final_string_components)
