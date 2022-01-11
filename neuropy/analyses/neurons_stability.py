@@ -71,7 +71,7 @@ def isi_stability(neurons: core.Neurons, window=3600, isi_thresh=0.04, on_thresh
     return stability_bool
 
 
-def waveform_similarity(self):
+def waveform_stability(neurons: core.Neurons):
     pass
 
 

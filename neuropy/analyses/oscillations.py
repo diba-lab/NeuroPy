@@ -21,15 +21,15 @@ def _detect_freq_band_epochs(
         channels used for epoch detection, if None then chooses best chans
     """
 
-    zscsignal = []
+    zscsignal = np.zeros_like(signals)
     lf, hf = freq_band
     lowthresh, highthresh = thresh
-    for sig in signals:
-        yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf)
+    for sig_i, sig in enumerate(signals):
+        yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
         zsc_chan = stats.zscore(np.abs(signal_process.hilbertfast(yf)))
-        zscsignal.append(zsc_chan)
+        zscsignal[sig_i] = zsc_chan
 
-    zscsignal = np.asarray(zscsignal)
+    # zscsignal = np.asarray(zscsignal)
 
     # ---------setting noisy periods zero --------
     if ignore_times is not None:
@@ -265,15 +265,59 @@ def detect_ripple_epochs(
     return Epoch(epochs=epochs, metadata=metadata)
 
 
-def detect_theta_epochs():
-    if chans is None:
-        chans = self._obj.goodchans
+def detect_theta_epochs(
+    signal: Signal,
+    probegroup: ProbeGroup = None,
+    freq_band=(5, 12),
+    thresh=(0, 0.5),
+    mindur=0.25,
+    maxdur=5,
+    mergedist=0.5,
+    ignore_epochs: Epoch = None,
+):
 
-    lfps = self._obj.time_slice(chans=chans, period=[0, 3600])
-    hilbert_amplitudes = signal_process.hilbert_ampltiude_stat(lfps)
-    best_chan = chans[np.argmax(hilbert_amplitudes)]
+    if probegroup is None:
+        channel_ids = signal.channel_id.astype("int")
+    else:
+        if isinstance(probegroup, np.ndarray):
+            changrps = np.array(probegroup, dtype="object")
+        if isinstance(probegroup, ProbeGroup):
+            changrps = probegroup.get_connected_channels(groupby="shank")
+        channel_ids = np.concatenate(changrps).astype("int")
 
-    self.epochs, self.metadata = signal_process.detect_freq_band_epochs(best_chan)
+    duration = signal.duration
+    t1, t2 = signal.t_start, signal.t_start + np.min([duration, 3600])
+    signal_slice = signal.time_slice(channel_id=channel_ids, t_start=t1, t_stop=t2)
+    hil_stat = signal_process.hilbert_ampltiude_stat(
+        signal_slice.traces,
+        freq_band=freq_band,
+        fs=signal.sampling_rate,
+        statistic="mean",
+    )
+    selected_chan = channel_ids[np.argmax(hil_stat)]
+    traces = signal.time_slice(channel_id=selected_chan).traces.reshape(1, -1)
+
+    print(f"Best channel for theta: {selected_chan}")
+    if ignore_epochs is not None:
+        ignore_times = ignore_epochs.as_array()
+    else:
+        ignore_times = None
+
+    epochs, metadata = _detect_freq_band_epochs(
+        signals=traces,
+        freq_band=freq_band,
+        thresh=thresh,
+        mindur=mindur,
+        maxdur=maxdur,
+        mergedist=mergedist,
+        fs=signal.sampling_rate,
+        ignore_times=ignore_times,
+    )
+    epochs["start"] = epochs["start"] + signal.t_start
+    epochs["stop"] = epochs["stop"] + signal.t_start
+
+    metadata["channels"] = selected_chan
+    return Epoch(epochs=epochs, metadata=metadata)
 
 
 def detect_spindle_epochs(

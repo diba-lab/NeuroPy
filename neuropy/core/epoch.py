@@ -137,6 +137,9 @@ class Epoch(DataWriter):
 
         return np.all((starts[1:] - stops[:-1]) < 0)
 
+    def itertuples(self):
+        return self.to_dataframe().itertuples()
+
     def fill_blank(self, method="from_left"):
 
         ep_starts = self.epochs["start"].values
@@ -257,4 +260,4 @@ class Epoch(DataWriter):
         """Returns 1d numpy array of alternating starts and stops
         NOTE: returned array is monotonically increasing only if epochs are non-overlapping
         """
-        return self.as_array().flatten("F")
+        return self.as_array().flatten("C")
