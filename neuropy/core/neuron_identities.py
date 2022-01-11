@@ -5,7 +5,7 @@ from neuropy.utils.mixins.print_helpers import SimplePrintable
 from neuropy.utils.colors_util import get_neuron_colors
 from matplotlib.colors import ListedColormap
 
-NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentity', 'shank cluster id')
+NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank cluster id')
 
 ## Plotting Colors:
 def build_units_colormap(neuron_ids):
