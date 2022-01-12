@@ -122,6 +122,41 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     TUNING_MAPS = auto() # DEFAULT
     FIRING_MAPS = auto() 
     
+    
+def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
+    """ builds a background checkerboard image used to indicate opacity
+    Usage:
+    # Updating Existing:
+    background_chessboard = _build_square_checkerboard_image(active_ax_main_image.get_extent(), num_checkerboard_squares_short_axis=8)
+    active_ax_bg_image.set_data(background_chessboard) # updating mode
+    
+    # Creation:
+    background_chessboard = _build_square_checkerboard_image(active_ax_main_image.get_extent(), num_checkerboard_squares_short_axis=8)
+    bg_im = ax.imshow(background_chessboard, cmap=plt.cm.gray, interpolation='nearest', **imshow_shared_kwargs, label='background_image')
+    
+    """
+    left, right, bottom, top = extent
+    width = np.abs(left - right)
+    height = np.abs(top - bottom) # width: 241.7178791533281, height: 30.256480996256016
+    if debug_print:
+        print(f'width: {width}, height: {height}')
+    
+    if width >= height:
+        short_axis_length = float(height)
+        long_axis_length = float(width)
+    else:
+        short_axis_length = float(width)
+        long_axis_length = float(height)
+    
+    checkerboard_square_side_length = short_axis_length / float(num_checkerboard_squares_short_axis) # checkerboard_square_side_length is the same along all axes
+    frac_num_checkerboard_squares_long_axis = long_axis_length / float(checkerboard_square_side_length)
+    num_checkerboard_squares_long_axis = int(np.round(frac_num_checkerboard_squares_long_axis))
+    if debug_print:
+        print(f'checkerboard_square_side: {checkerboard_square_side_length}, num_checkerboard_squares_short_axis: {num_checkerboard_squares_short_axis}, num_checkerboard_squares_long_axis: {num_checkerboard_squares_long_axis}')
+    # Grey checkerboard background:
+    background_chessboard = np.add.outer(range(num_checkerboard_squares_short_axis), range(num_checkerboard_squares_long_axis)) % 2  # chessboard
+    return background_chessboard
+
 
 def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE):
     """Plots a single tuning curve Heatmap
@@ -145,6 +180,8 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     
     # use_alpha_by_occupancy = False # Only supported in IMSHOW mode
     use_alpha_by_occupancy = False # Only supported in IMSHOW mode
+    
+    use_black_rendered_background_image = True 
     
     if ax is None:
         ax = plt.gca()
@@ -195,9 +232,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         extent = (xmin, xmax, ymin, ymax)
         # print(f'extent: {extent}')
         # extent = None
-        # We'll also create a black background into which the pixels will fade
-        background_black = np.full((*curr_pfmap.shape, 3), 0, dtype=np.uint8)
-        
+
         vmax = np.abs(curr_pfmap).max()
                 
         imshow_shared_kwargs = {
@@ -220,14 +255,25 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
             alphas = Normalize(clip=True)(np.abs(occupancy))
             # alphas = Normalize(0, .3, clip=True)(np.abs(occupancy))
             # alphas = np.clip(alphas, .4, 1)  # alpha value clipped at the bottom at .4
-
             main_plot_kwargs['alpha'] = alphas
             pass
         else:
             main_plot_kwargs['alpha'] = None
         
-        ax.imshow(background_black, **imshow_shared_kwargs)
-        im = ax.imshow(curr_pfmap, **main_plot_kwargs)
+        if use_black_rendered_background_image:
+            # We'll also create a black background into which the pixels will fade
+            # background_black = np.full((*curr_pfmap.shape, 3), 0, dtype=np.uint8)
+            # bg_im = ax.imshow(background_black, **imshow_shared_kwargs, label='background_image')
+            
+            # Grey checkerboard background:
+            # background_chessboard = np.add.outer(range(8), range(8)) % 2  # chessboard
+            background_chessboard = _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis=8)
+            bg_im = ax.imshow(background_chessboard, cmap=plt.cm.gray, alpha=0.25, interpolation='nearest', **imshow_shared_kwargs, label='background_image')
+
+        else:
+            bg_im = None
+        
+        im = ax.imshow(curr_pfmap, **main_plot_kwargs, label='main_image')
         ax.axis("off")
         
     else:
@@ -249,8 +295,10 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     else:
         full_extended_id_string = ''
     
-    pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
-    final_string_components = [full_extended_id_string, pf_firing_rate_string]
+    final_string_components = [full_extended_id_string]
+    if brev_mode.should_show_firing_rate_label:
+        pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
+        final_string_components.append(pf_firing_rate_string)
     
     if use_special_overlayed_title:
         final_title = ' - '.join(final_string_components)
@@ -262,7 +310,8 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         # conventional way:
         final_title = '\n'.join(final_string_components)
         ax.set_title(final_title) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
-
+    
+    ax.set_label(final_title)
     return im
     
 
@@ -352,8 +401,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
          
         ## Figure size should be (Width, height)
         required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
-        print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}')
-        # active_figure_size=figsize        
+        print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}') # this is figure size in inches
+        # active_figure_size=figsize
         active_figure_size=required_figure_size
     
         if grid_layout_mode == 'gridspec':
@@ -388,6 +437,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                  cbar_size="7%",
                  cbar_pad="1%",
                  )
+            
             page_gs.append(grid)
             
         elif grid_layout_mode == 'subplot':
@@ -432,7 +482,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
             
             if enable_spike_overlay:
-                curr_ax.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',')
+                spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
             
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
             # cbar = fig.colorbar(im, cax=cbar_ax)
@@ -446,9 +496,10 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                     removal_ax = active_page_grid[a_removed_linear_index]
                     fig.delaxes(removal_ax)
 
+            # Apply subplots adjust to fix margins:
+            plt.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
         
     return figures, page_gs
-
 
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None):
     """Plot 1D place fields stacked

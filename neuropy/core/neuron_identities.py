@@ -83,6 +83,17 @@ class PlotStringBrevityModeEnum(Enum):
             raise NameError
         # return PlotStringBrevityModeEnum.extended_identity_formatting_string(self, neuron_extended_id)
         
+    @property
+    def should_show_firing_rate_label(self):
+        """ Whether the firing rate in Hz should be showed on the plot """
+        if self.name == PlotStringBrevityModeEnum.CONCISE.name:
+            return False
+        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
+            return False
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            return False
+        else:
+            return True
         
 
 
