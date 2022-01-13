@@ -186,6 +186,20 @@ class Fig:
             ha="right",
         )
 
+    def legend(self, ax, text, color, fontsize=8, x=0.65, y=0.9):
+        for i, (s, c) in enumerate(zip(text, color)):
+            ax.text(
+                x=x,
+                y=y - i * 0.1,
+                s=s,
+                color=c,
+                transform=ax.transAxes,
+                fontsize=fontsize,
+                fontweight="bold",
+                va="top",
+                ha="left",
+            )
+
     def savefig(self, fname: Path, scriptname=None, fig=None):
 
         if fig is None:
