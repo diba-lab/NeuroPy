@@ -98,6 +98,7 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
 
 
+
 def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
     # raw occupancy is defined in terms of the number of samples that fall into each bin.
     # if position_srate is not None:
@@ -119,6 +120,12 @@ class PfnConfigMixin:
 
     
 class PfnDMixin(SimplePrintable):
+    
+    should_smooth_speed = False
+    should_smooth_firing_map = False
+    should_smooth_spatial_occupancy_map = False
+    should_smooth_final_tuning_map = True
+    
     @property
     def spk_pos(self):
         return self.ratemap_spiketrains_pos
@@ -254,8 +261,14 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
     
     @staticmethod   
     def _compute_tuning_map(spk_x, xbin, occupancy, smooth, should_also_return_intermediate_firing_map=False):
-        firing_map = Pf1D._compute_firing_map(spk_x, xbin, smooth)
+        if not PfnDMixin.should_smooth_firing_map:
+            smooth_firing_map = None
+        else:
+            smooth_firing_map = smooth
+        firing_map = Pf1D._compute_firing_map(spk_x, xbin, smooth_firing_map)
         tuning_map = firing_map / occupancy
+        if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and (smooth > 0.0)):
+            tuning_map = gaussian_filter1d(tuning_map, sigma=smooth)
         if should_also_return_intermediate_firing_map:
             return tuning_map, firing_map
         else:
@@ -345,6 +358,8 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 
 class Pf2D(PfnConfigMixin, PfnDMixin):
 
+
+
     @staticmethod
     def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_raw_occupancy=False):
         # --- occupancy map calculation -----------
@@ -378,12 +393,19 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
     @staticmethod   
     def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_firing_map=False):
         # raw_tuning_map: is the number of spike counts in each bin for this unit
-        firing_map = Pf2D._compute_firing_map(spk_x, spk_y, xbin, ybin, smooth)
-        occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero aftwards anyway
+        if not PfnDMixin.should_smooth_firing_map:
+            smooth_firing_map = None
+        else:
+            smooth_firing_map = smooth
+        firing_map = Pf2D._compute_firing_map(spk_x, spk_y, xbin, ybin, smooth_firing_map)
+        occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
         occupancy_weighted_tuning_map = firing_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         occupancy_weighted_tuning_map = np.nan_to_num(occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
         occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
         
+        if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
+            occupancy_weighted_tuning_map = gaussian_filter(occupancy_weighted_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
+            
         if should_also_return_intermediate_firing_map:
             return occupancy_weighted_tuning_map, firing_map
         else:
@@ -442,7 +464,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         self.t = filtered_pos_df.t.to_numpy()
         self.x = filtered_pos_df.x.to_numpy()
         self.speed = filtered_pos_df.speed.to_numpy()
-        if ((smooth is not None) and (smooth[0] > 0.0)):
+        if (self.should_smooth_speed and (smooth is not None) and (smooth[0] > 0.0)):
             self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
         if (self.ndim > 1):
             self.y = filtered_pos_df.y.to_numpy()
@@ -454,16 +476,22 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
         
         # --- occupancy map calculation -----------
-        if (position.ndim > 1):
-            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, self.position_srate, smooth)
+        if not self.should_smooth_spatial_occupancy_map:
+            smooth_occupancy_map = (0.0, 0.0)
         else:
-            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, self.position_srate, smooth[0])
+            smooth_occupancy_map = smooth
+        if (position.ndim > 1):
+            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, self.position_srate, smooth_occupancy_map)
+        else:
+            occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, self.position_srate, smooth_occupancy_map[0])
         
         # Once filtering and binning is done, apply the grouping:
         # Group by the aclu (cluster indicator) column
         cell_grouped_spikes_df = filtered_spikes_df.groupby(['aclu'])
         cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
 
+        # NOTE: regardless of whether should_smooth_final_tuning_map is true or not, we must pass in the actual smooth value to the _compute_tuning_map(...) function so it can choose to filter its firing map or not. Only if should_smooth_final_tuning_map is enabled will the final product be smoothed.
+            
         # re-interpolate given the updated spks
         for cell_df in cell_spikes_dfs:
             cell_spike_times = cell_df[spikes_df.spikes.time_variable_name].to_numpy() # not this was subbed from 't_rel_seconds' to spikes_df.spikes.time_variable_name
