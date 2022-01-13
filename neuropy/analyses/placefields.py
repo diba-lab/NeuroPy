@@ -36,7 +36,7 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
     
-    def __init__(self, speed_thresh=3, grid_bin=2, smooth=2, frate_thresh=1):
+    def __init__(self, speed_thresh=3, grid_bin=2, smooth=2, frate_thresh=1, **kwargs):
         self.speed_thresh = speed_thresh
         if not isinstance(grid_bin, (tuple, list)):
             grid_bin = (grid_bin, grid_bin) # make it into a 2 element tuple
@@ -45,6 +45,11 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
             smooth = (smooth, smooth) # make it into a 2 element tuple
         self.smooth = smooth
         self.frate_thresh = frate_thresh
+        
+        # Dump all arguments into parameters.
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+                
     
     
     @property
@@ -63,22 +68,35 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
         else:
             return self.smooth[0]
 
-
+    
+    def _unlisted_parameter_strings(self):
+        """ returns the string representations of all key/value pairs that aren't normally defined. """
+        # Dump all arguments into parameters.
+        out_list = []
+        for key, value in self.__dict__.items():
+            if key not in PlacefieldComputationParameters.variable_names:
+                out_list.append(f"{key}_{value:.2f}")
+        return out_list
+        
+    
     def str_for_filename(self, is_2D):
+        extras_strings = self._unlisted_parameter_strings()
         if is_2D:
-            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}"])
+            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
             # return "speedThresh_{:.2f}-gridBin_{:.2f}_{:.2f}-smooth_{:.2f}_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin[0], self.grid_bin[1], self.smooth[0], self.smooth[1], self.frate_thresh)
             # return f"speedThresh_{self.speed_thresh:.2f}-gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}-smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}-frateThresh_{self.frate_thresh:.2f}"
         else:
-            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}"])
+            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
             # return f"speedThresh_{self.speed_thresh:.2f}-gridBin_{self.grid_bin_1D:.2f}-smooth_{self.smooth_1D:.2f}-frateThresh_{self.frate_thresh:.2f}"
         
     def str_for_display(self, is_2D):
         """ For rendering in a title, etc """
+        extras_string = ', '.join(self._unlisted_parameter_strings())
         if is_2D:
-            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})"
+            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
         else:
-            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})"
+            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+
 
 def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
     # raw occupancy is defined in terms of the number of samples that fall into each bin.
