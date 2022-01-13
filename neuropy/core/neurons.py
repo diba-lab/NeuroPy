@@ -638,6 +638,15 @@ class Mua(DataWriter):
 
     #     return gaussian
 
+    def time_slice(self, t_start, t_stop):
+        indices = (self.time >= t_start) & (self.time <= t_stop)
+
+        return Mua(
+            spike_counts=self.spike_counts[indices],
+            bin_size=self.bin_size,
+            t_start=t_start,
+        )
+
     def to_dict(self):
         return {
             "spike_counts": self._spike_counts,
