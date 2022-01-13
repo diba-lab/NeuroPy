@@ -1,6 +1,6 @@
 from neuropy.core.neuron_identities import PlotStringBrevityModeEnum
 from neuropy.plotting.placemaps import plot_placefield_occupancy
-from neuropy.plotting.ratemaps import plot_ratemap_1D, plot_ratemap_2D
+from neuropy.plotting.ratemaps import enumTuningMap2DPlotVariables, plot_ratemap_1D, plot_ratemap_2D
 
 class PfnD_PlotOccupancy_Mixin:
     
@@ -24,11 +24,12 @@ class PfnDPlottingMixin(PfnD_PlotOccupancy_Mixin):
         return plot_ratemap_1D(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
     
     # all extracted from the 2D figures
-    def plot_ratemaps_2D(self, subplots=(10, 8), resolution_multiplier: float=2.0, fignum=None, enable_spike_overlay=True, drop_below_threshold: float=0.0000001, brev_mode=PlotStringBrevityModeEnum.CONCISE):
-        """Plots heatmaps of placefields with peak firing rate """
-        return plot_ratemap_2D(self.ratemap, computation_config=self.config, subplots=subplots, resolution_multiplier=resolution_multiplier, fignum=fignum, 
-                                        enable_spike_overlay=enable_spike_overlay, spike_overlay_spikes=self.spk_pos,
-                                        drop_below_threshold=drop_below_threshold, brev_mode=brev_mode)
+    def plot_ratemaps_2D(self, **kwargs):
+        """Plots heatmaps of placefields with peak firing rate
+        Defaults: 
+        **({'subplots': (10, 8), 'resolution_multiplier': 2.0, 'fignum': None, 'enable_spike_overlay': True, 'drop_below_threshold': 1e-07, 'brev_mode': PlotStringBrevityModeEnum.CONCISE, 'plot_variable': enumTuningMap2DPlotVariables.TUNING_MAPS} | kwargs)
+        """
+        return plot_ratemap_2D(self.ratemap, computation_config=self.config, **({'subplots': (10, 8), 'resolution_multiplier': 2.0, 'fignum': None, 'enable_spike_overlay': True, 'spike_overlay_spikes':self.spk_pos, 'drop_below_threshold': 1e-07, 'brev_mode': PlotStringBrevityModeEnum.CONCISE, 'plot_variable': enumTuningMap2DPlotVariables.TUNING_MAPS} | kwargs))
         
         
         

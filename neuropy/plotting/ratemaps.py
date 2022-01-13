@@ -346,10 +346,10 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     if included_unit_indicies is None:
         included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
     
-    if plot_variable is enumTuningMap2DPlotVariables.TUNING_MAPS:
+    if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
         active_maps = ratemap.tuning_curves[included_unit_indicies]
         title_substring = 'Placemaps'
-    elif plot_variable == enumTuningMap2DPlotVariables.FIRING_MAPS:
+    elif plot_variable.name == enumTuningMap2DPlotVariables.FIRING_MAPS.name:
         active_maps = ratemap.firing_maps[included_unit_indicies]
         title_substring = 'Firing Maps'
     else:
@@ -482,6 +482,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
             
             if enable_spike_overlay:
+                spike_overlay_points = curr_ax.plot(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')                
                 spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
             
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
