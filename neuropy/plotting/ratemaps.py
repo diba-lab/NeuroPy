@@ -316,7 +316,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -358,12 +358,14 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     nMapsToShow = len(active_maps)
     
     data_aspect_ratio = compute_data_aspect_ratio(ratemap.xbin, ratemap.ybin)
-    print(f'data_aspect_ratio: {data_aspect_ratio}')
+    if debug_print:
+        print(f'data_aspect_ratio: {data_aspect_ratio}')
     
     if (subplots.num_columns is None) or (subplots.num_rows is None):
         # This will disable pagination by setting an arbitrarily high value
         max_subplots_per_page = nMapsToShow
-        print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
+        if debug_print:
+            print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
     else:
         # valid specified maximum subplots per page
         max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
@@ -401,7 +403,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
          
         ## Figure size should be (Width, height)
         required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
-        print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}') # this is figure size in inches
+        if debug_print:
+            print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}') # this is figure size in inches
         # active_figure_size=figsize
         active_figure_size=required_figure_size
     
@@ -456,7 +459,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 
     # New page-based version:
     for page_idx in np.arange(num_pages):
-        print(f'page_idx: {page_idx}')
+        if debug_print:
+            print(f'page_idx: {page_idx}')
         if grid_layout_mode == 'imagegrid':
             active_page_grid = page_gs[page_idx]
             # print(f'active_page_grid: {active_page_grid}')
