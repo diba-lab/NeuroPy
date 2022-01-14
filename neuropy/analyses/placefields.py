@@ -68,7 +68,6 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
         else:
             return self.smooth[0]
 
-    
     def _unlisted_parameter_strings(self):
         """ returns the string representations of all key/value pairs that aren't normally defined. """
         # Dump all arguments into parameters.
@@ -96,6 +95,30 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
         else:
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+
+    @classmethod
+    def _build_formatted_str_for_output(cls, dict_items, param_sep_char, key_val_sep_char) -> str:
+        with np.printoptions(precision=3, suppress=True, threshold=5):
+            properties_key_val_list = [f'{name}{key_val_sep_char}{np.array(val)}' for (name, val) in dict_items.items()]
+        return param_sep_char.join(properties_key_val_list)
+
+    
+
+    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t'):
+        """ For rendering in attributes list like outputs 
+        # Default for attributes lists outputs:
+        Example Output:
+            speed_thresh	2.0
+            grid_bin	[3.777 1.043]
+            smooth	[1.5 1.5]
+            frate_thresh	0.1
+            time_bin_size	0.5
+        """
+        # param_sep_char='\n'
+        # key_val_sep_char='\t'
+        return PlacefieldComputationParameters._build_formatted_str_for_output(self.__dict__, param_sep_char, key_val_sep_char)
+        
+
 
 
 
