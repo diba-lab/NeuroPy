@@ -99,7 +99,15 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
     @classmethod
     def _build_formatted_str_for_output(cls, dict_items, param_sep_char, key_val_sep_char) -> str:
         with np.printoptions(precision=3, suppress=True, threshold=5):
-            properties_key_val_list = [f'{name}{key_val_sep_char}{np.array(val)}' for (name, val) in dict_items.items()]
+            properties_key_val_list = []
+            for (name, val) in dict_items.items():
+                try:
+                    curr_string = f'{name}{key_val_sep_char}{np.array(val)}'
+                except TypeError:
+                    curr_string = f'{name}{key_val_sep_char}err'     
+                properties_key_val_list.append(curr_string)
+            # properties_key_val_list = [f'{name}{key_val_sep_char}{np.array(val)}' for (name, val) in dict_items.items()]
+        
         return param_sep_char.join(properties_key_val_list)
 
     
@@ -489,7 +497,8 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             # if no epochs filtering, set the filtered objects to be sliced by the available range of the position data (given by position.t_start, position.t_stop)
             filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
             filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
-
+            
+     
         # Set animal observed position member variables:
         self.t = filtered_pos_df.t.to_numpy()
         self.x = filtered_pos_df.x.to_numpy()
@@ -500,6 +509,14 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             self.y = filtered_pos_df.y.to_numpy()
         else:
             self.y = None
+
+        # Add interpolated velocity information to spikes dataframe:
+        filtered_spikes_df['speed'] = np.interp(filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.speed)
+        
+        # Filter for speed:
+        print(f'pre speed filtering: {np.shape(filtered_spikes_df)[0]} spikes.')
+        filtered_spikes_df = filtered_spikes_df[filtered_spikes_df['speed'] > speed_thresh]
+        print(f'post speed filtering: {np.shape(filtered_spikes_df)[0]} spikes.')
         
         ## Binning with Fixed Number of Bins:    
         # xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
