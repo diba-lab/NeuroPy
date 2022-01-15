@@ -12,7 +12,6 @@ from sklearn.decomposition import PCA, FastICA
 from ..utils.mathutil import getICA_Assembly, parcorr_mult
 from .. import core
 from ..plotting import Fig
-import pingouin as pg
 
 
 class ExplainedVariance(core.DataWriter):
@@ -56,12 +55,22 @@ class ExplainedVariance(core.DataWriter):
         )
 
         matching = np.arange(self.matching[0], self.matching[1])
+        control = np.arange(self.control[0], self.control[1])
+
+        # truncate/delete windows if they fall within ignore_epochs
+        ignore_bins = self.ignore_epochs.flatten()
+        matching = matching[np.digitize(matching, ignore_bins) % 2 == 0]
+        control = control[np.digitize(control, ignore_bins) % 2 == 0]
+
         matching_windows = np.lib.stride_tricks.sliding_window_view(
             matching, self.window
         )[:: self.slideby, [0, -1]]
 
-        n_matching_windows = matching_windows.shape[0]
+        control_windows = np.lib.stride_tricks.sliding_window_view(
+            control, self.window
+        )[:: self.slideby, [0, -1]]
 
+        n_matching_windows = matching_windows.shape[0]
         matching_paircorr = []
         for window in matching_windows:
             matching_paircorr.append(
@@ -70,10 +79,6 @@ class ExplainedVariance(core.DataWriter):
                 .get_pairwise_corr(pairs_bool=self.pairs_bool)
             )
 
-        control = np.arange(self.control[0], self.control[1])
-        control_windows = np.lib.stride_tricks.sliding_window_view(
-            control, self.window
-        )[:: self.slideby, [0, -1]]
         n_control_windows = control_windows.shape[0]
         control_paircorr = []
         for window in control_windows:
@@ -148,6 +153,18 @@ class ExplainedVariance(core.DataWriter):
                 (self.matching_time[-1] - t_start) / 3600,
             ]
         )
+
+        if self.ignore_epochs is not None:
+            for i, epoch in enumerate(self.ignore_epochs.itertuples()):
+                ax.axvspan(
+                    (epoch.start - t_start) / 3600,
+                    (epoch.stop - t_start) / 3600,
+                    color="k",
+                    edgecolor=None,
+                    # alpha=alpha,
+                    zorder=5,
+                )
+
         return ax
 
 
