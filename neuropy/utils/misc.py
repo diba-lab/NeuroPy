@@ -79,7 +79,7 @@ RowColTuple = namedtuple('RowColTuple', 'num_rows num_columns')
 PaginatedGridIndexSpecifierTuple = namedtuple('PaginatedGridIndexSpecifierTuple', 'linear_idx row_idx col_idx data_idx')
 RequiredSubplotsTuple = namedtuple('RequiredSubplotsTuple', 'num_required_subplots num_columns num_rows combined_indicies')
 
-def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_subplots_per_page, data_indicies=None, last_figure_subplots_same_layout=True):
+def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_subplots_per_page, data_indicies=None, last_figure_subplots_same_layout=True, debug_print=False):
     """ Fills row-wise first 
 
     Args:
@@ -114,7 +114,8 @@ def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_su
     else:
         page_grid_sizes = [_compute_subplots_grid_layout(len(a_page), subplot_no_pagination_configuration.num_columns) for a_page in included_combined_indicies_pages]
 
-    print(f'page_grid_sizes: {page_grid_sizes}')
+    if debug_print:
+        print(f'page_grid_sizes: {page_grid_sizes}')
     return subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes
 
 

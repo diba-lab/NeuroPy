@@ -19,7 +19,8 @@ from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
 
-from PhoPositionalData.analysis.interactive_placeCell_config import InteractivePlaceCellConfig, PlottingConfig # for compute_placefields_as_needed type-hinting
+from PhoPositionalData.analysis.interactive_placeCell_config import InteractivePlaceCellConfig, PlottingConfig
+from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
 
 # from .. import core
 # import neuropy.core as core
@@ -28,7 +29,7 @@ from .. import plotting
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 
 
-class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
+class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass=OrderedMeta):
     """A simple wrapper object for parameters used in placefield calcuations"""
     decimal_point_character=","
     param_sep_char='-'
@@ -50,8 +51,7 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
         for key, value in kwargs.items():
             setattr(self, key, value)
                 
-    
-    
+
     @property
     def grid_bin_1D(self):
         """The grid_bin_1D property."""
@@ -120,6 +120,13 @@ class PlacefieldComputationParameters(SimplePrintable, metaclass=OrderedMeta):
         
 
 
+    def __hash__(self):
+        """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
+        # return hash((self.age, self.name))
+        member_names_tuple = list(self.__dict__.keys())
+        values_tuple = list(self.__dict__.values())
+        combined_tuple = tuple(member_names_tuple + values_tuple)
+        return hash(combined_tuple)
 
 
 def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):

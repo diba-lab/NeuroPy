@@ -137,7 +137,7 @@ class ColorsUtil:
 
 
 
-def get_neuron_colors(sort_indicies, cmap=None):
+def get_neuron_colors(sort_indicies, cmap=None, debug_print=False):
     # returns the list of colors, an RGBA np.array of shape: 4 x n_neurons. 
     if cmap is None:
         # when none, get Pho's defaults which look good for large number of neurons.
@@ -151,7 +151,8 @@ def get_neuron_colors(sort_indicies, cmap=None):
     n_neurons = len(sort_indicies)
     
     if (cmap.N < n_neurons):
-        print(f'The specified cmap supports less colors than n_neurons (supports {cmap.N}, n_neurons: {n_neurons}). An extended colormap will be built.')
+        if debug_print:
+            print(f'The specified cmap supports less colors than n_neurons (supports {cmap.N}, n_neurons: {n_neurons}). An extended colormap will be built.')
         # Extend the cmap if there are more neurons in n_neurons than the original colormap supports:
         num_needed_categories, num_needed_subcategories = ColorsUtil.compute_needed_single_hue_variations(n_neurons, cmap)
         extended_cmap = ColorsUtil.categorical_cmap(num_needed_categories, num_needed_subcategories, cmap=cmap)
