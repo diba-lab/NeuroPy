@@ -109,9 +109,10 @@ class ExplainedVariance(core.DataWriter):
         control = np.arange(self.control[0], self.control[1])
 
         # truncate/delete windows if they fall within ignore_epochs
-        ignore_bins = self.ignore_epochs.flatten()
-        matching = matching[np.digitize(matching, ignore_bins) % 2 == 0]
-        control = control[np.digitize(control, ignore_bins) % 2 == 0]
+        if self.ignore_epochs is not None:
+            ignore_bins = self.ignore_epochs.flatten()
+            matching = matching[np.digitize(matching, ignore_bins) % 2 == 0]
+            control = control[np.digitize(control, ignore_bins) % 2 == 0]
 
         matching_windows = np.lib.stride_tricks.sliding_window_view(
             matching, self.window
