@@ -5,7 +5,10 @@ from ..core import Epoch
 from ..core import Signal
 from ..utils import signal_process
 
-def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5, filt: list or np.ndarray = None):
+
+def detect_artifact_epochs(
+    signal: Signal, thresh=4, edge_cutoff=2, merge=5, filt: list or np.ndarray = None
+):
     """
     calculating artifact periods using z-score measure
 
@@ -21,8 +24,8 @@ def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5, fil
         artifacts less than this seconds apart are merged, default 5 seconds
     method : str, optional
         [description], by default "zscore"
-    filt : list, optional 
-        lower and upper limits with which to filter signal, e.g. 3, 3000] -> 
+    filt : list, optional
+        lower and upper limits with which to filter signal, e.g. 3, 3000] ->
         bandpass between and 3000 Hz while [45, None] -> high-pass above 45.
 
     Returns
@@ -34,7 +37,7 @@ def detect_artifact_epochs(signal: Signal, thresh=4, edge_cutoff=2, merge=5, fil
     sampling_rate = signal.sampling_rate
 
     if signal.n_channels > 1:
-        sig = np.mean(signal.traces, axis=0)
+        sig_raw = np.mean(signal.traces, axis=0)
 
     else:
         sig_raw = signal.traces.reshape((-1))
