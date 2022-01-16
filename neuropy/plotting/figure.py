@@ -105,7 +105,9 @@ class Colormap:
 class Fig:
     labelsize = 8
 
-    def draw(self, num=None, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs):
+    def __init__(
+        self, num=None, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs
+    ):
 
         # --- plot settings --------
         if style == "figPublish":
@@ -150,9 +152,9 @@ class Fig:
         fig.subplots_adjust(**kwargs)
 
         self.fig = fig
-        return self.fig, gs
+        self.gs = gs
 
-    def add_subplot(self, subplot_spec):
+    def subplot(self, subplot_spec):
         return plt.subplot(subplot_spec)
 
     def subplot2grid(self, subplot_spec, grid=(1, 3), **kwargs):
