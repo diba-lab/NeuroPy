@@ -111,15 +111,21 @@ class Fig:
 
         # --- plot settings --------
         if style == "figPublish":
+            axis_color = "#545454"
             mpl.rcParams["axes.linewidth"] = 2
             mpl.rcParams["axes.labelsize"] = 8
             mpl.rcParams["axes.titlesize"] = 8
+            mpl.rcParams["axes.edgecolor"] = axis_color
             mpl.rcParams["xtick.labelsize"] = 8
             mpl.rcParams["ytick.labelsize"] = 8
             mpl.rcParams["axes.spines.top"] = False
             mpl.rcParams["axes.spines.right"] = False
             mpl.rcParams["xtick.major.width"] = 2
+            mpl.rcParams["xtick.color"] = axis_color
+            mpl.rcParams["xtick.labelcolor"] = "k"
             mpl.rcParams["ytick.major.width"] = 2
+            mpl.rcParams["ytick.color"] = axis_color
+            mpl.rcParams["ytick.labelcolor"] = "k"
             mpl.rcParams["axes.prop_cycle"] = cycler(
                 "color",
                 [
