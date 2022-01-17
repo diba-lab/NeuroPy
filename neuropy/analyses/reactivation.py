@@ -12,10 +12,37 @@ from sklearn.decomposition import PCA, FastICA
 from ..utils.mathutil import getICA_Assembly, parcorr_mult
 from .. import core
 from ..plotting import Fig
-import pingouin as pg
 
 
 class ExplainedVariance(core.DataWriter):
+    """Explained variance measure for assessing reactivation of neuronal activity using pairwise correlations.
+
+    Attributes
+    ----------
+    neurons: core.Neurons
+        neurons used for ev calculation
+    ev: np.array of size n_matching_windows
+        explained variance result for each window
+    ev_std: np.array of size n_matching_windows
+        standard deviation for each matching_window
+    rev: array of size n_matching_windows
+        reversed explained variance, an estimate of chance level
+    matching_time: np.array
+        midpoints of matching time windows in seconds
+    control_time: np.array
+        midpints of control time windows in seconds
+    n_pairs: int
+        maximum number of pairs
+
+
+    References
+    -------
+    1) Kudrimoti, H. S., Barnes, C. A., & McNaughton, B. L. (1999). Reactivation of Hippocampal Cell Assemblies: Effects of Behavioral State, Experience, and EEG Dynamics. Journal of Neuroscience, 19(10), 4090–4101. https://doi.org/10/4090
+    2) Tatsuno, M., Lipa, P., & McNaughton, B. L. (2006). Methodological Considerations on the Use of Template Matching to Study Long-Lasting Memory Trace Replay. Journal of Neuroscience, 26(42), 10727–10742. https://doi.org/10.1523/JNEUROSCI.3317-06.2006
+
+
+    """
+
     colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
 
     def __init__(
@@ -30,6 +57,29 @@ class ExplainedVariance(core.DataWriter):
         pairs_bool=None,
         ignore_epochs: core.Epoch = None,
     ):
+        """Explained variance measure for assessing reactivation of neuronal activity using pairwise correlations.
+
+        Parameters
+        ----------
+        neurons : core.Neurons
+            obj that holds spiketrains for multiple neurons
+        template : list/array of length 2
+            time in seconds, pairwise correlation calculated from this period will be compared to matching period
+        matching : list/array of length 2
+            time in seconds, template-correlations will be correlated with pariwise correlations of this period
+        control : list/array of length 2
+            time in seconds, control for pairwise correlations within this period
+        bin_size : float, optional
+            in seconds, binning size for spike counts, by default 0.250
+        window : int, optional
+            window over which pairwise correlations will be calculated in matching and control time windows,in seconds, by default 900
+        slideby : int, optional
+            slide window by this much, in seconds, by default None
+        pairs_bool : 2d array, optional
+            a 2d symmetric boolean array of size n_neurons x n_neurons specifying which pairs to be kept for calcualting explained variance, by default None
+        ignore_epochs : core.Epoch, optional
+            ignore calculation for these epochs, helps with noisy epochs, by default None
+        """
         super().__init__()
         self.neurons = neurons
 
@@ -56,12 +106,23 @@ class ExplainedVariance(core.DataWriter):
         )
 
         matching = np.arange(self.matching[0], self.matching[1])
+        control = np.arange(self.control[0], self.control[1])
+
+        # truncate/delete windows if they fall within ignore_epochs
+        if self.ignore_epochs is not None:
+            ignore_bins = self.ignore_epochs.flatten()
+            matching = matching[np.digitize(matching, ignore_bins) % 2 == 0]
+            control = control[np.digitize(control, ignore_bins) % 2 == 0]
+
         matching_windows = np.lib.stride_tricks.sliding_window_view(
             matching, self.window
         )[:: self.slideby, [0, -1]]
 
-        n_matching_windows = matching_windows.shape[0]
+        control_windows = np.lib.stride_tricks.sliding_window_view(
+            control, self.window
+        )[:: self.slideby, [0, -1]]
 
+        n_matching_windows = matching_windows.shape[0]
         matching_paircorr = []
         for window in matching_windows:
             matching_paircorr.append(
@@ -70,10 +131,6 @@ class ExplainedVariance(core.DataWriter):
                 .get_pairwise_corr(pairs_bool=self.pairs_bool)
             )
 
-        control = np.arange(self.control[0], self.control[1])
-        control_windows = np.lib.stride_tricks.sliding_window_view(
-            control, self.window
-        )[:: self.slideby, [0, -1]]
         n_control_windows = control_windows.shape[0]
         control_paircorr = []
         for window in control_windows:
@@ -148,6 +205,18 @@ class ExplainedVariance(core.DataWriter):
                 (self.matching_time[-1] - t_start) / 3600,
             ]
         )
+
+        if self.ignore_epochs is not None:
+            for i, epoch in enumerate(self.ignore_epochs.itertuples()):
+                ax.axvspan(
+                    (epoch.start - t_start) / 3600,
+                    (epoch.stop - t_start) / 3600,
+                    color="k",
+                    edgecolor=None,
+                    # alpha=alpha,
+                    zorder=5,
+                )
+
         return ax
 
 

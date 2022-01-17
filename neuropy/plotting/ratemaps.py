@@ -46,8 +46,8 @@ def plot_ratemap(
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
     if ax is None:
-        _, gs = Fig().draw(grid=(1, 1), size=(4.5, 11))
-        ax = plt.subplot(gs[0])
+        fig = Fig(grid=(1, 1), size=(4.5, 11))
+        ax = fig.subplot(fig.gs[0])
 
     if normalize_tuning_curve:
         tuning_curves = mathutil.min_max_scaler(tuning_curves)

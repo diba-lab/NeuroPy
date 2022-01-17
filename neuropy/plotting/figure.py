@@ -4,6 +4,7 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.gridspec as gridspec
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import numpy as np
 from cycler import cycler
@@ -105,19 +106,27 @@ class Colormap:
 class Fig:
     labelsize = 8
 
-    def draw(self, num=None, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs):
+    def __init__(
+        self, num=None, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs
+    ):
 
         # --- plot settings --------
         if style == "figPublish":
+            axis_color = "#545454"
             mpl.rcParams["axes.linewidth"] = 2
             mpl.rcParams["axes.labelsize"] = 8
             mpl.rcParams["axes.titlesize"] = 8
+            mpl.rcParams["axes.edgecolor"] = axis_color
             mpl.rcParams["xtick.labelsize"] = 8
             mpl.rcParams["ytick.labelsize"] = 8
             mpl.rcParams["axes.spines.top"] = False
             mpl.rcParams["axes.spines.right"] = False
             mpl.rcParams["xtick.major.width"] = 2
+            mpl.rcParams["xtick.color"] = axis_color
+            mpl.rcParams["xtick.labelcolor"] = "k"
             mpl.rcParams["ytick.major.width"] = 2
+            mpl.rcParams["ytick.color"] = axis_color
+            mpl.rcParams["ytick.labelcolor"] = "k"
             mpl.rcParams["axes.prop_cycle"] = cycler(
                 "color",
                 [
@@ -150,9 +159,9 @@ class Fig:
         fig.subplots_adjust(**kwargs)
 
         self.fig = fig
-        return self.fig, gs
+        self.gs = gs
 
-    def add_subplot(self, subplot_spec):
+    def subplot(self, subplot_spec):
         return plt.subplot(subplot_spec)
 
     def subplot2grid(self, subplot_spec, grid=(1, 3), **kwargs):
@@ -186,7 +195,21 @@ class Fig:
             ha="right",
         )
 
-    def savefig(self, fname: Path, scriptname=None, fig=None):
+    def legend(self, ax, text, color, fontsize=8, x=0.65, y=0.9):
+        for i, (s, c) in enumerate(zip(text, color)):
+            ax.text(
+                x=x,
+                y=y - i * 0.1,
+                s=s,
+                color=c,
+                transform=ax.transAxes,
+                fontsize=fontsize,
+                fontweight="bold",
+                va="top",
+                ha="left",
+            )
+
+    def savefig(self, fname: Path, scriptname=None, fig=None, caption=None):
 
         if fig is None:
             fig = self.fig
@@ -207,7 +230,25 @@ class Fig:
                 va="bottom",
                 alpha=0.5,
             )
-        fig.savefig(filename)
+        if caption is not None:
+            with PdfPages(filename) as pdf:
+                pdf.savefig(self.fig)
+
+                fig_caption = Fig(grid=(1, 1))
+                ax_caption = fig_caption.subplot(fig_caption.gs[0])
+
+                ax_caption.text(0, 0.5, caption, wrap=True)
+                ax_caption.axis("off")
+                pdf.savefig(fig_caption.fig)
+
+                # file's metadata:
+                # d = pdf.infodict()
+                # d["Title"] = ""
+                # d["Author"] = ""
+                # d["Subject"] = ""
+                # d["Keywords"] = ""
+        else:
+            fig.savefig(filename)
 
     @staticmethod
     def pf_1D(ax):
