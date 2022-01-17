@@ -4,6 +4,7 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.gridspec as gridspec
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import numpy as np
 from cycler import cycler
@@ -208,7 +209,7 @@ class Fig:
                 ha="left",
             )
 
-    def savefig(self, fname: Path, scriptname=None, fig=None):
+    def savefig(self, fname: Path, scriptname=None, fig=None, caption=None):
 
         if fig is None:
             fig = self.fig
@@ -229,7 +230,25 @@ class Fig:
                 va="bottom",
                 alpha=0.5,
             )
-        fig.savefig(filename)
+        if caption is not None:
+            with PdfPages(filename) as pdf:
+                pdf.savefig(self.fig)
+
+                fig_caption = Fig(grid=(1, 1))
+                ax_caption = fig_caption.subplot(fig_caption.gs[0])
+
+                ax_caption.text(0, 0.5, caption, wrap=True)
+                ax_caption.axis("off")
+                pdf.savefig(fig_caption.fig)
+
+                # file's metadata:
+                # d = pdf.infodict()
+                # d["Title"] = ""
+                # d["Author"] = ""
+                # d["Subject"] = ""
+                # d["Keywords"] = ""
+        else:
+            fig.savefig(filename)
 
     @staticmethod
     def pf_1D(ax):
