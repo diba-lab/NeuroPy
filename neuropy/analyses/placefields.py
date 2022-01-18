@@ -74,7 +74,10 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         out_list = []
         for key, value in self.__dict__.items():
             if key not in PlacefieldComputationParameters.variable_names:
-                out_list.append(f"{key}_{value:.2f}")
+                if value is None:
+                    out_list.append(f"{key}_None")
+                else:
+                    out_list.append(f"{key}_{value:.2f}")
         return out_list
         
     
