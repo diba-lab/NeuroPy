@@ -19,7 +19,7 @@ from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
 
-from PhoPositionalData.analysis.interactive_placeCell_config import InteractivePlaceCellConfig, PlottingConfig
+# from pyphoplacecellanalysis.General.Configs.DynamicConfigs import PlottingConfig, InteractivePlaceCellConfig
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
 
 # from .. import core
@@ -747,7 +747,7 @@ def compute_placefields_masked_by_epochs(sess, active_config, included_epochs=No
     return active_epoch_placefields1D, active_epoch_placefields2D
 
 
-def compute_placefields_as_needed(active_session, computation_config:PlacefieldComputationParameters=None, general_config: InteractivePlaceCellConfig=None, active_placefields1D = None, active_placefields2D = None, included_epochs=None, should_force_recompute_placefields=True, should_display_2D_plots=False):
+def compute_placefields_as_needed(active_session, computation_config:PlacefieldComputationParameters=None, general_config=None, active_placefields1D = None, active_placefields2D = None, included_epochs=None, should_force_recompute_placefields=True, should_display_2D_plots=False):
     from neuropy.plotting.placemaps import plot_all_placefields
     
     if computation_config is None:
@@ -761,133 +761,3 @@ def compute_placefields_as_needed(active_session, computation_config:PlacefieldC
         print('skipping 2D placefield plots')
     return active_placefields1D, active_placefields2D
 
-
-
-
-
-## Old Testing Implementation from Notebook:
-# def build_customPf2D_fromConfig(active_epoch_session, custom_computation_config):
-
-#     should_plot = False
-#     should_plot_multiple_occupancy_curves = False
-    
-#     if should_plot:
-#         fig = Figure(figsize=(10, 6))
-#         ax = fig.subplots(2, 1)
-#     else:
-#         # if should_plot is False, disable all other specific plotting options.
-#         should_plot_multiple_occupancy_curves = False
-#         fig = None
-
-#     pos_df = active_epoch_session.position.to_dataframe().copy()
-#     laps_df = active_epoch_session.laps.to_dataframe().copy()
-#     spk_df = active_epoch_session.spikes_df.copy()
-
-#     ## Binning with Fixed Number of Bins:    
-#     xbin, ybin, bin_info = _bin_pos_nD(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=custom_computation_config.grid_bin) # bin_size mode
-#     # print(bin_info)
-#     ## Binning with Fixed Bin Sizes:
-#     # xbin, ybin, bin_info = _bin_pos_nD(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
-#     # print(bin_info)
-
-#     # print('xbin: {}'.format(xbin))
-#     # print('ybin: {}'.format(ybin))
-
-#     # # Laps plotting:
-#     # # pos_df.lin_pos.plot();
-#     # curr_lap_id = 3
-#     # plt.plot(pos_df.t, pos_df.lin_pos, '*');
-#     # plt.xlim([laps_df.start[curr_lap_id], laps_df.stop[curr_lap_id]])
-#     # # pos_df.describe()
-#     # # pos_df.boxplot()
-
-#     raw_occupancy, xedges, yedges = Pf2D._compute_occupancy(pos_df.x.to_numpy(), pos_df.y.to_numpy(), xbin, ybin, active_epoch_session.position.sampling_rate, custom_computation_config.smooth, should_return_raw_occupancy=True)
-#     seconds_occupancy, normalized_occupancy = _normalized_occupancy(raw_occupancy, position_srate=active_epoch_session.position.sampling_rate)
-#     occupancy = seconds_occupancy
-#     # print(np.shape(occupancy))
-#     # print(occupancy)
-#     # plot_occupancy(occupancy)
-#     # plot_occupancy_custom(active_epoch_placefields2D)
-
-#     if should_plot_multiple_occupancy_curves:
-#         fig, ax = plot_occupancy_custom(raw_occupancy, xedges, yedges, max_normalized=False)
-#         ax.set_title('Custom Occupancy: Raw')
-#         fig, ax = plot_occupancy_custom(normalized_occupancy, xedges, yedges, max_normalized=False)
-#         ax.set_title('Custom Occupancy: Normalized')
-#         fig, ax = plot_occupancy_custom(seconds_occupancy, xedges, yedges, max_normalized=False)
-#         ax.set_title('Custom Occupancy: Seconds')
-
-#     # pos_df.groupby('lap').plas.hist(alpha=0.4)
-
-#     # Given a cell's last several seconds of its instantaneous firing rate at a given point in time, what's like likelihood that it's at a given position.
-#         # continuous position used.
-
-#     # spk_df_filtered_speed_thresh = spk_df[spk_df['speed'] >= custom_computation_config.speed_thresh].copy() # filter out the spikes below the speed_threshold
-#     # spk_x = spk_df_filtered_speed_thresh['x'].to_numpy()
-#     # spk_y = spk_df_filtered_speed_thresh['y'].to_numpy()
-
-#     spk_x = spk_df['x'].to_numpy()
-#     spk_y = spk_df['y'].to_numpy()
-#     num_spike_counts_map = Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, custom_computation_config.smooth, should_return_raw_tuning_map=True)
-    
-    
-#     if should_plot:
-#         fig, ax[0] = plot_occupancy_custom(num_spike_counts_map, xbin, ybin, max_normalized=False, fig=fig, ax=ax[0])
-#         ax[0].set_title('Custom num_spike_counts_map: All Neurons')
-
-#         mpl_pane = pn.pane.Matplotlib(fig, dpi=144, height=800)
-#         tabs = pn.Tabs(('num_spike_counts_map', fig))
-        
-        
-#     ## This seems to be wrong, the highest spike rate is like 0.1 (in Hz)
-#     spike_rate_Hz_map = num_spike_counts_map / seconds_occupancy
-    
-#     if should_plot:
-#         fig, ax[1] = plot_occupancy_custom(spike_rate_Hz_map, xbin, ybin, max_normalized=False, fig=fig, ax=ax[1])
-#         ax[1].set_title('Custom spike_rate_Hz_map [Hz]: All Neurons, Occupancy Divided')
-#         # Add a tab
-#         tabs.append(('spike_rate_Hz_map', fig))
-#         # # Add a tab
-#         # tabs.append(('Slider', pn.widgets.FloatSlider()))
-
-#     neuron_split_spike_dfs = [spk_df.groupby('aclu').get_group(neuron_id)[['t','x','y','lin_pos']] for neuron_id in active_epoch_session.neuron_ids] # dataframes split for each ID:
-#     raw_tuning_maps = np.asarray([Pf2D._compute_tuning_map(neuron_split_spike_dfs[i].x.to_numpy(), neuron_split_spike_dfs[i].y.to_numpy(), xbin, ybin, occupancy, custom_computation_config.smooth, should_return_raw_tuning_map=True) for i in np.arange(len(neuron_split_spike_dfs))]) # dataframes split for each ID:
-#     tuning_maps = np.asarray([raw_tuning_maps[i] / occupancy for i in np.arange(len(raw_tuning_maps))])
-#     ratemap = Ratemap(tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=active_epoch_session.neuron_ids)
-
-#     # fig, ax = plot_occupancy_custom(raw_tuning_maps[0], xedges, yedges, max_normalized=False)
-#     # ax.set_title('Custom raw_tuning_maps: Seconds')
-#     firing_spike_counts_max = np.asarray([np.nanmax(raw_tuning_maps[i]) for i in np.arange(len(neuron_split_spike_dfs))]) # dataframes split for each ID:
-#     # print('firing_spike_counts_max: {}'.format(firing_spike_counts_max))
-#     firing_rate_max = np.asarray([np.nanmax(tuning_maps[i]) for i in np.arange(len(neuron_split_spike_dfs))]) # dataframes split for each ID:
-#     # print('firing_rate_max: {}'.format(firing_rate_max))
-
-#     filtered_tuning_maps, filter_function = _filter_by_frate(tuning_maps.copy(), custom_computation_config.frate_thresh)
-#     filtered_ratemap = Ratemap(filtered_tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=filter_function(ratemap.neuron_ids))
-    
-#     # outputs: filtered_ratemap, filtered_ratemap
-    
-#     # plt.fastcolor(active_epoch_placefields1D.occupancy)
-#     # Convolve the location data
-
-#     # plot_occupancy(active_epoch_placefields2D)
-#     # pn.pane.Matplotlib(fig)
-    
-#     return filtered_ratemap, fig
-
-# def build_customPf2D(active_epoch_session, speed_thresh=1, grid_bin=(10, 3), smooth=(0.0, 0.0), frate_thresh=0.0):
-#     # custom_active_config = active_config
-#     # note the second smoothing paramter affects the horizontal axis on the occupancy plot:
-#     # custom_computation_config = PlacefieldComputationParameters(speed_thresh=1, grid_bin=(10, 3), smooth=(2, 0.1), frate_thresh=0.0)
-#     # custom_computation_config = PlacefieldComputationParameters(speed_thresh=1, grid_bin=(10, 3), smooth=(0.0, 0.0), frate_thresh=0.0)
-#     custom_computation_config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
-#     return build_customPf2D_fromConfig(active_epoch_session, custom_computation_config)
-
-# def build_customPf2D_separate(active_epoch_session, speed_thresh=1, grid_bin_x=10, grid_bin_y=3, smooth_x=0.0, smooth_y=0.0, frate_thresh=0.0):
-#     return build_customPf2D(active_epoch_session, speed_thresh=speed_thresh, grid_bin=(grid_bin_x, grid_bin_y), smooth=(smooth_x, smooth_y), frate_thresh=frate_thresh)
-
-
-# build_customPf2D(active_epoch_session, speed_thresh=1, grid_bin=10, smooth=0.0, frate_thresh=0.0)
-# pn.interact(build_customPf2D, active_epoch_session=fixed(active_epoch_session), speed_thresh=1, grid_bin=(10, 3), smooth=(0.0, 0.0), frate_thresh=2.0)
-
-# pn.interact(build_customPf2D_separate, active_epoch_session=fixed(active_epoch_session), speed_thresh=(0.0, 20.0, 1.0), grid_bin_x=(0.10, 20.0, 0.5), grid_bin_y=(0.10, 20.0, 0.5), smooth_x=(0.0, 20.0, 0.25), smooth_y=(0.0, 20.0, 0.25), frate_thresh=(0.0, 20.0, 1.0))
