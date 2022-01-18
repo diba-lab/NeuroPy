@@ -154,7 +154,8 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
 
 
     def __str__(self) -> str:
-        pass
+        return f"{len(self.starts)} epochs\n{self.as_array().__repr__()}\n"
+    
 
     def __getitem__(self, slice_):
         

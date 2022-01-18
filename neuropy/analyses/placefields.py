@@ -73,11 +73,25 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         # Dump all arguments into parameters.
         out_list = []
         for key, value in self.__dict__.items():
-            if key not in PlacefieldComputationParameters.variable_names:
+            if (key is not None) and (key not in PlacefieldComputationParameters.variable_names):
                 if value is None:
                     out_list.append(f"{key}_None")
-                else:
+                elif isinstance(value, float):
                     out_list.append(f"{key}_{value:.2f}")
+                else:
+                    try:
+                        out_list.append(f"{key}_{value}")
+                    # except TypeError as e:
+                    #     print(f'TypeError: {e}. type(value): {type(value)}')
+                    #     print(f'self.__dict__: {self.__dict__}')
+                    #     # print(f"{key}_{value}")
+                    #     # raise e
+                    #     out_list.append(f"{key}_{type(value)}")
+                    except Exception as e:
+                        print(f'UNEXPECTED_EXCEPTION: {e}')
+                        print(f'self.__dict__: {self.__dict__}')
+                        raise e
+
         return out_list
         
     
