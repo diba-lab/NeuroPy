@@ -252,6 +252,10 @@ def rescale_figure_size(F, scale_multiplier=2.0, debug_print=False):
     return F
 
 
+def compute_figure_size_pixels(figure_size_inches):
+    # px_to_inches = 1/plt.rcParams['figure.dpi']  # pixel in inches
+    inches_to_px = plt.rcParams['figure.dpi']  # pixel in inches
+    return (figure_size_inches[0]*inches_to_px, figure_size_inches[1]*inches_to_px)
 
 
 # class ScrollPlot:

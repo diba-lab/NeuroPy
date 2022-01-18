@@ -29,7 +29,7 @@ from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowC
 from neuropy.utils.colors_util import get_neuron_colors
 
 
-from .figure import Fig
+from .figure import Fig, compute_figure_size_pixels
 
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to a single flat function (if that's appropriate).
 ## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
@@ -316,7 +316,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -339,10 +339,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     
     if not isinstance(subplots, RowColTuple):
         subplots = RowColTuple(subplots[0], subplots[1])
-        
-    # if not isinstance(fig_subplotsize, SubplotGridSizeTuple):
-    #     subplots = SubplotGridSizeTuple(fig_subplotsize[0], fig_subplotsize[1])
-        
+    
     if included_unit_indicies is None:
         included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
     
@@ -403,10 +400,26 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
          
         ## Figure size should be (Width, height)
         required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
+       
+        # max_screen_figure_size
+        
+        required_figure_size_px = compute_figure_size_pixels(required_figure_size)
         if debug_print:
-            print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}') # this is figure size in inches
+            print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}, required_figure_size_px: {required_figure_size_px}') # this is figure size in inches
+
+        active_figure_size = required_figure_size
+        
+        # If max_screen_figure_size is not None (it should be a two element tuple, specifying the max width and height in pixels for the figure:
+        if max_screen_figure_size is not None:
+            active_figure_size = list(active_figure_size) # convert to a list instead of a tuple to make it mutable
+            if max_screen_figure_size[0] is not None:
+                active_figure_size[0] = min(active_figure_size[0], max_screen_figure_size[0])
+            if max_screen_figure_size[1] is not None:
+                active_figure_size[1] = min(active_figure_size[1], max_screen_figure_size[1])
+  
+        active_figure_size = tuple(active_figure_size)              
         # active_figure_size=figsize
-        active_figure_size=required_figure_size
+        # active_figure_size=required_figure_size
     
         if grid_layout_mode == 'gridspec':
             fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, clear=True)
