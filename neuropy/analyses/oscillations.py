@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from ..utils import mathutil, signal_process
 from scipy import stats
+import scipy.signal as sg
 from ..core import Signal, ProbeGroup, Epoch
 
 
@@ -134,14 +135,7 @@ def _detect_freq_band_epochs(
 
 
 def detect_hpc_slow_wave_epochs(
-    signal: Signal,
-    probegroup: ProbeGroup,
-    freq_band=(150, 250),
-    thresh=(1, 5),
-    mindur=0.05,
-    maxdur=0.450,
-    mergedist=0.05,
-    ignore_epochs: Epoch = None,
+    signal: Signal, freq_band=(0.5, 4), ignore_epochs: Epoch = None
 ):
     """Caculate delta events
 
@@ -149,21 +143,22 @@ def detect_hpc_slow_wave_epochs(
 
     Parameters
     ----------
-    chan : int
-        channel to be used for detection
+    signal : Signal object
+        signal trace to be used for detection
     freq_band : tuple, optional
         frequency band in Hz, by default (0.5, 4)
     """
 
-    lfpsRate = self._obj.lfpSrate
-    deltachan = self._obj.geteeg(chans=chan)
+    assert signal.n_channels == 1, "Signal should have only 1 channel"
 
-    # ---- filtering best ripple channel in delta band
-    t = np.linspace(0, len(deltachan) / lfpsRate, len(deltachan))
+    # ---- filtering in delta band -----
+    trace = signal.traces[0]
+    t = signal.time
     lf, hf = freq_band
-    delta_sig = signal_process.filter_sig.bandpass(deltachan, lf=lf, hf=hf)
-    delta = stats.zscore(delta_sig)  # normalization w.r.t session
-    delta = -delta  # flipping as this is in sync with cortical slow wave
+    delta = signal_process.filter_sig.bandpass(trace, lf=lf, hf=hf)
+
+    # ---- normalize and flip the sign to be consistent with cortical lfp ----
+    delta = -1 * stats.zscore(delta)
 
     # ---- finding peaks and trough for delta oscillations
 
@@ -187,22 +182,20 @@ def detect_hpc_slow_wave_epochs(
         sigdelta.append([peakamp, endamp, tpeak, tbeg, tend])
 
     sigdelta = np.asarray(sigdelta)
-    print(f"{len(sigdelta)} delta detected")
+    print(f"{len(sigdelta)} delta waves detected")
 
-    data = pd.DataFrame(
+    epochs = pd.DataFrame(
         {
             "start": sigdelta[:, 3],
-            "end": sigdelta[:, 4],
+            "stop": sigdelta[:, 4],
             "peaktime": sigdelta[:, 2],
             "peakamp": sigdelta[:, 0],
             "endamp": sigdelta[:, 1],
         }
     )
-    detection_params = {"freq_band": freq_band, "chan": chan}
-    hipp_slow_wave = {"events": data, "DetectionParams": detection_params}
+    params = {"freq_band": freq_band, "channel": signal.channel_id}
 
-    np.save(self.files.events, hipp_slow_wave)
-    self._load()
+    return Epoch(epochs=epochs, metadata=params)
 
 
 def detect_ripple_epochs(
@@ -387,15 +380,6 @@ def detect_gamma_epochs():
 
 class Gamma:
     """Events and analysis related to gamma oscillations"""
-
-    def __init__(self, basepath):
-
-        if isinstance(basepath, Recinfo):
-            self._obj = basepath
-        else:
-            self._obj = Recinfo(basepath)
-
-        filePrefix = self._obj.files.filePrefix
 
     def get_peak_intervals(
         self,
