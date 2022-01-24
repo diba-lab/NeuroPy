@@ -16,7 +16,7 @@ from .. import core
 
 class filter_sig:
     @staticmethod
-    def bandpass(signal, hf, lf, fs=1250, order=3, ax=-1):
+    def bandpass(signal, lf, hf, fs=1250, order=3, ax=-1):
 
         if isinstance(signal, core.Signal):
             y = signal.traces

@@ -61,9 +61,10 @@ class Signal:
             t_stop = t_start + self.duration
 
         assert t_stop <= self.t_stop, "t_stop should be less than signal.t_stop"
+        assert t_stop > t_start, "t_stop should be greater than t_start"
 
         frame_start = int((t_start - self.t_start) * self.sampling_rate)
-        frame_stop = int((t_stop - t_start) * self.sampling_rate)
+        frame_stop = int((t_stop - self.t_start) * self.sampling_rate)
 
         if channel_id is None:
             traces = self.traces[:, frame_start:frame_stop]
