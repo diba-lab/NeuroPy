@@ -413,8 +413,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 
 class Pf2D(PfnConfigMixin, PfnDMixin):
 
-
-
     @staticmethod
     def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_raw_occupancy=False):
         # --- occupancy map calculation -----------
