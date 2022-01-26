@@ -89,24 +89,6 @@ class Position(DataWriter):
     def sampling_rate(self, sampling_rate):
         self._sampling_rate = sampling_rate
 
-    def to_dict(self):
-        data = {
-            "traces": self.traces,
-            "t_start": self.t_start,
-            "sampling_rate": self._sampling_rate,
-            "metadata": self.metadata,
-        }
-        return data
-
-    @staticmethod
-    def from_dict(d):
-        return Position(
-            traces=d["traces"],
-            t_start=d["t_start"],
-            sampling_rate=d["sampling_rate"],
-            metadata=d["metadata"],
-        )
-
     @property
     def speed(self):
         dt = 1 / self.sampling_rate

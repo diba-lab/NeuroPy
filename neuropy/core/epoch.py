@@ -9,15 +9,15 @@ class Epoch(DataWriter):
 
         self._check_epochs(epochs)
         epochs["label"] = epochs["label"].astype("str")
-        self._data = epochs.sort_values(by=["start"])
+        self._epochs = epochs.sort_values(by=["start"])
 
     @property
     def starts(self):
-        return self._data.start.values
+        return self._epochs.start.values
 
     @property
     def stops(self):
-        return self._data.stop.values
+        return self._epochs.stop.values
 
     @property
     def durations(self):
@@ -29,16 +29,16 @@ class Epoch(DataWriter):
 
     @property
     def labels(self):
-        return self._data.label.values
+        return self._epochs.label.values
 
     def set_labels(self, labels):
-        self._data["label"] = labels
-        return Epoch(epochs=self._data)
+        self._epochs["label"] = labels
+        return Epoch(epochs=self._epochs)
 
     def __add__(self, epochs):
         assert isinstance(epochs, Epoch), "Can only add two core.Epoch objects"
-        df1 = self._data[["start", "stop", "label"]]
-        df2 = epochs._data[["start", "stop", "label"]]
+        df1 = self._epochs[["start", "stop", "label"]]
+        df2 = epochs._epochs[["start", "stop", "label"]]
         df_new = pd.concat([df1, df2]).reset_index(drop=True)
         return Epoch(epochs=df_new)
 
@@ -50,11 +50,11 @@ class Epoch(DataWriter):
 
     @property
     def to_dict(self):
-        d = {"epochs": self._data, "metadata": self.metadata}
+        d = {"epochs": self._epochs, "metadata": self.metadata}
         return d
 
     def to_dataframe(self):
-        df = self._data.copy()
+        df = self._epochs.copy()
         df["duration"] = self.durations
         return df
 
@@ -76,7 +76,7 @@ class Epoch(DataWriter):
         ), "Epoch dataframe should at least have columns with names: start, stop, label"
 
     def __repr__(self) -> str:
-        return f"{len(self.starts)} epochs\nSnippet: \n {self._data.head(5)}"
+        return f"{len(self.starts)} epochs\nSnippet: \n {self._epochs.head(5)}"
 
     def __str__(self) -> str:
         pass
@@ -84,11 +84,11 @@ class Epoch(DataWriter):
     def __getitem__(self, i):
 
         if isinstance(i, str):
-            data = self._data[self._data["label"] == i].copy()
+            data = self._epochs[self._epochs["label"] == i].copy()
         elif isinstance(i, slice):
-            data = self._data.iloc[i].copy()
+            data = self._epochs.iloc[i].copy()
         else:
-            data = self._data.iloc[[i]].copy()
+            data = self._epochs.iloc[[i]].copy()
 
         return Epoch(epochs=data.reset_index(drop=True))
 
@@ -104,18 +104,8 @@ class Epoch(DataWriter):
 
     def label_slice(self, label):
         assert isinstance(label, str), "label must be string"
-        df = self._data[self._data["label"] == label].reset_index(drop=True)
+        df = self._epochs[self._epochs["label"] == label].reset_index(drop=True)
         return Epoch(epochs=df)
-
-    def to_dict(self):
-        return {
-            "epochs": self._data,
-            "metadata": self._metadata,
-        }
-
-    @staticmethod
-    def from_dict(d: dict):
-        return Epoch(d["epochs"], metadata=d["metadata"])
 
     @staticmethod
     def from_array(starts, stops, labels=None):
@@ -218,7 +208,7 @@ class Epoch(DataWriter):
 
         duration = t_stop - t_start
 
-        ep = self._data.copy()
+        ep = self._epochs.copy()
         ep = ep[(ep.stop > t_start) & (ep.start < t_stop)].reset_index(drop=True)
 
         if ep["start"].iloc[0] < t_start:

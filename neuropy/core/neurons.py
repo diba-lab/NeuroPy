@@ -186,50 +186,6 @@ class Neurons(DataWriter):
     def __len__(self):
         return self.n_neurons
 
-    # def load(self):
-    #     data = super().load()
-    #     if data is not None:
-    #         for key in data:
-    #             setattr(self, key, data[key])
-
-    def to_dict(self):
-
-        # self._check_integrity()
-
-        return {
-            "spiketrains": self.spiketrains,
-            "t_stop": self.t_stop,
-            "t_start": self.t_start,
-            "sampling_rate": self.sampling_rate,
-            "neuron_ids": self.neuron_ids,
-            "neuron_type": self.neuron_type,
-            "waveforms": self.waveforms,
-            "waveforms_amplitude": self.waveforms_amplitude,
-            "peak_channels": self.peak_channels,
-            "shank_ids": self.shank_ids,
-            "metadata": self.metadata,
-        }
-
-    @staticmethod
-    def from_dict(d):
-
-        if "waveforms_amplitude" not in d:
-            d["waveforms_amplitude"] = None
-
-        return Neurons(
-            spiketrains=d["spiketrains"],
-            t_stop=d["t_stop"],
-            t_start=d["t_start"],
-            sampling_rate=d["sampling_rate"],
-            neuron_ids=d["neuron_ids"],
-            neuron_type=d["neuron_type"],
-            waveforms=d["waveforms"],
-            waveforms_amplitude=d["waveforms_amplitude"],
-            peak_channels=d["peak_channels"],
-            shank_ids=d["shank_ids"],
-            metadata=d["metadata"],
-        )
-
     def add_metadata(self):
         pass
 
@@ -499,29 +455,6 @@ class BinnedSpiketrain(DataWriter):
     def time(self):
         return np.arange(self.n_bins) * self.bin_size + self.t_start
 
-    def to_dict(self):
-        return {
-            "spike_counts": self.spike_counts,
-            "t_start": self.t_start,
-            "bin_size": self.bin_size,
-            "neuron_ids": self.neuron_ids,
-            "peak_channels": self.peak_channels,
-            "shank_ids": self.shank_ids,
-            "metadata": self.metadata,
-        }
-
-    @staticmethod
-    def from_dict(d):
-        return BinnedSpiketrain(
-            spike_counts=d["spike_counts"],
-            bin_size=d["bin_size"],
-            t_start=d["t_start"],
-            neuron_ids=d["neuron_ids"],
-            peak_channels=d["peak_channels"],
-            shank_ids=d["shank_ids"],
-            metadata=d["metadata"],
-        )
-
     def get_pairwise_corr(self, pairs_bool=None, return_pair_id=False):
         """Pairwise correlation between pairs of binned of spiketrains
 
@@ -645,23 +578,6 @@ class Mua(DataWriter):
             spike_counts=self.spike_counts[indices],
             bin_size=self.bin_size,
             t_start=t_start,
-        )
-
-    def to_dict(self):
-        return {
-            "spike_counts": self._spike_counts,
-            "t_start": self.t_start,
-            "bin_size": self.bin_size,
-            "metadata": self.metadata,
-        }
-
-    @staticmethod
-    def from_dict(d):
-        return Mua(
-            spike_counts=d["spike_counts"],
-            t_start=d["t_start"],
-            bin_size=d["bin_size"],
-            metadata=d["metadata"],
         )
 
     def to_dataframe(self):

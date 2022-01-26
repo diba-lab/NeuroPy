@@ -22,9 +22,9 @@ class DataWriter:
             assert isinstance(d, dict), "Only dictionary accepted"
             self._metadata = self._metadata | d
 
-    @staticmethod
-    def from_dict(d):
-        return NotImplementedError
+    @classmethod
+    def from_dict(cls, d):
+        return cls(**d)
 
     @staticmethod
     def from_file(f):
@@ -35,7 +35,14 @@ class DataWriter:
             return None
 
     def to_dict(self):
-        return NotImplementedError
+        d = dict()
+        attrs = self.__dict__.keys()
+        for k in attrs:
+            if k.startswith("_"):
+                d[k[1:]] = getattr(self, k)
+            else:
+                d[k] = getattr(self, k)
+        return d
 
     def save(self, fp):
 
