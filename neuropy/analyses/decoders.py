@@ -11,6 +11,7 @@ from scipy.special import factorial
 from tqdm import tqdm
 
 from .. import core
+from .. import plotting
 from ..utils import mathutil
 
 
@@ -58,7 +59,7 @@ def radon_transform(arr, nlines=10000, dt=1, dx=1, neighbours=1):
 
     # exclude stationary events by choosing phi little below 90 degree
     # NOTE: angle of line is given by (90-phi), refer Kloosterman 2012
-    phi = np.random.uniform(low=-np.pi / 2 + 0.02, high=np.pi / 2 - 0.02, size=nlines)
+    phi = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
     diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
     rho = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
 
@@ -159,6 +160,7 @@ class Decode1d:
         self.posterior = None
         self.neurons = neurons
         self.bin_size = bin_size
+        self.pos_bin_size = ratemap.xbin_size
         self.decoded_position = None
         self.epochs = epochs
         self.slideby = slideby
@@ -272,15 +274,13 @@ class Decode1d:
         """
         results = Parallel(n_jobs=self.n_jobs)(
             delayed(radon_transform)(
-                epoch, nlines=5000, dt=self.bin_size, dx=self.ratemap.xbin
+                epoch, nlines=5000, dt=self.bin_size, dx=self.pos_bin_size, neighbours=2
             )
             for epoch in p
         )
-        score = [res[0] for res in results]
-        velocity = [res[1] for res in results]
-        intercept = [res[2] for res in results]
+        score, velocity, intercept = np.asarray(results).T
 
-        return np.asarray(score), np.asarray(velocity), np.asarray(intercept)
+        return score, velocity, intercept
 
     @property
     def p_value(self):
@@ -292,6 +292,38 @@ class Decode1d:
 
     def plot_in_bokeh(self):
         pass
+
+    def plot_summary(self):
+        n_posteriors = len(self.posterior)
+        posterior_ind = np.random.default_rng().integers(0, n_posteriors, 5)
+        arrs = [self.posterior[i] for i in posterior_ind]
+
+        _, axs = plt.subplots(2, 5, sharey="row", sharex="col")
+        zsc_tuning = stats.zscore(self.ratemap.tuning_curves, axis=1)
+        sort_ind = np.argsort(np.argmax(zsc_tuning, axis=1))
+
+        for i, arr in enumerate(arrs):
+
+            t_start = self.epochs[posterior_ind[i]].flatten()[0]
+            velocity, intercept = (
+                self.velocity[posterior_ind[i]],
+                self.intercept[posterior_ind[i]],
+            )
+            arr = np.apply_along_axis(
+                np.convolve, axis=0, arr=arr, v=np.ones(2 * 2 + 1)
+            )
+            t = np.arange(arr.shape[1]) * self.bin_size + t_start
+            pos = np.arange(arr.shape[0]) * 2
+
+            axs[0, i].pcolormesh(t, pos, arr, cmap="hot")
+            axs[0, i].plot(t, velocity * (t - t_start) + intercept, color="w")
+            axs[0, i].set_ylim([pos.min(), pos.max()])
+
+            plotting.plot_raster(
+                self.neurons[sort_ind].time_slice(t_start=t[0], t_stop=t[-1]),
+                ax=axs[1, i],
+                color="k",
+            )
 
     def plot_replay_epochs(self, pval=0.05, speed_thresh=True, cmap="hot"):
         pval_events = self.p_val_events
