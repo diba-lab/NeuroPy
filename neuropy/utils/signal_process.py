@@ -174,10 +174,10 @@ class FourierSg(core.Spectrogram):
     def __init__(
         self,
         signal: core.Signal,
-        freqs,
         window=1,
         overlap=0.5,
         norm_sig=True,
+        freqs=None,
         multitaper=False,
         sigma=None,
     ) -> None:
@@ -187,18 +187,20 @@ class FourierSg(core.Spectrogram):
         ----------
         signal : core.Signal
             should have only a single channel
-        freqs : np.array
-            frequencies of query
         norm_sig : bool, optional
             whether to normalize the signal, by default True
         window : float, optional
             length of each segment in seconds, ignored if using wavelet method, by default 1 s
         overlap : float, optional
-            length of overlap between adjacent segments, ignored if using wavelet, by default 0.5
+            length of overlap between adjacent segments, by default 0.5
+        freqs : np.array
+            If provided, the spectrogram will use interpolation to evaluate at these frequencies
         multitaper: bool,
             whether to use multitaper for estimation, by default False
         sigma : int, optional
             smoothing to applied on spectrum, in units of seconds, by default 2 s
+
+        NOTE: time is center of windows
 
         """
 
@@ -211,12 +213,15 @@ class FourierSg(core.Spectrogram):
             sxx, freqs, t = self._ft(
                 trace, signal.sampling_rate, window, overlap, mt=True
             )
-            sampling_rate = int(1 / (t[1] - t[0]))
         else:
-            sxx, freqs_, t = self._ft(trace, signal.sampling_rate, window, overlap)
-            sampling_rate = int(1 / (t[1] - t[0]))
-            f = interp2d(t, freqs_, sxx)
-            sxx = f(t, freqs)
+            sxx, f, t = self._ft(trace, signal.sampling_rate, window, overlap)
+
+            if freqs is not None:
+                func_sxx = interp2d(t, f, sxx)
+                sxx = func_sxx(t, freqs)
+                f = freqs
+
+        sampling_rate = 1 / (t[1] - t[0])
 
         if sigma is not None:
             # TODO it is slow for large array, maybe move to a method and use fastlen padding
@@ -224,7 +229,10 @@ class FourierSg(core.Spectrogram):
             sxx = filtSig.gaussian_filter1d(sxx, sigma=sigma / sampling_period, axis=-1)
 
         super().__init__(
-            traces=sxx, sampling_rate=sampling_rate, freqs=freqs, t_start=signal.t_start
+            traces=sxx,
+            sampling_rate=sampling_rate,
+            freqs=f,
+            t_start=signal.t_start + t[0],
         )
 
     def _ft(self, signal, fs, window, overlap, mt=False):
