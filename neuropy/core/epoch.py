@@ -48,11 +48,6 @@ class Epoch(DataWriter):
     def is_labels_unique(self):
         return len(np.unique(self.labels)) == len(self)
 
-    @property
-    def to_dict(self):
-        d = {"epochs": self._epochs, "metadata": self.metadata}
-        return d
-
     def to_dataframe(self):
         df = self._epochs.copy()
         df["duration"] = self.durations
