@@ -186,7 +186,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     if ax is None:
         ax = plt.gca()
             
-    curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap)
+    curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap) # note scaling by maximum here!
     if drop_below_threshold is not None:
         curr_pfmap[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
     
