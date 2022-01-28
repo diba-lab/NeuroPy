@@ -46,7 +46,6 @@ def plot_raster(
             color = [cmap(_ / n_neurons) for _ in range(n_neurons)]
         except:
             color = [color] * n_neurons
-    ax.patch.set_facecolor("k")
 
     for ind, spiketrain in enumerate(neurons.spiketrains):
         if add_vert_jitter:

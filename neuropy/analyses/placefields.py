@@ -206,7 +206,15 @@ class Pf1D(core.Ratemap):
     ):
         return plotting.plot_ratemaps()
 
-    def plot_raw(self, ax=None, subplots=(8, 9)):
+    def plot_ratemaps_raster(self):
+
+        _, ax = plt.subplots()
+        order = self.get_sort_order(by="index")
+        spiketrains_pos = [self.ratemap_spiketrains_pos[i] for i in order]
+        for i, pos in enumerate(spiketrains_pos):
+            ax.plot(pos, i * np.ones_like(pos), "k.", markersize=2)
+
+    def plot_raw_ratemaps_laps(self, ax=None, subplots=(8, 9)):
         return plotting.plot_raw_ratemaps()
 
 

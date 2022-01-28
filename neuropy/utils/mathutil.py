@@ -255,55 +255,6 @@ def contiguous_regions(condition):
     return idx
 
 
-def radon_transform(arr, nlines=5000):
-    """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
-
-    Parameters
-    ----------
-    arr : [type]
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-
-    References
-    ----------
-    1) Kloosterman et al. 2012
-    """
-    t = np.arange(arr.shape[1])
-    nt = len(t)
-    tmid = (nt + 1) / 2
-    pos = np.arange(arr.shape[0])
-    npos = len(pos)
-    pmid = (npos + 1) / 2
-    arr = np.apply_along_axis(np.convolve, axis=0, arr=arr, v=np.ones(3))
-
-    theta = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
-    diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
-    intercept = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
-
-    cmat = np.tile(intercept, (nt, 1)).T
-    mmat = np.tile(theta, (nt, 1)).T
-    tmat = np.tile(t, (nlines, 1))
-    posterior = np.zeros((nlines, nt))
-
-    y_line = (((cmat - (tmat - tmid) * np.cos(mmat)) / np.sin(mmat)) + pmid).astype(int)
-    t_out = np.where((y_line < 0) | (y_line > npos - 1))
-    t_in = np.where((y_line >= 0) & (y_line <= npos - 1))
-    posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
-    posterior[t_in] = arr[y_line[t_in], t_in[1]]
-
-    old_settings = np.seterr(all="ignore")
-    posterior_sum = np.nanmean(posterior, axis=1)
-    max_line = np.argmax(posterior_sum)
-    slope = -(1 / np.tan(theta[max_line]))
-    np.seterr(**old_settings)
-
-    return posterior_sum[max_line], slope
-
-
 def hmmfit1d(Data, n_comp=2, n_iter=50):
     # hmm states on 1d data and returns labels with highest mean = highest label
     flag = None
