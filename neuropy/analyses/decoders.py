@@ -54,7 +54,7 @@ def radon_transform(arr, nlines=10000, dt=1, dx=1, neighbours=1):
 
     # using convolution to sum neighbours
     arr = np.apply_along_axis(
-        np.convolve, axis=0, arr=arr, v=np.ones(2 * neighbours + 1)
+        np.convolve, axis=0, arr=arr, v=np.ones(2 * neighbours + 1), mode="same"
     )
 
     # exclude stationary events by choosing phi little below 90 degree
@@ -83,6 +83,8 @@ def radon_transform(arr, nlines=10000, dt=1, dx=1, neighbours=1):
     best_line = np.argmax(posterior_mean)
     score = posterior_mean[best_line]
     best_phi, best_rho = phi[best_line], rho[best_line]
+
+    # converts to real world values
     time_mid, pos_mid = nt * dt / 2, npos * dx / 2
 
     velocity = dx / (dt * np.tan(best_phi))
@@ -154,7 +156,28 @@ class Decode1d:
         epochs: core.Epoch = None,
         bin_size=0.5,
         slideby=None,
+        decode_margin=15,
+        nlines=5000,
     ):
+        """1D decoding using ratemaps
+
+        Parameters
+        ----------
+        neurons : core.Neurons
+            neurons object containing spiketrains
+        ratemap : core.Ratemap
+            ratemap containing tuning curves
+        epochs : core.Epoch, optional
+            if provided then decode within these epochs only,if None then uses entire duration of neurons, by default None
+        bin_size : float, optional
+            bining size to calculate spike counts, by default 0.5
+        slideby : float, optional
+            slide the bining window by this amount, by default None
+        decode_margin : int, optional
+            in cm, likelihood of position is within this distance, used only if epochs are provided, , by default 15
+        nlines : int, optional
+            number of lines to fit, used only if replay trajectories are decoded within epochs, by default 5000
+        """
         self.ratemap = ratemap
         self._events = None
         self.posterior = None
@@ -166,6 +189,8 @@ class Decode1d:
         self.slideby = slideby
         self.score = None
         self.shuffle_score = None
+        self.decode_margin = decode_margin
+        self.nlines = nlines
 
         self._estimate()
 
@@ -173,10 +198,10 @@ class Decode1d:
         """
         ===========================
         Probability is calculated using this formula
-        prob = (1 / nspike!)* ((tau * frate)^nspike) * exp(-tau * frate)
+        prob = ((frate)^nspike) * exp(-tau * frate)
         where,
             tau = binsize
-            NOTE: multiplying with (1/n_positions) is not necessary as it gets cancelled out eventually
+
         ===========================
         """
         tau = self.bin_size
@@ -184,10 +209,9 @@ class Decode1d:
 
         prob = np.zeros((n_positions, n_time_bins))
         for i in range(n_positions):
-            frate = (tau * ratemaps[:, i, np.newaxis]) ** spkcount
-            spkcount_factorial = factorial(spkcount)
-            exp_frate = np.exp(-tau * ratemaps[:, i, np.newaxis])
-            prob[i, :] = np.prod((frate / spkcount_factorial) * exp_frate, axis=0)
+            frate = (ratemaps[:, i, np.newaxis]) ** spkcount
+            exp_frate = np.exp(-tau * np.sum(ratemaps[:, i]))
+            prob[i, :] = np.prod(frate, axis=0) * exp_frate
 
         old_settings = np.seterr(all="ignore")
         prob /= np.sum(prob, axis=0, keepdims=True)
@@ -197,7 +221,7 @@ class Decode1d:
 
     def _estimate(self):
 
-        """Estimates position within each"""
+        """Estimates position within each bin"""
 
         tuning_curves = self.ratemap.tuning_curves
         bincntr = self.ratemap.xbin_centers
@@ -274,9 +298,14 @@ class Decode1d:
         ----------
         1) Kloosterman et al. 2012
         """
+        neighbours = int(self.decode_margin / self.ratemap.xbin_size)
         results = Parallel(n_jobs=self.n_jobs)(
             delayed(radon_transform)(
-                epoch, nlines=5000, dt=self.bin_size, dx=self.pos_bin_size, neighbours=2
+                epoch,
+                nlines=self.nlines,
+                dt=self.bin_size,
+                dx=self.pos_bin_size,
+                neighbours=neighbours,
             )
             for epoch in p
         )
@@ -296,18 +325,22 @@ class Decode1d:
     def plot_in_bokeh(self):
         pass
 
-    def plot_summary(self):
+    def plot_summary(self, prob_cmap="hot", count_cmap="binary", lc="#00E676"):
         n_posteriors = len(self.posterior)
         posterior_ind = np.random.default_rng().integers(0, n_posteriors, 5)
         arrs = [self.posterior[i] for i in posterior_ind]
 
-        _, axs = plt.subplots(2, 5, sharey="row", sharex="col")
+        fig, axs = plt.subplots(4, 5, sharey="row", sharex="col", figsize=[11, 8])
+
         zsc_tuning = stats.zscore(self.ratemap.tuning_curves, axis=1)
         sort_ind = np.argsort(np.argmax(zsc_tuning, axis=1))
+        n_neurons = self.neurons.n_neurons
+        neighbours = int(self.decode_margin / self.ratemap.xbin_size)
 
         for i, arr in enumerate(arrs):
 
             t_start = self.epochs[posterior_ind[i]].flatten()[0]
+            score = self.score[posterior_ind[i]]
             velocity, intercept = (
                 self.velocity[posterior_ind[i]],
                 self.intercept[posterior_ind[i]],
@@ -318,15 +351,42 @@ class Decode1d:
             t = np.arange(arr.shape[1]) * self.bin_size + t_start
             pos = np.arange(arr.shape[0]) * 2
 
-            axs[0, i].pcolormesh(t, pos, arr, cmap="hot")
-            axs[0, i].plot(t, velocity * (t - t_start) + intercept, color="w")
+            axs[0, i].pcolormesh(t, pos, arr, cmap=prob_cmap)
+            axs[0, i].plot(t, velocity * (t - t_start) + intercept, color=lc, lw=2)
             axs[0, i].set_ylim([pos.min(), pos.max()])
 
+            arr_margin = np.apply_along_axis(
+                np.convolve, axis=0, arr=arr, v=np.ones(2 * neighbours + 1), mode="same"
+            )
+            axs[0, i].set_title(
+                f"#{posterior_ind[i]},\ns={np.round(score,2)}\nv={np.round(velocity,2)} cm/s"
+            )
+
+            axs[1, i].pcolormesh(t, pos, arr_margin, cmap=prob_cmap)
+            axs[1, i].plot(t, velocity * (t - t_start) + intercept, color=lc, lw=2)
+            axs[1, i].set_ylim([pos.min(), pos.max()])
+
+            axs[2, i].pcolormesh(
+                t,
+                np.arange(n_neurons),
+                self.spkcount[posterior_ind[i]],
+                cmap=count_cmap,
+            )
             plotting.plot_raster(
                 self.neurons[sort_ind].time_slice(t_start=t[0], t_stop=t[-1]),
-                ax=axs[1, i],
+                ax=axs[3, i],
                 color="k",
             )
+            if i == 0:
+                axs[0, i].set_ylabel("Position (cm)")
+                axs[1, i].set_ylabel("Position (cm)")
+                axs[2, i].set_ylabel("Neurons")
+            if i > 0:
+                axs[3, i].set_ylabel("")
+
+        # fig.suptitle(
+        #     f"Summary of decoding decode margin={self.decode_margin}\nBin size={self.bin_size}\nnlines={self.nlines}"
+        # )
 
 
 class Decode2d:
