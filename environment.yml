@@ -4,8 +4,8 @@ channels:
 dependencies:
     - python=3.9
     - pip
-    - numpy=1.20.2
-    - scipy=1.6.2
+    - numpy=1.20.*
+    - scipy=1.6.*
     - matplotlib
     - pandas
     - joblib
@@ -18,10 +18,10 @@ dependencies:
     - pytables
     - tqdm
     # # These modules are for importing DeepLabCut data, comment out if you don't need.
-    # - easydict
-    # - ruamel.yaml
-    # - pingouin
-    # - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
+    - easydict
+    - ruamel.yaml
+    - pingouin
+    - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
     # mamba install scikit-learn hmmlearn joblib pytables tqdm
     # mamba install pingouin cupy ruamel.yaml easydict pingouin cupy ruamel.yaml easydict
     
