@@ -313,6 +313,22 @@ class Decode1d:
 
         return score, velocity, intercept
 
+    def weighted_correlation(self, pmats):
+        r = []
+        for pmat in pmats:
+            nt, nx = pmat.shape[1], pmat.shape[0]
+            x_mat = np.tile(np.arange(nx)[:, np.newaxis], (1, nt))
+            t_mat = np.tile(np.arange(nt), (nx, 1))
+            pmat_sum = np.nansum(pmat)
+            ex = np.nansum(pmat * x_mat) / pmat_sum
+            et = np.nansum(pmat * t_mat) / pmat_sum
+            cov_xt = np.nansum(pmat * (x_mat - ex) * (t_mat - et)) / pmat_sum
+            cov_xx = np.nansum(pmat * (x_mat - ex) ** 2) / pmat_sum
+            cov_tt = np.nansum(pmat * (t_mat - et) ** 2) / pmat_sum
+
+            r.append(cov_xt / np.sqrt(cov_tt * cov_xx))
+        return np.asarray(r)
+
     @property
     def p_value(self):
         """Monte Carlo p-value"""
