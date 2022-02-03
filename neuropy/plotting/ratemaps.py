@@ -420,12 +420,21 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         # active_figure_size=required_figure_size
     
         if fig is not None:
+            extant_fig = fig
+            # fig = plt.figure(extant_fig)
+            
+        if fig is not None:
             active_fig_id = fig
         else:
             active_fig_id = fignum + fig_ind
             
         if grid_layout_mode == 'gridspec':
-            fig = plt.figure(active_fig_id, figsize=active_figure_size, clear=True)
+            if extant_fig is None:
+                fig = plt.figure(active_fig_id, figsize=active_figure_size, clear=True)
+            else:
+                fig = extant_fig
+
+                
             if last_figure_subplots_same_layout:
                 page_gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
             else:
@@ -443,8 +452,12 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             # grid_rect = (0.01, 0.05, 0.98, 0.9) # (left, bottom, width, height) 
             grid_rect = 111
             # fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=True)
-            fig = plt.figure(active_fig_id, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
-            
+            if extant_fig is None:
+                fig = plt.figure(active_fig_id, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
+            else:
+                fig = extant_fig
+                
+                
             grid = ImageGrid(fig, grid_rect,  # similar to subplot(211)
                  nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
                  axes_pad=0.05,
