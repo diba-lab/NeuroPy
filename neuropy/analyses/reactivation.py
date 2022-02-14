@@ -8,7 +8,7 @@ import pingouin as pg
 import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
-
+from typing import Union
 from ..utils.mathutil import getICA_Assembly, parcorr_mult
 from .. import core
 from ..plotting import Fig
@@ -71,8 +71,8 @@ class ExplainedVariance(core.DataWriter):
             time in seconds, control for pairwise correlations within this period
         bin_size : float, optional
             in seconds, binning size for spike counts, by default 0.250
-        window : int, optional
-            window over which pairwise correlations will be calculated in matching and control time windows,in seconds, by default 900
+        window : int or typle, optional
+            window over which pairwise correlations will be calculated in matching and control time periods, if window is None entire time period is considered,in seconds, by default 900
         slideby : int, optional
             slide window by this much, in seconds, by default None
         pairs_bool : 2d array, optional
@@ -87,23 +87,21 @@ class ExplainedVariance(core.DataWriter):
         self.matching = matching
         self.control = control
         self.bin_size = bin_size
-        self.window = window
-        self.pairs_bool = pairs_bool
 
-        if slideby is None:
-            self.slideby = window
-        else:
-            self.slideby = slideby
+        if (window is None) and (slideby is not None):
+            print(
+                "slideby can not be a number, if window is None, setting slideby to None"
+            )
+            slideby = None
+
+        self.window = window
+        self.slideby = slideby
+        self.pairs_bool = pairs_bool
         self.ignore_epochs = ignore_epochs
         self._calculate()
 
     def _calculate(self):
-
-        template_corr = (
-            self.neurons.time_slice(self.template[0], self.template[1])
-            .get_binned_spiketrains(bin_size=self.bin_size)
-            .get_pairwise_corr(pairs_bool=self.pairs_bool)
-        )
+        # TODO: Think about directly working on binned spiketrains, will be little faster but may require redundant additions like pariwise_corr as separate function
 
         matching = np.arange(self.matching[0], self.matching[1])
         control = np.arange(self.control[0], self.control[1])
@@ -114,46 +112,74 @@ class ExplainedVariance(core.DataWriter):
             matching = matching[np.digitize(matching, ignore_bins) % 2 == 0]
             control = control[np.digitize(control, ignore_bins) % 2 == 0]
 
+        if self.window is None:
+            control_window_size = len(control)
+            matching_window_size = len(matching)
+            slideby = None
+        elif self.window is not None and self.slideby is None:
+            control_window_size = self.window
+            matching_window_size = self.window
+            slideby = None
+        else:
+            control_window_size = self.window
+            matching_window_size = self.window
+            slideby = self.slideby
+
+        assert control_window_size <= len(control), "window is bigger than matching"
+        assert matching_window_size <= len(matching), "window is bigger than matching"
+        # assert slideby <= control_window_size, "slideby should be smaller than window"
+        # assert slideby <= matching_window_size, "slideby should be smaller than window"
+
         matching_windows = np.lib.stride_tricks.sliding_window_view(
-            matching, self.window
-        )[:: self.slideby, [0, -1]]
+            matching, matching_window_size
+        )[::slideby, [0, -1]]
 
         control_windows = np.lib.stride_tricks.sliding_window_view(
-            control, self.window
-        )[:: self.slideby, [0, -1]]
+            control, control_window_size
+        )[::slideby, [0, -1]]
 
-        n_matching_windows = matching_windows.shape[0]
-        matching_paircorr = []
-        for window in matching_windows:
-            matching_paircorr.append(
-                self.neurons.time_slice(window[0], window[1])
-                .get_binned_spiketrains(self.bin_size)
+        with np.errstate(all="ignore", invalid="ignore"):
+            template_corr = (
+                self.neurons.time_slice(self.template[0], self.template[1])
+                .get_binned_spiketrains(
+                    bin_size=self.bin_size, ignore_epochs=self.ignore_epochs
+                )
                 .get_pairwise_corr(pairs_bool=self.pairs_bool)
             )
+            n_matching_windows = matching_windows.shape[0]
+            matching_paircorr = []
+            for w in matching_windows:
+                matching_paircorr.append(
+                    self.neurons.time_slice(w[0], w[1])
+                    .get_binned_spiketrains(self.bin_size)
+                    .get_pairwise_corr(pairs_bool=self.pairs_bool)
+                )
 
-        n_control_windows = control_windows.shape[0]
-        control_paircorr = []
-        for window in control_windows:
-            control_paircorr.append(
-                self.neurons.time_slice(window[0], window[1])
-                .get_binned_spiketrains(self.bin_size)
-                .get_pairwise_corr(pairs_bool=self.pairs_bool)
-            )
+            n_control_windows = control_windows.shape[0]
+            control_paircorr = []
+            for w in control_windows:
+                control_paircorr.append(
+                    self.neurons.time_slice(w[0], w[1])
+                    .get_binned_spiketrains(self.bin_size)
+                    .get_pairwise_corr(pairs_bool=self.pairs_bool)
+                )
 
-        partial_corr = np.zeros((n_control_windows, n_matching_windows))
-        rev_partial_corr = np.zeros((n_control_windows, n_matching_windows))
-        for m_i, m_pairs in enumerate(matching_paircorr):
-            for c_i, c_pairs in enumerate(control_paircorr):
-                df = pd.DataFrame({"t": template_corr, "m": m_pairs, "c": c_pairs})
-                partial_corr[c_i, m_i] = pg.partial_corr(df, x="t", y="m", covar="c").r
-                rev_partial_corr[c_i, m_i] = pg.partial_corr(
-                    df, x="t", y="c", covar="m"
-                ).r
+            partial_corr = np.zeros((n_control_windows, n_matching_windows))
+            rev_partial_corr = np.zeros((n_control_windows, n_matching_windows))
+            for m_i, m_pairs in enumerate(matching_paircorr):
+                for c_i, c_pairs in enumerate(control_paircorr):
+                    df = pd.DataFrame({"t": template_corr, "m": m_pairs, "c": c_pairs})
+                    partial_corr[c_i, m_i] = pg.partial_corr(
+                        df, x="t", y="m", covar="c"
+                    ).r
+                    rev_partial_corr[c_i, m_i] = pg.partial_corr(
+                        df, x="t", y="c", covar="m"
+                    ).r
 
-        self.ev = np.nanmean(partial_corr ** 2, axis=0)
-        self.rev = np.nanmean(rev_partial_corr ** 2, axis=0)
-        self.ev_std = np.nanstd(partial_corr ** 2, axis=0)
-        self.rev_std = np.nanstd(rev_partial_corr ** 2, axis=0)
+        self.ev = np.nanmean(partial_corr**2, axis=0)
+        self.rev = np.nanmean(rev_partial_corr**2, axis=0)
+        self.ev_std = np.nanstd(partial_corr**2, axis=0)
+        self.rev_std = np.nanstd(rev_partial_corr**2, axis=0)
         self.partial_corr = partial_corr
         self.rev_partial_corr = rev_partial_corr
         self.n_pairs = len(template_corr)
@@ -300,7 +326,7 @@ class NeuronEnsembles(core.DataWriter):
         # --- making highest absolute weight positive and then normalizing ----------
         max_weight = V[np.argmax(np.abs(V), axis=0), range(V.shape[1])]
         V[:, np.where(max_weight < 0)[0]] = (-1) * V[:, np.where(max_weight < 0)[0]]
-        V /= np.sqrt(np.sum(V ** 2, axis=0))  # making sum of squares=1
+        V /= np.sqrt(np.sum(V**2, axis=0))  # making sum of squares=1
 
         self.weights = V
 
