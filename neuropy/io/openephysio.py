@@ -7,7 +7,7 @@ from xml.etree import ElementTree
 import pandas as pd
 
 
-def get_dat_timestamps(basepath: str or Path, sync: bool = True):
+def get_dat_timestamps(basepath: str or Path, sync: bool = False):
     """
     Gets timestamps for each frame in your dat file(s) in a given directory.
     :param basepath: str, path to parent directory, holding your 'experiment' folder(s).
@@ -21,13 +21,28 @@ def get_dat_timestamps(basepath: str or Path, sync: bool = True):
     timestamps = []
     for file in timestamp_files:
         set_file = get_settings_filename(file)  # get settings file name
-        experiment_meta = XML2Dict(basepath / set_file)  # Get meta data
-        start_time = pd.Timestamp(
-            experiment_meta["INFO"]["DATE"]
-        )  # get start time frfom meta-data
+        set_folder = get_set_folder(file)
+        try:
+            experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
+            start_time = pd.Timestamp(
+                experiment_meta["INFO"]["DATE"]
+            )  # get start time from meta-data
+        except FileNotFoundError:
+            print(
+                "WARNING:"
+                + str(set_folder / set_file)
+                + " not found. Inferring start time from directory structure. PLEASE CHECK!"
+            )
+            # Find folder with timestamps
+            m = re.search(
+                "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}", str(set_folder)
+            )
+            start_time = pd.to_datetime(m.group(0), format="%Y-%m-%d_%H-%M-%S")
+
         SR, sync_frame = parse_sync_file(
             file.parents[2] / "sync_messages.txt"
         )  # Get SR and sync frame info
+        print("start time = " + str(start_time))
         stamps = np.load(file)  # load in timestamps
         timestamps.append(
             (
@@ -226,6 +241,19 @@ def parse_sync_file(sync_file):
     )
 
     return SR, sync_frame
+
+
+def get_set_folder(child_dir):
+    """Gets the folder where your settings.xml file and experiment folders should live."""
+    child_dir = Path(child_dir)
+    expfolder_id = np.where(
+        [
+            str(child_dir.parents[id]).find("experiment") > -1
+            for id in range(len(child_dir.parts) - 1)
+        ]
+    )[0].max()
+
+    return child_dir.parents[expfolder_id + 1]
 
 
 def get_settings_filename(child_dir):
@@ -514,5 +542,7 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    basepath = "/data/Working/Opto/Rat694/2021_08_03_1_placestim3"
-    times = load_all_ttl_events(basepath)
+    folder_test = Path(
+        "/data/Working/Opto/Rat694/2021_08_03_1_placestim3/2021-08-03_12-41-20"
+    )
+    dat_times = get_dat_timestamps(folder_test)
