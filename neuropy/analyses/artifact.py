@@ -7,7 +7,12 @@ from ..utils import signal_process
 
 
 def detect_artifact_epochs(
-    signal: Signal, thresh=4, edge_cutoff=2, merge=5, filt: list or np.ndarray = None
+    signal: Signal,
+    thresh=4,
+    edge_cutoff=2,
+    merge=5,
+    filt: list or np.ndarray = None,
+    data_use: str in ["raw_only", "filt_only", "both"] = "raw_only",
 ):
     """
     calculating artifact periods using z-score measure
@@ -27,7 +32,10 @@ def detect_artifact_epochs(
     filt : list, optional
         lower and upper limits with which to filter signal, e.g. 3, 3000] ->
         bandpass between and 3000 Hz while [45, None] -> high-pass above 45.
-
+    data_use: str, optional
+        'raw_only' (default): z-score raw only
+        'filt_only': z-score filtered data only
+        'both': z-score both raw and filtered data
     Returns
     -------
     core.Epoch
@@ -40,26 +48,34 @@ def detect_artifact_epochs(
         sig_raw = np.mean(signal.traces, axis=0)
 
     else:
-        sig_raw = signal.traces.reshape((-1))
+        sig = signal.traces.reshape((-1))
 
     # NRK todo: does this need to go BEFORE taking the median of the signal above?
-    # After condensing into one trace, filter things
+    # After condensing into one trace, filter signal if specified
     if filt is not None:
         assert len(filt) == 2, "Inputs for filtering signal must be length = 2"
         if filt[0] is not None:  # highpass
-            sig = signal_process.filter_sig.highpass(sig_raw, filt[0], fs=sampling_rate)
-        elif filt[1] is not None:  # lowpass
-            sig = signal_process.filter_sig.lowpass(sig_raw, filt[1], fs=sampling_rate)
-        elif filt[0] is not None and filt[1] is not None:  # bandpass
-            sig = signal_process.filter_sig.bandpass(
-                sig_raw, filt[0], filt[1], fs=sampling_rate
+            sig_filt = signal_process.filter_sig.highpass(
+                sig, filt[0], fs=sampling_rate
             )
-    elif filt is None:
-        sig = sig_raw
+        elif filt[1] is not None:  # lowpass
+            sig_filt = signal_process.filter_sig.lowpass(sig, filt[1], fs=sampling_rate)
+        elif filt[0] is not None and filt[1] is not None:  # bandpass
+            sig_filt = signal_process.filter_sig.bandpass(
+                sig, filt[0], filt[1], fs=sampling_rate
+            )
+        if data_use == "filt_only":  # Use only filtered data if specified
+            sig = sig_filt
 
     # ---- zscoring and identifying start and stops---------
     zsc = np.abs(stats.zscore(sig, axis=-1))
-    artifact_binary = np.where(zsc > thresh, 1, 0)
+    if data_use == "both":  # z-score both raw and filtered data
+        zsc_filt = np.abs(stats.zscore(sig_filt, axis=-1))
+        artifact_binary = np.where(
+            np.bitwise_and(zsc > thresh, zsc_filt > thresh), 1, 0
+        )
+    else:
+        artifact_binary = np.where(zsc > thresh, 1, 0)
     artifact_binary = np.concatenate(([0], artifact_binary, [0]))
     artifact_diff = np.diff(artifact_binary)
     artifact_start = np.where(artifact_diff == 1)[0]
@@ -67,7 +83,12 @@ def detect_artifact_epochs(
     firstPass = np.vstack((artifact_start, artifact_end)).T
 
     # --- extending the edges of artifact region --------
-    edge_binary = np.where(zsc > edge_cutoff, 1, 0)
+    if data_use == "both":  # get edges based on both raw and filtered data
+        edge_binary = np.where(
+            np.bitwise_or(zsc > edge_cutoff, zsc_filt > edge_cutoff), 1, 0
+        )
+    else:
+        edge_binary = np.where(zsc > edge_cutoff, 1, 0)
     edge_binary = np.concatenate(([0], edge_binary, [0]))
     edge_diff = np.diff(edge_binary)
     edge_start = np.where(edge_diff == 1)[0]
@@ -80,22 +101,27 @@ def detect_artifact_epochs(
     # --- merging neighbours -------
     minInterArtifactDist = merge * sampling_rate
     secondPass = []
-    artifact = firstPass[0]
-    for i in range(1, len(artifact_start)):
-        if firstPass[i, 0] - artifact[1] < minInterArtifactDist:
-            # Merging artifacts
-            artifact = [artifact[0], firstPass[i, 1]]
-        else:
-            secondPass.append(artifact)
-            artifact = firstPass[i]
 
-    secondPass.append(artifact)
+    if len(firstPass) > 0:
+        artifact = firstPass[0]
+        for i in range(1, len(artifact_start)):
+            if firstPass[i, 0] - artifact[1] < minInterArtifactDist:
+                # Merging artifacts
+                artifact = [artifact[0], firstPass[i, 1]]
+            else:
+                secondPass.append(artifact)
+                artifact = firstPass[i]
 
-    artifact_s = np.asarray(secondPass) / sampling_rate  # seconds
+        secondPass.append(artifact)
 
-    epochs = pd.DataFrame(
-        {"start": artifact_s[:, 0], "stop": artifact_s[:, 1], "label": ""}
-    )
-    metadata = {"threshold": thresh}
+        artifact_s = np.asarray(secondPass) / sampling_rate  # seconds
 
-    return Epoch(epochs, metadata)
+        epochs = pd.DataFrame(
+            {"start": artifact_s[:, 0], "stop": artifact_s[:, 1], "label": ""}
+        )
+        metadata = {"threshold": thresh}
+
+        return Epoch(epochs, metadata)
+    else:
+        print("No artifacts found at this threshold")
+        pass
