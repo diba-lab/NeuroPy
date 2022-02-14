@@ -76,6 +76,7 @@ class BinarysignalIO:
             sampling_rate=self.sampling_rate,
             t_start=t_start,
             channel_id=channel_indx,
+            filename=self.source_file,
         )
 
     def frame_slice(self, channel_indx=None, frame_start=None, frame_stop=None):
@@ -131,6 +132,7 @@ class BinarysignalIO:
             )
         else:
             return self._raw_traces[np.ix_(channel_indx, frames)]
+
 
     def write_time_slice(self, write_filename, t_start, t_stop):
 
