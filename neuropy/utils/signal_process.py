@@ -55,6 +55,27 @@ class filter_sig:
         return yf
 
     @staticmethod
+    def notch(
+        signal,
+        w0: float or int,
+        Q: float or int or None,
+        bw: float or int or None = None,
+        fs: int = 30000,
+        ax: int = -1,
+    ):
+        """Runs a notch filter on your data. If Q is none, must enter bw (bandwidth) of noise to remove.
+        See scipy.signal.iirnotch for more info on parameters."""
+        if Q is None:
+            assert bw is float or int, "If Q is not specified, bw must be provided"
+            Quse = np.round(w0 / bw)
+        else:
+            Quse = Q
+        b, a = sg.iirnotch(w0=w0, Q=Quse, fs=fs)
+        yf = sg.filtfilt(b, a, signal, axis=ax)
+
+        return yf
+
+    @staticmethod
     def delta(signal, fs=1250, order=3, ax=-1):
         return filter_sig.bandpass(signal, lf=0.5, hf=4, fs=fs, order=order, ax=ax)
 
