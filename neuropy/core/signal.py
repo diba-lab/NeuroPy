@@ -8,6 +8,7 @@ class Signal:
         sampling_rate,
         t_start=0.0,
         channel_id=None,
+        source_file=None,
     ) -> None:
         self.traces = traces
         self.t_start = t_start
