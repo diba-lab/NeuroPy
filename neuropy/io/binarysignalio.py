@@ -1,5 +1,5 @@
 import numpy as np
-from ..core import Signal
+from ..core import Signal, Epoch
 from pathlib import Path
 
 
@@ -84,6 +84,25 @@ class BinarysignalIO:
             t_start=frame_start / self.sampling_rate,
             channel_id=channel_indx,
         )
+
+    def get_frames_within_epochs(self, epochs: Epoch, channel_indx):
+        """Return concatenated frames corresponding to epochs
+
+        Parameters
+        ----------
+        epochs : Epoch
+            start and stop of epochs
+        channel_indx : int/list
+            channels by index location in the binary file
+
+        Returns
+        -------
+        array
+            concatenated frames
+        """
+        epochs_frames = (epochs.as_array() * self.sampling_rate).astype("int")
+        frames = np.concatenate([np.arange(*e) for e in epochs_frames])
+        return self._raw_traces[channel_indx, frames]
 
     def write_time_slice(self, write_filename, t_start, t_stop):
 
