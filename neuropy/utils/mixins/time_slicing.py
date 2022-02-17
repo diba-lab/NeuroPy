@@ -1,6 +1,6 @@
 import numpy as np
 
-from neuropy.utils.efficient_interval_search import determine_event_interval_identity # numba acceleration
+from neuropy.utils.efficient_interval_search import determine_event_interval_identity, determine_event_interval_is_included # numba acceleration
 
 
 class StartStopTimesMixin:
@@ -50,6 +50,12 @@ class TimeSlicedMixin:
         starts = t_start
         stops = t_stop
         assert np.shape(starts) == np.shape(stops), f"starts and stops must be the same shape, but np.shape(starts): {np.shape(starts)} and np.shape(stops): {np.shape(stops)}"
+        
+        
+        inclusion_mask = determine_event_interval_is_included(self._obj[self.time_variable_name].to_numpy(), np.hstack((starts, stops))
+        
+        # slow method:
+        
         num_slices = len(starts)
         
         for i in np.arange(num_slices):

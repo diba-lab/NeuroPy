@@ -138,3 +138,48 @@ def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, 
     assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
     assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
     return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+
+
+
+@jit(nopython=True, parallel=True)
+def _compiled_searchsorted_event_interval_is_included(times_arr, start_stop_times_arr): # Function is compiled by numba and runs in machine code
+    """ Consider an L x 2 array of start and stop times (start_stop_times_arr) representing intervals in time.
+    The goal of this function is to efficienctly determine whether each event occuring at a time specified by times_arr occurs any of the intervals.
+    
+    Note:
+        If information about the identity of the interval the event belongs to is desired, look at the other functions (determine_event_interval_identity)
+    
+    The output result will be Boolean array of length N that specifies whether each event in times_arr is included in any interval.
+    
+    Limitations:
+        !! Works only with sorted and non-overlapping start_stop_times_arr !!
+
+    Args:
+        times_arr (np.ndarray): An array of times of shape (N, ) in the same units as the start_stop_times_arr
+        start_stop_times_arr (np.ndarray): An array of start and stop intervals of shape (L, 2), with start_stop_times_arr[:, 0] representing the start times and start_stop_times_arr[:, 1] representing the stop times.
+        
+    Returns:
+        np.ndarray: Boolean array of length N that specifies whether each event in times_arr is included in any interval.
+        
+    Performance:
+        # For: np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
+        # Elapsed Time = 1.1290626525878906 seconds
+    """
+    event_interval_is_included_arr = np.full((times_arr.shape[0],), False) # fill with False for all entries initially
+    # Vectorized np.searchsorted mode:
+    found_start_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,0], side='left')
+    found_end_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,1], side='right') # find the end of the range
+
+    for i in range(start_stop_times_arr.shape[0]):
+        # find the events that fall in the current range 
+        found_start_index = found_start_indicies[i]
+        found_end_index = found_end_indicies[i] # find the end of the range
+        event_interval_is_included_arr[found_start_index:found_end_index] = True # set True for included range 
+        
+    # returns the array containing the whether each event is included in any interval
+    return event_interval_is_included_arr
+
+
+def determine_event_interval_is_included(times_arr, start_stop_times_arr):
+    assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
+    return _compiled_searchsorted_event_interval_is_included(times_arr, start_stop_times_arr)
