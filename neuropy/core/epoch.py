@@ -46,10 +46,12 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
             metadata (dict, optional): [description]. Defaults to None.
         """
         super().__init__(metadata=metadata)
-
         self._check_epochs(epochs)
-        epochs["label"] = epochs["label"].astype("str")
         self._data = epochs.sort_values(by=["start"]) # sorts all values in ascending order
+        
+        # TODO: If the 'label' column of the dataframe is empty, should populate it with the index (after sorting) as a string.
+        # epochs['label'] = epochs.index
+        epochs["label"] = epochs["label"].astype("str")
 
     @property
     def starts(self):
