@@ -110,14 +110,33 @@ def _compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label
     # returns the array containing the PBE identity for each spike
     return spike_pbe_identity_arr
 
-def add_PBE_identity(spk_df, pbe_epoch_df):
+def _compute_spike_PBE_ids(spk_df, pbe_epoch_df):
+    """ Computes the PBE identities for the spikes_df
+    
+    Example:
+        # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
+        spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 
+    """
     # coming in: spk_df, pbe_epoch_df
     spk_times_arr = spk_df.t_seconds.to_numpy()
     pbe_start_stop_arr = pbe_epoch_df[['start','stop']].to_numpy()
     # pbe_identity_label = pbe_epoch_df['label'].to_numpy()
-    pbe_identity_label = pbe_epoch_df.index.to_numpy()
+    pbe_identity_label = pbe_epoch_df.index.to_numpy() # currently using the index instead of the label.
     # print(f'np.shape(spk_times_arr): {np.shape(spk_times_arr)}, p.shape(pbe_start_stop_arr): {np.shape(pbe_start_stop_arr)}, p.shape(pbe_identity_label): {np.shape(pbe_identity_label)}')
     spike_pbe_identity_arr = _compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label)
+    
     return spike_pbe_identity_arr
 
+def add_PBE_identity(spk_df, pbe_epoch_df):
+    """ Adds the PBE identity to the spikes_df
+    
+    Example:
+        # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
+        spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 , 89.04321789741516
+    """
+    spike_pbe_identity_arr = _compute_spike_PBE_ids(spk_df, pbe_epoch_df)
+    # np.shape(spike_pbe_identity_arr) # (16318817,)
+    # np.where(np.logical_not(np.isnan(spike_pbe_identity_arr))) # (1, 2537652)
 
+    spk_df['PBE_id'] = spike_pbe_identity_arr
+    return spk_df
