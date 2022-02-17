@@ -36,11 +36,9 @@ class TimeSlicedMixin:
     def time_variable_name(self):
         raise NotImplementedError
 
-
     def time_sliced(self, t_start=None, t_stop=None):
         """ returns a copy of the spikes dataframe filtered such that only elements within the time ranges specified by t_start[i]:t_stop[i] (inclusive) are included. """
         # included_df = self._obj[((self._obj[SpikesAccessor.time_variable_name] >= t_start) & (self._obj[self.time_variable_name] <= t_stop))] # single time slice for sclar t_start and t_stop
-        inclusion_mask = np.full_like(self._obj[self.time_variable_name], False, dtype=bool) # initialize entire inclusion_mask to False        
         # wrap the inputs in lists if they are scalars
         if np.isscalar(t_start):
             t_start = np.array([t_start])
@@ -49,27 +47,29 @@ class TimeSlicedMixin:
         
         starts = t_start
         stops = t_stop
+        
         assert np.shape(starts) == np.shape(stops), f"starts and stops must be the same shape, but np.shape(starts): {np.shape(starts)} and np.shape(stops): {np.shape(stops)}"
         
+        # New numba accelerated (compiled) version:
+        start_stop_times_arr = np.hstack((np.atleast_2d(starts), np.atleast_2d(stops))) # atleast_2d ensures that each array is represented as a column, so start_stop_times_arr is at least of shape (1, 2)
+        # print(f'np.shape(start_stop_times_arr): {np.shape(start_stop_times_arr)}')
+        inclusion_mask = determine_event_interval_is_included(self._obj[self.time_variable_name].to_numpy(), start_stop_times_arr)
         
-        inclusion_mask = determine_event_interval_is_included(self._obj[self.time_variable_name].to_numpy(), np.hstack((starts, stops))
+        # # old slow method:
+        # inclusion_mask = np.full_like(self._obj[self.time_variable_name], False, dtype=bool) # initialize entire inclusion_mask to False  
+        # num_slices = len(starts)
         
-        # slow method:
-        
-        num_slices = len(starts)
-        
-        for i in np.arange(num_slices):
-            curr_slice_t_start, curr_slice_t_stop = starts[i], stops[i]
-            # TODO: BUG: I think we'd be double-counting here?
-            curr_lap_position_df_is_included = self._obj[self.time_variable_name].between(curr_slice_t_start, curr_slice_t_stop, inclusive='both') # returns a boolean array indicating inclusion
-            inclusion_mask[curr_lap_position_df_is_included] = True
-            # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
+        # for i in np.arange(num_slices):
+        #     curr_slice_t_start, curr_slice_t_stop = starts[i], stops[i]
+        #     # TODO: BUG: I think we'd be double-counting here?
+        #     curr_lap_position_df_is_included = self._obj[self.time_variable_name].between(curr_slice_t_start, curr_slice_t_stop, inclusive='both') # returns a boolean array indicating inclusion
+        #     inclusion_mask[curr_lap_position_df_is_included] = True
+        #     # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
             
         # once all slices have been computed and the inclusion_mask is complete, use it to mask the output dataframe
         return self._obj.loc[inclusion_mask, :].copy()
-    
 
-
+ 
 
 def _compute_spike_PBE_ids(spk_df, pbe_epoch_df, no_interval_fill_value=np.nan):
     """ Computes the PBE identities for the spikes_df
