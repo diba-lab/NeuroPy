@@ -96,13 +96,24 @@ def verify_non_overlapping(start_stop_arr):
 
 
 @jit(nopython=True, parallel = True)
-def _parallel_compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label): # Function is compiled by numba and runs in machine code
-    # coming in: spk_times_arr, pbe_start_stop_arr, pbe_identity_label
-    spike_pbe_identity_arr = np.full((spk_times_arr.shape[0],), np.nan) # fill with NaN for all entries initially
-    for i in range(pbe_start_stop_arr.shape[0]):
+def _parallel_compiled_PBE_identity(times_arr, start_stop_times_arr, period_identity_labels): # Function is compiled by numba and runs in machine code
+    """Works with non-sorted or overlapping start_stop intervals
+
+    Args:
+        times_arr (_type_): _description_
+        start_stop_times_arr (_type_): _description_
+        period_identity_labels (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    assert verify_non_overlapping(start_stop_arr=start_stop_times_arr), 'Intervals in start_stop_arr must be non-overlapping'
+    
+    spike_pbe_identity_arr = np.full((times_arr.shape[0],), np.nan) # fill with NaN for all entries initially
+    for i in range(start_stop_times_arr.shape[0]):
         # find the spikes that fall in the current PBE (PBE[i])
-        curr_PBE_identity = pbe_identity_label[i]
-        curr_bool_mask = np.logical_and((pbe_start_stop_arr[i,0] <= spk_times_arr), (spk_times_arr < pbe_start_stop_arr[i,1]))
+        curr_PBE_identity = period_identity_labels[i]
+        curr_bool_mask = np.logical_and((start_stop_times_arr[i,0] <= times_arr), (times_arr < start_stop_times_arr[i,1]))
         # spike_pbe_identity_arr[((pbe_start_stop_arr[i,0] <= spk_times_arr) & (spk_times_arr < pbe_start_stop_arr[i,1]))] = curr_PBE_identity
         spike_pbe_identity_arr[curr_bool_mask] = curr_PBE_identity
         # print(f'')
@@ -113,32 +124,31 @@ def _parallel_compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_ident
 
 
 @jit(nopython=True, parallel = True)
-def _compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label): # Function is compiled by numba and runs in machine code
-    # coming in: spk_times_arr, pbe_start_stop_arr, pbe_identity_label
-    spike_pbe_identity_arr = np.full((spk_times_arr.shape[0],), np.nan) # fill with NaN for all entries initially
-    
-    # remaining_spike_times_arr = spk_times_arr.copy()
+def _compiled_searchsorted_PBE_identity(times_arr, start_stop_times_arr, period_identity_labels): # Function is compiled by numba and runs in machine code
+    """Works only with sorted and non-overlapping start_stop_times_arr
+
+    Args:
+        times_arr (_type_): _description_
+        start_stop_times_arr (_type_): _description_
+        period_identity_labels (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    assert verify_non_overlapping(start_stop_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
+    assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
+    spike_pbe_identity_arr = np.full((times_arr.shape[0],), np.nan) # fill with NaN for all entries initially
     
     # Vectorized np.searchsorted mode:
-    found_start_indicies = np.searchsorted(spk_times_arr, pbe_start_stop_arr[:,0], side='left')
-    found_end_indicies = np.searchsorted(spk_times_arr, pbe_start_stop_arr[:,1], side='right') # find the end of the range
+    found_start_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,0], side='left')
+    found_end_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,1], side='right') # find the end of the range
     
-        
-    for i in range(pbe_start_stop_arr.shape[0]):
+    for i in range(start_stop_times_arr.shape[0]):
         # find the spikes that fall in the current PBE (PBE[i])
-        curr_PBE_identity = pbe_identity_label[i]
-        
-        # Non-vectorized np.searchsorted:
-        # found_start_index = np.searchsorted(remaining_spike_times_arr, pbe_start_stop_arr[i,0], side='left')
-        # found_end_index = np.searchsorted(remaining_spike_times_arr, pbe_start_stop_arr[i,1], side='right') # find the end of the range
-        
+        curr_PBE_identity = period_identity_labels[i]        
         found_start_index = found_start_indicies[i]
         found_end_index = found_end_indicies[i] # find the end of the range
         spike_pbe_identity_arr[found_start_index:found_end_index] = curr_PBE_identity        
-        
-        # Parallel Mode:
-        # curr_bool_mask = np.logical_and((pbe_start_stop_arr[i,0] <= spk_times_arr), (spk_times_arr < pbe_start_stop_arr[i,1]))
-        # spike_pbe_identity_arr[curr_bool_mask] = curr_PBE_identity
         
     # returns the array containing the PBE identity for each spike
     return spike_pbe_identity_arr
@@ -157,7 +167,7 @@ def _compute_spike_PBE_ids(spk_df, pbe_epoch_df):
     pbe_identity_label = pbe_epoch_df.index.to_numpy() # currently using the index instead of the label.
     # print(f'np.shape(spk_times_arr): {np.shape(spk_times_arr)}, p.shape(pbe_start_stop_arr): {np.shape(pbe_start_stop_arr)}, p.shape(pbe_identity_label): {np.shape(pbe_identity_label)}')
     # spike_pbe_identity_arr = _parallel_compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label)
-    spike_pbe_identity_arr = _compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label)
+    spike_pbe_identity_arr = _compiled_searchsorted_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label)
     
     return spike_pbe_identity_arr
 
