@@ -389,18 +389,15 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         """ Adds the 'PBE_id' column to the spikes dataframe:
         Usage:
             updated_spikes_df = sess.compute_spikes_PBEs()"""
-        curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
-        curr_laps_df = self.laps.to_dataframe()
-        
         curr_pbe_epoch = self.pbe # EPOCH object
         curr_pbe_epoch_df = curr_pbe_epoch.to_dataframe()
         # curr_spk_df = self.spikes_df.copy()
         # curr_spk_df = self.spikes_df
-        
-        self.spikes_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df)
+        curr_spk_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df)
         
         # update:
-        # self.neurons._data['lap'] = curr_position_df['lap']
+        # self.neurons._data['PBE_id'] = curr_spk_df['PBE_id']
+        # self.spikes_df['PBE_id'] = curr_spk_df['PBE_id']
         
         return self.spikes_df
     
