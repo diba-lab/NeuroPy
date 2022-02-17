@@ -641,10 +641,7 @@ class DataSessionLoader:
         """ Attempts to compute the Laps object from the loaded spikesII spikes, which have a 'lap' column.
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
-        
-        
-        
-        
+
         spikes_df = spikes_df.copy() # duplicate spikes dataframe
         # Get only the rows with a lap != -1:
         # spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
@@ -714,7 +711,6 @@ class DataSessionLoader:
         # print('lap_start_stop_time: {}'.format(lap_start_stop_time))
         
         
-        
         # Build output Laps object to add to session
         print('setting laps object.')
         
@@ -727,7 +723,6 @@ class DataSessionLoader:
                              }
         laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)
         session.laps = Laps(laps_df) # new DataFrame-based approach
-        
         
         # session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
         

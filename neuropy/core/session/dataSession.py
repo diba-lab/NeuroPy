@@ -20,6 +20,8 @@ from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableO
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.panel import DataSessionPanelMixin
 
+from neuropy.utils.efficient_interval_search import determine_event_interval_identity # numba acceleration
+
 
 class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
     def __init__(self, config, filePrefix = None, recinfo = None,
@@ -381,6 +383,54 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         
         # return the extracted traces and the updated curr_position_df
         return position_df
+    
+    
+    def compute_spikes_PBEs(self):
+        """ Adds the 'PBE_id' column to the spikes dataframe:
+        Usage:
+            updated_spikes_df = sess.compute_spikes_PBEs()"""
+        curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
+        curr_laps_df = self.laps.to_dataframe()
+        
+        curr_pbe_epoch = self.pbe # EPOCH object
+        curr_pbe_epoch_df = curr_pbe_epoch.to_dataframe()
+        # curr_spk_df = self.spikes_df.copy()
+        # curr_spk_df = self.spikes_df
+        
+        self.spikes_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df)
+        
+        # update:
+        # self.neurons._data['lap'] = curr_position_df['lap']
+        
+        return self.spikes_df
+    
+    @staticmethod
+    def compute_PBEs_spikes_df(spk_df, pbe_epoch_df):
+        """ Adds a 'PBE_id' column to the spikes_df:
+        Usage:
+            spk_df = compute_PBEs_spikes_df(sess) """
+        
+        # no_interval_fill_value = np.nan
+        no_interval_fill_value = -1
+        spk_df['PBE_id'] = no_interval_fill_value # set all 'spk_df' column to NaN
+
+        # make sure the labels are just the PBE index:
+        pbe_epoch_df['label'] = pbe_epoch_df.index
+        pbe_epoch_df['label'] = pbe_epoch_df['label'].astype(str)
+
+        spk_times_arr = spk_df.t_seconds.to_numpy() # TODO: hardcoded t_seconds
+        pbe_start_stop_arr = pbe_epoch_df[['start','stop']].to_numpy()
+        # pbe_identity_label = pbe_epoch_df['label'].to_numpy()
+        pbe_identity_label = pbe_epoch_df.index.to_numpy() # currently using the index instead of the label.
+        spike_pbe_identity_arr = determine_event_interval_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label, no_interval_fill_value=no_interval_fill_value)
+        # Set the PBE_id of the spikes dataframe:
+        spk_df.loc[:, 'PBE_id'] = spike_pbe_identity_arr
+        # spk_df['PBE_id'] = spike_pbe_identity_arr
+        # return the extracted traces and the updated curr_position_df
+        return spk_df
+    
+    
+    
     
     
     def __sizeof__(self) -> int:
