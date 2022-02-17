@@ -1,4 +1,6 @@
 import numpy as np
+from numba import jit # numba acceleration
+
 
 class StartStopTimesMixin:
     def safe_start_stop_times(self, t_start, t_stop):
@@ -59,4 +61,63 @@ class TimeSlicedMixin:
         # once all slices have been computed and the inclusion_mask is complete, use it to mask the output dataframe
         return self._obj.loc[inclusion_mask, :].copy()
     
-    
+
+@jit(nopython=True, parallel = True)
+def _compiled_verify_non_overlapping(start_stop_arr): # Function is compiled by numba and runs in machine code
+    # coming in: spk_times_arr, pbe_start_stop_arr, pbe_identity_label
+    assert (np.shape(start_stop_arr)[1] == 2), "pbe_start_stop_arr should have two columns: start, stop"
+    num_elements = np.shape(start_stop_arr)[0]
+    if (num_elements < 2):
+        return np.array([True]) # Trivially True
+    else: 
+        start_t = start_stop_arr[1:,0] # get the start times, starting from the second element.
+        stop_t = start_stop_arr[:(num_elements-1),1] # get the stop times, neglecting the last element
+        return (start_t > stop_t) # check if the (i+1)th start_t is later than the (i)th stop_t
+
+
+def verify_non_overlapping(start_stop_arr):
+    """Returns True if no members of the start_stop_arr overlap each other.
+
+    Args:
+        start_stop_arr (_type_): An N x 2 numpy array of start, stop times
+
+    Returns:
+        bool: Returns true if all members are non-overlapping
+        
+    Example:
+        are_all_non_overlapping = verify_non_overlapping(pbe_epoch_df[['start','stop']].to_numpy())
+        are_all_non_overlapping
+
+    """
+    is_non_overlapping = _compiled_verify_non_overlapping(start_stop_arr)
+    are_all_non_overlapping = np.alltrue(is_non_overlapping)
+    return are_all_non_overlapping
+
+
+
+
+@jit(nopython=True, parallel = True)
+def _compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label): # Function is compiled by numba and runs in machine code
+    # coming in: spk_times_arr, pbe_start_stop_arr, pbe_identity_label
+    spike_pbe_identity_arr = np.full((spk_times_arr.shape[0],), np.nan) # fill with NaN for all entries initially
+    for i in range(pbe_start_stop_arr.shape[0]):
+        # find the spikes that fall in the current PBE (PBE[i])
+        curr_PBE_identity = pbe_identity_label[i]
+        curr_bool_mask = np.logical_and((pbe_start_stop_arr[i,0] <= spk_times_arr), (spk_times_arr < pbe_start_stop_arr[i,1]))
+        # spike_pbe_identity_arr[((pbe_start_stop_arr[i,0] <= spk_times_arr) & (spk_times_arr < pbe_start_stop_arr[i,1]))] = curr_PBE_identity
+        spike_pbe_identity_arr[curr_bool_mask] = curr_PBE_identity
+        # print(f'')
+    # returns the array containing the PBE identity for each spike
+    return spike_pbe_identity_arr
+
+def add_PBE_identity(spk_df, pbe_epoch_df):
+    # coming in: spk_df, pbe_epoch_df
+    spk_times_arr = spk_df.t_seconds.to_numpy()
+    pbe_start_stop_arr = pbe_epoch_df[['start','stop']].to_numpy()
+    # pbe_identity_label = pbe_epoch_df['label'].to_numpy()
+    pbe_identity_label = pbe_epoch_df.index.to_numpy()
+    # print(f'np.shape(spk_times_arr): {np.shape(spk_times_arr)}, p.shape(pbe_start_stop_arr): {np.shape(pbe_start_stop_arr)}, p.shape(pbe_identity_label): {np.shape(pbe_identity_label)}')
+    spike_pbe_identity_arr = _compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label)
+    return spike_pbe_identity_arr
+
+
