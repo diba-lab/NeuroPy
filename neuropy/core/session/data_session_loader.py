@@ -216,6 +216,10 @@ class DataSessionLoader:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             session.pbe = DataSession.compute_pbe_epochs(session)
+            
+        
+        # add PBE information to spikes_df from session.pbe
+        DataSessionLoader._default_add_spike_PBEs_if_needed(session)
         # return the session with the upadated member variables    
         return session
     
@@ -277,6 +281,11 @@ class DataSessionLoader:
             # return the session with the upadated member variables
         return session
 
+    @staticmethod
+    def _default_add_spike_PBEs_if_needed(session):
+        updated_spk_df = session.compute_spikes_PBEs()
+        return session
+        
     #######################################################
     ## Bapun Nupy Format Only Methods:
     @staticmethod
