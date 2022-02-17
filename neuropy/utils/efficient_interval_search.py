@@ -1,0 +1,117 @@
+import numpy as np
+from numba import jit, njit, prange # numba acceleration
+
+
+@jit(nopython=True, parallel = True)
+def _compiled_verify_non_overlapping(start_stop_times_arr): # Function is compiled by numba and runs in machine code
+    # coming in: spk_times_arr, pbe_start_stop_arr, pbe_identity_label
+    assert (np.shape(start_stop_times_arr)[1] == 2), "pbe_start_stop_arr should have two columns: start, stop"
+    num_elements = np.shape(start_stop_times_arr)[0]
+    if (num_elements < 2):
+        return np.array([True]) # Trivially True
+    else: 
+        start_t = start_stop_times_arr[1:,0] # get the start times, starting from the second element.
+        stop_t = start_stop_times_arr[:(num_elements-1),1] # get the stop times, neglecting the last element
+        return (start_t > stop_t) # check if the (i+1)th start_t is later than the (i)th stop_t
+
+
+def verify_non_overlapping(start_stop_times_arr):
+    """Returns True if no members of the start_stop_times_arr overlap each other.
+
+    Args:
+        start_stop_times_arr (_type_): An N x 2 numpy array of start, stop times
+
+    Returns:
+        bool: Returns true if all members are non-overlapping
+        
+    Example:
+        are_all_non_overlapping = verify_non_overlapping(pbe_epoch_df[['start','stop']].to_numpy())
+        are_all_non_overlapping
+
+    """
+    is_non_overlapping = _compiled_verify_non_overlapping(start_stop_times_arr)
+    are_all_non_overlapping = np.alltrue(is_non_overlapping)
+    return are_all_non_overlapping
+
+
+
+@jit(nopython=True, parallel = True)
+def _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels): # Function is compiled by numba and runs in machine code
+    """MUCH slower than _compiled_searchsorted_event_interval_identity(...), but it works with non-sorted or overlapping start_stop intervals
+
+    Args:
+        times_arr (np.ndarray): An array of times of shape (N, ) in the same units as the start_stop_times_arr
+        start_stop_times_arr (np.ndarray): An array of start and stop intervals of shape (L, 2), with start_stop_times_arr[:, 0] representing the start times and start_stop_times_arr[:, 1] representing the stop times.
+        period_identity_labels (np.ndarray): An array of shape (L, ) specifying the appropriate id/identity of the interval in the corresponding row of start_stop_times_arr
+
+    Returns:
+        np.ndarray: an array of length N that specifies the interval identity each event in times_arr belongs to, or np.nan if it occurs outside all specified intervals.
+        
+    Performance:
+        # For: np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
+            # Elapsed Time = 90.92654037475586, 93.46184754371643, 90.16610431671143, 89.04321789741516
+
+    """ 
+    event_interval_identity_arr = np.full((times_arr.shape[0],), np.nan) # fill with NaN for all entries initially
+    for i in range(start_stop_times_arr.shape[0]):
+        # find the spikes that fall in the current PBE (PBE[i])
+        curr_PBE_identity = period_identity_labels[i]
+        curr_bool_mask = np.logical_and((start_stop_times_arr[i,0] <= times_arr), (times_arr < start_stop_times_arr[i,1]))
+        # spike_pbe_identity_arr[((pbe_start_stop_arr[i,0] <= spk_times_arr) & (spk_times_arr < pbe_start_stop_arr[i,1]))] = curr_PBE_identity
+        event_interval_identity_arr[curr_bool_mask] = curr_PBE_identity
+        # print(f'')
+    # returns the array containing the PBE identity for each spike
+    return event_interval_identity_arr
+
+
+
+
+@jit(nopython=True, parallel = True)
+def _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels): # Function is compiled by numba and runs in machine code
+    """ Consider an L x 2 array of start and stop times (start_stop_times_arr) representing intervals in time with corresponding identities provided by the (L, ) array of period_identity_labels.
+    The goal of this function is to efficienctly determine which of the intervals, if any, each event occuring at a time specified by times_arr occurs during.
+    
+    The output result will be an array of length N that specifies the interval identity each event in times_arr belongs to, or np.nan if none.
+    
+    Limitations:
+        !! Works only with sorted and non-overlapping start_stop_times_arr !!
+
+    Args:
+        times_arr (np.ndarray): An array of times of shape (N, ) in the same units as the start_stop_times_arr
+        start_stop_times_arr (np.ndarray): An array of start and stop intervals of shape (L, 2), with start_stop_times_arr[:, 0] representing the start times and start_stop_times_arr[:, 1] representing the stop times.
+        period_identity_labels (np.ndarray): An array of shape (L, ) specifying the appropriate id/identity of the interval in the corresponding row of start_stop_times_arr
+
+    Returns:
+        np.ndarray: an array of length N that specifies the interval identity each event in times_arr belongs to, or np.nan if it occurs outside all specified intervals.
+        
+    Performance:
+        # For: np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
+        # Elapsed Time = 1.1290626525878906 seconds
+    """
+    event_interval_identity_arr = np.full((times_arr.shape[0],), np.nan) # fill with NaN for all entries initially
+    
+    # Vectorized np.searchsorted mode:
+    found_start_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,0], side='left')
+    found_end_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,1], side='right') # find the end of the range
+    
+    for i in range(start_stop_times_arr.shape[0]):
+        # find the spikes that fall in the current PBE (PBE[i])
+        curr_PBE_identity = period_identity_labels[i]        
+        found_start_index = found_start_indicies[i]
+        found_end_index = found_end_indicies[i] # find the end of the range
+        event_interval_identity_arr[found_start_index:found_end_index] = curr_PBE_identity        
+        
+    # returns the array containing the PBE identity for each spike
+    return event_interval_identity_arr
+
+
+def determine_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels):
+    assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
+    assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
+    return _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels)
+
+
+def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels):
+    assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
+    assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
+    return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels)
