@@ -25,7 +25,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
-                 ripple = None, mua = None, laps= None, flattened_spiketrains = None):       
+                 ripple = None, mua = None, laps= None, flattened_spiketrains = None, pbe = None):       
         self.config = config
         
         self.is_loaded = False
@@ -43,8 +43,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         self.mua = mua
         self.laps = laps # core.laps.Laps
         self.flattened_spiketrains = flattened_spiketrains # core.FlattenedSpiketrains
+        self.pbe = pbe
         
-
+    
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
     #######################################################
