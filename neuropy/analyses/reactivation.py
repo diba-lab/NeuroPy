@@ -355,13 +355,13 @@ class NeuronEnsembles(core.DataWriter):
                 )
             )
 
-        self.activation = np.asarray(activation)
-        self.activation_time = act_binspk.time
-        self.activation_bin_size = bin_size
+        # self.activation = np.asarray(activation)
+        # self.activation_time = act_binspk.time
+        # self.activation_bin_size = bin_size
 
-    def plot_activation(self, nrows=None, ncols=None):
-        activation = self.activation
-        t = self.activation_time
+        return np.asarray(activation), act_binspk.time
+
+    def plot_activation(self, time, activation, nrows=None, ncols=None):
 
         if nrows is None:
             nrows, ncols = self.n_ensembles // 2, 2
@@ -369,7 +369,7 @@ class NeuronEnsembles(core.DataWriter):
         _, ax = plt.subplots(nrows, ncols, sharex=True, squeeze=False, sharey=True)
         ax = ax.reshape(-1)
         for i, act in enumerate(activation):
-            ax[i].plot(t / 3600, act, color="#fa895c", lw=1)
+            ax[i].plot(time / 3600, act, color="#fa895c", lw=1)
             Fig.remove_spines(ax[i])
             Fig.set_spines_width(ax[i], lw=2)
 
