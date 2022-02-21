@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import scipy.ndimage as filtSig
+from scipy.ndimage import gaussian_filter1d
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
@@ -88,27 +88,6 @@ def correlation_emg(
     sRate = signal.sampling_rate
     n_probes = probe.n_probes
     changrp = probe.get_connected_channels(groupby="probe")
-
-    # ----selecting a fixed number of shanks from each probe-----
-    # max_shanks_probe = [np.min([3, _]) for _ in nShanksProbe]
-    # selected_shanks = []
-    # for probe in range(nProbes):
-    #     shanks_in_probe = [
-    #         changrp[_] for _ in np.where(probesid == probe)[0] if changrp[_]
-    #     ]
-    #     selected_shanks.append(
-    #         np.concatenate(
-    #             np.random.choice(
-    #                 shanks_in_probe, max_shanks_probe[probe], replace=False
-    #             )
-    #         )
-    #     )
-
-    # ---- selecting probe with most number of shanks -------
-    # which_probe = np.argmax(nShanksProbe)
-    # selected_shanks = np.where(probesid == which_probe)[0]
-    # # making sure shanks are not empty
-    # selected_shanks = [changrp[_] for _ in selected_shanks if changrp[_]]
 
     emg_chans = (changrp[0]).astype("int")
     n_emg_chans = len(emg_chans)
@@ -230,9 +209,11 @@ def detect_brainstates_epochs(
     probe: core.ProbeGroup,
     window=1,
     overlap=0.2,
-    emg: core.Signal = None,
-    sigma=10,
-    ignore_epochs=None,
+    sigma=2,
+    emg_channel=None,
+    theta_channel=None,
+    delta_channel=None,
+    ignore_epochs: core.Epoch = None,
 ):
     """detects sleep states for the recording
 
@@ -249,39 +230,47 @@ def detect_brainstates_epochs(
 
     """
 
-    if emg is None:
-        emg = correlation_emg(
-            signal=signal, probe=probe, window=window, overlap=overlap
-        )
-
-    emg = filtSig.gaussian_filter1d(emg, sigma=sigma)
-
     changrp = probe.get_connected_channels(groupby="shank")
-    chan = changrp[7][-1]
+    wp = dict(window=window, overlap=overlap)
 
-    print(f"channel for sleep detection: {chan}")
+    smooth_ = lambda arr: gaussian_filter1d(arr, sigma=sigma / (window - overlap))
+    print(f"channel for sleep detection: {theta_channel,delta_channel}")
 
-    score_signal = signal.time_slice(channel_id=[chan])
-    bands = signal_process.SpectrogramBands(
-        score_signal, window=window, overlap=overlap, smooth=sigma, norm_sig=True
-    )
-    time = bands.time
-    deltaplus = bands.deltaplus
-    theta = bands.theta
-    theta_deltaplus_ratio = theta / deltaplus
+    # ---- theta-delta ratio calculation -----
+    if theta_channel is not None:
+        theta_signal = signal.time_slice(channel_id=[theta_channel])
+        theta_chan_sg = signal_process.FourierSg(theta_signal, norm_sig=True, **wp)
+        theta = smooth_(theta_chan_sg.theta)
+        time = theta_chan_sg.time
+
+    if delta_channel is not None:
+        delta_signal = signal.time_slice(channel_id=[theta_channel])
+        delta_chan_sg = signal_process.FourierSg(delta_signal, norm_sig=True, **wp)
+        deltaplus = smooth_(delta_chan_sg.deltaplus)
+
     print(f"spectral properties calculated")
 
-    # if (noisy := artifact.time) is not None:
-    #     noisy_timepoints = []
-    #     for noisy_ind in range(noisy.shape[0]):
-    #         st = noisy[noisy_ind, 0]
-    #         en = noisy[noisy_ind, 1]
-    #         noisy_indices = np.where((time > st) & (time < en))[0]
-    #         noisy_timepoints.extend(noisy_indices)
+    theta_deltaplus_ratio = theta / deltaplus
 
-    #     theta_deltaplus_ratio[noisy_timepoints] = np.nan
-    #     emg[noisy_timepoints] = np.nan
-    #     deltaplus[noisy_timepoints] = np.nan
+    # ---- emg processing ----
+    if emg_channel is None:
+        emg = correlation_emg(signal=signal, probe=probe, **wp)
+        emg = smooth_(emg)
+    else:
+        emg = signal.time_slice(emg_channel)
+
+    # ----- set timepoints from ignore_epochs to np.nan ------
+    if (noisy := ignore_epochs.as_array()) is not None:
+        noisy_timepoints = []
+        for noisy_ind in range(noisy.shape[0]):
+            st = noisy[noisy_ind, 0]
+            en = noisy[noisy_ind, 1]
+            noisy_indices = np.where((time > st) & (time < en))[0]
+            noisy_timepoints.extend(noisy_indices)
+
+        theta_deltaplus_ratio[noisy_timepoints] = np.nan
+        emg[noisy_timepoints] = np.nan
+        deltaplus[noisy_timepoints] = np.nan
 
     deltaplus_label = hmmfit1d(deltaplus)
     theta_deltaplus_label = hmmfit1d(theta_deltaplus_ratio)

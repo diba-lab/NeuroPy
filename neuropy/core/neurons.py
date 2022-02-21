@@ -10,6 +10,8 @@ from copy import deepcopy
 class Neurons(DataWriter):
     """Class to hold a group of spiketrains and their labels, ids etc."""
 
+    # TODO: Contemplate adding implicit support for noisy_epochs, such that firing_rate, get_binned_spiketrains, get_mua etc. deletes/ignores these time points for more accurate estimations
+
     def __init__(
         self,
         spiketrains: np.ndarray,
@@ -237,7 +239,7 @@ class Neurons(DataWriter):
         np.fill_diagonal(similarity, 0)
         return similarity
 
-    def get_binned_spiketrains(self, bin_size=0.25):
+    def get_binned_spiketrains(self, bin_size=0.25, ignore_epochs: Epoch = None):
 
         """Get binned spike counts
 
@@ -255,7 +257,11 @@ class Neurons(DataWriter):
         bins = np.arange(self.t_start, self.t_stop + bin_size, bin_size)
         spike_counts = np.asarray(
             [np.histogram(_, bins=bins)[0] for _ in self.spiketrains]
-        )
+        ).astype("float")
+        if ignore_epochs is not None:
+            ignore_bins = ignore_epochs.flatten()
+            ignore_indices = np.where(np.digitize(bins, ignore_bins) % 2 == 1)[0]
+            spike_counts[:, ignore_indices] = np.nan
 
         return BinnedSpiketrain(
             spike_counts,
@@ -455,6 +461,9 @@ class BinnedSpiketrain(DataWriter):
     def time(self):
         return np.arange(self.n_bins) * self.bin_size + self.t_start
 
+    def _ignore_indices_bool(self):
+        return ~np.isnan(self.spike_counts).any(axis=0)
+
     def get_pairwise_corr(self, pairs_bool=None, return_pair_id=False):
         """Pairwise correlation between pairs of binned of spiketrains
 
@@ -472,7 +481,7 @@ class BinnedSpiketrain(DataWriter):
         """
 
         assert self.n_neurons > 1, "Should have more than 1 neuron"
-        corr = np.corrcoef(self.spike_counts)
+        corr = np.corrcoef(self.spike_counts[:, self._ignore_indices_bool()])
 
         if pairs_bool is not None:
             assert (
@@ -548,7 +557,7 @@ class Mua(DataWriter):
 
     def get_smoothed(self, sigma=0.02, truncate=4.0):
         t_gauss = np.arange(-truncate * sigma, truncate * sigma, self.bin_size)
-        gaussian = np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
+        gaussian = np.exp(-(t_gauss**2) / (2 * sigma**2))
         gaussian /= np.sum(gaussian)
 
         spike_counts = sg.fftconvolve(self._spike_counts, gaussian, mode="same")

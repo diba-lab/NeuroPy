@@ -8,9 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import numpy as np
 from cycler import cycler
-from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap
-from matplotlib.patches import Rectangle
 
 
 class Colormap:
@@ -113,7 +111,7 @@ class Fig:
         # --- plot settings --------
         if style == "figPublish":
             axis_color = "#545454"
-            mpl.rcParams["axes.linewidth"] = 2
+            mpl.rcParams["axes.linewidth"] = 1.5
             mpl.rcParams["axes.labelsize"] = 8
             mpl.rcParams["axes.titlesize"] = 8
             mpl.rcParams["axes.edgecolor"] = axis_color
@@ -121,10 +119,10 @@ class Fig:
             mpl.rcParams["ytick.labelsize"] = 8
             mpl.rcParams["axes.spines.top"] = False
             mpl.rcParams["axes.spines.right"] = False
-            mpl.rcParams["xtick.major.width"] = 2
+            mpl.rcParams["xtick.major.width"] = 1.5
             mpl.rcParams["xtick.color"] = axis_color
             mpl.rcParams["xtick.labelcolor"] = "k"
-            mpl.rcParams["ytick.major.width"] = 2
+            mpl.rcParams["ytick.major.width"] = 1.5
             mpl.rcParams["ytick.color"] = axis_color
             mpl.rcParams["ytick.labelcolor"] = "k"
             mpl.rcParams["axes.prop_cycle"] = cycler(
@@ -461,27 +459,3 @@ def neuron_number_title(neurons):
     titles = ["Neuron: " + str(n) for n in neurons]
 
     return titles
-
-
-def make_boxes(
-    ax, xdata, ydata, xerror, yerror, facecolor="r", edgecolor="None", alpha=0.5
-):
-
-    # Loop over data points; create box from errors at each point
-    errorboxes = [
-        Rectangle((x, y), xe, ye) for x, y, xe, ye in zip(xdata, ydata, xerror, yerror)
-    ]
-
-    # Create patch collection with specified colour/alpha
-    pc = PatchCollection(
-        errorboxes, facecolor=facecolor, alpha=alpha, edgecolor=edgecolor
-    )
-
-    # Add collection to axes
-    ax.add_collection(pc)
-
-    # Plot errorbars
-    # artists = ax.errorbar(
-    #     xdata, ydata, xerr=xerror, yerr=yerror, fmt="None", ecolor="k"
-    # )
-    return 1

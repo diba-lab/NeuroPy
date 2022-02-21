@@ -116,7 +116,7 @@ class Spectrogram(Signal):
             ((self.freqs > 0.5) & (self.freqs < 4))
             | ((self.freqs > 12) & (self.freqs < 15))
         )[0]
-        deltaplus_sxx = np.mean(self.sxx[deltaplus_ind, :], axis=0)
+        deltaplus_sxx = np.mean(self.traces[deltaplus_ind, :], axis=0)
         return deltaplus_sxx
 
     @property

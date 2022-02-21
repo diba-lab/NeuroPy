@@ -158,9 +158,28 @@ def calculate_neurons_acg(
     return np.array(correlo)
 
 
-def calculate_neurons_ccg(self, ids):
-    spikes = self.get_spiketrains(ids)
-    ccgs = np.zeros((len(spikes), len(spikes), 251)) * np.nan
+def calculate_neurons_ccg(neurons: core.Neurons, bin_size=0.001, window_size=0.25):
+    """_summary_
+
+    Parameters
+    ----------
+    neurons : core.Neurons
+        _description_
+    bin_size : float, optional
+        _description_, by default 0.001
+    window_size : float, optional
+        _description_, by default 0.25
+
+    Returns
+    -------
+    ccgs: n_neurons x n_neurons x time
+        _description_
+    t: 1D array
+        time in seconds
+    """
+    spikes = neurons.spiketrains
+    t = np.arange(window_size / bin_size + 1) * bin_size - window_size / 2
+    ccgs = np.zeros((len(spikes), len(spikes), len(t))) * np.nan
     spike_ind = np.asarray([_ for _ in range(len(spikes)) if spikes[_].size != 0])
     clus_id = np.concatenate([[_] * len(spikes[_]) for _ in range(len(spikes))]).astype(
         int
@@ -171,18 +190,52 @@ def calculate_neurons_ccg(self, ids):
     ccgs_ = correlograms(
         spikes,
         clus_id,
-        sample_rate=self._obj.sampfreq,
-        bin_size=0.001,
-        window_size=0.25,
+        sample_rate=neurons.sampling_rate,
+        bin_size=bin_size,
+        window_size=window_size,
     )
-    grid = np.ix_(spike_ind, spike_ind, np.arange(251))
+    grid = np.ix_(spike_ind, spike_ind, np.arange(len(t)))
     ccgs[grid] = ccgs_
 
-    center = int(ccgs.shape[-1] / 2) - 1
-    diff = ccgs[:, :, center + 2 :].sum(axis=-1) - ccgs[:, :, : center - 2].sum(axis=-1)
-    non_redundant_indx = np.tril_indices_from(diff, k=-1)
+    return ccgs, t
 
-    return diff[non_redundant_indx]
+
+def ccg_temporal_bias(neurons: core.Neurons, com=False, window_size=0.5):
+    """Temporal bias calculated using cross-correlograms
+
+    Parameters
+    ----------
+    neurons : core.Neurons
+        object containing spiketrains
+    com : bool, optional
+        whether to return center of mass instead of raw spike count difference, by default False
+    window_size : float, optional
+        total window size around 0 of CCG, by default 0.5
+
+    Returns
+    -------
+    array
+        _description_
+    """
+    ccgs, t = calculate_neurons_ccg(
+        neurons=neurons, bin_size=0.001, window_size=window_size
+    )
+    if com:
+        ccg_com = np.sum(ccgs * t[np.newaxis, np.newaxis, :], axis=-1) / np.sum(
+            ccgs, axis=-1
+        )
+        non_redundant_indx = np.tril_indices_from(ccg_com, k=-1)
+        temporal_bias = ccg_com[non_redundant_indx]
+
+    else:
+        center = ccgs.shape[-1] // 2
+        diff = ccgs[:, :, center + 1 :].sum(axis=-1) - ccgs[:, :, : center - 1].sum(
+            axis=-1
+        )
+        non_redundant_indx = np.tril_indices_from(diff, k=-1)
+        temporal_bias = diff[non_redundant_indx]
+
+    return temporal_bias
 
 
 def theta_modulation_index(neurons: core.Neurons, sigma=None, return_acg=False):
