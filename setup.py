@@ -19,8 +19,8 @@ setuptools.setup(
     version="0.0.1",
     author="Bapun Giri",
     author_email="bapung@umich.edu",
-    maintainer=["Bapun Giri", "Nat Kinsky"],
-    maintainer_email=["bapung@umich.edu", "nkinsky@umich.edu"],
+    maintainer=["Bapun Giri", "Nat Kinsky", "Pho Hale"],
+    maintainer_email=["bapung@umich.edu", "nkinsky@umich.edu", "halechr@umich.edu"],
     description="Package for ephys analysis",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -31,6 +31,6 @@ setuptools.setup(
         "License :: OSI Approved :: GPL License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=requires,
 )

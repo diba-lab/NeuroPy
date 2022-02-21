@@ -38,7 +38,7 @@ If you use NeuroPy in your research, please consider citing it.
 
 ```
 @misc{neuropy2021,
-    author       = {Bapun Giri, Nat Kinsky},
+    author       = {Bapun Giri, Nat Kinsky, Pho Hale},
     title        = {{NeuroPy: Electrophysiology analysis using Python}},
     year         = 2020--2021,
     version      = {0.0.1},
