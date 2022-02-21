@@ -85,7 +85,7 @@ class BinarysignalIO:
             channel_id=channel_indx,
         )
 
-    def get_frames_within_epochs(self, epochs: Epoch, channel_indx):
+    def get_frames_within_epochs(self, epochs: Epoch, channel_indx, ret_time=False):
         """Return concatenated frames corresponding to epochs
 
         Parameters
@@ -102,7 +102,10 @@ class BinarysignalIO:
         """
         epochs_frames = (epochs.as_array() * self.sampling_rate).astype("int")
         frames = np.concatenate([np.arange(*e) for e in epochs_frames])
-        return self._raw_traces[channel_indx, frames]
+        if ret_time:
+            return self._raw_traces[channel_indx, frames], frames / self.sampling_rate
+        else:
+            return self._raw_traces[channel_indx, frames]
 
     def write_time_slice(self, write_filename, t_start, t_stop):
 
