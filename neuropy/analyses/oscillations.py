@@ -22,7 +22,7 @@ def _detect_freq_band_epochs(
         channels used for epoch detection, if None then chooses best chans
     """
 
-    zscsignal = np.zeros_like(signals)
+    zscsignal = np.zeros(signals.shape)
     lf, hf = freq_band
     lowthresh, highthresh = thresh
     for sig_i, sig in enumerate(signals):
@@ -116,7 +116,7 @@ def _detect_freq_band_epochs(
     print(f"{len(epochs)} epochs reamining after deleting very long epochs")
 
     # ----- converting to all time stamps to seconds --------
-    epochs[["start", "stop", "peakpower", "peaktime"]] /= fs  # seconds
+    epochs[["start", "stop", "peaktime"]] /= fs  # seconds
 
     epochs = epochs.reset_index(drop=True)
     epochs["label"] = ""
@@ -270,7 +270,8 @@ def detect_theta_epochs(
 ):
 
     if probegroup is None:
-        channel_ids = signal.channel_id.astype("int")
+        selected_chan = signal.channel_id
+        traces = signal.traces
     else:
         if isinstance(probegroup, np.ndarray):
             changrps = np.array(probegroup, dtype="object")
@@ -278,17 +279,18 @@ def detect_theta_epochs(
             changrps = probegroup.get_connected_channels(groupby="shank")
         channel_ids = np.concatenate(changrps).astype("int")
 
-    duration = signal.duration
-    t1, t2 = signal.t_start, signal.t_start + np.min([duration, 3600])
-    signal_slice = signal.time_slice(channel_id=channel_ids, t_start=t1, t_stop=t2)
-    hil_stat = signal_process.hilbert_ampltiude_stat(
-        signal_slice.traces,
-        freq_band=freq_band,
-        fs=signal.sampling_rate,
-        statistic="mean",
-    )
-    selected_chan = channel_ids[np.argmax(hil_stat)]
-    traces = signal.time_slice(channel_id=selected_chan).traces.reshape(1, -1)
+        duration = signal.duration
+        t1, t2 = signal.t_start, signal.t_start + np.min([duration, 3600])
+        signal_slice = signal.time_slice(channel_id=channel_ids, t_start=t1, t_stop=t2)
+        hil_stat = signal_process.hilbert_ampltiude_stat(
+            signal_slice.traces,
+            freq_band=freq_band,
+            fs=signal.sampling_rate,
+            statistic="mean",
+        )
+        selected_chan = channel_ids[np.argmax(hil_stat)]
+
+        traces = signal.time_slice(channel_id=selected_chan).traces.reshape(1, -1)
 
     print(f"Best channel for theta: {selected_chan}")
     if ignore_epochs is not None:
