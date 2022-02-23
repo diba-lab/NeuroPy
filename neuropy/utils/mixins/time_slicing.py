@@ -48,10 +48,12 @@ class TimeSlicedMixin:
         starts = t_start
         stops = t_stop
         
+        # print(f'time_sliced(...): np.shape(starts): {np.shape(starts)}, np.shape(stops): {np.shape(stops)}')
         assert np.shape(starts) == np.shape(stops), f"starts and stops must be the same shape, but np.shape(starts): {np.shape(starts)} and np.shape(stops): {np.shape(stops)}"
         
         # New numba accelerated (compiled) version:
-        start_stop_times_arr = np.hstack((np.atleast_2d(starts), np.atleast_2d(stops))) # atleast_2d ensures that each array is represented as a column, so start_stop_times_arr is at least of shape (1, 2)
+        start_stop_times_arr = np.hstack((np.atleast_2d(starts).T, np.atleast_2d(stops).T)) # atleast_2d ensures that each array is represented as a column, so start_stop_times_arr is at least of shape (1, 2)
+        # print(f'time_sliced(...): np.shape(start_stop_times_arr): {np.shape(start_stop_times_arr)}')
         # print(f'np.shape(start_stop_times_arr): {np.shape(start_stop_times_arr)}')
         inclusion_mask = determine_event_interval_is_included(self._obj[self.time_variable_name].to_numpy(), start_stop_times_arr)
         
