@@ -481,7 +481,7 @@ class DataSessionLoader:
         session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
         
         # Common Extended properties:
-        # session = DataSessionLoader.default_extended_postload(fp, session)
+        session = DataSessionLoader._default_extended_postload(fp, session)
         session.is_loaded = True # indicate the session is loaded
         return session # returns the session when done
 
