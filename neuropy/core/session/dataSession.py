@@ -393,7 +393,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         curr_pbe_epoch_df = curr_pbe_epoch.to_dataframe()
         # curr_spk_df = self.spikes_df.copy()
         # curr_spk_df = self.spikes_df
-        curr_spk_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df)
+        curr_spk_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df) # column is added to the self.spikes_df, so the return value doesn't matter
         
         # update:
         # self.neurons._data['PBE_id'] = curr_spk_df['PBE_id']
