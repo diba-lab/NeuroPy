@@ -33,10 +33,9 @@ def verify_non_overlapping(start_stop_times_arr):
     are_all_non_overlapping = np.alltrue(is_non_overlapping)
     return are_all_non_overlapping
 
-
-def drop_overlapping(start_stop_times_arr):
-    """Drops the overlapping epochs
-
+def get_non_overlapping_epochs(start_stop_times_arr):
+    """Gets the indicies of any epochs that overlap one another.
+    
     Args:
         start_stop_times_arr (_type_): An N x 2 numpy array of start, stop times
         
@@ -51,21 +50,37 @@ def drop_overlapping(start_stop_times_arr):
     # print(f'is_non_overlapping: {is_non_overlapping}, np.shape(is_non_overlapping): {np.shape(is_non_overlapping)}')
     overlapping_lap_indicies = np.array(np.where(np.logical_not(is_non_overlapping))) # get the start indicies of all overlapping laps
     following_overlapping_lap = [i + 1 for i in overlapping_lap_indicies] # get the following index that it overlaps
-
+    # Get the "good" (non-overlapping) laps only, dropping the rest:
+    is_good_epoch = np.full((np.shape(start_stop_times_arr)[0],), True)
+        
     if (len(overlapping_lap_indicies) == 0):
         # no epochs overlap, don't need to drop any
-        return start_stop_times_arr
+        return is_good_epoch
     else:
-        print(f'dropping {len(overlapping_lap_indicies) + len(following_overlapping_lap)} overlapping laps.')
         # print(f'overlapping_lap_indicies: {overlapping_lap_indicies}, following_overlapping_lap: {following_overlapping_lap}, is_non_overlapping: {is_non_overlapping}')
-        # Get the "good" (non-overlapping) laps only, dropping the rest:
-        is_good_epoch = np.full((np.shape(start_stop_times_arr)[0],), True)
         is_good_epoch[overlapping_lap_indicies] = False
         is_good_epoch[following_overlapping_lap] = False
         # print(f'is_good_lap: {is_good_epoch}, np.shape(is_good_lap): {np.shape(is_good_epoch)}')
         # return only the non-overlapping periods
-        non_overlapping_start_stop_times_arr = start_stop_times_arr[is_good_epoch, :].copy()
-        return non_overlapping_start_stop_times_arr
+        return is_good_epoch
+    
+    
+
+def drop_overlapping(start_stop_times_arr):
+    """Drops the overlapping epochs
+
+    Args:
+        start_stop_times_arr (_type_): An N x 2 numpy array of start, stop times
+        
+    Example:        
+        from neuropy.utils.efficient_interval_search import drop_overlapping
+        start_stop_times_arr = any_lap_specific_epochs.to_dataframe()[['start','stop']].to_numpy() # note that this returns one less than the number of epochs.
+        non_overlapping_start_stop_times_arr = drop_overlapping(start_stop_times_arr)
+        non_overlapping_start_stop_times_arr
+    """
+    is_good_epoch = get_non_overlapping_epochs(start_stop_times_arr)
+    return start_stop_times_arr[is_good_epoch, :].copy()
+
 
 
 @jit(nopython=True, parallel = True)
