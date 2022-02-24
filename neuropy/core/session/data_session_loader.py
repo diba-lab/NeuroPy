@@ -784,3 +784,27 @@ class DataSessionLoader:
 
         return session
 
+
+    @staticmethod
+    def __default_kdiba_RippleDatabase_load_mat(session):
+        ## Get laps in/out
+        session_ripple_mat_file_path = Path(session.basepath).joinpath('{}.RippleDatabase.mat'.format(session.name))
+        ripple_mat_file = import_mat_file(mat_import_file=session_ripple_mat_file_path)
+        mat_variables_to_extract = ['database_re'] # it's a 993x3 array of timestamps
+        num_mat_variables = len(mat_variables_to_extract)
+        flat_var_out_dict = dict()
+        for i in np.arange(num_mat_variables):
+            curr_var_name = mat_variables_to_extract[i]
+            flat_var_out_dict[curr_var_name] = ripple_mat_file[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
+            
+        ripples = np.array(flat_var_out_dict['database_re'])
+        print(f'ripples: {np.shape(ripples)}')
+        
+        ripples_df = pd.DataFrame({'start':ripples[:,0],'peak':ripples[:,1],'stop':ripples[:,2]})
+        session.pbe = Epoch(ripples_df)
+        
+        # session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
+        
+        return session, ripples_df
+
+        
