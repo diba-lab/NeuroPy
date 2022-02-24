@@ -127,7 +127,16 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         copy_sess.position = copy_sess.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
         copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid  
         
-        # copy_sess.laps = self.      
+        if copy_sess.ripple is not None:
+            copy_sess.ripple = copy_sess.ripple.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+        if copy_sess.mua is not None:
+            copy_sess.mua = copy_sess.mua.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+        if copy_sess.pbe is not None:
+            copy_sess.pbe = copy_sess.pbe.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+            
+        if copy_sess.laps is not None:
+            copy_sess.laps = copy_sess.laps.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+            
         return copy_sess
     
 
@@ -297,7 +306,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Union[Sequence, np.array]):
-        print('!! WARNING: Session.concat(...) is not yet fully implemented, meaning the returned session is not fully valid. Continue with caution.') 
+        print('!! WARNING: Session.concat(...) is not yet fully implemented, meaning the returned session is not fully valid. Continue with caution.')
+        raise NotImplementedError
+    
         new_neurons = neurons.Neurons.concat([aSession.neurons for aSession in objList])
         new_position = Position.concat([aSession.position for aSession in objList])
         new_flattened_spiketrains = FlattenedSpiketrains.concat([aSession.flattened_spiketrains for aSession in objList])

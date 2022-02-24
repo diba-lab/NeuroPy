@@ -37,7 +37,10 @@ class TimeSlicedMixin:
         raise NotImplementedError
 
     def time_sliced(self, t_start=None, t_stop=None):
-        """ returns a copy of the spikes dataframe filtered such that only elements within the time ranges specified by t_start[i]:t_stop[i] (inclusive) are included. """
+        """ 
+        Implementors have a list of event times that will be used to determine inclusion/exclusion criteria.
+        
+        returns a copy of the spikes dataframe filtered such that only elements within the time ranges specified by t_start[i]:t_stop[i] (inclusive) are included. """
         # included_df = self._obj[((self._obj[SpikesAccessor.time_variable_name] >= t_start) & (self._obj[self.time_variable_name] <= t_stop))] # single time slice for sclar t_start and t_stop
         # wrap the inputs in lists if they are scalars
         if np.isscalar(t_start):
