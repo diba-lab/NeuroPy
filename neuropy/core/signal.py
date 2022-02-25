@@ -17,6 +17,7 @@ class Signal:
             self.channel_id = np.arange(self.n_channels)
         else:
             self.channel_id = channel_id
+        self.source_file = source_file
 
     @property
     def t_stop(self):

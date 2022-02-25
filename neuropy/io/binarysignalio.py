@@ -29,6 +29,10 @@ class BinarysignalIO:
         )
 
     @property
+    def _dtype(self):
+        return self.dtype
+
+    @property
     def duration(self):
         return self._raw_traces.shape[1] / self.sampling_rate
 
@@ -76,7 +80,7 @@ class BinarysignalIO:
             sampling_rate=self.sampling_rate,
             t_start=t_start,
             channel_id=channel_indx,
-            filename=self.source_file,
+            source_file=self.source_file,
         )
 
     def frame_slice(self, channel_indx=None, frame_start=None, frame_stop=None):

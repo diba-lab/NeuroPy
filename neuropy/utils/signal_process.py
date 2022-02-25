@@ -56,7 +56,7 @@ class filter_sig:
 
     @staticmethod
     def notch(
-        signal,
+        signal: np.ndarray,
         w0: float or int,
         Q: float or int or None,
         bw: float or int or None = None,
@@ -71,7 +71,16 @@ class filter_sig:
         else:
             Quse = Q
         b, a = sg.iirnotch(w0=w0, Q=Quse, fs=fs)
-        yf = sg.filtfilt(b, a, signal, axis=ax)
+        try:
+            yf = sg.filtfilt(b, a, signal, axis=ax)
+        except np.core._exceptions._ArrayMemoryError:
+            yf = []
+            print(
+                "signal array is too large for memory, filtering each channel independently"
+            )
+            for trace in signal:
+                yf.append(sg.filtfilt(b, a, trace, axis=ax).astype("int16"))
+            yf = np.asarray(yf, dtype="int16")
 
         return yf
 
