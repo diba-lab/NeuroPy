@@ -27,6 +27,10 @@ class BinarysignalIO:
         )
 
     @property
+    def _dtype(self):
+        return self.dtype
+
+    @property
     def duration(self):
         return self._raw_traces.shape[1] / self.sampling_rate
 
@@ -72,7 +76,7 @@ class BinarysignalIO:
             self.sampling_rate,
             t_start,
             channel_id=channel_indx,
-            filename=self.source_file,
+            source_file=self.source_file,
         )
 
     def write_time_slice(self, write_filename, t_start, t_stop):
