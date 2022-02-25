@@ -200,7 +200,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
                  eegfile = d['eegfile'], datfile = d['datfile'],
                  neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
-                 ripple = d.get('ripple', None), mua = d.get('mua', None), 
+                 ripple = d.get('ripple', None), mua = d.get('mua', None), pbe = d.get('pbe', None),
                  laps= d.get('laps', None),
                  flattened_spiketrains = d.get('flattened_spiketrains', None))
 
@@ -320,12 +320,12 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         
         # TODO: eegfile, datfile, recinfo, filePrefix should all be checked to ensure they're the same, and if they aren't, should be set to None
         # TODO: probegroup, paradigm should be checked to ensure that they're the same for all, and an exception should occur if they differ
-        # TODO: ripple, mua, and maybe others should be concatenated themselves once that functionality is implemented.
+        # TODO: ripple, mua, pbe, and maybe others should be concatenated themselves once that functionality is implemented.
         
         return cls(objList[0].config, filePrefix = objList[0].filePrefix, recinfo = objList[0].recinfo,
                  eegfile = objList[0].eegfile, datfile = objList[0].datfile,
                  neurons = new_neurons, probegroup = objList[0].probegroup, position = new_position, paradigm = objList[0].paradigm,
-                 ripple = None, mua = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
+                 ripple = None, mua = None, pbe = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
     
     
     # def filtered_by_laps(self, lap_indices=None):
