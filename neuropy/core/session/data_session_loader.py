@@ -193,7 +193,7 @@ class DataSessionLoader:
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.ripple = DataSession.compute_neurons_ripples(session)
+            session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
 
         ## MUA:
         active_file_suffix = '.mua.npy'
@@ -204,7 +204,7 @@ class DataSessionLoader:
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.mua = DataSession.compute_neurons_mua(session)
+            session.mua = DataSession.compute_neurons_mua(session, save_on_compute=True)
 
         ## PBE Epochs:
         active_file_suffix = '.pbe.npy'
@@ -215,7 +215,7 @@ class DataSessionLoader:
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.pbe = DataSession.compute_pbe_epochs(session)
+            session.pbe = DataSession.compute_pbe_epochs(session, save_on_compute=True)
             
         
         # add PBE information to spikes_df from session.pbe

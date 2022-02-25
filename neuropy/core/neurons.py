@@ -754,6 +754,7 @@ class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
     
     
 class Mua(DataWriter):
+    """ Mua stands for Multi-unit activity maybe? """
     def __init__(
         self,
         spike_counts: np.ndarray,

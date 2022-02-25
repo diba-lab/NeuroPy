@@ -130,7 +130,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         if copy_sess.ripple is not None:
             copy_sess.ripple = copy_sess.ripple.time_slice(active_epoch_times[0], active_epoch_times[1]) 
         if copy_sess.mua is not None:
-            copy_sess.mua = copy_sess.mua.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+            # copy_sess.mua = copy_sess.mua.time_slice(active_epoch_times[0], active_epoch_times[1])
+            # TODO: mua needs to be time_sliced as well, but I'm not sure how to best do this. Might be easier just to remake it.
+            copy_sess.mua = DataSession.compute_neurons_mua(copy_sess, save_on_compute=False)
         if copy_sess.pbe is not None:
             copy_sess.pbe = copy_sess.pbe.time_slice(active_epoch_times[0], active_epoch_times[1]) 
             
@@ -228,42 +230,45 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     ## Ripple epochs
     #   To detect ripples one also needs probegroup.
     @staticmethod
-    def compute_neurons_ripples(session):
+    def compute_neurons_ripples(session, save_on_compute=False):
         print('computing ripple epochs for session...\n')
         from neuropy.analyses import oscillations
         signal = session.eegfile.get_signal()
         ripple_epochs = oscillations.detect_ripple_epochs(signal, session.probegroup)
-        ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
-        # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
-        with ProgressMessagePrinter(ripple_epochs.filename, 'Saving', 'ripple epochs'):
-            ripple_epochs.save()
+        if save_on_compute:
+            ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
+            # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
+            with ProgressMessagePrinter(ripple_epochs.filename, 'Saving', 'ripple epochs'):
+                ripple_epochs.save()
         # print('done.')
         return ripple_epochs
     # sess.ripple = compute_neurons_ripples(sess)
 
     ## BinnedSpiketrain and Mua objects using Neurons
     @staticmethod
-    def compute_neurons_mua(session):
+    def compute_neurons_mua(session, save_on_compute=False):
         print('computing neurons mua for session...\n')
         mua = session.neurons.get_mua()
-        mua.filename = session.filePrefix.with_suffix(".mua.npy")
-        # print('Saving mua results to {}...'.format(mua.filename), end=' ')
-        with ProgressMessagePrinter(mua.filename, 'Saving', 'mua results'):
-            mua.save()
+        if save_on_compute:
+            mua.filename = session.filePrefix.with_suffix(".mua.npy")
+            # print('Saving mua results to {}...'.format(mua.filename), end=' ')
+            with ProgressMessagePrinter(mua.filename, 'Saving', 'mua results'):
+                mua.save()
         # print('done.')
         return mua    
     # sess.mua = compute_neurons_mua(sess) # Set the .mua field on the session object once complete
 
     @staticmethod
-    def compute_pbe_epochs(session):
+    def compute_pbe_epochs(session, save_on_compute=False):
         from neuropy.analyses import detect_pbe_epochs
         print('computing PBE epochs for session...\n')
         smth_mua = session.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
         pbe = detect_pbe_epochs(smth_mua)
-        pbe.filename = session.filePrefix.with_suffix('.pbe.npy')
-        # print('Saving pbe results to {}...'.format(pbe.filename), end=' ')
-        with ProgressMessagePrinter(pbe.filename, 'Saving', 'pbe results'):
-            pbe.save()
+        if save_on_compute:
+            pbe.filename = session.filePrefix.with_suffix('.pbe.npy')
+            # print('Saving pbe results to {}...'.format(pbe.filename), end=' ')
+            with ProgressMessagePrinter(pbe.filename, 'Saving', 'pbe results'):
+                pbe.save()
         # print('done.')
         return pbe
     # sess.pbe = compute_pbe_epochs(sess)
