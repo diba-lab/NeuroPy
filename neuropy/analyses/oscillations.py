@@ -135,9 +135,9 @@ def _detect_freq_band_epochs(
 
 
 def detect_hpc_slow_wave_epochs(
-    signal: Signal, freq_band=(0.5, 4), ignore_epochs: Epoch = None
+    signal: Signal, freq_band=(0.5, 4), nrem_epochs: Epoch = None
 ):
-    """Caculate delta events
+    """Caculate delta events only
 
     chan --> filter delta --> identify peaks and troughs within sws epochs only --> identifies a slow wave as trough to peak --> thresholds for 100ms minimum duration
 
@@ -151,46 +151,57 @@ def detect_hpc_slow_wave_epochs(
 
     assert signal.n_channels == 1, "Signal should have only 1 channel"
 
-    # ---- filtering in delta band -----
-    trace = signal.traces[0]
-    t = signal.time
-    lf, hf = freq_band
-    delta = signal_process.filter_sig.bandpass(trace, lf=lf, hf=hf)
+    def _get_sw(sig_):
+        # ---- filtering in delta band -----
+        trace = sig_.traces[0]
+        t = sig_.time
+        lf, hf = freq_band
+        delta = signal_process.filter_sig.bandpass(trace, lf=lf, hf=hf)
 
-    # ---- normalize and flip the sign to be consistent with cortical lfp ----
-    delta = -1 * stats.zscore(delta)
+        # ---- normalize and flip the sign to be consistent with cortical lfp ----
+        delta = -1 * stats.zscore(delta)
 
-    # ---- finding peaks and trough for delta oscillations
+        # ---- finding peaks and trough for delta oscillations
 
-    up = sg.find_peaks(delta)[0]
-    down = sg.find_peaks(-delta)[0]
+        up = sg.find_peaks(delta)[0]
+        down = sg.find_peaks(-delta)[0]
 
-    if up[0] < down[0]:
-        up = up[1:]
-    if up[-1] > down[-1]:
-        up = up[:-1]
+        if up[0] < down[0]:
+            up = up[1:]
+        if up[-1] > down[-1]:
+            up = up[:-1]
 
-    sigdelta = []
-    for i in range(len(down) - 1):
-        tbeg = t[down[i]]
-        tpeak = t[up[i]]
-        tend = t[down[i + 1]]
-        peakamp = delta[up[i]]
-        endamp = delta[down[i + 1]]
-        # ------ thresholds for selecting delta --------
-        # if (peakamp > 2 and endamp < 0) or (peakamp > 1 and endamp < -1.5):
-        sigdelta.append([peakamp, endamp, tpeak, tbeg, tend])
+        sigdelta = []
+        for i in range(len(down) - 1):
+            tbeg = t[down[i]]
+            tpeak = t[up[i]]
+            tend = t[down[i + 1]]
+            peakamp = delta[up[i]]
+            endamp = delta[down[i + 1]]
+            # ------ thresholds for selecting delta --------
+            # if (peakamp > 2 and endamp < 0) or (peakamp > 1 and endamp < -1.5):
+            sigdelta.append([peakamp, endamp, tpeak, tbeg, tend])
 
-    sigdelta = np.asarray(sigdelta)
-    print(f"{len(sigdelta)} delta waves detected")
+        return np.asarray(sigdelta)
+
+    if nrem_epochs is not None:
+        sw = []
+        for e in nrem_epochs.as_array():
+            sw.append(_get_sw(signal.time_slice(t_start=e[0], t_stop=e[1])))
+        sw = np.vstack(sw)
+    else:
+        sw = _get_sw(signal)
+
+    print(f"{len(sw)} delta waves detected")
 
     epochs = pd.DataFrame(
         {
-            "start": sigdelta[:, 3],
-            "stop": sigdelta[:, 4],
-            "peaktime": sigdelta[:, 2],
-            "peakamp": sigdelta[:, 0],
-            "endamp": sigdelta[:, 1],
+            "start": sw[:, 3],
+            "stop": sw[:, 4],
+            "peaktime": sw[:, 2],
+            "peakamp": sw[:, 0],
+            "endamp": sw[:, 1],
+            "label": "sw",
         }
     )
     params = {"freq_band": freq_band, "channel": signal.channel_id}
