@@ -34,8 +34,8 @@ class BinarysignalIO:
 
     def get_signal(self, channel_indx=None, t_start=None, t_stop=None):
 
-        if isinstance(channel_indx, int):
-            channel_indx = [channel_indx]
+        # if isinstance(channel_indx, list):
+        #     channel_indx = [channel_indx]
 
         if t_start is None:
             t_start = 0.0
