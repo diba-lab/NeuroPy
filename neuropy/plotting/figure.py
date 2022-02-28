@@ -112,11 +112,11 @@ class Fig:
         if style == "figPublish":
             axis_color = "#545454"
             mpl.rcParams["axes.linewidth"] = 1.5
-            mpl.rcParams["axes.labelsize"] = 8
-            mpl.rcParams["axes.titlesize"] = 8
+            mpl.rcParams["axes.labelsize"] = 7
+            mpl.rcParams["axes.titlesize"] = 7
             mpl.rcParams["axes.edgecolor"] = axis_color
-            mpl.rcParams["xtick.labelsize"] = 8
-            mpl.rcParams["ytick.labelsize"] = 8
+            mpl.rcParams["xtick.labelsize"] = 7
+            mpl.rcParams["ytick.labelsize"] = 7
             mpl.rcParams["axes.spines.top"] = False
             mpl.rcParams["axes.spines.right"] = False
             mpl.rcParams["xtick.major.width"] = 1.5
