@@ -80,10 +80,10 @@ class Epoch(DataWriter):
 
         if isinstance(i, str):
             data = self._epochs[self._epochs["label"] == i].copy()
-        elif isinstance(i, slice):
-            data = self._epochs.iloc[i].copy()
-        else:
+        elif isinstance(i, int):
             data = self._epochs.iloc[[i]].copy()
+        else:
+            data = self._epochs.iloc[i].copy()
 
         return Epoch(epochs=data.reset_index(drop=True))
 
@@ -96,6 +96,29 @@ class Epoch(DataWriter):
         df = self.to_dataframe()
         df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
         return Epoch(df)
+
+    def duration_slice(self, min_dur=None, max_dur=None):
+        """return epochs that have durations between given thresholds
+
+        Parameters
+        ----------
+        min_dur : float, optional
+            minimum duration in seconds, by default None
+        max_dur : float, optional
+            maximum duration in seconds, by default None,
+
+        Returns
+        -------
+        epoch
+            epochs with durations between min_dur and max_dur
+        """
+        durations = self.durations
+        if min_dur is None:
+            min_dur = np.min(durations)
+        if max_dur is None:
+            max_dur = np.max(durations)
+
+        return self[(durations >= min_dur) & (durations <= max_dur)]
 
     def label_slice(self, label):
         assert isinstance(label, str), "label must be string"
