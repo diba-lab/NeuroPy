@@ -156,7 +156,12 @@ class Neurons(DataWriter):
         )
 
     def get_neuron_type(self, neuron_type):
-        indices = self.neuron_type == neuron_type
+        if isinstance(neuron_type, str):
+            indices = self.neuron_type == neuron_type
+        if isinstance(neuron_type, list):
+            indices = np.any(
+                np.vstack([ntype == self.neuron_type for ntype in neuron_type]), axis=0
+            )
         return self[indices]
 
     def _check_integrity(self):
