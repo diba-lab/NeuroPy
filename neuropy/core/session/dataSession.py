@@ -430,8 +430,21 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # make sure the labels are just the PBE index:
         pbe_epoch_df['label'] = pbe_epoch_df.index
         pbe_epoch_df['label'] = pbe_epoch_df['label'].astype(str)
+        curr_time_variable_name = spk_df.spikes.time_variable_name
 
-        spk_times_arr = spk_df[spk_df.spikes.time_variable_name].copy().to_numpy() # get the timestamps column using the time_variable_name property. It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data:
+        try:
+            spk_times_arr = spk_df[curr_time_variable_name].copy().to_numpy() # get the timestamps column using the time_variable_name property. It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data:
+        except KeyError as e:
+            # curr_time_variable_name (spk_df.spikes.time_variable_name) is invalid for some reason. 
+            # raise "curr_time_variable_name is invalid for some reason!"
+            
+            proposed_updated_time_variable_name = 't_seconds'
+            print(f'encounter KeyError {e} when attempting to access spk_df using its spk_df.spikes.time_variable_name variable. Original spk_df.spikes.time_variable_name: "{spk_df.spikes.time_variable_name}". Changing it to "{proposed_updated_time_variable_name}" and proceeding forward')
+            # if 't_rel_seconds' is invalid, try the other one:
+            spk_df.spikes.set_time_variable_name(proposed_updated_time_variable_name)
+            # after the change, try again to get the spike times array:
+            spk_times_arr = spk_df[proposed_updated_time_variable_name].copy().to_numpy() # get the timestamps column using the time_variable_name property. It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data:    
+            
 
         pbe_start_stop_arr = pbe_epoch_df[['start','stop']].to_numpy()
         # pbe_identity_label = pbe_epoch_df['label'].to_numpy()
