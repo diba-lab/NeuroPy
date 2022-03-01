@@ -411,7 +411,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # curr_spk_df = self.spikes_df
         curr_spk_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df) # column is added to the self.spikes_df, so the return value doesn't matter
         
-        # update:
+        # update: Not needed because the dataframe is updated in the DataSession.compute_PBE_spikes_df function.
         # self.neurons._data['PBE_id'] = curr_spk_df['PBE_id']
         # self.spikes_df['PBE_id'] = curr_spk_df['PBE_id']
         
@@ -431,7 +431,8 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         pbe_epoch_df['label'] = pbe_epoch_df.index
         pbe_epoch_df['label'] = pbe_epoch_df['label'].astype(str)
 
-        spk_times_arr = spk_df.t_seconds.to_numpy() # TODO: hardcoded t_seconds
+        spk_times_arr = spk_df[spk_df.spikes.time_variable_name].copy().to_numpy() # get the timestamps column using the time_variable_name property. It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data:
+
         pbe_start_stop_arr = pbe_epoch_df[['start','stop']].to_numpy()
         # pbe_identity_label = pbe_epoch_df['label'].to_numpy()
         pbe_identity_label = pbe_epoch_df.index.to_numpy() # currently using the index instead of the label.
