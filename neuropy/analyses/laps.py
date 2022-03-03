@@ -146,7 +146,7 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
     Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)"""
     if should_plot_laps_2d:
-        from PhoPositionalData.plotting.laps import plot_laps_2d
+        from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
 
     # backup the extant laps object to prepare for the new one:
     if should_backup_extant_laps_obj:
