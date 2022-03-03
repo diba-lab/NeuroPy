@@ -170,6 +170,26 @@ class NeuronIdentityAccessingMixin:
         # print(f'cell_i: {cell_i}, cell_id: {cell_id}')
         return neuron_i, neuron_id
 
+    def find_cell_ids_from_cell_IDXs(self, cell_IDXs):
+        """Finds the cell original IDs from the cell IDXs (not IDs)
+        Args:
+            cell_IDXs ([type]): [description]
+        """
+        found_cell_ids = [self.get_neuron_id_and_idx(neuron_i=an_included_cell_IDX)[1] for an_included_cell_IDX in cell_IDXs] # get the ids from the cell IDXs
+        return found_cell_ids
+    
+    
+    def find_cell_IDXs_from_cell_ids(self, cell_ids):
+        """Finds the cell IDXs (not IDs) from the cell original IDs (cell_ids)
+        Args:
+            cell_ids ([type]): [description]
+        """
+        found_cell_INDEXES = [self.get_neuron_id_and_idx(neuron_id=an_included_cell_ID)[0] for an_included_cell_ID in cell_ids] # get the indexes from the cellIDs
+        return found_cell_INDEXES
+    
+    
+    
+    
         
 class NeuronIdentitiesDisplayerMixin:
     @property
