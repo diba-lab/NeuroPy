@@ -21,7 +21,7 @@ def lineplot(data: pd.DataFrame, x, y, hue, palette, ci="sem", ax=None):
     palette : colormap
         colormap for each nested group
     ci : str, optional
-        error bars, by default "sem"
+        standard error of mean (sem), mean abs deviation (mad), standard deviation (sd), by default "sem"
     ax : [type], optional
         ax to plot on, by default None
     """

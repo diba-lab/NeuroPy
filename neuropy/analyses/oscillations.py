@@ -2,12 +2,13 @@ import numpy as np
 import pandas as pd
 from ..utils import mathutil, signal_process
 from scipy import stats
+from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 from ..core import Signal, ProbeGroup, Epoch
 
 
 def _detect_freq_band_epochs(
-    signals, freq_band, thresh, mindur, maxdur, mergedist, fs, ignore_times=None
+    signals, freq_band, thresh, mindur, maxdur, mergedist, fs, sigma, ignore_times=None
 ):
     """Detects epochs of high power in a given frequency band
 
@@ -24,6 +25,8 @@ def _detect_freq_band_epochs(
 
     zscsignal = np.zeros(signals.shape)
     lf, hf = freq_band
+    # dt = 1 / fs
+    # sigma = sigma / dt
     lowthresh, highthresh = thresh
     for sig_i, sig in enumerate(signals):
         yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
@@ -217,6 +220,7 @@ def detect_ripple_epochs(
     mindur=0.05,
     maxdur=0.450,
     mergedist=0.05,
+    sigma=None,
     ignore_epochs: Epoch = None,
 ):
     # TODO chewing artifact frequency (>300 Hz) or emg based rejection of ripple epochs
@@ -260,6 +264,7 @@ def detect_ripple_epochs(
         maxdur=maxdur,
         mergedist=mergedist,
         fs=signal.sampling_rate,
+        sigma=sigma,
         ignore_times=ignore_times,
     )
     epochs["start"] = epochs["start"] + signal.t_start

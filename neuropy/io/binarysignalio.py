@@ -102,6 +102,7 @@ class BinarysignalIO:
         """
         epochs_frames = (epochs.as_array() * self.sampling_rate).astype("int")
         frames = np.concatenate([np.arange(*e) for e in epochs_frames])
+
         if ret_time:
             return self._raw_traces[channel_indx, frames], frames / self.sampling_rate
         else:
