@@ -67,6 +67,13 @@ class SpikesAccessor(TimeSlicedMixin):
     def n_neurons(self):
         return len(self.neuron_ids)
     
+    
+    def get_split_by_unit(self):
+        """ returns a list containing the spikes dataframe split by the 'aclu' column. """
+        # self.neuron_ids is the list of 'aclu' values found in the spikes_df table.
+        return [self._obj.groupby('aclu').get_group(neuron_id) for neuron_id in self.neuron_ids] # dataframes split for each ID
+        
+    
     # sets the 'x','y' positions by interpolating over a position data frame
     def interpolate_spike_positions(self, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None):
         spike_timestamp_column_name=self.time_variable_name
