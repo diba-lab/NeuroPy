@@ -12,6 +12,14 @@ from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp2d
 from ..plotting import Fig
 from .. import core
+import seaborn as sns
+
+try:
+    from ..plotting import Fig
+    from .. import core
+except ImportError:
+    from neuropy.plotting import Fig
+    from neuropy import core
 
 
 class filter_sig:
@@ -978,7 +986,6 @@ def theta_phase_specfic_extraction(signal, y, fs, binsize=20, slideby=None):
 
     return y_at_phase, angle_bin, angle_centers
 
-
 def irasa(
     data,
     sf=None,
@@ -1178,3 +1185,62 @@ def irasa(
         return freqs, psd_aperiodic, psd_osc, pd.DataFrame(fit_params)
     else:
         return freqs, psd_aperiodic, psd_osc
+
+
+def plot_miniscope_noise(
+    signal, ch, block_sec=10, interval_sec=60, remove_disconnects=False
+):
+
+    assert isinstance(signal, core.Signal)
+
+    f_full, Pxx_full, time = [], [], []
+    nblocks = np.floor(signal.duration / interval_sec).astype(int)
+    for id in range(nblocks):
+        block_start = int(interval_sec * id * signal.sampling_rate)
+        block_end = int(block_start + signal.sampling_rate * block_sec)
+        f, Pxx = sg.welch(
+            signal.traces[ch][block_start:block_end],
+            fs=signal.sampling_rate,
+            nperseg=signal.sampling_rate,
+            scaling="spectrum",
+        )
+        f_full.append(f)
+        Pxx_full.append(Pxx)
+        time.append(block_start / signal.sampling_rate)
+
+    f_full = np.asarray(f_full)
+    Pxx_full = np.asarray(Pxx_full)
+
+    # Quick and dirty method to remove disconnects - threshold excessive high frequency noise
+    if remove_disconnects:
+        freq_bool = np.bitwise_and(f_full[0] > 4354, f_full[0] < 4836)
+        good_epochs = Pxx_full[:, freq_bool].sum(axis=1) < 20000
+        f_full = f_full[good_epochs]
+        Pxx_full = Pxx_full[good_epochs]
+
+    fig, ax = plt.subplots(2, 3, figsize=(12, 8))
+    colors = plt.cm.rainbow(np.linspace(0, 1, nblocks))
+    for fT, PxxT, color in zip(f_full, Pxx_full, colors):
+        ax[0][0].plot(fT, PxxT, color=color)
+    ax[0][0].set_xlabel("Freq (Hz)")
+    ax[0][0].set_ylabel("PSD")
+
+    noise_limits = [[4835, 4855], [9670, 9700], [14510, 14550], [57, 63]]
+
+    for a, lim in zip(ax.reshape(-1)[1:], noise_limits):
+        freq_bool = np.bitwise_and(f > lim[0], f < lim[1])
+        sns.heatmap(Pxx_full[:, freq_bool].T, ax=a)
+        a.set_yticks([0, freq_bool.sum()])
+        a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
+        a.set_xticks((0, nblocks))
+        a.set(xticklabels=("0", str(time[-1])))
+        a.set_xlabel("Time (30 sec blocks)")
+        a.set_ylabel("Frez (Hz)")
+
+    fig.suptitle("Miniscope Noise Tracking")
+
+    return f_full, Pxx_full
+
+
+if __name__ == "__main__":
+    pass
