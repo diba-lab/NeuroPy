@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 from tqdm import tqdm
 
-from .placefields import PF1d, PF2d
+from .placefields import Pf1D, PF2d
 from .. import core
 from ..utils import mathutil
 
