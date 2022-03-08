@@ -105,51 +105,47 @@ class Fig:
     labelsize = 8
 
     def __init__(
-        self, num=None, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs
+        self,
+        num=None,
+        grid=(2, 2),
+        size=(8.5, 11),
+        fontsize=8,
+        axis_color="#545454",
+        axis_lw=1.5,
+        **kwargs,
     ):
 
         # --- plot settings --------
-        if style == "figPublish":
-            axis_color = "#545454"
-            mpl.rcParams["axes.linewidth"] = 1.5
-            mpl.rcParams["axes.labelsize"] = 7
-            mpl.rcParams["axes.titlesize"] = 7
-            mpl.rcParams["axes.edgecolor"] = axis_color
-            mpl.rcParams["xtick.labelsize"] = 7
-            mpl.rcParams["ytick.labelsize"] = 7
-            mpl.rcParams["axes.spines.top"] = False
-            mpl.rcParams["axes.spines.right"] = False
-            mpl.rcParams["xtick.major.width"] = 1.5
-            mpl.rcParams["xtick.color"] = axis_color
-            mpl.rcParams["xtick.labelcolor"] = "k"
-            mpl.rcParams["ytick.major.width"] = 1.5
-            mpl.rcParams["ytick.color"] = axis_color
-            mpl.rcParams["ytick.labelcolor"] = "k"
-            mpl.rcParams["axes.prop_cycle"] = cycler(
-                "color",
-                [
-                    "#5cc0eb",
-                    "#faa49d",
-                    "#05d69e",
-                    "#253237",
-                    "#ef6e4e",
-                    "#f0a8e6",
-                    "#aaa8f0",
-                    "#f0a8af",
-                    "#dfe36b",
-                    "#825265",
-                    "#e8594f",
-                ],
-            )
-
-        if style == "Pres":
-            mpl.rcParams["axes.linewidth"] = 3
-            mpl.rcParams["axes.labelsize"] = 10
-            mpl.rcParams["axes.titlesize"] = 10
-            mpl.rcParams["xtick.labelsize"] = 10
-            mpl.rcParams["ytick.labelsize"] = 10
-            mpl.rcParams["axes.spines.right"] = False
-            mpl.rcParams["axes.spines.top"] = False
+        mpl.rcParams["axes.linewidth"] = axis_lw
+        mpl.rcParams["axes.labelsize"] = fontsize
+        mpl.rcParams["axes.titlesize"] = fontsize
+        mpl.rcParams["axes.edgecolor"] = axis_color
+        mpl.rcParams["xtick.labelsize"] = fontsize
+        mpl.rcParams["ytick.labelsize"] = fontsize
+        mpl.rcParams["axes.spines.top"] = False
+        mpl.rcParams["axes.spines.right"] = False
+        mpl.rcParams["xtick.major.width"] = 1.5
+        mpl.rcParams["xtick.color"] = axis_color
+        mpl.rcParams["xtick.labelcolor"] = "k"
+        mpl.rcParams["ytick.major.width"] = 1.5
+        mpl.rcParams["ytick.color"] = axis_color
+        mpl.rcParams["ytick.labelcolor"] = "k"
+        mpl.rcParams["axes.prop_cycle"] = cycler(
+            "color",
+            [
+                "#5cc0eb",
+                "#faa49d",
+                "#05d69e",
+                "#253237",
+                "#ef6e4e",
+                "#f0a8e6",
+                "#aaa8f0",
+                "#f0a8af",
+                "#dfe36b",
+                "#825265",
+                "#e8594f",
+            ],
+        )
 
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
@@ -193,11 +189,11 @@ class Fig:
             ha="right",
         )
 
-    def legend(self, ax, text, color, fontsize=8, x=0.65, y=0.9):
+    def legend(self, ax, text, color, fontsize=8, x=0.65, y=0.9, dy=0.1):
         for i, (s, c) in enumerate(zip(text, color)):
             ax.text(
                 x=x,
-                y=y - i * 0.1,
+                y=y - i * dy,
                 s=s,
                 color=c,
                 transform=ax.transAxes,
