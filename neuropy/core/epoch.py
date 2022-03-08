@@ -150,10 +150,10 @@ class Epoch(DataWriter):
 
     def fill_blank(self, method="from_left"):
 
-        ep_starts = self.epochs["start"].values
-        ep_stops = self.epochs["stop"].values
-        ep_durations = self.epochs["duration"].values
-        ep_labels = self.epochs["label"].values
+        ep_starts = self._epochs["start"].values
+        ep_stops = self._epochs["stop"].values
+        ep_durations = self._epochs["duration"].values
+        ep_labels = self._epochs["label"].values
 
         mask = (ep_starts[:-1] + ep_durations[:-1]) < ep_starts[1:]
         (inds,) = np.nonzero(mask)
@@ -175,9 +175,11 @@ class Epoch(DataWriter):
                 ep_starts[ind + 1] -= gap / 2.0
                 ep_durations[ind + 1] += gap / 2.0
 
-        self.epochs["start"] = ep_starts
-        self.epochs["stop"] = ep_starts + ep_durations
-        self.epochs["duration"] = ep_durations
+        # self.epochs["start"] = ep_starts
+        # self.epochs["stop"] = ep_starts + ep_durations
+        # self.epochs["duration"] = ep_durations
+
+        return self.from_array(starts=ep_starts,stops=ep_starts+ep_durations,labels=ep_labels)
 
     def delete_in_between(self, t1, t2):
 
