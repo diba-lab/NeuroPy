@@ -86,8 +86,23 @@ class SpikesAccessor(TimeSlicedMixin):
         return self._obj
     
     
+    def add_same_cell_ISI_column(self):
+        """ Compute the inter-spike-intervals (ISIs) for each cell/unit separately. Meaning the list should be the difference from the current spike to the last spike of the previous unit.
+            spikes: curr_active_pipeline.sess.spikes_df
+            adds column 'scISI' to spikes df.
+            
+            # Created Columns:
+                'scISI'
+        """
+        spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
+        self._obj['scISI'] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
 
-
+        for (i, a_cell_id) in enumerate(self._obj.spikes.neuron_ids):
+            # loop through the cell_ids
+            curr_df = self._obj.groupby('aclu').get_group(a_cell_id)
+            curr_series_differences = curr_df[spike_timestamp_column_name].diff() # These are the ISIs
+            #set the properties for the points in question:
+            self._obj.loc[curr_df.index,'scISI'] = curr_series_differences
 
 
 # class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):

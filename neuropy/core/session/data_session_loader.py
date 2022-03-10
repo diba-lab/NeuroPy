@@ -220,7 +220,8 @@ class DataSessionLoader:
         
         # add PBE information to spikes_df from session.pbe
         DataSessionLoader._default_add_spike_PBEs_if_needed(session)
-        # return the session with the upadated member variables    
+        DataSessionLoader._default_add_spike_scISIs_if_needed(session)
+        # return the session with the upadated member variables
         return session
     
     @staticmethod
@@ -285,6 +286,15 @@ class DataSessionLoader:
     def _default_add_spike_PBEs_if_needed(session):
         updated_spk_df = session.compute_spikes_PBEs()
         return session
+    
+    @staticmethod
+    def _default_add_spike_scISIs_if_needed(session):
+        with ProgressMessagePrinter('filepath?', 'Computing', 'added spike scISI column'):
+            updated_spk_df = session.spikes_df.spikes.add_same_cell_ISI_column()
+        return session
+    
+    
+    
         
     #######################################################
     ## Bapun Nupy Format Only Methods:
