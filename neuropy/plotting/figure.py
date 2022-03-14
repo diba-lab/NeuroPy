@@ -112,6 +112,7 @@ class Fig:
         fontsize=8,
         axis_color="#545454",
         axis_lw=1.5,
+        constrained_layout=True,
         **kwargs,
     ):
 
@@ -130,6 +131,7 @@ class Fig:
         mpl.rcParams["ytick.major.width"] = 1.5
         mpl.rcParams["ytick.color"] = axis_color
         mpl.rcParams["ytick.labelcolor"] = "k"
+        mpl.rcParams["figure.constrained_layout.use"] = constrained_layout
         mpl.rcParams["axes.prop_cycle"] = cycler(
             "color",
             [
@@ -150,7 +152,7 @@ class Fig:
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
         gs = gridspec.GridSpec(grid[0], grid[1], figure=fig)
-        fig.subplots_adjust(**kwargs)
+        # fig.subplots_adjust(**kwargs)
 
         self.fig = fig
         self.gs = gs
@@ -203,11 +205,12 @@ class Fig:
                 ha="left",
             )
 
-    def savefig(self, fname: Path, scriptname=None, fig=None, caption=None):
+    def savefig(self, fname: Path, scriptname=None, fig=None, caption=None, dpi=300):
 
         if fig is None:
             fig = self.fig
 
+        # fig.set_dpi(300)
         filename = fname.with_suffix(".pdf")
 
         today = date.today().strftime("%m/%d/%y")
@@ -224,25 +227,27 @@ class Fig:
                 va="bottom",
                 alpha=0.5,
             )
+
+        fig.savefig(filename, dpi=dpi)
+
         if caption is not None:
-            with PdfPages(filename) as pdf:
-                pdf.savefig(self.fig)
+            fig_caption = Fig(grid=(1, 1))
+            ax_caption = fig_caption.subplot(fig_caption.gs[0])
+            ax_caption.text(0, 0.5, caption, wrap=True)
+            ax_caption.axis("off")
+            fig_caption.savefig(filename.with_suffix(".caption.pdf"))
 
-                fig_caption = Fig(grid=(1, 1))
-                ax_caption = fig_caption.subplot(fig_caption.gs[0])
+            """ Previously caption was combined to create a multi-page pdf with main figure. But this created dpi issue where we can't increase dpi to only saved pdf (pdfpages does not have that functionality yet) without affecting the plot in matplotlib widget which becomes bigger because of dpi-pixels relationsip)
+            """
+            # with PdfPages(filename) as pdf:
+            #     pdf.savefig(self.fig)
 
-                ax_caption.text(0, 0.5, caption, wrap=True)
-                ax_caption.axis("off")
-                pdf.savefig(fig_caption.fig)
+            #     fig_caption = Fig(grid=(1, 1))
+            #     ax_caption = fig_caption.subplot(fig_caption.gs[0])
 
-                # file's metadata:
-                # d = pdf.infodict()
-                # d["Title"] = ""
-                # d["Author"] = ""
-                # d["Subject"] = ""
-                # d["Keywords"] = ""
-        else:
-            fig.savefig(filename)
+            #     ax_caption.text(0, 0.5, caption, wrap=True)
+            #     ax_caption.axis("off")
+            #     pdf.savefig(fig_caption.fig)
 
     @staticmethod
     def pf_1D(ax):
