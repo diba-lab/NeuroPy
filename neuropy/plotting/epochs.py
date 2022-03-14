@@ -6,7 +6,14 @@ from ..core import Epoch, Signal
 from scipy import stats
 
 
-def plot_epochs(ax, epochs: Epoch, height=1, y_shift=0, colors="Set3", alpha=1):
+def plot_epochs(
+    epochs: Epoch,
+    y_shift=0,
+    labels_order=None,
+    colors="Set3",
+    alpha=1,
+    ax=None,
+):
     """Plots epochs on a given axis, with different style of plotting
 
     Parameters
@@ -29,11 +36,6 @@ def plot_epochs(ax, epochs: Epoch, height=1, y_shift=0, colors="Set3", alpha=1):
     """
     n_epochs = epochs.n_epochs
 
-    if height is None:
-        height = 1
-    if y_shift is None:
-        y_shift = 0
-
     if isinstance(colors, str):
         try:
             cmap = mpl.cm.get_cmap(colors)
@@ -43,13 +45,32 @@ def plot_epochs(ax, epochs: Epoch, height=1, y_shift=0, colors="Set3", alpha=1):
     elif isinstance(colors, dict):
         colors = [colors[label] for label in epochs.labels]
 
+    if epochs.has_labels:
+        labels = epochs.labels
+        unique_labels = np.unique(epochs.labels)
+        n_labels = len(unique_labels)
+
+        if labels_order is not None:
+            assert np.array_equal(
+                np.sort(labels_order), np.sort(unique_labels)
+            ), "labels_order does not match with epochs labels"
+            unique_labels = labels_order
+
+        dh = 1 / n_labels
+        y_min = np.zeros(len(epochs))
+        for i, l in enumerate(unique_labels):
+            y_min[labels == l] = i * dh
+    else:
+        dh = 1
+        y_min = np.zeros(len(epochs))
+
     y = 0
     for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
         ax.axvspan(
             epoch.start,
             epoch.stop,
-            y,
-            y + height,
+            y_min[i],
+            y_min[i] + dh,
             color=colors[i],
             edgecolor=None,
             alpha=alpha,
