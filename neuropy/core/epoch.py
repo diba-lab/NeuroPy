@@ -47,6 +47,11 @@ class Epoch(DataWriter):
         df_new = pd.concat([df1, df2]).reset_index(drop=True)
         return Epoch(epochs=df_new)
 
+    def shift(self, dt):
+        epochs = self._epochs.copy()
+        epochs[["start", "stop"]] += dt
+        return Epoch(epochs=epochs, metadata=self.metadata)
+
     def get_unique_labels(self):
         return np.unique(self.labels)
 
