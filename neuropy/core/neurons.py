@@ -565,7 +565,8 @@ class Mua(DataWriter):
         gaussian = np.exp(-(t_gauss**2) / (2 * sigma**2))
         gaussian /= np.sum(gaussian)
 
-        spike_counts = sg.fftconvolve(self._spike_counts, gaussian, mode="same")
+        # numpy convolve is much faster than scipy
+        spike_counts = np.convolve(self._spike_counts, gaussian, mode="same")
         # frate = gaussian_filter1d(self._frate, sigma=sigma, **kwargs)
         return Mua(spike_counts, t_start=self.t_start, bin_size=self.bin_size)
 
