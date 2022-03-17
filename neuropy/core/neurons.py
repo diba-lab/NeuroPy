@@ -156,7 +156,12 @@ class Neurons(DataWriter):
         )
 
     def get_neuron_type(self, neuron_type):
-        indices = self.neuron_type == neuron_type
+        if isinstance(neuron_type, str):
+            indices = self.neuron_type == neuron_type
+        if isinstance(neuron_type, list):
+            indices = np.any(
+                np.vstack([ntype == self.neuron_type for ntype in neuron_type]), axis=0
+            )
         return self[indices]
 
     def _check_integrity(self):
@@ -560,7 +565,8 @@ class Mua(DataWriter):
         gaussian = np.exp(-(t_gauss**2) / (2 * sigma**2))
         gaussian /= np.sum(gaussian)
 
-        spike_counts = sg.fftconvolve(self._spike_counts, gaussian, mode="same")
+        # numpy convolve is much faster than scipy
+        spike_counts = np.convolve(self._spike_counts, gaussian, mode="same")
         # frate = gaussian_filter1d(self._frate, sigma=sigma, **kwargs)
         return Mua(spike_counts, t_start=self.t_start, bin_size=self.bin_size)
 

@@ -1,3 +1,4 @@
+from enum import unique
 import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
@@ -7,9 +8,9 @@ class Epoch(DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
         super().__init__(metadata=metadata)
 
-        self._check_epochs(epochs)
-        epochs["label"] = epochs["label"].astype("str")
-        self._epochs = epochs.sort_values(by=["start"])
+        epochs = self._check_epochs(epochs)
+        epochs.loc[:, "label"] = epochs["label"].astype("str")
+        self._epochs = epochs.sort_values(by=["start"]).reset_index(drop=True)
 
     @property
     def starts(self):
@@ -35,12 +36,21 @@ class Epoch(DataWriter):
         self._epochs["label"] = labels
         return Epoch(epochs=self._epochs)
 
+    @property
+    def has_labels(self):
+        return np.all(self._epochs["label"] != "")
+
     def __add__(self, epochs):
         assert isinstance(epochs, Epoch), "Can only add two core.Epoch objects"
         df1 = self._epochs[["start", "stop", "label"]]
         df2 = epochs._epochs[["start", "stop", "label"]]
         df_new = pd.concat([df1, df2]).reset_index(drop=True)
         return Epoch(epochs=df_new)
+
+    def shift(self, dt):
+        epochs = self._epochs.copy()
+        epochs[["start", "stop"]] += dt
+        return Epoch(epochs=epochs, metadata=self.metadata)
 
     def get_unique_labels(self):
         return np.unique(self.labels)
@@ -69,6 +79,7 @@ class Epoch(DataWriter):
         assert (
             pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
         ), "Epoch dataframe should at least have columns with names: start, stop, label"
+        return epochs.copy()
 
     def __repr__(self) -> str:
         return f"{len(self.starts)} epochs\nSnippet: \n {self._epochs.head(5)}"
@@ -80,10 +91,10 @@ class Epoch(DataWriter):
 
         if isinstance(i, str):
             data = self._epochs[self._epochs["label"] == i].copy()
-        elif isinstance(i, slice):
-            data = self._epochs.iloc[i].copy()
-        else:
+        elif isinstance(i, int):
             data = self._epochs.iloc[[i]].copy()
+        else:
+            data = self._epochs.iloc[i].copy()
 
         return Epoch(epochs=data.reset_index(drop=True))
 
@@ -97,6 +108,29 @@ class Epoch(DataWriter):
         df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
         return Epoch(df)
 
+    def duration_slice(self, min_dur=None, max_dur=None):
+        """return epochs that have durations between given thresholds
+
+        Parameters
+        ----------
+        min_dur : float, optional
+            minimum duration in seconds, by default None
+        max_dur : float, optional
+            maximum duration in seconds, by default None,
+
+        Returns
+        -------
+        epoch
+            epochs with durations between min_dur and max_dur
+        """
+        durations = self.durations
+        if min_dur is None:
+            min_dur = np.min(durations)
+        if max_dur is None:
+            max_dur = np.max(durations)
+
+        return self[(durations >= min_dur) & (durations <= max_dur)]
+
     def label_slice(self, label):
         assert isinstance(label, str), "label must be string"
         df = self._epochs[self._epochs["label"] == label].reset_index(drop=True)
@@ -106,6 +140,52 @@ class Epoch(DataWriter):
     def from_array(starts, stops, labels=None):
         df = pd.DataFrame({"start": starts, "stop": stops, "label": labels})
         return Epoch(epochs=df)
+
+    @staticmethod
+    def from_logical_array(arr):
+        pass
+
+    @staticmethod
+    def from_string_array(arr, dt: float = 1.0, t: np.array = None):
+        """Convert a string array of type ['A','A','B','C','C'] to epochs
+        Parameters
+        ----------
+        arr : np.array
+            array of strings
+        dt : float
+            sampling time of arr, by default 1 second
+        t : np.array
+            time array of same length as arr giving corresponding time in seconds, if provided it overrides dt
+        """
+        unique_labels = np.unique(arr)
+        pad = lambda x: np.pad(x, (1, 1), "constant", constant_values=(0, 0))
+
+        starts, stops, labels = [], [], []
+        for l in unique_labels:
+
+            l_transition = np.diff(pad(np.where(arr == l, 1, 0)))
+            l_start = np.where(l_transition == 1)[0]
+            l_stop = np.where(l_transition == -1)[0]
+
+            starts.append(l_start)
+            stops.append(l_stop)
+            labels.extend([l] * len(l_start))
+
+        starts = np.concatenate(starts)
+        stops = np.concatenate(stops)
+
+        # padding correction
+        stops[stops == len(arr)] = len(arr) - 1
+
+        if t is not None:
+            assert len(t) == len(arr), "time length should be same as input array"
+            starts = t[starts]
+            stops = t[stops]
+        else:
+            starts = starts * dt
+            stops = stops * dt
+
+        return Epoch.from_array(starts, stops, labels)
 
     @staticmethod
     def from_file(f):
@@ -127,10 +207,10 @@ class Epoch(DataWriter):
 
     def fill_blank(self, method="from_left"):
 
-        ep_starts = self.epochs["start"].values
-        ep_stops = self.epochs["stop"].values
-        ep_durations = self.epochs["duration"].values
-        ep_labels = self.epochs["label"].values
+        ep_starts = self.starts
+        ep_stops = self.stops
+        ep_durations = self.durations
+        ep_labels = self.labels
 
         mask = (ep_starts[:-1] + ep_durations[:-1]) < ep_starts[1:]
         (inds,) = np.nonzero(mask)
@@ -152,9 +232,13 @@ class Epoch(DataWriter):
                 ep_starts[ind + 1] -= gap / 2.0
                 ep_durations[ind + 1] += gap / 2.0
 
-        self.epochs["start"] = ep_starts
-        self.epochs["stop"] = ep_starts + ep_durations
-        self.epochs["duration"] = ep_durations
+        # self.epochs["start"] = ep_starts
+        # self.epochs["stop"] = ep_starts + ep_durations
+        # self.epochs["duration"] = ep_durations
+
+        return self.from_array(
+            starts=ep_starts, stops=ep_starts + ep_durations, labels=ep_labels
+        )
 
     def delete_in_between(self, t1, t2):
 
@@ -188,10 +272,7 @@ class Epoch(DataWriter):
         ].copy()
         flank_stop["start"] = t2
         epochs_df = epochs_df[~((epochs_df["start"] < t1) & (epochs_df["stop"] > t2))]
-        epochs_df = epochs_df.append(flank_start)
-        epochs_df = epochs_df.append(flank_stop)
-        epochs_df = epochs_df.reset_index(drop=True)
-
+        epochs_df = pd.concat([epochs_df, flank_start, flank_stop], ignore_index=True)
         return Epoch(epochs_df)
 
     def get_proportion_by_label(self, t_start=None, t_stop=None):

@@ -121,7 +121,7 @@ class Spectrogram(Signal):
 
     @property
     def theta(self):
-        return self.get_band_power(f1=5, f2=11)
+        return self.get_band_power(f1=5, f2=10)
 
     @property
     def spindle(self):
