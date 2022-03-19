@@ -2,10 +2,10 @@ import numpy as np
 from numba import jit, njit, prange # numba acceleration
 
 
-@jit(nopython=True, parallel = True)
+@jit(nopython=True, parallel = True) 
 def _compiled_verify_non_overlapping(start_stop_times_arr): # Function is compiled by numba and runs in machine code
     # coming in: spk_times_arr, pbe_start_stop_arr, pbe_identity_label
-    assert (np.shape(start_stop_times_arr)[1] == 2), "pbe_start_stop_arr should have two columns: start, stop"
+    assert (np.shape(start_stop_times_arr)[1] == 2), "start_stop_times_arr should have two columns: start, stop"
     num_elements = np.shape(start_stop_times_arr)[0]
     if (num_elements < 2):
         return np.array([True]) # Trivially True
@@ -34,7 +34,7 @@ def verify_non_overlapping(start_stop_times_arr):
     return are_all_non_overlapping
 
 def get_non_overlapping_epochs(start_stop_times_arr):
-    """Gets the indicies of any epochs that overlap one another.
+    """Gets the indicies of any epochs that DON'T overlap one another.
     
     Args:
         start_stop_times_arr (_type_): An N x 2 numpy array of start, stop times
