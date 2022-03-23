@@ -1,4 +1,3 @@
-from itertools import pairwise
 from pathlib import Path
 from pstats import Stats
 from tracemalloc import start
