@@ -9,12 +9,10 @@ from joblib import Parallel, delayed
 from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
-<<<<<<< HEAD
 from scipy.interpolate import interp2d
 from ..plotting import Fig
 from .. import core
-=======
->>>>>>> 09d554a (missed merge corrected again)
+
 import seaborn as sns
 from scipy.interpolate import interp2d
 
@@ -24,10 +22,8 @@ try:
 except ImportError:
     from neuropy.plotting import Fig
     from neuropy import core
-<<<<<<< HEAD
-=======
 from .. import core
->>>>>>> 09d554a (missed merge corrected again)
+
 
 
 class filter_sig:
