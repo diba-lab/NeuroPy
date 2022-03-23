@@ -5,6 +5,24 @@ import re
 from pathlib import Path
 from xml.etree import ElementTree
 import pandas as pd
+from datetime import datetime, timezone
+from dateutil import tz
+
+
+def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit"):
+    """Get microsecond time second precision start time from Pho/Timestamp plugin"""
+
+    experiment_meta = XML2Dict(settings_file)
+
+    start_us = experiment_meta["SIGNALCHAIN"]["PROCESSOR"][
+        "Utilities/PhoStartTimestamp Processor"
+    ]["PhoStartTimestampPlugin"]["RecordingStartTimestamp"]["startTime"]
+    dt_start_utc = datetime.strptime(start_us[:-1], "%Y-%m-%d_%H:%M:%S.%f").replace(
+        tzinfo=tz.gettz("UTC")
+    )
+    to_zone = tz.gettz("America/Detroit")
+
+    return dt_start_utc.astimezone(to_zone)
 
 
 def get_dat_timestamps(basepath: str or Path, sync: bool = False):
@@ -23,24 +41,29 @@ def get_dat_timestamps(basepath: str or Path, sync: bool = False):
         set_file = get_settings_filename(file)  # get settings file name
         set_folder = get_set_folder(file)
         try:
-            experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
-            start_time = pd.Timestamp(
-                experiment_meta["INFO"]["DATE"]
-            )  # get start time from meta-data
-        except FileNotFoundError:
-            print(
-                "WARNING:"
-                + str(set_folder / set_file)
-                + " not found. Inferring start time from directory structure. PLEASE CHECK!"
-            )
-            # Find folder with timestamps
-            m = re.search(
-                "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}", str(set_folder)
-            )
-            start_time = pd.to_datetime(m.group(0), format="%Y-%m-%d_%H-%M-%S")
+            start_time = get_us_start(set_folder / set_file)
+            # print("Using precise start time from Pho/Timestamp plugin")
+        except KeyError:
+            try:
+                experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
+                start_time = pd.Timestamp(
+                    experiment_meta["INFO"]["DATE"]
+                )  # get start time from meta-data
+            except FileNotFoundError:
+                print(
+                    "WARNING:"
+                    + str(set_folder / set_file)
+                    + " not found. Inferring start time from directory structure. PLEASE CHECK!"
+                )
+                # Find folder with timestamps
+                m = re.search(
+                    "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
+                    str(set_folder),
+                )
+                start_time = pd.to_datetime(m.group(0), format="%Y-%m-%d_%H-%M-%S")
 
         SR, sync_frame = parse_sync_file(
-            file.parents[2] / "sync_messages.txt"
+            file.parents[3] / "recording1/sync_messages.txt"
         )  # Get SR and sync frame info
         print("start time = " + str(start_time))
         stamps = np.load(file)  # load in timestamps
@@ -538,7 +561,9 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
+
     folder_test = Path(
-        "/data/Working/Opto/Rat694/2021_08_03_1_placestim3/2021-08-03_12-41-20"
+        "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_17_habituation/3_post/2022-01-17_13-10-33"
     )
     dat_times = get_dat_timestamps(folder_test)
+    pass
