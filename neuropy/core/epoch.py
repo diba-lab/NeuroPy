@@ -12,6 +12,8 @@ class Epoch(DataWriter):
         epochs.loc[:, "label"] = epochs["label"].astype("str")
         self._epochs = epochs.sort_values(by=["start"]).reset_index(drop=True)
 
+
+
     @property
     def starts(self):
         return self._epochs.start.values
