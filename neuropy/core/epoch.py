@@ -10,6 +10,7 @@ class Epoch(DataWriter):
         self._check_epochs(epochs)
         epochs["label"] = epochs["label"].astype("str")
         self._data = epochs.sort_values(by=["start"])
+        self.epochs = self._data.copy()
 
     @property
     def starts(self):
