@@ -43,18 +43,19 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         xlinear = iso_pos[:, 0]
 
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
+    xlinear -= np.min(xlinear)
     return core.Position(
         traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
     )
 
 
-def calculate_run_direction(
+def run_direction(
     position: core.Position,
-    speedthresh=(10, 20),
-    merge_dur=2,
-    min_dur=2,
-    smooth_speed=50,
-    min_dist=50,
+    speed_thresh=(10, 20),
+    min_duration=2,
+    merge_duration=2,
+    sigma=10,
+    min_distance=50,
 ):
     """Divide running epochs into forward and backward.
     Currently only works for one dimensional position data
@@ -63,42 +64,40 @@ def calculate_run_direction(
     ----------
     speedthresh : tuple, optional
         low and high speed threshold for speed, by default (10, 20)
-    merge_dur : int, optional
+    merge_duration : int, optional
         two epochs if less than merge_dur (seconds) apart they will be merged , by default 2 seconds
-    min_dur : int, optional
+    min_duration : int, optional
         minimum duration of a run epoch, by default 2 seconds
-    smooth_speed : int, optional
-        speed is smoothed, increase if epochs are fragmented, by default 50
-    min_dist : int, optional
-        the animal should cover this much distance in one direction within the lap to be included, by default 50
+    sigma : int, optional
+        speed is smoothed, increase if epochs are fragmented, by default 10
+    min_distance : int, optional
+        the animal should cover this much distance in one direction within the lap to be included, by default 50 cm
     plot : bool, optional
         plots the epochs with position and speed data, by default True
     """
 
+    metadata = locals()
+    metadata.pop("position")
+
     assert position.ndim == 1, "Run direction only supports one dimensional position"
 
-    trackingsampling_rate = self._position.time
-    posdata = self._position.to_dataframe()
-
-    posdata = posdata[(posdata.time > period[0]) & (posdata.time < period[1])]
-    x = posdata.linear
-    time = posdata.time
-    speed = posdata.speed
-    speed = gaussian_filter1d(posdata.speed, sigma=smooth_speed)
+    sampling_rate = position.sampling_rate
+    x = position.x
+    speed = gaussian_filter1d(position.speed, sigma=sigma)
 
     high_speed = threshPeriods(
         speed,
-        lowthresh=speedthresh[0],
-        highthresh=speedthresh[1],
-        minDistance=merge_dur * trackingsampling_rate,
-        minDuration=min_dur * trackingsampling_rate,
+        lowthresh=speed_thresh[0],
+        highthresh=speed_thresh[1],
+        minDistance=merge_duration * sampling_rate,
+        minDuration=min_duration * sampling_rate,
     )
     val = []
     for epoch in high_speed:
         displacement = x[epoch[1]] - x[epoch[0]]
         # distance = np.abs(np.diff(x[epoch[0] : epoch[1]])).sum()
 
-        if np.abs(displacement) > min_dist:
+        if np.abs(displacement) > min_distance:
             if displacement < 0:
                 val.append(-1)
             elif displacement > 0:
@@ -111,14 +110,11 @@ def calculate_run_direction(
     high_speed = np.delete(high_speed, np.where(val == 0)[0], axis=0)
     val = np.delete(val, np.where(val == 0)[0])
 
-    high_speed = np.around(high_speed / trackingsampling_rate + period[0], 2)
+    high_speed = np.around(high_speed / sampling_rate + position.t_start, 2)
     data = pd.DataFrame(high_speed, columns=["start", "stop"])
-    # data["duration"] = np.diff(high_speed, axis=1)
-    data["direction"] = np.where(val > 0, "forward", "backward")
+    data["label"] = np.where(val > 0, "forward", "backward")
 
-    self.epochs = run_epochs
-
-    return run_epochs
+    return core.Epoch(epochs=data, metadata=metadata)
 
 
 def calculate_run_epochs(

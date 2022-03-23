@@ -23,8 +23,7 @@ class Position(DataWriter):
         self.traces = traces
         self._t_start = t_start
         self._sampling_rate = sampling_rate
-        self.metadata = metadata
-        super().__init__()
+        super().__init__(metadata=metadata)
 
     @property
     def x(self):
@@ -71,11 +70,12 @@ class Position(DataWriter):
 
     @property
     def t_stop(self):
-        return self.t_start + self.duration
+        return self.time[-1]
 
     @property
     def time(self):
-        return np.linspace(self.t_start, self.t_stop, self.n_frames)
+        # return np.linspace(self.t_start, self.t_stop, self.n_frames)
+        return np.arange(self.n_frames) * (1 / self.sampling_rate) + self.t_start
 
     @property
     def ndim(self):
@@ -89,31 +89,14 @@ class Position(DataWriter):
     def sampling_rate(self, sampling_rate):
         self._sampling_rate = sampling_rate
 
-    def to_dict(self):
-        data = {
-            "traces": self.traces,
-            "t_start": self.t_start,
-            "sampling_rate": self._sampling_rate,
-            "metadata": self.metadata,
-        }
-        return data
-
-    @staticmethod
-    def from_dict(d):
-        return Position(
-            traces=d["traces"],
-            t_start=d["t_start"],
-            sampling_rate=d["sampling_rate"],
-            metadata=d["metadata"],
-        )
-
     @property
     def speed(self):
         dt = 1 / self.sampling_rate
-        return np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
+        speed = np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
+        return np.hstack(([0], speed))
 
     def to_dataframe(self):
-        return pd.DataFrame(self.to_dict)
+        return pd.DataFrame({"time": self.time, "x": self.x})
 
     def speed_in_epochs(self, epochs: Epoch):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
@@ -126,7 +109,7 @@ class Position(DataWriter):
         if t_stop is None:
             t_stop = self.t_stop
 
-        indices = (self.time > t_start) & (self.time < t_stop)
+        indices = (self.time >= t_start) & (self.time <= t_stop)
 
         return Position(
             traces=self.traces[:, indices],

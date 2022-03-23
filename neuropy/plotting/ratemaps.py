@@ -46,8 +46,8 @@ def plot_ratemap(
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
     if ax is None:
-        _, gs = Fig().draw(grid=(1, 1), size=(4.5, 11))
-        ax = plt.subplot(gs[0])
+        fig = Fig(grid=(1, 1), size=(4.5, 11))
+        ax = fig.subplot(fig.gs[0])
 
     if normalize_tuning_curve:
         tuning_curves = mathutil.min_max_scaler(tuning_curves)
@@ -68,18 +68,19 @@ def plot_ratemap(
             i * pad + tuning_curves[neuron_ind],
             color=color,
             ec=None,
-            alpha=0.5,
+            alpha=0.7,
             zorder=i + 1,
         )
         ax.plot(
             bin_cntr,
             i * pad + tuning_curves[neuron_ind],
             color=color,
-            alpha=0.7,
+            alpha=1,
+            lw=0.6,
         )
 
     ax.set_yticks(list(range(len(sort_ind))))
-    ax.set_yticklabels(list(sort_ind))
+    ax.set_yticklabels(list(ratemap.neuron_ids[sort_ind]))
     ax.set_xlabel("Position")
     ax.spines["left"].set_visible(False)
     if normalize_xbin:

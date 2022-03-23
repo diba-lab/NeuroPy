@@ -8,12 +8,7 @@ from pathlib import Path
 
 
 def detect_artifact_epochs(
-    signal: Signal,
-    thresh=4,
-    edge_cutoff=2,
-    merge=5,
-    filt: list or np.ndarray = None,
-    data_use: str in ["raw_only", "filt_only", "both"] = "raw_only",
+    signal: Signal, thresh=4, edge_cutoff=2, merge=5, filt: list or np.ndarray = None
 ):
     """
     calculating artifact periods using z-score measure
@@ -46,7 +41,7 @@ def detect_artifact_epochs(
     sampling_rate = signal.sampling_rate
 
     if signal.n_channels > 1:
-        sig = np.mean(signal.traces, axis=0)
+        sig_raw = np.mean(signal.traces, axis=0)
 
     else:
         sig = signal.traces.reshape((-1))

@@ -159,7 +159,7 @@ def load_all_ttl_events(basepath: str or Path, sync: bool = False, **kwargs):
     return pd.concat(times_list)
 
 
-def load_ttl_events(TTLfolder, zero_timestamps=True, event_names=""):
+def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=True):
     """Loads TTL events for one recording folder and spits out a dictionary.
 
     :param TTLfolder: folder where your TTLevents live, recorded in BINARY format.
@@ -168,6 +168,7 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names=""):
     :param event_names: can pass a dictionary to keep track of what each event means, e.g.
     event_names = {1: 'optitrack_start', 2: 'lick'} would tell you channel1 = input from optitrack and
     channel2 = animal lick port activations
+    :param sync_info: True (default), grabs sync related info if TTlfolder is in openephys directory structure
     :return: channel_states, channels, full_words, and timestamps in ndarrays
     """
     TTLfolder = Path(TTLfolder)
@@ -178,34 +179,37 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names=""):
         events[varname] = np.load(TTLfolder / (varname + ".npy"))
 
     # Get sync info
-    sync_file = TTLfolder.parents[2] / "sync_messages.txt"
-    SR, record_start = parse_sync_file(sync_file)
-    events["SR"] = SR
+    if sync_info:
+        sync_file = TTLfolder.parents[2] / "sync_messages.txt"
+        SR, record_start = parse_sync_file(sync_file)
+        events["SR"] = SR
 
-    # Zero timestamps
-    if zero_timestamps:
-        events["timestamps"] = events["timestamps"] - record_start
+        # Zero timestamps
+        if zero_timestamps:
+            events["timestamps"] = events["timestamps"] - record_start
 
-    # Grab start time from .xml file and keep it with events just in case
-    settings_file = TTLfolder.parents[4] / get_settings_filename(TTLfolder)
-    try:
-        events["start_time"] = pd.to_datetime(XML2Dict(settings_file)["INFO"]["DATE"])
-    except FileNotFoundError:
-        print("Settings file: " + str(settings_file) + " NOT FOUND")
+        # Grab start time from .xml file and keep it with events just in case
+        settings_file = TTLfolder.parents[4] / get_settings_filename(TTLfolder)
+        try:
+            events["start_time"] = pd.to_datetime(
+                XML2Dict(settings_file)["INFO"]["DATE"]
+            )
+        except FileNotFoundError:
+            print("Settings file: " + str(settings_file) + " NOT FOUND")
 
-        # Find start time using filename
-        p = re.compile(
-            "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-2]+[0-9]+-[0-6]+[0-9]+-[0-6]+[0-9]+"
-        )
-        events["start_time"] = pd.to_datetime(
-            p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
-        )
+            # Find start time using filename
+            p = re.compile(
+                "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-2]+[0-9]+-[0-6]+[0-9]+-[0-6]+[0-9]+"
+            )
+            events["start_time"] = pd.to_datetime(
+                p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
+            )
 
-        # Print to screen to double check!
-        print(
-            str(events["start_time"])
-            + " loaded from folder structure, be sure to double check!"
-        )
+            # Print to screen to double check!
+            print(
+                str(events["start_time"])
+                + " loaded from folder structure, be sure to double check!"
+            )
 
     # Last add in event_names dict
     events["event_names"] = event_names

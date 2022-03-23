@@ -105,7 +105,7 @@ class NeuroscopeIO:
 
         with file_clu.open("w") as f_clu, file_res.open("w") as f_res:
             for item in clu_id:
-                f_clu.write(f"{item}\n")
+                f_clu.write(f"{int(item)}\n")
             for frame in spk_frame:
                 f_res.write(f"{frame}\n")
 
@@ -117,14 +117,18 @@ class NeuroscopeIO:
                 a.write(f"{event.start*1000} start\n{event.stop*1000} stop\n")
 
     def write_position(self, position: core.Position):
+        """Writes core.Position object to neuroscope compatible format
+
+        Parameters
+        ----------
+        position : core.Position
+        """
         # neuroscope only displays positive values so translating the coordinates
         x, y = position.x, position.y
-        x = self.x + abs(min(self.x))
-        y = self.y + abs(min(self.y))
-        print(max(x))
-        print(max(y))
+        x = x + abs(min(x))
+        y = y + abs(min(y))
 
-        filename = self._obj.files.filePrefix.with_suffix(".pos")
+        filename = self.source_file.with_suffix(".pos")
         with filename.open("w") as f:
             for xpos, ypos in zip(x, y):
                 f.write(f"{xpos} {ypos}\n")

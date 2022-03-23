@@ -7,7 +7,12 @@ from scipy import stats
 
 
 def plot_epochs(
-    ax, epochs: Epoch, ymin=0.5, ymax=0.55, color="Set3", style="step_blocks"
+    epochs: Epoch,
+    y_shift=0,
+    labels_order=None,
+    colors="Set3",
+    alpha=1,
+    ax=None,
 ):
     """Plots epochs on a given axis, with different style of plotting
 
@@ -29,26 +34,48 @@ def plot_epochs(
     [type]
         [description]
     """
-    delta = 0
     n_epochs = epochs.n_epochs
-    cmap = mpl.cm.get_cmap(color)
 
+    if isinstance(colors, str):
+        try:
+            cmap = mpl.cm.get_cmap(colors)
+            colors = [cmap(i / n_epochs) for i in range(n_epochs)]
+        except:
+            colors = [colors] * n_epochs
+    elif isinstance(colors, dict):
+        colors = [colors[label] for label in epochs.labels]
+
+    if epochs.has_labels:
+        labels = epochs.labels
+        unique_labels = np.unique(epochs.labels)
+        n_labels = len(unique_labels)
+
+        if labels_order is not None:
+            assert np.array_equal(
+                np.sort(labels_order), np.sort(unique_labels)
+            ), "labels_order does not match with epochs labels"
+            unique_labels = labels_order
+
+        dh = 1 / n_labels
+        y_min = np.zeros(len(epochs))
+        for i, l in enumerate(unique_labels):
+            y_min[labels == l] = i * dh
+    else:
+        dh = 1
+        y_min = np.zeros(len(epochs))
+
+    y = 0
     for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
         ax.axvspan(
             epoch.start,
             epoch.stop,
-            ymin + delta,
-            ymax + delta,
-            color=cmap(i / n_epochs),
-            alpha=0.5,
+            y_min[i],
+            y_min[i] + dh,
+            color=colors[i],
+            edgecolor=None,
+            alpha=alpha,
         )
-        # ax.text(
-        #     epochs.stops[-1],
-        #     ymax + delta,
-        #     epoch.label,
-        #     transform=ax.get_yaxis_transform(),
-        # )
-        delta = delta + 0.07
+        y += y_shift
 
     return ax
 

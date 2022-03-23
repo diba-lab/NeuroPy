@@ -119,9 +119,9 @@ def getICA_Assembly(x):
     return V
 
 
-def threshPeriods(sig, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
+def threshPeriods(arr, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
 
-    ThreshSignal = np.diff(np.where(sig > lowthresh, 1, 0))
+    ThreshSignal = np.diff(np.where(arr > lowthresh, 1, 0))
     start = np.where(ThreshSignal == 1)[0]
     stop = np.where(ThreshSignal == -1)[0]
 
@@ -156,7 +156,7 @@ def threshPeriods(sig, lowthresh=1, highthresh=2, minDistance=30, minDuration=50
     fourthPass = []
     # peakNormalizedPower, peaktime = [], []
     for i in range(len(thirdPass)):
-        maxValue = max(sig[thirdPass[i, 0] : thirdPass[i, 1]])
+        maxValue = max(arr[thirdPass[i, 0] : thirdPass[i, 1]])
         if maxValue >= highthresh:
             fourthPass.append(thirdPass[i])
             # peakNormalizedPower.append(maxValue)
@@ -168,6 +168,63 @@ def threshPeriods(sig, lowthresh=1, highthresh=2, minDistance=30, minDuration=50
             # )
 
     return np.asarray(fourthPass)
+
+
+def thresh_epochs(
+    arr: np.ndarray,
+    thresh: float,
+    min_frames: int,
+    max_frames: int,
+    sep: int,
+    extend_to: float = None,
+    peak_value: float = None,
+):
+
+    threshsignal = np.diff(np.where(arr > thresh, 1, 0))
+    start = np.where(threshsignal == 1)[0]
+    stop = np.where(threshsignal == -1)[0]
+
+    if start[0] > stop[0]:
+        stop = stop[1:]
+    if start[-1] > stop[-1]:
+        start = start[:-1]
+
+    firstpass = np.vstack((start, stop)).t
+
+    # ----merging close events ------
+    secondpass = []
+    event = firstpass[0]
+    for i in range(1, len(firstpass)):
+        if firstpass[i, 0] - event[1] < sep:
+            # merging states
+            event = [event[0], firstpass[i, 1]]
+        else:
+            secondpass.append(event)
+            event = firstpass[i]
+
+    secondpass.append(event)
+    secondpass = np.asarray(secondpass)
+    event_duration = np.diff(secondpass, axis=1).squeeze()
+
+    # ---- delete very short events ------
+    dur_thresh = np.where(
+        (event_duration < min_frames) | (event_duration > max_frames)
+    )[0]
+    thirdpass = np.delete(secondpass, dur_thresh, 0)
+    event_duration = np.delete(event_duration, dur)
+
+    # ------- extend the epoch to certain threshold ------
+    if extend_to is not None:
+        assert extend_to < thresh, "extend_to can not be smaller than thresh"
+        extend_bool = np.diff()
+
+    # ------ keep epochs which has samples above peak_value-----
+    fourthpass = []
+    for i in range(len(thirdpass)):
+        maxvalue = max(arr[thirdpass[i, 0] : thirdpass[i, 1]])
+        if maxvalue >= peak_value:
+            fourthpass.append(thirdpass[i])
+    return np.asarray(fourthpass)
 
 
 def contiguous_regions(condition):
@@ -196,53 +253,6 @@ def contiguous_regions(condition):
     # Reshape the result into two columns
     idx.shape = (-1, 2)
     return idx
-
-
-def radon_transform(arr, nlines=5000):
-    """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
-
-    Parameters
-    ----------
-    arr : [type]
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-
-    References
-    ----------
-    1) Kloosterman et al. 2012
-    """
-    t = np.arange(arr.shape[1])
-    nt = len(t)
-    tmid = (nt + 1) / 2
-    pos = np.arange(arr.shape[0])
-    npos = len(pos)
-    pmid = (npos + 1) / 2
-    arr = np.apply_along_axis(np.convolve, axis=0, arr=arr, v=np.ones(3))
-
-    theta = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
-    diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
-    intercept = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
-
-    cmat = np.tile(intercept, (nt, 1)).T
-    mmat = np.tile(theta, (nt, 1)).T
-    tmat = np.tile(t, (nlines, 1))
-    posterior = np.zeros((nlines, nt))
-
-    y_line = (((cmat - (tmat - tmid) * np.cos(mmat)) / np.sin(mmat)) + pmid).astype(int)
-    t_out = np.where((y_line < 0) | (y_line > npos - 1))
-    t_in = np.where((y_line >= 0) & (y_line <= npos - 1))
-    posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
-    posterior[t_in] = arr[y_line[t_in], t_in[1]]
-
-    posterior_sum = np.nanmean(posterior, axis=1)
-    max_line = np.argmax(posterior_sum)
-    slope = -(1 / np.tan(theta[max_line]))
-
-    return posterior_sum[max_line], slope
 
 
 def hmmfit1d(Data, n_comp=2, n_iter=50):
