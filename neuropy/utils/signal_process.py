@@ -9,10 +9,14 @@ from joblib import Parallel, delayed
 from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
+<<<<<<< HEAD
 from scipy.interpolate import interp2d
 from ..plotting import Fig
 from .. import core
+=======
+>>>>>>> 09d554a (missed merge corrected again)
 import seaborn as sns
+from scipy.interpolate import interp2d
 
 try:
     from ..plotting import Fig
@@ -20,6 +24,10 @@ try:
 except ImportError:
     from neuropy.plotting import Fig
     from neuropy import core
+<<<<<<< HEAD
+=======
+from .. import core
+>>>>>>> 09d554a (missed merge corrected again)
 
 
 class filter_sig:
@@ -199,7 +207,7 @@ class WaveletSg(core.Spectrogram):
 
         sigma = ncycles / (2 * np.pi * freqs)
         A = (sigma * np.sqrt(np.pi)) ** -0.5
-        real_part = np.exp(-(t_wavelet**2) / (2 * sigma**2))
+        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
         img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
         wavelets = A * real_part * img_part
 
@@ -1159,7 +1167,7 @@ def irasa(
 
         def func(t, a, b):
             # See https://github.com/fooof-tools/fooof
-            return a + np.log(t**b)
+            return a + np.log(t ** b)
 
         for y in np.atleast_2d(psd_aperiodic):
             y_log = np.log(y)
@@ -1172,7 +1180,7 @@ def irasa(
             slopes.append(popt[1])
             # Calculate R^2: https://stackoverflow.com/q/19189362/10581531
             residuals = y_log - func(freqs, *popt)
-            ss_res = np.sum(residuals**2)
+            ss_res = np.sum(residuals ** 2)
             ss_tot = np.sum((y_log - np.mean(y_log)) ** 2)
             r_squared.append(1 - (ss_res / ss_tot))
 
