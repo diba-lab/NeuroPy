@@ -986,6 +986,7 @@ def theta_phase_specfic_extraction(signal, y, fs, binsize=20, slideby=None):
 
     return y_at_phase, angle_bin, angle_centers
 
+
 def irasa(
     data,
     sf=None,
@@ -996,6 +997,7 @@ def irasa(
     win_sec=4,
     kwargs_welch=dict(average="median", window="hamming"),
 ):
+
     """
     Separate the aperiodic (= fractal, or 1/f) and oscillatory component of the
     power spectra of EEG data using the IRASA method.
@@ -1244,3 +1246,4 @@ def plot_miniscope_noise(
 
 if __name__ == "__main__":
     pass
+
