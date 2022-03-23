@@ -565,9 +565,6 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-
-    folder_test = Path(
-        "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_17_habituation/3_post/2022-01-17_13-10-33"
-    )
-    dat_times = get_dat_timestamps(folder_test)
+    sync_file = "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/2_ctx_habituation/2022-01-18_12-47-19/Record Node 104/experiment3/recording1/sync_messages.txt"
+    SR, sync_frame = parse_sync_file(sync_file)
     pass
