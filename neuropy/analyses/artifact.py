@@ -4,6 +4,7 @@ from scipy import stats
 from ..core import Epoch
 from ..core import Signal
 from ..utils import signal_process
+from pathlib import Path
 
 
 def detect_artifact_epochs(
@@ -95,7 +96,7 @@ def detect_artifact_epochs(
     edge_end = np.where(edge_diff == -1)[0]
 
     edge_start = edge_start[np.digitize(firstPass[:, 0], edge_start) - 1]
-    edge_end = edge_end[np.digitize(firstPass[:, 1], edge_end)]
+    edge_end = edge_end[np.digitize(firstPass[:, 1], edge_end, right=True)]
     firstPass[:, 0], firstPass[:, 1] = edge_start, edge_end
 
     # --- merging neighbours -------
@@ -122,7 +123,7 @@ def detect_artifact_epochs(
         metadata = {"threshold": thresh}
 
         art_epochs = Epoch(epochs, metadata)
-        art_epochs.filename = signal.source_file
+        art_epochs.filename = Path(signal.source_file)
 
         return art_epochs
     else:
