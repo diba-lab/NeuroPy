@@ -1,21 +1,15 @@
-from itertools import pairwise
-from pathlib import Path
-from pstats import Stats
-from tracemalloc import start
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.ndimage import gaussian_filter1d
 import scipy.stats as stats
 from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
-from neuropy.core import epoch
-
 from neuropy.core.epoch import Epoch
+from scipy.ndimage import gaussian_filter1d
 
-from ..utils import signal_process, mathutil
 from .. import core
 from ..plotting import plot_epochs
+from ..utils import mathutil, signal_process
 
 
 def hmmfit1d(Data, ret_means=False, **kwargs):
