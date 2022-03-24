@@ -103,7 +103,7 @@ class WaveletSg(core.Spectrogram):
         self,
         signal: core.Signal,
         freqs,
-        norm_sig=True,
+        norm_sig=False,
         ncycles=7,
         sigma=None,
     ) -> None:
@@ -238,7 +238,7 @@ class FourierSg(core.Spectrogram):
     def _ft(self, signal, fs, window, overlap, mt=False):
         """fourier transform"""
         window = int(window * fs)
-        overlap =int(overlap * fs)
+        overlap = int(overlap * fs)
 
         f = None
         if mt:
@@ -277,7 +277,6 @@ def hilbertfast(arr, ax=-1):
         hilbertsig = hilbertsig[:signal_length]
 
     return hilbertsig
-
 
 
 @dataclass
@@ -949,9 +948,17 @@ def theta_phase_specfic_extraction(signal, y, fs, binsize=20, slideby=None):
 
     return y_at_phase, angle_bin, angle_centers
 
-def irasa(data, sf=None, ch_names=None, band=(1, 30),
-          hset=np.arange(1.1, 1.95, 0.05), return_fit=False, win_sec=4,
-          kwargs_welch=dict(average='median', window='hamming')):
+
+def irasa(
+    data,
+    sf=None,
+    ch_names=None,
+    band=(1, 30),
+    hset=np.arange(1.1, 1.95, 0.05),
+    return_fit=False,
+    win_sec=4,
+    kwargs_welch=dict(average="median", window="hamming"),
+):
     """
     Separate the aperiodic (= fractal, or 1/f) and oscillatory component of the
     power spectra of EEG data using the IRASA method.
@@ -1044,31 +1051,32 @@ def irasa(data, sf=None, ch_names=None, band=(1, 30),
     .. [4] https://www.biorxiv.org/content/10.1101/299859v1
     """
     import fractions
+
     # Check if input data is a MNE Raw object
 
     # Safety checks
-    assert isinstance(data, np.ndarray), 'Data must be a numpy array.'
+    assert isinstance(data, np.ndarray), "Data must be a numpy array."
     data = np.atleast_2d(data)
-    assert data.ndim == 2, 'Data must be of shape (nchan, n_samples).'
+    assert data.ndim == 2, "Data must be of shape (nchan, n_samples)."
     nchan, npts = data.shape
-    assert nchan < npts, 'Data must be of shape (nchan, n_samples).'
-    assert sf is not None, 'sf must be specified if passing a numpy array.'
+    assert nchan < npts, "Data must be of shape (nchan, n_samples)."
+    assert sf is not None, "sf must be specified if passing a numpy array."
     assert isinstance(sf, (int, float))
     if ch_names is None:
-        ch_names = ['CHAN' + str(i + 1).zfill(3) for i in range(nchan)]
+        ch_names = ["CHAN" + str(i + 1).zfill(3) for i in range(nchan)]
     else:
         ch_names = np.atleast_1d(np.asarray(ch_names, dtype=str))
-        assert ch_names.ndim == 1, 'ch_names must be 1D.'
-        assert len(ch_names) == nchan, 'ch_names must match data.shape[0].'
+        assert ch_names.ndim == 1, "ch_names must be 1D."
+        assert len(ch_names) == nchan, "ch_names must match data.shape[0]."
 
     # Check the other arguments
     hset = np.asarray(hset)
-    assert hset.ndim == 1, 'hset must be 1D.'
-    assert hset.size > 1, '2 or more resampling fators are required.'
+    assert hset.ndim == 1, "hset must be 1D."
+    assert hset.size > 1, "2 or more resampling fators are required."
     hset = np.round(hset, 4)  # avoid float precision error with np.arange.
     band = sorted(band)
-    assert band[0] > 0, 'first element of band must be > 0.'
-    assert band[1] < (sf / 2), 'second element of band must be < (sf / 2).'
+    assert band[0] > 0, "first element of band must be > 0."
+    assert band[1] < (sf / 2), "second element of band must be < (sf / 2)."
     win = int(win_sec * sf)  # nperseg
 
     # Calculate the original PSD over the whole data
@@ -1085,17 +1093,15 @@ def irasa(data, sf=None, ch_names=None, band=(1, 30),
         data_up = sg.resample_poly(data, up, down, axis=-1)
         data_down = sg.resample_poly(data, down, up, axis=-1)
         # Calculate the PSD using same params as original
-        freqs_up, psd_up = sg.welch(data_up, h * sf, nperseg=win,
-                                        **kwargs_welch)
-        freqs_dw, psd_dw = sg.welch(data_down, sf / h, nperseg=win,
-                                        **kwargs_welch)
+        freqs_up, psd_up = sg.welch(data_up, h * sf, nperseg=win, **kwargs_welch)
+        freqs_dw, psd_dw = sg.welch(data_down, sf / h, nperseg=win, **kwargs_welch)
         # Geometric mean of h and 1/h
         psds[i, :] = np.sqrt(psd_up * psd_dw)
 
     # Now we take the median PSD of all the resampling factors, which gives
     # a good estimate of the aperiodic component of the PSD.
     psd_aperiodic = np.median(psds, axis=0)
-    print(psd_aperiodic.shape,psd_aperiodic[:2])
+    print(psd_aperiodic.shape, psd_aperiodic[:2])
 
     # We can now calculate the oscillations (= periodic) component.
     psd_osc = psd - psd_aperiodic
@@ -1109,6 +1115,7 @@ def irasa(data, sf=None, ch_names=None, band=(1, 30),
     if return_fit:
         # Aperiodic fit in semilog space for each channel
         from scipy.optimize import curve_fit
+
         intercepts, slopes, r_squared = [], [], []
 
         def func(t, a, b):
@@ -1119,20 +1126,25 @@ def irasa(data, sf=None, ch_names=None, band=(1, 30),
             y_log = np.log(y)
             # Note that here we define bounds for the slope but not for the
             # intercept.
-            popt, pcov = curve_fit(func, freqs, y_log, p0=(2, -1),
-                                   bounds=((-np.inf, -10), (np.inf, 2)))
+            popt, pcov = curve_fit(
+                func, freqs, y_log, p0=(2, -1), bounds=((-np.inf, -10), (np.inf, 2))
+            )
             intercepts.append(popt[0])
             slopes.append(popt[1])
             # Calculate R^2: https://stackoverflow.com/q/19189362/10581531
             residuals = y_log - func(freqs, *popt)
             ss_res = np.sum(residuals**2)
-            ss_tot = np.sum((y_log - np.mean(y_log))**2)
+            ss_tot = np.sum((y_log - np.mean(y_log)) ** 2)
             r_squared.append(1 - (ss_res / ss_tot))
 
         # Create fit parameters dataframe
-        fit_params = {'Chan': ch_names, 'Intercept': intercepts,
-                      'Slope': slopes, 'R^2': r_squared,
-                      'std(osc)': np.std(psd_osc, axis=-1, ddof=1)}
+        fit_params = {
+            "Chan": ch_names,
+            "Intercept": intercepts,
+            "Slope": slopes,
+            "R^2": r_squared,
+            "std(osc)": np.std(psd_osc, axis=-1, ddof=1),
+        }
         return freqs, psd_aperiodic, psd_osc, pd.DataFrame(fit_params)
     else:
         return freqs, psd_aperiodic, psd_osc

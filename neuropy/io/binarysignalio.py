@@ -1,6 +1,8 @@
-import numpy as np
-from ..core import Signal, Epoch
 from pathlib import Path
+
+import numpy as np
+
+from ..core import Epoch, Signal
 
 
 class BinarysignalIO:
