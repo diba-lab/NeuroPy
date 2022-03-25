@@ -49,34 +49,26 @@ def detect_artifact_epochs(
         sig_raw = np.mean(signal.traces, axis=0)
 
     else:
-        sig = signal.traces.reshape((-1))
+        sig_raw = signal.traces.reshape((-1))
 
     # NRK todo: does this need to go BEFORE taking the median of the signal above?
     # After condensing into one trace, filter signal if specified
     if filt is not None:
         assert len(filt) == 2, "Inputs for filtering signal must be length = 2"
         if filt[0] is not None:  # highpass
-            sig_filt = signal_process.filter_sig.highpass(
-                sig, filt[0], fs=sampling_rate
-            )
+            sig = signal_process.filter_sig.highpass(sig_raw, filt[0], fs=sampling_rate)
         elif filt[1] is not None:  # lowpass
-            sig_filt = signal_process.filter_sig.lowpass(sig, filt[1], fs=sampling_rate)
+            sig = signal_process.filter_sig.lowpass(sig_raw, filt[1], fs=sampling_rate)
         elif filt[0] is not None and filt[1] is not None:  # bandpass
-            sig_filt = signal_process.filter_sig.bandpass(
-                sig, filt[0], filt[1], fs=sampling_rate
+            sig = signal_process.filter_sig.bandpass(
+                sig_raw, filt[0], filt[1], fs=sampling_rate
             )
-        if data_use == "filt_only":  # Use only filtered data if specified
-            sig = sig_filt
+    elif filt is None:
+        sig = sig_raw
 
     # ---- zscoring and identifying start and stops---------
     zsc = np.abs(stats.zscore(sig, axis=-1))
-    if data_use == "both":  # z-score both raw and filtered data
-        zsc_filt = np.abs(stats.zscore(sig_filt, axis=-1))
-        artifact_binary = np.where(
-            np.bitwise_and(zsc > thresh, zsc_filt > thresh), 1, 0
-        )
-    else:
-        artifact_binary = np.where(zsc > thresh, 1, 0)
+    artifact_binary = np.where(zsc > thresh, 1, 0)
     artifact_binary = np.concatenate(([0], artifact_binary, [0]))
     artifact_diff = np.diff(artifact_binary)
     artifact_start = np.where(artifact_diff == 1)[0]
@@ -84,12 +76,7 @@ def detect_artifact_epochs(
     firstPass = np.vstack((artifact_start, artifact_end)).T
 
     # --- extending the edges of artifact region --------
-    if data_use == "both":  # get edges based on both raw and filtered data
-        edge_binary = np.where(
-            np.bitwise_or(zsc > edge_cutoff, zsc_filt > edge_cutoff), 1, 0
-        )
-    else:
-        edge_binary = np.where(zsc > edge_cutoff, 1, 0)
+    edge_binary = np.where(zsc > edge_cutoff, 1, 0)
     edge_binary = np.concatenate(([0], edge_binary, [0]))
     edge_diff = np.diff(edge_binary)
     edge_start = np.where(edge_diff == 1)[0]
