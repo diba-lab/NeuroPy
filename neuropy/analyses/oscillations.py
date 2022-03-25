@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-from ..utils import mathutil, signal_process
+from neuropy.utils import mathutil, signal_process
 from scipy import stats
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
-from ..core import Signal, ProbeGroup, Epoch
+from neuropy.core import Signal, ProbeGroup, Epoch
 
 
 def _detect_freq_band_epochs(
@@ -60,6 +60,8 @@ def _detect_freq_band_epochs(
             ]
         )
 
+        # edge case: remove any frames that might extend past end of recording
+        noisy_frames = noisy_frames[noisy_frames < len(power)]
         power[noisy_frames] = 0
 
     # ---- thresholding and detection ------
@@ -219,9 +221,11 @@ def detect_ripple_epochs(
         selected_chans = []
         for changrp in changrps:
             signal_slice = signal.time_slice(
-                channel_id=changrp.astype("int"), t_start=0, t_stop=3600
+                channel_id=changrp.astype("int"),
+                t_start=0,
+                t_stop=np.min((3600, signal.duration)),
             )
-            hil_stat = signal_process.hilbert_ampltiude_stat(
+            hil_stat = signal_process.hilbert_amplitude_stat(
                 signal_slice.traces,
                 freq_band=freq_band,
                 fs=signal.sampling_rate,
@@ -232,6 +236,69 @@ def detect_ripple_epochs(
         traces = signal.time_slice(channel_id=selected_chans).traces
 
     print(f"Selected channels for ripples: {selected_chans}")
+    if ignore_epochs is not None:
+        ignore_times = ignore_epochs.as_array()
+    else:
+        ignore_times = None
+
+    epochs = _detect_freq_band_epochs(
+        signals=traces,
+        freq_band=freq_band,
+        thresh=thresh,
+        edge_cutoff=edge_cutoff,
+        mindur=mindur,
+        maxdur=maxdur,
+        mergedist=mergedist,
+        fs=signal.sampling_rate,
+        sigma=sigma,
+        ignore_times=ignore_times,
+    )
+    epochs = epochs.shift(dt=signal.t_start)
+    epochs.metadata = dict(channels=selected_chans)
+    return epochs
+
+
+def detect_sharpwave_epochs(
+    signal: Signal,
+    probegroup: ProbeGroup = None,
+    freq_band=(2, 50),
+    thresh=(2.5, None),
+    edge_cutoff=0.5,
+    mindur=0.05,
+    maxdur=0.450,
+    mergedist=0.05,
+    sigma=0.0125,
+    ignore_epochs: Epoch = None,
+):
+
+    if probegroup is None:
+        selected_chans = signal.channel_id
+        traces = signal.traces
+
+    else:
+        if isinstance(probegroup, np.ndarray):
+            changrps = np.array(probegroup, dtype="object")
+        if isinstance(probegroup, ProbeGroup):
+            changrps = probegroup.get_connected_channels(groupby="shank")
+            # if changrp:
+        selected_chans = []
+        for changrp in changrps:
+            signal_slice = signal.time_slice(
+                channel_id=changrp.astype("int"),
+                t_start=0,
+                t_stop=np.min((3600, signal.duration)),
+            )
+            hil_stat = signal_process.hilbert_amplitude_stat(
+                signal_slice.traces,
+                freq_band=freq_band,
+                fs=signal.sampling_rate,
+                statistic="mean",
+            )
+            selected_chans.append(changrp[np.argmax(hil_stat)])
+
+        traces = signal.time_slice(channel_id=selected_chans).traces
+
+    print(f"Selected channels for sharp-waves: {selected_chans}")
     if ignore_epochs is not None:
         ignore_times = ignore_epochs.as_array()
     else:
@@ -278,7 +345,7 @@ def detect_theta_epochs(
         duration = signal.duration
         t1, t2 = signal.t_start, signal.t_start + np.min([duration, 3600])
         signal_slice = signal.time_slice(channel_id=channel_ids, t_start=t1, t_stop=t2)
-        hil_stat = signal_process.hilbert_ampltiude_stat(
+        hil_stat = signal_process.hilbert_amplitude_stat(
             signal_slice.traces,
             freq_band=freq_band,
             fs=signal.sampling_rate,
@@ -338,7 +405,7 @@ def detect_spindle_epochs(
             signal_slice = signal.time_slice(
                 channel_id=changrp.astype("int"), t_start=0, t_stop=3600
             )
-            hil_stat = signal_process.hilbert_ampltiude_stat(
+            hil_stat = signal_process.hilbert_amplitude_stat(
                 signal_slice.traces,
                 freq_band=freq_band,
                 fs=signal.sampling_rate,
@@ -476,3 +543,25 @@ class Gamma:
         csd.classic()
 
         return csd
+
+
+if __name__ == "__main__":
+    from neuropy.io import BinarysignalIO
+    from neuropy.core import Shank, Probe, ProbeGroup, Epoch
+
+    eegfile = BinarysignalIO(
+        "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.eeg",
+        n_channels=35,
+        sampling_rate=1250,
+    )
+    signal = eegfile.get_signal()
+    prbgrp = ProbeGroup().from_file(
+        "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.probegroup.npy"
+    )
+    art_epochs = Epoch(
+        epochs=None,
+        file="/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.art_epochs.npy",
+    )
+    ripple_epochs = detect_ripple_epochs(
+        signal, prbgrp, thresh=(2.5, None), ignore_epochs=art_epochs, mindur=0.025
+    )
