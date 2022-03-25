@@ -910,7 +910,7 @@ def psd_auc(signal: core.Signal, freq_band: tuple, window=10, overlap=5):
     return aucChans
 
 
-def hilbert_ampltiude_stat(signals, freq_band, fs, statistic="mean"):
+def hilbert_amplitude_stat(signals, freq_band, fs, statistic="mean"):
     """Calculates hilbert amplitude statistic over the entire signal
 
     Parameters
