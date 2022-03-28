@@ -1,3 +1,5 @@
+import ast
+
 import numpy as np
 from glob import glob
 import os
@@ -247,21 +249,33 @@ def parse_sync_file(sync_file):
     # Read in file
     sync_lines = open(sync_file).readlines()
 
-    # Grab sampling rate and sync time based on file structure
-    SR = int(
-        sync_lines[1][
-            re.search("@", sync_lines[1])
-            .span()[1] : re.search("Hz", sync_lines[1])
-            .span()[0]
-        ]
-    )
-    sync_frame = int(
-        sync_lines[1][
-            re.search("start time: ", sync_lines[1])
-            .span()[1] : re.search("@[0-9]*Hz", sync_lines[1])
-            .span()[0]
-        ]
-    )
+    try:
+        # Grab sampling rate and sync time based on file structure
+        SR = int(
+            sync_lines[1][
+                re.search("@", sync_lines[1])
+                .span()[1] : re.search("Hz", sync_lines[1])
+                .span()[0]
+            ]
+        )
+        sync_frame = int(
+            sync_lines[1][
+                re.search("start time: ", sync_lines[1])
+                .span()[1] : re.search("@[0-9]*Hz", sync_lines[1])
+                .span()[0]
+            ]
+        )
+    except IndexError:  # Fill in from elsewhere if sync_messages missing info
+        parent_dir = Path(sync_file).parent
+        timestamp_files = sorted(parent_dir.glob("**/continuous/**/timestamps.npy"))
+        assert len(timestamp_files) == 1, "Too many timestamps.npy files"
+        sync_frame = np.load(timestamp_files[0])[0]
+
+        structure_file = parent_dir / "structure.oebin"
+        with open(structure_file) as f:
+            data = f.read()
+        structure = ast.literal_eval(data)
+        SR = structure["continuous"][0]["sample_rate"]
 
     return SR, sync_frame
 
