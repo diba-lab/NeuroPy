@@ -113,15 +113,19 @@ class Fig:
         axis_color="#545454",
         axis_lw=1.5,
         constrained_layout=True,
+        fontname="DejaVu Sans",
         **kwargs,
     ):
 
         # --- plot settings --------
+        mpl.rcParams["font.family"] = "sans-serif"
+        mpl.rcParams["font.sans-serif"] = fontname
         mpl.rcParams["axes.linewidth"] = axis_lw
         mpl.rcParams["axes.labelsize"] = fontsize
         mpl.rcParams["axes.titlesize"] = fontsize
         mpl.rcParams["axes.edgecolor"] = axis_color
         mpl.rcParams["xtick.labelsize"] = fontsize
+        mpl.rcParams["xtick.major.pad"] = 2
         mpl.rcParams["ytick.labelsize"] = fontsize
         mpl.rcParams["axes.spines.top"] = False
         mpl.rcParams["axes.spines.right"] = False
@@ -159,6 +163,9 @@ class Fig:
 
     def subplot(self, subplot_spec):
         return plt.subplot(subplot_spec)
+
+    def add_subfigure(self, *args, **kwargs) -> mpl.figure.SubFigure:
+        return self.fig.add_subfigure(*args, **kwargs)
 
     def subplot2grid(self, subplot_spec, grid=(1, 3), **kwargs):
         """Subplots within a subplot

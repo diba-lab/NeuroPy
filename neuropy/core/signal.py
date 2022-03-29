@@ -1,7 +1,5 @@
 import numpy as np
 
-# from .core import DataWriter
-
 
 class Signal:
     def __init__(
@@ -72,6 +70,27 @@ class Signal:
             traces = self.traces[channel_id, frame_start:frame_stop]
 
         return Signal(traces, self.sampling_rate, t_start, channel_id)
+
+    def rescale(self, factor=0.95 * 1e-3):
+        """scales signal, use it for converting raw signal to volts, but can consume too much memory and time when used on large memmap arrays
+
+        Parameters
+        ----------
+        factor : float, optional
+            multiply the signal with this value, by default 0.95*1e-6 (openephys raw to millivolts)
+
+        Returns
+        -------
+        Signal
+            Signal object containing rescaled traces
+        """
+
+        return Signal(
+            traces=self.traces * factor,
+            sampling_rate=self.sampling_rate,
+            t_start=self.t_start,
+            channel_id=self.channel_id,
+        )
 
 
 class Spectrogram(Signal):
