@@ -125,6 +125,7 @@ class Fig:
         mpl.rcParams["axes.titlesize"] = fontsize
         mpl.rcParams["axes.edgecolor"] = axis_color
         mpl.rcParams["xtick.labelsize"] = fontsize
+        mpl.rcParams["xtick.major.pad"] = 2
         mpl.rcParams["ytick.labelsize"] = fontsize
         mpl.rcParams["axes.spines.top"] = False
         mpl.rcParams["axes.spines.right"] = False
