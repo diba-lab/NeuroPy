@@ -91,7 +91,7 @@ class Epoch(DataWriter):
 
         if isinstance(i, str):
             data = self._epochs[self._epochs["label"] == i].copy()
-        elif isinstance(i, int):
+        elif isinstance(i, (int, np.integer)):
             data = self._epochs.iloc[[i]].copy()
         else:
             data = self._epochs.iloc[i].copy()
