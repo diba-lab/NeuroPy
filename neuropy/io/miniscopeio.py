@@ -163,6 +163,11 @@ def load_timestamps(rec_folder, corrupted_videos=None):
     return times, rec_metadata, vid_metadata, rec_start
 
 
+def move_files_to_combined_folder(parent_folder):
+    """Move files from home folder to miniscope combined folder"""
+    pass
+
+
 if __name__ == "__main__":
     basedir = Path("/data/Working/Trace_FC/Recording_Rats/Rat698/2021_06_29_training")
     basedir2 = Path(
