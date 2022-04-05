@@ -161,8 +161,8 @@ class Fig:
         self.fig = fig
         self.gs = gs
 
-    def subplot(self, subplot_spec):
-        return plt.subplot(subplot_spec)
+    def subplot(self, subplot_spec, sharex=None, sharey=None, **kwargs):
+        return plt.subplot(subplot_spec, sharex=sharex, sharey=sharey, **kwargs)
 
     def add_subfigure(self, *args, **kwargs) -> mpl.figure.SubFigure:
         return self.fig.add_subfigure(*args, **kwargs)
