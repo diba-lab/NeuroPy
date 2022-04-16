@@ -95,7 +95,14 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         np.array
             scaled array
         """
-        return (x - np.nanmin(x, axis=axis, keepdims=True)) / Ratemap.nan_ptp(x, axis=axis, keepdims=True, **kwargs)
+        try:
+            return (x - np.nanmin(x, axis=axis, keepdims=True)) / Ratemap.nan_ptp(x, axis=axis, keepdims=True, **kwargs)
+        except ValueError:  #raised if `y` is empty.
+            # Without this try-except we encountered "ValueError: zero-size array to reduction operation minimum which has no identity" when x was empty.
+            return x # just return the raw x-value, as it's empty and doesn't need scaling
+
+
+        
     
     
     @staticmethod    

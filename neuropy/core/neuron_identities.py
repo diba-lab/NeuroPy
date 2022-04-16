@@ -144,6 +144,12 @@ class NeuronIdentity(SimplePrintable):
         
         
 class NeuronIdentityAccessingMixin:
+    """ 
+        Requires implementor overrides the neuron_ids property to provide an ordered list of unique cell identifiers (such as the 'aclu' values from a spikes_df)
+        
+        provides functions to map between unique cell_identifiers (cell_ids) and implementor specific indicies (cell_IDXs)
+    
+    """
     @property
     def neuron_ids(self):
         """ e.g. return np.array(active_epoch_placefields2D.cell_ids) """
