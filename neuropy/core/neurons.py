@@ -136,12 +136,9 @@ class Neurons(DataWriter):
 
     def time_slice(self, t_start=None, t_stop=None):
 
-        t_start, t_stop = self._time_check(t_start, t_stop)
+        t_start, t_stop = super()._time_slice_params(t_start, t_stop)
         neurons = deepcopy(self)
-        spiketrains = [
-            spktrn[(spktrn > t_start) & (spktrn < t_stop)]
-            for spktrn in neurons.spiketrains
-        ]
+        spiketrains = [t[(t >= t_start) & (t <= t_stop)] for t in neurons.spiketrains]
 
         return Neurons(
             spiketrains=spiketrains,
@@ -177,15 +174,6 @@ class Neurons(DataWriter):
         #         self.instfiring,
         #     ]
         # )
-
-    def _time_check(self, t_start, t_stop):
-        if t_start is None:
-            t_start = self.t_start
-
-        if t_stop is None:
-            t_stop = self.t_stop
-
-        return t_start, t_stop
 
     def __str__(self) -> str:
         return f"# neurons = {self.n_neurons}"

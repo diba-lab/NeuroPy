@@ -50,3 +50,18 @@ class DataWriter:
         data = self.to_dict()
         np.save(fp, data)
         print(f"{fp} saved")
+
+    def _time_slice_params(self, t1=None, t2=None):
+
+        if t1 is None:
+            t1 = self.t_start
+
+        if t2 is None:
+            t2 = self.t_stop
+
+        assert t2 > t1, "t2 must be greater than t1"
+
+        if hasattr(self, "time"):
+            return (self.time >= t1) & (self.time <= t2)
+        else:
+            return t1, t2
