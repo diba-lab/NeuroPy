@@ -6,6 +6,15 @@ from . import DataWriter
 
 
 class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
+    """A Ratemap holds information about each unit's firing rate across binned positions. 
+        In addition, it also holds (tuning curves).
+        
+        
+    Args:
+        NeuronIdentitiesDisplayerMixin (_type_): _description_
+        RatemapPlottingMixin (_type_): _description_
+        DataWriter (_type_): _description_
+    """
     def __init__(
         self,
         tuning_curves,

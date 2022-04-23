@@ -395,7 +395,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing. 
 
 class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
-    """Represents an N-dimensional Placefield """
+    """Represents a collection of placefields over binned,  N-dimensional space. """
 
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
@@ -469,6 +469,10 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, self.position_srate, smooth_occupancy_map)
         else:
             occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, self.position_srate, smooth_occupancy_map[0])
+        
+        
+        ## Add the interpolated spikes positions to the dataframe:
+        
         
         # Once filtering and binning is done, apply the grouping:
         # Group by the aclu (cluster indicator) column
@@ -588,6 +592,9 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             ## Binning with Fixed Bin Sizes:
             xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
             print(bin_info)
+            
+            
+        TODO: 2022-04-22 - Note that I discovered that the bins generated here might cause an error when used with Pandas .cut function, which does not include the left (most minimum) values by default. This would cause the minimumal values not to be included.
         """
         assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
         assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
