@@ -36,6 +36,12 @@ class PfND_TimeDependent(PfND):
         self._filtered_pos_df = value
     
     
+    @property
+    def smooth(self):
+        """The smooth property."""
+        return self.config.smooth
+
+    
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
@@ -119,14 +125,12 @@ class PfND_TimeDependent(PfND):
     
         self.setup()
             
-
-
-                
-        # # --- occupancy map calculation -----------
+        # --- occupancy map calculation -----------
         # if not self.should_smooth_spatial_occupancy_map:
         #     smooth_occupancy_map = (0.0, 0.0)
         # else:
         #     smooth_occupancy_map = smooth
+            
         # if (position.ndim > 1):
         #     occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, self.position_srate, smooth_occupancy_map)
         # else:
@@ -186,30 +190,65 @@ class PfND_TimeDependent(PfND):
     #  self.ratemap.occupancy
     
     
+    @property
+    def ratemap(self):
+        """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
+        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.filtered_spikes_df.spikes.neuron_ids, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids)
+
+
     def setup(self):
         # Initialize for the 0th timestamp:
         n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
         n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
         self.curr_firing_maps_matrix = np.zeros((self.n_unit_ids, n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
-        self.curr_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
+        self.curr_smoothed_firing_maps_matrix = None
+        self.curr_raw_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
+        self.curr_raw_smoothed_occupancy_map = None
         self.last_t = 0.0
-        self.curr_seconds_occupancy = self.curr_occupancy_map.copy()
-        self.curr_normalized_occupancy = self.curr_occupancy_map.copy()
+        self.curr_seconds_occupancy = self.curr_raw_occupancy_map.copy()
+        self.curr_normalized_occupancy = self.curr_raw_occupancy_map.copy()
         self.curr_occupancy_weighted_tuning_maps_matrix = self.curr_firing_maps_matrix.copy()
 
+
     def update(self, t):
+        """ updates all variables to the latest versions """
+        self.minimal_update(t)
+        self.display_update(t)
+
+
+    def minimal_update(self, t):
         """ Updates the current_occupancy_map, curr_firing_maps_matrix
         # t: the "current time" for which to build the best possible placefields
         """
         # Post Initialization Update
         # t = self.last_t + 1 # add one second
-        curr_t, self.curr_occupancy_map = PfND_TimeDependent.update_occupancy_map(self.last_t, self.curr_occupancy_map, t, self._filtered_pos_df)
+        curr_t, self.curr_raw_occupancy_map = PfND_TimeDependent.update_occupancy_map(self.last_t, self.curr_raw_occupancy_map, t, self._filtered_pos_df)
         curr_t, self.curr_firing_maps_matrix = PfND_TimeDependent.update_firing_map(self.last_t, self.curr_firing_maps_matrix, t, self._filtered_spikes_df)
         self.last_t = curr_t
         
-        self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_occupancy_map, position_srate=self.position_srate)
-        self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_firing_maps_matrix)
-    
+    def display_update(self, t):
+        """ updates the extended variables:
+        
+            self.curr_raw_smoothed_occupancy_map
+            self.curr_smoothed_firing_maps_matrix
+            self.curr_seconds_occupancy
+            self.curr_normalized_occupancy
+            self.curr_occupancy_weighted_tuning_maps_matrix
+        
+        """
+        # Smooth if needed:
+        if ((self.smooth is not None) and ((self.smooth[0] > 0.0) & (self.smooth[1] > 0.0))): 
+            # Smooth the occupancy map:
+            self.curr_raw_smoothed_occupancy_map = gaussian_filter(self.curr_raw_occupancy_map, sigma=(self.smooth[1], self.smooth[0])) # 2d gaussian filter
+            # Smooth the firing map:
+            self.curr_smoothed_firing_maps_matrix = gaussian_filter(self.curr_firing_maps_matrix, sigma=(0, self.smooth[1], self.smooth[0])) # 2d gaussian filter
+            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_raw_smoothed_occupancy_map, position_srate=self.position_srate)
+            self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_smoothed_firing_maps_matrix)
+
+        else:
+            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_raw_occupancy_map, position_srate=self.position_srate)
+            self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_firing_maps_matrix)
+        
     
     @classmethod
     def update_occupancy_map(cls, last_t, last_occupancy_matrix, t, active_pos_df, debug_print=False):
@@ -243,6 +282,7 @@ class PfND_TimeDependent(PfND):
             # last_occupancy_matrix[xbin_label-1, ybin_label-1] += count
             # last_occupancy_matrix[xbin_label, ybin_label] += count
             last_occupancy_matrix[xbin_label, ybin_label] += count
+            
         return t, last_occupancy_matrix
 
     @classmethod
