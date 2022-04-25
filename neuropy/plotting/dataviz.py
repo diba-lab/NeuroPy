@@ -108,7 +108,7 @@ def boxplot(
 
     if ax is None:
         _, ax = plt.subplots()
-    x_cat = data[x].unique()
+    x_cat = np.sort(data[x].unique())
 
     if hue is not None:
         hue_levels = np.unique(data[hue])
@@ -120,6 +120,10 @@ def boxplot(
         if (hue_palette is None) and (x_palette is not None):
             colors = np.concatenate(
                 [[x_palette[i]] * n_levels for i in range(len(x_cat))]
+            )
+        elif hue_palette is not None:
+            colors = np.concatenate(
+                [[hue_palette[_] for _ in range(n_levels)]] * len(x_cat)
             )
 
         i2 = 0
