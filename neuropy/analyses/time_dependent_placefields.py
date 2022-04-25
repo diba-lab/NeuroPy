@@ -254,7 +254,7 @@ class PfND_TimeDependent(PfND):
     def update_occupancy_map(cls, last_t, last_occupancy_matrix, t, active_pos_df, debug_print=False):
         """ Given the last_occupancy_matrix computed at time last_t, determines the additional positional occupancy from active_pos_df and adds them producing an updated version
         Inputs:
-        # t: the "current time" for which to build the best possible placefields
+            t: the "current time" for which to build the best possible placefields
         """
         active_current_pos_df = active_pos_df.position.time_sliced(last_t, t) # [active_pos_df.position.time<t]
         # Compute the updated counts:
