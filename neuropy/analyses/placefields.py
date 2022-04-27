@@ -428,7 +428,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # self.x = None
         # self.speed = None
         # self.y = None
-        self._filtered_spikes_df = None
+        self._filtered_pos_df = None
         self._filtered_spikes_df = None
         
         # Perform the primary setup to build the placefield
@@ -455,7 +455,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def speed(self):
         """The position timestamps property."""
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
-            return self.filtered_pos_df.speed_smoothed.to_numpy()
+            return self.filtered_pos_df.speed_smooth.to_numpy()
         else:
             return self.filtered_pos_df.speed.to_numpy()
         
@@ -501,7 +501,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # self.speed = self.filtered_pos_df.speed.to_numpy()
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
             # self.speed = gaussian_filter1d(self.speed, sigma=self.config.smooth[0])
-            self.filtered_pos_df['speed_smoothed'] = gaussian_filter1d(self.filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
+            self.filtered_pos_df['speed_smooth'] = gaussian_filter1d(self.filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
             
         # if (self.ndim > 1):
         #     self.y = self.filtered_pos_df.y.to_numpy()
