@@ -476,7 +476,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # self.speed = self.filtered_pos_df.speed.to_numpy()
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
             # self.speed = gaussian_filter1d(self.speed, sigma=self.config.smooth[0])
-            self.filtered_pos_df['speed_smooth'] = gaussian_filter1d(self.filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
+            self._filtered_pos_df['speed_smooth'] = gaussian_filter1d(self._filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
             
         # if (self.ndim > 1):
         #     self.y = self.filtered_pos_df.y.to_numpy()
@@ -484,20 +484,21 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         #     self.y = None
 
         # Add interpolated velocity information to spikes dataframe:
-        if 'speed' not in self.filtered_spikes_df.columns:
-            self.filtered_spikes_df['speed'] = np.interp(self.filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.speed)
+        if 'speed' not in self._filtered_spikes_df.columns:
+            self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.filtered_pos_df.t.to_numpy(), self.speed)
     
         
         # Filter for speed:
         if debug_print:
-            print(f'pre speed filtering: {np.shape(self.filtered_spikes_df)[0]} spikes.')
-        self.filtered_spikes_df = self.filtered_spikes_df[self.filtered_spikes_df['speed'] > self.config.speed_thresh]
+            print(f'pre speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
+        self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
         if debug_print:
-            print(f'post speed filtering: {np.shape(self.filtered_spikes_df)[0]} spikes.')
+            print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
         
         ## Binning with Fixed Number of Bins:    
         # xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
-        self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=self.config.grid_bin) # bin_size mode
+        # self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=self.config.grid_bin) # bin_size mode
+        self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy(), bin_size=self.config.grid_bin) # bin_size mode
         
    
     def compute(self):
