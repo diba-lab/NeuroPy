@@ -18,23 +18,6 @@ class PfND_TimeDependent(PfND):
         Represents a collection of placefields at a given time over binned, N-dimensional space. 
     """
     
-    @property
-    def filtered_spikes_df(self):
-        """The filtered_spikes_df property."""
-        return self._filtered_spikes_df
-    @filtered_spikes_df.setter
-    def filtered_spikes_df(self, value):
-        self._filtered_spikes_df = value
-    
-    
-    @property
-    def filtered_pos_df(self):
-        """The filtered_pos_df property."""
-        return self._filtered_pos_df
-    @filtered_pos_df.setter
-    def filtered_pos_df(self, value):
-        self._filtered_pos_df = value
-    
     
     @property
     def smooth(self):
@@ -89,7 +72,8 @@ class PfND_TimeDependent(PfND):
         self.n_unit_ids = len(self.unit_ids)
 
         self._included_thresh_neurons_indx = np.arange(self.n_unit_ids)
-        self._peak_frate_filter_function = None # TODO: is this needed?
+        # TODO: is the filter function part needed? I don't think I ever do this sort of filtering in the time varying class:
+        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria
         
         ## Interpolate the spikes over positions
         self._filtered_spikes_df['x'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.x)
