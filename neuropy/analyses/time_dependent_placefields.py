@@ -128,6 +128,8 @@ class PfND_TimeDependent(PfND):
         self.xbin = None
         self.ybin = None 
         self.bin_info = None
+
+        self.last_t = np.finfo('float').max # set to maximum value (so all times are included) just for setup.
         
         # Perform the primary setup to build the placefield
         self.setup(position, spikes_df, epochs)
