@@ -57,63 +57,45 @@ class PfND_TimeDependent(PfND):
         speed_thresh : int
             speed threshold for calculating place field
         """
-        _save_intermediate_firing_maps = True # False is not yet implemented
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
         self.position_srate = position.sampling_rate
         # Set the dimensionality of the PfND object from the position's dimensionality
         self.ndim = position.ndim
         
-        pos_df = position.to_dataframe().copy()
-        spk_df = spikes_df.copy()
-
-        # filtering:
-        if epochs is not None:
-            # filter the spikes_df:
-            self._filtered_spikes_df = spk_df.spikes.time_sliced(epochs.starts, epochs.stops)
-            # filter the pos_df:
-            self._filtered_pos_df = pos_df.position.time_sliced(epochs.starts, epochs.stops) # 5378 rows × 18 columns
-        else:
-            # if no epochs filtering, set the filtered objects to be sliced by the available range of the position data (given by position.t_start, position.t_stop)
-            self._filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
-            self._filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
-            
-     
-        # Set animal observed position member variables:
-        self.t = self._filtered_pos_df.t.to_numpy()
-        self.x = self._filtered_pos_df.x.to_numpy()
-        self.speed = self._filtered_pos_df.speed.to_numpy()
-        if (self.should_smooth_speed and (smooth is not None) and (smooth[0] > 0.0)):
-            self.speed = gaussian_filter1d(self.speed, sigma=smooth[0])
-        if (self.ndim > 1):
-            self.y = self._filtered_pos_df.y.to_numpy()
-        else:
-            self.y = None
-
-        # Add interpolated velocity information to spikes dataframe:
-        self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.speed)
+        self._included_thresh_neurons_indx = None
+        self._peak_frate_filter_function = None        
+        # self.ratemap = None
+        self.ratemap_spiketrains = None
+        self.ratemap_spiketrains_pos = None
+        # self.t = None
+        # self.x = None
+        # self.speed = None
+        # self.y = None
+        self._filtered_pos_df = None
+        self._filtered_spikes_df = None
+        self.xbin = None
+        self.ybin = None 
+        self.bin_info = None
         
-        # Filter for speed:
-        print(f'pre speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
-        self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > speed_thresh]
-        print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
-        
-        ## Binning with Fixed Number of Bins:    
-        # xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
-        self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=grid_bin) # bin_size mode
-        
+        # Perform the primary setup to build the placefield
+        self.setup(position, spikes_df, epochs)
         self._filtered_pos_df.dropna(axis=0, how='any', subset=['x','y','binned_x','binned_y'], inplace=True) # dropped NaN values
+        
         self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
         self.ybin_labels = np.arange(start=1, stop=len(self.ybin))
 
         self.unit_ids = np.unique(self._filtered_spikes_df.unit_id) # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
         self.n_unit_ids = len(self.unit_ids)
 
+        self._included_thresh_neurons_indx = np.arange(self.n_unit_ids)
+        self._peak_frate_filter_function = None # TODO: is this needed?
+        
         ## Interpolate the spikes over positions
         self._filtered_spikes_df['x'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.x)
         if 'binned_x' not in self._filtered_spikes_df:
             self._filtered_spikes_df['binned_x'] = pd.cut(self._filtered_spikes_df['x'].to_numpy(), bins=self.xbin, include_lowest=True, labels=self.xbin_labels) # same shape as the input data 
-            
+    
         # update the dataframe 'x','speed' and 'y' properties:
         # cell_df.loc[:, 'x'] = spk_x
         # cell_df.loc[:, 'speed'] = spk_spd
@@ -123,75 +105,9 @@ class PfND_TimeDependent(PfND):
                 self._filtered_spikes_df['binned_y'] = pd.cut(self._filtered_spikes_df['y'].to_numpy(), bins=self.ybin, include_lowest=True, labels=self.ybin_labels)
             # cell_df.loc[:, 'y'] = spk_y
     
-        self.setup()
         self.setup_time_varying()
         
-        
-        # --- occupancy map calculation -----------
-        # if not self.should_smooth_spatial_occupancy_map:
-        #     smooth_occupancy_map = (0.0, 0.0)
-        # else:
-        #     smooth_occupancy_map = smooth
-            
-        # if (position.ndim > 1):
-        #     occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, xbin, ybin, self.position_srate, smooth_occupancy_map)
-        # else:
-        #     occupancy, xedges = Pf1D._compute_occupancy(self.x, xbin, self.position_srate, smooth_occupancy_map[0])
-        
-        # # Once filtering and binning is done, apply the grouping:
-        # # Group by the aclu (cluster indicator) column
-        # cell_grouped_spikes_df = self.filtered_spikes_df.groupby(['aclu'])
-        # cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in self.filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
 
-        # # NOTE: regardless of whether should_smooth_final_tuning_map is true or not, we must pass in the actual smooth value to the _compute_tuning_map(...) function so it can choose to filter its firing map or not. Only if should_smooth_final_tuning_map is enabled will the final product be smoothed.
-            
-        # # re-interpolate given the updated spks
-        # for cell_df in cell_spikes_dfs:
-        #     cell_spike_times = cell_df[spikes_df.spikes.time_variable_name].to_numpy() # not this was subbed from 't_rel_seconds' to spikes_df.spikes.time_variable_name
-        #     # spk_spd = np.interp(cell_spike_times, self.t, self.speed)
-        #     spk_x = np.interp(cell_spike_times, self.t, self.x)
-            
-        #     # update the dataframe 'x','speed' and 'y' properties:
-        #     # cell_df.loc[:, 'x'] = spk_x
-        #     # cell_df.loc[:, 'speed'] = spk_spd
-        #     if (position.ndim > 1):
-        #         spk_y = np.interp(cell_spike_times, self.t, self.y)
-        #         # cell_df.loc[:, 'y'] = spk_y
-        #         spk_pos.append([spk_x, spk_y])
-        #         # TODO: Make "firing maps" before "tuning maps"
-        #         # raw_tuning_maps = np.asarray([Pf2D._compute_tuning_map(neuron_split_spike_dfs[i].x.to_numpy(), neuron_split_spike_dfs[i].y.to_numpy(), xbin, ybin, occupancy, None, should_return_raw_tuning_map=True) for i in np.arange(len(neuron_split_spike_dfs))]) # dataframes split for each ID:
-        #         # tuning_maps = np.asarray([raw_tuning_maps[i] / occupancy for i in np.arange(len(raw_tuning_maps))])
-        #         # ratemap = Ratemap(tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=active_epoch_session.neuron_ids)
-        #         curr_cell_tuning_map, curr_cell_firing_map = Pf2D._compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_firing_map=_save_intermediate_firing_maps)
-        #     else:
-        #         # otherwise only 1D:
-        #         spk_pos.append([spk_x])
-        #         curr_cell_tuning_map, curr_cell_firing_map = Pf1D._compute_tuning_map(spk_x, xbin, occupancy, smooth[0], should_also_return_intermediate_firing_map=_save_intermediate_firing_maps)
-            
-        #     spk_t.append(cell_spike_times)
-        #     # tuning curve calculation:               
-        #     tuning_maps.append(curr_cell_tuning_map)
-        #     firing_maps.append(curr_cell_firing_map)
-                
-        # # ---- cells with peak frate abouve thresh ------
-        # filtered_tuning_maps, filter_function = PfND._filter_by_frate(tuning_maps.copy(), frate_thresh)
-        # filtered_firing_maps = filter_function(firing_maps.copy())
-        # filtered_neuron_ids = filter_function(self.filtered_spikes_df.spikes.neuron_ids)        
-        # filtered_tuple_neuron_ids = filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
-        
-        # self.ratemap = Ratemap(
-        #     filtered_tuning_maps, firing_maps=filtered_firing_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids
-        # )
-        # self.ratemap_spiketrains = filter_function(spk_t)
-        # self.ratemap_spiketrains_pos = filter_function(spk_pos)
-        
-        # done!
-    
-    # def occupancy(self, t):
-    #  # returns the ocupancy at a specific time
-    #  self.ratemap.occupancy
-    
-    
     @property
     def ratemap(self):
         """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
