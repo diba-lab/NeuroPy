@@ -422,6 +422,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         if fig is not None:
             extant_fig = fig
             # fig = plt.figure(extant_fig)
+        else:
+            extant_fig = None # is this okay?
             
         if fig is not None:
             active_fig_id = fig
