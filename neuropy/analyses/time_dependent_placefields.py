@@ -12,6 +12,16 @@ from neuropy.analyses.placefields import _normalized_occupancy
 # time_dependent_placefields
 
 
+def safe_pandas_get_group(dataframe_group, key):
+    """ returns an empty dataframe if the key isn't found in the group."""
+    if key in dataframe_group.groups.keys():
+        return dataframe_group.get_group(key)
+    else:
+        original_df = dataframe_group.obj
+        return original_df.drop(original_df.index)
+    
+    
+
 class PfND_TimeDependent(PfND):
     """A version PfND that can return the current state of placefields considering only up to a certain period of time.
     
@@ -24,6 +34,32 @@ class PfND_TimeDependent(PfND):
         """The smooth property."""
         return self.config.smooth
 
+    @property
+    def ratemap_spiketrains(self):
+        """ a list of spike times for each cell. for compatibility with old plotting functions."""        
+        # cell_df[self.filtered_spikes_df.spikes.time_variable_name]
+        # self.filtered_spikes_df.spikes.get_split_by_unit()
+        ## Get only the relevant columns and the 'aclu' column before grouping on aclu for efficiency:
+        # return [self.filtered_spikes_df[['aclu', self.filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.filtered_spikes_df.spikes.neuron_ids] # dataframes split for each ID
+        return self.curr_ratemap_spiketrains(self.last_t)
+        
+    @property
+    def ratemap_spiketrains_pos(self):
+        """ a list of spike positions for each cell. for compatibility with old plotting functions."""
+        return self.curr_ratemap_spiketrains_pos(self.last_t)
+    
+    
+    def curr_ratemap_spiketrains_pos(self, t):
+        """ gets the ratemap_spiketrains_pos variable at the time t """
+        # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID        
+        return [safe_pandas_get_group(self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name], neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
+    
+    
+    def curr_ratemap_spiketrains(self, t):
+        """ gets the ratemap_spiketrains variable at the time t """
+        # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
+        return [safe_pandas_get_group(self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name], neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
+    
     
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
@@ -49,8 +85,8 @@ class PfND_TimeDependent(PfND):
         self._included_thresh_neurons_indx = None
         self._peak_frate_filter_function = None        
         # self.ratemap = None
-        self.ratemap_spiketrains = None
-        self.ratemap_spiketrains_pos = None
+        # self.ratemap_spiketrains = None
+        # self.ratemap_spiketrains_pos = None
         # self.t = None
         # self.x = None
         # self.speed = None
@@ -95,7 +131,8 @@ class PfND_TimeDependent(PfND):
     @property
     def ratemap(self):
         """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
-        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.filtered_spikes_df.spikes.neuron_ids, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids)
+        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDXs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids[self.included_neuron_IDXs])
+        # return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.filtered_spikes_df.spikes.neuron_ids, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids)
 
 
     def setup_time_varying(self):
