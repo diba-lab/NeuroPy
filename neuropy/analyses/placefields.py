@@ -424,16 +424,59 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         self.ratemap = None
         self.ratemap_spiketrains = None
         self.ratemap_spiketrains_pos = None
-        self.t = None
-        self.x = None
-        self.speed = None
-        self.y = None
+        # self.t = None
+        # self.x = None
+        # self.speed = None
+        # self.y = None
+        self._filtered_spikes_df = None
+        self._filtered_spikes_df = None
         
         # Perform the primary setup to build the placefield
         self.setup(position, spikes_df, epochs, save_intermediate_firing_maps = _save_intermediate_firing_maps)
         
+    @property
+    def t(self):
+        """The position timestamps property."""
+        return self.filtered_pos_df.t.to_numpy()
+
+    @property
+    def x(self):
+        """The position timestamps property."""
+        return self.filtered_pos_df.x.to_numpy()
+
+    @property
+    def y(self):
+        """The position timestamps property."""
+        if (self.ndim > 1):
+            return self.filtered_pos_df.y.to_numpy()
+        else:
+            return None
+    @property
+    def speed(self):
+        """The position timestamps property."""
+        if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
+            return self.filtered_pos_df.speed_smoothed.to_numpy()
+        else:
+            return self.filtered_pos_df.speed.to_numpy()
+        
+    @property
+    def filtered_spikes_df(self):
+        """The filtered_spikes_df property."""
+        return self._filtered_spikes_df
+    @filtered_spikes_df.setter
+    def filtered_spikes_df(self, value):
+        self._filtered_spikes_df = value
+        
+    @property
+    def filtered_pos_df(self):
+        """The filtered_pos_df property."""
+        return self._filtered_pos_df
+    @filtered_pos_df.setter
+    def filtered_pos_df(self, value):
+        self._filtered_pos_df = value
+    
         # done!
-    def setup(self, position: Position, spikes_df, epochs: Epoch, save_intermediate_firing_maps = True):
+    def setup(self, position: Position, spikes_df, epochs: Epoch, save_intermediate_firing_maps = True, debug_print=False):
         """ actually build the placefields """
         # Output lists, for compatibility with Pf1D and Pf2D:
         spk_pos, spk_t, firing_maps, tuning_maps = [], [], [], []
@@ -444,35 +487,38 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # filtering:
         if epochs is not None:
             # filter the spikes_df:
-            filtered_spikes_df = spk_df.spikes.time_sliced(epochs.starts, epochs.stops)
+            self._filtered_spikes_df = spk_df.spikes.time_sliced(epochs.starts, epochs.stops)
             # filter the pos_df:
-            filtered_pos_df = pos_df.position.time_sliced(epochs.starts, epochs.stops) # 5378 rows × 18 columns
+            self._filtered_pos_df = pos_df.position.time_sliced(epochs.starts, epochs.stops) # 5378 rows × 18 columns
         else:
             # if no epochs filtering, set the filtered objects to be sliced by the available range of the position data (given by position.t_start, position.t_stop)
-            filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
-            filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
+            self._filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
+            self._filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
             
-    
         # Set animal observed position member variables:
-        self.t = filtered_pos_df.t.to_numpy()
-        self.x = filtered_pos_df.x.to_numpy()
-        self.speed = filtered_pos_df.speed.to_numpy()
+        # self.t = self.filtered_pos_df.t.to_numpy()
+        # self.x = self.filtered_pos_df.x.to_numpy()
+        # self.speed = self.filtered_pos_df.speed.to_numpy()
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
-            self.speed = gaussian_filter1d(self.speed, sigma=self.config.smooth[0])
-        if (self.ndim > 1):
-            self.y = filtered_pos_df.y.to_numpy()
-        else:
-            self.y = None
+            # self.speed = gaussian_filter1d(self.speed, sigma=self.config.smooth[0])
+            self.filtered_pos_df['speed_smoothed'] = gaussian_filter1d(self.filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
+            
+        # if (self.ndim > 1):
+        #     self.y = self.filtered_pos_df.y.to_numpy()
+        # else:
+        #     self.y = None
 
         # Add interpolated velocity information to spikes dataframe:
-        if 'speed' not in filtered_spikes_df:
-            filtered_spikes_df['speed'] = np.interp(filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.speed)
+        if 'speed' not in self.filtered_spikes_df.columns:
+            self.filtered_spikes_df['speed'] = np.interp(self.filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.speed)
     
         
         # Filter for speed:
-        print(f'pre speed filtering: {np.shape(filtered_spikes_df)[0]} spikes.')
-        filtered_spikes_df = filtered_spikes_df[filtered_spikes_df['speed'] > self.config.speed_thresh]
-        print(f'post speed filtering: {np.shape(filtered_spikes_df)[0]} spikes.')
+        if debug_print:
+            print(f'pre speed filtering: {np.shape(self.filtered_spikes_df)[0]} spikes.')
+        self.filtered_spikes_df = self.filtered_spikes_df[self.filtered_spikes_df['speed'] > self.config.speed_thresh]
+        if debug_print:
+            print(f'post speed filtering: {np.shape(self.filtered_spikes_df)[0]} spikes.')
         
         ## Binning with Fixed Number of Bins:    
         # xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
@@ -494,8 +540,8 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         
         # Once filtering and binning is done, apply the grouping:
         # Group by the aclu (cluster indicator) column
-        cell_grouped_spikes_df = filtered_spikes_df.groupby(['aclu'])
-        cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
+        cell_grouped_spikes_df = self.filtered_spikes_df.groupby(['aclu'])
+        cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in self.filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
 
         # NOTE: regardless of whether should_smooth_final_tuning_map is true or not, we must pass in the actual smooth value to the _compute_tuning_map(...) function so it can choose to filter its firing map or not. Only if should_smooth_final_tuning_map is enabled will the final product be smoothed.
             
@@ -534,8 +580,8 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # there is only one tuning_map per neuron that means the thresh_neurons_indx:
         filtered_tuning_maps = np.asarray(self._peak_frate_filter_function(tuning_maps.copy()))
         filtered_firing_maps = self._peak_frate_filter_function(firing_maps.copy())
-        filtered_neuron_ids = self._peak_frate_filter_function(filtered_spikes_df.spikes.neuron_ids)        
-        filtered_tuple_neuron_ids = self._peak_frate_filter_function(filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
+        filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)        
+        filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
         self.ratemap = Ratemap(filtered_tuning_maps, firing_maps=filtered_firing_maps, xbin=xbin, ybin=ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)

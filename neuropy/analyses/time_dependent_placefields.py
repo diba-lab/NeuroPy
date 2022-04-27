@@ -124,7 +124,9 @@ class PfND_TimeDependent(PfND):
             # cell_df.loc[:, 'y'] = spk_y
     
         self.setup()
-            
+        self.setup_time_varying()
+        
+        
         # --- occupancy map calculation -----------
         # if not self.should_smooth_spatial_occupancy_map:
         #     smooth_occupancy_map = (0.0, 0.0)
@@ -196,7 +198,7 @@ class PfND_TimeDependent(PfND):
         return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.filtered_spikes_df.spikes.neuron_ids, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids)
 
 
-    def setup(self):
+    def setup_time_varying(self):
         # Initialize for the 0th timestamp:
         n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
         n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
