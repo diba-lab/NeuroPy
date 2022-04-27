@@ -34,6 +34,38 @@ class PfND_TimeDependent(PfND):
         """The smooth property."""
         return self.config.smooth
 
+    ########## Overrides for temporal dependence:
+    """ 
+        Define all_time_* versions of the self.filtered_pos_df and self.filtered_spikes_df properties to allow access to the underlying dataframes for setup and other purposes.
+    """
+    @property
+    def all_time_filtered_spikes_df(self):
+        """The filtered_spikes_df property."""
+        return self._filtered_spikes_df
+        
+    @property
+    def all_time_filtered_pos_df(self):
+        """The filtered_pos_df property."""
+        return self._filtered_pos_df
+        
+        
+    """ 
+        Override the filtered_spikes_df and filtered_pos_df properties such that they only return the dataframes up to the last time (self.last_t).
+        This allows access via self.t, self.x, self.y, self.speed, etc as defined in the parent class to work as expected since they access the self.filtered_pos_df and self.filtered_spikes_df
+        
+        Note: these would be called curr_filtered_spikes_df and curr_filtered_pos_df in the nomenclature of this class, but they're defined without the curr_* prefix for compatibility and to override the parent implementation.
+    """
+    @property
+    def filtered_spikes_df(self):
+        """The filtered_spikes_df property."""
+        return self._filtered_spikes_df.spikes.time_sliced(0, self.last_t)
+        
+    @property
+    def filtered_pos_df(self):
+        """The filtered_pos_df property."""
+        return self._filtered_pos_df.position.time_sliced(0, self.last_t)
+        
+        
     @property
     def ratemap_spiketrains(self):
         """ a list of spike times for each cell. for compatibility with old plotting functions."""        
