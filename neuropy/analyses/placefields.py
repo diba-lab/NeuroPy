@@ -650,9 +650,15 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         return self._peak_frate_filter_function
     
     @property
-    def included_neuron_ids(self):
-        """The neuron_ids that were included after filtering by frate and etc. """
+    def included_neuron_IDXs(self):
+        """The neuron INDEXES, NOT IDs (not 'aclu' values) that were included after filtering by frate and etc. """
         return self._included_thresh_neurons_indx
+    
+    @property
+    def included_neuron_IDs(self):
+        """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
+        return self.filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs]    
+    
     
     
     def str_for_filename(self, prefix_string=''):
