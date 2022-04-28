@@ -84,7 +84,7 @@ class PfND_TimeDependent(PfND):
     def curr_ratemap_spiketrains_pos(self, t):
         """ gets the ratemap_spiketrains_pos variable at the time t """
         # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID        
-        return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')[self.all_time_filtered_spikes_df.spikes.time_variable_name], neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
+        return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')['x','y'], neuron_id).to_numpy().T for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
     
     
     def curr_ratemap_spiketrains(self, t):
