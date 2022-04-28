@@ -185,13 +185,22 @@ class PfND_TimeDependent(PfND):
 
     def update(self, t):
         """ updates all variables to the latest versions """
-        self.minimal_update(t)
-        self.display_update(t)
+        if self.last_t > t:
+            print(f'WARNING: update(t: {t}) called with t < self.last_t ({self.last_t}! Skipping.')
+        else:
+            # Otherwise update to this t.
+            self.minimal_update(t)
+            self.display_update(t)
 
 
     def minimal_update(self, t):
         """ Updates the current_occupancy_map, curr_firing_maps_matrix
         # t: the "current time" for which to build the best possible placefields
+        
+        Updates:
+            self.curr_raw_occupancy_map
+            self.curr_firing_maps_matrix
+            self.last_t
         """
         # Post Initialization Update
         # t = self.last_t + 1 # add one second
@@ -202,6 +211,12 @@ class PfND_TimeDependent(PfND):
     def display_update(self, t):
         """ updates the extended variables:
         
+        Using:
+            self.position_srate
+            self.curr_raw_occupancy_map
+            self.curr_firing_maps_matrix
+            
+        Updates:
             self.curr_raw_smoothed_occupancy_map
             self.curr_smoothed_firing_maps_matrix
             self.curr_seconds_occupancy
