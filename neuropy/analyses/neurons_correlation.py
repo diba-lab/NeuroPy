@@ -24,7 +24,7 @@ def corr_across_time_window(neurons: core.Neurons, window=300, bin_size=0.25):
         pair_corr.append(
             neurons.time_slice(start, start + window)
             .get_binned_spiketrains(bin_size=bin_size)
-            .get_pairwise_corr(cross_shanks=False)
+            .get_pairwise_corr()
         )
     pair_corr = np.asarray(pair_corr).T
     corr_across_time = pd.DataFrame(pair_corr).corr()
