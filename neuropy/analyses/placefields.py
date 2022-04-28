@@ -658,7 +658,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     @property
     def included_neuron_IDs(self):
         """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
-        return self.filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs]    
+        return self._filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs]
     
     
     
