@@ -334,7 +334,7 @@ class NeuronEnsembles(core.DataWriter):
     def n_ensembles(self):
         return self.weights.shape[1]
 
-    def calculate_activation(self, t_start=None, t_stop=None, bin_size=0.250):
+    def get_activation(self, t_start=None, t_stop=None, bin_size=0.250):
 
         W = self.weights
         act_binspk = self.neurons.time_slice(t_start, t_stop).get_binned_spiketrains(
