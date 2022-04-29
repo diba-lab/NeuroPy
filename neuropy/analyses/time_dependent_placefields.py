@@ -175,7 +175,7 @@ class PfND_TimeDependent(PfND):
         # update the dataframe 'x','speed' and 'y' properties:
         # cell_df.loc[:, 'x'] = spk_x
         # cell_df.loc[:, 'speed'] = spk_spd
-        if (position.ndim > 1):
+        if (self.ndim > 1):
             self._filtered_spikes_df['y'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.y)
             if 'binned_y' not in self._filtered_spikes_df:
                 self._filtered_spikes_df['binned_y'] = pd.cut(self._filtered_spikes_df['y'].to_numpy(), bins=self.ybin, include_lowest=True, labels=self.ybin_labels)
@@ -199,17 +199,23 @@ class PfND_TimeDependent(PfND):
         self.curr_occupancy_weighted_tuning_maps_matrix = self.curr_firing_maps_matrix.copy()
 
 
+    def step(self, num_seconds_to_advance):
+        """ advance the computed time by a fixed number of seconds. """
+        next_t = self.last_t + num_seconds_to_advance # add one second
+        self.update(next_t)
+        return next_t
+    
     def update(self, t):
         """ updates all variables to the latest versions """
         if self.last_t > t:
             print(f'WARNING: update(t: {t}) called with t < self.last_t ({self.last_t}! Skipping.')
         else:
             # Otherwise update to this t.
-            self.minimal_update(t)
-            self.display_update(t)
+            self._minimal_update(t)
+            self._display_update(t)
 
 
-    def minimal_update(self, t):
+    def _minimal_update(self, t):
         """ Updates the current_occupancy_map, curr_firing_maps_matrix
         # t: the "current time" for which to build the best possible placefields
         
@@ -224,7 +230,7 @@ class PfND_TimeDependent(PfND):
         curr_t, self.curr_firing_maps_matrix = PfND_TimeDependent.update_firing_map(self.last_t, self.curr_firing_maps_matrix, t, self.all_time_filtered_spikes_df)
         self.last_t = curr_t
         
-    def display_update(self, t):
+    def _display_update(self, t):
         """ updates the extended variables:
         
         Using:
