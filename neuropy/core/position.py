@@ -3,16 +3,12 @@ from typing import Sequence, Union
 import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
 from pandas.core.indexing import IndexingError
-from neuropy.utils import mathutil
+# from neuropy.analyses.placefields import PfND # for _bin_pos_nD
+# from neuropy.analyses.placefields.PfND import _bin_pos_nD # for _bin_pos_nD
+
 import pandas as pd
-from scipy.ndimage import gaussian_filter1d
-
-
-
 from .epoch import Epoch
-from .signal import Signal
 from .datawriter import DataWriter
-from neuropy.utils.load_exported import import_mat_file 
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
@@ -229,6 +225,48 @@ class PositionComputedDataMixin:
         # smoothed_column_names = self.dim_smoothed_columns(non_smoothed_column_labels)
         self.df = PositionComputedDataMixin._perform_compute_smoothed_position_info(self.df, non_smoothed_column_labels, N=N)
         return self.df        
+    
+    
+    ## Binned Position Columns:
+    # def build_discretized_binned_positions(self, active_computation_config, xbin_values=None, ybin_values=None, debug_print=False):
+    #     """ Adds the 'binned_x' and 'binned_y' columns to the position dataframe """
+    #     if 'binned_x' not in self.df.columns:
+    #         self.df, xbin, ybin, bin_info = PositionComputedDataMixin.build_position_df_discretized_binned_positions(self.df, active_computation_config, xbin_values=xbin_values, ybin_values=ybin_values, debug_print=debug_print)
+    #     else:
+    #         print(f'build_discretized_binned_positions(...): binned_x column already exists on position dataframe. Skipping recomputation.')
+    
+    # @classmethod
+    # def build_position_df_discretized_binned_positions(cls, active_pos_df, active_computation_config, xbin_values=None, ybin_values=None, debug_print=False):
+    #     """ Adds the 'binned_x' and 'binned_y' columns to the position dataframe """
+
+    #     # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
+    #     if (xbin_values is None) or (ybin_values is None):
+    #         # determine the correct bins to use from active_computation_config.grid_bin:
+    #         if debug_print:
+    #             print(f'active_grid_bin: {active_computation_config.grid_bin}')
+                
+    #         if 'y' in active_pos_df.columns:
+    #             xbin, ybin, bin_info = _bin_pos_nD(active_pos_df['x'].values, active_pos_df['y'].values, bin_size=active_computation_config.grid_bin) # bin_size mode
+    #         else:
+    #             # 1D case:
+    #             xbin, ybin, bin_info = _bin_pos_nD(active_pos_df['x'].values, None, bin_size=active_computation_config.grid_bin) # bin_size mode
+    #     else:
+    #         # use the extant values passed in:
+    #         if debug_print:
+    #             print(f'using extant bins passed as arguments: xbin_values.shape: {xbin_values.shape}, ybin_values.shape: {ybin_values.shape}')
+    #         xbin = xbin_values
+    #         ybin = ybin_values
+    #         bin_info = None
+        
+    #     active_pos_df['binned_x'] = pd.cut(active_pos_df['x'].to_numpy(), bins=xbin, include_lowest=True, labels=np.arange(start=1, stop=len(xbin))) # same shape as the input data 
+    #     if 'y' in active_pos_df.columns:
+    #         # Only do the y-variables in the 2D case.
+    #         active_pos_df['binned_y'] = pd.cut(active_pos_df['y'].to_numpy(), bins=ybin, include_lowest=True, labels=np.arange(start=1, stop=len(ybin))) 
+    
+    #     return active_pos_df, xbin, ybin, bin_info
+
+
+    
     
     ## Linear Position Properties:
     @property
