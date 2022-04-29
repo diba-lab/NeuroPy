@@ -14,6 +14,23 @@ class PfND_TimeDependent(PfND):
         A version PfND that can return the current state of placefields considering only up to a certain period of time.
     
         Represents a collection of placefields at a given time over binned, N-dimensional space. 
+        
+        
+        from copy import deepcopy
+        from neuropy.analyses.time_dependent_placefields import PfND_TimeDependent
+        from neuropy.plotting.placemaps import plot_all_placefields
+
+        included_epochs = None
+        computation_config = active_session_computation_configs[0]
+        print('Recomputing active_epoch_placefields2D...', end=' ')
+        # PfND version:
+        t_list = []
+        ratemaps_list = []
+        active_time_dependent_placefields2D = PfND_TimeDependent(deepcopy(sess.spikes_df.copy()), deepcopy(sess.position), epochs=included_epochs,
+                                        speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+                                        grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+        print('\t done.')
+        # np.shape(active_time_dependent_placefields2D.curr_firing_maps_matrix) # (64, 64, 29)
     """
     
     
@@ -80,7 +97,14 @@ class PfND_TimeDependent(PfND):
         # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
         return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.all_time_filtered_spikes_df.spikes.time_variable_name], neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
     
-    
+
+    @property
+    def ratemap(self):
+        """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
+        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
+        # return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.filtered_spikes_df.spikes.neuron_ids, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids)
+
+
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
@@ -103,14 +127,7 @@ class PfND_TimeDependent(PfND):
         self.ndim = position.ndim
         
         self._included_thresh_neurons_indx = None
-        self._peak_frate_filter_function = None        
-        # self.ratemap = None
-        # self.ratemap_spiketrains = None
-        # self.ratemap_spiketrains_pos = None
-        # self.t = None
-        # self.x = None
-        # self.speed = None
-        # self.y = None
+        self._peak_frate_filter_function = None
         self._filtered_pos_df = None
         self._filtered_spikes_df = None
         self.xbin = None
@@ -121,8 +138,14 @@ class PfND_TimeDependent(PfND):
         
         # Perform the primary setup to build the placefield
         self.setup(position, spikes_df, epochs)
-        self._filtered_pos_df.dropna(axis=0, how='any', subset=['x','y','binned_x','binned_y'], inplace=True) # dropped NaN values
+        self._filtered_pos_df.dropna(axis=0, how='any', subset=[*self._position_variable_names], inplace=True) # dropped NaN values
         
+        if 'binned_x' in self._filtered_pos_df:
+            if (position.ndim > 1):
+                self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x', 'binned_y'], inplace=True) # dropped NaN values
+            else:
+                self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
+            
         self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
         self.ybin_labels = np.arange(start=1, stop=len(self.ybin))
 
@@ -149,13 +172,6 @@ class PfND_TimeDependent(PfND):
     
         self.setup_time_varying()
         
-
-    @property
-    def ratemap(self):
-        """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
-        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
-    
-        # return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.filtered_spikes_df.spikes.neuron_ids, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids)
 
 
     def setup_time_varying(self):
@@ -298,3 +314,37 @@ class PfND_TimeDependent(PfND):
 
 
 
+def perform_compute_time_dependent_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
+    """ Most general computation function. Computes both 1D and 2D time-dependent placefields.
+    active_epoch_session_Neurons: 
+    active_epoch_pos: a Position object
+    included_epochs: a Epoch object to filter with, only included epochs are included in the PF calculations
+    active_epoch_placefields1D (Pf1D, optional) & active_epoch_placefields2D (Pf2D, optional): allow you to pass already computed Pf1D and Pf2D objects from previous runs and it won't recompute them so long as should_force_recompute_placefields=False, which is useful in interactive Notebooks/scripts
+    Usage:
+        active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config, should_force_recompute_placefields=True)
+    """
+    ## Linearized (1D) Position Placefields:
+    if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
+        print('Recomputing active_epoch_placefields...', end=' ')
+        # PfND version:
+        active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
+                                        speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+                                        grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+
+        print('\t done.')
+    else:
+        print('active_epoch_placefields1D already exists, reusing it.')
+
+    ## 2D Position Placemaps:
+    if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
+        print('Recomputing active_epoch_placefields2D...', end=' ')
+        # PfND version:
+        active_epoch_placefields2D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
+                                        speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+                                        grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+
+        print('\t done.')
+    else:
+        print('active_epoch_placefields2D already exists, reusing it.')
+    
+    return active_epoch_placefields1D, active_epoch_placefields2D
