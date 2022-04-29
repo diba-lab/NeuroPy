@@ -6,24 +6,12 @@ from neuropy.analyses.placefields import PfND, PlacefieldComputationParameters
 from neuropy.core.epoch import Epoch
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
-
 from neuropy.analyses.placefields import _normalized_occupancy
-
-# time_dependent_placefields
-
-
-def safe_pandas_get_group(dataframe_group, key):
-    """ returns an empty dataframe if the key isn't found in the group."""
-    if key in dataframe_group.groups.keys():
-        return dataframe_group.get_group(key)
-    else:
-        original_df = dataframe_group.obj
-        return original_df.drop(original_df.index)
-    
-    
+from neuropy.utils.misc import safe_pandas_get_group
 
 class PfND_TimeDependent(PfND):
-    """A version PfND that can return the current state of placefields considering only up to a certain period of time.
+    """ Time Dependent N-dimensional Placefields
+        A version PfND that can return the current state of placefields considering only up to a certain period of time.
     
         Represents a collection of placefields at a given time over binned, N-dimensional space. 
     """
