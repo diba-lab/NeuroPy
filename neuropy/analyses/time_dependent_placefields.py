@@ -85,12 +85,23 @@ class PfND_TimeDependent(PfND):
         """ a list of spike positions for each cell. for compatibility with old plotting functions."""
         return self.curr_ratemap_spiketrains_pos(self.last_t)
     
+    @property
+    def _position_variable_names(self):
+        """The _position_variable_names property."""
+        if (self.ndim > 1):
+            return ['x', 'y']
+        else:
+            return ['x']
     
     def curr_ratemap_spiketrains_pos(self, t):
         """ gets the ratemap_spiketrains_pos variable at the time t """
-        # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID        
-        return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')['x','y'], neuron_id).to_numpy().T for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
-    
+        # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
+        
+        if (self.ndim > 1):
+            return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name, 'x', 'y']].groupby('aclu')['x', 'y'], neuron_id).to_numpy().T for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
+        else:
+            return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name, 'x']].groupby('aclu')['x'], neuron_id).to_numpy().T for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
+        
     
     def curr_ratemap_spiketrains(self, t):
         """ gets the ratemap_spiketrains variable at the time t """
@@ -327,10 +338,12 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
         print('Recomputing active_epoch_placefields...', end=' ')
         # PfND version:
-        active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
-                                        speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-                                        grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
-
+        # active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
+        #                                 speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+        #                                 grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+        
+        ## TODO: get 1D time-dependent placefields working.
+        active_epoch_placefields1D = None
         print('\t done.')
     else:
         print('active_epoch_placefields1D already exists, reusing it.')
