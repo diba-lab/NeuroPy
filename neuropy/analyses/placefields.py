@@ -1,19 +1,14 @@
 from copy import deepcopy
-from dataclasses import dataclass
 
-import ipywidgets as widgets
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
-from matplotlib.image import NonUniformImage
 import pandas as pd
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
-from neuropy.core.signal import Signal
 
 from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
@@ -24,7 +19,6 @@ from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefiel
 
 # from .. import core
 # import neuropy.core as core
-from neuropy.utils.signal_process import ThetaParams
 from .. import plotting
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 
