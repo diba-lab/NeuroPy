@@ -113,13 +113,15 @@ class Fig:
         axis_color="#545454",
         axis_lw=1.5,
         constrained_layout=True,
-        fontname="DejaVu Sans",
+        fontname="Arial",
         **kwargs,
     ):
 
         # --- plot settings --------
-        mpl.rcParams["font.family"] = "sans-serif"
-        mpl.rcParams["font.sans-serif"] = fontname
+        mpl.rcParams["font.family"] = fontname
+        # mpl.rcParams["font.sans-serif"] = "Arial"
+        mpl.rcParams["pdf.fonttype"] = 42
+        mpl.rcParams["ps.fonttype"] = 42
         mpl.rcParams["axes.linewidth"] = axis_lw
         mpl.rcParams["axes.labelsize"] = fontsize
         mpl.rcParams["axes.titlesize"] = fontsize
@@ -235,7 +237,7 @@ class Fig:
                 alpha=0.5,
             )
 
-        fig.savefig(filename, dpi=dpi)
+        fig.savefig(filename, dpi=dpi, backend="pdf")
 
         if caption is not None:
             fig_caption = Fig(grid=(1, 1))
