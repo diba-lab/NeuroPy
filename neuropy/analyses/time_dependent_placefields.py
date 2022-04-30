@@ -184,6 +184,9 @@ class PfND_TimeDependent(PfND):
         self.setup_time_varying()
         
 
+    def reset(self):
+        """ used to reset the calculations to an initial value. """
+        self.setup_time_varying()
 
     def setup_time_varying(self):
         # Initialize for the 0th timestamp:
@@ -211,8 +214,9 @@ class PfND_TimeDependent(PfND):
             print(f'WARNING: update(t: {t}) called with t < self.last_t ({self.last_t}! Skipping.')
         else:
             # Otherwise update to this t.
-            self._minimal_update(t)
-            self._display_update(t)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                self._minimal_update(t)
+                self._display_update(t)
 
 
     def _minimal_update(self, t):
@@ -289,10 +293,14 @@ class PfND_TimeDependent(PfND):
         for (xbin_label, ybin_label), count in current_bin_counts.iteritems():
             if debug_print:
                 print(f'xbin_label: {xbin_label}, ybin_label: {ybin_label}, count: {count}')
-            # last_occupancy_matrix[xbin_label-1, ybin_label-1] += count
-            # last_occupancy_matrix[xbin_label, ybin_label] += count
-            last_occupancy_matrix[xbin_label, ybin_label] += count
             
+            # last_occupancy_matrix[xbin_label, ybin_label] += count
+            try:
+                last_occupancy_matrix[xbin_label-1, ybin_label-1] += count
+                # last_occupancy_matrix[xbin_label, ybin_label] += count
+            except IndexError as e:
+                print(f'e: {e}\n active_current_pos_df: {np.shape(active_current_pos_df)}, current_bin_counts: {np.shape(current_bin_counts)}\n last_occupancy_matrix: {np.shape(last_occupancy_matrix)}\n count: {count}')
+                raise e
         return t, last_occupancy_matrix
 
     @classmethod
