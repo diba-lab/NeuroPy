@@ -631,6 +631,12 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def occupancy(self, value):
         self.ratemap.occupancy = value
     @property
+    def never_visited_occupancy_mask(self):
+        return self.ratemap.never_visited_occupancy_mask
+    @property
+    def nan_never_visited_occupancy(self):
+        return self.ratemap.nan_never_visited_occupancy
+    @property
     def neuron_extended_ids(self):
         """The neuron_extended_ids property."""
         return self.ratemap.neuron_extended_ids
