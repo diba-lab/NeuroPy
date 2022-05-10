@@ -88,6 +88,21 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         # return mathutil.min_max_scaler(self.tuning_curves)
         # return Ratemap.NormalizeData(self.tuning_curves)
 
+    # ---------------------- occupancy properties -------------------------
+    @property
+    def never_visited_occupancy_mask(self):
+        """ a boolean mask that's True everyhwere the animal has never visited according to self.occupancy, and False everyhwere else. """
+        return Ratemap.build_never_visited_mask(self.occupancy)
+    
+    
+    @property
+    def nan_never_visited_occupancy(self):
+        """ returns the self.occupancy after replacing all never visited locations, indicated by a zero occupancy, by NaNs for the purpose of building visualizations. """
+        return Ratemap.nan_never_visited_locations(self.occupancy)
+    
+
+
+    # ----------------------  Static Methods -------------------------:
     @staticmethod
     def nan_ptp(a, **kwargs):
         return np.ptp(a[np.isfinite(a)], **kwargs)
@@ -111,9 +126,6 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
             return x # just return the raw x-value, as it's empty and doesn't need scaling
 
 
-        
-    
-    
     @staticmethod    
     def NormalizeData(data):
         """ Simple alternative to the mathutil.min_max_scalar that doesn't produce so man NaN values. """
@@ -130,4 +142,18 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         elif isinstance(sortby, (list, np.ndarray)):
             sort_ind = sortby
         else:
-            sort_ind = np.arange(self.n_neurons) 
+            sort_ind = np.arange(self.n_neurons)
+            
+ 
+    @staticmethod           
+    def build_never_visited_mask(occupancy):
+        """ returns a mask of never visited locations for the provided occupancy """
+        return (occupancy == 0) # return locations with zero occupancy
+
+    @staticmethod
+    def nan_never_visited_locations(occupancy):
+        """ replaces all never visited locations, indicated by a zero occupancy, by NaNs for the purpose of building visualizations. """
+        nan_never_visited_occupancy = occupancy.copy()
+        nan_never_visited_occupancy[nan_never_visited_occupancy == 0] = np.nan # all locations with zeros, replace them with NaNs
+        return nan_never_visited_occupancy
+
