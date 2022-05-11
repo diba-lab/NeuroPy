@@ -109,7 +109,7 @@ class Fig:
         num=None,
         grid=(2, 2),
         size=(8.5, 11),
-        fontsize=8,
+        fontsize=7,
         axis_color="#545454",
         axis_lw=1.5,
         constrained_layout=True,
@@ -131,10 +131,10 @@ class Fig:
         mpl.rcParams["ytick.labelsize"] = fontsize
         mpl.rcParams["axes.spines.top"] = False
         mpl.rcParams["axes.spines.right"] = False
-        mpl.rcParams["xtick.major.width"] = 1.5
+        mpl.rcParams["xtick.major.width"] = axis_lw
         mpl.rcParams["xtick.color"] = axis_color
         mpl.rcParams["xtick.labelcolor"] = "k"
-        mpl.rcParams["ytick.major.width"] = 1.5
+        mpl.rcParams["ytick.major.width"] = axis_lw
         mpl.rcParams["ytick.color"] = axis_color
         mpl.rcParams["ytick.labelcolor"] = "k"
         mpl.rcParams["figure.constrained_layout.use"] = constrained_layout
