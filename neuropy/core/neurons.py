@@ -255,7 +255,7 @@ class Neurons(DataWriter):
         ).astype("float")
         if ignore_epochs is not None:
             ignore_bins = ignore_epochs.flatten()
-            ignore_indices = np.where(np.digitize(bins, ignore_bins) % 2 == 1)[0]
+            ignore_indices = np.digitize(bins, ignore_bins) % 2 == 1
             spike_counts[:, ignore_indices] = np.nan
 
         return BinnedSpiketrain(
@@ -456,8 +456,8 @@ class BinnedSpiketrain(DataWriter):
     def time(self):
         return np.arange(self.n_bins) * self.bin_size + self.t_start
 
-    def _ignore_indices_bool(self):
-        return ~np.isnan(self.spike_counts).any(axis=0)
+    def _get_nan_bins(self):
+        return np.isnan(self.spike_counts).any(axis=0)
 
     def get_pairwise_corr(self, pairs_bool=None, return_pair_id=False):
         """Pairwise correlation between pairs of binned of spiketrains
@@ -476,7 +476,7 @@ class BinnedSpiketrain(DataWriter):
         """
 
         assert self.n_neurons > 1, "Should have more than 1 neuron"
-        corr = np.corrcoef(self.spike_counts[:, self._ignore_indices_bool()])
+        corr = np.corrcoef(self.spike_counts[:, ~self._get_nan_bins()])
 
         if pairs_bool is not None:
             assert (
