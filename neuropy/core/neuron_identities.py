@@ -149,6 +149,22 @@ class NeuronIdentityAccessingMixin:
         
         provides functions to map between unique cell_identifiers (cell_ids) and implementor specific indicies (cell_IDXs)
     
+        NOTE: 
+            Based on how the neuron_IDXs are treated in self.get_neuron_id_and_idx(...), they are constrained to be:
+                1. Monotonically increasing from 0 to (len(self.neuron_ids)-1)
+                
+                Note that if an implementor violates this definition, for example if they filtered out or excluded some of the neurons and so were left with
+                
+                fewer self.neuron_ids than were had when the self.neuron_IDXs were first built, then there can potentially be:
+                    1. Indicies missing from the neuronIDXs (corresponding to the filtered out neuron_ids)
+                    2. Too many indicies present in neuronIDXs (with the extras corresponding to the neuron_ids that were removed after the IDXs were built).
+                    3. **IMPORTANT**: Values of neuronIDXs that are too large and would cause index out of bound errors when trying to get the corresponding to neuron_id value.
+                    4. **CRITICAL**: VALUE SHIFTED reverse lookups! If any neuronIDX is removed with its corresponding neuron_id, it will cause all the neuron_IDXs after it to be 1 value too large and throw off reverse lookups. This is what's happening with the placefields/spikes getting shifted!
+    
+    
+    CONCLUSIONS:
+        Implementor must be sure to keep self.neuron_ids up-to-date with any other list of neuron_ids it might use (like the 'aclu' values from the spikes_df) AND be sure to not hold references to (or keep them up-to-date) the neuron_IDXs. Any time IDXs are used (such as those retrieved from the spikes_df's unit_IDX column) they must be up-to-date to be referenced.
+        
     """
     @property
     def neuron_ids(self):
