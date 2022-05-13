@@ -503,7 +503,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
             # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
-            cell_idx = curr_included_unit_index
+            neuron_IDX = curr_included_unit_index
             pfmap = active_maps[a_linear_index]
             # Get the axis to plot on:
             if grid_layout_mode == 'gridspec':
@@ -514,11 +514,11 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                 curr_ax = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
             
             # Plot the main heatmap for this pfmap:
-            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
+            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
             
             if enable_spike_overlay:
-                spike_overlay_points = curr_ax.plot(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')                
-                spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
+                spike_overlay_points = curr_ax.plot(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')                
+                spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
             
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
             # cbar = fig.colorbar(im, cax=cbar_ax)

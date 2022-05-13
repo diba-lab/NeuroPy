@@ -147,7 +147,7 @@ class NeuronIdentityAccessingMixin:
     """ 
         Requires implementor overrides the neuron_ids property to provide an ordered list of unique cell identifiers (such as the 'aclu' values from a spikes_df)
         
-        provides functions to map between unique cell_identifiers (cell_ids) and implementor specific indicies (cell_IDXs)
+        provides functions to map between unique cell_identifiers (cell_ids) and implementor specific indicies (neuron_IDXs)
     
         NOTE: 
             Based on how the neuron_IDXs are treated in self.get_neuron_id_and_idx(...), they are constrained to be:
@@ -192,16 +192,16 @@ class NeuronIdentityAccessingMixin:
         # print(f'cell_i: {cell_i}, cell_id: {cell_id}')
         return neuron_i, neuron_id
 
-    def find_cell_ids_from_cell_IDXs(self, cell_IDXs):
+    def find_cell_ids_from_neuron_IDXs(self, neuron_IDXs):
         """Finds the cell original IDs from the cell IDXs (not IDs)
         Args:
-            cell_IDXs ([type]): [description]
+            neuron_IDXs ([type]): [description]
         """
-        found_cell_ids = [self.get_neuron_id_and_idx(neuron_i=an_included_cell_IDX)[1] for an_included_cell_IDX in cell_IDXs] # get the ids from the cell IDXs
+        found_cell_ids = [self.get_neuron_id_and_idx(neuron_i=an_included_neuron_IDX)[1] for an_included_neuron_IDX in neuron_IDXs] # get the ids from the cell IDXs
         return found_cell_ids
     
     
-    def find_cell_IDXs_from_cell_ids(self, cell_ids):
+    def find_neuron_IDXs_from_cell_ids(self, cell_ids):
         """Finds the cell IDXs (not IDs) from the cell original IDs (cell_ids)
         Args:
             cell_ids ([type]): [description]
