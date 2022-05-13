@@ -30,10 +30,10 @@ def debug_print_spike_counts(session):
     print('active_epoch_session.spikes_df unique aclu values: {}'.format(uniques))
     print('active_epoch_session.spikes_df unique aclu value counts: {}'.format(count_arr))
     print(len(uniques)) # 69 
-    uniques, indicies, inverse_indicies, count_arr = np.unique(session.spikes_df['unit_id'].values, return_index=True, return_inverse=True, return_counts=True)
-    # count_arr = np.bincount(active_epoch_session.spikes_df['unit_id'].values)
-    print('active_epoch_session.spikes_df unique unit_id values: {}'.format(uniques))
-    print('active_epoch_session.spikes_df unique unit_id value counts: {}'.format(count_arr))
+    uniques, indicies, inverse_indicies, count_arr = np.unique(session.spikes_df['fragile_linear_neuron_IDX'].values, return_index=True, return_inverse=True, return_counts=True)
+    # count_arr = np.bincount(active_epoch_session.spikes_df['fragile_linear_neuron_IDX'].values)
+    print('active_epoch_session.spikes_df unique fragile_linear_neuron_IDX values: {}'.format(uniques))
+    print('active_epoch_session.spikes_df unique fragile_linear_neuron_IDX value counts: {}'.format(count_arr))
     print(len(uniques)) # 69 
     
     

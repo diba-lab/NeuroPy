@@ -783,12 +783,12 @@ class DataSessionLoader:
             neuron_type=cell_type,
             shank_ids=shank_ids
         )
-        ## Ensure we have the 'unit_id' field, and if not, compute it        
+        ## Ensure we have the 'fragile_linear_neuron_IDX' field, and if not, compute it        
         try:
-            test = spikes_df['unit_id']
+            test = spikes_df['fragile_linear_neuron_IDX']
         except KeyError as e:
-            # build the valid key for unit_id:
-            spikes_df['unit_id'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
+            # build the valid key for fragile_linear_neuron_IDX:
+            spikes_df['fragile_linear_neuron_IDX'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
 
 
 

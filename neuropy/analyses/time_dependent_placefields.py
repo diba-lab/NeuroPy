@@ -160,10 +160,10 @@ class PfND_TimeDependent(PfND):
         self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
         self.ybin_labels = np.arange(start=1, stop=len(self.ybin))
 
-        self.unit_ids = np.unique(self._filtered_spikes_df.unit_id) # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
-        self.n_unit_ids = len(self.unit_ids)
+        self.fragile_linear_neuron_IDXs = np.unique(self._filtered_spikes_df.fragile_linear_neuron_IDX) # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
+        self.n_fragile_linear_neuron_IDXs = len(self.fragile_linear_neuron_IDXs)
 
-        self._included_thresh_neurons_indx = np.arange(self.n_unit_ids)
+        self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
         # TODO: is the filter function part needed? I don't think I ever do this sort of filtering in the time varying class:
         self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria
         
@@ -192,7 +192,7 @@ class PfND_TimeDependent(PfND):
         # Initialize for the 0th timestamp:
         n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
         n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
-        self.curr_firing_maps_matrix = np.zeros((self.n_unit_ids, n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
+        self.curr_firing_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
         self.curr_smoothed_firing_maps_matrix = None
         self.curr_raw_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
         self.curr_raw_smoothed_occupancy_map = None
@@ -312,14 +312,14 @@ class PfND_TimeDependent(PfND):
         active_current_spike_df = active_spike_df.spikes.time_sliced(last_t, t)
         
         # Compute the updated counts:
-        current_spike_per_unit_per_bin_counts = active_current_spike_df.value_counts(subset=['unit_id', 'binned_x', 'binned_y'], normalize=False, sort=False, ascending=True, dropna=True) # dropna=True
+        current_spike_per_unit_per_bin_counts = active_current_spike_df.value_counts(subset=['fragile_linear_neuron_IDX', 'binned_x', 'binned_y'], normalize=False, sort=False, ascending=True, dropna=True) # dropna=True
         
         if debug_print:
             print(f'np.shape(current_spike_per_unit_per_bin_counts): {np.shape(current_spike_per_unit_per_bin_counts)}') # (247,)
-        for (unit_id, xbin_label, ybin_label), count in current_spike_per_unit_per_bin_counts.iteritems():
+        for (fragile_linear_neuron_IDX, xbin_label, ybin_label), count in current_spike_per_unit_per_bin_counts.iteritems():
             if debug_print:
-                print(f'unit_id: {unit_id}, xbin_label: {xbin_label}, ybin_label: {ybin_label}, count: {count}')
-            last_firing_maps_matrix[unit_id, xbin_label-1, ybin_label-1] += count
+                print(f'fragile_linear_neuron_IDX: {fragile_linear_neuron_IDX}, xbin_label: {xbin_label}, ybin_label: {ybin_label}, count: {count}')
+            last_firing_maps_matrix[fragile_linear_neuron_IDX, xbin_label-1, ybin_label-1] += count
 
         return t, last_firing_maps_matrix
 
