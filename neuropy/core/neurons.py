@@ -542,12 +542,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             neuron_type=cell_type,
             shank_ids=shank_ids
         )
-        ## Ensure we have the 'unit_id' field, and if not, compute it        
-        # try:
-        #     test = sess.flattened_spiketrains.spikes_df['unit_id']
-        # except KeyError as e:
-        #     # build the valid key for unit_id:
-        #     sess.flattened_spiketrains.spikes_df['unit_id'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
         return out_neurons
                        
 
