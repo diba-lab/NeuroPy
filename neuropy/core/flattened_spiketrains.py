@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import Sequence, Union
 import numpy as np
 import pandas as pd
@@ -103,6 +104,60 @@ class SpikesAccessor(TimeSlicedMixin):
             curr_series_differences = curr_df[spike_timestamp_column_name].diff() # These are the ISIs
             #set the properties for the points in question:
             self._obj.loc[curr_df.index,'scISI'] = curr_series_differences
+
+
+    def rebuild_fragile_linear_neuron_IDXs(self, debug_print=False):
+        """ Rebuilds the 'fragile_linear_neuron_IDX' and 'neuron_IDX' columns from the complete list of 'aclu' values in the current spike dataframe so that they're monotonic and without gaps. Ensures that all the fragile_linear_neuron_IDXs are valid after removing neurons or filtering cells.
+        
+        History:
+            Refactored from a static function in SpikeRenderingBaseMixin.
+    
+                
+        Called by helper_setup_neuron_colors_and_order(...)
+        
+        # Created/Updated Columns:
+            'old_fragile_linear_neuron_IDX'
+            'fragile_linear_neuron_IDX'
+            'neuron_IDX'
+            
+        """
+        new_neuron_IDXs = np.arange(self.n_neurons)
+        neuron_id_to_new_IDX_map = OrderedDict(zip(self.neuron_ids, new_neuron_IDXs)) # provides the new_IDX corresponding to any neuron_id (aclu value)
+        return self._overwrite_invalid_fragile_linear_neuron_IDXs(neuron_id_to_new_IDX_map, debug_print=debug_print), neuron_id_to_new_IDX_map
+
+    # This is a stupid way of preserving this functionality, but it was brought in from another class:
+    def _overwrite_invalid_fragile_linear_neuron_IDXs(self, neuron_id_to_new_IDX_map, debug_print=False):
+        """ A helper function that allows passing in a custom neuron_id_to_new_IDX_map OrderedDict to provide the mapping.
+        
+        Inputs:
+            neuron_id_to_new_IDX_map: an OrderedDict from neuron_ids (aclu values) to a monotonically ascending sequence with no gaps.
+        History:
+            Refactored from a static function in SpikeRenderingBaseMixin.
+        
+        Called only by rebuild_fragile_linear_neuron_IDXs()
+        
+        # Created/Updated Columns:
+            'old_fragile_linear_neuron_IDX'
+            'fragile_linear_neuron_IDX'
+            'neuron_IDX'
+        
+        """
+        if debug_print:
+            print("WARNING: Overwriting spikes_df's 'fragile_linear_neuron_IDX' and 'neuron_IDX' columns!")
+        self._obj['old_fragile_linear_neuron_IDX'] = self._obj['fragile_linear_neuron_IDX'].copy()
+        included_cell_INDEXES = np.array([neuron_id_to_new_IDX_map[an_included_cell_ID] for an_included_cell_ID in self._obj['aclu'].to_numpy()], dtype=int) # get the indexes from the cellIDs
+        if debug_print:
+            print('\t computed included_cell_INDEXES.')
+        self._obj['fragile_linear_neuron_IDX'] = included_cell_INDEXES.copy()
+        if debug_print:
+            print("\t set self._obj['fragile_linear_neuron_IDX']")
+        self._obj['neuron_IDX'] = self._obj['fragile_linear_neuron_IDX'].copy()
+        
+        if debug_print:
+            print("\t set self._obj['neuron_IDX']")
+            print("\t done updating 'fragile_linear_neuron_IDX' and 'neuron_IDX'.")
+        return self._obj
+        
 
 
 # class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
