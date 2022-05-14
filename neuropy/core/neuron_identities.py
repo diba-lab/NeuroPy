@@ -153,9 +153,7 @@ class NeuronIdentityAccessingMixin:
             Based on how the neuron_IDXs are treated in self.get_neuron_id_and_idx(...), they are constrained to be:
                 1. Monotonically increasing from 0 to (len(self.neuron_ids)-1)
                 
-                Note that if an implementor violates this definition, for example if they filtered out or excluded some of the neurons and so were left with
-                
-                fewer self.neuron_ids than were had when the self.neuron_IDXs were first built, then there can potentially be:
+                Note that if an implementor violates this definition, for example if they filtered out or excluded some of the neurons and so were left with fewer self.neuron_ids than were had when the self.neuron_IDXs were first built, then there can potentially be:
                     1. Indicies missing from the neuronIDXs (corresponding to the filtered out neuron_ids)
                     2. Too many indicies present in neuronIDXs (with the extras corresponding to the neuron_ids that were removed after the IDXs were built).
                     3. **IMPORTANT**: Values of neuronIDXs that are too large and would cause index out of bound errors when trying to get the corresponding to neuron_id value.
