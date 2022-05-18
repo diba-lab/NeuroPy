@@ -142,7 +142,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
                 neuron_ids = [neuron_ids] # if it's a single element, wrap it in a list.
             self._neuron_ids = np.array([int(cell_id) for cell_id in neuron_ids]) # ensures integer indexes for IDs
             
-        self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(self.neuron_ids)
+        self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(self._neuron_ids.copy())
         
         if waveforms is not None:
             assert (
@@ -264,6 +264,8 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             spktrn[(spktrn > t_start) & (spktrn < t_stop)]
             for spktrn in neurons.spiketrains
         ]
+        
+        
         return Neurons(
             spiketrains=spiketrains,
             t_stop=t_stop,

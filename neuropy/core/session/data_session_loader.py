@@ -790,8 +790,6 @@ class DataSessionLoader:
             # build the valid key for fragile_linear_neuron_IDX:
             spikes_df['fragile_linear_neuron_IDX'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
 
-
-
         return session
 
 
