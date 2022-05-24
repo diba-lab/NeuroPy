@@ -350,7 +350,7 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
     """
     ## Linearized (1D) Position Placefields:
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields...', end=' ')
+        print('Recomputing active_epoch_time_dependent_placefields...', end=' ')
         # PfND version:
         # active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
         #                                 speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
@@ -364,7 +364,7 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
 
     ## 2D Position Placemaps:
     if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields2D...', end=' ')
+        print('Recomputing active_epoch_time_dependent_placefields2D...', end=' ')
         # PfND version:
         active_epoch_placefields2D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
                                         speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
