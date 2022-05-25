@@ -111,7 +111,7 @@ class Fig:
         size=(8.5, 11),
         fontsize=7,
         axis_color="#545454",
-        axis_lw=1.5,
+        axis_lw=1.2,
         constrained_layout=True,
         fontname="Arial",
         **kwargs,
@@ -158,6 +158,7 @@ class Fig:
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
         gs = gridspec.GridSpec(grid[0], grid[1], figure=fig)
+
         # fig.subplots_adjust(**kwargs)
 
         self.fig = fig
@@ -264,10 +265,10 @@ class Fig:
         ax.tick_params("y", length=0)
 
     @staticmethod
-    def remove_spines(ax, sides=("top", "right")):
+    def toggle_spines(ax, sides=("top", "right"), keep=False):
 
         for side in sides:
-            ax.spines[side].set_visible(False)
+            ax.spines[side].set_visible(keep)
 
     @staticmethod
     def set_spines_width(ax, lw=2, sides=("bottom", "left")):

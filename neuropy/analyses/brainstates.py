@@ -104,7 +104,7 @@ def correlation_emg(
     x, y = probe_df.x.values.astype("float"), probe_df.y.values.astype("float")
     squared_diff = lambda arr: (arr[:, np.newaxis] - arr[np.newaxis, :]) ** 2
     distance = np.sqrt(squared_diff(x) + squared_diff(y))
-    distance_bool = distance > 150
+    distance_bool = distance > 0
 
     timepoints = np.arange(t_start, t_stop - window, window - overlap)
 

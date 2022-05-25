@@ -255,7 +255,7 @@ class Neurons(DataWriter):
         ).astype("float")
         if ignore_epochs is not None:
             ignore_bins = ignore_epochs.flatten()
-            ignore_indices = np.digitize(bins, ignore_bins) % 2 == 1
+            ignore_indices = np.digitize(bins[:-1], ignore_bins) % 2 == 1
             spike_counts[:, ignore_indices] = np.nan
 
         return BinnedSpiketrain(

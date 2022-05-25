@@ -219,6 +219,7 @@ class Decode1d:
             ).spike_counts
 
             self.posterior = self._decoder(spkcount, tuning_curves)
+            # self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
             self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
             self.score = None
 

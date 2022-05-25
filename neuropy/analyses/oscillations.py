@@ -142,7 +142,7 @@ def detect_hpc_slow_wave_epochs(
         delta = signal_process.filter_sig.bandpass(trace, lf=lf, hf=hf)
 
         # ---- normalize and flip the sign to be consistent with cortical lfp ----
-        delta = -1 * stats.zscore(delta)
+        delta = 1 * stats.zscore(delta)
 
         # ---- finding peaks and trough for delta oscillations
 
