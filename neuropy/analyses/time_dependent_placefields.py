@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import OrderedDict
 import pandas as pd
 import numpy as np
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
@@ -200,6 +201,7 @@ class PfND_TimeDependent(PfND):
         self.curr_seconds_occupancy = self.curr_raw_occupancy_map.copy()
         self.curr_normalized_occupancy = self.curr_raw_occupancy_map.copy()
         self.curr_occupancy_weighted_tuning_maps_matrix = self.curr_firing_maps_matrix.copy()
+        self.historical_snapshots = OrderedDict({})
 
 
     def step(self, num_seconds_to_advance):
@@ -262,7 +264,20 @@ class PfND_TimeDependent(PfND):
         else:
             self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_raw_occupancy_map, position_srate=self.position_srate)
             self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_firing_maps_matrix)
-        
+    
+    def snapshot(self):
+        """ takes a snapshot of the current values at this time."""    
+        # Add this entry to the historical snapshot dict:        
+        self.historical_snapshots[self.last_t] = {
+            'firing_maps_matrix':self.curr_firing_maps_matrix.copy(),
+            'smoothed_firing_maps_matrix':self.curr_smoothed_firing_maps_matrix.copy(),
+            'raw_occupancy_map':self.curr_raw_occupancy_map.copy(),
+            'raw_smoothed_occupancy_map':self.curr_raw_smoothed_occupancy_map.copy(),
+            'seconds_occupancy':self.curr_seconds_occupancy.copy(),
+            'normalized_occupancy':self.curr_normalized_occupancy.copy(),
+            'occupancy_weighted_tuning_maps_matrix':self.curr_occupancy_weighted_tuning_maps_matrix.copy()
+        }
+    
     
     @classmethod
     def update_occupancy_map(cls, last_t, last_occupancy_matrix, t, active_pos_df, debug_print=False):
