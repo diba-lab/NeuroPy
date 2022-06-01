@@ -413,6 +413,7 @@ class DataSessionLoader:
 
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
+        assert len(xml_files) > 0, "Missing required .xml file!"
         assert len(xml_files) == 1, "Found more than one .xml file"
 
         fp = xml_files[0].with_suffix("")
