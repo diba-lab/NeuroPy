@@ -105,10 +105,16 @@ class BinarysignalIO:
         epochs_frames = (epochs.as_array() * self.sampling_rate).astype("int")
         frames = np.concatenate([np.arange(*e) for e in epochs_frames])
 
+        if isinstance(channel_indx, int):
+            channel_indx = [channel_indx]
+
         if ret_time:
-            return self._raw_traces[channel_indx, frames], frames / self.sampling_rate
+            return (
+                self._raw_traces[np.ix_(channel_indx, frames)],
+                frames / self.sampling_rate,
+            )
         else:
-            return self._raw_traces[channel_indx, frames]
+            return self._raw_traces[np.ix_(channel_indx, frames)]
 
     def write_time_slice(self, write_filename, t_start, t_stop):
 

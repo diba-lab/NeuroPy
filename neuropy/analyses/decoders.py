@@ -3,7 +3,8 @@ import numpy as np
 from joblib import Parallel, delayed
 from scipy import stats
 from tqdm import tqdm
-
+from typing import Union
+from numpy.typing import NDArray
 from .. import core
 from .. import plotting
 
@@ -107,17 +108,16 @@ def wcorr(arr):
 
 
 class Decode1d:
-    n_jobs = 8
-
     def __init__(
         self,
         neurons: core.Neurons,
         ratemap: core.Ratemap,
-        epochs: core.Epoch = None,
+        epochs: Union[core.Epoch, None] = None,
         bin_size=0.5,
         slideby=None,
         score_method="wcorr",
         radon_kw=dict(nlines=5000, decode_margin=15),
+        n_jobs=1,
     ):
         """1D decoding using ratemaps
 
@@ -148,9 +148,10 @@ class Decode1d:
         self.epochs = epochs
         self.slideby = slideby
         self.score = None
-        self.shuffle_score = None
+        self.shuffle_score: Union[NDArray, None] = None
         self.score_method = score_method
         self.radon_kw = radon_kw
+        self.n_jobs = n_jobs
 
         # Only available when using 'radon_transform'
         self.velocity = None
@@ -207,9 +208,10 @@ class Decode1d:
             self.posterior = np.hsplit(posterior, cum_nbins)
             self.spkcount = spkcount
             self.nbins_epochs = nbins
-            self.score, self.velocity, self.intercept = self._score_posterior(
-                self.posterior
-            )
+            score_results = self._score_posterior(self.posterior)
+            self.score = score_results[0]
+            if score_results.ndim == 3:
+                self.velocity, self.intercept = score_results[1:, :]
 
         else:
             spkcount = self.neurons.get_binned_spiketrains(
@@ -217,6 +219,7 @@ class Decode1d:
             ).spike_counts
 
             self.posterior = self._decoder(spkcount, tuning_curves)
+            # self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
             self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
             self.score = None
 
@@ -224,16 +227,14 @@ class Decode1d:
         """Shuffling and decoding epochs"""
 
         cum_nbins = np.cumsum(self.nbins_epochs)[:-1]
+        score = np.zeros((n_iter, len(self.spkcount)))
         spkcount = np.hstack(self.spkcount)
-
         if method == "neuron_id":
-            score = []
             for i in tqdm(range(n_iter)):
                 shuffled_tc = self.ratemap.tuning_curves.copy()
                 np.random.default_rng().shuffle(shuffled_tc)
                 post_ = self._decoder(spkcount, shuffled_tc)
-                score.append(self._score_posterior(np.hsplit(post_, cum_nbins))[0])
-            score = np.asarray(score)
+                score[i] = self._score_posterior(np.hsplit(post_, cum_nbins))[0]
 
         if method == "time_bin":
 
@@ -245,10 +246,10 @@ class Decode1d:
                 mat = np.array([np.roll(mat[:, i], sh) for i, sh in enumerate(shift)])
                 return mat.T
 
-            score = []
             for i in tqdm(range(n_iter)):
                 evt_shuff = [col_shuffle(arr) for arr in self.posterior]
-                score.append(self._score_events(evt_shuff)[0])
+                score[i] = self._score_posterior(evt_shuff)[0]
+
         if method == "position_bin":
             pass
 
@@ -256,14 +257,13 @@ class Decode1d:
             tc = self.ratemap.tuning_curves.copy()
             rng = np.random.default_rng()
             n_bins = tc.shape[1]
-            score = []
+
             for i in tqdm(range(n_iter)):
                 shuffled_tc = np.array(
                     [np.roll(_, rng.integers(-n_bins, n_bins)) for _ in tc]
                 )
                 post_ = self._decoder(spkcount, shuffled_tc)
-                score.append(self._score_posterior(np.hsplit(post_, cum_nbins))[0])
-            score = np.asarray(score)
+                score[i] = self._score_posterior(np.hsplit(post_, cum_nbins))[0]
 
         self.shuffle_score = score
 
@@ -288,11 +288,11 @@ class Decode1d:
             )
             score, velocity, intercept = np.asarray(results).T
 
-            return score, velocity, intercept
+            return np.array((score, velocity, intercept))
 
         elif method == "wcorr":
-            score = np.asarray([wcorr(_) for _ in p])
-            return score, None, None
+            score = Parallel(n_jobs=self.n_jobs)(delayed(wcorr)(_) for _ in p)
+            return np.array(score)[np.newaxis, :]
         else:
             print("score method not understood")
 
@@ -322,7 +322,12 @@ class Decode1d:
 
     @property
     def sequence_score(self):
-        pass
+        if self.score_method == "wcorr":
+            abs_score = np.abs(self.score)
+            abs_shuffle_score = np.abs(self.shuffle_score)
+            mean_shuffle_score = abs_shuffle_score.mean(axis=0)
+            std_shuffle_score = abs_shuffle_score.std(axis=0)
+            return (abs_score - mean_shuffle_score) / std_shuffle_score
 
     def plot_summary(self, **kwargs):
         if self.score_method == "radon_transform":

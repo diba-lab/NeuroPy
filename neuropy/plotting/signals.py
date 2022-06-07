@@ -97,8 +97,6 @@ def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1):
     if ax is None:
         _, ax = plt.subplots(1, 1)
 
-    ax.clear()
-
     try:
         cmap = mpl.cm.get_cmap(color)
         colors = [cmap(_ / n_channels) for _ in range(n_channels)]

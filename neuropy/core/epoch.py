@@ -101,12 +101,24 @@ class Epoch(DataWriter):
     def __len__(self):
         return self.n_epochs
 
-    def time_slice(self, t_start, t_stop):
-        # TODO time_slice should also include partial epochs
-        # falling in between the timepoints
-        df = self.to_dataframe()
-        df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
-        return Epoch(df)
+    def time_slice(self, t_start, t_stop, strict=True):
+        t_start, t_stop = super()._time_slice_params(t_start, t_stop)
+        starts = self.starts
+        stops = self.stops
+
+        if strict:
+            keep = (starts >= t_start) & (stops <= t_stop)  # strictly inside
+            epoch_df = self.to_dataframe()[keep].reset_index(drop=True)
+            epoch_df = epoch_df.drop(["duration"], axis=1)
+        else:
+            # also include and trim epochs: that span the entire range, epochs that start before but end inside, epochs that start inside but end outside
+            keep = (starts <= t_stop) & (stops >= t_start)
+            epoch_df = self.to_dataframe()[keep].reset_index(drop=True)
+            epoch_df = epoch_df.drop(["duration"], axis=1)
+            epoch_df[epoch_df["start"] < t_start] = t_start
+            epoch_df[epoch_df["stop"] > t_stop] = t_stop
+
+        return Epoch(epoch_df)
 
     def duration_slice(self, min_dur=None, max_dur=None):
         """return epochs that have durations between given thresholds

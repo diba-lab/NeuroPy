@@ -361,3 +361,34 @@ def eventpsth(ref, event, fs, quantparam=None, binsize=0.01, window=1, nQuantile
     )
 
     return ccg[:-1, -1, :]
+
+
+def gini(arr, eps=1e-8):
+    """
+    Calculate the Gini coefficient of a numpy array.
+
+    Source: PyGini
+    https://github.com/mckib2/pygini/blob/master/pygini/gini.py
+
+    -----
+    Based on bottom eq on [2]_.
+    References
+    ----------
+    .. [2]_ http://www.statsdirect.com/help/
+            default.htm#nonparametric_methods/gini.htm
+    """
+
+    # All values are treated equally, arrays must be 1d and > 0:
+    arr = np.abs(arr).flatten() + eps
+
+    # Values must be sorted:
+    arr = np.sort(arr)
+
+    # Index per array element:
+    index = np.arange(1, arr.shape[0] + 1)
+
+    # Number of array elements:
+    N = arr.shape[0]
+
+    # Gini coefficient:
+    return (np.sum((2 * index - N - 1) * arr)) / (N * np.sum(arr))

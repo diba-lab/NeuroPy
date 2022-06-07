@@ -136,12 +136,9 @@ class Neurons(DataWriter):
 
     def time_slice(self, t_start=None, t_stop=None):
 
-        t_start, t_stop = self._time_check(t_start, t_stop)
+        t_start, t_stop = super()._time_slice_params(t_start, t_stop)
         neurons = deepcopy(self)
-        spiketrains = [
-            spktrn[(spktrn > t_start) & (spktrn < t_stop)]
-            for spktrn in neurons.spiketrains
-        ]
+        spiketrains = [t[(t >= t_start) & (t <= t_stop)] for t in neurons.spiketrains]
 
         return Neurons(
             spiketrains=spiketrains,
@@ -177,15 +174,6 @@ class Neurons(DataWriter):
         #         self.instfiring,
         #     ]
         # )
-
-    def _time_check(self, t_start, t_stop):
-        if t_start is None:
-            t_start = self.t_start
-
-        if t_stop is None:
-            t_stop = self.t_stop
-
-        return t_start, t_stop
 
     def __str__(self) -> str:
         return f"# neurons = {self.n_neurons}"
@@ -267,7 +255,7 @@ class Neurons(DataWriter):
         ).astype("float")
         if ignore_epochs is not None:
             ignore_bins = ignore_epochs.flatten()
-            ignore_indices = np.where(np.digitize(bins, ignore_bins) % 2 == 1)[0]
+            ignore_indices = np.digitize(bins[:-1], ignore_bins) % 2 == 1
             spike_counts[:, ignore_indices] = np.nan
 
         return BinnedSpiketrain(
@@ -468,8 +456,8 @@ class BinnedSpiketrain(DataWriter):
     def time(self):
         return np.arange(self.n_bins) * self.bin_size + self.t_start
 
-    def _ignore_indices_bool(self):
-        return ~np.isnan(self.spike_counts).any(axis=0)
+    def _get_nan_bins(self):
+        return np.isnan(self.spike_counts).any(axis=0)
 
     def get_pairwise_corr(self, pairs_bool=None, return_pair_id=False):
         """Pairwise correlation between pairs of binned of spiketrains
@@ -488,7 +476,7 @@ class BinnedSpiketrain(DataWriter):
         """
 
         assert self.n_neurons > 1, "Should have more than 1 neuron"
-        corr = np.corrcoef(self.spike_counts[:, self._ignore_indices_bool()])
+        corr = np.corrcoef(self.spike_counts[:, ~self._get_nan_bins()])
 
         if pairs_bool is not None:
             assert (
