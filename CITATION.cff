@@ -1,4 +1,4 @@
-cff-version: 1.1.0
+cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
   - family-names: "Giri"
@@ -10,6 +10,8 @@ authors:
   - family-names: "Hale"
     given-names: "Pho"
     orcid: "https://orcid.org/0000-0001-5061-2089"
-title: CommanderPho/NeuroPy: 0.0.3
-version: Zenodo
+title: "NeuroPy"
+version: 0.0.3
+doi: 10.5281/zenodo.6647462
 date-released: 2022-06-15
+url: "https://github.com/CommanderPho/NeuroPy"
