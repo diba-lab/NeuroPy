@@ -1,4 +1,4 @@
-# NeuroPy
+# NeuroPy [![DOI](https://zenodo.org/badge/426124562.svg)](https://zenodo.org/badge/latestdoi/426124562)
 Package for analyzing ephys data using python.
 
 ### Overview
@@ -34,14 +34,16 @@ plotting.plot_raster(neurons,color = 'jet')
 ![Example Image](images/raster.png)
 
 ### Citing this package
-If you use NeuroPy in your research, please consider citing it.
-
+If you use NeuroPy in your research, please consider citing as
 ```
-@misc{neuropy2021,
-    author       = {Bapun Giri, Nat Kinsky, Pho Hale},
-    title        = {{NeuroPy: Electrophysiology analysis using Python}},
-    year         = 2020--2021,
-    version      = {0.0.1},
-    url          = {https://github.com/diba-lab/NeuroPy}
-    }
+@software{neuropy2022,
+  author       = {Bapun Giri, Nat Kinsky, Pho Hale},
+  title        = {NeuroPy: Electrophysiology analysis using Python},
+  month        = jun,
+  year         = 2022,
+  publisher    = {Zenodo},
+  version      = {0.0.3},
+  doi          = {10.5281/zenodo.6647463},
+  url          = {https://doi.org/10.5281/zenodo.6647463}
+}
 ```
