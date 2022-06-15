@@ -334,11 +334,6 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
     def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_raw_occupancy=False):
         # --- occupancy map calculation -----------
         # NRK todo: might need to normalize occupancy so sum adds up to 1
-        occupancy = np.histogram2d(x_thresh, y_thresh, bins=(x_grid, y_grid))[0]
-        occupancy = occupancy / trackingRate + 10e-16  # converting to seconds
-        occupancy = gaussian_filter(occupancy, sigma=2) # 2d gaussian filter
-
-        maps, spk_pos, spk_t = make_pfs(t, x, y, spikes, occupancy, speed_thresh, period, x_grid, y_grid)
         # Please note that the histogram does not follow the Cartesian convention where x values are on the abscissa and y values on the ordinate axis. Rather, x is histogrammed along the first dimension of the array (vertical), and y along the second dimension of the array (horizontal).
         raw_occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
         # occupancy = occupancy.T # transpose the occupancy before applying other operations
@@ -386,65 +381,22 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         else:
             return occupancy_weighted_tuning_map
 
-        # ---- cells with peak frate abouve thresh ------
-        good_cells_indx = [
-            cell_indx
-            for cell_indx in range(nCells)
-            if np.max(maps[cell_indx]) > frate_thresh
-        ]
     def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1), ):
         raise DeprecationWarning
 
-        get_elem = lambda list_: [list_[_] for _ in good_cells_indx]
 # First, interested in answering the question "where did the animal spend its time on the track" to assess the relative frequency of events that occur in a given region. If the animal spends a lot of time in a certain region,
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing. 
 
-        # tuning_curve  ->  spk_pos
-        # neuron_indx   ->  cell_indx
-        # thresh_neurons_indx   ->  good_cells_indx
-        self.spk_pos = get_elem(spk_pos)
-        self.spk_t = get_elem(spk_t)
-        self.ratemaps = get_elem(maps)
-        self.cell_ids = cell_ids[good_cells_indx]
-        self.occupancy = occupancy
-        self.speed = speed
-        self.x = x
-        self.y = y
-        self.t = t
-        self.xgrid = x_grid
-        self.ygrid = y_grid
-        self.gridbin = gridbin
-        self.speed_thresh = speed_thresh
-        self.period = period
-        self.frate_thresh = frate_thresh
-        self.mesh = np.meshgrid(
-            self.xgrid[:-1] + self.gridbin / 2,
-            self.ygrid[:-1] + self.gridbin / 2,
-        )
-        ngrid_centers_x = self.mesh[0].size
-        ngrid_centers_y = self.mesh[1].size
-        x_center = np.reshape(self.mesh[0], [ngrid_centers_x, 1], order="F")
-        y_center = np.reshape(self.mesh[1], [ngrid_centers_y, 1], order="F")
-        xy_center = np.hstack((x_center, y_center))
-        self.gridcenter = xy_center.T
 class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. """
 
-    def plotMap(self, subplots=(7, 4), fignum=None):
-        """Plots heatmaps of placefields with peak firing rate
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
 
         Parameters
         ----------
-        speed_thresh : bool, optional
-            [description], by default False
-        subplots : tuple, optional
-            number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
-        fignum : int, optional
-            figure number to start from, by default None
         spikes_df: pd.DataFrame
         position : core.Position
         epochs : core.Epoch
@@ -489,62 +441,6 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         Adds columns to the spikes and positions dataframes, etc.
         """
 
-        map_use, thresh = self.ratemaps, self.speed_thresh
-
-        nCells = len(map_use)
-        nfigures = nCells // np.prod(subplots) + 1
-
-        if fignum is None:
-            if f := plt.get_fignums():
-                fignum = f[-1] + 1
-            else:
-                fignum = 1
-
-        figures, gs = [], []
-        for fig_ind in range(nfigures):
-            fig = plt.figure(fignum + fig_ind, figsize=(6, 10), clear=True)
-            gs.append(GridSpec(subplots[0], subplots[1], figure=fig))
-            fig.subplots_adjust(hspace=0.4)
-            fig.suptitle(
-                "Place maps with peak firing rate (speed_threshold = "
-                + str(thresh)
-                + ")"
-            )
-            figures.append(fig)
-
-        for cell, pfmap in enumerate(map_use):
-            ind = cell // np.prod(subplots)
-            subplot_ind = cell % np.prod(subplots)
-            ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
-            im = ax1.pcolorfast(
-                self.xgrid,
-                self.ygrid,
-                np.rot90(np.fliplr(pfmap)) / np.max(pfmap),
-                cmap="jet",
-                vmin=0,
-            )  # rot90(flipud... is necessary to match plotRaw configuration.
-            # max_frate =
-            ax1.axis("off")
-            ax1.set_title(
-                f"Cell {self.cell_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
-            )
-
-            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-            # cbar = fig.colorbar(im, cax=cbar_ax)
-            # cbar.set_label("firing rate (Hz)")
-
-    def plotRaw(self,
-        subplots=(10, 8),
-        fignum=None,
-        alpha=0.5,
-        label_cells=False,
-        ax=None,
-        clus_use=None,
-    ):
-        if ax is None:
-            fig = plt.figure(fignum, figsize=(6, 10))
-            gs = GridSpec(subplots[0], subplots[1], figure=fig)
-            # fig.subplots_adjust(hspace=0.4)
         pos_df = position.to_dataframe()
         spk_df = spikes_df.copy()
         
@@ -555,10 +451,6 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             # filter the pos_df:
             self._filtered_pos_df = pos_df.position.time_sliced(epochs.starts, epochs.stops) # 5378 rows × 18 columns
         else:
-            assert len(ax) == len(
-                clus_use
-            ), "Number of axes must match number of clusters to plot"
-            fig = ax[0].get_figure()
             # if no epochs filtering, set the filtered objects to be sliced by the available range of the position data (given by position.t_start, position.t_stop)
             self._filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
             self._filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
