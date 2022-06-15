@@ -1,4 +1,4 @@
-# NeuroPy
+# NeuroPy [![DOI](https://zenodo.org/badge/426124562.svg)](https://zenodo.org/badge/latestdoi/426124562)
 Package for analyzing ephys data using python.
 
 ### Overview
