@@ -1,0 +1,15 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Giri"
+    given-names: "Bapun"
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+  - family-names: "Kinsky"
+    given-names: "Nat"
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+  - family-names: "Hale"
+    given-names: "Pho"
+    orcid: "https://orcid.org/0000-0001-5061-2089"
+title: CommanderPho/NeuroPy: 0.0.3
+version: Zenodo
+date-released: 2022-06-15
