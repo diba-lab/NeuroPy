@@ -210,7 +210,7 @@ class Decode1d:
             self.nbins_epochs = nbins
             score_results = self._score_posterior(self.posterior)
             self.score = score_results[0]
-            if score_results.ndim == 3:
+            if score_results.shape[0] == 3:
                 self.velocity, self.intercept = score_results[1:, :]
 
         else:

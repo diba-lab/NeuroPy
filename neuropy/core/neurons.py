@@ -203,7 +203,7 @@ class Neurons(DataWriter):
 
     def get_by_id(self, ids):
         """Returns neurons object with neuron_ids equal to ids"""
-        indices = np.isin(self.neuron_ids, ids)
+        indices = np.isin(self.neuron_ids, ids, assume_unique=True)
         return self[indices]
 
     def get_isi(self, bin_size=0.001, n_bins=200):
