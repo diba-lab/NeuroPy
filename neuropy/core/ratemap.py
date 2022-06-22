@@ -84,7 +84,8 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     
     @property
     def normalized_tuning_curves(self):
-        return Ratemap.nanmin_nanmax_scaler(self.tuning_curves)
+        return self.pdf_normalized_tuning_curves
+        # return self.minmax_normalized_tuning_curves
         # return mathutil.min_max_scaler(self.tuning_curves)
         # return Ratemap.NormalizeData(self.tuning_curves)
 
@@ -100,7 +101,18 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         """ returns the self.occupancy after replacing all never visited locations, indicated by a zero occupancy, by NaNs for the purpose of building visualizations. """
         return Ratemap.nan_never_visited_locations(self.occupancy)
     
-
+    # --------------------- Normalization and Scaling Helpers -------------------- #
+    @property
+    def pdf_normalized_tuning_curves(self):
+        """ AOC (area-under-curve) normalization for tuning curves. """
+        return Ratemap.perform_AOC_normalization(self.tuning_curves)
+    
+    @property
+    def minmax_normalized_tuning_curves(self):
+        """ tuning curves normalized by scaling their min/max values down to the range (0, 1).
+            The peak of each placefield will have height 1.0.
+        """
+        return Ratemap.nanmin_nanmax_scaler(self.tuning_curves)
 
     # ----------------------  Static Methods -------------------------:
     @staticmethod
@@ -152,6 +164,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
             assert np.isclose(np.sum(_test_2D_AOC_normalized_pdf, (1,2)), 1.0).all(), f"After AOC normalization the sum over each cell should be 1.0, but it is not! {np.sum(_test_2D_AOC_normalized_pdf, (1,2))}"
             return _test_2D_AOC_normalized_pdf
         else:
+            print(f'ratemap.ndim: {ratemap.ndim} not implemented!')
             raise NotImplementedError
 
         ## TODO: add the _test_1D_AOC_normalized_pdf AND _test_2D_AOC_normalized_pdf to the appropriate ratemaps
