@@ -328,7 +328,11 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         return np.concatenate(self.spiketrains)
 
     # def get_flattened_spikes(self):
-    #     # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
+    #     """ Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
+        
+    #         TODO: re-added 2022-06-22 because the functionality was missing for Bapun and Rach's data. 
+        
+    #     """
     #     flattened_spike_identities = np.concatenate([np.full((self.n_spikes[i],), self.neuron_ids[i]) for i in np.arange(self.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
     #     flattened_spike_times = np.concatenate(self.spiketrains)
     #     # Get the indicies required to sort the flattened_spike_times

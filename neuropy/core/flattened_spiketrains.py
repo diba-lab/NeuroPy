@@ -301,4 +301,24 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         
     @staticmethod
     def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4)):
-        raise NotImplementedError
+        """ Builds the FlattenedSpiketrains from the active_session's .neurons object.
+
+        Args:
+            active_session (_type_): _description_
+            timestamp_scale_factor (tuple, optional): _description_. Defaults to (1/1E4).
+
+        Returns:
+            _type_: _description_
+        """
+        flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+        flattened_spike_times = np.concatenate(active_session.neurons.spiketrains)
+        # Get the indicies required to sort the flattened_spike_times
+        sorted_indicies = np.argsort(flattened_spike_times)
+        return FlattenedSpiketrains(
+            sorted_indicies,
+            flattened_spike_identities[sorted_indicies],
+            flattened_spike_times[sorted_indicies],
+            t_start=active_session.neurons.t_start
+        )
+        
+        # raise NotImplementedError
