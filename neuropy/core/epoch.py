@@ -252,6 +252,34 @@ class Epoch(DataWriter):
             starts=ep_starts, stops=ep_starts + ep_durations, labels=ep_labels
         )
 
+    def merge(self, dt):
+        """Merge epochs that are within some temporal distance
+
+        Parameters
+        ----------
+        dt : float
+            temporal distance in seconds
+
+        Returns
+        -------
+        Epoch
+        """
+        n_epochs = self.n_epochs
+        starts, stops = self.starts, self.stops
+        ind_delete = []
+        for i in range(n_epochs - 1):
+            if (starts[i + 1] - stops[i]) < dt:
+
+                # stretch the second epoch to cover the range of both epochs
+                starts[i + 1] = min(starts[i], starts[i + 1])
+                stops[i + 1] = max(stops[i], stops[i + 1])
+
+                ind_delete.append(i)
+
+        epochs_arr = np.vstack((starts, stops)).T
+        epochs_arr = np.delete(epochs_arr, ind_delete, axis=0)
+        return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1])
+
     def delete_in_between(self, t1, t2):
 
         epochs_df = self.to_dataframe()[["start", "stop", "label"]]
