@@ -146,25 +146,34 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
 
 
     @classmethod
-    def perform_AOC_normalization(cls, ratemap, debug_print=True):
-        """ Normalizes each cell's tuning map in ratemap by dividing by each cell's area under the curve (AOC). The resultant tuning maps are therefore converted into valid PDFs """
-        if ratemap.ndim == 1:
+    def perform_AOC_normalization(cls, active_tuning_curves, debug_print=True):
+    # def perform_AOC_normalization(cls, ratemap: Ratemap, debug_print=True):
+        """ Normalizes each cell's tuning map in ratemap by dividing by each cell's area under the curve (AOC). The resultant tuning maps are therefore converted into valid PDFs 
+        
+        Inputs:
+            active_tuning_curves: nd.array
+        """
+        # active_tuning_curves = ratemap.normalized_tuning_curves
+        # active_tuning_curves = ratemap.tuning_curves
+        tuning_curves_ndim = active_tuning_curves.ndim - 1
+        
+        if tuning_curves_ndim == 1:
             ## 1D normalization:
-            _test_1D_normalization_constants = 1.0/np.sum(ratemap.normalized_tuning_curves, 1) # normalize by summing over all 1D positions for each cell
+            _test_1D_normalization_constants = 1.0/np.sum(active_tuning_curves, 1) # normalize by summing over all 1D positions for each cell
             ## Compute the area-under-the-curve normalization by dot-dividing each cell's PF by the normalization constant
-            _test_1D_AOC_normalized_pdf = (ratemap.normalized_tuning_curves.transpose() * _test_1D_normalization_constants).transpose() # (39, 59)
+            _test_1D_AOC_normalized_pdf = (active_tuning_curves.transpose() * _test_1D_normalization_constants).transpose() # (39, 59)
             ## Test success by summing (all should be nearly 1.0):
             assert np.isclose(np.sum(_test_1D_AOC_normalized_pdf, 1), 1.0).all(), f"After AOC normalization the sum over each cell should be 1.0, but it is not! {np.sum(_test_1D_AOC_normalized_pdf, 1)}"
             return _test_1D_AOC_normalized_pdf
-        elif ratemap.ndim == 2:
+        elif tuning_curves_ndim == 2:
             ## 2D normalization
-            _test_2D_normalization_constants = 1.0/np.sum(ratemap.normalized_tuning_curves, (1,2)) # normalize by summing over all 1D positions for each cell
-            _test_2D_AOC_normalized_pdf = (ratemap.normalized_tuning_curves.transpose(1,2,0) * _test_2D_normalization_constants).transpose(2,0,1) # (39, 59) # (59, 21, 39) prior to second transpose
+            _test_2D_normalization_constants = 1.0/np.sum(active_tuning_curves, (1,2)) # normalize by summing over all 1D positions for each cell
+            _test_2D_AOC_normalized_pdf = (active_tuning_curves.transpose(1,2,0) * _test_2D_normalization_constants).transpose(2,0,1) # (39, 59) # (59, 21, 39) prior to second transpose
             ## Test success by summing (all should be nearly 1.0):
             assert np.isclose(np.sum(_test_2D_AOC_normalized_pdf, (1,2)), 1.0).all(), f"After AOC normalization the sum over each cell should be 1.0, but it is not! {np.sum(_test_2D_AOC_normalized_pdf, (1,2))}"
             return _test_2D_AOC_normalized_pdf
         else:
-            print(f'ratemap.ndim: {ratemap.ndim} not implemented!')
+            print(f'tuning_curves_ndim: {tuning_curves_ndim} not implemented!')
             raise NotImplementedError
 
         ## TODO: add the _test_1D_AOC_normalized_pdf AND _test_2D_AOC_normalized_pdf to the appropriate ratemaps
