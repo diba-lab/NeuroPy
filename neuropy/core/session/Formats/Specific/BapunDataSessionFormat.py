@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.data_session_loader import SessionConfig, SessionFolderSpec, SessionFileSpec, DataSessionLoader
+from neuropy.core.session.data_session_loader import SessionFolderSpec, SessionFileSpec
 
 # For specific load functions:
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
@@ -12,14 +12,14 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePri
 
 class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
-        
+
+    # Example Filesystem Hierarchy:
     📦Day5TwoNovel
      ┣ 📂position
      ┃ ┣ 📜Take 2020-12-04 02.05.58 PM.csv
      ┃ ┣ 📜Take 2020-12-04 02.13.28 PM.csv
      ┃ ┣ 📜Take 2020-12-04 11.11.32 AM.csv
      ┃ ┗ 📜Take 2020-12-04 11.11.32 AM_001.csv
-     ┣ 📜phoLoadBapunData.py
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.eeg
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy.bak
@@ -41,6 +41,14 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         session_name: 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
     
     From here, a list of known files to load from is determined:
+        
+    Usage:
+        from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder, DataSessionFormatBaseRegisteredClass
+        from neuropy.core.session.Formats.Specific.BapunDataSessionFormat import BapunDataSessionFormatRegisteredClass
+
+        _test_session = BapunDataSessionFormatRegisteredClass.build_session(Path('R:\data\Bapun\Day5TwoNovel'))
+        _test_session, loaded_file_record_list = BapunDataSessionFormatRegisteredClass.load_session(_test_session)
+        _test_session
         
     """
     @classmethod

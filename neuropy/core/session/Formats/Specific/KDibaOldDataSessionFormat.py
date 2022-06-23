@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.data_session_loader import SessionConfig, SessionFolderSpec, SessionFileSpec, DataSessionLoader
+from neuropy.core.session.data_session_loader import SessionFolderSpec, SessionFileSpec
 
 # For specific load functions:
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
@@ -15,11 +15,104 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     """
     
     By default it attempts to find the single *.xml file in the root of this basedir, from which it determines the `session_name` as the stem (the part before the extension) of this file:
-        basedir: Path('R:\data\Bapun\Day5TwoNovel')
+        basedir: Path('R:\data\KDIBA\gor01\one\2006-6-07_11-26-53')
         session_name: '2006-6-07_11-26-53'
     
+    # Example Filesystem Hierarchy:
+    📦gor01
+    ┣ 📂one
+    ┃ ┣ 📂2006-6-07_11-26-53
+    ┃ ┃ ┣ 📂bak
+    ┃ ┃ ┃ ┣ 📜2006-6-07_11-26-53.pbe.npy
+    ┃ ┃ ┃ ┗ 📜2006-6-07_11-26-53.mua.npy
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.1
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.10
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.11
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.12
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.2
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.3
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.4
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.5
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.6
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.7
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.8
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.clu.9
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.eeg
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.epochs_info.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.1
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.10
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.11
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.12
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.2
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.3
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.4
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.5
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.6
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.7
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.8
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.9
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.interpolated_spike_positions.npy
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.laps_info.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.nrs
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.position.npy
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.position_info.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.1
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.10
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.11
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.12
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.2
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.3
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.4
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.5
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.6
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.7
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.8
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.res.9
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.rpl.evt
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.seq.evt
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.session.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spikeII.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spikes.cellinfo.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spikes.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.1
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.10
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.11
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.12
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.2
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.3
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.4
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.5
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.6
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.7
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.8
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.spk.9
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.swr.evt
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.theta.1
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.whl
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.xml
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53IN.5.clu
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53IN.5.res
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53vt.mat
+    ┃ ┃ ┣ 📜Events.Nev
+    ┃ ┃ ┣ 📜RippleDatabase.mat
+    ┃ ┃ ┣ 📜VT1.Nvt
+    ┃ ┃ ┣ 📜data_NeuroScope2.mat
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.ripple.npy
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.mua.npy
+    ┃ ┃ ┗ 📜2006-6-07_11-26-53.pbe.npy
+    ┃ ┣ 📜IIdata.mat
+ 
     From here, a list of known files to load from is determined:
         
+    Usage:
+    
+        from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder, DataSessionFormatBaseRegisteredClass
+        from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+        
+        _test_session = KDibaOldDataSessionFormatRegisteredClass.build_session(Path(r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'))
+        _test_session, loaded_file_record_list = KDibaOldDataSessionFormatRegisteredClass.load_session(_test_session)
+        _test_session
+
     """
     @classmethod
     def get_session_name(cls, basedir):
@@ -109,6 +202,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     # ---------------------------------------------------------------------------- #
     #                     Extended Computation/Loading Methods                     #
     # ---------------------------------------------------------------------------- #
+    
+    #######################################################
+    ## KDiba Old Format Only Methods:
+    ## relies on _load_kamran_spikeII_mat, _default_spikeII_compute_laps_vars, __default_spikeII_compute_neurons, __default_load_kamran_exported_mats, _default_compute_linear_position_if_needed
     
     @staticmethod
     def _default_compute_linear_position_if_needed(session, force_recompute=True):
@@ -293,7 +390,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         return session, laps_df
 
-    
     @classmethod
     def __default_kdiba_spikeII_load_mat(cls, sess, timestamp_scale_factor=(1/1E4)):
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikeII.mat'.format(sess.session_name))
@@ -419,9 +515,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
         return session, spikes_df
-        
-        
-        
+                
     @classmethod
     def __default_kdiba_spikeII_compute_neurons(cls, session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
         ## Get unique cell ids to enable grouping flattened results by cell:
@@ -463,8 +557,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             spikes_df['fragile_linear_neuron_IDX'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
 
         return session
-
-
 
     @classmethod
     def __default_kdiba_RippleDatabase_load_mat(cls, session):

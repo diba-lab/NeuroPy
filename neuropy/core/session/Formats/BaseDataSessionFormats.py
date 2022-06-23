@@ -1,15 +1,21 @@
 from pathlib import Path
 from typing import Dict
 from neuropy.core.session.dataSession import DataSession 
-from neuropy.core.session.data_session_loader import SessionConfig, SessionFolderSpec, SessionFileSpec, DataSessionLoader
+from neuropy.core.session.data_session_loader import SessionConfig, SessionFileSpec, DataSessionLoader
 
 # For specific load functions:
-from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
+from neuropy.core import Mua, Epoch
 from neuropy.io import NeuroscopeIO, BinarysignalIO 
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 
 class DataSessionFormatRegistryHolder(type):
     """ a metaclass that automatically registers its conformers as a known loadable data session format.     
+        
+    Usage:
+        from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
+        
+        DataSessionFormatRegistryHolder.get_registry()
+        
     """
     REGISTRY: Dict[str, "DataSessionFormatRegistryHolder"] = {}
 
@@ -180,8 +186,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             
         
         # add PBE information to spikes_df from session.pbe
-        DataSessionLoader._default_add_spike_PBEs_if_needed(session)
-        DataSessionLoader._default_add_spike_scISIs_if_needed(session)
+        cls._default_add_spike_PBEs_if_needed(session)
+        cls._default_add_spike_scISIs_if_needed(session)
         # return the session with the upadated member variables
         return session
     
