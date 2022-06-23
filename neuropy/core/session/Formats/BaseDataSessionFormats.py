@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
+from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, SessionConfig
 
 # For specific load functions:
 from neuropy.core import Mua, Epoch
@@ -110,7 +110,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         return session_obj
     
     @classmethod
-    def load_session(cls, session):
+    def load_session(cls, session, debug_print=False):
         # .recinfo, .filePrefix, .eegfile, .datfile
         loaded_file_record_list = [] # Handled files list
         

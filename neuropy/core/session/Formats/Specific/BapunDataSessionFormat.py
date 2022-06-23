@@ -94,10 +94,11 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
     
     ## Main load function:
     @classmethod
-    def load_session(cls, session):
-        session, loaded_file_record_list = DataSessionFormatBaseRegisteredClass.load_session(session) # call the super class load_session(...) to load the common things (.recinfo, .filePrefix, .eegfile, .datfile)
+    def load_session(cls, session, debug_print=False):
+        session, loaded_file_record_list = DataSessionFormatBaseRegisteredClass.load_session(session, debug_print=debug_print) # call the super class load_session(...) to load the common things (.recinfo, .filePrefix, .eegfile, .datfile)
         remaining_required_filespecs = {k: v for k, v in session.config.resolved_required_filespecs_dict.items() if k not in loaded_file_record_list}
-        print(f'remaining_required_filespecs: {remaining_required_filespecs}')
+        if debug_print:
+            print(f'remaining_required_filespecs: {remaining_required_filespecs}')
         
         for file_path, file_spec in remaining_required_filespecs.items():
             session = file_spec.session_load_callback(file_path, session)

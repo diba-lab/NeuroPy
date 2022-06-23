@@ -101,9 +101,7 @@ class SessionFolderSpec():
             two dictionaries containing the resolved path:file_spec pairs
         """
         proposed_session_path = Path(proposed_session_path)
-        # build absolute paths from the proposed_session_path and the files
-        # resolved_required_files = [a_file_spec.resolved_path(proposed_session_path) for a_file_spec in self.required_files]
-        # resolved_optional_files = [a_file_spec.resolved_path(proposed_session_path) for a_file_spec in self.optional_files]
+        # build absolute paths from the proposed_session_path and the files:
         resolved_required_filespecs_dict = {a_file_spec.resolved_path(proposed_session_path):a_file_spec for a_file_spec in self.required_files}
         resolved_optional_filespecs_dict = {a_file_spec.resolved_path(proposed_session_path):a_file_spec for a_file_spec in self.optional_files}
         return resolved_required_filespecs_dict, resolved_optional_filespecs_dict
@@ -138,7 +136,7 @@ class SessionFolderSpec():
             for an_optional_filepath, a_file_spec in resolved_optional_filespecs_dict.items():
                 if not an_optional_filepath.exists():
                     # print('WARNING: Optional File: {} does not exist.'.format(an_optional_file))
-                    warnings.warn(f'WARNING: Optional File: "{an_optional_filepath}" does not exist. Continuing without it.')
+                    warnings.warn(f'WARNING: Optional File: {an_optional_filepath} does not exist. Continuing without it.')
                     
             meets_spec = True # otherwise it exists
             
