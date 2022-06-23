@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.data_session_loader import SessionFolderSpec, SessionFileSpec
+from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
 
 # For specific load functions:
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict
-from neuropy.core.session.dataSession import DataSession 
-from neuropy.core.session.data_session_loader import SessionConfig, SessionFileSpec, DataSessionLoader
+from neuropy.core.session.dataSession import DataSession
+from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
 
 # For specific load functions:
 from neuropy.core import Mua, Epoch
