@@ -91,40 +91,6 @@ class RequiredValidationFailedError(SessionFolderSpecError):
         return self.message
     
     
-
-class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
-    """A simple data structure that holds the information specifying a data session, such as the basepath, session_spec, and session_name
-    """
-    
-    @property
-    def resolved_required_file_specs(self):
-        """The resolved_required_file_specs property."""
-        return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_required_filespecs_dict.items()}
-        
-    @property
-    def resolved_optional_file_specs(self):
-        """The resolved_required_file_specs property."""
-        return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_optional_filespecs_dict.items()}
-    
-    
-    def __init__(self, basepath, session_spec, session_name):
-        """[summary]
-        Args:
-            basepath (pathlib.Path): [description].
-            session_spec (SessionFolderSpec): used to load the files
-            session_name (str, optional): [description].
-        """
-        self.basepath = basepath
-        self.session_name = session_name
-        # Session spec:
-        self.session_spec=session_spec
-        self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
-        
-    def validate(self):
-        """ re-validates the self.session_spec items and updates the resolved dicts """
-        self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
-
-
 class SessionFolderSpec():
     """ Documents the required and optional files for a given session format """
     def __init__(self, required = [], optional = [], additional_validation_requirements=[]) -> None:
@@ -197,17 +163,38 @@ class SessionFolderSpec():
 # ])
 
 
-class DataSessionLoaderConfig(param.Parameterized):
-    """ TODO: UNUSED: Not used anywhere in the project as far as I can tell. To remove. """
-    enable_save_cache_to_disk = param.Boolean(default=False, doc=' Whether the final loaded/computed data is re-written out to file on disk at the end of the load command. ')
-    enable_load_cached_from_disk = param.Boolean(default=False, doc=' Whether previously cached final loaded/computed data is attempted to be loaded from disk if it is available. Otherwise only the raw data will be loaded, and the rest will be computed.')
+class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
+    """A simple data structure that holds the information specifying a data session, such as the basepath, session_spec, and session_name
+    """
     
-    active_time_variable_name = param.Selector(default='t_rel_seconds', objects=['t', 't_seconds', 't_rel_seconds'], doc=' The time variable used as the primary timestamps. ')
-    # active_time_variable_name = param.ListSelector(default='t_rel_seconds', objects=['t', 't_seconds', 't_rel_seconds'], doc=' The time variable used as the primary timestamps. ')
-    # active_time_variable_name = 't' # default
-    # active_time_variable_name = 't_seconds' # use converted times (into seconds)
-    # active_time_variable_name = 't_rel_seconds' # use converted times (into seconds)
+    @property
+    def resolved_required_file_specs(self):
+        """The resolved_required_file_specs property."""
+        return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_required_filespecs_dict.items()}
+        
+    @property
+    def resolved_optional_file_specs(self):
+        """The resolved_required_file_specs property."""
+        return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_optional_filespecs_dict.items()}
     
+    
+    def __init__(self, basepath, session_spec, session_name):
+        """[summary]
+        Args:
+            basepath (pathlib.Path): [description].
+            session_spec (SessionFolderSpec): used to load the files
+            session_name (str, optional): [description].
+        """
+        self.basepath = basepath
+        self.session_name = session_name
+        # Session spec:
+        self.session_spec=session_spec
+        self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
+        
+    def validate(self):
+        """ re-validates the self.session_spec items and updates the resolved dicts """
+        self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
+
     
 
 class DataSessionLoader:
