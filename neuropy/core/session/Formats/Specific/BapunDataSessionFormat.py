@@ -51,6 +51,9 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         _test_session
         
     """
+    
+    _time_variable_name = 't_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
+   
     @classmethod
     def get_session_name(cls, basedir):
         """ returns the session_name for this basedir, which determines the files to load. """
@@ -85,10 +88,11 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
     
     #######################################################
     ## Bapun Nupy Format Only Methods:
-    @staticmethod
-    def __default_compute_bapun_flattened_spikes(session, timestamp_scale_factor=(1/1E4)):
-        spikes_df = FlattenedSpiketrains.build_spike_dataframe(session)
-        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, t_start=session.neurons.t_start) # FlattenedSpiketrains(spikes_df)
+    @classmethod
+    def _default_compute_bapun_flattened_spikes(cls, session, timestamp_scale_factor=(1/1E4), spike_timestamp_column_name='t_seconds'):
+        spikes_df = FlattenedSpiketrains.build_spike_dataframe(session, timestamp_scale_factor=timestamp_scale_factor, spike_timestamp_column_name=spike_timestamp_column_name)
+        print(f'spikes_df.columns: {spikes_df.columns}')
+        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=spike_timestamp_column_name, t_start=session.neurons.t_start) # FlattenedSpiketrains(spikes_df)
         print('\t Done!')
         return session
     
@@ -105,8 +109,6 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
             loaded_file_record_list.append(file_path)
         
         # ['.neurons.npy','.probegroup.npy','.position.npy','.paradigm.npy']
-        #  [fname.format(session_name) for fname in ['{}.xml','{}.neurons.npy','{}.probegroup.npy','{}.position.npy','{}.paradigm.npy']]
-        
         # session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
         
         # Load or compute linear positions if needed:        
@@ -137,7 +139,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session = cls.__default_compute_bapun_flattened_spikes(session) # sets session.flattened_spiketrains
+            session = cls._default_compute_bapun_flattened_spikes(session, spike_timestamp_column_name=cls._time_variable_name) # sets session.flattened_spiketrains
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
             print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
@@ -145,9 +147,6 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         
         # Common Extended properties:
         session = cls._default_extended_postload(session.filePrefix, session)
-        
-        
-        
         
         return session, loaded_file_record_list
     
