@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import traceback
+from typing import Callable
+import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -34,6 +36,9 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePri
 @dataclass
 class SessionFileSpec:
     """ Speccifies a specification for a single file.
+    Members:
+        session_load_callback: Callable[[Path, DataSession], DataSession] a function that takes the path to load and the session to load it into and performs the operation
+    
     Examples: 
         SessionFileSpec('{}.xml', session_name, 'The primary .xml configuration file'), SessionFileSpec('{}.neurons.npy', session_name, 'The numpy data file containing information about neural activity.')
         SessionFileSpec('{}.probegroup.npy', session_name, 'The numpy data file containing information about the spatial layout of recording probes')
@@ -43,6 +48,7 @@ class SessionFileSpec:
     fileSpecString: str
     suggestedBaseName: str
     description: str
+    session_load_callback: Callable[[Path, DataSession], DataSession]
     
     @property
     def filename(self):
@@ -56,19 +62,51 @@ class SessionFileSpec:
         return parent_path.joinpath(self.filename)
    
  
-class RequiredFileError(Exception):
+ 
+
+class SessionFolderSpecError(Exception):
+    """ An exception raised when a session folder spec requirement fails """
+    def __init__(self, message, failed_spec_item):
+        self.message = message
+        self.failed_spec_item = failed_spec_item
+    def __str__(self):
+        return self.message
+
+ 
+ 
+class RequiredFileError(SessionFolderSpecError):
     """ An exception raised when a required file is missing """
     def __init__(self, message, missing_file_spec):
         self.message = message
-        self.missing_file_spec = missing_file_spec
+        self.failed_spec_item = missing_file_spec
     def __str__(self):
         return self.message
     
-
+class RequiredValidationFailedError(SessionFolderSpecError):
+    """ An exception raised when a required validation spec fails """
+    def __init__(self, message, failed_validation):
+        self.message = message
+        self.failed_spec_item = failed_validation
+    def __str__(self):
+        return self.message
+    
+    
 
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     """A simple data structure that holds the information specifying a data session, such as the basepath, session_spec, and session_name
     """
+    
+    @property
+    def resolved_required_file_specs(self):
+        """The resolved_required_file_specs property."""
+        return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_required_filespecs_dict.items()}
+        
+    @property
+    def resolved_optional_file_specs(self):
+        """The resolved_required_file_specs property."""
+        return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_optional_filespecs_dict.items()}
+    
+    
     def __init__(self, basepath, session_spec, session_name):
         """[summary]
         Args:
@@ -80,7 +118,11 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         self.session_name = session_name
         # Session spec:
         self.session_spec=session_spec
-        self.is_resolved, self.resolved_required_files, self.resolved_optional_files = self.session_spec.validate(self.basepath)
+        self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
+        
+    def validate(self):
+        """ re-validates the self.session_spec items and updates the resolved dicts """
+        self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
 
 
 class SessionFolderSpec():
@@ -98,12 +140,17 @@ class SessionFolderSpec():
     def resolved_paths(self, proposed_session_path):
         """ Gets whether the proposed_session_path meets the requirements and returns the resolved paths if it can.
             Does not check whether any of the files exist, it just builds the paths
+            
+        Returns:
+            two dictionaries containing the resolved path:file_spec pairs
         """
         proposed_session_path = Path(proposed_session_path)
         # build absolute paths from the proposed_session_path and the files
-        resolved_required_files = [proposed_session_path.joinpath(a_file_spec.filename) for a_file_spec in self.required_files]
-        resolved_optional_files = [proposed_session_path.joinpath(a_file_spec.filename) for a_file_spec in self.optional_files]
-        return resolved_required_files, resolved_optional_files
+        # resolved_required_files = [a_file_spec.resolved_path(proposed_session_path) for a_file_spec in self.required_files]
+        # resolved_optional_files = [a_file_spec.resolved_path(proposed_session_path) for a_file_spec in self.optional_files]
+        resolved_required_filespecs_dict = {a_file_spec.resolved_path(proposed_session_path):a_file_spec for a_file_spec in self.required_files}
+        resolved_optional_filespecs_dict = {a_file_spec.resolved_path(proposed_session_path):a_file_spec for a_file_spec in self.optional_files}
+        return resolved_required_filespecs_dict, resolved_optional_filespecs_dict
         
     def validate(self, proposed_session_path):
         """Check whether the proposed_session_path meets this folder spec's requirements
@@ -113,31 +160,33 @@ class SessionFolderSpec():
         Returns:
             [Bool]: [description]
         """
-        resolved_required_files, resolved_optional_files = self.resolved_paths(proposed_session_path=proposed_session_path)
+        resolved_required_filespecs_dict, resolved_optional_filespecs_dict = self.resolved_paths(proposed_session_path=proposed_session_path)
             
         meets_spec = False
         if not Path(proposed_session_path).exists():
             meets_spec = False # the path doesn't even exist, it can't be valid
         else:
             # the path exists:
-            for a_required_file in resolved_required_files:
-                if not a_required_file.exists():
-                    print('Required File: {} does not exist.'.format(a_required_file))
-                    meets_spec = False
+            for a_required_filepath, a_file_spec in resolved_required_filespecs_dict.items():
+                if not a_required_filepath.exists():
+                    meets_spec = False                    
+                    raise RequiredFileError(f'Required File: {a_required_filepath} does not exist.', (a_required_filepath, a_file_spec))
                     break
             for a_required_validation_function in self.additional_validation_requirements:
                 if not a_required_validation_function(Path(proposed_session_path)):
-                    print('Required additional_validation_requirements[i]({}) returned False'.format(proposed_session_path))
+                    # print('Required additional_validation_requirements[i]({}) returned False'.format(proposed_session_path))
                     meets_spec = False
+                    raise RequiredValidationFailedError(f'Required additional_validation_requirements[i]({proposed_session_path}) returned False', a_required_validation_function)
                     break
                 
-            for an_optional_file in resolved_optional_files:
-                if not an_optional_file.exists():
-                    print('WARNING: Optional File: {} does not exist.'.format(an_optional_file))
-                
+            for an_optional_filepath, a_file_spec in resolved_optional_filespecs_dict.items():
+                if not an_optional_filepath.exists():
+                    # print('WARNING: Optional File: {} does not exist.'.format(an_optional_file))
+                    warnings.warn(f'WARNING: Optional File: "{an_optional_filepath}" does not exist. Continuing without it.')
+                    
             meets_spec = True # otherwise it exists
             
-        return True, resolved_required_files, resolved_optional_files
+        return meets_spec, resolved_required_filespecs_dict, resolved_optional_filespecs_dict
     
 
 # session_name = '2006-6-07_11-26-53'
@@ -224,6 +273,7 @@ class DataSessionLoader:
         session_config = SessionConfig(basedir, session_spec=session_spec, session_name=session_name)
         assert session_config.is_resolved, "active_sess_config could not be resolved!"
         return get_session_obj(session_config)
+    
     
     #######################################################
     ## Internal Methods:
@@ -360,7 +410,8 @@ class DataSessionLoader:
         
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
-        assert len(xml_files) == 1, "Found more than one .xml file"
+        assert len(xml_files) > 0, "Missing required .xml file!"
+        assert len(xml_files) == 1, f"Found more than one .xml file. Found files: {xml_files}"
 
         fp = xml_files[0].with_suffix("") # gets the session name (basically) without the .xml extension.
         session.filePrefix = fp
@@ -461,7 +512,7 @@ class DataSessionLoader:
         basepath = Path(basepath)
         xml_files = sorted(basepath.glob("*.xml"))
         assert len(xml_files) > 0, "Missing required .xml file!"
-        assert len(xml_files) == 1, "Found more than one .xml file"
+        assert len(xml_files) == 1, f"Found more than one .xml file. Found files: {xml_files}"
 
         fp = xml_files[0].with_suffix("")
         session.filePrefix = fp

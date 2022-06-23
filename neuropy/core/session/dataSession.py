@@ -54,7 +54,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         
     
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
+        if self.recinfo is None:
+            return f"{self.__class__.__name__}(config: {self.config}): Not yet configured."
+        else:
+            return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
     #######################################################
     ## Passthru Accessor Properties:
     @property
