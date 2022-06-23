@@ -24,6 +24,11 @@ from neuropy.utils.efficient_interval_search import determine_event_interval_ide
 
 
 class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
+    """ holds the collection of all data, both loaded and computed, related to an experimental recording session. Can contain multiple discontiguous time periods ('epochs') meaning it can represent the data collected over the course of an experiment for a single animal (across days), on a single day, etc.
+    
+    Provides methods for loading, accessing, and manipulating data such as neural spike trains, behavioral laps, etc.
+        
+    """
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
