@@ -5,6 +5,7 @@ import pandas as pd
 from copy import deepcopy
 
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
@@ -351,7 +352,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
 
 
     @staticmethod
-    def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4), spike_timestamp_column_name='t_rel_seconds'):
+    def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4), spike_timestamp_column_name='t_rel_seconds', progress_tracing=True):
         """ Builds the spike_df from the active_session's .neurons object.
 
         Args:
@@ -360,28 +361,41 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
 
         Returns:
             _type_: _description_
+        
+        # TODO: only use ProgressMessagePrinter if progress_tracing is True
+        
         """
-        flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
-        flattened_spike_types = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_type[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_type for each spike that belongs to that neuron
-        flattened_spike_shank_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.shank_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
-        flattened_spike_linear_unit_spike_idx = np.concatenate([np.arange(active_session.neurons.n_spikes[i]) for i in np.arange(active_session.neurons.n_neurons)]) # gives the index that would be needed to index into a given spike's position within its unit's spiketrain.
-        flattened_spike_times = np.concatenate(active_session.neurons.spiketrains)
+        
+        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_identities'):
+            flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+    
+        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_types'):
+            flattened_spike_types = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_type[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_type for each spike that belongs to that neuron
+        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_shank_identities'):
+            flattened_spike_shank_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.shank_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_linear_unit_spike_idx'):
+            flattened_spike_linear_unit_spike_idx = np.concatenate([np.arange(active_session.neurons.n_spikes[i]) for i in np.arange(active_session.neurons.n_neurons)]) # gives the index that would be needed to index into a given spike's position within its unit's spiketrain.
+        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_times'):
+            flattened_spike_times = np.concatenate(active_session.neurons.spiketrains)
         
         # All these flattened arrays start off just concatenated with all the results for the first unit, and then the next, etc. They aren't sorted. flattened_sort_indicies are used to sort them.
         # Get the indicies required to sort the flattened_spike_times
-        flattened_sort_indicies = np.argsort(flattened_spike_times)
+        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Sorting', 'flattened_sort_indicies'):
+            flattened_sort_indicies = np.argsort(flattened_spike_times)
 
         num_flattened_spikes = np.size(flattened_sort_indicies)
-        spikes_df = pd.DataFrame({'flat_spike_idx': np.arange(num_flattened_spikes),
-            't_seconds':flattened_spike_times[flattened_sort_indicies],
-            'aclu':flattened_spike_identities[flattened_sort_indicies],
-            'unit_id': np.array([int(active_session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]),
-            'shank_id': flattened_spike_shank_identities[flattened_sort_indicies],
-            'flattened_spike_linear_unit_spike_idx': flattened_spike_linear_unit_spike_idx[flattened_sort_indicies],
-            'cell_type': flattened_spike_types[flattened_sort_indicies]
-            }
-        )
-        
+    
+        with ProgressMessagePrinter('build_spike_dataframe(...)', f'Building final dataframe (containing {num_flattened_spikes} spikes)', 'spikes_df'):
+            spikes_df = pd.DataFrame({'flat_spike_idx': np.arange(num_flattened_spikes),
+                't_seconds':flattened_spike_times[flattened_sort_indicies],
+                'aclu':flattened_spike_identities[flattened_sort_indicies],
+                'unit_id': np.array([int(active_session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]),
+                'shank_id': flattened_spike_shank_identities[flattened_sort_indicies],
+                'flattened_spike_linear_unit_spike_idx': flattened_spike_linear_unit_spike_idx[flattened_sort_indicies],
+                'cell_type': flattened_spike_types[flattened_sort_indicies]
+                }
+            )
+            
         # # # Determine the x and y positions each spike occured for each cell
         # print('build_spike_dataframe(session): interpolating {} position values over {} spike timepoints. This may take a minute...'.format(len(active_session.position.time), num_flattened_spikes))
         # ## TODO: spike_positions_list is in terms of cell_ids for some reason, maybe it's temporary?
