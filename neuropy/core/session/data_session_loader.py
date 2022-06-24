@@ -1,6 +1,7 @@
 from pathlib import Path
 from neuropy.core.session.Formats.Specific.BapunDataSessionFormat import BapunDataSessionFormatRegisteredClass
 from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+from neuropy.core.session.Formats.Specific.RachelDataSessionFormat import RachelDataSessionFormat
     
 
 class DataSessionLoader:
@@ -35,7 +36,12 @@ class DataSessionLoader:
         
     
     
-    
+    # RachelFormat:
+    @staticmethod
+    def rachel_format_session(basedir=r'R:\data\Rachel\merged_M1_20211123_raw_phy'):
+        _test_session = RachelDataSessionFormat.build_session(Path(basedir))
+        _test_session, loaded_file_record_list = RachelDataSessionFormat.load_session(_test_session)
+        return _test_session
        
 
     

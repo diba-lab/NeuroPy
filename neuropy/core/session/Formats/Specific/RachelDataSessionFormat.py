@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
+from neuropy.core.session.Formats.Specific.BapunDataSessionFormat import BapunDataSessionFormatRegisteredClass
 from neuropy.core.session.dataSession import DataSession
 from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
 
@@ -10,44 +11,56 @@ from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua,
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
 
-class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
+class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
     """
 
     # Example Filesystem Hierarchy:
-    📦Day5TwoNovel
-     ┣ 📂position
-     ┃ ┣ 📜Take 2020-12-04 02.05.58 PM.csv
-     ┃ ┣ 📜Take 2020-12-04 02.13.28 PM.csv
-     ┃ ┣ 📜Take 2020-12-04 11.11.32 AM.csv
-     ┃ ┗ 📜Take 2020-12-04 11.11.32 AM_001.csv
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.eeg
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy.bak
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze1.linear.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze2.linear.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.mua.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.neurons.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.nrs
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.paradigm.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.pbe.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.position.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.probegroup.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.ripple.npy
-     ┗ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.xml
+	📦Rachel
+	┣ 📂merged_M1_20211123_raw_phy
+	┃ ┣ 📜whitening_mat_inv.npy
+	┃ ┣ 📜spike_templates.npy
+	┃ ┣ 📜tempClustering.klg.3
+	┃ ┣ 📜cluster_info.tsv
+	┃ ┣ 📜channel_shanks.npy
+	┃ ┣ 📜merged_M1_20211123_raw.eeg
+	┃ ┣ 📜cluster_purity.tsv
+	┃ ┣ 📜spike_clusters.npy
+	┃ ┣ 📜similar_templates.npy
+	┃ ┣ 📜pc_feature_ind.npy
+	┃ ┣ 📜phy.log
+	┃ ┣ 📜merged_M1_20211123_raw.paradigm.npy
+	┃ ┣ 📜cluster_group.tsv
+	┃ ┣ 📜spike_times.npy
+	┃ ┣ 📜tempClustering.fet.3
+	┃ ┣ 📜tempClustering.clu.3
+	┃ ┣ 📜merged_M1_20211123_raw.xml
+	┃ ┣ 📜whitening_mat.npy
+	┃ ┣ 📜templates.npy
+	┃ ┣ 📜params.py
+	┃ ┣ 📜channel_map.npy
+	┃ ┣ 📜pc_features.npy
+	┃ ┣ 📜channel_positions.npy
+	┃ ┣ 📜ttl_check.ipynb
+	┃ ┣ 📜amplitudes.npy
+	┃ ┣ 📜merged_M1_20211123_raw.position.npy
+	┃ ┣ 📜tempClustering.temp.clu.3
+	┃ ┣ 📜merged_M1_20211123_raw.neurons.npy
+	┃ ┣ 📜merged_M1_20211123_raw.probegroup.npy
+	┃ ┗ 📜cluster_q.tsv
     
     
     By default it attempts to find the single *.xml file in the root of this basedir, from which it determines the `session_name` as the stem (the part before the extension) of this file:
-        basedir: Path('R:\data\Bapun\Day5TwoNovel')
-        session_name: 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
+        basedir: Path(r'R:\data\Rachel\merged_M1_20211123_raw_phy')
+        session_name: 'merged_M1_20211123_raw'
     
     From here, a list of known files to load from is determined:
         
     Usage:
         from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder, DataSessionFormatBaseRegisteredClass
-        from neuropy.core.session.Formats.Specific.BapunDataSessionFormat import BapunDataSessionFormatRegisteredClass
+        from neuropy.core.session.Formats.Specific.BapunDataSessionFormat import RachelDataSessionFormat
 
-        _test_session = BapunDataSessionFormatRegisteredClass.build_session(Path('R:\data\Bapun\Day5TwoNovel'))
-        _test_session, loaded_file_record_list = BapunDataSessionFormatRegisteredClass.load_session(_test_session)
+        _test_session = RachelDataSessionFormat.build_session(Path(r'R:\data\Rachel\merged_M1_20211123_raw_phy'))
+        _test_session, loaded_file_record_list = RachelDataSessionFormat.load_session(_test_session)
         _test_session
         
     """
@@ -58,7 +71,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
     def get_session_name(cls, basedir):
         """ returns the session_name for this basedir, which determines the files to load. """
         # Find the only .xml file to obtain the session name
-        return DataSessionFormatBaseRegisteredClass.find_session_name_from_sole_xml_file(basedir) # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
+        return DataSessionFormatBaseRegisteredClass.find_session_name_from_sole_xml_file(basedir) # 'merged_M1_20211123_raw'
 
     @classmethod
     def get_session_spec(cls, session_name):
@@ -87,14 +100,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         return session
     
     #######################################################
-    ## Bapun Nupy Format Only Methods:
-    @classmethod
-    def _default_compute_bapun_flattened_spikes(cls, session, timestamp_scale_factor=(1/1E4), spike_timestamp_column_name='t_seconds', progress_tracing=True):
-        spikes_df = FlattenedSpiketrains.build_spike_dataframe(session, timestamp_scale_factor=timestamp_scale_factor, spike_timestamp_column_name=spike_timestamp_column_name, progress_tracing=progress_tracing)
-        print(f'spikes_df.columns: {spikes_df.columns}')
-        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=spike_timestamp_column_name, t_start=session.neurons.t_start) # FlattenedSpiketrains(spikes_df)
-        print('\t Done!')
-        return session
+    ## Rachel Nupy Format Only Methods:
     
     ## Main load function:
     @classmethod
@@ -117,10 +123,8 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
             print('computing linear positions for all active epochs for session...')
             # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
             session.position.linear_pos = np.full_like(session.position.time, np.nan)
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze1')
-            acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, 'maze2')
+            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze')
             session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            session.position.linear_pos[acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
             # print('Saving updated position results to {}...'.format(session.position.filename))
             with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
@@ -132,7 +136,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
         ## flattened.spikes:
         # active_file_suffix = '.flattened.spikes.npy'
-        active_file_suffix = '.new.flattened.spikes.npy'
+        active_file_suffix = '.flattened.spikes.npy'
         found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
