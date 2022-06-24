@@ -143,9 +143,14 @@ class SpikesAccessor(TimeSlicedMixin):
             'neuron_IDX'
         
         """
-        if debug_print:
-            print("WARNING: Overwriting spikes_df's 'fragile_linear_neuron_IDX' and 'neuron_IDX' columns!")
-        self._obj['old_fragile_linear_neuron_IDX'] = self._obj['fragile_linear_neuron_IDX'].copy()
+        assert 'aclu' in self._obj.columns, f"spikes_df is missing the required 'aclu' column!"
+        if 'fragile_linear_neuron_IDX' in self._obj.columns:
+            # Backup the old value if it exists:
+            if debug_print:
+                print("WARNING: Overwriting spikes_df's 'fragile_linear_neuron_IDX' and 'neuron_IDX' columns!")
+                self._obj['old_fragile_linear_neuron_IDX'] = self._obj['fragile_linear_neuron_IDX'].copy()
+        
+        
         included_cell_INDEXES = np.array([neuron_id_to_new_IDX_map[an_included_cell_ID] for an_included_cell_ID in self._obj['aclu'].to_numpy()], dtype=int) # get the indexes from the cellIDs
         if debug_print:
             print('\t computed included_cell_INDEXES.')

@@ -101,6 +101,11 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
     
     #######################################################
     ## Rachel Nupy Format Only Methods:
+    @classmethod
+    def _rachel_add_missing_spikes_df_columns(cls, spikes_df, neurons_obj):
+        spikes_df, neurons_obj._reverse_cellID_index_map = spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
+        spikes_df['t'] = spikes_df['t_seconds'] # add the 't' column required for visualization
+    
     
     ## Main load function:
     @classmethod
@@ -145,6 +150,7 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             session = cls._default_compute_bapun_flattened_spikes(session, spike_timestamp_column_name=cls._time_variable_name) # sets session.flattened_spiketrains
+            cls._rachel_add_missing_spikes_df_columns(session.spikes_df, session.neurons) # add the missing columns to the dataframe 
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
             print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
