@@ -42,20 +42,9 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     The user specifies a basepath, which is the path containing a list of files:
     
     📦Day5TwoNovel
-     ┣ 📂position
-     ┃ ┣ 📜Take 2020-12-04 02.05.58 PM.csv
-     ┃ ┣ 📜Take 2020-12-04 02.13.28 PM.csv
-     ┃ ┣ 📜Take 2020-12-04 11.11.32 AM.csv
-     ┃ ┗ 📜Take 2020-12-04 11.11.32 AM_001.csv
-     ┣ 📜phoLoadBapunData.py
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.eeg
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy.bak
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze1.linear.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze2.linear.npy
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.mua.npy
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.neurons.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.nrs
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.paradigm.npy
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.pbe.npy
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.position.npy
@@ -160,7 +149,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
+            try:
+                session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
+            except ValueError as e:
+                print(f'Computation failed. Skipping .ripple')
+                session.ripple = None
 
         ## MUA:
         active_file_suffix = '.mua.npy'
@@ -171,8 +164,12 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.mua = DataSession.compute_neurons_mua(session, save_on_compute=True)
-
+            try:
+                session.mua = DataSession.compute_neurons_mua(session, save_on_compute=True)
+            except ValueError as e:
+                print(f'Computation failed. Skipping .mua')
+                session.mua = None
+                
         ## PBE Epochs:
         active_file_suffix = '.pbe.npy'
         found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
@@ -182,8 +179,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session.pbe = DataSession.compute_pbe_epochs(session, save_on_compute=True)
-            
+            try:
+                session.pbe = DataSession.compute_pbe_epochs(session, save_on_compute=True)
+            except ValueError as e:
+                print(f'Computation failed. Skipping .pbe')
+                session.pbe = None
         
         # add PBE information to spikes_df from session.pbe
         cls._default_add_spike_PBEs_if_needed(session)
