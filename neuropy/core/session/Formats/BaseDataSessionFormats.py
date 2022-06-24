@@ -65,7 +65,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     
     
     By default it attempts to find the single *.xml file in the root of this basedir, from which it determines the `session_name` as the stem (the part before the extension) of this file:
-        basedir: Path('R:\data\Bapun\Day5TwoNovel')
+        basedir: Path(r'R:\data\Bapun\Day5TwoNovel')
         session_name: 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
     
     From here, a list of known files to load from is determined:
