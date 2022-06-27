@@ -152,8 +152,9 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
             session = cls._default_compute_bapun_flattened_spikes(session, spike_timestamp_column_name=cls._time_variable_name) # sets session.flattened_spiketrains
             
             ## Testing: Fixing spike positions
-            session, session.spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, session.spikes_df, time_variable_name=cls._time_variable_name)
-            cls._rachel_add_missing_spikes_df_columns(session.spikes_df, session.neurons) # add the missing columns to the dataframe             
+            spikes_df = session.spikes_df
+            session, spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name=cls._time_variable_name)
+            cls._rachel_add_missing_spikes_df_columns(spikes_df, session.neurons) # add the missing columns to the dataframe             
             
             
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
