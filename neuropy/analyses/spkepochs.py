@@ -98,7 +98,7 @@ def detect_pbe_epochs(
     n_spikes = stats.zscore(mua.spike_counts)
     n_spikes_thresh = np.where(n_spikes >= edge_cutoff, n_spikes, 0)
     peaks, props = find_peaks(
-        n_spikes_thresh, height=[lowthresh, highthresh], prominence=0.5
+        n_spikes_thresh, height=[lowthresh, highthresh], prominence=0
     )
     starts, stops = props["left_bases"], props["right_bases"]
     peaks_n_spikes = n_spikes_thresh[peaks]
