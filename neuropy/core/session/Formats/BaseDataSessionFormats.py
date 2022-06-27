@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Dict
+from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
+from neuropy.core.position import Position
 from neuropy.core.session.dataSession import DataSession
 from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, SessionConfig
 
@@ -125,6 +127,36 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     #######################################################
     ## Internal Methods:
     #######################################################
+    
+    
+    @staticmethod
+    def _default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name='t_rel_seconds', force_recompute=True):     
+        ## Positions:
+        active_file_suffix = '.interpolated_spike_positions.npy'
+        if not force_recompute:
+            found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
+        else:
+            found_datafile = None
+        if found_datafile is not None:
+            print('\t Loading success: {}.'.format(active_file_suffix))
+            session.flattened_spiketrains = found_datafile
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('\t Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
+            session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
+            
+            session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)
+            # print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename), end='')
+            with ProgressMessagePrinter(session.flattened_spiketrains.filename, '\t Saving', 'updated interpolated spike position results'):
+                session.flattened_spiketrains.save()
+            # print('\t done.\n')
+    
+        # return the session with the upadated member variables
+        return session, spikes_df
+    
+    
+    
     
     @classmethod
     def _default_add_spike_PBEs_if_needed(cls, session):
