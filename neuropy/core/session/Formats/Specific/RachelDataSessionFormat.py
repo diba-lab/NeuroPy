@@ -150,7 +150,12 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             session = cls._default_compute_bapun_flattened_spikes(session, spike_timestamp_column_name=cls._time_variable_name) # sets session.flattened_spiketrains
-            cls._rachel_add_missing_spikes_df_columns(session.spikes_df, session.neurons) # add the missing columns to the dataframe 
+            
+            ## Testing: Fixing spike positions
+            session, session.spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, session.spikes_df, time_variable_name=cls._time_variable_name)
+            cls._rachel_add_missing_spikes_df_columns(session.spikes_df, session.neurons) # add the missing columns to the dataframe             
+            
+            
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
             print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
