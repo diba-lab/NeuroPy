@@ -430,11 +430,9 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         
         # Perform the primary setup to build the placefield
         self.setup(position, spikes_df, epochs)
-        self.compute()
-        
- 
-    
+        self.compute()    
         # done!
+        
     def setup(self, position: Position, spikes_df, epochs: Epoch, debug_print=False):
         """ do the preliminary setup required to build the placefields
         
@@ -465,17 +463,9 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         self._filtered_pos_df.dropna(axis=0, how='any', subset=pos_non_NA_column_labels, inplace=True) # dropped NaN values
             
         # Set animal observed position member variables:
-        # self.t = self.filtered_pos_df.t.to_numpy()
-        # self.x = self.filtered_pos_df.x.to_numpy()
-        # self.speed = self.filtered_pos_df.speed.to_numpy()
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
             # self.speed = gaussian_filter1d(self.speed, sigma=self.config.smooth[0])
             self._filtered_pos_df['speed_smooth'] = gaussian_filter1d(self._filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
-            
-        # if (self.ndim > 1):
-        #     self.y = self.filtered_pos_df.y.to_numpy()
-        # else:
-        #     self.y = None
 
         # Add interpolated velocity information to spikes dataframe:
         if 'speed' not in self._filtered_spikes_df.columns:
