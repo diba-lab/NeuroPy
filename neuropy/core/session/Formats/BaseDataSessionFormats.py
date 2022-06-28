@@ -36,6 +36,13 @@ class DataSessionFormatRegistryHolder(type):
         return dict(cls.REGISTRY)
     
     @classmethod
+    def get_registry_data_session_type_class_name_dict(cls):
+        """ returns a dict<str, DataSessionFormatBaseRegisteredClass> with keys corresponding to the registered short-names of the data_session_type (like 'kdiba', or 'bapun') and values of DataSessionFormatBaseRegisteredClass. """
+        return {a_class._session_class_name:a_class for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
+    
+    
+    
+    @classmethod
     def get_registry_known_data_session_type_dict(cls):
         """ returns a dict<str, KnownDataSessionTypeProperties> with keys corresponding to the registered short-names of the data_session_type (like 'kdiba', or 'bapun') and values of KnownDataSessionTypeProperties. """
         return {a_class._session_class_name:a_class.get_known_data_session_type_properties() for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
