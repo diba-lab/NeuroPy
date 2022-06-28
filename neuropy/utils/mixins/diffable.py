@@ -1,12 +1,10 @@
-
-
 class DiffableObject:
     """ Objects can be "diffed" to other objects of the same type or dictionaries, to see which members are the same and which differ. """
     def diff(self, other_object):
-        DiffableObject.diff(self.__dict__, other_object.__dict__)
+        return DiffableObject.compute_diff(self.__dict__, other_object.__dict__)
     
-    @classmethod
-    def diff(lhs_dict, rhs_dict):
+    @staticmethod
+    def compute_diff(lhs_dict, rhs_dict):
         """Returns a set of the properties that have changed between the two objects. Objects should be dictionary or related types.
 
         Args:
