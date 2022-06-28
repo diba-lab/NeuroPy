@@ -89,6 +89,12 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         
         
     @classmethod
+    def build_default_filter_functions(cls, sess):
+        all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
+        return {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
+    
+        
+    @classmethod
     def get_session(cls, basedir):
         _test_session = cls.build_session(Path(basedir))
         _test_session, loaded_file_record_list = cls.load_session(_test_session)
