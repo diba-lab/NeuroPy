@@ -60,10 +60,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         session_name: 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
     
     From here, a list of known files to load from is determined:
-    
-    
         
     """
+    _session_class_name = 'base'
+    _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
+    
     @classmethod
     def find_session_name_from_sole_xml_file(cls, basedir, debug_print=False):
         """ By default it attempts to find the single *.xml file in the root of this basedir, from which it determines the `session_name` as the stem (the part before the extension) of this file
@@ -128,9 +129,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     ## Internal Methods:
     #######################################################
     
-    
-    @staticmethod
-    def _default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name='t_rel_seconds', force_recompute=True):     
+    @classmethod
+    def _default_compute_spike_interpolated_positions_if_needed(cls, session, spikes_df, time_variable_name='t_rel_seconds', force_recompute=True):     
         ## Positions:
         active_file_suffix = '.interpolated_spike_positions.npy'
         if not force_recompute:
@@ -154,9 +154,6 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     
         # return the session with the upadated member variables
         return session, spikes_df
-    
-    
-    
     
     @classmethod
     def _default_add_spike_PBEs_if_needed(cls, session):

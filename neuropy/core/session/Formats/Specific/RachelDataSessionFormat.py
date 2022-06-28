@@ -64,8 +64,10 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         _test_session
         
     """
-    
+    _session_class_name = 'rachel'
+    _session_default_basedir = r'R:\data\Rachel\merged_M1_20211123_raw_phy'
     _time_variable_name = 't_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
+
    
     @classmethod
     def get_session_name(cls, basedir):

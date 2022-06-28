@@ -114,7 +114,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         _test_session
 
     """
-    
+    _session_class_name = 'kdiba'
+    _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
     _time_variable_name = 't_rel_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
     
     @classmethod
