@@ -280,6 +280,32 @@ class Epoch(DataWriter):
         epochs_arr = np.delete(epochs_arr, ind_delete, axis=0)
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1])
 
+    def contains(self, t):
+        """Check if timepoints lie within epochs, must be non-overlapping epochs
+
+        Parameters
+        ----------
+        t : array
+            timepoints in seconds
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+
+        assert ~self.is_overlapping, "Epochs must be non overlapping"
+
+        labels = self.labels
+        bin_loc = np.digitize(t, self.flatten())
+        indx_bool = bin_loc % 2 == 1
+
+        return (
+            indx_bool,
+            t[indx_bool],
+            labels[((bin_loc[indx_bool] - 1) / 2).astype("int")],
+        )
+
     def delete_in_between(self, t1, t2):
 
         epochs_df = self.to_dataframe()[["start", "stop", "label"]]

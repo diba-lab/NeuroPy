@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.ndimage import gaussian_filter1d
+from ..utils.mathutil import gaussian_kernel1D
 import scipy.signal as sg
 from .datawriter import DataWriter
 from . import Epoch
@@ -332,7 +332,9 @@ class Neurons(DataWriter):
 
         return np.asarray(counts)
 
-    def get_spikes_in_epochs(self, epochs: Epoch, bin_size=0.01, slideby=None):
+    def get_spikes_in_epochs(
+        self, epochs: Epoch, bin_size=0.01, slideby=None, sigma=None
+    ):
         """A list of 2D arrays containing spike counts
 
         Parameters
@@ -343,6 +345,8 @@ class Neurons(DataWriter):
             bin size to be used to within each epoch, by default 0.01
         slideby : [type], optional
             if spike counts should have sliding window, by default None
+        sigma: float, optional
+            standard deviation for gaussian kernel used for smoothing in seconds, by default None
 
         Returns
         -------
@@ -393,6 +397,13 @@ class Neurons(DataWriter):
 
                 nbins[i] = slide_view.shape[1]
                 spkcount.append(slide_view)
+
+        if sigma is not None:
+            kernel = gaussian_kernel1D(sigma=sigma, bin_size=bin_size)
+            spkcount = [
+                np.apply_along_axis(np.convolve, arr=_, v=kernel, mode="same", axis=1)
+                for _ in spkcount
+            ]
 
         return spkcount, nbins
 

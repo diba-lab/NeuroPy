@@ -8,6 +8,29 @@ from .ccg import correlograms
 import scipy.signal as sg
 
 
+def gaussian_kernel1D(sigma, bin_size, truncate=4.0):
+    """Get a gaussian kernel
+
+    Parameters
+    ----------
+    sigma : float
+        standard deviation of the kernel
+    bin_size : float
+        bin size of the kernel
+    truncate: float
+        limit kernel to this standard deviation,default = 4.0
+
+    Returns
+    -------
+    np.array
+        gaussian kernel
+    """
+    t_gauss = np.arange(-truncate * sigma, truncate * sigma, bin_size)
+    gaussian = np.exp(-(t_gauss**2) / (2 * sigma**2))
+    gaussian /= np.sum(gaussian)
+    return gaussian
+
+
 def min_max_scaler(x, axis=-1):
     """Scales the values x to lie between 0 and 1 along the specfied axis
 
