@@ -131,3 +131,13 @@ class DynamicContainer(DiffableObject, MutableMapping):
         # test to see if the object is dict-backed:
         obj_dict_rep = an_object.__dict__
         return cls.init_from_dict(obj_dict_rep)
+    
+    
+    
+    ## For serialization/pickling:
+    def __getstate__(self):
+        return self.to_dict()
+
+    def __setstate__(self, state):
+        return self.init_from_dict(state)
+        
