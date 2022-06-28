@@ -2,6 +2,7 @@ import traceback
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from neuropy.core.epoch import NamedTimerange
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
@@ -127,7 +128,45 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
                                 basedir=Path(cls._session_default_basedir), post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
 
+    
+    @classmethod
+    def build_default_filter_functions(cls, sess):
+        # all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
+        # default_filter_functions = DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess)
+        
+        # Pyramidal and Lap-Only:
+        def build_pyramidal_epochs_filters(sess):
+            sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
+            active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')),
+                                                'maze2': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2')),
+                                                'maze': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]))
+                                            }
+            return active_session_filter_configurations
 
+        active_session_filter_configurations = build_pyramidal_epochs_filters(sess)
+        return active_session_filter_configurations
+    
+    @classmethod
+    def build_default_computation_configs(cls, sess):
+        """ _get_computation_configs(curr_kdiba_pipeline.sess) 
+            # From Diba:
+            # (3.777, 1.043) # for (64, 64) bins
+            # (1.874, 0.518) # for (128, 128) bins
+        """
+        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
+        
+        lap_specific_epochs = sess.laps.as_epoch_obj()
+        any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
+        even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
+        odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+
+        # Copy the active session_computation_config:
+        for i in np.arange(len(active_session_computation_configs)):
+            active_session_computation_configs[i].computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
+
+        return active_session_computation_configs        
+        
+    
     @classmethod
     def get_session_name(cls, basedir):
         """ returns the session_name for this basedir, which determines the files to load. """
