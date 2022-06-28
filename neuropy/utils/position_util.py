@@ -7,6 +7,8 @@ from scipy.ndimage import gaussian_filter1d
 from .. import core
 from neuropy.utils.mathutil import contiguous_regions, threshPeriods
 
+from dataclasses import dataclass # for BinningInfo
+
 
 def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
@@ -191,3 +193,89 @@ def calculate_run_epochs(
     data["direction"] = np.where(val > 0, "forward", "backward")
 
     return run_epochs
+
+
+@dataclass
+class BinningInfo(object):
+    """Docstring for BinningInfo."""
+    variable_extents: tuple
+    step: float
+    num_bins: int
+    bin_indicies: np.ndarray
+    
+    
+
+def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None):
+    """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
+
+
+    Args:
+        variable_values ([type]): [description]
+        num_bins (int, optional): [description]. Defaults to None.
+        bin_size (float, optional): [description]. Defaults to None.
+        debug_print (bool, optional): [description]. Defaults to False.
+
+    Raises:
+        ValueError: [description]
+
+    Returns:
+        [type]: [description]
+        
+    Usage:
+        ## Binning with Fixed Number of Bins:    
+        xbin, ybin, bin_info = compute_spanning_bins(pos_df.x.to_numpy(), bin_size=active_config.computation_config.grid_bin[0]) # bin_size mode
+        print(bin_info)
+        ## Binning with Fixed Bin Sizes:
+        xbin, ybin, bin_info = compute_spanning_bins(pos_df.x.to_numpy(), num_bins=num_bins) # num_bins mode
+        print(bin_info)
+        
+    """
+    assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
+    assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
+    curr_variable_extents = (np.nanmin(variable_values), np.nanmax(variable_values))
+    
+    if num_bins is not None:
+        ## Binning with Fixed Number of Bins:
+        mode = 'num_bins'
+        xnum_bins = num_bins
+        xbin, xstep = np.linspace(curr_variable_extents[0], curr_variable_extents[1], num=num_bins, retstep=True)  # binning of x position
+        
+    elif bin_size is not None:
+        ## Binning with Fixed Bin Sizes:
+        mode = 'bin_size'
+        xstep = bin_size
+        xbin = np.arange(curr_variable_extents[0], (curr_variable_extents[1] + xstep), xstep, )  # binning of x position
+        # the interval does not include this value, except in some cases where step is not an integer and floating point round-off affects the length of out.
+        xnum_bins = len(xbin)
+        
+    else:
+        raise ValueError
+    
+    return xbin, BinningInfo(curr_variable_extents, xstep, xnum_bins, np.arange(xnum_bins))
+      
+      
+def compute_position_grid_size(*any_1d_series, num_bins:tuple):
+    """  Computes the required bin_sizes from the required num_bins (for each dimension independently)
+    Usage:
+    out_grid_bin_size, out_bins, out_bins_infos = compute_position_grid_size(curr_kdiba_pipeline.sess.position.x, curr_kdiba_pipeline.sess.position.y, num_bins=(64, 64))
+    active_grid_bin = tuple(out_grid_bin_size)
+    print(f'active_grid_bin: {active_grid_bin}') # (3.776841861770752, 1.043326930905373)
+    
+    History:
+        Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
+    
+    """
+    assert (len(any_1d_series)) == len(num_bins), f'(len(other_1d_series)) must be the same length as the num_bins tuple! But (len(other_1d_series)): {(len(any_1d_series))} and len(num_bins): {len(num_bins)}!'
+    num_series = len(num_bins)
+    out_bins = []
+    out_bins_info = []
+    out_bin_grid_step_size = np.zeros((num_series,))
+
+    for i in np.arange(num_series):
+        xbins, xbin_info = compute_spanning_bins(any_1d_series[i], num_bins=num_bins[i])
+        out_bins.append(xbins)
+        out_bins_info.append(xbin_info)
+        out_bin_grid_step_size[i] = xbin_info.step
+
+    return out_bin_grid_step_size, out_bins, out_bins_info
+
