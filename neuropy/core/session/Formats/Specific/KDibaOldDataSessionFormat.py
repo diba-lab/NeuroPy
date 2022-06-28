@@ -128,7 +128,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                                 basedir=Path(cls._session_default_basedir), post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
 
 
-
     @classmethod
     def get_session_name(cls, basedir):
         """ returns the session_name for this basedir, which determines the files to load. """
@@ -244,11 +243,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 # Otherwise load failed, perform the fallback computation
                 print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
                 session.position = DataSession.compute_linear_position(session)
-            
-            session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
-            # print('Saving updated position results to {}...'.format(session.position.filename), end='')
-            with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
-                session.position.save()
+                # Only re-save after re-computation
+                session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
+                # print('Saving updated position results to {}...'.format(session.position.filename), end='')
+                with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
+                    session.position.save()
             # print('\t done.\n')
         else:
             print('\t linearized position loaded from file.')
