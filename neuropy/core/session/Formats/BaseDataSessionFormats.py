@@ -166,8 +166,9 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         else:
             # Otherwise load failed, perform the fallback computation
             print('\t Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
-            session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
+            with ProgressMessagePrinter('spikes_df', 'Computing', 'interpolate_spike_positions columns'):
+                spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
+                session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
             
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)
             # print('\t Saving updated interpolated spike position results to {}...'.format(session.flattened_spiketrains.filename), end='')
@@ -180,12 +181,13 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     
     @classmethod
     def _default_add_spike_PBEs_if_needed(cls, session):
-        updated_spk_df = session.compute_spikes_PBEs()
+        with ProgressMessagePrinter('spikes_df', 'Computing', 'spikes_df PBEs column'):
+            updated_spk_df = session.compute_spikes_PBEs()
         return session
     
     @classmethod
     def _default_add_spike_scISIs_if_needed(cls, session):
-        with ProgressMessagePrinter('filepath?', 'Computing', 'added spike scISI column'):
+        with ProgressMessagePrinter('spikes_df', 'Computing', 'added spike scISI column'):
             updated_spk_df = session.spikes_df.spikes.add_same_cell_ISI_column()
         return session
     

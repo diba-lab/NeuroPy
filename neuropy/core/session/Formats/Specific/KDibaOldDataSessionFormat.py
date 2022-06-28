@@ -182,8 +182,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         session = cls._default_compute_linear_position_if_needed(session)
         
         ## Testing: Fixing spike positions
-        spikes_df['x_loaded'] = spikes_df['x']
-        spikes_df['y_loaded'] = spikes_df['y']
+        if np.isin(['x','y'], spikes_df.columns).all():
+            spikes_df['x_loaded'] = spikes_df['x']
+            spikes_df['y_loaded'] = spikes_df['y']
+
         session, spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name=active_time_variable_name)
         # spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=active_time_variable_name)
         

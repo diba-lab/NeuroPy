@@ -132,8 +132,8 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
 
         ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
         ## flattened.spikes:
-        # active_file_suffix = '.flattened.spikes.npy'
-        active_file_suffix = '.new.flattened.spikes.npy'
+        active_file_suffix = '.flattened.spikes.npy'
+        # active_file_suffix = '.new.flattened.spikes.npy'
         found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
         if found_datafile is not None:
             print('Loading success: {}.'.format(active_file_suffix))
