@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
 from neuropy.core.position import Position
+from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
 from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, SessionConfig
 
@@ -33,7 +34,13 @@ class DataSessionFormatRegistryHolder(type):
     @classmethod
     def get_registry(cls):
         return dict(cls.REGISTRY)
-
+    
+    @classmethod
+    def get_registry_known_data_session_type_dict(cls):
+        """ returns a dict<str, KnownDataSessionTypeProperties> with keys corresponding to the registered short-names of the data_session_type (like 'kdiba', or 'bapun') and values of KnownDataSessionTypeProperties. """
+        return {a_class._session_class_name:a_class.get_known_data_session_type_properties() for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
+    
+    
 
 class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHolder):
     """
@@ -64,6 +71,22 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     """
     _session_class_name = 'base'
     _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
+    
+    
+    
+    @classmethod
+    def get_known_data_session_type_properties(cls):
+        """ returns the KnownDataSessionTypeProperties for this class, which contains information about the process of loading the session."""        
+        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
+                                basedir=Path(cls._session_default_basedir))
+        
+        
+    @classmethod
+    def get_session(cls, basedir):
+        _test_session = cls.build_session(Path(basedir))
+        _test_session, loaded_file_record_list = cls.load_session(_test_session)
+        return _test_session
+    
     
     @classmethod
     def find_session_name_from_sole_xml_file(cls, basedir, debug_print=False):

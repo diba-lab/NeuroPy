@@ -13,4 +13,5 @@ class KnownDataSessionTypeProperties(object):
     post_load_functions: List[Callable] = dataclasses.field(default_factory=list)
     filter_functions: List[Callable] = dataclasses.field(default_factory=list)
     post_compute_functions: List[Callable] = dataclasses.field(default_factory=list)
-    # filter_function: Callable = None
+    
+    

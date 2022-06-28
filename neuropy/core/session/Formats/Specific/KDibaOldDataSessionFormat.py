@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
+from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
 from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
 
@@ -10,6 +11,8 @@ from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
 from neuropy.utils.load_exported import import_mat_file
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
+from neuropy.analyses.laps import estimation_session_laps # for estimation_session_laps
+
 
 class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
@@ -118,6 +121,14 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
     _time_variable_name = 't_rel_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
     
+    @classmethod
+    def get_known_data_session_type_properties(cls):
+        """ returns the session_name for this basedir, which determines the files to load. """        
+        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
+                                basedir=Path(cls._session_default_basedir), post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
+
+
+
     @classmethod
     def get_session_name(cls, basedir):
         """ returns the session_name for this basedir, which determines the files to load. """
