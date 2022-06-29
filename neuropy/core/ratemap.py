@@ -177,7 +177,8 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
             raise NotImplementedError
 
         ## TODO: add the _test_1D_AOC_normalized_pdf AND _test_2D_AOC_normalized_pdf to the appropriate ratemaps
-
+            ## [X] Done, implemented as `self.pdf_normalized_tuning_curves`
+            
     
     def get_sort_indicies(self, sortby=None):
         curr_tuning_curves = self.normalized_tuning_curves
