@@ -55,7 +55,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.7
     ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.8
     ┃ ┃ ┣ 📜2006-6-07_11-26-53.fet.9
-    ┃ ┃ ┣ 📜2006-6-07_11-26-53.interpolated_spike_positions.npy
+    ┃ ┃ ┣ 📜2006-6-07_11-26-53.interpolated_spike_positions.npy     <-OPT-GEN
     ┃ ┃ ┣ 📜2006-6-07_11-26-53.laps_info.mat
     ┃ ┃ ┣ 📜2006-6-07_11-26-53.nrs
     ┃ ┃ ┣ 📜2006-6-07_11-26-53.position.npy

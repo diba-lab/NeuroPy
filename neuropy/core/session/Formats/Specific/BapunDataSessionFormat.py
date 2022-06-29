@@ -15,24 +15,18 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
 
     # Example Filesystem Hierarchy:
     📦Day5TwoNovel
-     ┣ 📂position
-     ┃ ┣ 📜Take 2020-12-04 02.05.58 PM.csv
-     ┃ ┣ 📜Take 2020-12-04 02.13.28 PM.csv
-     ┃ ┣ 📜Take 2020-12-04 11.11.32 AM.csv
-     ┃ ┗ 📜Take 2020-12-04 11.11.32 AM_001.csv
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.eeg
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy.bak
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze1.linear.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze2.linear.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.mua.npy
+     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.flattened.spikes.npy <-GEN
+     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze1.linear.npy     <-GEN
+     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.maze2.linear.npy     <-GEN
+     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.mua.npy              <-GEN
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.neurons.npy
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.nrs
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.paradigm.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.pbe.npy
+     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.pbe.npy              <-OPT-GEN
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.position.npy
      ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.probegroup.npy
-     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.ripple.npy
+     ┣ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.ripple.npy           <-OPT-GEN
      ┗ 📜RatS-Day5TwoNovel-2020-12-04_07-55-09.xml
     
     
