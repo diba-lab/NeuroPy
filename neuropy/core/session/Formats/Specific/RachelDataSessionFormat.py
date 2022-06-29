@@ -7,7 +7,8 @@ from neuropy.core.session.dataSession import DataSession
 from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
 
 # For specific load functions:
-from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
+from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains, Shank, Probe, ProbeGroup
+from neuropy.io import OptitrackIO, PhyIO
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
 
@@ -171,3 +172,64 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
     
     
     
+    ## Initial Function required to wrangle the data from the raw output to a format like Bapun's .npy format:
+    @classmethod
+    def initialize_data_directory(cls, filepath):
+        """ TODO: this function is supposed to combine all the steps needed to process a freshly output recording directory to generate the required *.npy files that are used to build the session. 
+        
+            I did my best to piece together the relevant looking parts of Rachel's pre-processing scripts/notebooks (`test.py` and `ttl_check.ipynb`) but they don't appear sufficient to perform all the pre-processing. I think this was becuase Rachel did some of the conversion in MATLAB. These scripts will need to be converted to folded in to this function. 
+            
+        """
+        ## Builds the .neurons.npy:
+        folder = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy')
+        phydata = PhyIO(folder)
+
+        neuronIDs = pd.read_csv('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy/cluster_q.tsv');
+
+        neurons = Neurons(spiketrains=phydata.spiketrains, t_stop=2*3600, sampling_rate=30000, neuron_ids = {1:'pyr1',2:'pyr2',3:'pyr3',4:'int1',5:'int2',6:'int3',7:"mua1",8:'mua2',9:'mua3'})
+        neurons.filename = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy/merged_M1_20211123_raw.neurons.npy')
+        neurons.save()
+
+        # Probe Groups file
+        # TODO: Probe group generation
+        # shanks = []
+        # # channel_groups = sess.recinfo.channel_groups
+        # for i in range(8):
+        #     shank = Shank.auto_generate(
+        #         columns=1,
+        #         contacts_per_column=128,
+        #         xpitch=90,
+        #         ypitch=0,
+        #         y_shift_per_column=[0, 0],
+        #         channel_id=np.arange(0,128,1)
+        #         ),
+            
+        # elec_IDs = np.arange(0,128,1)
+        # shanks = Shank.auto_generate(channels=1, contacts_per_column = 128)
+        # shanks = pd.read_csv('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/Probe.csv',delimiter=',',usecols=["ShankNumber"])
+        # prb = Probe(shanks)
+        # prbgroup = ProbeGroup()
+        # prbgroup.add_probe(prb)
+
+
+        ## Builds the .position.npy:
+        opti_folder = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/behav_csv')
+        opti_data = OptitrackIO(opti_folder)
+        brelative = pd.read_csv('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_behavior_relativetoLFP.csv',header = None)
+        print(f'brelative.shape: {brelative.shape}')
+        d = {'t':brelative[0],'x':opti_data.z,'y':opti_data.x} 
+        behaviordf = pd.DataFrame(data=d)
+        print(f'behaviordf.shape: {behaviordf.shape}')
+        position = Position(behaviordf)
+        position.filename = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy/merged_M1_20211123_raw.position.npy')
+        position.save()
+
+        ## Builds the .paradigm.npy file from scratch:
+        starts = [0,5*60]
+        stops = [5*60-1,3.8398632e+03]
+        labels = ['pre','maze']
+        d = {'start':starts,'stop':stops,'label':labels} 
+        paradigmdf = pd.DataFrame(data=d)
+        paradigm = Epoch(paradigmdf)
+        paradigm.filename = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy/merged_M1_20211123_raw.paradigm.npy')
+        paradigm.save()
