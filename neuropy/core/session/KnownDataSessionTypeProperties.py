@@ -15,3 +15,5 @@ class KnownDataSessionTypeProperties(object):
     post_compute_functions: List[Callable] = dataclasses.field(default_factory=list)
     
     
+    def update_basedir(self, updated_basedir):
+        self.basedir = updated_basedir

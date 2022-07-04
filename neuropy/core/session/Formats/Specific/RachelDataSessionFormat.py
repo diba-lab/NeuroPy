@@ -66,8 +66,9 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         
     """
     _session_class_name = 'rachel'
-    # _session_default_basedir = r'R:\data\Rachel\merged_M1_20211123_raw_phy' # Windows
-    _session_default_basedir = '/run/media/halechr/MoverNew/data/Rachel/merged_M1_20211123_raw_phy' # LINUX
+    _session_default_relative_basedir = r'data/Rachel/merged_M1_20211123_raw_phy'
+    _session_default_basedir = r'R:\data\Rachel\merged_M1_20211123_raw_phy' # Windows
+    # _session_default_basedir = '/run/media/halechr/MoverNew/data/Rachel/merged_M1_20211123_raw_phy' # LINUX
     _time_variable_name = 't_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
 
    

@@ -82,6 +82,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         
     """
     _session_class_name = 'base'
+    _session_default_relative_basedir = r'data\KDIBA\gor01\one\2006-6-07_11-26-53'
     _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
     
     
