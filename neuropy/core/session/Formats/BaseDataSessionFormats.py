@@ -50,7 +50,7 @@ class DataSessionFormatRegistryHolder(type):
     @classmethod
     def get_registry_known_data_session_type_dict(cls, override_data_basepath=None):
         """ returns a dict<str, KnownDataSessionTypeProperties> with keys corresponding to the registered short-names of the data_session_type (like 'kdiba', or 'bapun') and values of KnownDataSessionTypeProperties. """
-        return {a_class._session_class_name:a_class.get_known_data_session_type_properties(override_data_basepath=override_data_basepath) for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
+        return {a_class._session_class_name:a_class.get_known_data_session_type_properties(override_basepath=override_data_basepath) for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
     
     
 
