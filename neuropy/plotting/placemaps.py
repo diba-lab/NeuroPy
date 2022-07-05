@@ -1,8 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from neuropy.utils.dynamic_container import unwrap_placefield_computation_parameters  # for testing whether active_config.computation_config is an instance of PlacefieldComputationParameters in plot_all_placefields(...)
-
+from neuropy.utils.mixins.unwrap_placefield_computation_parameters import unwrap_placefield_computation_parameters
 
 def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True, **kwargs):
     """ Main function to plot all aspects of 1D and 2D placefields

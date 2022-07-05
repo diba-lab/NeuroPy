@@ -5,7 +5,6 @@ from itertools import islice
 import numpy as np
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
 
-
 import collections
 import _collections_abc as cabc
 import abc

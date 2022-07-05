@@ -147,7 +147,6 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
 
-
 def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
     # raw occupancy is defined in terms of the number of samples that fall into each bin.
     # if position_srate is not None:
