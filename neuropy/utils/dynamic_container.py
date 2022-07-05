@@ -50,12 +50,27 @@ class DynamicContainer(DiffableObject, MutableMapping):
         elif isinstance(other, DynamicContainer):
             other_dict = other.to_dict()
         else:
-            raise NotImplementedError            
+            # try to convert the other type into a dict using all known available methods: DynamicContainer
+            try:
+                other_dict = other.to_dict() # try to convert to dict using the .to_dict() method if possible
+            except Exception as e:
+                # If that failed, fallback to trying to access the object's .__dict__ property
+                try:
+                    other_dict = dict(other.items())
+                except Exception as e:
+                    # Give up, can't convert!                
+                    print(f'UNHANDLED TYPE: type(other): {type(other)}, other: {other}')
+                    # raise NotImplementedError            
+                    other_dict = None
+                    raise e
+
+                pass # other_dict               
+        
             
         dict_or = self.to_dict().__or__(other_dict)
         return DynamicContainer.init_from_dict(dict_or)
-        
-
+    
+    
     def __getattr__(self, item):
         # Gets called when the item is not found via __getattribute__
         try:
