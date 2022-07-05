@@ -1,12 +1,14 @@
-from __future__ import annotations # MUST add to start of file
+# from __future__ import annotations # MUST add to start of file
 
 # from https://www.stefaanlippens.net/circular-imports-type-hints-python.html to avoid circular import issues
 # also you must add the following line to the beginning of this file:
 #   from __future__ import annotations # otherwise have to do type like 'Ratemap'
 #
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from neuropy.analyses.placefields import PlacefieldComputationParameters
+# from typing import TYPE_CHECKING
+# if TYPE_CHECKING:
+    # from neuropy.analyses.placefields import PlacefieldComputationParameters
+    
+from neuropy.analyses.placefields import PlacefieldComputationParameters
 
 
 def unwrap_placefield_computation_parameters(computation_config) -> PlacefieldComputationParameters:
