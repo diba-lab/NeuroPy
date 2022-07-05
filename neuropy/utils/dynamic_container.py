@@ -1,6 +1,7 @@
 
 import collections
 from collections.abc import MutableMapping
+from neuropy.analyses.placefields import PlacefieldComputationParameters # for defining the compatibility wrapper unwrap_placefield_computation_parameters(...)
 from neuropy.utils.mixins.diffable import DiffableObject
 
 class DynamicContainer(DiffableObject, MutableMapping):
@@ -156,3 +157,22 @@ class DynamicContainer(DiffableObject, MutableMapping):
     def __setstate__(self, state):
         return self.init_from_dict(state)
         
+        
+
+def unwrap_placefield_computation_parameters(computation_config) -> PlacefieldComputationParameters:
+    """ Extract the older PlacefieldComputationParameters from the newer computation_config (which is a dynamic_parameters object), which should have a field .pf_params
+    If the computation_config is passed in the old-style (already a PlacefieldComputationParameters) it's returned unchanged.
+
+    Usage:
+        active_pf_computation_params = unwrap_placefield_computation_parameters(active_config.computation_config)
+    
+    """
+    if isinstance(computation_config, PlacefieldComputationParameters):
+        # Older format:
+        return computation_config  
+    else:
+        # Extract the older PlacefieldComputationParameters from pf_params:
+        assert isinstance(computation_config.pf_params, PlacefieldComputationParameters), "computation_config.pf_params should exist and be of type PlacefieldComputationParameters!"
+        return computation_config.pf_params
+
+

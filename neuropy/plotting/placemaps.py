@@ -1,14 +1,10 @@
-import ipywidgets as widgets
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.gridspec import GridSpec
-from scipy.signal.signaltools import resample
-from neuropy.plotting.figure import pretty_plot
+
+from neuropy.utils.dynamic_container import unwrap_placefield_computation_parameters  # for testing whether active_config.computation_config is an instance of PlacefieldComputationParameters in plot_all_placefields(...)
 
 
-
-def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True):
+def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True, **kwargs):
     """ Main function to plot all aspects of 1D and 2D placefields
     active_placefields1D: (Pf1D)
     active_placefields2D: (Pf2D)
@@ -17,7 +13,8 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config)
     """
     active_epoch_name = active_config.active_epochs.name
-    common_parent_foldername = active_config.computation_config.str_for_filename(True)
+    active_pf_computation_params = unwrap_placefield_computation_parameters(active_config.computation_config)
+    common_parent_foldername = active_pf_computation_params.str_for_filename(True)
     
     ## Linearized (1D) Position Placefields:
     if active_placefields1D is not None:
