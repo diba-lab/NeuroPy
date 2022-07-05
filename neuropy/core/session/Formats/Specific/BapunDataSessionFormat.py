@@ -7,8 +7,8 @@ from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec
 
 # For specific load functions:
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
+from neuropy.core.session.SessionSelectionAndFiltering import batch_filter_session, build_custom_epochs_filters # used particularly to build Bapun-style filters
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
-
 
 class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
@@ -84,6 +84,28 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         session.paradigm = Epoch.from_file(filepath)  # "epoch" field of file
         return session
     
+    
+    # Not limited:
+    @classmethod
+    def build_filters_any_epochs(cls, sess):
+        return build_custom_epochs_filters(sess)
+    
+    # Any epoch on the maze, not limited to pyramidal cells, etc
+    @classmethod
+    def build_filters_any_maze_epochs(cls, sess):
+        maze_only_name_filter_fn = lambda names: list(filter(lambda elem: elem.startswith('maze'), names))
+        maze_only_filters = build_custom_epochs_filters(sess, included_epoch_labels=maze_only_name_filter_fn)
+        return maze_only_filters
+
+
+    @classmethod
+    def build_default_filter_functions(cls, sess):
+        ## TODO: currently hard-coded
+        # active_session_filter_configurations = cls.build_filters_any_epochs(sess)
+        active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
+        return active_session_filter_configurations
+    
+        
     #######################################################
     ## Bapun Nupy Format Only Methods:
     @classmethod

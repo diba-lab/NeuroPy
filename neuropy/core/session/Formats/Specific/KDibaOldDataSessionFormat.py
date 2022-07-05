@@ -12,7 +12,9 @@ from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
 from neuropy.utils.load_exported import import_mat_file
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
+
 from neuropy.analyses.laps import estimation_session_laps # for estimation_session_laps
+from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
 
 
 class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
@@ -135,22 +137,40 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                                 basedir=basepath, post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
 
     
+    # Pyramidal and Lap-Only:
+    @classmethod
+    def build_filters_pyramidal_epochs(cls, sess):
+        sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
+        active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')),
+                                            'maze2': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2')),
+                                            'maze': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]))
+                                        }
+        return active_session_filter_configurations
+    
+    # Any epoch on the maze, not limited to pyramidal cells, etc
+    @classmethod
+    def build_filters_any_maze_epochs(cls, sess):
+        sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
+        # active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')) } # just maze 1
+        active_session_filter_configurations = {
+                # 'maze1': lambda x: (x.filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')),
+                #                                     'maze2': lambda x: (x.filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2')),
+                                            'maze': lambda x: (x.filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]))
+        }
+        return active_session_filter_configurations
+
+
     @classmethod
     def build_default_filter_functions(cls, sess):
         # all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
         # default_filter_functions = DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess)
+        ## TODO: currently hard-coded
+        # active_session_filter_configurations = cls.build_pyramidal_epochs_filters(sess)
+        active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
         
-        # Pyramidal and Lap-Only:
-        def build_pyramidal_epochs_filters(sess):
-            sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
-            active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')),
-                                                'maze2': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2')),
-                                                'maze': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]))
-                                            }
-            return active_session_filter_configurations
-
-        active_session_filter_configurations = build_pyramidal_epochs_filters(sess)
         return active_session_filter_configurations
+    
+    
     
     @classmethod
     def build_default_computation_configs(cls, sess):
@@ -160,16 +180,22 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # (1.874, 0.518) # for (128, 128) bins
         """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
-        
-        lap_specific_epochs = sess.laps.as_epoch_obj()
-        any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
-        even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
-        odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+        ## Lap-restricted computation epochs:
+        # is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
+        # only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
+        # sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
+        # lap_specific_epochs = sess.laps.as_epoch_obj()
+        # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
+        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
+        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
 
-        # Copy the active session_computation_config:
+        ## Non-restricted computation epochs:
+        any_lap_specific_epochs = None
+
+        # Lap-restricted computation epochs:
         for i in np.arange(len(active_session_computation_configs)):
-            active_session_computation_configs[i].computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
-
+            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
+    
         return active_session_computation_configs        
         
     
