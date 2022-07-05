@@ -206,13 +206,13 @@ class PfND_TimeDependent(PfND):
         self.historical_snapshots = OrderedDict({})
 
 
-    def step(self, num_seconds_to_advance):
+    def step(self, num_seconds_to_advance, should_snapshot=False):
         """ advance the computed time by a fixed number of seconds. """
         next_t = self.last_t + num_seconds_to_advance # add one second
-        self.update(next_t)
+        self.update(next_t, should_snapshot=should_snapshot)
         return next_t
     
-    def update(self, t):
+    def update(self, t, should_snapshot=False):
         """ updates all variables to the latest versions """
         if self.last_t > t:
             print(f'WARNING: update(t: {t}) called with t < self.last_t ({self.last_t}! Skipping.')
@@ -221,6 +221,9 @@ class PfND_TimeDependent(PfND):
             with np.errstate(divide='ignore', invalid='ignore'):
                 self._minimal_update(t)
                 self._display_update(t)
+                if should_snapshot:
+                    self.snapshot()
+                    
 
 
     def _minimal_update(self, t):
@@ -237,6 +240,7 @@ class PfND_TimeDependent(PfND):
         curr_t, self.curr_raw_occupancy_map = PfND_TimeDependent.update_occupancy_map(self.last_t, self.curr_raw_occupancy_map, t, self.all_time_filtered_pos_df)
         curr_t, self.curr_firing_maps_matrix = PfND_TimeDependent.update_firing_map(self.last_t, self.curr_firing_maps_matrix, t, self.all_time_filtered_spikes_df)
         self.last_t = curr_t
+
         
     def _display_update(self, t):
         """ updates the extended variables:
