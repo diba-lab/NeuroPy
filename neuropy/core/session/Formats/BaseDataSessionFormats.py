@@ -86,42 +86,25 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
     
     
-    
     @classmethod
-    def get_known_data_session_type_properties(cls, override_basepath=None):
-        """ returns the KnownDataSessionTypeProperties for this class, which contains information about the process of loading the session."""
-        if override_basepath is not None:
-            basepath = override_basepath
-        else:
-            basepath = Path(cls._session_default_basedir)
-        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), basedir=basepath)
-        
+    def get_session_name(cls, basedir):
+        """ MUST be overriden by implementor to return the session_name for this basedir, which determines the files to load. """
+        raise NotImplementedError # innheritor must override
+
+    @classmethod
+    def get_session_spec(cls, session_name):
+        """ MUST be overriden by implementor to return the a session_spec """
+        raise NotImplementedError # innheritor must override
         
     @classmethod
     def build_default_filter_functions(cls, sess):
+        """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
         all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
         return {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
-    
-        
-    @classmethod
-    def compute_position_grid_bin_size(cls, x, y, num_bins=(64,64), debug_print=False):
-        """ Compute Required Bin size given a desired number of bins in each dimension
-        Usage:
-            active_grid_bin = compute_position_grid_bin_size(curr_kdiba_pipeline.sess.position.x, curr_kdiba_pipeline.sess.position.y, num_bins=(64, 64)
-        """
-        out_grid_bin_size, out_bins, out_bins_infos = compute_position_grid_size(x, y, num_bins=num_bins)
-        active_grid_bin = tuple(out_grid_bin_size)
-        if debug_print:
-            print(f'active_grid_bin: {active_grid_bin}') # (3.776841861770752, 1.043326930905373)
-        return active_grid_bin
 
     @classmethod
     def build_default_computation_configs(cls, sess):
-        """ _get_computation_configs(curr_kdiba_pipeline.sess) 
-            # From Diba:
-            # (3.777, 1.043) # for (64, 64) bins
-            # (1.874, 0.518) # for (128, 128) bins
-        """
+        """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
         return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
                           spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
         # active_grid_bin = compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64))
@@ -135,20 +118,17 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         #        ]
   
   
-  
-        
     @classmethod
     def get_session(cls, basedir):
         _test_session = cls.build_session(Path(basedir))
         _test_session, loaded_file_record_list = cls.load_session(_test_session)
-        return _test_session
-    
+        return _test_session    
     
     @classmethod
     def find_session_name_from_sole_xml_file(cls, basedir, debug_print=False):
         """ By default it attempts to find the single *.xml file in the root of this basedir, from which it determines the `session_name` as the stem (the part before the extension) of this file
         Example:
-            basedir: Path('R:\data\Bapun\Day5TwoNovel')
+            basedir: Path(r'R:\data\Bapun\Day5TwoNovel')
             session_name: 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
         """
         # Find the only .xml file to obtain the session name 
@@ -162,14 +142,14 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         return file_basename # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
 
     @classmethod
-    def get_session_name(cls, basedir):
-        """ returns the session_name for this basedir, which determines the files to load. """
-        raise NotImplementedError # innheritor must override
-
-    @classmethod
-    def get_session_spec(cls, session_name):
-        raise NotImplementedError # innheritor must override
-    
+    def get_known_data_session_type_properties(cls, override_basepath=None):
+        """ returns the KnownDataSessionTypeProperties for this class, which contains information about the process of loading the session."""
+        if override_basepath is not None:
+            basepath = override_basepath
+        else:
+            basepath = Path(cls._session_default_basedir)
+        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), basedir=basepath)
+        
     @classmethod
     def build_session(cls, basedir):
         basedir = Path(basedir)
@@ -207,6 +187,18 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     #######################################################
     ## Internal Methods:
     #######################################################
+            
+    @classmethod
+    def compute_position_grid_bin_size(cls, x, y, num_bins=(64,64), debug_print=False):
+        """ Compute Required Bin size given a desired number of bins in each dimension
+        Usage:
+            active_grid_bin = compute_position_grid_bin_size(curr_kdiba_pipeline.sess.position.x, curr_kdiba_pipeline.sess.position.y, num_bins=(64, 64)
+        """
+        out_grid_bin_size, out_bins, out_bins_infos = compute_position_grid_size(x, y, num_bins=num_bins)
+        active_grid_bin = tuple(out_grid_bin_size)
+        if debug_print:
+            print(f'active_grid_bin: {active_grid_bin}') # (3.776841861770752, 1.043326930905373)
+        return active_grid_bin
     
     @classmethod
     def _default_compute_spike_interpolated_positions_if_needed(cls, session, spikes_df, time_variable_name='t_rel_seconds', force_recompute=True):     

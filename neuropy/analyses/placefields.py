@@ -541,10 +541,6 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
                 spk_y = np.interp(cell_spike_times, self.t, self.y)
                 # cell_df.loc[:, 'y'] = spk_y
                 spk_pos.append([spk_x, spk_y])
-                # TODO: Make "firing maps" before "tuning maps"
-                # raw_tuning_maps = np.asarray([Pf2D._compute_tuning_map(neuron_split_spike_dfs[i].x.to_numpy(), neuron_split_spike_dfs[i].y.to_numpy(), xbin, ybin, occupancy, None, should_return_raw_tuning_map=True) for i in np.arange(len(neuron_split_spike_dfs))]) # dataframes split for each ID:
-                # tuning_maps = np.asarray([raw_tuning_maps[i] / occupancy for i in np.arange(len(raw_tuning_maps))])
-                # ratemap = Ratemap(tuning_maps, xbin=xbin, ybin=ybin, neuron_ids=active_epoch_session.neuron_ids)
                 curr_cell_tuning_map, curr_cell_firing_map = Pf2D._compute_tuning_map(spk_x, spk_y, self.xbin, self.ybin, occupancy, self.config.smooth, should_also_return_intermediate_firing_map=self._save_intermediate_firing_maps)
             else:
                 # otherwise only 1D:
@@ -552,7 +548,6 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
                 curr_cell_tuning_map, curr_cell_firing_map = Pf1D._compute_tuning_map(spk_x, self.xbin, occupancy, self.config.smooth[0], should_also_return_intermediate_firing_map=self._save_intermediate_firing_maps)
             
             spk_t.append(cell_spike_times)
-            # tuning curve calculation:               
             tuning_maps.append(curr_cell_tuning_map)
             firing_maps.append(curr_cell_firing_map)
                 
