@@ -173,6 +173,27 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     
     @classmethod
+    def build_lap_only_computation_configs(cls, sess):
+        """ sets the computation intervals to only be performed on the laps """
+        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
+        ## Lap-restricted computation epochs:
+        is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
+        only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
+        sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
+        lap_specific_epochs = sess.laps.as_epoch_obj()
+        any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
+        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
+        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+        
+        # Lap-restricted computation epochs:
+        for i in np.arange(len(active_session_computation_configs)):
+            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
+        
+        return active_session_computation_configs
+    
+    
+    
+    @classmethod
     def build_default_computation_configs(cls, sess):
         """ _get_computation_configs(curr_kdiba_pipeline.sess) 
             # From Diba:
@@ -180,14 +201,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # (1.874, 0.518) # for (128, 128) bins
         """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
-        ## Lap-restricted computation epochs:
-        # is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
-        # only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
-        # sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
-        # lap_specific_epochs = sess.laps.as_epoch_obj()
-        # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
-        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
-        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+        
 
         ## Non-restricted computation epochs:
         any_lap_specific_epochs = None
