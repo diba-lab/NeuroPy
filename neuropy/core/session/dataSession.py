@@ -89,6 +89,23 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         return self.neurons.n_neurons
     
     
+    def get_session_description(self, session_data_type_name:str)->str:
+        """ returns a simple text descriptor of the session
+    
+        Inputs:    
+            session_data_type_name: str - like 'kidba' must be passed in externally since the session object doesn't know its type
+        Outputs:
+            a str like 'sess_kdiba_2006-6-07_11-26-53'
+        """
+        out_config_dict = self.config.to_dict()
+        session_metadata_keywords = out_config_dict.copy()
+        session_metadata_keywords['session_data_type'] = session_data_type_name # 'kdiba'
+        ## Build a session descriptor string:
+        session_descriptor_array = ['sess', session_metadata_keywords['session_data_type'], session_metadata_keywords['session_name']]
+        session_descriptor_string = '_'.join(session_descriptor_array)
+        return session_descriptor_string
+
+    
     # @property
     # def n_total_spikes(self):
     #     return self.neurons.n_neurons

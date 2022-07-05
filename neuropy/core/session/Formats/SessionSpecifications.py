@@ -25,7 +25,7 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePri
 
 @dataclass
 class SessionFileSpec:
-    """ Speccifies a specification for a single file.
+    """ Specifies a specification for a single file.
     Members:
         session_load_callback: Callable[[Path, DataSession], DataSession] a function that takes the path to load and the session to load it into and performs the operation
     
@@ -182,3 +182,12 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     def validate(self):
         """ re-validates the self.session_spec items and updates the resolved dicts """
         self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
+
+
+    def to_dict(self):
+        out_dict = {a_key:str(a_value) for a_key, a_value in self.__dict__.items() if a_key in ['basepath', 'session_name', 'absolute_start_timestamp', 'position_sampling_rate_Hz']}
+        # need to flatten: 'resolved_required_filespecs_dict', 'resolved_optional_filespecs_dict':
+        out_dict['resolved_required_filespecs_dict'] = [str(a_path) for a_path in self.resolved_required_file_specs.keys()]
+        out_dict['resolved_optional_filespecs_dict'] = [str(a_path) for a_path in self.resolved_optional_file_specs.keys()]
+        return out_dict
+    
