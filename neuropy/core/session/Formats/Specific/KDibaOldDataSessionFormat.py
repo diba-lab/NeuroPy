@@ -125,10 +125,14 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     _time_variable_name = 't_rel_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
     
     @classmethod
-    def get_known_data_session_type_properties(cls):
-        """ returns the session_name for this basedir, which determines the files to load. """        
+    def get_known_data_session_type_properties(cls, override_basepath=None):
+        """ returns the session_name for this basedir, which determines the files to load. """
+        if override_basepath is not None:
+            basepath = override_basepath
+        else:
+            basepath = Path(cls._session_default_basedir)
         return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
-                                basedir=Path(cls._session_default_basedir), post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
+                                basedir=basepath, post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
 
     
     @classmethod

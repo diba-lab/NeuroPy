@@ -48,9 +48,9 @@ class DataSessionFormatRegistryHolder(type):
     
     
     @classmethod
-    def get_registry_known_data_session_type_dict(cls):
+    def get_registry_known_data_session_type_dict(cls, override_data_basepath=None):
         """ returns a dict<str, KnownDataSessionTypeProperties> with keys corresponding to the registered short-names of the data_session_type (like 'kdiba', or 'bapun') and values of KnownDataSessionTypeProperties. """
-        return {a_class._session_class_name:a_class.get_known_data_session_type_properties() for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
+        return {a_class._session_class_name:a_class.get_known_data_session_type_properties(override_data_basepath=override_data_basepath) for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
     
     
 
@@ -88,10 +88,13 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     
     
     @classmethod
-    def get_known_data_session_type_properties(cls):
-        """ returns the KnownDataSessionTypeProperties for this class, which contains information about the process of loading the session."""        
-        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
-                                basedir=Path(cls._session_default_basedir))
+    def get_known_data_session_type_properties(cls, override_basepath=None):
+        """ returns the KnownDataSessionTypeProperties for this class, which contains information about the process of loading the session."""
+        if override_basepath is not None:
+            basepath = override_basepath
+        else:
+            basepath = Path(cls._session_default_basedir)
+        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), basedir=basepath)
         
         
     @classmethod
