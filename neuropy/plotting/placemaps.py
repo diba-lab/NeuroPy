@@ -22,17 +22,12 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         if variant_identifier_label is not None:
             active_pf_1D_identifier_string = ' - '.join([active_pf_1D_identifier_string, variant_identifier_label])
 
-        # plt.title(active_pf_1D_identifier_string)
-        # active_pf_1D_output_filename = '{}.pdf'.format(active_pf_1D_identifier_string)
-        # active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
         
         title_string = ' '.join([active_pf_1D_identifier_string])
         subtitle_string = ' '.join([f'{active_placefields1D.config.str_for_display(False)}'])
         
         plt.gcf().suptitle(title_string, fontsize='14')
         plt.gca().set_title(subtitle_string, fontsize='10')
-        # plt.title(active_pf_1D_identifier_string, fontsize=22)
-        # common_parent_basename = active_placefields1D.config.str_for_filename(False)
         
         if should_save_to_disk:
             active_pf_1D_filename_prefix_string = f'Placefield1D-{active_epoch_name}'
