@@ -165,10 +165,15 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # .recinfo, .filePrefix, .eegfile, .datfile
         loaded_file_record_list = [] # Handled files list
         
-        _test_xml_file_path, _test_xml_file_spec = list(session.config.resolved_required_filespecs_dict.items())[0]
-        session = _test_xml_file_spec.session_load_callback(_test_xml_file_path, session)
-        loaded_file_record_list.append(_test_xml_file_path)
-        
+        try:
+            _test_xml_file_path, _test_xml_file_spec = list(session.config.resolved_required_filespecs_dict.items())[0]
+            session = _test_xml_file_spec.session_load_callback(_test_xml_file_path, session)
+            loaded_file_record_list.append(_test_xml_file_path)
+        except IndexError as e:
+            # No XML file can be found, so instead check for a dynamically provided rec_info
+            session = cls._fallback_recinfo(None, session)
+            # raise e
+                
         # Now have access to proper session.recinfo.dat_filename and session.recinfo.eeg_filename:
         session.config.session_spec.optional_files.insert(0, SessionFileSpec('{}'+session.recinfo.dat_filename.suffix, session.recinfo.dat_filename.stem, 'The .dat binary data file', cls._load_datfile))
         session.config.session_spec.optional_files.insert(0, SessionFileSpec('{}'+session.recinfo.eeg_filename.suffix, session.recinfo.eeg_filename.stem, 'The .eeg binary data file', cls._load_eegfile))
@@ -253,8 +258,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             try:
                 session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
-            except ValueError as e:
-                print(f'Computation failed. Skipping .ripple')
+            except (ValueError, AttributeError) as e:
+                print(f'Computation failed with error {e}. Skipping .ripple')
                 session.ripple = None
 
         ## MUA:
@@ -268,8 +273,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             try:
                 session.mua = DataSession.compute_neurons_mua(session, save_on_compute=True)
-            except ValueError as e:
-                print(f'Computation failed. Skipping .mua')
+            except (ValueError, AttributeError) as e:
+                print(f'Computation failed with error {e}. Skipping .mua')
                 session.mua = None
                 
         ## PBE Epochs:
@@ -283,8 +288,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             try:
                 session.pbe = DataSession.compute_pbe_epochs(session, save_on_compute=True)
-            except ValueError as e:
-                print(f'Computation failed. Skipping .pbe')
+            except (ValueError, AttributeError) as e:
+                print(f'Computation failed with error {e}. Skipping .pbe')
                 session.pbe = None
         
         # add PBE information to spikes_df from session.pbe
@@ -293,6 +298,22 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # return the session with the upadated member variables
         return session
     
+    
+    @classmethod
+    def _fallback_recinfo(cls, filepath, session):
+        """ called when the .xml-method fails. Implementor can override to provide a valid .recinfo and .filePrefix anyway. """
+        raise NotImplementedError # innheritor MAY override
+        session.filePrefix = filepath.with_suffix("") # gets the session name (basically) without the .xml extension.
+        session.recinfo = DynamicContainer(**{
+            "source_file": self.source_file,
+            "channel_groups": self.channel_groups,
+            "skipped_channels": self.skipped_channels,
+            "discarded_channels": self.discarded_channels,
+            "n_channels": self.n_channels,
+            "dat_sampling_rate": self.dat_sampling_rate,
+            "eeg_sampling_rate": self.eeg_sampling_rate,
+        })
+        return session
     
     @classmethod
     def _load_xml_file(cls, filepath, session):
