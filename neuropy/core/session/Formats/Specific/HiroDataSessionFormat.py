@@ -356,25 +356,39 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
     #     return session
 
     @classmethod
-    def perform_import_positions(cls, mat_import_parent_path=Path(r'C:\Share\data\RoyMaze1')):
+    def perform_import_positions(cls, mat_import_parent_path=Path(r'C:\Share\data\RoyMaze1'), debug_print=False):
         position_mat_import_file = mat_import_parent_path.joinpath('ExportedData','positionAnalysis.mat')
         data = import_mat_file(mat_import_file=position_mat_import_file)
         # Get the position data:
         t,x,y,speeds,dt,dx,dy = cls.process_positionalAnalysis_data(data)
-        print('shapes - t: {}, x: {}, y: {}'.format(np.shape(t), np.shape(x), np.shape(y))) 
+        if debug_print:
+            print('shapes - t: {}, x: {}, y: {}'.format(np.shape(t), np.shape(x), np.shape(y))) 
         return t,x,y,speeds,dt,dx,dy
 
     @classmethod
-    def perform_import_extras(cls, mat_import_parent_path=Path(r'C:\Share\data\RoyMaze1')):
+    def perform_import_extras(cls, mat_import_parent_path=Path(r'C:\Share\data\RoyMaze1'), debug_print=False):
         extras_mat_import_file = mat_import_parent_path.joinpath('ExportedData','extrasAnalysis.mat')
         #source_data.behavior.RoyMaze1.list
         all_results_data = import_mat_file(mat_import_file=extras_mat_import_file)
     #   behavioral_periods = all_results_data['behavioral_periods_table']
         behavioral_periods = all_results_data['behavioral_periods']
         behavioral_epochs = all_results_data['behavioral_epochs']
-        
+        num_rows = behavioral_epochs.shape[0]
+        behavioral_epoch_names = all_results_data.get('behavioral_epoch_names', None)
+        if behavioral_epoch_names is None:
+            # build artificial epoch names:
+            behavioral_epoch_names = [f'epoch{i}' for i in np.arange(num_rows)]
+        else:
+            if debug_print:
+                print(f'raw behavioral_epoch_names: {behavioral_epoch_names}') # [[array(['pre_sleep'], dtype='<U9')], [array(['track'], dtype='<U5')], [array(['post_sleep'], dtype='<U10')]]
+            behavioral_epoch_names = [str(an_item.item()[0]) for an_item in behavioral_epoch_names] # ['pre_sleep', 'track', 'post_sleep']
+            if debug_print:
+                print(f'behavioral_epoch_names: {behavioral_epoch_names}')
+            
         ## Convert the loaded dicts to dataframes:
         behavioral_epochs = pd.DataFrame(all_results_data['behavioral_epochs'], columns=['epoch_index','start_seconds_absolute','end_seconds_absolute','start_seconds','end_seconds','duration'])
+        behavioral_epochs['label'] = behavioral_epoch_names
+        
         #['pre_sleep','track','post_sleep']    
         behavioral_periods = pd.DataFrame(all_results_data['behavioral_periods'], columns=['period_index','epoch_start_seconds','epoch_end_seconds','duration','type','behavioral_epoch'])
         return behavioral_periods, behavioral_epochs
