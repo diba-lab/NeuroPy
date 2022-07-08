@@ -1,5 +1,6 @@
 import sys
 from typing import Sequence, Union
+from warnings import warn
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -57,7 +58,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         if self.recinfo is None:
             return f"{self.__class__.__name__}(config: {self.config}): Not yet configured."
         else:
-            return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
+            if self.recinfo.source_file is None:
+                return f"{self.__class__.__name__}(configured from manual recinfo: {self.recinfo})"
+            else:
+                return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
     #######################################################
     ## Passthru Accessor Properties:
     @property
@@ -305,12 +309,19 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
         session.position.linear_pos = np.full_like(session.position.time, np.nan)
         for anEpochLabelName in session.epochs.labels:
-            curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
-            # session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
-            if debug_print:
-                print('\t curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
+            try:
+                curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
+                # session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
+                if debug_print:
+                    print('\t curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
+                
+                session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_maze1.x
+            except ValueError as e:
+                # A ValueError occurs when the positions are empty during a given epoch (which occurs during any non-maze Epoch, such as 'pre' or 'post'.
+                if debug_print:
+                    # print(f'\t skipping non-maze epoch "{anEpochLabelName}"')
+                    warn(f'\t skipping non-maze epoch "{anEpochLabelName}" due to error: {e}')                
             
-            session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_maze1.x
 
         # session.position.filename = session.filePrefix.with_suffix(".position.npy")
         # print('\t Saving updated position results to {}...'.format(session.position.filename))
