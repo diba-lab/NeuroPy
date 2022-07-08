@@ -49,7 +49,7 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
     _session_default_relative_basedir = r'PhoMatlabDataScripting\ExportedData\RoyMaze1' # Not quite right on this data
     _session_default_basedir = r'R:\rMBP Python Repos 2022-07-07\PhoNeuronGillespie2021CodeRepo\PhoMatlabDataScripting\ExportedData\RoyMaze1' # WINDOWS
     # _session_default_basedir = r'/run/media/halechr/MoverNew/data/KDIBA/gor01/one/2006-6-07_11-26-53'
-    _time_variable_name = 't_rel_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
+    _time_variable_name = 't_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format/Hiro data
     
     @classmethod
     def get_known_data_session_type_properties(cls, override_basepath=None):
@@ -158,10 +158,9 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         timestamp_scale_factor = 1.0             
         # active_time_variable_name = 't' # default
         # active_time_variable_name = 't_seconds' # use converted times (into seconds)
-        active_time_variable_name = 't_rel_seconds' # use converted times (into seconds)
-
-        # session, loaded_file_record_list = DataSessionFormatBaseRegisteredClass.load_session(session, debug_print=debug_print) # call the super class load_session(...) to load the common things (.recinfo, .filePrefix, .eegfile, .datfile)
+        # active_time_variable_name = 't_rel_seconds' # use converted times (into seconds)
         
+        # session, loaded_file_record_list = DataSessionFormatBaseRegisteredClass.load_session(session, debug_print=debug_print) # call the super class load_session(...) to load the common things (.recinfo, .filePrefix, .eegfile, .datfile)
         loaded_file_record_list = []
         session = HiroDataSessionFormatRegisteredClass.build_session(basedir=session.basepath)
         session = cls._fallback_recinfo(session.basepath.joinpath(session.name), session)
@@ -178,7 +177,6 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
 
 
         all_vars = HiroDataSessionFormatRegisteredClass._load_all_mats(parent_path=session.basepath)
-        
         
         ## Adds Session.paradigm (Epochs)
         session_absolute_start_timestamp = all_vars.extras.behavioral_epochs.loc[0, 'start_seconds_absolute'] # 68368.714228
@@ -201,8 +199,10 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         x = all_vars.pos.x
         y = all_vars.pos.y
         session.position = Position.from_separate_arrays(t_rel, x, y)
-
-
+        # Load or compute linear positions if needed:
+        session = cls._default_compute_linear_position_if_needed(session)
+        
+        
         ## Adds Spikes:
         flat_cell_ids = all_vars.spikes.spikes_cell_info_out_dict.aclu
         cell_type = NeuronType.from_qclu_series(qclu_Series=all_vars.spikes.spikes_cell_info_out_dict.qclu)
@@ -226,27 +226,32 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
             shank_ids=shank_ids
         )
         
+                
+        ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
+        ## flattened.spikes:
+        active_file_suffix = '.flattened.spikes.npy'
+        # active_file_suffix = '.new.flattened.spikes.npy'
+        found_datafile = FlattenedSpiketrains.from_file(session.filePrefix.with_suffix(active_file_suffix))
+        if found_datafile is not None:
+            print('Loading success: {}.'.format(active_file_suffix))
+            session.flattened_spiketrains = found_datafile
+        else:
+            # Otherwise load failed, perform the fallback computation
+            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            session = cls._default_compute_flattened_spikes(session, spike_timestamp_column_name=cls._time_variable_name) # sets session.flattened_spiketrains
         
-        # # IIdata.mat file Position and Epoch:
-        # session = cls.__default_kdiba_exported_load_mats(session.basepath, session.name, session, time_variable_name=active_time_variable_name)
-        
-        # ## .spikeII.mat file:
-        # try:
-        #     spikes_df, flat_spikes_out_dict = cls.__default_kdiba_pho_exported_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
-        # except FileNotFoundError as e:
-        #     print('FileNotFoundError: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
-        #     spikes_df, flat_spikes_out_dict = cls.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
+            ## Testing: Fixing spike positions
+            spikes_df = session.spikes_df
+            session, spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name=cls._time_variable_name)
+            cls._add_missing_spikes_df_columns(spikes_df, session.neurons) # add the missing columns to the dataframe
+            session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
+            print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename), end='')
+            session.flattened_spiketrains.save()
+            print('\t done.\n')
             
-        # except Exception as e:
-        #     # print('e: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
-        #     track = traceback.format_exc()
-        #     print(track)
-        #     raise e
-        # else:
-        #     pass
+            
         
-        # # Load or compute linear positions if needed:
-        # session = cls._default_compute_linear_position_if_needed(session)
+
         
         # ## Testing: Fixing spike positions
         # if np.isin(['x','y'], spikes_df.columns).all():
@@ -278,7 +283,9 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         # session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
         
         # Common Extended properties:
-        session = cls._default_extended_postload(session.filePrefix, session)
+        # session = cls._default_extended_postload(session.filePrefix, session)
+
+
         session.is_loaded = True # indicate the session is loaded
 
         return session, loaded_file_record_list
@@ -422,12 +429,6 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
             if debug_print:
                 print(f'Successfully loaded the extra vars!')
                 print(spikes_cell_info_out_dict)
-            
-            
-            # spike_matrix = spikes_data['spike_matrix']
-            # spike_cells = spikes_data['spike_cells'][0]
-            # cell_ids = spikes_data['spike_cells_ids'][:,0].T
-            # flat_cell_ids = [int(cell_id) for cell_id in cell_ids]
             
         except KeyError as e:
             print(f'KeyError: {e}.')
