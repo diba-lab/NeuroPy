@@ -175,7 +175,6 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         #         session = file_spec.session_load_callback(file_path, session)
         #         loaded_file_record_list.append(file_path)
 
-
         all_vars = HiroDataSessionFormatRegisteredClass._load_all_mats(parent_path=session.basepath)
         
         ## Adds Session.paradigm (Epochs)
@@ -226,7 +225,6 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
             shank_ids=shank_ids
         )
         
-                
         ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
         ## flattened.spikes:
         active_file_suffix = '.flattened.spikes.npy'
@@ -242,24 +240,16 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         
             ## Testing: Fixing spike positions
             spikes_df = session.spikes_df
-            session, spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name=cls._time_variable_name)
+            # if np.isin(['x','y'], spikes_df.columns).all():
+            #     spikes_df['x_loaded'] = spikes_df['x']
+            #     spikes_df['y_loaded'] = spikes_df['y']
+            session, spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name=cls._time_variable_name, force_recompute=True)  # TODO: we shouldn't need to force-recomputation, but when we don't pass True we're missing the 'speed' column mid computation
             cls._add_missing_spikes_df_columns(spikes_df, session.neurons) # add the missing columns to the dataframe
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix) # '.flattened.spikes.npy'
             print('\t Saving computed flattened spiketrains results to {}...'.format(session.flattened_spiketrains.filename), end='')
             session.flattened_spiketrains.save()
             print('\t done.\n')
-            
-            
-        
-
-        
-        # ## Testing: Fixing spike positions
-        # if np.isin(['x','y'], spikes_df.columns).all():
-        #     spikes_df['x_loaded'] = spikes_df['x']
-        #     spikes_df['y_loaded'] = spikes_df['y']
-
-        # session, spikes_df = cls._default_compute_spike_interpolated_positions_if_needed(session, spikes_df, time_variable_name=active_time_variable_name, force_recompute=True) # TODO: we shouldn't need to force-recomputation, but when we don't pass True we're missing the 'speed' column mid computation
-        
+                    
         # ## Laps:
         # try:
         #     session, laps_df = cls.__default_kdiba_spikeII_load_laps_vars(session, time_variable_name=active_time_variable_name)
@@ -272,20 +262,14 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         #     print('session.laps loaded successfully!')
         #     pass
 
-        # ## Neurons (by Cell):
-        # session = cls.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
+        ## TODO: Missing session.probegroup
         # session.probegroup = ProbeGroup.from_file(session.filePrefix.with_suffix(".probegroup.npy"))
         
         # # add the linear_pos to the spikes_df before building the FlattenedSpiketrains object:
         # # spikes_df['lin_pos'] = session.position.linear_pos
-
-        # # add the flat spikes to the session so they don't have to be recomputed:
-        # session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
         
         # Common Extended properties:
-        # session = cls._default_extended_postload(session.filePrefix, session)
-
-
+        session = cls._default_extended_postload(session.filePrefix, session)
         session.is_loaded = True # indicate the session is loaded
 
         return session, loaded_file_record_list
