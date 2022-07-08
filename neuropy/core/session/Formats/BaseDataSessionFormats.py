@@ -244,6 +244,25 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             updated_spk_df = session.spikes_df.spikes.add_same_cell_ISI_column()
         return session
     
+    
+    @classmethod
+    def _default_compute_flattened_spikes(cls, session, timestamp_scale_factor=(1/1E4), spike_timestamp_column_name='t_seconds', progress_tracing=True):
+        """ builds the session.flattened_spiketrains (and therefore spikes_df) from the session.neurons object. """
+        spikes_df = FlattenedSpiketrains.build_spike_dataframe(session, timestamp_scale_factor=timestamp_scale_factor, spike_timestamp_column_name=spike_timestamp_column_name, progress_tracing=progress_tracing)
+        print(f'spikes_df.columns: {spikes_df.columns}')
+        session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=spike_timestamp_column_name, t_start=session.neurons.t_start) # FlattenedSpiketrains(spikes_df)
+        print('\t Done!')
+        return session
+    
+    @classmethod
+    def _add_missing_spikes_df_columns(cls, spikes_df, neurons_obj):
+        """ adds the 'fragile_linear_neuron_IDX' column to the spikes_df and updates the neurons_obj with a new reverse_cellID_index_map """
+        spikes_df, neurons_obj._reverse_cellID_index_map = spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
+        spikes_df['t'] = spikes_df[cls._time_variable_name] # add the 't' column required for visualization
+        
+        
+    
+    
     @classmethod
     def _default_extended_postload(cls, fp, session):
         # Computes Common Extended properties:

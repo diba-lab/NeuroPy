@@ -154,7 +154,7 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            session = cls._default_compute_bapun_flattened_spikes(session, spike_timestamp_column_name=cls._time_variable_name) # sets session.flattened_spiketrains
+            session = cls._default_compute_flattened_spikes(session, spike_timestamp_column_name=cls._time_variable_name) # sets session.flattened_spiketrains
             
             ## Testing: Fixing spike positions
             spikes_df = session.spikes_df
