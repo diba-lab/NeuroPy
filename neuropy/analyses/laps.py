@@ -47,14 +47,14 @@ from neuropy.core.laps import Laps
 #     desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = _perform_estimate_laps(pos_df, hardcoded_track_midpoint_x=hardcoded_track_midpoint_x)
 #     custom_test_laps_obj = _build_laps_object(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings)
 
-def compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame):
+def compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
     ## Determine the spikes included with each computed lap:
-    laps_obj._data = perform_compute_laps_spike_indicies(laps_obj._data, spikes_df) # adds the 'start_spike_index' and 'end_spike_index' columns to the dataframe
+    laps_obj._data = perform_compute_laps_spike_indicies(laps_obj._data, spikes_df, time_variable_name=time_variable_name) # adds the 'start_spike_index' and 'end_spike_index' columns to the dataframe
     laps_obj._data = Laps._update_dataframe_computed_vars(laps_obj._data) # call this to update the column types and any computed columns that depend on the added columns (such as num_spikes)
     return laps_obj
 
 
-def perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.DataFrame):
+def perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
     """ Adds the 'start_spike_index' and 'end_spike_index' columns to the laps_df
     laps_df has two columns added: 'start_spike_index' and 'end_spike_index'
     spikes_df is not modified
@@ -63,7 +63,7 @@ def perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.Dat
     start_spike_index = np.zeros_like(laps_df['start'])
     end_spike_index = np.zeros_like(laps_df['start'])
     for i in np.arange(n_laps):
-        included_df = spikes_df[((spikes_df['t_rel_seconds'] >= laps_df.loc[i,'start']) & (spikes_df['t_rel_seconds'] <= laps_df.loc[i,'stop']))]
+        included_df = spikes_df[((spikes_df[time_variable_name] >= laps_df.loc[i,'start']) & (spikes_df[time_variable_name] <= laps_df.loc[i,'stop']))]
         included_indicies = included_df.index
         start_spike_index[i] = included_indicies[0]
         end_spike_index[i] = included_indicies[-1]
@@ -142,7 +142,7 @@ def estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
 
 
 
-def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False):
+def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name='t_rel_seconds'):
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
     Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)"""
     if should_plot_laps_2d:
@@ -168,7 +168,7 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
     desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = estimate_laps(pos_df)
     custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_endings, asc_crossing_beginings, asc_crossing_endings)
     ## Determine the spikes included with each computed lap:
-    custom_test_laps_obj = compute_laps_spike_indicies(custom_test_laps_obj, spikes_df)
+    custom_test_laps_obj = compute_laps_spike_indicies(custom_test_laps_obj, spikes_df, time_variable_name=time_variable_name)
     sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
 
     if should_plot_laps_2d:

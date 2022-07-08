@@ -18,6 +18,20 @@ from neuropy.analyses.laps import estimation_session_laps # for estimation_sessi
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
 
 
+class FallbackRecInfo(object):
+    """docstring for FallbackRecInfo."""
+    def __init__(self):
+        super(FallbackRecInfo, self).__init__()
+        self.source_file = None
+        self.channel_groups = None
+        self.skipped_channels = None
+        self.discarded_channels = None
+        self.n_channels = None
+        self.dat_sampling_rate = 30000.0
+        self.eeg_sampling_rate = 1250.0
+
+    
+
 class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
     
@@ -59,65 +73,32 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         else:
             basepath = Path(cls._session_default_basedir)
         return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
-                                basedir=basepath, post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
+                                basedir=basepath, post_load_functions=None) # post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess, cls._time_variable_name)]
 
     
-    # Pyramidal and Lap-Only:
-    @classmethod
-    def build_filters_pyramidal_epochs(cls, sess):
-        sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
-        active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')),
-                                            'maze2': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2')),
-                                            'maze': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]))
-                                        }
-        return active_session_filter_configurations
     
-    # Any epoch on the maze, not limited to pyramidal cells, etc
     @classmethod
-    def build_filters_any_maze_epochs(cls, sess):
-        sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
-        # active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')) } # just maze 1
-        active_session_filter_configurations = {
-                # 'maze1': lambda x: (x.filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')),
-                #                                     'maze2': lambda x: (x.filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2')),
-                                            'maze': lambda x: (x.filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]))
-        }
-        return active_session_filter_configurations
+    def build_track_only_filter_functions(cls, sess):
+        """ filters only include the 'track', not the pre or post. """
+        all_epoch_names = ['track'] # all_epoch_names # ['maze1', 'maze2']
+        return {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
 
+    # @classmethod
+    # def build_default_computation_configs(cls, sess):
+    #     """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
+    #     return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
+    #                       spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
+    #     # active_grid_bin = compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64))
+    #     # active_session_computation_config.computation_epochs = None # set the placefield computation epochs to None, using all epochs.
+    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None)]
+    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(128, 128)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None)]
+    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=(3.777, 1.043), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None)]
+    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(32, 32)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
+    #     #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
+    #     #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(128, 128)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
+    #     #        ]
+        
 
-    @classmethod
-    def build_default_filter_functions(cls, sess):
-        # all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
-        # default_filter_functions = DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess)
-        ## TODO: currently hard-coded
-        # active_session_filter_configurations = cls.build_pyramidal_epochs_filters(sess)
-        active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
-        
-        return active_session_filter_configurations
-    
-    
-    
-    @classmethod
-    def build_lap_only_computation_configs(cls, sess):
-        """ sets the computation intervals to only be performed on the laps """
-        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
-        ## Lap-restricted computation epochs:
-        is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
-        only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
-        sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
-        lap_specific_epochs = sess.laps.as_epoch_obj()
-        any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
-        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
-        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
-        
-        # Lap-restricted computation epochs:
-        for i in np.arange(len(active_session_computation_configs)):
-            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
-        
-        return active_session_computation_configs
-    
-    
-    
     @classmethod
     def build_default_computation_configs(cls, sess):
         """ _get_computation_configs(curr_kdiba_pipeline.sess) 
@@ -126,15 +107,12 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
             # (1.874, 0.518) # for (128, 128) bins
         """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
-        
-
         ## Non-restricted computation epochs:
-        any_lap_specific_epochs = None
-
-        # Lap-restricted computation epochs:
+        # any_lap_specific_epochs = None
+        # Track-restricted computation epochs:
+        track_only_specific_epochs = [sess.epochs.get_named_timerange('Track')]
         for i in np.arange(len(active_session_computation_configs)):
-            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
-    
+            active_session_computation_configs[i].pf_params.computation_epochs = track_only_specific_epochs # add the laps epochs to all of the computation configs.    
         return active_session_computation_configs        
         
     
@@ -304,16 +282,18 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         lfpSampleRate = 1250.0
         posSampleRate = 29.9700
 
-        session.filePrefix = filepath.with_suffix("") # gets the session name (basically) without the .xml extension.        
-        session.recinfo = DynamicContainer(**{
-            "source_file": None,
-            "channel_groups": None,
-            "skipped_channels": None,
-            "discarded_channels": None,
-            "n_channels": None,
-            "dat_sampling_rate": 30000.0,
-            "eeg_sampling_rate": 1250.0,
-        })
+        session.filePrefix = filepath.with_suffix("") # gets the session name (basically) without the .xml extension.
+        
+        session.recinfo = FallbackRecInfo()
+        # session.recinfo = DynamicContainer(**{
+        #     "source_file": None,
+        #     "channel_groups": None,
+        #     "skipped_channels": None,
+        #     "discarded_channels": None,
+        #     "n_channels": None,
+        #     "dat_sampling_rate": 30000.0,
+        #     "eeg_sampling_rate": 1250.0,
+        # })
         return session
     
     
@@ -483,13 +463,16 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         else:
             if debug_print:
                 print(f'raw behavioral_epoch_names: {behavioral_epoch_names}') # [[array(['pre_sleep'], dtype='<U9')], [array(['track'], dtype='<U5')], [array(['post_sleep'], dtype='<U10')]]
-            behavioral_epoch_names = [str(an_item.item()[0]) for an_item in behavioral_epoch_names] # ['pre_sleep', 'track', 'post_sleep']
+            # behavioral_epoch_names = [str(an_item.item()[0]) for an_item in behavioral_epoch_names] # ['pre_sleep', 'track', 'post_sleep']
+            behavioral_epoch_names = [str(an_item[0].item()) for an_item in behavioral_epoch_names] # ['pre_sleep', 'track', 'post_sleep']
+            
             if debug_print:
                 print(f'behavioral_epoch_names: {behavioral_epoch_names}')
             
         ## Convert the loaded dicts to dataframes:
         behavioral_epochs = pd.DataFrame(all_results_data['behavioral_epochs'], columns=['epoch_index','start_seconds_absolute','end_seconds_absolute','start_seconds','end_seconds','duration'])
         behavioral_epochs['label'] = behavioral_epoch_names
+        
         
         #['pre_sleep','track','post_sleep']    
         behavioral_periods = pd.DataFrame(all_results_data['behavioral_periods'], columns=['period_index','epoch_start_seconds','epoch_end_seconds','duration','type','behavioral_epoch'])
@@ -531,321 +514,3 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         return session
     
     
-    
-    @classmethod
-    def __default_kdiba_exported_load_mats(cls, basepath, session_name, session, time_variable_name='t_seconds'):
-        """ Loads the *.epochs_info.mat & *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
-            Adds the Epoch and Position information to the session, and returns the updated Session object
-        """
-        # Loads a IIdata.mat file that contains position and epoch information for the session
-                
-        # parent_dir = Path(basepath).parent() # the directory above the individual session folder
-        # session_all_dataII_mat_file_path = Path(parent_dir).joinpath('IIdata.mat') # get the IIdata.mat in the parent directory
-        # position_all_dataII_mat_file = import_mat_file(mat_import_file=session_all_dataII_mat_file_path)        
-        
-        ## Epoch Data is loaded first so we can define timestamps relative to the absolute start timestamp
-        session_epochs_mat_file_path = Path(basepath).joinpath('{}.epochs_info.mat'.format(session_name))
-        epochs_mat_file = import_mat_file(mat_import_file=session_epochs_mat_file_path)
-        # ['epoch_data','microseconds_to_seconds_conversion_factor']
-        epoch_data_array = epochs_mat_file['epoch_data'] # 
-        n_epochs = np.shape(epoch_data_array)[0]
-        
-        session_absolute_start_timestamp = epoch_data_array[0,0].item()
-        session.config.absolute_start_timestamp = epoch_data_array[0,0].item()
-
-
-        if time_variable_name == 't_rel_seconds':
-            epoch_data_array_rel = epoch_data_array - session_absolute_start_timestamp # convert to relative by subtracting the first timestamp
-            epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0].item(), epoch_data_array_rel[0,1].item()],'stop':[epoch_data_array_rel[1,0].item(), epoch_data_array_rel[1,1].item()],'label':['maze1','maze2']}) # Use the epochs starting at session_absolute_start_timestamp (meaning the first epoch starts at 0.0
-            session.paradigm = Epoch(epochs=epochs_df_rel)
-        elif time_variable_name == 't_seconds':
-            epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
-            session.paradigm = Epoch(epochs=epochs_df)            
-        else:
-            raise ValueError
-        
-        ## Position Data loaded and zeroed to the same session_absolute_start_timestamp, which starts before the first timestamp in 't':
-        session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
-        # ['microseconds_to_seconds_conversion_factor','samplingRate', 'timestamps', 'x', 'y']
-        t = position_mat_file['timestamps'].squeeze() # 1, 63192        
-        
-        x = position_mat_file['x'].squeeze() # 10 x 63192
-        y = position_mat_file['y'].squeeze() # 10 x 63192
-        position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
-        microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
-        num_samples = len(t)
-        
-        if time_variable_name == 't_rel_seconds':
-            t_rel = position_mat_file['timestamps_rel'].squeeze()
-            # t_rel = t - t[0] # relative to start of position file timestamps
-            # t_rel = t - session_absolute_start_timestamp # relative to absolute start of the first epoch
-            active_t_start = t_rel[0] # absolute to first epoch t_start
-        elif time_variable_name == 't_seconds':
-            # active_t_start = t_rel[0] # absolute to first epoch t_start         
-            active_t_start = t[0] # absolute t_start
-            # active_t_start = 0.0 # relative t_start
-            # active_t_start = (spikes_df.t.loc[spikes_df.x.first_valid_index()] * timestamp_scale_factor) # actual start time in seconds
-        else:
-            raise ValueError
-        
-        
-        session.config.position_sampling_rate_Hz = position_sampling_rate_Hz
-        # session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
-        session.position = Position.from_separate_arrays(t_rel, x, y)
-        
-        ## Extra files:
-        
-        
-        # return the session with the upadated member variables
-        return session
-    
-    
-    @classmethod
-    def __default_kdiba_pho_exported_spikeII_load_mat(cls, sess, timestamp_scale_factor=1):
-        spike_mat_file = Path(sess.basepath).joinpath('{}.spikes.mat'.format(sess.session_name))
-        if not spike_mat_file.is_file():
-            print('ERROR: file {} does not exist!'.format(spike_mat_file))
-            raise FileNotFoundError
-        flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
-        flat_spikes_data = flat_spikes_mat_file['spike']
-        mat_variables_to_extract = ['t','t_seconds','t_rel_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
-        num_mat_variables = len(mat_variables_to_extract)
-        flat_spikes_out_dict = dict()
-        for i in np.arange(num_mat_variables):
-            curr_var_name = mat_variables_to_extract[i]
-            if curr_var_name == 'cluinfo':
-                temp = flat_spikes_data[curr_var_name] # a Nx4 array
-                temp = [tuple(temp[j,:]) for j in np.arange(np.shape(temp)[0])]
-                flat_spikes_out_dict[curr_var_name] = temp
-            else:
-                # flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-                flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-                
-        # print(flat_spikes_out_dict)
-        spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
-        spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']].astype('int') # convert integer calumns to correct datatype
-        
-        spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
-        # add times in seconds both to the dict and the spikes_df under a new key:
-        # flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
-        # spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
-        # spikes_df['qclu']
-        spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
-        spikes_df[['flat_spike_idx']] = spikes_df[['flat_spike_idx']].astype('int') # convert integer calumns to correct datatype
-        return spikes_df, flat_spikes_out_dict 
-    
-    @classmethod
-    def __default_kdiba_spikeII_load_laps_vars(cls, session, time_variable_name='t_seconds'):
-        """ 
-            time_variable_name = 't_seconds'
-            sess, laps_df = __default_kdiba_spikeII_load_laps_vars(sess, time_variable_name=time_variable_name)
-            laps_df
-        """
-        ## Get laps in/out
-        session_laps_mat_file_path = Path(session.basepath).joinpath('{}.laps_info.mat'.format(session.name))
-        laps_mat_file = import_mat_file(mat_import_file=session_laps_mat_file_path)
-        mat_variables_to_extract = ['lap_id','maze_id','start_spike_index', 'end_spike_index', 'start_t', 'end_t', 'start_t_seconds', 'end_t_seconds', 'duration_seconds']
-        num_mat_variables = len(mat_variables_to_extract)
-        flat_var_out_dict = dict()
-        for i in np.arange(num_mat_variables):
-            curr_var_name = mat_variables_to_extract[i]
-            flat_var_out_dict[curr_var_name] = laps_mat_file[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-            
-        laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)  # 1014937 rows × 11 columns
-        session.laps = Laps(laps_df) # new DataFrame-based approach
-        
-        # session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
-        
-        return session, laps_df
-
-    @classmethod
-    def __default_kdiba_spikeII_load_mat(cls, sess, timestamp_scale_factor=(1/1E4)):
-        spike_mat_file = Path(sess.basepath).joinpath('{}.spikeII.mat'.format(sess.session_name))
-        if not spike_mat_file.is_file():
-            print('ERROR: file {} does not exist!'.format(spike_mat_file))
-            raise FileNotFoundError
-        flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
-        # print('flat_spikes_mat_file.keys(): {}'.format(flat_spikes_mat_file.keys())) # flat_spikes_mat_file.keys(): dict_keys(['__header__', '__version__', '__globals__', 'spike'])
-        flat_spikes_data = flat_spikes_mat_file['spike']
-        # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
-        # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
-        mat_variables_to_extract = ['t', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap']
-        num_mat_variables = len(mat_variables_to_extract)
-        flat_spikes_out_dict = dict()
-        for i in np.arange(num_mat_variables):
-            curr_var_name = mat_variables_to_extract[i]
-            if curr_var_name == 'cluinfo':
-                temp = flat_spikes_data[curr_var_name][0,0] # a Nx4 array
-                temp = [tuple(temp[j,:]) for j in np.arange(np.shape(temp)[0])]
-                flat_spikes_out_dict[curr_var_name] = temp
-            else:
-                flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-        spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
-        spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']].astype('int') # convert integer calumns to correct datatype
-        spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
-        # add times in seconds both to the dict and the spikes_df under a new key:
-        flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
-        spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
-        # spikes_df['qclu']
-        spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
-        spikes_df[['flat_spike_idx']] = spikes_df[['flat_spike_idx']].astype('int') # convert integer calumns to correct datatype
-        return spikes_df, flat_spikes_out_dict 
-
-    @classmethod
-    def __default_kdiba_spikeII_compute_laps_vars(cls, session, spikes_df, time_variable_name='t_seconds'):
-        """ Attempts to compute the Laps object from the loaded spikesII spikes, which have a 'lap' column.
-        time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
-        """
-
-        spikes_df = spikes_df.copy() # duplicate spikes dataframe
-        # Get only the rows with a lap != -1:
-        # spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
-        # neg_one_indicies = np.argwhere((spikes_df.lap != -1))
-        spikes_df['maze_relative_lap'] = spikes_df.loc[:, 'lap'] # the old lap is now called the maze-relative lap        
-        spikes_df['maze_id'] = np.full_like(spikes_df.lap, np.nan)
-        lap_ids = spikes_df.lap.to_numpy()
-        
-        # neg_one_indicies = np.argwhere(lap_ids == -1)
-        neg_one_indicies = np.squeeze(np.where(lap_ids == -1))
-        
-        # spikes_df.laps[spikes_df.laps == -1] = np.Infinity
-        # non_neg_one_indicies = np.argwhere(spikes_df.lap.values != -1)
-        
-        ## Deal with non-monotonically increasing lap numbers (such as when the lab_id is reset between epochs)
-        # split_index = np.argwhere(np.logical_and((np.append(np.diff(spikes_df.lap), np.zeros((1,))) < 0), (spikes_df.lap != -1)))[0].item() + 1 # add one to account for the 1 less element after np.
-            
-        # split_index = np.argwhere(np.logical_and((np.append(np.diff(spikes_df.lap), np.zeros((1,))) < 0), (spikes_df.lap != -1)))[0].item() + 1      
-        # split_index = np.argwhere(np.logical_and((np.insert(np.diff(spikes_df.lap), 0, 1) < 0), (spikes_df.lap != -1)))[0].item() + 1      
-                    
-        # way without removing the -1 entries:
-        found_idx = np.argwhere((np.append(np.diff(lap_ids), 0) < 0))  
-        # np.where(spikes_df.lap.values[found_idx] == 1)
-        second_start_id_idx = np.argwhere(lap_ids[found_idx] == 1)[1]
-        split_index = found_idx[second_start_id_idx[0]].item()
-        # get the lap_id of the last lap in the pre-split
-        pre_split_lap_idx = found_idx[second_start_id_idx[0]-1].item()
-        # split_index = np.argwhere(np.diff(spikes_df.lap) < 0)[0].item() + 1 # add one to account for the 1 less element after np.
-        max_pre_split_lap_id = lap_ids[pre_split_lap_idx].item()
-        
-        spikes_df.maze_id[0:split_index] = 1
-        spikes_df.maze_id[split_index:] = 2 # maze 2
-        spikes_df.maze_id[neg_one_indicies] = np.nan # make sure all the -1 entries are not assigned a maze
-        
-        lap_ids[split_index:] = lap_ids[split_index:] + max_pre_split_lap_id # adding the last pre_split lap ID means that the first lap starts at max_pre_split_lap_id + 1, the second max_pre_split_lap_id + 2, etc 
-        lap_ids[neg_one_indicies] = -1 # re-set any negative 1 indicies from the beginning back to negative 1
-        
-        # set the lap column of the spikes_df with the updated values:
-        spikes_df.lap = lap_ids
-
-        # Group by the lap column:
-        laps_only_spikes_df = spikes_df[(spikes_df.lap != -1)].copy()
-        lap_grouped_spikes_df = laps_only_spikes_df.groupby(['lap']) #  as_index=False keeps the original index
-        laps_first_spike_instances = lap_grouped_spikes_df.first()
-        laps_last_spike_instances = lap_grouped_spikes_df.last()
-
-        lap_id = np.array(laps_first_spike_instances.index) # the lap_id (which serves to index the lap), like 1, 2, 3, 4, ...
-        laps_spike_counts = np.array(lap_grouped_spikes_df.size().values) # number of spikes in each lap
-        # lap_maze_id should give the maze_id for each of the laps. 
-        lap_maze_id = np.full_like(lap_id, -1)
-        lap_maze_id[0:split_index] = 1 # maze 1
-        lap_maze_id[split_index:-1] = 2 # maze 2
-
-        # print('lap_number: {}'.format(lap_number))
-        # print('laps_spike_counts: {}'.format(laps_spike_counts))
-        first_indicies = np.array(laps_first_spike_instances.t.index)
-        num_laps = len(first_indicies)
-
-        lap_start_stop_flat_idx = np.empty([num_laps, 2])
-        lap_start_stop_flat_idx[:, 0] = np.array(laps_first_spike_instances.flat_spike_idx.values)
-        lap_start_stop_flat_idx[:, 1] = np.array(laps_last_spike_instances.flat_spike_idx.values)
-        # print('lap_start_stop_flat_idx: {}'.format(lap_start_stop_flat_idx))
-
-        lap_start_stop_time = np.empty([num_laps, 2])
-        lap_start_stop_time[:, 0] = np.array(laps_first_spike_instances[time_variable_name].values)
-        lap_start_stop_time[:, 1] = np.array(laps_last_spike_instances[time_variable_name].values)
-        # print('lap_start_stop_time: {}'.format(lap_start_stop_time))
-        
-        
-        # Build output Laps object to add to session
-        print('setting laps object.')
-        
-        session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
-        
-        flat_var_out_dict = {'lap_id':lap_id,'maze_id':lap_maze_id,
-                             'start_spike_index':np.array(laps_first_spike_instances.flat_spike_idx.values), 'end_spike_index': np.array(laps_last_spike_instances.flat_spike_idx.values),
-                             'start_t':np.array(laps_first_spike_instances['t'].values), 'end_t':np.array(laps_last_spike_instances['t'].values),
-                             'start_t_seconds':np.array(laps_first_spike_instances[time_variable_name].values), 'end_t_seconds':np.array(laps_last_spike_instances[time_variable_name].values)
-                             }
-        laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)
-        session.laps = Laps(laps_df) # new DataFrame-based approach
-        
-        # session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
-        
-        # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
-        return session, spikes_df
-                
-    @classmethod
-    def __default_kdiba_spikeII_compute_neurons(cls, session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
-        ## Get unique cell ids to enable grouping flattened results by cell:
-        unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
-        flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids]
-        num_unique_cell_ids = len(flat_cell_ids)
-        # print('flat_cell_ids: {}'.format(flat_cell_ids))
-        # Group by the aclu (cluster indicator) column
-        cell_grouped_spikes_df = spikes_df.groupby(['aclu'])
-        spiketrains = list()
-        shank_ids = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
-        cell_quality = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
-        cell_type = list() # (108,) Array of float64
-
-        for i in np.arange(num_unique_cell_ids):
-            curr_cell_id = flat_cell_ids[i] # actual cell ID
-            #curr_flat_cell_indicies = (flat_spikes_out_dict['aclu'] == curr_cell_id) # the indicies where the cell_id matches the current one
-            curr_cell_dataframe = cell_grouped_spikes_df.get_group(curr_cell_id)
-            spiketrains.append(curr_cell_dataframe[time_variable_name].to_numpy())
-            shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
-            cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
-            cell_type.append(curr_cell_dataframe['cell_type'].to_numpy()[0])
-
-        spiketrains = np.array(spiketrains, dtype='object')
-        t_stop = np.max(flat_spikes_out_dict[time_variable_name])
-        flat_cell_ids = np.array(flat_cell_ids)
-        cell_type = np.array(cell_type)
-        session.neurons = Neurons(spiketrains, t_stop, t_start=0,
-            sampling_rate=session.recinfo.dat_sampling_rate,
-            neuron_ids=flat_cell_ids,
-            neuron_type=cell_type,
-            shank_ids=shank_ids
-        )
-        ## Ensure we have the 'fragile_linear_neuron_IDX' field, and if not, compute it        
-        try:
-            test = spikes_df['fragile_linear_neuron_IDX']
-        except KeyError as e:
-            # build the valid key for fragile_linear_neuron_IDX:
-            spikes_df['fragile_linear_neuron_IDX'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
-
-        return session
-
-    @classmethod
-    def __default_kdiba_RippleDatabase_load_mat(cls, session):
-        """ UNUSED """
-        ## Get laps in/out
-        session_ripple_mat_file_path = Path(session.basepath).joinpath('{}.RippleDatabase.mat'.format(session.name))
-        ripple_mat_file = import_mat_file(mat_import_file=session_ripple_mat_file_path)
-        mat_variables_to_extract = ['database_re'] # it's a 993x3 array of timestamps
-        num_mat_variables = len(mat_variables_to_extract)
-        flat_var_out_dict = dict()
-        for i in np.arange(num_mat_variables):
-            curr_var_name = mat_variables_to_extract[i]
-            flat_var_out_dict[curr_var_name] = ripple_mat_file[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
-            
-        ripples = np.array(flat_var_out_dict['database_re'])
-        print(f'ripples: {np.shape(ripples)}')
-        
-        ripples_df = pd.DataFrame({'start':ripples[:,0],'peak':ripples[:,1],'stop':ripples[:,2]})
-        session.pbe = Epoch(ripples_df)
-        
-        # session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
-        
-        return session, ripples_df
