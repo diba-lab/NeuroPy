@@ -218,7 +218,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             session.flattened_spiketrains = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
-            print('\t Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            if force_recompute:
+                print(f'\t force_recompute is True! Forcing recomputation of {active_file_suffix}\n')
+            else:
+                print(f'\t Failure loading "{session.filePrefix.with_suffix(active_file_suffix)}". Must recompute.\n')
             with ProgressMessagePrinter('spikes_df', 'Computing', 'interpolate_spike_positions columns'):
                 spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
                 session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
