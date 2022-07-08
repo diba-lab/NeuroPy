@@ -35,6 +35,10 @@ class FallbackRecInfo(object):
 class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
     
+    
+    STATUS: Not quite working. Performs initial loading and session creation successfully, but encounters issues when performing even basic computation functions (like Pf2D). Also encounters issues that Rachel's data has with pf_colors missing and that breaking the display function, but that actually might come from Pf2D.
+
+    
     # Example Filesystem Hierarchy:
     📦analysesResults
     ┃...
