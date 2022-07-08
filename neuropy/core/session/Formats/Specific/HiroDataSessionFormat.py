@@ -334,9 +334,9 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         t,x,y,speeds,dt,dx,dy = cls.perform_import_positions(mat_import_parent_path=mat_import_parent_path)
         pos_vars = DynamicContainer(t=t,x=x,y=y,speeds=speeds,dt=dt,dx=dx,dy=dy)
         
-        # Import the spikes
-        spike_matrix, spike_cells, num_cells, spike_list, spike_positions_list, flat_cell_ids, reverse_cellID_idx_lookup_map, spikes_cell_info_out_dict = cls.perform_import_spikes(t, x, y, mat_import_parent_path=mat_import_parent_path)
-        spikes_vars = DynamicContainer(spike_matrix=spike_matrix, spike_cells=spike_cells, num_cells=num_cells, spike_list=spike_list, spike_positions_list=spike_positions_list, flat_cell_ids=flat_cell_ids, reverse_cellID_idx_lookup_map=reverse_cellID_idx_lookup_map, spikes_cell_info_out_dict=DynamicContainer(**spikes_cell_info_out_dict))
+        # Import the spikes: NOTE: Currently only using the 'spike_list' and not 'spike_matrix', 'spike_cells', etc.
+        spike_cells, num_cells, spike_list, spike_positions_list, flat_cell_ids, reverse_cellID_idx_lookup_map, spikes_cell_info_out_dict = cls.perform_import_spikes(t, x, y, mat_import_parent_path=mat_import_parent_path)
+        spikes_vars = DynamicContainer(spike_cells=spike_cells, num_cells=num_cells, spike_list=spike_list, spike_positions_list=spike_positions_list, flat_cell_ids=flat_cell_ids, reverse_cellID_idx_lookup_map=reverse_cellID_idx_lookup_map, spikes_cell_info_out_dict=DynamicContainer(**spikes_cell_info_out_dict))
         
         behavioral_periods, behavioral_epochs = cls.perform_import_extras(mat_import_parent_path=mat_import_parent_path)
         # behavioral_periods = all_results_data['active_processing/behavioral_periods_table']
@@ -381,14 +381,23 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
 
     @classmethod
     def perform_import_spikes(cls, t, x, y, mat_import_parent_path=Path(r'C:\Share\data\RoyMaze1'), debug_print=False):
-        # Import the spikes
+        """ Import the spikes 
+        
+        The essential properties are:
+        
+        'spike_cells'
+        'shank', 'cluster', 'aclu', 'qclu','speculated_unit_contamination_level','speculated_unit_type'
+        
+        """
+        
+        
         # spikes_mat_import_file = mat_import_parent_path.joinpath('spikesTable.mat')
         spikes_mat_import_file = mat_import_parent_path.joinpath('ExportedData', 'spikesAnalysis.mat')
         spikes_data = import_mat_file(mat_import_file=spikes_mat_import_file)
         # print(spikes_data.keys())
         
         try:
-            spike_matrix = spikes_data['spike_matrix']
+            # spike_matrix = spikes_data['spike_matrix']
             spike_cells = spikes_data['spike_cells'][0]
             cell_ids = spikes_data['spike_cells_ids'][:,0].T
             flat_cell_ids = [int(cell_id) for cell_id in cell_ids] 
@@ -422,7 +431,9 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
             
 
         # print('spike_matrix: {}, spike_cells: {}'.format(np.shape(spike_matrix), np.shape(spike_cells)))
-        num_cells = np.shape(spike_matrix)[0]
+        # num_cells = np.shape(spike_matrix)[0]        
+        num_cells = len(cell_ids)
+        
         # extract_spike_timeseries(spike_cells[8])
         spike_list = [cls.extract_spike_timeseries(spike_cell) for spike_cell in spike_cells]
         # print(spike_list[0])
@@ -435,7 +446,7 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         # reverse_cellID_idx_lookup_map: Allows reverse indexing into the linear imported array using the original cell ID indicies
         reverse_cellID_idx_lookup_map = cls._build_cellID_reverse_lookup_map(cell_ids)
 
-        return spike_matrix, spike_cells, num_cells, spike_list, spike_positions_list, flat_cell_ids, reverse_cellID_idx_lookup_map, spikes_cell_info_out_dict
+        return spike_cells, num_cells, spike_list, spike_positions_list, flat_cell_ids, reverse_cellID_idx_lookup_map, spikes_cell_info_out_dict
 
     # @classmethod
     # def _load_positionAnalysis_mat_file(cls, filepath, session):
