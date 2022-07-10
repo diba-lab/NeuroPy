@@ -330,7 +330,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     
 
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     Parameters
     ----------
@@ -342,6 +342,12 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         figure number to start from, by default None
     fig_subplotsize: tuple, optional
         fig_subplotsize: the size of a single subplot. used to compute the figure size
+        
+        
+    spike_overlay_spikes: a 
+    
+    extended_overlay_points_datasource_dicts: a general dict of additional overlay point datasources to potentially add to the images
+    
     # TODO: maybe add a fig property: an explicit figure to use instead of fignum
     """
     
@@ -530,6 +536,15 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             # Plot the main heatmap for this pfmap:
             im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
             
+            if extended_overlay_points_datasource_dicts is not None:
+                for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():    
+                    if overlay_datasource.get('is_enabled', False):
+                        points_data = overlay_datasource.get('points_data', None)
+                        if points_data is not None:
+                            print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                            curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data[neuron_IDX], plot_opts=overlay_datasource.get('plot_opts', None), scatter_opts=overlay_datasource.get('scatter_opts', None))
+                            overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                            
             if enable_spike_overlay:
                 # spike_overlay_points = curr_ax.plot(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')
                 # spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
