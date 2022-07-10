@@ -170,8 +170,8 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
         plot_opts = {}
     if scatter_opts is None:
         scatter_opts = {}
-    spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'} | plot_opts))                
-    spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'} | scatter_opts))
+    spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'UNKNOWN_overlay_points'} | plot_opts))                
+    spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
     return spike_overlay_points, spike_overlay_sc
     
     
@@ -541,7 +541,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                     if overlay_datasource.get('is_enabled', False):
                         points_data = overlay_datasource.get('points_data', None)
                         if points_data is not None:
-                            print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                            if debug_print:
+                                print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
                             curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data[neuron_IDX], plot_opts=overlay_datasource.get('plot_opts', None), scatter_opts=overlay_datasource.get('scatter_opts', None))
                             overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
                             
