@@ -47,24 +47,6 @@ class PlotStringBrevityModeEnum(Enum):
         else:
             raise NameError
 
-
-    # @classmethod
-    # def extended_identity_formatting_string(cls, enum_value, neuron_extended_id):
-    #     """The extended_identity_labels property."""
-    #     if enum_value == PlotStringBrevityModeEnum.VERBOSE:
-    #         return f'Cell cell_uid: {neuron_extended_id.id} - (shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
-    #     elif enum_value == PlotStringBrevityModeEnum.DEFAULT:
-    #         return f'Cell {neuron_extended_id.id} - (shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
-    #     elif enum_value == PlotStringBrevityModeEnum.CONCISE:
-    #         return f'Cell {neuron_extended_id.id} - (shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
-    #     elif enum_value == PlotStringBrevityModeEnum.MINIMAL:
-    #         return f'{neuron_extended_id.id} - s {neuron_extended_id.shank}, c {neuron_extended_id.cluster}'
-    #     elif enum_value == PlotStringBrevityModeEnum.NONE:
-    #         return f'{neuron_extended_id.id} - {neuron_extended_id.shank}, {neuron_extended_id.cluster}'
-    #     else:
-    #         print(f'self: {enum_value} is unknown type!')
-    #         raise NameError
-    
     
     def extended_identity_formatting_string(self, neuron_extended_id):
         """The extended_identity_labels property."""
@@ -87,7 +69,7 @@ class PlotStringBrevityModeEnum(Enum):
     def should_show_firing_rate_label(self):
         """ Whether the firing rate in Hz should be showed on the plot """
         if self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return False
+            return True # was False
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
             return False
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
