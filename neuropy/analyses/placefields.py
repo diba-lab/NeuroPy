@@ -555,11 +555,11 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         
         # there is only one tuning_map per neuron that means the thresh_neurons_indx:
         filtered_tuning_maps = np.asarray(self._peak_frate_filter_function(tuning_maps.copy()))
-        filtered_firing_maps = self._peak_frate_filter_function(spikes_maps.copy())
+        filtered_spikes_maps = self._peak_frate_filter_function(spikes_maps.copy())
         filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)        
         filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
-        self.ratemap = Ratemap(filtered_tuning_maps, spikes_maps=filtered_firing_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
+        self.ratemap = Ratemap(filtered_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
         
@@ -723,6 +723,16 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         """
         # ---- cells with peak frate abouve thresh ------
         n_neurons = len(tuning_maps)
+        
+        if debug_print:
+            print('_build_peak_frate_filter(...):')
+            print('\t frate_thresh: {}'.format(frate_thresh))
+            print('\t n_neurons: {}'.format(n_neurons))
+        
+        max_neurons_firing_rates = [np.nanmax(tuning_maps[neuron_indx]) for neuron_indx in range(n_neurons)]
+        if debug_print:
+            print(f'max_neurons_firing_rates: {max_neurons_firing_rates}')
+        
         # only include the indicies that have a max firing rate greater than frate_thresh
         included_thresh_neurons_indx = [
             neuron_indx
@@ -730,9 +740,6 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             if np.nanmax(tuning_maps[neuron_indx]) > frate_thresh
         ]
         if debug_print:
-            print('_build_peak_frate_filter(...):')
-            print('\t frate_thresh: {}'.format(frate_thresh))
-            print('\t n_neurons: {}'.format(n_neurons))
             print('\t thresh_neurons_indx: {}'.format(included_thresh_neurons_indx))
         # filter_function: just indexes its passed list argument by thresh_neurons_indx (including only neurons that meet the thresholding criteria)
         filter_function = lambda list_: [list_[_] for _ in included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria
