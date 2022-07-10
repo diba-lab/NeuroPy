@@ -71,8 +71,6 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
         
         extended_overlay_points_datasource_dicts = kwargs.get('extended_overlay_points_datasource_dicts', None)
-        
-        # active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(80, 3), figsize=(30, 30))
         active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(80, 3), resolution_multiplier=2.5, extended_overlay_points_datasource_dicts=extended_overlay_points_datasource_dicts)
 
         if should_save_to_disk:
