@@ -158,6 +158,24 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
     return background_chessboard
 
 
+def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=None):
+    """ Adds the overlay points to the image plot with the specified axis. 
+    
+    Usage:
+        spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
+                                                                             scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
+        
+    """
+    if plot_opts is None:
+        plot_opts = {}
+    if scatter_opts is None:
+        scatter_opts = {}
+    spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'} | plot_opts))                
+    spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'} | scatter_opts))
+    return spike_overlay_points, spike_overlay_sc
+    
+    
+    
 def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE):
     """Plots a single tuning curve Heatmap using matplotlib
 
@@ -513,8 +531,10 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
             
             if enable_spike_overlay:
-                spike_overlay_points = curr_ax.plot(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')                
-                spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
+                # spike_overlay_points = curr_ax.plot(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')
+                # spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
+                spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
+                                                                             scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
             
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
             # cbar = fig.colorbar(im, cax=cbar_ax)
