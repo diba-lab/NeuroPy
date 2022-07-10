@@ -93,18 +93,24 @@ class SpikesAccessor(TimeSlicedMixin):
             spikes: curr_active_pipeline.sess.spikes_df
             adds column 'scISI' to spikes df.
             
+            TODO: PERFORMANCE: This takes over a minute to compute for Bapun's data.
+            
             # Created Columns:
                 'scISI'
         """
-        spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
-        self._obj['scISI'] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
+        if 'scISI' in self._obj.columns:
+            print(f'column "scISI" already exists in df! Skipping recomputation.')
+            return
+        else:
+            spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
+            self._obj['scISI'] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
 
-        for (i, a_cell_id) in enumerate(self._obj.spikes.neuron_ids):
-            # loop through the cell_ids
-            curr_df = self._obj.groupby('aclu').get_group(a_cell_id)
-            curr_series_differences = curr_df[spike_timestamp_column_name].diff() # These are the ISIs
-            #set the properties for the points in question:
-            self._obj.loc[curr_df.index,'scISI'] = curr_series_differences
+            for (i, a_cell_id) in enumerate(self._obj.spikes.neuron_ids):
+                # loop through the cell_ids
+                curr_df = self._obj.groupby('aclu').get_group(a_cell_id)
+                curr_series_differences = curr_df[spike_timestamp_column_name].diff() # These are the ISIs
+                #set the properties for the points in question:
+                self._obj.loc[curr_df.index,'scISI'] = curr_series_differences
 
 
     def rebuild_fragile_linear_neuron_IDXs(self, debug_print=False):
