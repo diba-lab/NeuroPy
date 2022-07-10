@@ -170,7 +170,7 @@ class PfnConfigMixin:
 class PfnDMixin(SimplePrintable):
     
     should_smooth_speed = False
-    should_smooth_firing_map = False
+    should_smooth_spikes_map = False
     should_smooth_spatial_occupancy_map = False
     should_smooth_final_tuning_map = True
     
@@ -301,24 +301,24 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         return seconds_occupancy, xedges
     
     @staticmethod   
-    def _compute_firing_map(spk_x, xbin, smooth):
-        firing_map = np.histogram(spk_x, bins=xbin)[0]
+    def _compute_spikes_map(spk_x, xbin, smooth):
+        spikes_map = np.histogram(spk_x, bins=xbin)[0]
         if ((smooth is not None) and (smooth > 0.0)):
-            firing_map = gaussian_filter1d(firing_map, sigma=smooth)
-        return firing_map
+            spikes_map = gaussian_filter1d(spikes_map, sigma=smooth)
+        return spikes_map
     
     @staticmethod   
-    def _compute_tuning_map(spk_x, xbin, occupancy, smooth, should_also_return_intermediate_firing_map=False):
-        if not PfnDMixin.should_smooth_firing_map:
-            smooth_firing_map = None
+    def _compute_tuning_map(spk_x, xbin, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
+        if not PfnDMixin.should_smooth_spikes_map:
+            smooth_spikes_map = None
         else:
-            smooth_firing_map = smooth
-        firing_map = Pf1D._compute_firing_map(spk_x, xbin, smooth_firing_map)
-        tuning_map = firing_map / occupancy
+            smooth_spikes_map = smooth
+        spikes_map = Pf1D._compute_spikes_map(spk_x, xbin, smooth_spikes_map)
+        tuning_map = spikes_map / occupancy
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and (smooth > 0.0)):
             tuning_map = gaussian_filter1d(tuning_map, sigma=smooth)
-        if should_also_return_intermediate_firing_map:
-            return tuning_map, firing_map
+        if should_also_return_intermediate_spikes_map:
+            return tuning_map, spikes_map
         else:
             return tuning_map
     
@@ -352,31 +352,31 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         # return seconds_occupancy, xedges, yedges
         
     @staticmethod   
-    def _compute_firing_map(spk_x, spk_y, xbin, ybin, smooth):
-        # firing_map: is the number of spike counts in each bin for this unit
-        firing_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
+    def _compute_spikes_map(spk_x, spk_y, xbin, ybin, smooth):
+        # spikes_map: is the number of spike counts in each bin for this unit
+        spikes_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
         if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
-            firing_map = gaussian_filter(firing_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
-        return firing_map
+            spikes_map = gaussian_filter(spikes_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
+        return spikes_map
     
     @staticmethod   
-    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_firing_map=False):
+    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
         # raw_tuning_map: is the number of spike counts in each bin for this unit
-        if not PfnDMixin.should_smooth_firing_map:
-            smooth_firing_map = None
+        if not PfnDMixin.should_smooth_spikes_map:
+            smooth_spikes_map = None
         else:
-            smooth_firing_map = smooth
-        firing_map = Pf2D._compute_firing_map(spk_x, spk_y, xbin, ybin, smooth_firing_map)
+            smooth_spikes_map = smooth
+        spikes_map = Pf2D._compute_spikes_map(spk_x, spk_y, xbin, ybin, smooth_spikes_map)
         occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
-        occupancy_weighted_tuning_map = firing_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        occupancy_weighted_tuning_map = spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         occupancy_weighted_tuning_map = np.nan_to_num(occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
         occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
         
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
             occupancy_weighted_tuning_map = gaussian_filter(occupancy_weighted_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
             
-        if should_also_return_intermediate_firing_map:
-            return occupancy_weighted_tuning_map, firing_map
+        if should_also_return_intermediate_spikes_map:
+            return occupancy_weighted_tuning_map, spikes_map
         else:
             return occupancy_weighted_tuning_map
 
@@ -405,7 +405,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         speed_thresh : int
             speed threshold for calculating place field
         """
-        self._save_intermediate_firing_maps = True # False is not yet implemented
+        self._save_intermediate_spikes_maps = True # False is not yet implemented
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
         self.position_srate = position.sampling_rate
@@ -517,7 +517,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             occupancy, xedges = Pf1D._compute_occupancy(self.x, self.xbin, self.position_srate, smooth_occupancy_map[0])
         
         # Output lists, for compatibility with Pf1D and Pf2D:
-        spk_pos, spk_t, firing_maps, tuning_maps = [], [], [], []
+        spk_pos, spk_t, spikes_maps, tuning_maps = [], [], [], []
         
         # Once filtering and binning is done, apply the grouping:
         # Group by the aclu (cluster indicator) column
@@ -540,26 +540,26 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
                 spk_y = np.interp(cell_spike_times, self.t, self.y)
                 # cell_df.loc[:, 'y'] = spk_y
                 spk_pos.append([spk_x, spk_y])
-                curr_cell_tuning_map, curr_cell_firing_map = Pf2D._compute_tuning_map(spk_x, spk_y, self.xbin, self.ybin, occupancy, self.config.smooth, should_also_return_intermediate_firing_map=self._save_intermediate_firing_maps)
+                curr_cell_tuning_map, curr_cell_spikes_map = Pf2D._compute_tuning_map(spk_x, spk_y, self.xbin, self.ybin, occupancy, self.config.smooth, should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
             else:
                 # otherwise only 1D:
                 spk_pos.append([spk_x])
-                curr_cell_tuning_map, curr_cell_firing_map = Pf1D._compute_tuning_map(spk_x, self.xbin, occupancy, self.config.smooth[0], should_also_return_intermediate_firing_map=self._save_intermediate_firing_maps)
+                curr_cell_tuning_map, curr_cell_spikes_map = Pf1D._compute_tuning_map(spk_x, self.xbin, occupancy, self.config.smooth[0], should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
             
             spk_t.append(cell_spike_times)
             tuning_maps.append(curr_cell_tuning_map)
-            firing_maps.append(curr_cell_firing_map)
+            spikes_maps.append(curr_cell_spikes_map)
                 
         # ---- cells with peak frate abouve thresh 
         self._included_thresh_neurons_indx, self._peak_frate_filter_function = PfND._build_peak_frate_filter(tuning_maps, self.config.frate_thresh)
         
         # there is only one tuning_map per neuron that means the thresh_neurons_indx:
         filtered_tuning_maps = np.asarray(self._peak_frate_filter_function(tuning_maps.copy()))
-        filtered_firing_maps = self._peak_frate_filter_function(firing_maps.copy())
+        filtered_firing_maps = self._peak_frate_filter_function(spikes_maps.copy())
         filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)        
         filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
-        self.ratemap = Ratemap(filtered_tuning_maps, firing_maps=filtered_firing_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
+        self.ratemap = Ratemap(filtered_tuning_maps, spikes_maps=filtered_firing_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
         
@@ -691,7 +691,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # print(f'__setstate__(self: {self}, state: {state})')
         # print(f'__setstate__(...): {list(self.__dict__.keys())}')
         self.__dict__ = state # set the dict
-        self._save_intermediate_firing_maps = True # False is not yet implemented
+        self._save_intermediate_spikes_maps = True # False is not yet implemented
         # # Set the particulars if needed
         # self.config = state.get('config', None)
         # self.position_srate = state.get('position_srate', None)

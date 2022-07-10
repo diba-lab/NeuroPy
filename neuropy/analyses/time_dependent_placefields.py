@@ -31,7 +31,7 @@ class PfND_TimeDependent(PfND):
                                         speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                         grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
         print('\t done.')
-        # np.shape(active_time_dependent_placefields2D.curr_firing_maps_matrix) # (64, 64, 29)
+        # np.shape(active_time_dependent_placefields2D.curr_spikes_maps_matrix) # (64, 64, 29)
     """
     
     
@@ -113,8 +113,7 @@ class PfND_TimeDependent(PfND):
     @property
     def ratemap(self):
         """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
-        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
-        # return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, firing_maps=self.curr_firing_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.filtered_spikes_df.spikes.neuron_ids, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.filtered_spikes_df.spikes.neuron_probe_tuple_ids)
+        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, spikes_maps=self.curr_spikes_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
 
 
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
@@ -195,14 +194,14 @@ class PfND_TimeDependent(PfND):
         # Initialize for the 0th timestamp:
         n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
         n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
-        self.curr_firing_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
-        self.curr_smoothed_firing_maps_matrix = None
+        self.curr_spikes_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
+        self.curr_smoothed_spikes_maps_matrix = None
         self.curr_raw_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
         self.curr_raw_smoothed_occupancy_map = None
         self.last_t = 0.0
         self.curr_seconds_occupancy = self.curr_raw_occupancy_map.copy()
         self.curr_normalized_occupancy = self.curr_raw_occupancy_map.copy()
-        self.curr_occupancy_weighted_tuning_maps_matrix = self.curr_firing_maps_matrix.copy()
+        self.curr_occupancy_weighted_tuning_maps_matrix = self.curr_spikes_maps_matrix.copy()
         self.historical_snapshots = OrderedDict({})
 
 
@@ -227,18 +226,18 @@ class PfND_TimeDependent(PfND):
 
 
     def _minimal_update(self, t):
-        """ Updates the current_occupancy_map, curr_firing_maps_matrix
+        """ Updates the current_occupancy_map, curr_spikes_maps_matrix
         # t: the "current time" for which to build the best possible placefields
         
         Updates:
             self.curr_raw_occupancy_map
-            self.curr_firing_maps_matrix
+            self.curr_spikes_maps_matrix
             self.last_t
         """
         # Post Initialization Update
         # t = self.last_t + 1 # add one second
         curr_t, self.curr_raw_occupancy_map = PfND_TimeDependent.update_occupancy_map(self.last_t, self.curr_raw_occupancy_map, t, self.all_time_filtered_pos_df)
-        curr_t, self.curr_firing_maps_matrix = PfND_TimeDependent.update_firing_map(self.last_t, self.curr_firing_maps_matrix, t, self.all_time_filtered_spikes_df)
+        curr_t, self.curr_spikes_maps_matrix = PfND_TimeDependent.update_spikes_map(self.last_t, self.curr_spikes_maps_matrix, t, self.all_time_filtered_spikes_df)
         self.last_t = curr_t
 
         
@@ -248,11 +247,11 @@ class PfND_TimeDependent(PfND):
         Using:
             self.position_srate
             self.curr_raw_occupancy_map
-            self.curr_firing_maps_matrix
+            self.curr_spikes_maps_matrix
             
         Updates:
             self.curr_raw_smoothed_occupancy_map
-            self.curr_smoothed_firing_maps_matrix
+            self.curr_smoothed_spikes_maps_matrix
             self.curr_seconds_occupancy
             self.curr_normalized_occupancy
             self.curr_occupancy_weighted_tuning_maps_matrix
@@ -263,20 +262,20 @@ class PfND_TimeDependent(PfND):
             # Smooth the occupancy map:
             self.curr_raw_smoothed_occupancy_map = gaussian_filter(self.curr_raw_occupancy_map, sigma=(self.smooth[1], self.smooth[0])) # 2d gaussian filter
             # Smooth the firing map:
-            self.curr_smoothed_firing_maps_matrix = gaussian_filter(self.curr_firing_maps_matrix, sigma=(0, self.smooth[1], self.smooth[0])) # 2d gaussian filter
+            self.curr_smoothed_spikes_maps_matrix = gaussian_filter(self.curr_spikes_maps_matrix, sigma=(0, self.smooth[1], self.smooth[0])) # 2d gaussian filter
             self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_raw_smoothed_occupancy_map, position_srate=self.position_srate)
-            self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_smoothed_firing_maps_matrix)
+            self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_smoothed_spikes_maps_matrix)
 
         else:
             self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_raw_occupancy_map, position_srate=self.position_srate)
-            self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_firing_maps_matrix)
+            self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_spikes_maps_matrix)
     
     def snapshot(self):
         """ takes a snapshot of the current values at this time."""    
         # Add this entry to the historical snapshot dict:        
         self.historical_snapshots[self.last_t] = {
-            'firing_maps_matrix':self.curr_firing_maps_matrix.copy(),
-            'smoothed_firing_maps_matrix':self.curr_smoothed_firing_maps_matrix.copy(),
+            'spikes_maps_matrix':self.curr_spikes_maps_matrix.copy(),
+            'smoothed_spikes_maps_matrix':self.curr_smoothed_spikes_maps_matrix.copy(),
             'raw_occupancy_map':self.curr_raw_occupancy_map.copy(),
             'raw_smoothed_occupancy_map':self.curr_raw_smoothed_occupancy_map.copy(),
             'seconds_occupancy':self.curr_seconds_occupancy.copy(),
@@ -325,8 +324,8 @@ class PfND_TimeDependent(PfND):
         return t, last_occupancy_matrix
 
     @classmethod
-    def update_firing_map(cls, last_t, last_firing_maps_matrix, t, active_spike_df, debug_print=False):
-        """ Given the last_firing_maps_matrix computed at time last_t, determines the additional updates (spikes) from active_spike_df and adds them producing an updated version
+    def update_spikes_map(cls, last_t, last_spikes_maps_matrix, t, active_spike_df, debug_print=False):
+        """ Given the last_spikes_maps_matrix computed at time last_t, determines the additional updates (spikes) from active_spike_df and adds them producing an updated version
         Inputs:
         # t: the "current time" for which to build the best possible placefields
         """
@@ -341,24 +340,21 @@ class PfND_TimeDependent(PfND):
             if debug_print:
                 print(f'fragile_linear_neuron_IDX: {fragile_linear_neuron_IDX}, xbin_label: {xbin_label}, ybin_label: {ybin_label}, count: {count}')
             try:
-                last_firing_maps_matrix[fragile_linear_neuron_IDX, xbin_label-1, ybin_label-1] += count
+                last_spikes_maps_matrix[fragile_linear_neuron_IDX, xbin_label-1, ybin_label-1] += count
             except IndexError as e:
-                print(f'e: {e}\n active_current_spike_df: {np.shape(active_current_spike_df)}, current_spike_per_unit_per_bin_counts: {np.shape(current_spike_per_unit_per_bin_counts)}\n last_firing_maps_matrix: {np.shape(last_firing_maps_matrix)}\n count: {count}')
-                print(f' last_firing_maps_matrix[fragile_linear_neuron_IDX: {fragile_linear_neuron_IDX}, (xbin_label-1): {xbin_label-1}, (ybin_label-1): {ybin_label-1}] += count: {count}')
+                print(f'e: {e}\n active_current_spike_df: {np.shape(active_current_spike_df)}, current_spike_per_unit_per_bin_counts: {np.shape(current_spike_per_unit_per_bin_counts)}\n last_spikes_maps_matrix: {np.shape(last_spikes_maps_matrix)}\n count: {count}')
+                print(f' last_spikes_maps_matrix[fragile_linear_neuron_IDX: {fragile_linear_neuron_IDX}, (xbin_label-1): {xbin_label-1}, (ybin_label-1): {ybin_label-1}] += count: {count}')
                 raise e
-        return t, last_firing_maps_matrix
+        return t, last_spikes_maps_matrix
 
     @classmethod
-    def compute_occupancy_weighted_tuning_map(cls, curr_seconds_occupancy_map, curr_firing_maps_matrix, debug_print=False):
-        """ Given the curr_occupancy_map and curr_firing_maps_matrix for this timestamp, returns the occupancy weighted tuning map
+    def compute_occupancy_weighted_tuning_map(cls, curr_seconds_occupancy_map, curr_spikes_maps_matrix, debug_print=False):
+        """ Given the curr_occupancy_map and curr_spikes_maps_matrix for this timestamp, returns the occupancy weighted tuning map
         Inputs:
         # curr_seconds_occupancy_map: note that this is the occupancy map in seconds, not the raw counts
         """
-        # occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
-        occupancy_weighted_tuning_maps_matrix = curr_firing_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
-        # occupancy_weighted_tuning_map = firing_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        occupancy_weighted_tuning_maps_matrix = curr_spikes_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         occupancy_weighted_tuning_maps_matrix = np.nan_to_num(occupancy_weighted_tuning_maps_matrix, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
-        # occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
         return occupancy_weighted_tuning_maps_matrix
 
 

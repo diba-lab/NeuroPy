@@ -120,7 +120,7 @@ class enumTuningMap2DPlotMode(AutoNameEnum):
 @unique
 class enumTuningMap2DPlotVariables(AutoNameEnum):
     TUNING_MAPS = auto() # DEFAULT
-    FIRING_MAPS = auto() 
+    SPIKES_MAPS = auto() 
     
     
 def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
@@ -159,7 +159,7 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
 
 
 def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE):
-    """Plots a single tuning curve Heatmap
+    """Plots a single tuning curve Heatmap using matplotlib
 
     Args:
         xbin ([type]): [description]
@@ -287,10 +287,6 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     # brev_mode = PlotStringBrevityModeEnum.MINIMAL
 
     if neuron_extended_id is not None:    
-        # old way independent of brev_mode:
-        # extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
-        # full_extended_id_string = f"Cell {neuron_extended_id.id} - {extended_id_string}"
-        # new brev_mode dependent way:
         full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
     else:
         full_extended_id_string = ''
@@ -347,8 +343,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
         active_maps = ratemap.tuning_curves[included_unit_indicies]
         title_substring = 'Placemaps'
-    elif plot_variable.name == enumTuningMap2DPlotVariables.FIRING_MAPS.name:
-        active_maps = ratemap.firing_maps[included_unit_indicies]
+    elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+        active_maps = ratemap.spikes_maps[included_unit_indicies]
         title_substring = 'Firing Maps'
     else:
         raise ValueError
