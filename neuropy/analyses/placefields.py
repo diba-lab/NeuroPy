@@ -155,7 +155,7 @@ def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
     # seconds_occupancy = raw_occupancy * dt  # converting to seconds
     seconds_occupancy = raw_occupancy / (float(position_srate) + 1e-16) # converting to seconds
     # seconds_occupancy = occupancy / (position_srate + 1e-16)  # converting to seconds
-    # normalized occupancy gives the ratio of samples that feel in each bin. ALL BINS ADD UP TO ONE.
+    # normalized occupancy gives the ratio of samples that fall in each bin. ALL BINS ADD UP TO ONE.
     normalized_occupancy = raw_occupancy / np.nansum(raw_occupancy) # the normalized occupancy determines the relative number of samples spent in each bin
 
     return seconds_occupancy, normalized_occupancy
