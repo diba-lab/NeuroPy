@@ -156,6 +156,9 @@ def get_neuron_colors(sort_indicies, cmap=None, debug_print=False):
         # Extend the cmap if there are more neurons in n_neurons than the original colormap supports:
         num_needed_categories, num_needed_subcategories = ColorsUtil.compute_needed_single_hue_variations(n_neurons, cmap)
         extended_cmap = ColorsUtil.categorical_cmap(num_needed_categories, num_needed_subcategories, cmap=cmap)
+    else:
+        # Otherwise just use the original color map:
+        extended_cmap = cmap
     
     colors_array = np.zeros((4, n_neurons))
     for i, neuron_ind in enumerate(sort_indicies):
