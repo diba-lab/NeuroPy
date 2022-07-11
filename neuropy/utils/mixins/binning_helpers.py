@@ -1,36 +1,5 @@
 import numpy as np
 
-class BinInfo(object):
-    """docstring for BinInfo.
-    Object to be returned by _bin_pos_nD
- 
-    Replaces the following implementation:
-         bin_info_out_dict = {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
-        if y is not None:
-            # if at least 2D output, add the y-axis properties to the info dictionary
-            bin_info_out_dict['ystep'], bin_info_out_dict['ynum_bins']  = ystep, ynum_bins
-        else:
-            ybin = None
-            
-            
-    Properties:
-        mode = 'num_bins' ## Binning with Fixed Number of Bins:
-        mode = 'bin_size' ## Binning with Fixed Bin Sizes:
- 
-     """
-    def __init__(self, mode, xstep, xnum_bins, ystep=None, ynum_bins=None):
-        super(BinInfo, self).__init__()
-        self.mode = mode
-        self.xstep = xstep
-        self.xnum_bins = xnum_bins
-        self.ystep = ystep
-        self.ynum_bins = ynum_bins
-        
-    def setup(self):
-        pass
-  
-
-    
 
 class BinnedPositionsMixin(object):
     """docstring for BinnedPositionsMixin."""
