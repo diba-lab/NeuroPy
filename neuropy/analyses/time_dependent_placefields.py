@@ -159,10 +159,6 @@ class PfND_TimeDependent(PfND):
                 self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x', 'binned_y'], inplace=True) # dropped NaN values
             else:
                 self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
-            
-        self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
-        self.ybin_labels = np.arange(start=1, stop=len(self.ybin))
-
 
         # Reset the rebuild_fragile_linear_neuron_IDXs:
         self._filtered_spikes_df, _reverse_cellID_index_map = self._filtered_spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()

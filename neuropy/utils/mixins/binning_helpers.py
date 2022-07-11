@@ -2,8 +2,20 @@ import numpy as np
 
 
 class BinnedPositionsMixin(object):
-    """docstring for BinnedPositionsMixin."""
-
+    """ Adds common accessors for convenince properties such as *bin_centers/*bin_labels
+    
+    Requires (Implementor Must Provide):
+        self.xbin
+        self.ybin
+    
+    Provides:
+        Provided Properties:
+            xbin_centers
+            ybin_centers
+            xbin_labels
+            ybin_labels
+        
+    """
     @property
     def xbin_centers(self):
         """ the x-position of the centers of each xbin. Note that there is (n_xbins - 1) of these. """

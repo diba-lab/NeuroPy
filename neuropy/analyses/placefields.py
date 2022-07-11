@@ -13,6 +13,7 @@ from neuropy.core.ratemap import Ratemap
 from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
+from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin
 
 # from pyphoplacecellanalysis.General.Configs.DynamicConfigs import PlottingConfig, InteractivePlaceCellConfig
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
@@ -387,7 +388,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing. 
 
-class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. """
 
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
@@ -424,10 +425,7 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         self._filtered_pos_df = None
         self._filtered_spikes_df = None
         self.xbin = None
-        self.ybin = None 
-        self.xbin_labels = None
-        self.ybin_labels = None
-        
+        self.ybin = None         
         self.bin_info = None
         
         # Perform the primary setup to build the placefield
@@ -486,16 +484,10 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=self.config.grid_bin) # bin_size mode
         if (self.ndim > 1):
             self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy(), bin_size=self.config.grid_bin) # bin_size mode                        
-            self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
-            self.ybin_labels = np.arange(start=1, stop=len(self.ybin))
-            
-        
-        
+
         else:
             # 1D case
             self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), None, bin_size=self.config.grid_bin) # bin_size mode            
-            self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
-            self.ybin_labels = None
                                 
         # Adds the 'binned_x' and 'binned_y' columns to the position dataframe:
         # self._filtered_pos_df.position.build_discretized_binned_positions(self.config, xbin_values=self.xbin, ybin_values=self.ybin, debug_print=False)
@@ -599,6 +591,19 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             return self.filtered_pos_df.speed_smooth.to_numpy()
         else:
             return self.filtered_pos_df.speed.to_numpy()
+        
+        
+        
+        
+    @property
+    def xbin_centers(self):
+        return self.xbin[:-1] + np.diff(self.xbin) / 2
+
+    @property
+    def ybin_centers(self):
+        return self.ybin[:-1] + np.diff(self.ybin) / 2
+    
+    
         
     @property
     def filtered_spikes_df(self):
