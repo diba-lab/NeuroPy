@@ -425,6 +425,9 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         self._filtered_spikes_df = None
         self.xbin = None
         self.ybin = None 
+        self.xbin_labels = None
+        self.ybin_labels = None
+        
         self.bin_info = None
         
         # Perform the primary setup to build the placefield
@@ -482,10 +485,18 @@ class PfND(PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
         # self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=self.config.grid_bin) # bin_size mode
         if (self.ndim > 1):
-            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy(), bin_size=self.config.grid_bin) # bin_size mode            
+            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy(), bin_size=self.config.grid_bin) # bin_size mode                        
+            self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
+            self.ybin_labels = np.arange(start=1, stop=len(self.ybin))
+            
+        
+        
         else:
-            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), None, bin_size=self.config.grid_bin) # bin_size mode
-
+            # 1D case
+            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), None, bin_size=self.config.grid_bin) # bin_size mode            
+            self.xbin_labels = np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
+            self.ybin_labels = None
+                                
         # Adds the 'binned_x' and 'binned_y' columns to the position dataframe:
         # self._filtered_pos_df.position.build_discretized_binned_positions(self.config, xbin_values=self.xbin, ybin_values=self.ybin, debug_print=False)
         

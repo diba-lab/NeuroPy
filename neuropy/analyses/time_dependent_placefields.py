@@ -130,6 +130,9 @@ class PfND_TimeDependent(PfND):
             bin size of position bining, by default 5
         speed_thresh : int
             speed threshold for calculating place field
+        
+        
+        NOTE: doesn't call super().__init__(...)
         """
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
