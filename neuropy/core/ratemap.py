@@ -107,6 +107,19 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         """ AOC (area-under-curve) normalization for tuning curves. """
         return Ratemap.perform_AOC_normalization(self.tuning_curves)
     
+    
+    @property
+    def unit_max_tuning_curves(self):
+        """ tuning curves normalized by scaling their max value down to 1.0.
+            The peak of each placefield will have height 1.0.
+        """
+        unit_max_tuning_curves = [a_tuning_curve / np.nanmax(a_tuning_curve) for a_tuning_curve in self.tuning_curves]
+        validate_unit_max = [np.nanmax(a_unit_max_tuning_curve) for a_unit_max_tuning_curve in unit_max_tuning_curves]
+        # print(f'validate_unit_max: {validate_unit_max}')
+        assert np.allclose(validate_unit_max, np.full_like(validate_unit_max, 1.0), equal_nan=True), f"unit_max_tuning_curves doesn't have a max==1.0 after scaling!!! Maximums: {validate_unit_max}"
+        return unit_max_tuning_curves
+    
+    
     @property
     def minmax_normalized_tuning_curves(self):
         """ tuning curves normalized by scaling their min/max values down to the range (0, 1).
