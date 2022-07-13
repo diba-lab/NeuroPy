@@ -97,10 +97,15 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         raise NotImplementedError # innheritor must override
         
     @classmethod
-    def build_default_filter_functions(cls, sess):
-        """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
-        all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
-        return {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
+    def build_default_filter_functions(cls, sess, included_epoch_names=None):
+        """ OPTIONALLY can be overriden by implementors to provide specific filter functions
+        Inputs:
+            included_epoch_names: an optional list of names to restrict to, must already be valid epochs to filter by. e.g. ['maze1']
+        """
+        if included_epoch_names is None:
+            all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
+            included_epoch_names = all_epoch_names
+        return {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in included_epoch_names}
 
     @classmethod
     def build_default_computation_configs(cls, sess):
