@@ -106,8 +106,12 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     def pdf_normalized_tuning_curves(self):
         """ AOC (area-under-curve) normalization for tuning curves. """
         return Ratemap.perform_AOC_normalization(self.tuning_curves)
-    
-    
+        
+    @property
+    def tuning_curve_peak_firing_rates(self):
+        """ the non-normalized peak location of each tuning curve. Represents the peak firing rate of that curve. """
+        return np.array([np.nanmax(a_tuning_curve) for a_tuning_curve in self.tuning_curves])
+        
     @property
     def unit_max_tuning_curves(self):
         """ tuning curves normalized by scaling their max value down to 1.0.
