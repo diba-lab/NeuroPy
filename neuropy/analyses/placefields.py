@@ -148,15 +148,26 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
 
-def _normalized_occupancy(raw_occupancy, dt=None, position_srate=None):
-    # raw occupancy is defined in terms of the number of samples that fall into each bin.
+def _normalized_occupancy(raw_occupancy, position_srate=None):
+    """Computes seconds_occupancy and normalized_occupancy from the raw_occupancy. See Returns section for definitions and more info.
+
+    Args:
+        raw_occupancy (_type_): *raw occupancy* is defined in terms of the number of position samples that fall into each bin.
+        position_srate (_type_, optional): Sampling rate in Hz (1/[sec])
+
+    Returns:
+        tuple<float,float>: (seconds_occupancy, normalized_occupancy)
+            *seconds_occupancy* is the number of seconds spent in each bin. This is computed by multiplying the raw occupancy (in # samples) by the duration of each sample.
+            **normalized occupancy** gives the ratio of samples that fall in each bin. ALL BINS ADD UP TO ONE.        
+    """
+    
     # if position_srate is not None:
     #     dt = 1.0 / float(position_srate)
-    #  seconds_occupancy is the number of seconds spent in each bin. This is computed by multiplying the raw occupancy (in # samples) by the duration of each sample.
+    # 
     # seconds_occupancy = raw_occupancy * dt  # converting to seconds
     seconds_occupancy = raw_occupancy / (float(position_srate) + 1e-16) # converting to seconds
-    # seconds_occupancy = occupancy / (position_srate + 1e-16)  # converting to seconds
-    # normalized occupancy gives the ratio of samples that fall in each bin. ALL BINS ADD UP TO ONE.
+    
+    # 
     normalized_occupancy = raw_occupancy / np.nansum(raw_occupancy) # the normalized occupancy determines the relative number of samples spent in each bin
 
     return seconds_occupancy, normalized_occupancy
