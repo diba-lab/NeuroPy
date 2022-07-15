@@ -8,6 +8,24 @@ from .ccg import correlograms
 import scipy.signal as sg
 
 
+def choose_elementwise(x, y, condition):
+    assert type(x) == type(y), "Both inputs should have same type"
+    assert type(condition) is np.ndarray, "condition should be a boolean array"
+
+    if type(x) is np.ndarray:
+        assert x.shape == y.shape, "Input arrays should have same shape"
+        out = np.zeros_like(x)
+        out[..., condition] = x[..., condition]
+        out[..., ~condition] = y[..., ~condition]
+    else:
+        try:
+            out = [x if cond else y for (x, y, cond) in zip(x, y, condition)]
+        except:
+            raise TypeError("Inpvalid inputs")
+
+    return out
+
+
 def gaussian_kernel1D(sigma, bin_size, truncate=4.0):
     """Get a gaussian kernel
 
