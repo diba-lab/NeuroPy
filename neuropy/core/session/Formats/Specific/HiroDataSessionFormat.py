@@ -82,7 +82,7 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
     
     
     @classmethod
-    def build_track_only_filter_functions(cls, sess):
+    def build_track_only_filter_functions(cls, sess, **kwargs):
         """ filters only include the 'track', not the pre or post. """
         all_epoch_names = ['track'] # all_epoch_names # ['maze1', 'maze2']
         return {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
@@ -104,13 +104,13 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         
 
     @classmethod
-    def build_default_computation_configs(cls, sess):
+    def build_default_computation_configs(cls, sess, **kwargs):
         """ _get_computation_configs(curr_kdiba_pipeline.sess) 
             # From Diba:
             # (3.777, 1.043) # for (64, 64) bins
             # (1.874, 0.518) # for (128, 128) bins
         """
-        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
+        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
         ## Non-restricted computation epochs:
         # any_lap_specific_epochs = None
         # Track-restricted computation epochs:

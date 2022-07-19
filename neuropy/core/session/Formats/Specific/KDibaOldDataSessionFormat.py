@@ -164,9 +164,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     
     @classmethod
-    def build_lap_only_computation_configs(cls, sess):
+    def build_lap_only_computation_configs(cls, sess, **kwargs):
         """ sets the computation intervals to only be performed on the laps """
-        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
+        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
         ## Lap-restricted computation epochs:
         is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
         only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
@@ -185,13 +185,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     
     @classmethod
-    def build_default_computation_configs(cls, sess):
+    def build_default_computation_configs(cls, sess, **kwargs):
         """ _get_computation_configs(curr_kdiba_pipeline.sess) 
             # From Diba:
             # (3.777, 1.043) # for (64, 64) bins
             # (1.874, 0.518) # for (128, 128) bins
         """
-        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess)
+        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
         
 
         ## Non-restricted computation epochs:
