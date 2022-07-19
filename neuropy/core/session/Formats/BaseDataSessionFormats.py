@@ -10,7 +10,7 @@ from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec
 from neuropy.core import Mua, Epoch
 from neuropy.io import NeuroscopeIO, BinarysignalIO 
 from neuropy.analyses.placefields import PlacefieldComputationParameters
-from neuropy.utils.dynamic_container import DynamicContainer
+from neuropy.utils.dynamic_container import DynamicContainer, override_dict, overriding_dict_with, get_dict_subset
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from neuropy.utils.position_util import compute_position_grid_size
 
@@ -110,18 +110,12 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
-        cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64))
-        
-
-        kwargs.setdefault('pf_params', PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None))
-        
-        kwargs.setdefault('spike_analysis', DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))
-        
-        
-        return [DynamicContainer(pf_params=kwargs['pf_params'],
-                          spike_analysis=kwargs['spike_analysis'])]
-        
-        
+        kwargs.setdefault('pf_params', PlacefieldComputationParameters(**override_dict({'speed_thresh': 10.0, 'grid_bin': cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), 'smooth': (2.0, 2.0), 'frate_thresh': 0.2, 'time_bin_size': 1.0, 'computation_epochs': None}, kwargs)))
+        kwargs.setdefault('spike_analysis', DynamicContainer(**{'max_num_spikes_per_neuron': 20000,
+                                                                 'kleinberg_parameters': DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs),
+                                                                 'use_progress_bar': False,
+                                                                 'debug_print': False}).override(kwargs))        
+        return [DynamicContainer(pf_params=kwargs['pf_params'], spike_analysis=kwargs['spike_analysis'])]
         # return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
         #                   spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
         # active_grid_bin = compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64))
