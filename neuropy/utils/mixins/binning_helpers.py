@@ -151,17 +151,11 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
             updated_combined_bin_infos['mode'] = bin_info['mode']
             updated_combined_bin_infos['step'].append(bin_info['xstep'])
             updated_combined_bin_infos['num_bins'].append(bin_info['xnum_bins'])
-            # for compatibility, add 'xstep', 'ystep', 'xnum_bins', 'ynum_bins' for compatibility (for the first two variables being 'x' and 'y'
-            if i == 0:
-                updated_combined_bin_infos['xstep'] = updated_combined_bin_infos['step'][-1]
-                updated_combined_bin_infos['xnum_bins'] = updated_combined_bin_infos['num_bins'][-1]
-            elif i == 1:
-                updated_combined_bin_infos['ystep'] = updated_combined_bin_infos['step'][-1]
-                updated_combined_bin_infos['ynum_bins'] = updated_combined_bin_infos['num_bins'][-1]
+            
         else:
             # Use the extant provided values:
             curr_bins = curr_dim_bin_values
-            bin_info = None  # bin_info is None for pre-computed values
+            # bin_info = None  # bin_info is None for pre-computed values
             updated_combined_bin_infos['mode'] = 'provided'
             updated_combined_bin_infos['step'].append((curr_bins[1]-curr_bins[0]))
             updated_combined_bin_infos['num_bins'].append(len(curr_bins))
@@ -174,6 +168,23 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
         # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within:    
         if (curr_dim_binned_col_name not in active_df.columns) and not force_recompute:
             active_df[curr_dim_binned_col_name] = pd.cut(active_df[curr_dim_position_col_name].to_numpy(), bins=curr_bins, include_lowest=True, labels=np.arange(start=1, stop=len(curr_bins))) # same shape as the input data 
+        
+    ## Compatibility with prev implementations:
+    # for compatibility, add 'xstep', 'ystep', 'xnum_bins', 'ynum_bins' for compatibility (for the first two variables being 'x' and 'y'
+    if len(updated_combined_bin_infos['num_bins']) > 0:
+        updated_combined_bin_infos['xstep'] = updated_combined_bin_infos['step'][0]
+        updated_combined_bin_infos['xnum_bins'] = updated_combined_bin_infos['num_bins'][0]
+    else:
+        updated_combined_bin_infos['xstep'] = None
+        updated_combined_bin_infos['xnum_bins'] = None
+        
+    if len(updated_combined_bin_infos['num_bins']) > 1:
+        updated_combined_bin_infos['ystep'] = updated_combined_bin_infos['step'][1]
+        updated_combined_bin_infos['ynum_bins'] = updated_combined_bin_infos['num_bins'][1]
+    else:
+        updated_combined_bin_infos['ystep'] = None
+        updated_combined_bin_infos['ynum_bins'] = None
+        
         
     return active_df, updated_bin_values, updated_combined_bin_infos
 
