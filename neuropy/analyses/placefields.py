@@ -13,7 +13,7 @@ from neuropy.core.ratemap import Ratemap
 from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
-from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin
+from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_nD, build_df_discretized_binned_position_columns
 
 # from pyphoplacecellanalysis.General.Configs.DynamicConfigs import PlottingConfig, InteractivePlaceCellConfig
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
@@ -784,53 +784,9 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
             print(bin_info)
             
-            
         TODO: 2022-04-22 - Note that I discovered that the bins generated here might cause an error when used with Pandas .cut function, which does not include the left (most minimum) values by default. This would cause the minimumal values not to be included.
         """
-        assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
-        assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
-        
-        bin_info_out_dict = dict()
-        
-        if num_bins is not None:
-            ## Binning with Fixed Number of Bins:
-            mode = 'num_bins'
-            if np.isscalar(num_bins):
-                num_bins = [num_bins]
-            
-            xnum_bins = num_bins[0]
-            xbin, xstep = np.linspace(np.nanmin(x), np.nanmax(x), num=xnum_bins, retstep=True)  # binning of x position
-
-            if y is not None:
-                ynum_bins = num_bins[1]
-                ybin, ystep = np.linspace(np.nanmin(y), np.nanmax(y), num=ynum_bins, retstep=True)  # binning of y position       
-                
-        elif bin_size is not None:
-            ## Binning with Fixed Bin Sizes:
-            mode = 'bin_size'
-            if np.isscalar(bin_size):
-                print(f'np.isscalar(bin_size): {bin_size}')
-                bin_size = [bin_size]
-                
-            xstep = bin_size[0]
-            xbin = np.arange(np.nanmin(x), (np.nanmax(x) + xstep), xstep)  # binning of x position
-            xnum_bins = len(xbin)
-
-            if y is not None:
-                ystep = bin_size[1]
-                ybin = np.arange(np.nanmin(y), (np.nanmax(y) + ystep), ystep)  # binning of y position
-                ynum_bins = len(ybin)
-                
-        # print('xbin: {}'.format(xbin))
-        # print('ybin: {}'.format(ybin))
-        bin_info_out_dict = {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
-        if y is not None:
-            # if at least 2D output, add the y-axis properties to the info dictionary
-            bin_info_out_dict['ystep'], bin_info_out_dict['ynum_bins']  = ystep, ynum_bins
-        else:
-            ybin = None
-            
-        return xbin, ybin, bin_info_out_dict # {'mode':mode, 'xstep':xstep, 'ystep':ystep, 'xnum_bins':xnum_bins, 'ynum_bins':ynum_bins}
+        return bin_pos_nD(x, y, num_bins=num_bins, bin_size=bin_size)
 
 
     ## Binned Position Columns:
@@ -838,32 +794,9 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def build_position_df_discretized_binned_positions(active_pos_df, active_computation_config, xbin_values=None, ybin_values=None, debug_print=False):
         """ Adds the 'binned_x' and 'binned_y' columns to the position dataframe """
         # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
-        if (xbin_values is None) or (ybin_values is None):
-            # determine the correct bins to use from active_computation_config.grid_bin:
-            if debug_print:
-                print(f'active_grid_bin: {active_computation_config.grid_bin}')
-                
-            if 'y' in active_pos_df.columns:
-                xbin, ybin, bin_info = PfND._bin_pos_nD(active_pos_df['x'].values, active_pos_df['y'].values, bin_size=active_computation_config.grid_bin) # bin_size mode
-            else:
-                # 1D case:
-                xbin, ybin, bin_info = PfND._bin_pos_nD(active_pos_df['x'].values, None, bin_size=active_computation_config.grid_bin) # bin_size mode
-        else:
-            # use the extant values passed in:
-            if debug_print:
-                print(f'using extant bins passed as arguments: xbin_values.shape: {xbin_values.shape}, ybin_values.shape: {ybin_values.shape}')
-            xbin = xbin_values
-            ybin = ybin_values
-            bin_info = None
-        
-        active_pos_df['binned_x'] = pd.cut(active_pos_df['x'].to_numpy(), bins=xbin, include_lowest=True, labels=np.arange(start=1, stop=len(xbin))) # same shape as the input data 
-        if 'y' in active_pos_df.columns:
-            # Only do the y-variables in the 2D case.
-            active_pos_df['binned_y'] = pd.cut(active_pos_df['y'].to_numpy(), bins=ybin, include_lowest=True, labels=np.arange(start=1, stop=len(ybin))) 
-    
+        active_pos_df, (xbin, ybin), bin_infos = build_df_discretized_binned_position_columns(active_pos_df, bin_values=(xbin_values, ybin_values), active_computation_config=active_computation_config, force_recompute=False, debug_print=debug_print)
+        bin_info = bin_infos # TODO: note that bin_infos is actually a list of 1D bin_info objects (or None if explict bins were passed) instead of a single 2D bin_info object. Don't think it's used anyways
         return active_pos_df, xbin, ybin, bin_info
-
-
 
 
 ### Global Placefield Computation Functions
