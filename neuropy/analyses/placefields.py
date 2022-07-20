@@ -792,9 +792,37 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     ## Binned Position Columns:
     @staticmethod
     def build_position_df_discretized_binned_positions(active_pos_df, active_computation_config, xbin_values=None, ybin_values=None, debug_print=False):
-        """ Adds the 'binned_x' and 'binned_y' columns to the position dataframe """
+        """ Adds the 'binned_x' and 'binned_y' columns to the position dataframe
+        
+        Assumes either 1D or 2D positions dependent on whether the 'y' column exists in active_pos_df.columns. 
+        Wraps the build_df_discretized_binned_position_columns and appropriately unwraps the result for compatibility with previous implementations.
+        
+        """
+        # If xbin_values is not None and ybin_values is None, assume 1D
+        # if xbin_values is not None and ybin_values is None:
+        if 'y' not in active_pos_df.columns:
+            # Assume 1D:
+            ndim = 1
+            pos_col_names = ('x',)
+            binned_col_names = ('binned_x',)
+            bin_values = (xbin_values,)
+        else:
+            # otherwise assume 2D:
+            ndim = 2
+            pos_col_names = ('x', 'y')
+            binned_col_names = ('binned_x', 'binned_y')
+            bin_values = (xbin_values, ybin_values)
+
         # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
-        active_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pos_df, bin_values=(xbin_values, ybin_values), active_computation_config=active_computation_config, force_recompute=False, debug_print=debug_print)
+        active_pos_df, out_bins, bin_info = build_df_discretized_binned_position_columns(active_pos_df, bin_values=bin_values, position_column_names=pos_col_names, binned_column_names=binned_col_names, active_computation_config=active_computation_config, force_recompute=False, debug_print=debug_print)
+        
+        if ndim == 1:
+            # Assume 1D:
+            xbin = out_bins[0]
+            ybin = None
+        else:            
+            (xbin, ybin) = out_bins
+        
         return active_pos_df, xbin, ybin, bin_info
 
 ### Global Placefield Computation Functions
