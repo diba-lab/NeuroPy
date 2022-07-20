@@ -3,8 +3,6 @@ from typing import Sequence, Union
 import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
 from pandas.core.indexing import IndexingError
-# from neuropy.analyses.placefields import PfND # for _bin_pos_nD
-# from neuropy.analyses.placefields.PfND import _bin_pos_nD # for _bin_pos_nD
 
 import pandas as pd
 from .epoch import Epoch
