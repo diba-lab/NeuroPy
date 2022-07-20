@@ -140,7 +140,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
     # updated_combined_bin_infos = {'mode': '', 'step': [], 'num_bins': []} # used to be 'xstep', 'ystep', 'xnum_bins', 'ynum_bins'
     updated_combined_bin_infos = {'mode': '', 'step': [], 'num_bins': [], 'xstep': None, 'ystep': None, 'xnum_bins': None, 'ynum_bins': None} # used to be 'xstep', 'ystep', 'xnum_bins', 'ynum_bins'
     
-    for i, curr_dim_bin_values, curr_dim_position_col_name, curr_dim_binned_col_name  in zip(np.arange(ndim), bin_values, position_column_names, binned_column_names):
+    for i, curr_dim_bin_values, curr_dim_position_col_name, curr_dim_binned_col_name in zip(np.arange(ndim), bin_values, position_column_names, binned_column_names):
         if curr_dim_bin_values is None:
             # Compute needed:
             assert active_computation_config is not None, f"active_computation_config is required for its grid_bin parameter if incomplete bin_values are passed, but it is None!"
