@@ -137,7 +137,9 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
     assert len(bin_values) == len(position_column_names) == len(binned_column_names), f"all input tuples should be of equal length (of the n position dimension dimensions to bin, e.g. ('x', 'y')) but len(bin_values): {len(bin_values)} == len(position_column_names): {len(position_column_names)} == len(binned_column_names): {len(binned_column_names)}"
     # See if we need any bin_values computed for any dimension:
     updated_bin_values = []
-    updated_bin_infos = []
+    # updated_combined_bin_infos = {'mode': '', 'step': [], 'num_bins': []} # used to be 'xstep', 'ystep', 'xnum_bins', 'ynum_bins'
+    updated_combined_bin_infos = {'mode': '', 'step': [], 'num_bins': [], 'xstep': None, 'ystep': None, 'xnum_bins': None, 'ynum_bins': None} # used to be 'xstep', 'ystep', 'xnum_bins', 'ynum_bins'
+    
     for i, curr_dim_bin_values, curr_dim_position_col_name, curr_dim_binned_col_name  in zip(np.arange(ndim), bin_values, position_column_names, binned_column_names):
         if curr_dim_bin_values is None:
             # Compute needed:
@@ -145,21 +147,35 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
             curr_bins, _, bin_info = bin_pos_nD(active_df[curr_dim_position_col_name].values, None, bin_size=active_computation_config.grid_bin[i]) # bin_size mode, 1D
             if debug_print:
                 print(f'computed new bins for dim {i}: bin_values[{i}].shape: {curr_bins.shape}')
+                
+            updated_combined_bin_infos['mode'] = bin_info['mode']
+            updated_combined_bin_infos['step'].append(bin_info['xstep'])
+            updated_combined_bin_infos['num_bins'].append(bin_info['xnum_bins'])
+            # for compatibility, add 'xstep', 'ystep', 'xnum_bins', 'ynum_bins' for compatibility (for the first two variables being 'x' and 'y'
+            if i == 0:
+                updated_combined_bin_infos['xstep'] = updated_combined_bin_infos['step'][-1]
+                updated_combined_bin_infos['xnum_bins'] = updated_combined_bin_infos['num_bins'][-1]
+            elif i == 1:
+                updated_combined_bin_infos['ystep'] = updated_combined_bin_infos['step'][-1]
+                updated_combined_bin_infos['ynum_bins'] = updated_combined_bin_infos['num_bins'][-1]
         else:
             # Use the extant provided values:
             curr_bins = curr_dim_bin_values
             bin_info = None  # bin_info is None for pre-computed values
+            updated_combined_bin_infos['mode'] = 'provided'
+            updated_combined_bin_infos['step'].append((curr_bins[1]-curr_bins[0]))
+            updated_combined_bin_infos['num_bins'].append(len(curr_bins))
+            
             if debug_print:
                 print(f'using extant bins passed as arguments: bin_values[{i}].shape: {curr_bins.shape}')
-            
+        
         # Now we have the bin values in curr_bins:
         updated_bin_values.append(curr_bins)
-        updated_bin_infos.append(bin_info)
         # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within:    
         if (curr_dim_binned_col_name not in active_df.columns) and not force_recompute:
             active_df[curr_dim_binned_col_name] = pd.cut(active_df[curr_dim_position_col_name].to_numpy(), bins=curr_bins, include_lowest=True, labels=np.arange(start=1, stop=len(curr_bins))) # same shape as the input data 
         
-    return active_df, updated_bin_values, updated_bin_infos
+    return active_df, updated_bin_values, updated_combined_bin_infos
 
 
 

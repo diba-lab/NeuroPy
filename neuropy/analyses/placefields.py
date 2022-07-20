@@ -794,10 +794,8 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def build_position_df_discretized_binned_positions(active_pos_df, active_computation_config, xbin_values=None, ybin_values=None, debug_print=False):
         """ Adds the 'binned_x' and 'binned_y' columns to the position dataframe """
         # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
-        active_pos_df, (xbin, ybin), bin_infos = build_df_discretized_binned_position_columns(active_pos_df, bin_values=(xbin_values, ybin_values), active_computation_config=active_computation_config, force_recompute=False, debug_print=debug_print)
-        bin_info = bin_infos # TODO: note that bin_infos is actually a list of 1D bin_info objects (or None if explict bins were passed) instead of a single 2D bin_info object. Don't think it's used anyways
+        active_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pos_df, bin_values=(xbin_values, ybin_values), active_computation_config=active_computation_config, force_recompute=False, debug_print=debug_print)
         return active_pos_df, xbin, ybin, bin_info
-
 
 ### Global Placefield Computation Functions
 """ Global Placefield perform Computation Functions """
