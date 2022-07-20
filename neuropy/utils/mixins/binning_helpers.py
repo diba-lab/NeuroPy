@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 class BinnedPositionsMixin(object):
@@ -46,11 +47,23 @@ class BinnedPositionsMixin(object):
 
 
 ## Add Binned Position Columns to spikes_df:
-def build_df_discretized_binned_position_columns(active_df, active_computation_config, xbin_values=None, ybin_values=None, force_recompute=False, debug_print=False):
+def build_df_discretized_binned_position_columns(active_df, xbin_values=None, ybin_values=None, active_computation_config=None,
+                                                 position_column_names = ('x', 'y'), binned_column_names = ('binned_x', 'binned_y'),
+                                                 force_recompute=False, debug_print=False):
     """ Adds the 'binned_x' and 'binned_y' columns to the passed-in dataframe
     Requires that the passed in dataframe has at least the 'x' column (1D) and optionally the 'y' column.
     Works for both position_df and spikes_df
     
+    TODO: currently requires 2D positions (doesn't work for 1D)
+    
+    Inputs:
+    
+        xbin_values, ybin_values: np.arrays specifying the complete bin_edges for both the x and y position spaces. If not provided, active_computation_config will be used to compute appropriate ones.
+        
+        position_column_names: a tuple of the independent position column names to be binned
+        binned_column_names: a tuple of the output binned column names that will be added to the dataframe
+        force_recompute: if True, the columns with names binned_column_names will be overwritten even if they already exist.
+        
     Usage:
         active_df, xbin, ybin, bin_info = build_df_discretized_binned_position_columns(active_pf_2D.filtered_spikes_df.copy(), active_computation_config, xbin_values=active_pf_2D.xbin, ybin_values=active_pf_2D.ybin, force_recompute=False, debug_print=True)
         active_df
@@ -66,14 +79,14 @@ def build_df_discretized_binned_position_columns(active_df, active_computation_c
         if debug_print:
             print(f'active_grid_bin: {active_computation_config.grid_bin}')
 
-        if 'y' in active_df.columns:
+        if position_column_names[1] in active_df.columns:
             # 2D case:
-            # if (('binned_x' not in active_df.columns) or ('binned_y' not in active_df.columns)) and not force_recompute:
-            xbin, ybin, bin_info = PfND._bin_pos_nD(active_df['x'].values, active_df['y'].values, bin_size=active_computation_config.grid_bin) # bin_size mode            
+            # if ((binned_column_names[0] not in active_df.columns) or (binned_column_names[1] not in active_df.columns)) and not force_recompute:
+            xbin, ybin, bin_info = PfND._bin_pos_nD(active_df[position_column_names[0]].values, active_df[position_column_names[1]].values, bin_size=active_computation_config.grid_bin) # bin_size mode            
         else:
             # 1D case:
-            # if ('binned_x' not in active_df.columns) and not force_recompute:
-            xbin, ybin, bin_info = PfND._bin_pos_nD(active_df['x'].values, None, bin_size=active_computation_config.grid_bin) # bin_size mode
+            # if (binned_column_names[0] not in active_df.columns) and not force_recompute:
+            xbin, ybin, bin_info = PfND._bin_pos_nD(active_df[position_column_names[0]].values, None, bin_size=active_computation_config.grid_bin) # bin_size mode
     else:
         # use the extant values passed in:
         if debug_print:
@@ -82,12 +95,12 @@ def build_df_discretized_binned_position_columns(active_df, active_computation_c
         ybin = ybin_values
         bin_info = None
 
-    if ('binned_x' not in active_df.columns) and not force_recompute:
-        active_df['binned_x'] = pd.cut(active_df['x'].to_numpy(), bins=xbin, include_lowest=True, labels=np.arange(start=1, stop=len(xbin))) # same shape as the input data 
-    if 'y' in active_df.columns:
+    if (binned_column_names[0] not in active_df.columns) and not force_recompute:
+        active_df[binned_column_names[0]] = pd.cut(active_df[position_column_names[0]].to_numpy(), bins=xbin, include_lowest=True, labels=np.arange(start=1, stop=len(xbin))) # same shape as the input data 
+    if position_column_names[1] in active_df.columns:
         # Only do the y-variables in the 2D case.
-        if ('binned_y' not in active_df.columns) and not force_recompute:
-            active_df['binned_y'] = pd.cut(active_df['y'].to_numpy(), bins=ybin, include_lowest=True, labels=np.arange(start=1, stop=len(ybin))) 
+        if (binned_column_names[1] not in active_df.columns) and not force_recompute:
+            active_df[binned_column_names[1]] = pd.cut(active_df[position_column_names[1]].to_numpy(), bins=ybin, include_lowest=True, labels=np.arange(start=1, stop=len(ybin))) 
 
     return active_df, xbin, ybin, bin_info
 
