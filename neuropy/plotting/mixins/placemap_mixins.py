@@ -26,6 +26,9 @@ class PfnDPlottingMixin(PfnD_PlotOccupancy_Mixin):
     # all extracted from the 2D figures
     def plot_ratemaps_2D(self, **kwargs):
         """Plots heatmaps of placefields with peak firing rate
+        
+        Wraps neuropy.plotting.ratemaps.plot_ratemap_2D
+        
         Defaults: 
         **({'subplots': (10, 8), 'resolution_multiplier': 2.0, 'fignum': None, 'enable_spike_overlay': True, 'drop_below_threshold': 1e-07, 'brev_mode': PlotStringBrevityModeEnum.CONCISE, 'plot_variable': enumTuningMap2DPlotVariables.TUNING_MAPS} | kwargs)
         """

@@ -71,9 +71,9 @@ class PlotStringBrevityModeEnum(Enum):
         if self.name == PlotStringBrevityModeEnum.CONCISE.name:
             return True # was False
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return False
+            return True # was False
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return False
+            return True # was False
         else:
             return True
         

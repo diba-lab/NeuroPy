@@ -123,6 +123,20 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     SPIKES_MAPS = auto() 
     
     
+def _build_variable_max_value_label(plot_variable: enumTuningMap2DPlotVariables):
+    """ 
+    if brev_mode.should_show_firing_rate_label:
+        pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
+        final_string_components.append(pf_firing_rate_string)
+    """
+    if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
+        return lambda value: f'{round(value,2)} Hz'
+    elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+        return lambda value: f'{round(value,2)} Spikes'
+    else:
+        raise NotImplementedError
+
+    
 def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
     """ builds a background checkerboard image used to indicate opacity
     Usage:
@@ -176,7 +190,7 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
     
     
     
-def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE):
+def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None):
     """Plots a single tuning curve Heatmap using matplotlib
 
     Args:
@@ -219,12 +233,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
 
     if plot_mode is enumTuningMap2DPlotMode.PCOLORFAST:
-        im = ax.pcolorfast(
-            xbin,
-            ybin,
-            curr_pfmap,
-            cmap="jet", vmin=0.0
-        )
+        im = ax.pcolorfast(xbin, ybin, curr_pfmap, cmap="jet", vmin=0.0)
         
     elif plot_mode is enumTuningMap2DPlotMode.PCOLORMESH:
         raise DeprecationWarning # 'Code not maintained, may be out of date'  
@@ -234,16 +243,11 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         
     elif plot_mode is enumTuningMap2DPlotMode.PCOLOR: 
         raise DeprecationWarning # 'Code not maintained, may be out of date'
-        im = ax.pcolor(
-            xbin,
-            ybin,
-            np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-            cmap="jet",
-            vmin=0,
-        )    
+        im = ax.pcolor(xbin, ybin, np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap), cmap="jet", vmin=0)
+        
     elif plot_mode is enumTuningMap2DPlotMode.IMSHOW:
         """ https://matplotlib.org/stable/tutorials/intermediate/imshow_extent.html """
-        """ Use the brightness to reflect the confidence in the outcome. Could also use opacity. """
+        """ TODO: Use the brightness to reflect the confidence in the outcome. Could also use opacity. """
         # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
         xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
         # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
@@ -297,22 +301,18 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     else:
         raise NotImplementedError   
     
-    # ax.vlines(200, 'ymin'=0, 'ymax'=1, 'r')
-    # ax.set_xticks([25, 50])
-    # ax.vline(50, 'r')
-    # ax.vlines([50], 0, 1, transform=ax.get_xaxis_transform(), colors='r')
-    # ax.vlines([50], 0, 1, colors='r')
-    # brev_mode = PlotStringBrevityModeEnum.MINIMAL
-
     if neuron_extended_id is not None:    
         full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
     else:
         full_extended_id_string = ''
     
     final_string_components = [full_extended_id_string]
+    
     if brev_mode.should_show_firing_rate_label:
-        pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
-        final_string_components.append(pf_firing_rate_string)
+        # pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
+        assert max_value_formatter is not None
+        formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
+        final_string_components.append(formatted_max_value_string)
     
     if use_special_overlayed_title:
         final_title = ' - '.join(final_string_components)
@@ -332,6 +332,9 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
 # all extracted from the 2D figures
 def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
+    
+    Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
+    
     Parameters
     ----------
     speed_thresh : bool, optional
@@ -372,6 +375,12 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         title_substring = 'Firing Maps'
     else:
         raise ValueError
+
+    # Build the formatter for rendering the max values such as the peak firing rate or max spike counts:
+    if brev_mode.should_show_firing_rate_label:
+        max_value_formatter = _build_variable_max_value_label(plot_variable=plot_variable)
+    else:
+        max_value_formatter = None
 
     nMapsToShow = len(active_maps)
     
@@ -534,7 +543,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                 curr_ax = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
             
             # Plot the main heatmap for this pfmap:
-            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
+            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax, max_value_formatter=max_value_formatter)
             
             if extended_overlay_points_datasource_dicts is not None:
                 for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():    
@@ -547,8 +556,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                             overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
                             
             if enable_spike_overlay:
-                # spike_overlay_points = curr_ax.plot(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')
-                # spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[neuron_IDX][0], spike_overlay_spikes[neuron_IDX][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
                 spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
                                                                              scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
             
