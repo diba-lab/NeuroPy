@@ -349,7 +349,17 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         
     spike_overlay_spikes: a 
     
-    extended_overlay_points_datasource_dicts: a general dict of additional overlay point datasources to potentially add to the images
+    extended_overlay_points_datasource_dicts: a general dict of additional overlay point datasources to potentially add to the images. Each is passed to _add_points_to_plot(...)
+        TODO: NOTE: currently the subplot the points are plotted on is determined by getting: `a_datasource['points_data'][neuron_IDX]`, meaning the assumption is that each datasource has one xy point to draw for every neuron. Obviously it would be better if multiple points could be provided for each neuron, so really the datasource should be re-speced to have a function that takes the neuron_id and returns the desired values (kinda like a datasource of datasources, or maybe a dataframe that it filters to get the points, that might be more 'flat' of a design. 
+        
+        Example:
+            # overlay_points data
+            peaks_overlay_points_data_dict = dict(is_enabled=True, points_data=peak_xy_points_pos_list, plot_opts={'markersize': 28, 'marker': '*', 'markeredgecolor': 'grey', 'linestyle': 'none', 'markerfacecolor': 'white', 'alpha': 0.9, 'label': 'peaks_overlay_points'},
+                                                                                        scatter_opts={'s': 28, 'c': 'white', 'alpha': 0.9, 'marker': '*', 'label': 'peaks_overlay_sc'}, plots={})
+
+            extended_overlay_points_datasource_dicts = {'peaks_overlay_points': peaks_overlay_points_data_dict}
+
+    
     
     # TODO: maybe add a fig property: an explicit figure to use instead of fignum
     """
