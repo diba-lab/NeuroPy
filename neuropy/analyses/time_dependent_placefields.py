@@ -195,11 +195,11 @@ class PfND_TimeDependent(PfND):
         n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
         self.curr_spikes_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
         self.curr_smoothed_spikes_maps_matrix = None
-        self.curr_raw_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
-        self.curr_raw_smoothed_occupancy_map = None
+        self.curr_num_pos_samples_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
+        self.curr_num_pos_samples_smoothed_occupancy_map = None
         self.last_t = 0.0
-        self.curr_seconds_occupancy = self.curr_raw_occupancy_map.copy()
-        self.curr_normalized_occupancy = self.curr_raw_occupancy_map.copy()
+        self.curr_seconds_occupancy = self.curr_num_pos_samples_occupancy_map.copy()
+        self.curr_normalized_occupancy = self.curr_num_pos_samples_occupancy_map.copy()
         self.curr_occupancy_weighted_tuning_maps_matrix = self.curr_spikes_maps_matrix.copy()
         self.historical_snapshots = OrderedDict({})
 
@@ -235,7 +235,7 @@ class PfND_TimeDependent(PfND):
         """
         # Post Initialization Update
         # t = self.last_t + 1 # add one second
-        curr_t, self.curr_raw_occupancy_map = PfND_TimeDependent.update_occupancy_map(self.last_t, self.curr_raw_occupancy_map, t, self.all_time_filtered_pos_df)
+        curr_t, self.curr_num_pos_samples_occupancy_map = PfND_TimeDependent.update_occupancy_map(self.last_t, self.curr_num_pos_samples_occupancy_map, t, self.all_time_filtered_pos_df)
         curr_t, self.curr_spikes_maps_matrix = PfND_TimeDependent.update_spikes_map(self.last_t, self.curr_spikes_maps_matrix, t, self.all_time_filtered_spikes_df)
         self.last_t = curr_t
 
@@ -259,14 +259,14 @@ class PfND_TimeDependent(PfND):
         # Smooth if needed:
         if ((self.smooth is not None) and ((self.smooth[0] > 0.0) & (self.smooth[1] > 0.0))): 
             # Smooth the occupancy map:
-            self.curr_raw_smoothed_occupancy_map = gaussian_filter(self.curr_raw_occupancy_map, sigma=(self.smooth[1], self.smooth[0])) # 2d gaussian filter
+            self.curr_num_pos_samples_smoothed_occupancy_map = gaussian_filter(self.curr_num_pos_samples_occupancy_map, sigma=(self.smooth[1], self.smooth[0])) # 2d gaussian filter
             # Smooth the firing map:
             self.curr_smoothed_spikes_maps_matrix = gaussian_filter(self.curr_spikes_maps_matrix, sigma=(0, self.smooth[1], self.smooth[0])) # 2d gaussian filter
-            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_raw_smoothed_occupancy_map, position_srate=self.position_srate)
+            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_num_pos_samples_smoothed_occupancy_map, position_srate=self.position_srate)
             self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_smoothed_spikes_maps_matrix)
 
         else:
-            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_raw_occupancy_map, position_srate=self.position_srate)
+            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_num_pos_samples_occupancy_map, position_srate=self.position_srate)
             self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_spikes_maps_matrix)
     
     def snapshot(self):
@@ -275,8 +275,8 @@ class PfND_TimeDependent(PfND):
         self.historical_snapshots[self.last_t] = {
             'spikes_maps_matrix':self.curr_spikes_maps_matrix.copy(),
             'smoothed_spikes_maps_matrix':self.curr_smoothed_spikes_maps_matrix.copy(),
-            'raw_occupancy_map':self.curr_raw_occupancy_map.copy(),
-            'raw_smoothed_occupancy_map':self.curr_raw_smoothed_occupancy_map.copy(),
+            'raw_occupancy_map':self.curr_num_pos_samples_occupancy_map.copy(),
+            'raw_smoothed_occupancy_map':self.curr_num_pos_samples_smoothed_occupancy_map.copy(),
             'seconds_occupancy':self.curr_seconds_occupancy.copy(),
             'normalized_occupancy':self.curr_normalized_occupancy.copy(),
             'occupancy_weighted_tuning_maps_matrix':self.curr_occupancy_weighted_tuning_maps_matrix.copy()

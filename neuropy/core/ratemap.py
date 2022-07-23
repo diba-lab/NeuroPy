@@ -1,3 +1,4 @@
+from warnings import warn
 import numpy as np
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
 from neuropy.plotting.mixins.ratemap_mixins import RatemapPlottingMixin
@@ -18,6 +19,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     def __init__(
         self,
         tuning_curves,
+        unsmoothed_tuning_maps=None,
         spikes_maps=None,
         xbin=None,
         ybin=None,
@@ -28,8 +30,13 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     ) -> None:
         super().__init__()
 
-        self.tuning_curves = np.asarray(tuning_curves)
         self.spikes_maps = np.asarray(spikes_maps)
+        self.tuning_curves = np.asarray(tuning_curves)
+        if unsmoothed_tuning_maps is not None:
+            self.unsmoothed_tuning_maps = np.asarray(unsmoothed_tuning_maps)
+        else:
+            self.unsmoothed_tuning_maps = None
+        
         if neuron_ids is not None:
             assert len(neuron_ids) == self.tuning_curves.shape[0]
             self._neuron_ids = neuron_ids
@@ -110,7 +117,15 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     @property
     def tuning_curve_peak_firing_rates(self):
         """ the non-normalized peak location of each tuning curve. Represents the peak firing rate of that curve. """
+        warn('tuning_curve_peak_firing_rates: was accessed, but does not give the actual cell firing rate because of the smoothing. Use Ratemap.tuning_curve_unsmoothed_peak_firing_rates for accurate firing rates in Spikes / Second ')
         return np.array([np.nanmax(a_tuning_curve) for a_tuning_curve in self.tuning_curves])
+    
+    @property
+    def tuning_curve_unsmoothed_peak_firing_rates(self):
+        """ the non-normalized and unsmoothed value of the maximum firing rate at the peak of each tuning curve in NumSpikes/Second. Represents the peak firing rate of that curve. """
+        assert self.unsmoothed_tuning_maps is not None, "self.unsmoothed_tuning_maps is None! Did you pass it in while building the Ratemap?"
+        return np.array([np.nanmax(a_tuning_curve) for a_tuning_curve in self.unsmoothed_tuning_maps])
+    
         
     @property
     def unit_max_tuning_curves(self):
@@ -218,4 +233,3 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         nan_never_visited_occupancy = occupancy.copy()
         nan_never_visited_occupancy[nan_never_visited_occupancy == 0] = np.nan # all locations with zeros, replace them with NaNs
         return nan_never_visited_occupancy
-

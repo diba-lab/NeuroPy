@@ -302,22 +302,36 @@ class PfnDMixin(SimplePrintable):
 class Pf1D(PfnConfigMixin, PfnDMixin):
     
     @staticmethod
-    def _compute_occupancy(x, xbin, position_srate, smooth):
+    def _compute_occupancy(x, xbin, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
+        """  occupancy map calculations
+        
+        should_return_num_pos_samples_occupancy:bool - If True, the occupanies returned are specified in number of pos samples. Otherwise, they're returned in units of seconds.
+        """
         # --- occupancy map calculation -----------
         # NRK todo: might need to normalize occupancy so sum adds up to 1
-        raw_occupancy, xedges = np.histogram(x, bins=xbin)
+        num_pos_samples_unsmoothed_occupancy, xedges = np.histogram(x, bins=xbin)
         if ((smooth is not None) and (smooth > 0.0)):
-            raw_occupancy = gaussian_filter1d(raw_occupancy, sigma=smooth)
+            num_pos_samples_occupancy = gaussian_filter1d(num_pos_samples_unsmoothed_occupancy, sigma=smooth)
+        else:
+            num_pos_samples_occupancy = num_pos_samples_unsmoothed_occupancy
         # # raw occupancy is defined in terms of the number of samples that fall into each bin.
-        seconds_occupancy, normalized_occupancy = _normalized_occupancy(raw_occupancy, position_srate=position_srate)
-        return seconds_occupancy, xedges
+        
+        if should_return_num_pos_samples_occupancy:
+            return num_pos_samples_occupancy, num_pos_samples_unsmoothed_occupancy, xedges
+        else:   
+            seconds_unsmoothed_occupancy, normalized_unsmoothed_occupancy = _normalized_occupancy(num_pos_samples_unsmoothed_occupancy, position_srate=position_srate)
+            seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
+            return seconds_occupancy, seconds_unsmoothed_occupancy, xedges
+    
     
     @staticmethod   
     def _compute_spikes_map(spk_x, xbin, smooth):
-        spikes_map = np.histogram(spk_x, bins=xbin)[0]
+        unsmoothed_spikes_map = np.histogram(spk_x, bins=xbin)[0]
         if ((smooth is not None) and (smooth > 0.0)):
-            spikes_map = gaussian_filter1d(spikes_map, sigma=smooth)
-        return spikes_map
+            spikes_map = gaussian_filter1d(unsmoothed_spikes_map, sigma=smooth)
+        else:
+            spikes_map = unsmoothed_spikes_map
+        return spikes_map, unsmoothed_spikes_map
     
     @staticmethod   
     def _compute_tuning_map(spk_x, xbin, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
@@ -325,14 +339,17 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             smooth_spikes_map = None
         else:
             smooth_spikes_map = smooth
-        spikes_map = Pf1D._compute_spikes_map(spk_x, xbin, smooth_spikes_map)
-        tuning_map = spikes_map / occupancy
+        spikes_map, unsmoothed_spikes_map = Pf1D._compute_spikes_map(spk_x, xbin, smooth_spikes_map)
+        never_smoothed_tuning_map = unsmoothed_spikes_map / occupancy # completely unsmoothed tuning map
+        tuning_map = spikes_map / occupancy # tuning map that hasn't yet been smoothed but uses the potentially smoothed spikes_map
+        
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and (smooth > 0.0)):
             tuning_map = gaussian_filter1d(tuning_map, sigma=smooth)
+        
         if should_also_return_intermediate_spikes_map:
-            return tuning_map, spikes_map
+            return tuning_map, never_smoothed_tuning_map, spikes_map, unsmoothed_spikes_map
         else:
-            return tuning_map
+            return tuning_map, never_smoothed_tuning_map
     
     def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=1, smooth=1, ):
         raise DeprecationWarning
@@ -342,23 +359,31 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
 class Pf2D(PfnConfigMixin, PfnDMixin):
 
     @staticmethod
-    def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_raw_occupancy=False):
-        # --- occupancy map calculation -----------
+    def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
+        """  occupancy map calculations
+        
+        should_return_num_pos_samples_occupancy:bool - If True, the occupanies returned are specified in number of pos samples. Otherwise, they're returned in units of seconds.
+        
+        """
+        # --------------
         # NRK todo: might need to normalize occupancy so sum adds up to 1
         # Please note that the histogram does not follow the Cartesian convention where x values are on the abscissa and y values on the ordinate axis. Rather, x is histogrammed along the first dimension of the array (vertical), and y along the second dimension of the array (horizontal).
-        raw_occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
+        num_pos_samples_unsmoothed_occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
         # occupancy = occupancy.T # transpose the occupancy before applying other operations
         # raw_occupancy = raw_occupancy / position_srate + 10e-16  # converting to seconds
         if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
-            raw_occupancy = gaussian_filter(raw_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
+            num_pos_samples_occupancy = gaussian_filter(num_pos_samples_unsmoothed_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter: need to flip smooth because the x and y are transposed
+        else:
+            num_pos_samples_occupancy = num_pos_samples_unsmoothed_occupancy
         # Histogram does not follow Cartesian convention (see Notes),
         # therefore transpose occupancy for visualization purposes.
         # raw occupancy is defined in terms of the number of samples that fall into each bin.
-        if should_return_raw_occupancy:
-            return raw_occupancy, xedges, yedges
+        if should_return_num_pos_samples_occupancy:
+            return num_pos_samples_occupancy, num_pos_samples_unsmoothed_occupancy, xedges, yedges
         else:   
-            seconds_occupancy, normalized_occupancy = _normalized_occupancy(raw_occupancy, position_srate=position_srate)
-            return seconds_occupancy, xedges, yedges
+            seconds_unsmoothed_occupancy, normalized_unsmoothed_occupancy = _normalized_occupancy(num_pos_samples_unsmoothed_occupancy, position_srate=position_srate)
+            seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
+            return seconds_occupancy, seconds_unsmoothed_occupancy, xedges, yedges
 
 
         # return seconds_occupancy, xedges, yedges
@@ -366,31 +391,38 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
     @staticmethod   
     def _compute_spikes_map(spk_x, spk_y, xbin, ybin, smooth):
         # spikes_map: is the number of spike counts in each bin for this unit
-        spikes_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
+        unsmoothed_spikes_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
         if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
-            spikes_map = gaussian_filter(spikes_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
-        return spikes_map
+            spikes_map = gaussian_filter(unsmoothed_spikes_map, sigma=(smooth[1], smooth[0])) # 2d gaussian filter: need to flip smooth because the x and y are transposed
+        else:
+            spikes_map = unsmoothed_spikes_map
+        return spikes_map, unsmoothed_spikes_map
     
     @staticmethod   
     def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
         # raw_tuning_map: is the number of spike counts in each bin for this unit
         if not PfnDMixin.should_smooth_spikes_map:
-            smooth_spikes_map = None
+            smoothing_widths_spikes_map = None
         else:
-            smooth_spikes_map = smooth
-        spikes_map = Pf2D._compute_spikes_map(spk_x, spk_y, xbin, ybin, smooth_spikes_map)
+            smoothing_widths_spikes_map = smooth
+        spikes_map, unsmoothed_spikes_map = Pf2D._compute_spikes_map(spk_x, spk_y, xbin, ybin, smoothing_widths_spikes_map)
+        
         occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
-        occupancy_weighted_tuning_map = spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
-        occupancy_weighted_tuning_map = np.nan_to_num(occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        never_smoothed_occupancy_weighted_tuning_map = np.nan_to_num(never_smoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        unsmoothed_occupancy_weighted_tuning_map = spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        unsmoothed_occupancy_weighted_tuning_map = np.nan_to_num(unsmoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
         occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
         
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
-            occupancy_weighted_tuning_map = gaussian_filter(occupancy_weighted_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
+            occupancy_weighted_tuning_map = gaussian_filter(unsmoothed_occupancy_weighted_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
+        else:
+            occupancy_weighted_tuning_map = unsmoothed_occupancy_weighted_tuning_map
             
         if should_also_return_intermediate_spikes_map:
-            return occupancy_weighted_tuning_map, spikes_map
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map, spikes_map, unsmoothed_spikes_map
         else:
-            return occupancy_weighted_tuning_map
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
 
     def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1), ):
         raise DeprecationWarning
@@ -475,7 +507,6 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             
         # Set animal observed position member variables:
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
-            # self.speed = gaussian_filter1d(self.speed, sigma=self.config.smooth[0])
             self._filtered_pos_df['speed_smooth'] = gaussian_filter1d(self._filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
 
         # Add interpolated velocity information to spikes dataframe:
@@ -526,12 +557,12 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         else:
             smooth_occupancy_map = self.config.smooth
         if (self.ndim > 1):
-            occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, self.xbin, self.ybin, self.position_srate, smooth_occupancy_map)
+            occupancy, unsmoothed_occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, self.xbin, self.ybin, self.position_srate, smooth_occupancy_map)
         else:
-            occupancy, xedges = Pf1D._compute_occupancy(self.x, self.xbin, self.position_srate, smooth_occupancy_map[0])
+            occupancy, unsmoothed_occupancy, xedges = Pf1D._compute_occupancy(self.x, self.xbin, self.position_srate, smooth_occupancy_map[0])
         
         # Output lists, for compatibility with Pf1D and Pf2D:
-        spk_pos, spk_t, spikes_maps, tuning_maps = [], [], [], []
+        spk_pos, spk_t, spikes_maps, tuning_maps, unsmoothed_tuning_maps = [], [], [], [], []
         
         # Once filtering and binning is done, apply the grouping:
         # Group by the aclu (cluster indicator) column
@@ -545,35 +576,40 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             # cell_spike_times = cell_df[spikes_df.spikes.time_variable_name].to_numpy()
             cell_spike_times = cell_df[self.filtered_spikes_df.spikes.time_variable_name].to_numpy()
             # spk_spd = np.interp(cell_spike_times, self.t, self.speed)
-            spk_x = np.interp(cell_spike_times, self.t, self.x)
+            spk_x = np.interp(cell_spike_times, self.t, self.x) # TODO: shouldn't we already have interpolated spike times for all spikes in the dataframe?
             
             # update the dataframe 'x','speed' and 'y' properties:
             # cell_df.loc[:, 'x'] = spk_x
             # cell_df.loc[:, 'speed'] = spk_spd
             if (self.ndim > 1):
-                spk_y = np.interp(cell_spike_times, self.t, self.y)
+                spk_y = np.interp(cell_spike_times, self.t, self.y) # TODO: shouldn't we already have interpolated spike times for all spikes in the dataframe?
                 # cell_df.loc[:, 'y'] = spk_y
                 spk_pos.append([spk_x, spk_y])
-                curr_cell_tuning_map, curr_cell_spikes_map = Pf2D._compute_tuning_map(spk_x, spk_y, self.xbin, self.ybin, occupancy, self.config.smooth, should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
+                curr_cell_tuning_map, curr_cell_never_smoothed_tuning_map, curr_cell_spikes_map, curr_cell_unsmoothed_spikes_map = Pf2D._compute_tuning_map(spk_x, spk_y, self.xbin, self.ybin, occupancy, self.config.smooth, should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
+            
             else:
                 # otherwise only 1D:
                 spk_pos.append([spk_x])
-                curr_cell_tuning_map, curr_cell_spikes_map = Pf1D._compute_tuning_map(spk_x, self.xbin, occupancy, self.config.smooth[0], should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
+                curr_cell_tuning_map, curr_cell_never_smoothed_tuning_map, curr_cell_spikes_map, curr_cell_unsmoothed_spikes_map = Pf1D._compute_tuning_map(spk_x, self.xbin, occupancy, self.config.smooth[0], should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
             
             spk_t.append(cell_spike_times)
             tuning_maps.append(curr_cell_tuning_map)
+            unsmoothed_tuning_maps.append(curr_cell_never_smoothed_tuning_map)    
             spikes_maps.append(curr_cell_spikes_map)
-                
+            
+            
         # ---- cells with peak frate abouve thresh 
         self._included_thresh_neurons_indx, self._peak_frate_filter_function = PfND._build_peak_frate_filter(tuning_maps, self.config.frate_thresh)
         
         # there is only one tuning_map per neuron that means the thresh_neurons_indx:
         filtered_tuning_maps = np.asarray(self._peak_frate_filter_function(tuning_maps.copy()))
+        filtered_unsmoothed_tuning_maps = np.asarray(self._peak_frate_filter_function(unsmoothed_tuning_maps.copy()))
+        
         filtered_spikes_maps = self._peak_frate_filter_function(spikes_maps.copy())
         filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)        
         filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
-        self.ratemap = Ratemap(filtered_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
+        self.ratemap = Ratemap(filtered_tuning_maps, unsmoothed_tuning_maps=filtered_unsmoothed_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
         
