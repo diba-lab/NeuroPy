@@ -8,6 +8,47 @@ from .ccg import correlograms
 import scipy.signal as sg
 
 
+def choose_elementwise(x, y, condition):
+    assert type(x) == type(y), "Both inputs should have same type"
+    assert type(condition) is np.ndarray, "condition should be a boolean array"
+
+    if type(x) is np.ndarray:
+        assert x.shape == y.shape, "Input arrays should have same shape"
+        out = np.zeros_like(x)
+        out[..., condition] = x[..., condition]
+        out[..., ~condition] = y[..., ~condition]
+    else:
+        try:
+            out = [x if cond else y for (x, y, cond) in zip(x, y, condition)]
+        except:
+            raise TypeError("Inpvalid inputs")
+
+    return out
+
+
+def gaussian_kernel1D(sigma, bin_size, truncate=4.0):
+    """Get a gaussian kernel
+
+    Parameters
+    ----------
+    sigma : float
+        standard deviation of the kernel
+    bin_size : float
+        bin size of the kernel
+    truncate: float
+        limit kernel to this standard deviation,default = 4.0
+
+    Returns
+    -------
+    np.array
+        gaussian kernel
+    """
+    t_gauss = np.arange(-truncate * sigma, truncate * sigma, bin_size)
+    gaussian = np.exp(-(t_gauss**2) / (2 * sigma**2))
+    gaussian /= np.sum(gaussian)
+    return gaussian
+
+
 def min_max_scaler(x, axis=-1):
     """Scales the values x to lie between 0 and 1 along the specfied axis
 

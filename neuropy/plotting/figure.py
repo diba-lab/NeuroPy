@@ -102,16 +102,15 @@ class Colormap:
 
 
 class Fig:
-    labelsize = 8
-
     def __init__(
         self,
         num=None,
         grid=(2, 2),
         size=(8.5, 11),
-        fontsize=7,
+        fontsize=5,
         axis_color="#545454",
         axis_lw=1.2,
+        tick_size=3.5,
         constrained_layout=True,
         fontname="Arial",
         **kwargs,
@@ -132,6 +131,8 @@ class Fig:
         mpl.rcParams["axes.spines.top"] = False
         mpl.rcParams["axes.spines.right"] = False
         mpl.rcParams["xtick.major.width"] = axis_lw
+        mpl.rcParams["xtick.major.size"] = tick_size
+        mpl.rcParams["ytick.major.size"] = tick_size
         mpl.rcParams["xtick.color"] = axis_color
         mpl.rcParams["xtick.labelcolor"] = "k"
         mpl.rcParams["ytick.major.width"] = axis_lw
@@ -157,7 +158,7 @@ class Fig:
 
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
-        gs = gridspec.GridSpec(grid[0], grid[1], figure=fig)
+        gs = gridspec.GridSpec(grid[0], grid[1], figure=fig, **kwargs)
 
         # fig.subplots_adjust(**kwargs)
 

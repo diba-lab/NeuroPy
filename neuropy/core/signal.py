@@ -104,6 +104,29 @@ class Spectrogram(Signal):
     def time_slice(self, t_start=None, t_stop=None):
         return super().time_slice(t_start=t_start, t_stop=t_stop)
 
+    def freq_slice(self, f1=None, f2=None):
+        if f1 is None:
+            f1 = self.freqs[0]
+
+        if f2 is None:
+            f2 = self.freqs[-1]
+
+        assert f1 >= self.freqs[0], "f1 should be greater than lowest frequency"
+        assert (
+            f2 <= self.freqs[-1]
+        ), "f2 should be lower than highest possible frequency"
+        assert f2 > f1, "f2 should be greater than f1"
+
+        ind = np.where((self.freqs >= f1) & (self.freqs <= f2))[0]
+        freqs = self.freqs[ind]
+
+        return Spectrogram(
+            traces=self.traces[ind],
+            freqs=freqs,
+            sampling_rate=self.sampling_rate,
+            t_start=self.t_start,
+        )
+
     def mean_power(self):
         return np.mean(self.traces, axis=0)
 

@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+import datetime
 
 
 class DataWriter:
@@ -48,6 +49,16 @@ class DataWriter:
 
         assert isinstance(fp, (str, Path)), "filename is invalid"
         data = self.to_dict()
+        np.save(fp, data)
+        print(f"{fp} saved")
+
+    def save_with_date(self, fp):
+
+        assert isinstance(fp, (str, Path)), "filename is invalid"
+        date_suffix = "." + datetime.date.today().strftime("%d-%m-%y")
+        fname = fp.name + date_suffix
+        data = self.to_dict()
+        fp = fp.with_name(fname)
         np.save(fp, data)
         print(f"{fp} saved")
 

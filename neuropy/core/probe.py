@@ -295,6 +295,26 @@ class ProbeGroup(DataWriter):
             [shank_ids[np.where(channel_ids == _)[0]] for _ in channel_id]
         )
 
+    def get_probe_id_for_channels(self, channel_id):
+        """Get probe ids for the channels.
+
+        Parameters
+        ----------
+        channel_id : array
+            channel_ids, can have repeated values
+
+        Returns
+        -------
+        array
+            probe_ids corresponding to the channels
+        """
+        probe_ids = self.probe_id
+        channel_ids = self.channel_id
+
+        return np.concatenate(
+            [probe_ids[np.where(channel_ids == _)[0]] for _ in channel_id]
+        ).astype("int")
+
     def get_probe(self):
         pass
 
