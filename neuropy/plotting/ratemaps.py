@@ -185,7 +185,6 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
     if scatter_opts is None:
         scatter_opts = {}
         
-    print(f'overlay_points.shape: {overlay_points.shape}')
     spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'UNKNOWN_overlay_points'} | plot_opts))                
     spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
     return spike_overlay_points, spike_overlay_sc
