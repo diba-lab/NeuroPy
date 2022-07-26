@@ -184,6 +184,8 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
         plot_opts = {}
     if scatter_opts is None:
         scatter_opts = {}
+        
+    print(f'overlay_points.shape: {overlay_points.shape}')
     spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'UNKNOWN_overlay_points'} | plot_opts))                
     spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
     return spike_overlay_points, spike_overlay_sc
@@ -556,7 +558,9 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax, max_value_formatter=max_value_formatter)
             
             if extended_overlay_points_datasource_dicts is not None:
-                for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():    
+                for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():
+                    # There can be multiple named datasources, with either of two modes: 
+                    # 1. Linear indexed list
                     if overlay_datasource.get('is_enabled', False):
                         points_data = overlay_datasource.get('points_data', None)
                         if points_data is not None:
@@ -564,6 +568,19 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                                 print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
                             curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data[neuron_IDX], plot_opts=overlay_datasource.get('plot_opts', None), scatter_opts=overlay_datasource.get('scatter_opts', None))
                             overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                    else:
+                        # 2. ACLU indexed dict
+                        curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
+                        found_neuron_aclu_datasource = overlay_datasource.get(curr_neuron_ID, None) 
+                        if found_neuron_aclu_datasource is not None:
+                            if found_neuron_aclu_datasource.get('is_enabled', False):
+                                points_data = found_neuron_aclu_datasource.get('points_data', None)
+                                if points_data is not None:
+                                    if debug_print:
+                                        print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                                    curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data.T, plot_opts=found_neuron_aclu_datasource.get('plot_opts', None), scatter_opts=found_neuron_aclu_datasource.get('scatter_opts', None))
+                                    found_neuron_aclu_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                    
                             
             if enable_spike_overlay:
                 spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
