@@ -189,15 +189,18 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         
         ## spikes_cell_info_out_dict: neuron properties
         flat_cell_ids = all_vars.spikes.spikes_cell_info_out_dict.aclu
+        flat_cell_ids = np.array(flat_cell_ids)
         cell_type = NeuronType.from_qclu_series(qclu_Series=all_vars.spikes.spikes_cell_info_out_dict.qclu)
         shank_ids = all_vars.spikes.spikes_cell_info_out_dict.shank
         cluster_ids = all_vars.spikes.spikes_cell_info_out_dict.cluster # NOT USED
         
+        _test_neurons_properties_df = pd.DataFrame({'aclu': flat_cell_ids, 'qclu': all_vars.spikes.spikes_cell_info_out_dict.qclu, 'cell_type': cell_type, 'shank': shank_ids, 'cluster': cluster_ids})
+        _test_neurons_properties_df[['aclu','qclu','shank','cluster']] = _test_neurons_properties_df[['aclu','qclu','shank','cluster']].astype('int') # convert integer calumns to correct datatype
         ## Spike trains:
         spiketrains = np.array(all_vars.spikes.spike_list, dtype='object')
         # t_stop = np.max(flat_spikes_out_dict[time_variable_name])
         t_stop = session.paradigm.t_stop
-        flat_cell_ids = np.array(flat_cell_ids)
+        
         # all_vars.spikes.spikes_cell_info_out_dict.speculated_unit_type
 
         dat_sampling_rate = 30000.0
@@ -208,7 +211,8 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
             sampling_rate=dat_sampling_rate, # session.recinfo.dat_sampling_rate
             neuron_ids=flat_cell_ids,
             neuron_type=cell_type,
-            shank_ids=shank_ids
+            shank_ids=shank_ids,
+            extended_neuron_properties_df=_test_neurons_properties_df
         )
         
 
@@ -227,6 +231,17 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         
             ## Testing: Fixing spike positions
             spikes_df = session.spikes_df
+            # if 'cluster' not in spikes_df.columns:
+            #     spikes_df['cluster'] = cluster_ids
+            #     # spikes_df['qclu'] = all_vars.spikes.spikes_cell_info_out_dict.qclu # if we want the 'qclu' column
+            #     spikes_df[['cluster']] = spikes_df[['cluster']].astype('int') # convert integer calumns to correct datatype
+
+            
+            ## TODO:
+            # Want either 'shank_ids' or 'shank' to work as the column
+            
+                
+            
             # if np.isin(['x','y'], spikes_df.columns).all():
             #     spikes_df['x_loaded'] = spikes_df['x']
             #     spikes_df['y_loaded'] = spikes_df['y']
