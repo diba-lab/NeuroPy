@@ -128,6 +128,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         waveforms=None,
         peak_channels=None,
         shank_ids=None,
+        extended_neuron_properties_df=None,
         metadata=None,
     ) -> None:
         super().__init__(metadata=metadata)
@@ -135,6 +136,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         self.spiketrains = np.array(spiketrains, dtype="object")
         self._neuron_ids = None
         self._reverse_cellID_index_map = None
+        self._extended_neuron_properties_df = extended_neuron_properties_df
         if neuron_ids is None:
             self._neuron_ids = np.arange(len(self.spiketrains))
         else:
