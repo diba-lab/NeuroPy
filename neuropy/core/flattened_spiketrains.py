@@ -406,6 +406,10 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
                 'cell_type': flattened_spike_types[flattened_sort_indicies]
                 }
             )
+        
+            spikes_df[['shank', 'aclu']] = spikes_df[['shank', 'aclu']].astype('int') # convert integer calumns to correct datatype
+            
+            
             
         # Renaming {'shank_id':'shank', 'flattened_spike_linear_unit_spike_idx':'intra_unit_spike_idx'}
         
