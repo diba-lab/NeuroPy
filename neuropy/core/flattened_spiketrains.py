@@ -252,10 +252,6 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         return df
 
 
-    # @classmethod
-    # def from_dataframe(cls, spikes_df, 
-
-    
     def time_slice(self, t_start=None, t_stop=None):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         flattened_spiketrains = deepcopy(self)
