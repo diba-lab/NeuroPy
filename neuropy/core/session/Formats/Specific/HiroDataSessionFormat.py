@@ -112,12 +112,13 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
         ## Non-restricted computation epochs:
-        # any_lap_specific_epochs = None
+        any_lap_specific_epochs = None
         # Track-restricted computation epochs:
-        track_only_specific_epochs = [sess.epochs.get_named_timerange('Track')]
+        # track_only_specific_epochs = [sess.epochs.get_named_timerange('track')]
         for i in np.arange(len(active_session_computation_configs)):
-            active_session_computation_configs[i].pf_params.computation_epochs = track_only_specific_epochs # add the laps epochs to all of the computation configs.    
-        return active_session_computation_configs        
+            # active_session_computation_configs[i].pf_params.computation_epochs = track_only_specific_epochs # add the laps epochs to all of the computation configs.    
+            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs
+        return active_session_computation_configs
         
     
     @classmethod
@@ -185,11 +186,14 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         
         
         ## Adds Spikes:
+        
+        ## spikes_cell_info_out_dict: neuron properties
         flat_cell_ids = all_vars.spikes.spikes_cell_info_out_dict.aclu
         cell_type = NeuronType.from_qclu_series(qclu_Series=all_vars.spikes.spikes_cell_info_out_dict.qclu)
         shank_ids = all_vars.spikes.spikes_cell_info_out_dict.shank
-        # cluster_ids = all_vars.spikes.spikes_cell_info_out_dict.cluster # NOT USED
+        cluster_ids = all_vars.spikes.spikes_cell_info_out_dict.cluster # NOT USED
         
+        ## Spike trains:
         spiketrains = np.array(all_vars.spikes.spike_list, dtype='object')
         # t_stop = np.max(flat_spikes_out_dict[time_variable_name])
         t_stop = session.paradigm.t_stop
@@ -207,6 +211,7 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
             shank_ids=shank_ids
         )
         
+
         ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
         ## flattened.spikes:
         active_file_suffix = '.flattened.spikes.npy'
