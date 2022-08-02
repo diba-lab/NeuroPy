@@ -306,7 +306,6 @@ class PfND_TimeDependent(PfND):
         #           10           2
         #           12           4
         # Length: 247, dtype: int64
-        # current_bin_counts.index.to_flat_index() # Index([ (2, 12),  (3, 11),  (3, 12),  (3, 13),  (3, 14),  (3, 15),  (3, 16),  (3, 17),   (4, 9),  (4, 10), ... (56, 17), (56, 18), (56, 19),  (57, 9), (57, 12), (57, 13), (57, 14),  (58, 9), (58, 10), (58, 12)], dtype='object', length=247)
         if debug_print:
             print(f'np.shape(current_bin_counts): {np.shape(current_bin_counts)}') # (247,)
         for (xbin_label, ybin_label), count in current_bin_counts.iteritems():
