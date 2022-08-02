@@ -4,6 +4,7 @@ from typing import OrderedDict # for OrderedMeta
 class SimplePrintable:
     """ Adds the default print method for classes that displays the class name and its dictionary. """
     def __repr__(self) -> str:
+        ## TODO: this default printout is actually horrible for classes with any real content (like Pandas.DataFrame members, which spam the notebook)
         return f"<{self.__class__.__name__}: {self.__dict__};>"
     
     
