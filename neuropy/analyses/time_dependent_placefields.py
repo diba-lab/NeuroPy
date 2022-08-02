@@ -173,14 +173,10 @@ class PfND_TimeDependent(PfND):
         if 'binned_x' not in self._filtered_spikes_df:
             self._filtered_spikes_df['binned_x'] = pd.cut(self._filtered_spikes_df['x'].to_numpy(), bins=self.xbin, include_lowest=True, labels=self.xbin_labels) # same shape as the input data 
     
-        # update the dataframe 'x','speed' and 'y' properties:
-        # cell_df.loc[:, 'x'] = spk_x
-        # cell_df.loc[:, 'speed'] = spk_spd
         if (self.ndim > 1):
             self._filtered_spikes_df['y'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.y)
             if 'binned_y' not in self._filtered_spikes_df:
                 self._filtered_spikes_df['binned_y'] = pd.cut(self._filtered_spikes_df['y'].to_numpy(), bins=self.ybin, include_lowest=True, labels=self.ybin_labels)
-            # cell_df.loc[:, 'y'] = spk_y
     
         self.setup_time_varying()
         
@@ -198,9 +194,9 @@ class PfND_TimeDependent(PfND):
         self.curr_num_pos_samples_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
         self.curr_num_pos_samples_smoothed_occupancy_map = None
         self.last_t = 0.0
-        self.curr_seconds_occupancy = self.curr_num_pos_samples_occupancy_map.copy()
-        self.curr_normalized_occupancy = self.curr_num_pos_samples_occupancy_map.copy()
-        self.curr_occupancy_weighted_tuning_maps_matrix = self.curr_spikes_maps_matrix.copy()
+        self.curr_seconds_occupancy = np.zeros((n_xbins, n_ybins), dtype=float)
+        self.curr_normalized_occupancy = self.curr_seconds_occupancy.copy()
+        self.curr_occupancy_weighted_tuning_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, n_xbins, n_ybins), dtype=float) # will have units of # spikes/sec
         self.historical_snapshots = OrderedDict({})
 
 
@@ -229,7 +225,7 @@ class PfND_TimeDependent(PfND):
         # t: the "current time" for which to build the best possible placefields
         
         Updates:
-            self.curr_raw_occupancy_map
+            self.curr_num_pos_samples_occupancy_map
             self.curr_spikes_maps_matrix
             self.last_t
         """
@@ -245,7 +241,7 @@ class PfND_TimeDependent(PfND):
         
         Using:
             self.position_srate
-            self.curr_raw_occupancy_map
+            self.curr_num_pos_samples_occupancy_map
             self.curr_spikes_maps_matrix
             
         Updates:

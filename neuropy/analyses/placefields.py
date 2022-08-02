@@ -511,9 +511,8 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 
         # Add interpolated velocity information to spikes dataframe:
         if 'speed' not in self._filtered_spikes_df.columns:
-            self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.filtered_pos_df.t.to_numpy(), self.speed)
-    
-        
+            self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.filtered_pos_df.t.to_numpy(), self.speed) ## NOTE: self.speed is either the regular ['speed'] column of the position_df OR the 'speed_smooth'] column if self.should_smooth_speed  is True
+            
         # Filter for speed:
         if debug_print:
             print(f'pre speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
@@ -521,19 +520,14 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
         
-        ## Binning with Fixed Number of Bins:    
-        # xbin, ybin, bin_info = PfND._bin_pos_nD(self.x, self.y, num_bins=grid_num_bins) # num_bins mode:
-        # self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.x, self.y, bin_size=self.config.grid_bin) # bin_size mode
+        ## Binning with Fixed bin size:    
         if (self.ndim > 1):
             self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy(), bin_size=self.config.grid_bin) # bin_size mode                        
-
         else:
             # 1D case
             self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), None, bin_size=self.config.grid_bin) # bin_size mode            
                                 
-        # Adds the 'binned_x' and 'binned_y' columns to the position dataframe:
-        # self._filtered_pos_df.position.build_discretized_binned_positions(self.config, xbin_values=self.xbin, ybin_values=self.ybin, debug_print=False)
-        
+        ## Adds the 'binned_x' (and if 2D 'binned_y') columns to the position dataframe:
         if 'binned_x' not in self._filtered_pos_df.columns:
             self._filtered_pos_df, _, _, _ = PfND.build_position_df_discretized_binned_positions(self._filtered_pos_df, self.config, xbin_values=self.xbin, ybin_values=self.ybin, debug_print=False)
    
