@@ -171,7 +171,8 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     if use_special_overlayed_title:
         final_title = ' - '.join(final_string_components)
         # t = add_inner_title(ax, final_title, loc='upper left', strokewidth=1.0)
-        t = add_inner_title(ax, final_title, loc='upper center', strokewidth=3.0, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
+        # , strokewidth=3, stroke_foreground='w', text_foreground='k'
+        t = add_inner_title(ax, final_title, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
         t.patch.set_ec("none")
         # t.patch.set_alpha(0.5)
     else:
@@ -236,7 +237,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         title_substring = 'Placemaps'
     elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
         active_maps = ratemap.spikes_maps[included_unit_indicies]
-        title_substring = 'Firing Maps'
+        title_substring = 'Spikes Maps'
     else:
         raise ValueError
 

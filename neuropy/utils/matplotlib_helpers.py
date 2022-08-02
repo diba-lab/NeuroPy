@@ -145,3 +145,21 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
     # Grey checkerboard background:
     background_chessboard = np.add.outer(range(num_checkerboard_squares_short_axis), range(num_checkerboard_squares_long_axis)) % 2  # chessboard
     return background_chessboard
+
+
+
+## TODO: Not currently used, but looks like it can add anchored scale/size bars to matplotlib figures pretty easily:
+def draw_sizebar(ax):
+    """
+    Draw a horizontal bar with length of 0.1 in data coordinates,
+    with a fixed label underneath.
+    """
+    from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+    asb = AnchoredSizeBar(ax.transData,
+                          0.1,
+                          r"1$^{\prime}$",
+                          loc='lower center',
+                          pad=0.1, borderpad=0.5, sep=5,
+                          frameon=False)
+    ax.add_artist(asb)
+    
