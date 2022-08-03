@@ -246,17 +246,23 @@ class PfND_TimeDependent(PfND):
             self.curr_occupancy_weighted_tuning_maps_matrix
         
         """
-        # Smooth if needed:
-        if ((self.smooth is not None) and ((self.smooth[0] > 0.0) & (self.smooth[1] > 0.0))): 
+        # Smooth if needed: OH NO! Don't smooth the occupancy map!!
+        ## Occupancy:
+        # NOTE: usually don't smooth occupancy. Unless self.should_smooth_spatial_occupancy_map is True, and in that case use the same smoothing values that are used to smooth the firing rates
+        if (self.should_smooth_spatial_occupancy_map and (self.smooth is not None) and ((self.smooth[0] > 0.0) & (self.smooth[1] > 0.0))): 
             # Smooth the occupancy map:
             self.curr_num_pos_samples_smoothed_occupancy_map = gaussian_filter(self.curr_num_pos_samples_occupancy_map, sigma=(self.smooth[1], self.smooth[0])) # 2d gaussian filter
+            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_num_pos_samples_smoothed_occupancy_map, position_srate=self.position_srate)
+        else:
+            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_num_pos_samples_occupancy_map, position_srate=self.position_srate)
+            
+        ## Spikes:
+        if ((self.smooth is not None) and ((self.smooth[0] > 0.0) & (self.smooth[1] > 0.0))): 
             # Smooth the firing map:
             self.curr_smoothed_spikes_maps_matrix = gaussian_filter(self.curr_spikes_maps_matrix, sigma=(0, self.smooth[1], self.smooth[0])) # 2d gaussian filter
-            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_num_pos_samples_smoothed_occupancy_map, position_srate=self.position_srate)
             self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_smoothed_spikes_maps_matrix)
 
         else:
-            self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_num_pos_samples_occupancy_map, position_srate=self.position_srate)
             self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_spikes_maps_matrix)
     
     
