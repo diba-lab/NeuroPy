@@ -152,3 +152,12 @@ def safe_pandas_get_group(dataframe_group, key):
         original_df = dataframe_group.obj
         return original_df.drop(original_df.index)
     
+
+
+
+def copy_if_not_none(val):
+    """ solves the problem of AttributeError: 'NoneType' object has no attribute 'copy', gracefully passing None through if the value is None and copying it otherwise. """
+    if val is not None:
+        return val.copy()
+    else:
+        return None

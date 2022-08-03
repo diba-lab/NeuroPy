@@ -16,8 +16,8 @@ addpath(genpath('PhoHelpers'));
 
 %% Config:
 parent_dir = 'R:\data\KDIBA\gor01\one';
-% session_name = '2006-6-07_11-26-53';
-session_name = '2006-6-08_14-26-15';
+session_name = '2006-6-07_11-26-53';
+% session_name = '2006-6-08_14-26-15';
 
 %% Common:
 session_folder = fullfile(parent_dir, session_name);

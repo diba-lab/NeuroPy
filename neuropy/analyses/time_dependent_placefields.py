@@ -8,7 +8,7 @@ from neuropy.core.epoch import Epoch
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
 from neuropy.analyses.placefields import _normalized_occupancy
-from neuropy.utils.misc import safe_pandas_get_group
+from neuropy.utils.misc import safe_pandas_get_group, copy_if_not_none
 
 class PfND_TimeDependent(PfND):
     """ Time Dependent N-dimensional Placefields
@@ -75,10 +75,7 @@ class PfND_TimeDependent(PfND):
     @property
     def ratemap_spiketrains(self):
         """ a list of spike times for each cell. for compatibility with old plotting functions."""        
-        # cell_df[self.filtered_spikes_df.spikes.time_variable_name]
-        # self.filtered_spikes_df.spikes.get_split_by_unit()
         ## Get only the relevant columns and the 'aclu' column before grouping on aclu for efficiency:
-        # return [self.filtered_spikes_df[['aclu', self.filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.filtered_spikes_df.spikes.neuron_ids] # dataframes split for each ID
         return self.curr_ratemap_spiketrains(self.last_t)
         
     @property
@@ -96,8 +93,6 @@ class PfND_TimeDependent(PfND):
     
     def curr_ratemap_spiketrains_pos(self, t):
         """ gets the ratemap_spiketrains_pos variable at the time t """
-        # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name, 'x','y']].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
-        
         if (self.ndim > 1):
             return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name, 'x', 'y']].groupby('aclu')['x', 'y'], neuron_id).to_numpy().T for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
         else:
@@ -106,7 +101,6 @@ class PfND_TimeDependent(PfND):
     
     def curr_ratemap_spiketrains(self, t):
         """ gets the ratemap_spiketrains variable at the time t """
-        # return [self.filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.filtered_spikes_df.spikes.time_variable_name].get_group(neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
         return [safe_pandas_get_group(self.all_time_filtered_spikes_df.spikes.time_sliced(0, t)[['aclu', self.all_time_filtered_spikes_df.spikes.time_variable_name]].groupby('aclu')[self.all_time_filtered_spikes_df.spikes.time_variable_name], neuron_id).to_numpy() for neuron_id in self.included_neuron_IDs] # dataframes split for each ID
     
 
@@ -165,7 +159,7 @@ class PfND_TimeDependent(PfND):
         self.fragile_linear_neuron_IDXs = np.unique(self._filtered_spikes_df.fragile_linear_neuron_IDX) # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
         self.n_fragile_linear_neuron_IDXs = len(self.fragile_linear_neuron_IDXs)
         self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
-        # TODO: is the filter function part needed? I don't think I ever do this sort of filtering in the time varying class:
+        
         self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria
         
         ## Interpolate the spikes over positions
@@ -265,20 +259,82 @@ class PfND_TimeDependent(PfND):
             self.curr_seconds_occupancy, self.curr_normalized_occupancy = _normalized_occupancy(self.curr_num_pos_samples_occupancy_map, position_srate=self.position_srate)
             self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_spikes_maps_matrix)
     
+    
+    
     def snapshot(self):
         """ takes a snapshot of the current values at this time."""    
-        # Add this entry to the historical snapshot dict:        
+        # Add this entry to the historical snapshot dict:                
         self.historical_snapshots[self.last_t] = {
             'spikes_maps_matrix':self.curr_spikes_maps_matrix.copy(),
-            'smoothed_spikes_maps_matrix':self.curr_smoothed_spikes_maps_matrix.copy(),
+            'smoothed_spikes_maps_matrix': copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
             'raw_occupancy_map':self.curr_num_pos_samples_occupancy_map.copy(),
-            'raw_smoothed_occupancy_map':self.curr_num_pos_samples_smoothed_occupancy_map.copy(),
+            'raw_smoothed_occupancy_map': copy_if_not_none(self.curr_num_pos_samples_smoothed_occupancy_map),
             'seconds_occupancy':self.curr_seconds_occupancy.copy(),
             'normalized_occupancy':self.curr_normalized_occupancy.copy(),
             'occupancy_weighted_tuning_maps_matrix':self.curr_occupancy_weighted_tuning_maps_matrix.copy()
         }
+        return (self.last_t, self.historical_snapshots[self.last_t]) # return the (snapshot_time, snapshot_data) pair
+        
+    def apply_snapshot_data(self, snapshot_t, snapshot_data):
+        """ applys the snapshot_data to replace the current state of this object (except for historical_snapshots) """
+        self.curr_spikes_maps_matrix = snapshot_data['spikes_maps_matrix']
+        self.curr_smoothed_spikes_maps_matrix = snapshot_data['smoothed_spikes_maps_matrix']
+        self.curr_num_pos_samples_occupancy_map = snapshot_data['raw_occupancy_map']
+        self.curr_num_pos_samples_smoothed_occupancy_map = snapshot_data['raw_smoothed_occupancy_map']
+        self.curr_seconds_occupancy = snapshot_data['seconds_occupancy']
+        self.curr_normalized_occupancy = snapshot_data['normalized_occupancy']
+        self.curr_occupancy_weighted_tuning_maps_matrix = snapshot_data['occupancy_weighted_tuning_maps_matrix']
+        self.last_t = snapshot_t
+        
+    def restore_from_snapshot(self, snapshot_t):
+        """ restores the current state to that of a historic snapshot indexed by the time snapshot_t """
+        snapshot_data = self.historical_snapshots[snapshot_t]
+        self.apply_snapshot_data(snapshot_t, snapshot_data)
+        
     
     
+    def to_dict(self):
+        # print(f'to_dict(...): {list(self.__dict__.keys())}')
+        curr_snapshot_time, curr_snapshot_data = self.snapshot() # take a snapshot of the current state
+        return {'config': self.config,
+                'position_srate': self.position_srate,
+                'ndim': self.ndim, 
+                'xbin': self.xbin,
+                'ybin': self.ybin,
+                'bin_info': self.bin_info,
+                '_filtered_spikes_df': self._filtered_spikes_df,
+                '_filtered_pos_df': self._filtered_pos_df,
+                'last_t': self.last_t,
+                'historical_snapshots': self.historical_snapshots,
+                # 'curr_spikes_maps_matrix': self.curr_spikes_maps_matrix,
+                'fragile_linear_neuron_IDXs': self.fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
+                'n_fragile_linear_neuron_IDXs': self.n_fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
+                '_included_thresh_neurons_indx': self._included_thresh_neurons_indx, # not strictly needed, could be recomputed easily
+                }
+
+
+
+
+    ## For serialization/pickling:
+    def __getstate__(self):
+        return self.to_dict()
+
+    def __setstate__(self, state):
+        """ assumes state is a dict generated by calling self.__getstate__() previously"""        
+        # print(f'__setstate__(self: {self}, state: {state})')
+        # print(f'__setstate__(...): {list(self.__dict__.keys())}')
+        self.__dict__ = state # set the dict
+        self._save_intermediate_spikes_maps = True # False is not yet implemented
+        # # Set the particulars if needed        # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
+        # self._included_thresh_neurons_indx = None
+        # self._peak_frate_filter_function = None
+        self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot.
+        
+        # Rebuild the filter function from self._included_thresh_neurons_indx
+        # self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
+        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria        
+        
+    # ==================================================================================================================== #
     @classmethod
     def update_occupancy_map(cls, last_t, last_occupancy_matrix, t, active_pos_df, debug_print=False):
         """ Given the last_occupancy_matrix computed at time last_t, determines the additional positional occupancy from active_pos_df and adds them producing an updated version
