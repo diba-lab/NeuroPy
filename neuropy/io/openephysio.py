@@ -30,6 +30,11 @@ def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit")
 def get_dat_timestamps(basepath: str or Path, sync: bool = False):
     """
     Gets timestamps for each frame in your dat file(s) in a given directory.
+
+    IMPORTANT: in the event your .dat file has less frames than you timestamps.npy file,
+    you MUST create a "dropped_end_frames.txt" file with the # of missing frames in the same folder
+    to properly account for this offset.
+
     :param basepath: str, path to parent directory, holding your 'experiment' folder(s).
     :param sync: True = use 'synchronized_timestamps.npy' file, default = False
     :return:
@@ -69,6 +74,17 @@ def get_dat_timestamps(basepath: str or Path, sync: bool = False):
         )  # Get SR and sync frame info
         print("start time = " + str(start_time))
         stamps = np.load(file)  # load in timestamps
+
+        # Remove any dropped end frames.
+        if (file.parent / "dropped_end_frames.txt").exists():
+            with open((file.parent / "dropped_end_frames.txt"), "rb") as fp:
+                nfile = fp.readlines(0)
+                pattern = re.compile("[0-9]+")
+                ndropped = int(pattern.search(str(nfile[0])).group(0))
+
+            print(f"Dropping last {ndropped} frames per dropped_end_frames.txt file")
+            stamps = stamps[0:-ndropped]
+
         timestamps.append(
             (
                 start_time + pd.to_timedelta((stamps - sync_frame) / SR, unit="sec")
@@ -125,7 +141,7 @@ def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
     assert (
         np.round(SRdat / SRlfp) == SRdat / SRlfp
     ), "SRdat file must be an integer multiple of SRlfp "
-    return dat_times.iloc[slice(0, None, int(SRdat / SRlfp))]
+    return taskdat_times.iloc[slice(0, None, int(SRdat / SRlfp))]
 
 
 def load_all_ttl_events(basepath: str or Path, sync: bool = False, **kwargs):
