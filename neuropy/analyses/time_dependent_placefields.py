@@ -107,7 +107,17 @@ class PfND_TimeDependent(PfND):
     @property
     def ratemap(self):
         """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
-        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, spikes_maps=self.curr_spikes_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
+        # return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, spikes_maps=self.curr_spikes_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
+        # DO I need neuron_ids=self.frate_filter_fcn(self.included_neuron_IDs)?
+        
+        # curr_smoothed_spikes_maps_matrix
+        
+        
+        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix[self._included_thresh_neurons_indx,:,:], spikes_maps=self.curr_spikes_maps_matrix[self._included_thresh_neurons_indx,:,:],
+                       xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
+    
+    
+    
 
 
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
@@ -127,6 +137,25 @@ class PfND_TimeDependent(PfND):
         
         
         NOTE: doesn't call super().__init__(...)
+        
+        
+        NOTE: _peak_frate_filter_function is only used in computing self.ratemap, meaning it keeps and does calculations for all neuron_IDs (not just those passing _peak_frate_filter_function) behind the scenes. This can be taken advantage of if you want a ratemap only for certain neurons by setting self._included_thresh_neurons_indx manually
+
+        EXAMPLE of filtering by neuron_IDs:        
+            # Find the neuron_IDs that are included in the active_pf_2D for filtering the active_pf_2D_dt's results:
+            is_pf_2D_included_neuron = np.isin(active_pf_2D_dt.included_neuron_IDs, active_pf_2D.included_neuron_IDs)
+            pf_2D_included_neuron_indx = active_pf_2D_dt._included_thresh_neurons_indx[is_pf_2D_included_neuron]
+
+            # #NOTE: to reset and include all neurons:
+            # active_pf_2D_dt._included_thresh_neurons_indx = np.arange(active_pf_2D_dt.n_fragile_linear_neuron_IDXs)
+
+            active_pf_2D_dt._included_thresh_neurons_indx = pf_2D_included_neuron_indx
+            active_pf_2D_dt._peak_frate_filter_function = lambda list_: [list_[_] for _ in active_pf_2D_dt._included_thresh_neurons_indx]
+
+            assert (active_pf_2D_dt.ratemap.spikes_maps == active_pf_2D.ratemap.spikes_maps).all(), f"active_pf_2D_dt.ratemap.spikes_maps: {active_pf_2D_dt.ratemap.spikes_maps}\nactive_pf_2D.ratemap.spikes_maps: {active_pf_2D.ratemap.spikes_maps}"
+
+
+        
         """
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
@@ -331,9 +360,6 @@ class PfND_TimeDependent(PfND):
         # print(f'__setstate__(...): {list(self.__dict__.keys())}')
         self.__dict__ = state # set the dict
         self._save_intermediate_spikes_maps = True # False is not yet implemented
-        # # Set the particulars if needed        # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
-        # self._included_thresh_neurons_indx = None
-        # self._peak_frate_filter_function = None
         self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot.
         
         # Rebuild the filter function from self._included_thresh_neurons_indx
