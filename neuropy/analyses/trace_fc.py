@@ -238,19 +238,29 @@ class trace_behavior:
 
         # Grab start time
         header = pd.read_csv(self.event_file, header=None, nrows=1)
-        self.events_start_time = pd.Timestamp(header[1][0]) + pd.Timedelta(header[3][0] / 10 ** 6, unit='sec')
+        self.events_start_time = pd.Timestamp(header[1][0]) + pd.Timedelta(
+            header[3][0] / 10 ** 6, unit="sec"
+        )
 
         # Finally, add in absolutge timestamps to events pandas array
-        self.events['Timestamps'] = self.events_start_time + pd.to_timedelta(self.events['Time (s)'], unit='sec')
+        self.events["Timestamps"] = self.events_start_time + pd.to_timedelta(
+            self.events["Time (s)"], unit="sec"
+        )
 
-    def get_event_times(self, event_type: str = 'CS'):
+    def get_event_times(self, event_type: str = "CS"):
         """
         Get starts and ends of CS, US, sync tone, etc.
         :param event_type:
         :return: pandas arrays containing start and end times
         """
-        start_bool = [event.find(event_type) >= 0 and event.find('start') >= 0 for event in self.events['Event']]
-        end_bool = [event.find(event_type) >= 0 and event.find('end') >= 0 for event in self.events['Event']]
+        start_bool = [
+            event.find(event_type) >= 0 and event.find("start") >= 0
+            for event in self.events["Event"]
+        ]
+        end_bool = [
+            event.find(event_type) >= 0 and event.find("end") >= 0
+            for event in self.events["Event"]
+        ]
 
         start_times = self.events[start_bool]
         end_times = self.events[end_bool]
@@ -495,6 +505,8 @@ class trace_animal:
         bodyparts=["neck_base", "mid_back"],
         by_trial=False,
         trial_buffer_sec=10,
+        event_start_name="CS[0-6]?_start",
+        event_end_name="CS[0-6]?_start",
     ):
 
         SampleRate = self.data[session_type].dlc.SampleRate
@@ -536,6 +548,10 @@ class trace_animal:
                 np.ones((ntrials, nframes_event_max + 2 * nframes_buffer)) * np.nan
             )
 
+            time_lookup = (
+                np.arange(self.data[session_type].dlc.nframes)
+                / self.data[session_type].dlc.SampleRate
+            )
             for idt, start in enumerate(trial_starts):
                 start_ind = np.where(time_lookup >= start)[0][0]
                 start_frame = start_ind - nframes_buffer
@@ -996,7 +1012,7 @@ def fix_date(date_str):
 def generate_session_names(paradigm):
     """Generates session names and titles for plots and such based on paradigm.
 
-    :param paradigm: 'Pilot1', 'Pilot2', or 'Recording1'
+    :param paradigm: 'Pilot1', 'Pilot2', or 'Recording_Rats'
     :return:
     """
     arenas = ["Shock", "Shock", "Shock", "Shock", "New", "New"]
@@ -1050,4 +1066,4 @@ def generate_session_names(paradigm):
 
 
 if __name__ == "__main__":
-    trace_group("Recording_Rats", "/data2/Trace_FC")
+    r1 = trace_animal("/data2/Trace_FC/Recording_Rats/Rat698", "Recording1")
