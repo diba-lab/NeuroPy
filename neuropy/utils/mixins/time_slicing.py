@@ -30,7 +30,6 @@ class TimeSlicableObjectProtocol:
 
 class TimeSlicedMixin:
     """ Used in Pho's more recent Pandas DataFrame-based core classes """
-    # time_variable_name = 't_rel_seconds' # currently hardcoded
     
     @property
     def time_variable_name(self):
