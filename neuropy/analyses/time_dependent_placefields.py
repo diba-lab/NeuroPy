@@ -563,14 +563,22 @@ class PfND_TimeDependent(PfND):
         # active_computation_config.grid_bin, smooth=active_computation_config.smooth
         seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_position_samples_occupancy, position_srate=position_srate)
 
-        if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
-            # Smooth the firing map:
+        # Smooth the final tuning map if needed and valid smooth parameter. Default FALSE.
+        if (cls.should_smooth_spatial_occupancy_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
+            num_position_samples_occupancy = gaussian_filter(num_position_samples_occupancy, sigma=(smooth[1], smooth[0])) 
+            seconds_occupancy = gaussian_filter(seconds_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
+
+        # Smooth the spikes maps if needed and valid smooth parameter. Default False.
+        if (cls.should_smooth_spikes_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
             smoothed_spikes_maps_matrix = gaussian_filter(spikes_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
             occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(seconds_occupancy, smoothed_spikes_maps_matrix)
-
         else:
             smoothed_spikes_maps_matrix = None
             occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(seconds_occupancy, spikes_maps_matrix)
+
+        # Smooth the final tuning map if needed and valid smooth parameter. Default True.            
+        if (cls.should_smooth_final_tuning_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
+            occupancy_weighted_tuning_maps_matrix = gaussian_filter(occupancy_weighted_tuning_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
             
         return DynamicContainer.init_from_dict({'num_position_samples_occupancy': num_position_samples_occupancy, 'seconds_occupancy': seconds_occupancy,
          'spikes_maps_matrix': spikes_maps_matrix, 'smoothed_spikes_maps_matrix': smoothed_spikes_maps_matrix,
