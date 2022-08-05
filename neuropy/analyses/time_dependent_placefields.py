@@ -37,6 +37,8 @@ class PfND_TimeDependent(PfND):
         # np.shape(active_time_dependent_placefields2D.curr_spikes_maps_matrix) # (64, 64, 29)
     """
     
+    # is_additive_mode = True # Default, cannot backtrack to earlier times.
+    is_additive_mode = False # allows selecting any times of time range, but recomputes on each update (is not additive). This means later times will take longer to calculate the earlier ones. 
     
     @property
     def smooth(self):
@@ -177,7 +179,8 @@ class PfND_TimeDependent(PfND):
         self.last_t = np.finfo('float').max # set to maximum value (so all times are included) just for setup.
         
         # Perform the primary setup to build the placefield
-        self.setup(position, spikes_df, epochs)
+        self.setup(position, spikes_df, epochs) # Sets up self.xbin, self.ybin, self.bin_info, self._filtered_pos_df, self.filtered_spikes_df
+        
         self._filtered_pos_df.dropna(axis=0, how='any', subset=[*self._position_variable_names], inplace=True) # dropped NaN values
         
         if 'binned_x' in self._filtered_pos_df:
@@ -234,19 +237,117 @@ class PfND_TimeDependent(PfND):
     
     def update(self, t, should_snapshot=False):
         """ updates all variables to the latest versions """
-        if self.last_t > t:
+        if self.is_additive_mode and (self.last_t > t):
             print(f'WARNING: update(t: {t}) called with t < self.last_t ({self.last_t}! Skipping.')
         else:
             # Otherwise update to this t.
             with np.errstate(divide='ignore', invalid='ignore'):
-                self._minimal_update(t)
-                self._display_update(t)
+                if self.is_additive_mode:
+                    self._minimal_additive_update(t)
+                    self._display_additive_update(t)
+                else:
+                    # non-additive mode, recompute:
+                    self.complete_time_range_computation(0.0, t)
+                    
                 if should_snapshot:
                     self.snapshot()
                     
 
+    # ==================================================================================================================== #
+    # Snapshotting and state restoration                                                                                   #
+    # ==================================================================================================================== #
+    
+    def snapshot(self):
+        """ takes a snapshot of the current values at this time."""    
+        # Add this entry to the historical snapshot dict:                
+        self.historical_snapshots[self.last_t] = {
+            'spikes_maps_matrix':self.curr_spikes_maps_matrix.copy(),
+            'smoothed_spikes_maps_matrix': copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
+            'raw_occupancy_map':self.curr_num_pos_samples_occupancy_map.copy(),
+            'raw_smoothed_occupancy_map': copy_if_not_none(self.curr_num_pos_samples_smoothed_occupancy_map),
+            'seconds_occupancy':self.curr_seconds_occupancy.copy(),
+            'normalized_occupancy':self.curr_normalized_occupancy.copy(),
+            'occupancy_weighted_tuning_maps_matrix':self.curr_occupancy_weighted_tuning_maps_matrix.copy()
+        }
+        return (self.last_t, self.historical_snapshots[self.last_t]) # return the (snapshot_time, snapshot_data) pair
+        
+    def apply_snapshot_data(self, snapshot_t, snapshot_data):
+        """ applys the snapshot_data to replace the current state of this object (except for historical_snapshots) """
+        self.curr_spikes_maps_matrix = snapshot_data['spikes_maps_matrix']
+        self.curr_smoothed_spikes_maps_matrix = snapshot_data['smoothed_spikes_maps_matrix']
+        self.curr_num_pos_samples_occupancy_map = snapshot_data['raw_occupancy_map']
+        self.curr_num_pos_samples_smoothed_occupancy_map = snapshot_data['raw_smoothed_occupancy_map']
+        self.curr_seconds_occupancy = snapshot_data['seconds_occupancy']
+        self.curr_normalized_occupancy = snapshot_data['normalized_occupancy']
+        self.curr_occupancy_weighted_tuning_maps_matrix = snapshot_data['occupancy_weighted_tuning_maps_matrix']
+        self.last_t = snapshot_t
+        
+    def restore_from_snapshot(self, snapshot_t):
+        """ restores the current state to that of a historic snapshot indexed by the time snapshot_t """
+        snapshot_data = self.historical_snapshots[snapshot_t]
+        self.apply_snapshot_data(snapshot_t, snapshot_data)
+        
+    def to_dict(self):
+        # print(f'to_dict(...): {list(self.__dict__.keys())}')
+        curr_snapshot_time, curr_snapshot_data = self.snapshot() # take a snapshot of the current state
+        return {'config': self.config,
+                'position_srate': self.position_srate,
+                'ndim': self.ndim, 
+                'xbin': self.xbin,
+                'ybin': self.ybin,
+                'bin_info': self.bin_info,
+                '_filtered_spikes_df': self._filtered_spikes_df,
+                '_filtered_pos_df': self._filtered_pos_df,
+                'last_t': self.last_t,
+                'historical_snapshots': self.historical_snapshots,
+                # 'curr_spikes_maps_matrix': self.curr_spikes_maps_matrix,
+                'fragile_linear_neuron_IDXs': self.fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
+                'n_fragile_linear_neuron_IDXs': self.n_fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
+                '_included_thresh_neurons_indx': self._included_thresh_neurons_indx, # not strictly needed, could be recomputed easily
+                }
 
-    def _minimal_update(self, t):
+    ## For serialization/pickling:
+    def __getstate__(self):
+        return self.to_dict()
+
+    def __setstate__(self, state):
+        """ assumes state is a dict generated by calling self.__getstate__() previously"""        
+        # print(f'__setstate__(self: {self}, state: {state})')
+        # print(f'__setstate__(...): {list(self.__dict__.keys())}')
+        self.__dict__ = state # set the dict
+        self._save_intermediate_spikes_maps = True # False is not yet implemented
+        self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot.
+        
+        # Rebuild the filter function from self._included_thresh_neurons_indx
+        # self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
+        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria        
+        
+        
+    # ==================================================================================================================== #
+    # Common Methods                                                                                                       #
+    # ==================================================================================================================== #
+    @classmethod
+    def compute_occupancy_weighted_tuning_map(cls, curr_seconds_occupancy_map, curr_spikes_maps_matrix, debug_print=False):
+        """ Given the curr_occupancy_map and curr_spikes_maps_matrix for this timestamp, returns the occupancy weighted tuning map
+        Inputs:
+        # curr_seconds_occupancy_map: note that this is the occupancy map in seconds, not the raw counts
+        """
+        ## Simple occupancy shuffle:
+        # occupancy_weighted_tuning_maps_matrix = curr_spikes_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        # occupancy_weighted_tuning_maps_matrix = np.nan_to_num(occupancy_weighted_tuning_maps_matrix, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        
+        ## More advanced occumancy shuffle:
+        curr_seconds_occupancy_map[curr_seconds_occupancy_map == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
+        occupancy_weighted_tuning_maps_matrix = curr_spikes_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        occupancy_weighted_tuning_maps_matrix = np.nan_to_num(occupancy_weighted_tuning_maps_matrix, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        curr_seconds_occupancy_map[np.isnan(curr_seconds_occupancy_map)] = 0.0 # restore these entries back to zero
+        return occupancy_weighted_tuning_maps_matrix
+    
+
+    # ==================================================================================================================== #
+    # Additive update static methods:                                                                                      #
+    # ==================================================================================================================== #
+    def _minimal_additive_update(self, t):
         """ Updates the current_occupancy_map, curr_spikes_maps_matrix
         # t: the "current time" for which to build the best possible placefields
         
@@ -256,13 +357,11 @@ class PfND_TimeDependent(PfND):
             self.last_t
         """
         # Post Initialization Update
-        # t = self.last_t + 1 # add one second
         curr_t, self.curr_num_pos_samples_occupancy_map = PfND_TimeDependent.update_occupancy_map(self.last_t, self.curr_num_pos_samples_occupancy_map, t, self.all_time_filtered_pos_df)
         curr_t, self.curr_spikes_maps_matrix = PfND_TimeDependent.update_spikes_map(self.last_t, self.curr_spikes_maps_matrix, t, self.all_time_filtered_spikes_df)
         self.last_t = curr_t
-
-        
-    def _display_update(self, t):
+    
+    def _display_additive_update(self, t):
         """ updates the extended variables:
         
         Using:
@@ -297,79 +396,6 @@ class PfND_TimeDependent(PfND):
         else:
             self.curr_occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(self.curr_seconds_occupancy, self.curr_spikes_maps_matrix)
     
-    
-    
-    def snapshot(self):
-        """ takes a snapshot of the current values at this time."""    
-        # Add this entry to the historical snapshot dict:                
-        self.historical_snapshots[self.last_t] = {
-            'spikes_maps_matrix':self.curr_spikes_maps_matrix.copy(),
-            'smoothed_spikes_maps_matrix': copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
-            'raw_occupancy_map':self.curr_num_pos_samples_occupancy_map.copy(),
-            'raw_smoothed_occupancy_map': copy_if_not_none(self.curr_num_pos_samples_smoothed_occupancy_map),
-            'seconds_occupancy':self.curr_seconds_occupancy.copy(),
-            'normalized_occupancy':self.curr_normalized_occupancy.copy(),
-            'occupancy_weighted_tuning_maps_matrix':self.curr_occupancy_weighted_tuning_maps_matrix.copy()
-        }
-        return (self.last_t, self.historical_snapshots[self.last_t]) # return the (snapshot_time, snapshot_data) pair
-        
-    def apply_snapshot_data(self, snapshot_t, snapshot_data):
-        """ applys the snapshot_data to replace the current state of this object (except for historical_snapshots) """
-        self.curr_spikes_maps_matrix = snapshot_data['spikes_maps_matrix']
-        self.curr_smoothed_spikes_maps_matrix = snapshot_data['smoothed_spikes_maps_matrix']
-        self.curr_num_pos_samples_occupancy_map = snapshot_data['raw_occupancy_map']
-        self.curr_num_pos_samples_smoothed_occupancy_map = snapshot_data['raw_smoothed_occupancy_map']
-        self.curr_seconds_occupancy = snapshot_data['seconds_occupancy']
-        self.curr_normalized_occupancy = snapshot_data['normalized_occupancy']
-        self.curr_occupancy_weighted_tuning_maps_matrix = snapshot_data['occupancy_weighted_tuning_maps_matrix']
-        self.last_t = snapshot_t
-        
-    def restore_from_snapshot(self, snapshot_t):
-        """ restores the current state to that of a historic snapshot indexed by the time snapshot_t """
-        snapshot_data = self.historical_snapshots[snapshot_t]
-        self.apply_snapshot_data(snapshot_t, snapshot_data)
-        
-    
-    
-    def to_dict(self):
-        # print(f'to_dict(...): {list(self.__dict__.keys())}')
-        curr_snapshot_time, curr_snapshot_data = self.snapshot() # take a snapshot of the current state
-        return {'config': self.config,
-                'position_srate': self.position_srate,
-                'ndim': self.ndim, 
-                'xbin': self.xbin,
-                'ybin': self.ybin,
-                'bin_info': self.bin_info,
-                '_filtered_spikes_df': self._filtered_spikes_df,
-                '_filtered_pos_df': self._filtered_pos_df,
-                'last_t': self.last_t,
-                'historical_snapshots': self.historical_snapshots,
-                # 'curr_spikes_maps_matrix': self.curr_spikes_maps_matrix,
-                'fragile_linear_neuron_IDXs': self.fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
-                'n_fragile_linear_neuron_IDXs': self.n_fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
-                '_included_thresh_neurons_indx': self._included_thresh_neurons_indx, # not strictly needed, could be recomputed easily
-                }
-
-
-
-
-    ## For serialization/pickling:
-    def __getstate__(self):
-        return self.to_dict()
-
-    def __setstate__(self, state):
-        """ assumes state is a dict generated by calling self.__getstate__() previously"""        
-        # print(f'__setstate__(self: {self}, state: {state})')
-        # print(f'__setstate__(...): {list(self.__dict__.keys())}')
-        self.__dict__ = state # set the dict
-        self._save_intermediate_spikes_maps = True # False is not yet implemented
-        self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot.
-        
-        # Rebuild the filter function from self._included_thresh_neurons_indx
-        # self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
-        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria        
-        
-    # ==================================================================================================================== #
     @classmethod
     def update_occupancy_map(cls, last_t, last_occupancy_matrix, t, active_pos_df, debug_print=False):
         """ Given the last_occupancy_matrix computed at time last_t, determines the additional positional occupancy from active_pos_df and adds them producing an updated version
@@ -432,25 +458,6 @@ class PfND_TimeDependent(PfND):
                 raise e
         return t, last_spikes_maps_matrix
 
-    @classmethod
-    def compute_occupancy_weighted_tuning_map(cls, curr_seconds_occupancy_map, curr_spikes_maps_matrix, debug_print=False):
-        """ Given the curr_occupancy_map and curr_spikes_maps_matrix for this timestamp, returns the occupancy weighted tuning map
-        Inputs:
-        # curr_seconds_occupancy_map: note that this is the occupancy map in seconds, not the raw counts
-        """
-        ## Simple occupancy shuffle:
-        # occupancy_weighted_tuning_maps_matrix = curr_spikes_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
-        # occupancy_weighted_tuning_maps_matrix = np.nan_to_num(occupancy_weighted_tuning_maps_matrix, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
-        
-        
-        ## More advanced occumancy shuffle:
-        curr_seconds_occupancy_map[curr_seconds_occupancy_map == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
-        occupancy_weighted_tuning_maps_matrix = curr_spikes_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
-        occupancy_weighted_tuning_maps_matrix = np.nan_to_num(occupancy_weighted_tuning_maps_matrix, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
-        curr_seconds_occupancy_map[np.isnan(curr_seconds_occupancy_map)] = 0.0 # restore these entries back to zero
-        return occupancy_weighted_tuning_maps_matrix
-    
-    
     
     # ==================================================================================================================== #
     # 2022-08-02 - New Simple Time-Dependent Placefield Overhaul                                                           #
@@ -458,10 +465,53 @@ class PfND_TimeDependent(PfND):
     # Idea: use simple dataframes and operations on them to easily get the placefield results for a given time range.
 
 
+        
+    def complete_time_range_computation(self, start_time, end_time, assign_results_to_member_variables=True):
+        """ recomputes the entire time period from start_time to end_time with few other assumptions """
+        computed_out_results = PfND_TimeDependent.perform_time_range_computation(self.all_time_filtered_spikes_df, self.all_time_filtered_pos_df, position_srate=self.position_srate,
+                                                             xbin=self.xbin, ybin=self.ybin,
+                                                             start_time=start_time, end_time=end_time,
+                                                             included_neuron_IDs=self.included_neuron_IDs, active_computation_config=None, override_smooth=self.smooth)
+
+        if assign_results_to_member_variables:
+            # Unwrap the returned variables from the output dictionary and assign them to the member variables:        
+            self.curr_seconds_occupancy = computed_out_results.seconds_occupancy
+            self.curr_num_pos_samples_occupancy_map = computed_out_results.num_position_samples_occupancy
+            self.curr_spikes_maps_matrix = computed_out_results.spikes_maps_matrix
+            self.curr_smoothed_spikes_maps_matrix = computed_out_results.smoothed_spikes_maps_matrix
+            self.curr_occupancy_weighted_tuning_maps_matrix = computed_out_results.occupancy_weighted_tuning_maps_matrix
+            
+            self.last_t = end_time ## TODO: note that there is no notion of a start_time later than the start of the session for this class!
+        else:
+            # if assign_results_to_member_variables is False, don't update any of the member variables and just return the wrapped result.
+            return computed_out_results        
+        
+        
+        
+        
+        
     
     @classmethod    
-    def perform_time_range_computation(cls, spikes_df, pos_df, position_srate, xbin, ybin, start_time, end_time, included_neuron_IDs, active_computation_config, override_smooth=None):
-
+    def perform_time_range_computation(cls, spikes_df, pos_df, position_srate, xbin, ybin, start_time, end_time, included_neuron_IDs, active_computation_config=None, override_smooth=None):
+        """ This method performs complete calculation witihin a single function. 
+        
+        Inputs:
+        
+        Note that active_computation_config can be None IFF xbin, ybin, and override_smooth are provided.
+        
+        Usage:
+            # active_pf_spikes_df = deepcopy(sess.spikes_df)
+            # active_pf_pos_df = deepcopy(sess.position.to_dataframe())
+            # position_srate = sess.position_sampling_rate
+            # active_computation_config = curr_active_config.computation_config
+            # out_dict = PfND_TimeDependent.perform_time_range_computation(spikes_df, pos_df, position_srate, xbin, ybin, start_time, end_time, included_neuron_IDs, active_computation_config)
+            out_dict = PfND_TimeDependent.perform_time_range_computation(sess.spikes_df, sess.position.to_dataframe(), position_srate=sess.position_sampling_rate,
+                                                             xbin=active_pf_2D.xbin, ybin=active_pf_2D.ybin,
+                                                             start_time=_test_arbitrary_start_time, end_time=_test_arbitrary_end_time,
+                                                             included_neuron_IDs=active_pf_2D.included_neuron_IDs, active_computation_config=curr_active_config.computation_config, override_smooth=(0.0, 0.0))
+                                                             
+                                                             
+        """
         def _build_bin_pos_counts(active_pf_pos_df, bin_values=(xbin, ybin), active_computation_config=active_computation_config):
             active_pf_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_pos_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
             n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
@@ -490,15 +540,12 @@ class PfND_TimeDependent(PfND):
 
 
         ## Only the spikes_df and pos_df are required, and are not altered by the analyses:
-        # active_pf_spikes_df = deepcopy(sess.spikes_df)
-        # active_pf_pos_df = deepcopy(sess.position.to_dataframe())
         active_pf_spikes_df = deepcopy(spikes_df)
         active_pf_pos_df = deepcopy(pos_df)
 
         ## NEEDS:
         # position_srate, xbin, ybin, included_neuron_IDs, active_computation_config
-        # position_srate = sess.position_sampling_rate
-        # active_computation_config = curr_active_config.computation_config
+       
         if override_smooth is not None:
             smooth = override_smooth
         else:
