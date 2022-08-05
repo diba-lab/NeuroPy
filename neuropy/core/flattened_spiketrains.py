@@ -41,6 +41,8 @@ class SpikesAccessor(TimeSlicedMixin):
     
     def set_time_variable_name(self, new_time_variable_name):
         print(f'WARNING: SpikesAccessor.set_time_variable_name(new_time_variable_name: {new_time_variable_name}) has been called. Be careful!')
+        assert new_time_variable_name in self._obj.columns, f"spikes_df.spikes.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original spk_df.spikes.time_variable_name: '{self._obj.spikes.time_variable_name}'.\n\t valid_columns: {list(self._obj.columns)}"
+        # otherwise it's okay and we can continue
         SpikesAccessor.__time_variable_name = new_time_variable_name
         print('\t time variable changed!')
         
