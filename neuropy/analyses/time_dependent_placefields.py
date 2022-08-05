@@ -438,8 +438,16 @@ class PfND_TimeDependent(PfND):
         Inputs:
         # curr_seconds_occupancy_map: note that this is the occupancy map in seconds, not the raw counts
         """
+        ## Simple occupancy shuffle:
+        # occupancy_weighted_tuning_maps_matrix = curr_spikes_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        # occupancy_weighted_tuning_maps_matrix = np.nan_to_num(occupancy_weighted_tuning_maps_matrix, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        
+        
+        ## More advanced occumancy shuffle:
+        curr_seconds_occupancy_map[curr_seconds_occupancy_map == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
         occupancy_weighted_tuning_maps_matrix = curr_spikes_maps_matrix / curr_seconds_occupancy_map # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         occupancy_weighted_tuning_maps_matrix = np.nan_to_num(occupancy_weighted_tuning_maps_matrix, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        curr_seconds_occupancy_map[np.isnan(curr_seconds_occupancy_map)] = 0.0 # restore these entries back to zero
         return occupancy_weighted_tuning_maps_matrix
     
     
