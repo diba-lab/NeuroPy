@@ -7,7 +7,7 @@ from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec
 
 # For specific load functions:
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
-from neuropy.core.session.SessionSelectionAndFiltering import batch_filter_session, build_custom_epochs_filters # used particularly to build Bapun-style filters
+from neuropy.core.session.SessionSelectionAndFiltering import build_custom_epochs_filters # used particularly to build Bapun-style filters
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
 class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
