@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Dict
+import numpy as np
+import pandas as pd
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
 from neuropy.core.position import Position
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
