@@ -1,5 +1,8 @@
 from collections import OrderedDict
 from typing import Sequence, Union
+# from warnings import warn
+import logging
+module_logger = logging.getLogger('com.PhoHale.neuropy') # create logger
 import numpy as np
 import pandas as pd
 from copy import deepcopy
@@ -40,11 +43,17 @@ class SpikesAccessor(TimeSlicedMixin):
         return SpikesAccessor.__time_variable_name
     
     def set_time_variable_name(self, new_time_variable_name):
-        print(f'WARNING: SpikesAccessor.set_time_variable_name(new_time_variable_name: {new_time_variable_name}) has been called. Be careful!')
-        assert new_time_variable_name in self._obj.columns, f"spikes_df.spikes.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original spk_df.spikes.time_variable_name: '{self._obj.spikes.time_variable_name}'.\n\t valid_columns: {list(self._obj.columns)}"
-        # otherwise it's okay and we can continue
-        SpikesAccessor.__time_variable_name = new_time_variable_name
-        print('\t time variable changed!')
+        module_logger.warning(f'WARNING: SpikesAccessor.set_time_variable_name(new_time_variable_name: {new_time_variable_name}) has been called. Be careful!')
+        if self._obj.spikes.time_variable_name == new_time_variable_name:
+            # no change in the time_variable_name:
+            module_logger.warning(f'\t no change in time_variable_name. It will remain {new_time_variable_name}.')
+        else:
+            assert new_time_variable_name in self._obj.columns, f"spikes_df.spikes.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original spk_df.spikes.time_variable_name: '{self._obj.spikes.time_variable_name}'.\n\t valid_columns: {list(self._obj.columns)}"
+            # otherwise it's okay and we can continue
+            original_time_variable_name = self._obj.spikes.time_variable_name
+            SpikesAccessor.__time_variable_name = new_time_variable_name
+            module_logger.warning(f"\t time variable changed from '{original_time_variable_name}' to '{new_time_variable_name}'.")
+            print('\t time variable changed!')
         
     @property
     def neuron_ids(self):
