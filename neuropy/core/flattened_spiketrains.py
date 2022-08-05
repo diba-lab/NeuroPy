@@ -40,7 +40,7 @@ class SpikesAccessor(TimeSlicedMixin):
         
     @property
     def time_variable_name(self):
-        return SpikesAccessor.__time_variable_name
+        return self.__time_variable_name
     
     def set_time_variable_name(self, new_time_variable_name):
         module_logger.warning(f'WARNING: SpikesAccessor.set_time_variable_name(new_time_variable_name: {new_time_variable_name}) has been called. Be careful!')
@@ -51,7 +51,8 @@ class SpikesAccessor(TimeSlicedMixin):
             assert new_time_variable_name in self._obj.columns, f"spikes_df.spikes.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original spk_df.spikes.time_variable_name: '{self._obj.spikes.time_variable_name}'.\n\t valid_columns: {list(self._obj.columns)}"
             # otherwise it's okay and we can continue
             original_time_variable_name = self._obj.spikes.time_variable_name
-            SpikesAccessor.__time_variable_name = new_time_variable_name
+            SpikesAccessor.__time_variable_name = new_time_variable_name # set for the class
+            self.__time_variable_name = new_time_variable_name # also set for the instance, as the class properties won't be retained when doing deepcopy and hopefully the instance properties will.
             module_logger.warning(f"\t time variable changed from '{original_time_variable_name}' to '{new_time_variable_name}'.")
             print('\t time variable changed!')
         
