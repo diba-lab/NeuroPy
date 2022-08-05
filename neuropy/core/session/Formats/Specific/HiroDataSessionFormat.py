@@ -79,7 +79,18 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
                                 basedir=basepath, post_load_functions=None) # post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess, cls._time_variable_name)]
 
-    
+
+     # Pyramidal and Lap-Only:
+    @classmethod
+    def build_filters_track_only_pyramidal(cls, sess, epoch_name_whitelist=None):
+        """ TODO: these filter functions are stupid and redundant """
+        all_epoch_names = ['track'] # all_epoch_names # ['maze1', 'maze2']
+        active_session_filter_configurations = {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_neuron_type('pyramidal').filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
+        if epoch_name_whitelist is not None:
+            # if the whitelist is specified, get only the specified epochs
+            active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_whitelist}
+        return active_session_filter_configurations
+
     
     @classmethod
     def build_track_only_filter_functions(cls, sess, **kwargs):
@@ -87,21 +98,6 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         all_epoch_names = ['track'] # all_epoch_names # ['maze1', 'maze2']
         return {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
 
-    # @classmethod
-    # def build_default_computation_configs(cls, sess):
-    #     """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
-    #     return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
-    #                       spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
-    #     # active_grid_bin = compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64))
-    #     # active_session_computation_config.computation_epochs = None # set the placefield computation epochs to None, using all epochs.
-    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None)]
-    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(128, 128)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None)]
-    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=(3.777, 1.043), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None)]
-    #     # return [PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(32, 32)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
-    #     #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
-    #     #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(128, 128)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
-    #     #        ]
-        
 
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
@@ -231,10 +227,6 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         
             ## Testing: Fixing spike positions
             spikes_df = session.spikes_df
-            # if 'cluster' not in spikes_df.columns:
-            #     spikes_df['cluster'] = cluster_ids
-            #     # spikes_df['qclu'] = all_vars.spikes.spikes_cell_info_out_dict.qclu # if we want the 'qclu' column
-            #     spikes_df[['cluster']] = spikes_df[['cluster']].astype('int') # convert integer calumns to correct datatype
 
             
             ## TODO:
