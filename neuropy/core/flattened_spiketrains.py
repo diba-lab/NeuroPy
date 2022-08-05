@@ -99,6 +99,8 @@ class SpikesAccessor(TimeSlicedMixin):
             
             # Created Columns:
                 'scISI'
+                
+            # Called only from _default_add_spike_scISIs_if_needed(...)
         """
         if 'scISI' in self._obj.columns:
             print(f'column "scISI" already exists in df! Skipping recomputation.')

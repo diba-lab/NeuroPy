@@ -85,6 +85,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     _session_default_relative_basedir = r'data\KDIBA\gor01\one\2006-6-07_11-26-53'
     _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
     
+    _time_variable_name = None # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
     
     @classmethod
     def get_session_name(cls, basedir):
