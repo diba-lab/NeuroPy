@@ -452,7 +452,7 @@ class PfND_TimeDependent(PfND):
 
     
     @classmethod    
-    def perform_time_range_computation(cls, spikes_df, pos_df, position_srate, xbin, ybin, start_time, end_time, included_neuron_IDs, active_computation_config):
+    def perform_time_range_computation(cls, spikes_df, pos_df, position_srate, xbin, ybin, start_time, end_time, included_neuron_IDs, active_computation_config, override_smooth=None):
 
         def _build_bin_pos_counts(active_pf_pos_df, bin_values=(xbin, ybin), active_computation_config=active_computation_config):
             active_pf_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_pos_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
@@ -491,9 +491,10 @@ class PfND_TimeDependent(PfND):
         # position_srate, xbin, ybin, included_neuron_IDs, active_computation_config
         # position_srate = sess.position_sampling_rate
         # active_computation_config = curr_active_config.computation_config
-        smooth = active_computation_config.pf_params.smooth
-        # start_time = 0.0
-        # end_time = 40.0
+        if override_smooth is not None:
+            smooth = override_smooth
+        else:
+            smooth = active_computation_config.pf_params.smooth
 
         ## Test arbitrarily slicing by first _test_arbitrary_end_time seconds
         active_pf_spikes_df = active_pf_spikes_df.spikes.time_sliced(start_time, end_time)
