@@ -725,7 +725,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
         
     def to_dict(self):
-        print(f'to_dict(...): {list(self.__dict__.keys())}')
+        # print(f'to_dict(...): {list(self.__dict__.keys())}')
         return {'config': self.config,
                 'position_srate': self.position_srate,
                 'ndim': self.ndim, 
