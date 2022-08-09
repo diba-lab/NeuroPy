@@ -145,9 +145,21 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
             session.position.linear_pos = np.full_like(session.position.time, np.nan)
             
             # ['pre', 'maze', 'sprinkle', 'post']
+
+            # only_included_pos_computation_labels tries to work around a memory error            
+            # NOTE: WARNING: DataSession.compute_linearized_position(session, an_epoch_label) causes MemoryErrors when called for an_epoch_label that doesn't have position data. For Bapun's r'W:\Data\Bapun\RatS\Day5TwoNovel' data, ['maze1', 'maze2'] were the acceptable epochs (and they were hardcoded).
+            # I encountered the MemoryError when I ran the same load_session function for r'W:\Data\Bapun\RatN\Day4OpenField', which has the epochs ['pre', 'maze', 'sprinkle', 'post']. Restricting these computations to ['maze'] solves the problem for this session. It seems like I could just detect if there are any position samples left in the filtered position dataframe within the DataSession.compute_linearized_position(session, an_epoch_label), and handle the error there if there aren't (which I believe would prevent the MemoryError and excessive computation).
+            
+            only_included_pos_computation_labels = ['maze']
+            # only_included_pos_computation_labels = None
+            if only_included_pos_computation_labels is None:
+                only_included_pos_computation_labels = session.epochs.labels # all labels if no restrictions are specified
+                
+
             for an_epoch_label in session.epochs.labels:
-                an_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_curr_epoch = DataSession.compute_linearized_position(session, an_epoch_label)
-                session.position.linear_pos[an_epoch_timeslice_indicies] = linearized_positions_curr_epoch.traces
+                if an_epoch_label in only_included_pos_computation_labels:
+                    an_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_curr_epoch = DataSession.compute_linearized_position(session, an_epoch_label)
+                    session.position.linear_pos[an_epoch_timeslice_indicies] = linearized_positions_curr_epoch.traces
                 
             ## Previous 'manual' maze1 and maze2 way that fails for any sessions without these epochs:    
             # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze1')
