@@ -30,7 +30,7 @@ odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.la
 
 
 class CustomSessionFilter(object):
-    """docstring for CustomSessionFilter."""
+    """Currently used to try and build a description of the filter applied for purposes of caching."""
     def __init__(self, sess):
         super(CustomSessionFilter, self).__init__()
         # don't want to store a reference to sess probably
@@ -70,7 +70,7 @@ def _filter_function_factory(epoch_label):
 
 
 def build_custom_epochs_filters(sess, included_epoch_labels=None):
-    """ 
+    """ Called by build_filters_any_epochs and build_filters_any_maze_epochs
     
         # Usage Example:
             active_session_filter_configurations = build_custom_epochs_filters(curr_active_pipeline.sess)
@@ -142,13 +142,8 @@ def batch_filter_session(sess, position, spikes_df, epochs, debug_print=False):
     # filtered_spikes_df = spk_df.query("`t_seconds` >= @epochs.starts and `t_seconds` <= @epochs.stops")
     # filtered_spikes_df = spk_df.query("`t_seconds` >= @epochs.starts and `t_seconds` <= @epochs.stops and `aclu` in @filtered_spikes_df.spikes.neuron_ids")
 
-    filtered_spikes_df = filtered_spikes_df.spikes.time_sliced(
-        epochs.starts, epochs.stops
-    )  # 168 ms ± 4.5 ms per loop (mean ± std. dev. of 7 runs, 10 loops each), Wall time: 20.4 ms
-    filtered_pos_df = pos_df.position.time_sliced(
-        epochs.starts, epochs.stops
-    )  # 27.6 ms ± 2.08 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
-
+    filtered_spikes_df = filtered_spikes_df.spikes.time_sliced(epochs.starts, epochs.stops)  # 168 ms ± 4.5 ms per loop (mean ± std. dev. of 7 runs, 10 loops each), Wall time: 20.4 ms
+    filtered_pos_df = pos_df.position.time_sliced(epochs.starts, epochs.stops)  # 27.6 ms ± 2.08 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
 
     # TODO: need to filter the sess.pbe by the epochs as well. sess.pbe is an Epoch type object
     filtered_pbe = sess.pbe.time_slice(epochs.starts[0], epochs.stops[-1]) # TODO: do I need to copy this object?

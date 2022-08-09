@@ -99,7 +99,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
 
 
     @classmethod
-    def build_default_filter_functions(cls, sess, included_epoch_names=None):
+    def build_default_filter_functions(cls, sess, included_epoch_names=None, filter_name_suffix=None):
         ## TODO: currently hard-coded
         # active_session_filter_configurations = cls.build_filters_any_epochs(sess)
         active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)

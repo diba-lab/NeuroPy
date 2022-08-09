@@ -152,7 +152,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
 
     @classmethod
-    def build_default_filter_functions(cls, sess, included_epoch_names=None):
+    def build_default_filter_functions(cls, sess, included_epoch_names=None, filter_name_suffix=None):
         # all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
         # default_filter_functions = DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess)
         ## TODO: currently hard-coded
