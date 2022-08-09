@@ -290,7 +290,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             desired_single_map_width = fig_column_width * resolution_multiplier
             desired_single_map_height = fig_row_height * resolution_multiplier
         else:
-            desired_single_map_width = 4.0 * resolution_multiplier
+            desired_single_map_width = 4.0 * resolution_multiplier ## TODO: there is an issue here for square maps
             desired_single_map_height = 1.0 * resolution_multiplier
          
         ## Figure size should be (Width, height)
@@ -309,9 +309,11 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             if max_screen_figure_size[1] is not None:
                 active_figure_size[1] = min(active_figure_size[1], max_screen_figure_size[1])
   
-        active_figure_size = tuple(active_figure_size)              
+        active_figure_size = tuple(active_figure_size)
         # active_figure_size=figsize
         # active_figure_size=required_figure_size
+        if debug_print:
+            print(f'final active_figure_size: {active_figure_size} (after constraining by max_screen_figure_size, etc)')
     
         if fig is not None:
             extant_fig = fig
