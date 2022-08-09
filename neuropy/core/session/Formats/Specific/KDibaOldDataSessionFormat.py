@@ -126,7 +126,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     # Pyramidal and Lap-Only:
     @classmethod
-    def build_filters_pyramidal_epochs(cls, sess, epoch_name_whitelist=None):
+    def build_filters_pyramidal_epochs(cls, sess, epoch_name_whitelist=None, filter_name_suffix='_PYR'):
         sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
         active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1')),
                         'maze2': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2')),
@@ -136,7 +136,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         if epoch_name_whitelist is not None:
             # if the whitelist is specified, get only the specified epochs
             active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_whitelist}
+            
+        if filter_name_suffix is not None:
+            # if a filter_name_suffix is specified, change the keys of the returned dict to include the suffix
+            active_session_filter_configurations = {f'{name}{filter_name_suffix}':filter_fn for name, filter_fn in active_session_filter_configurations.items()} 
+            
         return active_session_filter_configurations
+    
     
     # Any epoch on the maze, not limited to pyramidal cells, etc
     @classmethod
@@ -158,6 +164,15 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## TODO: currently hard-coded
         # active_session_filter_configurations = cls.build_pyramidal_epochs_filters(sess)
         active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
+        
+        # if included_epoch_names is not None:
+        #     # if the whitelist is specified, get only the specified epochs
+        #     active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in included_epoch_names}
+            
+        if filter_name_suffix is not None:
+            # if a filter_name_suffix is specified, change the keys of the returned dict to include the suffix
+            active_session_filter_configurations = {f'{name}{filter_name_suffix}':filter_fn for name, filter_fn in active_session_filter_configurations.items()} 
+            
         
         return active_session_filter_configurations
     
