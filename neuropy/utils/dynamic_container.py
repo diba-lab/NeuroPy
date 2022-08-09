@@ -267,12 +267,26 @@ class DynamicContainer(DiffableObject, MutableMapping):
     
     
     
+    # ## For serialization/pickling:
+    # def __getstate__(self):
+    #     return self.to_dict()
+
+    # def __setstate__(self, state):
+    #     return self.init_from_dict(state)
+        
+        
+
     ## For serialization/pickling:
     def __getstate__(self):
-        return self.to_dict()
+        # Copy the object's state from self.__dict__ which contains
+        # all our instance attributes (_mapping and _keys_at_init). Always use the dict.copy()
+        # method to avoid modifying the original state.
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        # del state['file']
+        return state
 
     def __setstate__(self, state):
-        return self.init_from_dict(state)
+        # Restore instance attributes (i.e., _mapping and _keys_at_init).
+        self.__dict__.update(state)
         
-        
-
