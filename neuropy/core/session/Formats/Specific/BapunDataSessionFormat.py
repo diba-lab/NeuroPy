@@ -140,13 +140,21 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
         # Load or compute linear positions if needed:        
         if (not session.position.has_linear_pos):
             # compute linear positions:
-            print('computing linear positions for all active epochs for session...')
+            print(f'computing linear positions for all active epochs ({session.epochs}) for session...')
             # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
             session.position.linear_pos = np.full_like(session.position.time, np.nan)
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze1')
-            acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, 'maze2')
-            session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            session.position.linear_pos[acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+            
+            # ['pre', 'maze', 'sprinkle', 'post']
+            for an_epoch_label in session.epochs.labels:
+                an_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_curr_epoch = DataSession.compute_linearized_position(session, an_epoch_label)
+                session.position.linear_pos[an_epoch_timeslice_indicies] = linearized_positions_curr_epoch.traces
+                
+            ## Previous 'manual' maze1 and maze2 way that fails for any sessions without these epochs:    
+            # acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze1')
+            # acitve_epoch_timeslice_indicies2, active_positions_maze2, linearized_positions_maze2 = DataSession.compute_linearized_position(session, 'maze2')
+            # session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+            # session.position.linear_pos[acitve_epoch_timeslice_indicies2] = linearized_positions_maze2.traces
+            
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
             # print('Saving updated position results to {}...'.format(session.position.filename))
             with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
