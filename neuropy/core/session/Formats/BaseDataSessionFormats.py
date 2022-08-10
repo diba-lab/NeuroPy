@@ -88,6 +88,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53'
     
     _time_variable_name = None # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
+
+    @classmethod
+    def get_session_format_name(cls):
+        """ The name of the specific format (e.g. 'bapun', 'kdiba', etc) """
+        return cls._session_class_name
     
     @classmethod
     def get_session_name(cls, basedir):
@@ -99,6 +104,9 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         """ MUST be overriden by implementor to return the a session_spec """
         raise NotImplementedError # innheritor must override
         
+    
+    
+    
     @classmethod
     def build_default_filter_functions(cls, sess, included_epoch_names=None, filter_name_suffix=None):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions
@@ -174,7 +182,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         basedir = Path(basedir)
         session_name = cls.get_session_name(basedir) # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
         session_spec = cls.get_session_spec(session_name)
-        session_config = SessionConfig(basedir, session_spec=session_spec, session_name=session_name)
+        format_name = cls.get_session_format_name()
+        session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name)
         assert session_config.is_resolved, "active_sess_config could not be resolved!"
         session_obj = DataSession(session_config)
         return session_obj

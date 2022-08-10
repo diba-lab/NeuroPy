@@ -166,13 +166,15 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_optional_filespecs_dict.items()}
     
     
-    def __init__(self, basepath, session_spec, session_name):
+    def __init__(self, basepath, session_spec, session_name, format_name):
         """[summary]
         Args:
             basepath (pathlib.Path): [description].
             session_spec (SessionFolderSpec): used to load the files
             session_name (str, optional): [description].
+            session_format_name (str): the name of the known session format, or 'custom'. Can be returned using .get_session_format_name()
         """
+        self.format_name = format_name
         self.basepath = basepath
         self.session_name = session_name
         # Session spec:
@@ -185,9 +187,25 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
 
 
     def to_dict(self):
-        out_dict = {a_key:str(a_value) for a_key, a_value in self.__dict__.items() if a_key in ['basepath', 'session_name', 'absolute_start_timestamp', 'position_sampling_rate_Hz']}
+        out_dict = {a_key:str(a_value) for a_key, a_value in self.__dict__.items() if a_key in ['format_name', 'basepath', 'session_name', 'absolute_start_timestamp', 'position_sampling_rate_Hz']}
         # need to flatten: 'resolved_required_filespecs_dict', 'resolved_optional_filespecs_dict':
         out_dict['resolved_required_filespecs_dict'] = [str(a_path) for a_path in self.resolved_required_file_specs.keys()]
         out_dict['resolved_optional_filespecs_dict'] = [str(a_path) for a_path in self.resolved_optional_file_specs.keys()]
         return out_dict
+    
+    def get_description(self)->str:
+        """ returns a simple text descriptor of the session
+        
+        Outputs:
+            a str like 'sess_kdiba_2006-6-07_11-26-53'
+        """
+        ## Build a session descriptor string:
+        session_descriptor_array = ['sess', self.format_name, self.session_name]
+        session_descriptor_string = '_'.join(session_descriptor_array)
+        return session_descriptor_string
+    
+    def __str__(self) -> str:
+        # return super().__str__()
+        return self.get_description()
+    
     
