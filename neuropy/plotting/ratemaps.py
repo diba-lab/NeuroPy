@@ -290,7 +290,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             desired_single_map_width = fig_column_width * resolution_multiplier
             desired_single_map_height = fig_row_height * resolution_multiplier
         else:
-            desired_single_map_width = 4.0 * resolution_multiplier ## TODO: there is an issue here for square maps
+            ## TODO: I think this hardcoded 4.0 should be set to data_aspect_ratio: (1.0167365776358197 for square maps)
+            desired_single_map_width = data_aspect_ratio[0] * resolution_multiplier
             desired_single_map_height = 1.0 * resolution_multiplier
          
         ## Figure size should be (Width, height)
