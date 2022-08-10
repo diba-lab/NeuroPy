@@ -22,7 +22,7 @@ from neuropy.utils.misc import compute_paginated_grid_config, RowColTuple
 from neuropy.utils.colors_util import get_neuron_colors
 from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, compute_data_aspect_ratio
 
-from .figure import Fig, compute_figure_size_pixels
+from .figure import Fig, compute_figure_size_pixels, compute_figure_size_inches
 
 
 def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=None):
@@ -303,17 +303,22 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         
         # If max_screen_figure_size is not None (it should be a two element tuple, specifying the max width and height in pixels for the figure:
         if max_screen_figure_size is not None:
-            active_figure_size = list(active_figure_size) # convert to a list instead of a tuple to make it mutable
+            required_figure_size_px = list(required_figure_size_px) # convert to a list instead of a tuple to make it mutable
             if max_screen_figure_size[0] is not None:
-                active_figure_size[0] = min(active_figure_size[0], max_screen_figure_size[0])
+                required_figure_size_px[0] = min(required_figure_size_px[0], max_screen_figure_size[0])
             if max_screen_figure_size[1] is not None:
-                active_figure_size[1] = min(active_figure_size[1], max_screen_figure_size[1])
+                required_figure_size_px[1] = min(required_figure_size_px[1], max_screen_figure_size[1])
   
-        active_figure_size = tuple(active_figure_size)
+        required_figure_size_px = tuple(required_figure_size_px)
+        # convert back to inches from pixels to constrain the figure size:
+        required_figure_size = compute_figure_size_inches(required_figure_size_px) # Convert back from pixels to inches when done
+        # Update active_figure_size again:
+        active_figure_size = required_figure_size
+        
         # active_figure_size=figsize
         # active_figure_size=required_figure_size
         if debug_print:
-            print(f'final active_figure_size: {active_figure_size} (after constraining by max_screen_figure_size, etc)')
+            print(f'final active_figure_size: {active_figure_size}, required_figure_size_px: {required_figure_size_px} (after constraining by max_screen_figure_size, etc)')
     
         if fig is not None:
             extant_fig = fig
