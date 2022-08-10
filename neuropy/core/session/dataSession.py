@@ -93,43 +93,19 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         return self.neurons.n_neurons
     
     
-    def get_session_description(self, session_data_type_name:str)->str:
+    def get_session_description(self)->str:
         """ returns a simple text descriptor of the session
     
-        Inputs:    
-            session_data_type_name: str - like 'kidba' must be passed in externally since the session object doesn't know its type
         Outputs:
             a str like 'sess_kdiba_2006-6-07_11-26-53'
         """
-        out_config_dict = self.config.to_dict()
-        session_metadata_keywords = out_config_dict.copy()
-        session_metadata_keywords['session_data_type'] = session_data_type_name # 'kdiba'
-        ## Build a session descriptor string:
-        session_descriptor_array = ['sess', session_metadata_keywords['session_data_type'], session_metadata_keywords['session_name']]
-        session_descriptor_string = '_'.join(session_descriptor_array)
-        return session_descriptor_string
-
+        return self.config.get_description()
     
-    # @property
-    # def n_total_spikes(self):
-    #     return self.neurons.n_neurons
-    # @property
-    # def is_resolved(self):
-    #     return self.config.is_resolved
-    # @property
-    # def is_resolved(self):
-    #     return self.config.is_resolved
 
 
     @property
     def spikes_df(self):
         return self.flattened_spiketrains.spikes_df
-    
-    
-    # @property
-    # def is_loaded(self):
-    #     """The epochs property is an alias for self.paradigm."""
-    #     return self.paradigm
     
     @property
     def epochs(self):
@@ -170,7 +146,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             
         return copy_sess
     
-
     def get_neuron_type(self, query_neuron_type):
         """ filters self by the specified query_neuron_type, only returning neurons that match. """
         print('Constraining to units with type: {}'.format(query_neuron_type))
@@ -191,7 +166,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     
 
     ## filtered_by_* functions:
-    
     def filtered_by_time_slice(self, t_start=None, t_stop=None):
         return self.time_slice(t_start, t_stop)
         
@@ -223,7 +197,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.get_by_id(ids)
         return copy_sess
 
-  
     @staticmethod
     def from_dict(d: dict):
         return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
@@ -233,7 +206,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
                  laps= d.get('laps', None),
                  flattened_spiketrains = d.get('flattened_spiketrains', None))
 
-        
     def to_dict(self, recurrsively=False):
         simple_dict = deepcopy(self.__dict__)
         if recurrsively:
@@ -499,6 +471,11 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def __sizeof__(self) -> int:
         """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
         return super().__sizeof__() + int(np.sum([sys.getsizeof(self.spikes_df), sys.getsizeof(self.epochs.to_dataframe()), sys.getsizeof(self.position.to_dataframe())]))
+
+
+    def __str__(self) -> str:
+        return self.get_session_description()
+        # return super().__str__()
 
 
     # DataSessionPanelMixin:
