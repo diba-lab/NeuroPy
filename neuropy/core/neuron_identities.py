@@ -24,7 +24,9 @@ from enum import Enum
 
 
 class PlotStringBrevityModeEnum(Enum):
-    """Docstring for PlotStringBrevityModeEnum."""
+    """An enum of different modes that specify how verbose/brief the rendered strings should be on a given plot.
+    More verbose means longer ouptuts with fewer abbreviations. For very brief modes, less important elements may be omitted entirely
+    """
     VERBOSE = "VERBOSE"
     DEFAULT = "DEFAULT"
     CONCISE = "CONCISE"

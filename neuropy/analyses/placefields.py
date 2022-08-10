@@ -21,7 +21,7 @@ from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefiel
 # from .. import core
 # import neuropy.core as core
 from .. import plotting
-from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
+from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta, build_formatted_str_from_properties_dict
 
 
 class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass=OrderedMeta):
@@ -94,11 +94,8 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         extras_strings = self._unlisted_parameter_strings()
         if is_2D:
             return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
-            # return "speedThresh_{:.2f}-gridBin_{:.2f}_{:.2f}-smooth_{:.2f}_{:.2f}-frateThresh_{:.2f}".format(self.speed_thresh, self.grid_bin[0], self.grid_bin[1], self.smooth[0], self.smooth[1], self.frate_thresh)
-            # return f"speedThresh_{self.speed_thresh:.2f}-gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}-smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}-frateThresh_{self.frate_thresh:.2f}"
         else:
             return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
-            # return f"speedThresh_{self.speed_thresh:.2f}-gridBin_{self.grid_bin_1D:.2f}-smooth_{self.smooth_1D:.2f}-frateThresh_{self.frate_thresh:.2f}"
         
     def str_for_display(self, is_2D):
         """ For rendering in a title, etc """
@@ -108,21 +105,6 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         else:
             return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
 
-    @classmethod
-    def _build_formatted_str_for_output(cls, dict_items, param_sep_char, key_val_sep_char) -> str:
-        with np.printoptions(precision=3, suppress=True, threshold=5):
-            properties_key_val_list = []
-            for (name, val) in dict_items.items():
-                try:
-                    curr_string = f'{name}{key_val_sep_char}{np.array(val)}'
-                except TypeError:
-                    curr_string = f'{name}{key_val_sep_char}err'     
-                properties_key_val_list.append(curr_string)
-            # properties_key_val_list = [f'{name}{key_val_sep_char}{np.array(val)}' for (name, val) in dict_items.items()]
-        
-        return param_sep_char.join(properties_key_val_list)
-
-    
 
     def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t'):
         """ For rendering in attributes list like outputs 
@@ -134,9 +116,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             frate_thresh	0.1
             time_bin_size	0.5
         """
-        # param_sep_char='\n'
-        # key_val_sep_char='\t'
-        return PlacefieldComputationParameters._build_formatted_str_for_output(self.__dict__, param_sep_char, key_val_sep_char)
+        return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char)
         
 
 
