@@ -59,6 +59,21 @@ class PfND_TimeDependent(PfND):
         """The filtered_pos_df property."""
         return self._filtered_pos_df
         
+    @property
+    def earliest_spike_time(self):
+        """The earliest spike time."""
+        return self.all_time_filtered_spikes_df[self.all_time_filtered_spikes_df.spikes.time_variable_name].values[0]
+    
+    @property
+    def earliest_position_time(self):
+        """The earliest position sample time."""
+        return self.all_time_filtered_pos_df['t'].values[0]
+    
+    @property
+    def earliest_valid_time(self):
+        """The earliest time that we have both position and spikes (the later of the two individual earliest times)"""
+        return max(self.earliest_position_time, self.earliest_spike_time)
+        
         
     """ 
         Override the filtered_spikes_df and filtered_pos_df properties such that they only return the dataframes up to the last time (self.last_t).
@@ -235,8 +250,13 @@ class PfND_TimeDependent(PfND):
         self.update(next_t, should_snapshot=should_snapshot)
         return next_t
     
-    def update(self, t, should_snapshot=False):
+    
+    def update(self, t, start_relative_t:bool=False, should_snapshot=False):
         """ updates all variables to the latest versions """
+        if start_relative_t:
+            # if start_relative_t then t is assumed to be specified relative to the earliest_valid_time
+            t = self.earliest_valid_time + t # add self.earliest_valid_time to the relative_t value to get the absolute t value
+        
         if self.is_additive_mode and (self.last_t > t):
             print(f'WARNING: update(t: {t}) called with t < self.last_t ({self.last_t}! Skipping.')
         else:
@@ -252,7 +272,6 @@ class PfND_TimeDependent(PfND):
                 if should_snapshot:
                     self.snapshot()
                     
-
     # ==================================================================================================================== #
     # Snapshotting and state restoration                                                                                   #
     # ==================================================================================================================== #
