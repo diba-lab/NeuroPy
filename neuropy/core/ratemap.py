@@ -195,14 +195,22 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
             ## Compute the area-under-the-curve normalization by dot-dividing each cell's PF by the normalization constant
             _test_1D_AOC_normalized_pdf = (active_tuning_curves.transpose() * _test_1D_normalization_constants).transpose() # (39, 59)
             ## Test success by summing (all should be nearly 1.0):
-            assert np.isclose(np.sum(_test_1D_AOC_normalized_pdf, 1), 1.0).all(), f"After AOC normalization the sum over each cell should be 1.0, but it is not! {np.sum(_test_1D_AOC_normalized_pdf, 1)}"
+            is_valid_normalized_pf = np.logical_not(np.isnan(np.sum(_test_1D_AOC_normalized_pdf, 1))) # The True entries are non-Nan and should be equal to 1.0, the other elements are NaN and have no valid pf yet.
+            if debug_print:
+                print(f'is_valid_normalized_pf: {is_valid_normalized_pf}')
+                
+            assert np.isclose(np.sum(_test_1D_AOC_normalized_pdf[is_valid_normalized_pf,:], 1), 1.0).all(), f"After AOC normalization the sum over each cell should be 1.0, but it is not! {np.sum(_test_1D_AOC_normalized_pdf, 1)}"
             return _test_1D_AOC_normalized_pdf
         elif tuning_curves_ndim == 2:
             ## 2D normalization
             _test_2D_normalization_constants = 1.0/np.sum(active_tuning_curves, (1,2)) # normalize by summing over all 1D positions for each cell
             _test_2D_AOC_normalized_pdf = (active_tuning_curves.transpose(1,2,0) * _test_2D_normalization_constants).transpose(2,0,1) # (39, 59) # (59, 21, 39) prior to second transpose
+            is_valid_normalized_pf = np.logical_not(np.isnan(np.sum(_test_2D_AOC_normalized_pdf, (1,2)))) # The True entries are non-Nan and should be equal to 1.0, the other elements are NaN and have no valid pf yet.
+            if debug_print:
+                print(f'is_valid_normalized_pf: {is_valid_normalized_pf}')
+                            
             ## Test success by summing (all should be nearly 1.0):
-            assert np.isclose(np.sum(_test_2D_AOC_normalized_pdf, (1,2)), 1.0).all(), f"After AOC normalization the sum over each cell should be 1.0, but it is not! {np.sum(_test_2D_AOC_normalized_pdf, (1,2))}"
+            assert np.isclose(np.sum(_test_2D_AOC_normalized_pdf[is_valid_normalized_pf,:,:], (1,2)), 1.0).all(), f"After AOC normalization the sum over each cell should be 1.0, but it is not! {np.sum(_test_2D_AOC_normalized_pdf, (1,2))}"
             return _test_2D_AOC_normalized_pdf
         else:
             print(f'tuning_curves_ndim: {tuning_curves_ndim} not implemented!')
