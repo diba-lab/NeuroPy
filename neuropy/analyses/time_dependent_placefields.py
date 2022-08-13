@@ -261,7 +261,8 @@ class PfND_TimeDependent(PfND):
             print(f'WARNING: update(t: {t}) called with t < self.last_t ({self.last_t}! Skipping.')
         else:
             # Otherwise update to this t.
-            with np.errstate(divide='ignore', invalid='ignore'):
+            # with np.errstate(divide='ignore', invalid='ignore'):
+            with np.errstate(divide='warn', invalid='raise'):
                 if self.is_additive_mode:
                     self._minimal_additive_update(t)
                     self._display_additive_update(t)
