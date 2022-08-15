@@ -197,10 +197,6 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
             session.flattened_spiketrains.save()
             print('\t done.\n')
         
-        
-        
-        
-            
         # Common Extended properties:
         session = cls._default_extended_postload(session.filePrefix, session)
         
