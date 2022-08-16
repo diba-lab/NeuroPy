@@ -723,14 +723,9 @@ def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_in
                                                                                         scatter_opts={'s': 28, 'c': 'white', 'alpha': 0.9, 'marker': '*', 'label': 'peaks_overlay_sc'}, plots={})
 
             extended_overlay_points_datasource_dicts = {'peaks_overlay_points': peaks_overlay_points_data_dict}
-
-    
     
     # TODO: maybe add a fig property: an explicit figure to use instead of fignum
-    
-    
-    TODO: Cleaning up with  grid_layout_mode == 'imagegrid'
-    plot_mode == 
+
     """
     
     # last_figure_subplots_same_layout = False

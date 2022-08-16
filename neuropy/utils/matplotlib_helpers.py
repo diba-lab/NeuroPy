@@ -8,23 +8,7 @@ import numpy as np
 
 from neuropy.utils.misc import AutoNameEnum
 
-def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', text_foreground='k', **kwargs):
-    """used to add a figure title inside the border of the figure (instead of outside)
-    """
-    from matplotlib.offsetbox import AnchoredText
-    from matplotlib.patheffects import withStroke    
-    # Afont = {'family': 'serif',
-    #     'backgroundcolor': 'blue',
-    #     'color':  'white',
-    #     'weight': 'normal',
-    #     'size': 14,
-    #     }
-    prop = dict(path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth)],
-                size=plt.rcParams['legend.title_fontsize'], # 'legend.fontsize' is too small
-                color=text_foreground)
-    at = AnchoredText(title, loc=loc, prop=prop, pad=0., borderpad=0.5, frameon=False, **kwargs)
-    ax.add_artist(at)
-    return at
+""" Note that currently the only Matplotlib-specific functions here are add_inner_title(...) and draw_sizebar(...). The rest have general uses! """
 
 # refactored to pyPhoCoreHelpers.geometery_helpers but had to be bring back in explicitly
 Width_Height_Tuple = namedtuple('Width_Height_Tuple', 'width height')
@@ -147,6 +131,29 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
     return background_chessboard
 
 
+
+
+
+# ==================================================================================================================== #
+# These are the only Matplotlib-specific functions here: add_inner_title(...) and draw_sizebar(...).                              #
+# ==================================================================================================================== #
+def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', text_foreground='k', **kwargs):
+    """used to add a figure title inside the border of the figure (instead of outside)
+    """
+    from matplotlib.offsetbox import AnchoredText
+    from matplotlib.patheffects import withStroke    
+    # Afont = {'family': 'serif',
+    #     'backgroundcolor': 'blue',
+    #     'color':  'white',
+    #     'weight': 'normal',
+    #     'size': 14,
+    #     }
+    prop = dict(path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth)],
+                size=plt.rcParams['legend.title_fontsize'], # 'legend.fontsize' is too small
+                color=text_foreground)
+    at = AnchoredText(title, loc=loc, prop=prop, pad=0., borderpad=0.5, frameon=False, **kwargs)
+    ax.add_artist(at)
+    return at
 
 ## TODO: Not currently used, but looks like it can add anchored scale/size bars to matplotlib figures pretty easily:
 def draw_sizebar(ax):
