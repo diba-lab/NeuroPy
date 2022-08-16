@@ -208,7 +208,24 @@ def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, sub
     return nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio, page_figure_sizes
 
 
+def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_threshold: float=0.0000001):
+    """ Universally used to prepare the pfmap to be displayed (across every plot time)
+    
+    Input:
+        drop_below_threshold: if None, no indicies are dropped. Otherwise, values of occupancy less than the threshold specified are used to build a mask, which is subtracted from the returned image (the image is NaN'ed out in these places.
 
+    Known Uses:
+            NeuroPy.neuropy.plotting.ratemaps.plot_single_tuning_map_2D(...)
+            pyphoplacecellanalysis.Pho2D.PyQtPlots.plot_placefields.pyqtplot_plot_image_array(...)
+            
+     # image = np.squeeze(images[a_linear_index,:,:])
+    """
+    # Pre-filter the data:
+    with np.errstate(divide='ignore', invalid='ignore'):
+        image = np.array(image.copy()) / np.nanmax(image) # note scaling by maximum here!
+        if drop_below_threshold is not None:
+            image[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
+        return image # return the modified and masked image
 
 
     

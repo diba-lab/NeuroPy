@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 from neuropy.utils import mathutil
 from neuropy.utils.misc import RowColTuple
 from neuropy.utils.colors_util import get_neuron_colors
-from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout
+from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range
 from .figure import Fig
 
 def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=None):
@@ -71,10 +71,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     if ax is None:
         ax = plt.gca()
             
-    curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap) # note scaling by maximum here!
-    if drop_below_threshold is not None:
-        curr_pfmap[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
-    
+    curr_pfmap = _scale_current_placefield_to_acceptable_range(pfmap, occupancy=occupancy, drop_below_threshold=drop_below_threshold)     
     # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
     # curr_pfmap = np.rot90(curr_pfmap)
     # curr_pfmap = np.fliplr(curr_pfmap) # I thought stopping after this was sufficient, as the values lined up with the 1D placefields... but it seems to be flipped vertically now!
