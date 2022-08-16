@@ -214,6 +214,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     if not isinstance(subplots, RowColTuple):
         subplots = RowColTuple(subplots[0], subplots[1])
     
+    ## Get Data to plot:
     if included_unit_indicies is None:
         included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
     
@@ -588,7 +589,7 @@ def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
 
 
 # all extracted from the 2D figures
-def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
+def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=True):
     """Plots heatmaps of placefields with peak firing rate
     
     Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
@@ -649,7 +650,7 @@ def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_in
         nfigures = num_pages
         # nfigures = nMapsToShow // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
     
-        return nfigures, num_pages, page_grid_sizes, data_aspect_ratio
+        return nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio
     
     
     # last_figure_subplots_same_layout = False
@@ -679,27 +680,7 @@ def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_in
         max_value_formatter = None
 
     ## BEGIN FACTORING OUT:
-    # nMapsToShow = len(active_maps)
-    # data_aspect_ratio = compute_data_aspect_ratio(ratemap.xbin, ratemap.ybin)
-    # if debug_print:
-    #     print(f'data_aspect_ratio: {data_aspect_ratio}')
-    
-    # if (subplots.num_columns is None) or (subplots.num_rows is None):
-    #     # This will disable pagination by setting an arbitrarily high value
-    #     max_subplots_per_page = nMapsToShow
-    #     if debug_print:
-    #         print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
-    # else:
-    #     # valid specified maximum subplots per page
-    #     max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
-    
-    # # Paging Management: Constrain the subplots values to just those that you need
-    # subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
-    # num_pages = len(included_combined_indicies_pages)
-
-    # nfigures = num_pages
-    
-    nfigures, num_pages, page_grid_sizes, data_aspect_ratio = _perform_plot_advanced_2D(xbin=ratemap.xbin, ybin=ratemap.ybin, active_maps=active_maps, subplots=subplots)
+    nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio = _perform_plot_advanced_2D(xbin=ratemap.xbin, ybin=ratemap.ybin, active_maps=active_maps, subplots=subplots)
     
     if fignum is None:
         if f := plt.get_fignums():
