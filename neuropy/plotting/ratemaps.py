@@ -18,10 +18,10 @@ if TYPE_CHECKING:
     from neuropy.core.ratemap import Ratemap
     
 from neuropy.utils import mathutil
-from neuropy.utils.misc import compute_paginated_grid_config, RowColTuple
+from neuropy.utils.misc import RowColTuple
 from neuropy.utils.colors_util import get_neuron_colors
-from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, compute_data_aspect_ratio, _determine_best_placefield_2D_layout
-from .figure import Fig, compute_figure_size_pixels, compute_figure_size_inches
+from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout
+from .figure import Fig
 
 def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=None):
     """ Adds the overlay points to the image plot with the specified axis. 
