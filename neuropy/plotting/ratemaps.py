@@ -589,8 +589,11 @@ def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
 
     
     
-def _final_wrapped_determine_placefield_2D_layout(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), last_figure_subplots_same_layout=True, debug_print:bool=False):
-    """
+def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), last_figure_subplots_same_layout=True, debug_print:bool=False):
+    """ Computes the optimal sizes, number of rows and columns, and layout of the individual 2D placefield subplots in terms of the overarching pf_2D figure
+    
+    Known Uses:
+        plot_advanced_2D
     
     Major outputs:
     
@@ -756,7 +759,7 @@ def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_in
     ## NEW COMBINED METHOD, COMPUTES ALL PAGES AT ONCE:
     if resolution_multiplier is None:
         resolution_multiplier = 1.0
-    nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio, page_figure_sizes = _final_wrapped_determine_placefield_2D_layout(xbin=ratemap.xbin, ybin=ratemap.ybin, included_unit_indicies=included_unit_indicies, subplots=subplots, fig_column_width=fig_column_width, fig_row_height=fig_row_height, resolution_multiplier=resolution_multiplier, max_screen_figure_size=max_screen_figure_size, last_figure_subplots_same_layout=last_figure_subplots_same_layout, debug_print=debug_print)
+    nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio, page_figure_sizes = _determine_best_placefield_2D_layout(xbin=ratemap.xbin, ybin=ratemap.ybin, included_unit_indicies=included_unit_indicies, subplots=subplots, fig_column_width=fig_column_width, fig_row_height=fig_row_height, resolution_multiplier=resolution_multiplier, max_screen_figure_size=max_screen_figure_size, last_figure_subplots_same_layout=last_figure_subplots_same_layout, debug_print=debug_print)
     
     if fignum is None:
         if f := plt.get_fignums():
