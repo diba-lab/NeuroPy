@@ -586,7 +586,79 @@ def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
 # ==================================================================================================================== #
 # Advanced Plotting based on working Matplotlib plots for placefields                                                  #
 # ==================================================================================================================== #
+def _perform_plot_advanced_2D(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), last_figure_subplots_same_layout=True, debug_print:bool=False):
+        if not isinstance(subplots, RowColTuple):
+            subplots = RowColTuple(subplots[0], subplots[1])
+        
+        nMapsToShow = len(included_unit_indicies)
+        data_aspect_ratio = compute_data_aspect_ratio(xbin, ybin)
+        if debug_print:
+            print(f'data_aspect_ratio: {data_aspect_ratio}')
+        
+        if (subplots.num_columns is None) or (subplots.num_rows is None):
+            # This will disable pagination by setting an arbitrarily high value
+            max_subplots_per_page = nMapsToShow
+            if debug_print:
+                print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
+        else:
+            # valid specified maximum subplots per page
+            max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
+        
+        if debug_print:
+            print(f'nMapsToShow: {nMapsToShow}, subplots: {subplots}, max_subplots_per_page: {max_subplots_per_page}')
+            
+        # Paging Management: Constrain the subplots values to just those that you need
+        subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
+        num_pages = len(included_combined_indicies_pages)
+        nfigures = num_pages
+        # nfigures = nMapsToShow // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
+        return nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio
+    
+    
+def _perform_compute_required_figure_sizes(curr_fig_page_grid_size, data_aspect_ratio, fig_column_width:float=None, fig_row_height:float=None, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), debug_print:bool=False):
+    if resolution_multiplier is None:
+        resolution_multiplier = 1.0
+    if (fig_column_width is not None) and (fig_row_height is not None):
+        desired_single_map_width = fig_column_width * resolution_multiplier
+        desired_single_map_height = fig_row_height * resolution_multiplier
+    else:
+        ## TODO: I think this hardcoded 4.0 should be set to data_aspect_ratio: (1.0167365776358197 for square maps)
+        desired_single_map_width = data_aspect_ratio[0] * resolution_multiplier
+        desired_single_map_height = 1.0 * resolution_multiplier
+        
+    # Computes desired_single_map_width and desired_signle_map_height
+        
+    ## Figure size should be (Width, height)
+    required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
+    required_figure_size_px = compute_figure_size_pixels(required_figure_size)
+    if debug_print:
+        print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}, required_figure_size_px: {required_figure_size_px}') # this is figure size in inches
 
+    active_figure_size = required_figure_size
+    
+    # If max_screen_figure_size is not None (it should be a two element tuple, specifying the max width and height in pixels for the figure:
+    if max_screen_figure_size is not None:
+        required_figure_size_px = list(required_figure_size_px) # convert to a list instead of a tuple to make it mutable
+        if max_screen_figure_size[0] is not None:
+            required_figure_size_px[0] = min(required_figure_size_px[0], max_screen_figure_size[0])
+        if max_screen_figure_size[1] is not None:
+            required_figure_size_px[1] = min(required_figure_size_px[1], max_screen_figure_size[1])
+
+    required_figure_size_px = tuple(required_figure_size_px)
+    # convert back to inches from pixels to constrain the figure size:
+    required_figure_size = compute_figure_size_inches(required_figure_size_px) # Convert back from pixels to inches when done
+    # Update active_figure_size again:
+    active_figure_size = required_figure_size
+    
+    # active_figure_size=figsize
+    # active_figure_size=required_figure_size
+    if debug_print:
+        print(f'final active_figure_size: {active_figure_size}, required_figure_size_px: {required_figure_size_px} (after constraining by max_screen_figure_size, etc)')
+
+    return active_figure_size
+    
+    
+    
 
 # all extracted from the 2D figures
 def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=True):
@@ -626,83 +698,9 @@ def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_in
     TODO: Cleaning up with  grid_layout_mode == 'imagegrid'
     plot_mode == 
     """
-    def _perform_plot_advanced_2D(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), last_figure_subplots_same_layout=True):
-        if not isinstance(subplots, RowColTuple):
-            subplots = RowColTuple(subplots[0], subplots[1])
-        
-        nMapsToShow = len(included_unit_indicies)
-        data_aspect_ratio = compute_data_aspect_ratio(xbin, ybin)
-        if debug_print:
-            print(f'data_aspect_ratio: {data_aspect_ratio}')
-        
-        if (subplots.num_columns is None) or (subplots.num_rows is None):
-            # This will disable pagination by setting an arbitrarily high value
-            max_subplots_per_page = nMapsToShow
-            if debug_print:
-                print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
-        else:
-            # valid specified maximum subplots per page
-            max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
-        
-        if debug_print:
-            print(f'nMapsToShow: {nMapsToShow}, subplots: {subplots}, max_subplots_per_page: {max_subplots_per_page}')
-            
-        # Paging Management: Constrain the subplots values to just those that you need
-        subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
-        num_pages = len(included_combined_indicies_pages)
-        nfigures = num_pages
-        # nfigures = nMapsToShow // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
-        return nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio
-    
-    
-    def _perform_compute_required_figure_sizes(curr_fig_page_grid_size, fig_column_width:float, fig_row_height:float, resolution_multiplier:float, max_screen_figure_size=(None, None), debug_print:bool=False):
-        if resolution_multiplier is None:
-            resolution_multiplier = 1.0
-        if (fig_column_width is not None) and (fig_row_height is not None):
-            desired_single_map_width = fig_column_width * resolution_multiplier
-            desired_single_map_height = fig_row_height * resolution_multiplier
-        else:
-            ## TODO: I think this hardcoded 4.0 should be set to data_aspect_ratio: (1.0167365776358197 for square maps)
-            desired_single_map_width = data_aspect_ratio[0] * resolution_multiplier
-            desired_single_map_height = 1.0 * resolution_multiplier
-            
-        # Computes desired_single_map_width and desired_signle_map_height
-         
-        ## Figure size should be (Width, height)
-        required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
-        required_figure_size_px = compute_figure_size_pixels(required_figure_size)
-        if debug_print:
-            print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}, required_figure_size_px: {required_figure_size_px}') # this is figure size in inches
-
-        active_figure_size = required_figure_size
-        
-        # If max_screen_figure_size is not None (it should be a two element tuple, specifying the max width and height in pixels for the figure:
-        if max_screen_figure_size is not None:
-            required_figure_size_px = list(required_figure_size_px) # convert to a list instead of a tuple to make it mutable
-            if max_screen_figure_size[0] is not None:
-                required_figure_size_px[0] = min(required_figure_size_px[0], max_screen_figure_size[0])
-            if max_screen_figure_size[1] is not None:
-                required_figure_size_px[1] = min(required_figure_size_px[1], max_screen_figure_size[1])
-  
-        required_figure_size_px = tuple(required_figure_size_px)
-        # convert back to inches from pixels to constrain the figure size:
-        required_figure_size = compute_figure_size_inches(required_figure_size_px) # Convert back from pixels to inches when done
-        # Update active_figure_size again:
-        active_figure_size = required_figure_size
-        
-        # active_figure_size=figsize
-        # active_figure_size=required_figure_size
-        if debug_print:
-            print(f'final active_figure_size: {active_figure_size}, required_figure_size_px: {required_figure_size_px} (after constraining by max_screen_figure_size, etc)')
-    
-        return active_figure_size
-        
     
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
-    
-    # if not isinstance(subplots, RowColTuple):
-    #     subplots = RowColTuple(subplots[0], subplots[1])
     
     ## Get Data to plot:
     if included_unit_indicies is None:
@@ -742,7 +740,7 @@ def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_in
         # Dynamic Figure Sizing: 
         curr_fig_page_grid_size = page_grid_sizes[fig_ind]
         ## BEGIN FACTORING OUT:
-        active_figure_size = _perform_compute_required_figure_sizes(curr_fig_page_grid_size, fig_column_width=fig_column_width, fig_row_height=fig_row_height, resolution_multiplier=resolution_multiplier, max_screen_figure_size=max_screen_figure_size, debug_print=debug_print)
+        active_figure_size = _perform_compute_required_figure_sizes(curr_fig_page_grid_size, data_aspect_ratio=data_aspect_ratio, fig_column_width=fig_column_width, fig_row_height=fig_row_height, resolution_multiplier=resolution_multiplier, max_screen_figure_size=max_screen_figure_size, debug_print=debug_print)
     
     
         if fig is not None:
