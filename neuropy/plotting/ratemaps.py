@@ -578,3 +578,292 @@ def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
                 ax = plt.subplot(gs[cell])
                 ax.set_yticks([])
                 plot_(cell, ax)
+
+
+
+# ==================================================================================================================== #
+# ==================================================================================================================== #
+# Advanced Plotting based on working Matplotlib plots for placefields                                                  #
+# ==================================================================================================================== #
+
+
+# all extracted from the 2D figures
+def plot_advanced_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
+    """Plots heatmaps of placefields with peak firing rate
+    
+    Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
+    
+    Parameters
+    ----------
+    speed_thresh : bool, optional
+        [description], by default False
+    subplots : tuple, optional
+        number of cells within each figure window. If cells exceed the number of subplots, then cells are plotted in successive figure windows of same size, by default (10, 8)
+    fignum : int, optional
+        figure number to start from, by default None
+    fig_subplotsize: tuple, optional
+        fig_subplotsize: the size of a single subplot. used to compute the figure size
+        
+        
+    spike_overlay_spikes: a 
+    
+    extended_overlay_points_datasource_dicts: a general dict of additional overlay point datasources to potentially add to the images. Each is passed to _add_points_to_plot(...)
+        TODO: NOTE: currently the subplot the points are plotted on is determined by getting: `a_datasource['points_data'][neuron_IDX]`, meaning the assumption is that each datasource has one xy point to draw for every neuron. Obviously it would be better if multiple points could be provided for each neuron, so really the datasource should be re-speced to have a function that takes the neuron_id and returns the desired values (kinda like a datasource of datasources, or maybe a dataframe that it filters to get the points, that might be more 'flat' of a design. 
+        
+        Example:
+            # overlay_points data
+            peaks_overlay_points_data_dict = dict(is_enabled=True, points_data=peak_xy_points_pos_list, plot_opts={'markersize': 28, 'marker': '*', 'markeredgecolor': 'grey', 'linestyle': 'none', 'markerfacecolor': 'white', 'alpha': 0.9, 'label': 'peaks_overlay_points'},
+                                                                                        scatter_opts={'s': 28, 'c': 'white', 'alpha': 0.9, 'marker': '*', 'label': 'peaks_overlay_sc'}, plots={})
+
+            extended_overlay_points_datasource_dicts = {'peaks_overlay_points': peaks_overlay_points_data_dict}
+
+    
+    
+    # TODO: maybe add a fig property: an explicit figure to use instead of fignum
+    
+    
+    TODO: Cleaning up with  grid_layout_mode == 'imagegrid'
+    plot_mode == 
+    """
+    def _perform_plot_advanced_2D(xbin, ybin, active_maps, subplots:RowColTuple=(40, 3)):
+        if not isinstance(subplots, RowColTuple):
+            subplots = RowColTuple(subplots[0], subplots[1])
+        
+        nMapsToShow = len(active_maps)
+        data_aspect_ratio = compute_data_aspect_ratio(xbin, ybin)
+        if debug_print:
+            print(f'data_aspect_ratio: {data_aspect_ratio}')
+        
+        if (subplots.num_columns is None) or (subplots.num_rows is None):
+            # This will disable pagination by setting an arbitrarily high value
+            max_subplots_per_page = nMapsToShow
+            if debug_print:
+                print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
+        else:
+            # valid specified maximum subplots per page
+            max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
+        
+        # Paging Management: Constrain the subplots values to just those that you need
+        subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
+        num_pages = len(included_combined_indicies_pages)
+        nfigures = num_pages
+        # nfigures = nMapsToShow // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
+    
+        return nfigures, num_pages, page_grid_sizes, data_aspect_ratio
+    
+    
+    # last_figure_subplots_same_layout = False
+    last_figure_subplots_same_layout = True
+    
+    # if not isinstance(subplots, RowColTuple):
+    #     subplots = RowColTuple(subplots[0], subplots[1])
+    
+    ## Get Data to plot:
+    if included_unit_indicies is None:
+        # included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
+        included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
+    
+    if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
+        active_maps = ratemap.tuning_curves[included_unit_indicies]
+        title_substring = 'Placemaps'
+    elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+        active_maps = ratemap.spikes_maps[included_unit_indicies]
+        title_substring = 'Spikes Maps'
+    else:
+        raise ValueError
+
+    # Build the formatter for rendering the max values such as the peak firing rate or max spike counts:
+    if brev_mode.should_show_firing_rate_label:
+        max_value_formatter = _build_variable_max_value_label(plot_variable=plot_variable)
+    else:
+        max_value_formatter = None
+
+    ## BEGIN FACTORING OUT:
+    # nMapsToShow = len(active_maps)
+    # data_aspect_ratio = compute_data_aspect_ratio(ratemap.xbin, ratemap.ybin)
+    # if debug_print:
+    #     print(f'data_aspect_ratio: {data_aspect_ratio}')
+    
+    # if (subplots.num_columns is None) or (subplots.num_rows is None):
+    #     # This will disable pagination by setting an arbitrarily high value
+    #     max_subplots_per_page = nMapsToShow
+    #     if debug_print:
+    #         print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
+    # else:
+    #     # valid specified maximum subplots per page
+    #     max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
+    
+    # # Paging Management: Constrain the subplots values to just those that you need
+    # subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
+    # num_pages = len(included_combined_indicies_pages)
+
+    # nfigures = num_pages
+    
+    nfigures, num_pages, page_grid_sizes, data_aspect_ratio = _perform_plot_advanced_2D(xbin=ratemap.xbin, ybin=ratemap.ybin, active_maps=active_maps, subplots=subplots)
+    
+    if fignum is None:
+        if f := plt.get_fignums():
+            fignum = f[-1] + 1
+        else:
+            fignum = 1
+
+    figures, page_gs = [], []
+            
+    for fig_ind in range(nfigures):
+        # Dynamic Figure Sizing: 
+        curr_fig_page_grid_size = page_grid_sizes[fig_ind]
+        if resolution_multiplier is None:
+            resolution_multiplier = 1.0
+        if (fig_column_width is not None) and (fig_row_height is not None):
+            desired_single_map_width = fig_column_width * resolution_multiplier
+            desired_single_map_height = fig_row_height * resolution_multiplier
+        else:
+            ## TODO: I think this hardcoded 4.0 should be set to data_aspect_ratio: (1.0167365776358197 for square maps)
+            desired_single_map_width = data_aspect_ratio[0] * resolution_multiplier
+            desired_single_map_height = 1.0 * resolution_multiplier
+         
+        ## Figure size should be (Width, height)
+        required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
+        required_figure_size_px = compute_figure_size_pixels(required_figure_size)
+        if debug_print:
+            print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}, required_figure_size_px: {required_figure_size_px}') # this is figure size in inches
+
+        active_figure_size = required_figure_size
+        
+        # If max_screen_figure_size is not None (it should be a two element tuple, specifying the max width and height in pixels for the figure:
+        if max_screen_figure_size is not None:
+            required_figure_size_px = list(required_figure_size_px) # convert to a list instead of a tuple to make it mutable
+            if max_screen_figure_size[0] is not None:
+                required_figure_size_px[0] = min(required_figure_size_px[0], max_screen_figure_size[0])
+            if max_screen_figure_size[1] is not None:
+                required_figure_size_px[1] = min(required_figure_size_px[1], max_screen_figure_size[1])
+  
+        required_figure_size_px = tuple(required_figure_size_px)
+        # convert back to inches from pixels to constrain the figure size:
+        required_figure_size = compute_figure_size_inches(required_figure_size_px) # Convert back from pixels to inches when done
+        # Update active_figure_size again:
+        active_figure_size = required_figure_size
+        
+        # active_figure_size=figsize
+        # active_figure_size=required_figure_size
+        if debug_print:
+            print(f'final active_figure_size: {active_figure_size}, required_figure_size_px: {required_figure_size_px} (after constraining by max_screen_figure_size, etc)')
+    
+        if fig is not None:
+            extant_fig = fig
+            # fig = plt.figure(extant_fig)
+        else:
+            extant_fig = None # is this okay?
+            
+        if fig is not None:
+            active_fig_id = fig
+        else:
+            active_fig_id = fignum + fig_ind
+            
+        
+        ## Configure Colorbar options:
+        ### curr_cbar_mode: 'each', 'one', None
+        # curr_cbar_mode = 'each'
+        curr_cbar_mode = None
+        
+        # grid_rect = (0.01, 0.05, 0.98, 0.9) # (left, bottom, width, height) 
+        grid_rect = 111
+        # fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=True)
+        if extant_fig is None:
+            fig = plt.figure(active_fig_id, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
+        else:
+            fig = extant_fig
+            
+        grid = ImageGrid(fig, grid_rect,  # similar to subplot(211)
+                nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
+                axes_pad=0.05,
+                label_mode="1",
+                share_all=True,
+                aspect=True,
+                cbar_location="top",
+                cbar_mode=curr_cbar_mode,
+                cbar_size="7%",
+                cbar_pad="1%",
+                )
+        
+        page_gs.append(grid)
+            
+    
+        title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
+        
+        if computation_config is not None:
+            if computation_config.speed_thresh is not None:
+                title_string = f'{title_string} (speed_threshold = {str(computation_config.speed_thresh)})'
+            
+        fig.suptitle(title_string)
+        figures.append(fig)
+
+    # New page-based version:
+    for page_idx in np.arange(num_pages):
+        if debug_print:
+            print(f'page_idx: {page_idx}')
+        
+        active_page_grid = page_gs[page_idx]
+        # print(f'active_page_grid: {active_page_grid}')
+            
+        for (a_linear_index, curr_row, curr_col, curr_included_unit_index) in included_combined_indicies_pages[page_idx]:
+            # Need to convert to page specific:
+            curr_page_relative_linear_index = np.mod(a_linear_index, int(page_grid_sizes[page_idx].num_rows * page_grid_sizes[page_idx].num_columns))
+            curr_page_relative_row = np.mod(curr_row, page_grid_sizes[page_idx].num_rows)
+            curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
+            # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
+            
+            neuron_IDX = curr_included_unit_index
+            pfmap = active_maps[a_linear_index]
+            # Get the axis to plot on:
+            curr_ax = active_page_grid[curr_page_relative_linear_index]
+            
+            ## Plot the main heatmap for this pfmap:
+            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax, max_value_formatter=max_value_formatter)
+            
+            if extended_overlay_points_datasource_dicts is not None:
+                for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():
+                    # There can be multiple named datasources, with either of two modes: 
+                    # 1. Linear indexed list
+                    if overlay_datasource.get('is_enabled', False):
+                        points_data = overlay_datasource.get('points_data', None)
+                        if points_data is not None:
+                            if debug_print:
+                                print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                            curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data[neuron_IDX], plot_opts=overlay_datasource.get('plot_opts', None), scatter_opts=overlay_datasource.get('scatter_opts', None))
+                            overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                    else:
+                        # 2. ACLU indexed dict
+                        curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
+                        found_neuron_aclu_datasource = overlay_datasource.get(curr_neuron_ID, None) 
+                        if found_neuron_aclu_datasource is not None:
+                            if found_neuron_aclu_datasource.get('is_enabled', False):
+                                points_data = found_neuron_aclu_datasource.get('points_data', None)
+                                if points_data is not None:
+                                    if debug_print:
+                                        print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                                    curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data.T, plot_opts=found_neuron_aclu_datasource.get('plot_opts', None), scatter_opts=found_neuron_aclu_datasource.get('scatter_opts', None))
+                                    found_neuron_aclu_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                    
+                            
+            if enable_spike_overlay:
+                spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
+                                                                             scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
+            
+            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
+            # cbar = fig.colorbar(im, cax=cbar_ax)
+            # cbar.set_label("firing rate (Hz)")
+
+        # Remove the unused axes if there are any:
+        num_axes_to_remove = (len(active_page_grid) - 1) - curr_page_relative_linear_index
+        if (num_axes_to_remove > 0):
+            for a_removed_linear_index in np.arange(curr_page_relative_linear_index+1, len(active_page_grid)):
+                removal_ax = active_page_grid[a_removed_linear_index]
+                fig.delaxes(removal_ax)
+
+        # Apply subplots adjust to fix margins:
+        plt.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
+        
+    return figures, page_gs
+
+
