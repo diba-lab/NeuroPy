@@ -178,7 +178,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
 
 
     @classmethod
-    def perform_AOC_normalization(cls, active_tuning_curves, debug_print=True):
+    def perform_AOC_normalization(cls, active_tuning_curves, debug_print=False):
     # def perform_AOC_normalization(cls, ratemap: Ratemap, debug_print=True):
         """ Normalizes each cell's tuning map in ratemap by dividing by each cell's area under the curve (AOC). The resultant tuning maps are therefore converted into valid PDFs 
         
