@@ -153,6 +153,8 @@ class SessionFolderSpec():
 
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     """A simple data structure that holds the information specifying a data session, such as the basepath, session_spec, and session_name
+    
+    
     """
     
     @property
@@ -205,7 +207,6 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         return session_descriptor_string
     
     def __str__(self) -> str:
-        # return super().__str__()
         return self.get_description()
     
     

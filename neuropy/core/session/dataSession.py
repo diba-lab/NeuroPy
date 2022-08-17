@@ -92,17 +92,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def n_neurons(self):
         return self.neurons.n_neurons
     
-    
-    def get_session_description(self)->str:
-        """ returns a simple text descriptor of the session
-    
-        Outputs:
-            a str like 'sess_kdiba_2006-6-07_11-26-53'
-        """
-        return self.config.get_description()
-    
-
-
     @property
     def spikes_df(self):
         return self.flattened_spiketrains.spikes_df
@@ -197,6 +186,19 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.get_by_id(ids)
         return copy_sess
 
+
+    def get_description(self)->str:
+            """ returns a simple text descriptor of the session
+            Outputs:
+                a str like 'sess_kdiba_2006-6-07_11-26-53'
+            """
+            return self.config.get_description()
+    
+    def __str__(self) -> str:
+        return self.get_description()
+    
+    
+    
     @staticmethod
     def from_dict(d: dict):
         return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
@@ -215,6 +217,19 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             # simple_dict['flattened_spiketrains'] = simple_dict['flattened_spiketrains'].to_dict() ## TODO: implement .to_dict() for FlattenedSpiketrains object to make this work
         return simple_dict
         
+        
+    def __sizeof__(self) -> int:
+        """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
+        return super().__sizeof__() + int(np.sum([sys.getsizeof(self.spikes_df), sys.getsizeof(self.epochs.to_dataframe()), sys.getsizeof(self.position.to_dataframe())]))
+
+    # DataSessionPanelMixin:
+    def panel_dataframes_overview(self, max_page_items=20):
+        return DataSessionPanelMixin.panel_session_dataframes_overview(self, max_page_items=max_page_items)
+    
+    # ==================================================================================================================== #
+    # Static Computation Helper Methods                                                                                    #
+    # ==================================================================================================================== #
+    
     ## Linearize Position:
     @staticmethod
     def compute_linearized_position(session, epochLabelName='maze1', method='isomap'):
@@ -463,24 +478,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # spk_df['PBE_id'] = spike_pbe_identity_arr
         # return the extracted traces and the updated curr_position_df
         return spk_df
-    
-    
-    
-    
-    
-    def __sizeof__(self) -> int:
-        """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
-        return super().__sizeof__() + int(np.sum([sys.getsizeof(self.spikes_df), sys.getsizeof(self.epochs.to_dataframe()), sys.getsizeof(self.position.to_dataframe())]))
 
-
-    def __str__(self) -> str:
-        return self.get_session_description()
-        # return super().__str__()
-
-
-    # DataSessionPanelMixin:
-    def panel_dataframes_overview(self, max_page_items=20):
-        return DataSessionPanelMixin.panel_session_dataframes_overview(self, max_page_items=max_page_items)
         
 # # Helper function that processed the data in a given directory
 # def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
