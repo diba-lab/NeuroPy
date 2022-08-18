@@ -31,6 +31,7 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 
 """
 
+import copy
 from neuropy.utils.mixins.diffable import DiffableObject
 
 
@@ -63,6 +64,29 @@ class IdentifyingContext(DiffableObject, object):
             setattr(self, final_name, value)
         
         return self
+
+
+    def adding_context(self, collision_prefix:str, **additional_context_items):
+        """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        
+        """
+        duplicate_ctxt = copy.deepcopy(self)
+        
+        for name, value in additional_context_items.items():
+            # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            if hasattr(duplicate_ctxt, name):
+                print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
+                ## TODO: rename the current attribute to be set by appending a prefix
+                final_name = f'{collision_prefix}{name}'
+            else:
+                final_name = name
+            # Set the new attr
+            setattr(duplicate_ctxt, final_name, value)
+        
+        return duplicate_ctxt
+                       
+                       
         
     def get_description(self, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
@@ -105,27 +129,20 @@ class IdentifyingContext(DiffableObject, object):
     def init_from_dict(cls, a_dict):
         return cls(**a_dict) # expand the dict as input args.
         
+    ## For serialization/pickling:
+    def __getstate__(self):
+        # Copy the object's state from self.__dict__ which contains
+        # all our instance attributes. Always use the dict.copy()
+        # method to avoid modifying the original state.
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        # del state['file']
+        return state
 
-# class SessionContext(IdentifyingContext):
-#     """result_context serves to uniquely identify the **context** of a given generic result.
-
-#     Typically a result depends on several inputs:
-
-#     - session: the context in which the original recordings were made.
-#         Originally this includes the circumstances udner which the recording was performed (recording datetime, recording configuration (hardware, sampling rate, etc), experimenter name, animal identifer, etc)
-#     - filter: the filtering performed to pre-process the loaded session data
-#     - computation configuration: the specific computations performed and their parameters to transform the data to the result
-
-#     Heuristically: If changing the value of that variable results in a changed result, it should be included in the result_context 
-#     """
-#     format_name: str = ''
-#     session_name: str = ''
-    
-#     # def __init__(self, session_context, filter_context, computation_configuration):
-#     #     super(ResultContext, self).__init__()
-#     #     self.session_context = session_context
-#     #     self.filter_context = filter_context
-#     #     self.computation_configuration = computation_configuration
+    def __setstate__(self, state):
+        # Restore instance attributes.
+        self.__dict__.update(state)
+        
         
         
 # class ResultContext(IdentifyingContext):
