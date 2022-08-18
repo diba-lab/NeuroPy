@@ -62,6 +62,7 @@ class IdentifyingContext(DiffableObject, object):
             # Set the new attr
             setattr(self, final_name, value)
         
+        return self
         
     def get_description(self, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
