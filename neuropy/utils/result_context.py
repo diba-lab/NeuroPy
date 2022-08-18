@@ -99,10 +99,10 @@ class IdentifyingContext(DiffableObject, object):
         """
         ## Build a session descriptor string:
         if include_property_names:
-            descriptor_array = [[name.replace(separator, replace_separator_in_property_names), val]  for name, val in self.to_dict().items()] # creates a list of [name, val] list items
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names), str(val)]  for name, val in self.to_dict().items()] # creates a list of [name, val] list items
             descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
         else:
-            descriptor_array = list(self.to_dict().values())
+            descriptor_array = [str(val) for val in list(self.to_dict().values())] # ensures each value is a string
             
         if prefix_items is not None:
             descriptor_array.extend(prefix_items)
@@ -122,6 +122,13 @@ class IdentifyingContext(DiffableObject, object):
         values_tuple = list(dict_rep.values())
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
+    
+    def __eq__(self, other):
+        """Overrides the default implementation"""
+        if isinstance(other, IdentifyingContext):
+            return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
+        return NotImplemented
+    
     
     def to_dict(self):
         return self.__dict__
