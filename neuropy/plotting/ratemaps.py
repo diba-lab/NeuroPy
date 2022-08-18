@@ -255,8 +255,18 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         if fig is not None:
             active_fig_id = fig
         else:
-            active_fig_id = fignum + fig_ind
-            
+            if isinstance(fignum, int):
+                # a numeric fignum that can be incremented
+                active_fig_id = fignum + fig_ind
+            elif isinstance(fignum, str):
+                # a string-type fignum.
+                # TODO: deal with inadvertant reuse of figure? perhaps by appending f'{fignum}[{fig_ind}]'
+                if fig_ind > 0:
+                    active_fig_id = f'{fignum}[{fig_ind}]'
+                else:
+                    active_fig_id = fignum
+            else:
+                raise NotImplementedError        
         
         ## Configure Colorbar options:
         ### curr_cbar_mode: 'each', 'one', None
