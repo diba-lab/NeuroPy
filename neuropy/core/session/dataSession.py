@@ -186,13 +186,19 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.get_by_id(ids)
         return copy_sess
 
+    
 
+    # Context and Description ____________________________________________________________________________________________ #
+    def get_context(self):
+        """ returns an IdentifyingContext for the session """
+        return self.config.get_context()
+    
     def get_description(self)->str:
-            """ returns a simple text descriptor of the session
-            Outputs:
-                a str like 'sess_kdiba_2006-6-07_11-26-53'
-            """
-            return self.config.get_description()
+        """ returns a simple text descriptor of the session
+        Outputs:
+            a str like 'sess_kdiba_2006-6-07_11-26-53'
+        """
+        return self.config.get_description()
     
     def __str__(self) -> str:
         return self.get_description()

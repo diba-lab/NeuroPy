@@ -109,7 +109,6 @@ def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', ke
             except TypeError:
                 curr_string = f'{name}{key_val_sep_char}err'     
             properties_key_val_list.append(curr_string)
-        # properties_key_val_list = [f'{name}{key_val_sep_char}{np.array(val)}' for (name, val) in dict_items.items()]
     
     return param_sep_char.join(properties_key_val_list)
 

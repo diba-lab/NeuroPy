@@ -15,7 +15,6 @@ from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
 from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_nD, build_df_discretized_binned_position_columns
 
-# from pyphoplacecellanalysis.General.Configs.DynamicConfigs import PlottingConfig, InteractivePlaceCellConfig
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
 
 # from .. import core

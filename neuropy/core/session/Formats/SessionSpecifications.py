@@ -21,7 +21,7 @@ from pathlib import Path
 
 from neuropy.core.session.dataSession import DataSession
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
-
+from neuropy.utils.result_context import IdentifyingContext
 
 @dataclass
 class SessionFileSpec:
@@ -195,15 +195,18 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         out_dict['resolved_optional_filespecs_dict'] = [str(a_path) for a_path in self.resolved_optional_file_specs.keys()]
         return out_dict
     
-    def get_description(self)->str:
+    # Context and Description ____________________________________________________________________________________________ #
+    def get_context(self):
+        """ returns an IdentifyingContext for the session """
+        return IdentifyingContext(format_name=self.format_name, session_name=self.session_name)
+
+    def get_description(self, prefix_items=['sess'])->str:
         """ returns a simple text descriptor of the session
-        
         Outputs:
             a str like 'sess_kdiba_2006-6-07_11-26-53'
         """
         ## Build a session descriptor string:
-        session_descriptor_array = ['sess', self.format_name, self.session_name]
-        session_descriptor_string = '_'.join(session_descriptor_array)
+        session_descriptor_string = self.get_context().get_description(separator='_', include_property_names=False, replace_separator_in_property_names='-', prefix_items=prefix_items)
         return session_descriptor_string
     
     def __str__(self) -> str:
