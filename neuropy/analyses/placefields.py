@@ -16,6 +16,8 @@ from neuropy.utils.misc import is_iterable
 from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_nD, build_df_discretized_binned_position_columns
 
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
+from neuropy.utils.debug_helpers import safely_accepts_kwargs
+
 
 # from .. import core
 # import neuropy.core as core
@@ -177,6 +179,7 @@ class PfnDMixin(SimplePrintable):
     def cell_ids(self):
         return self.ratemap.neuron_ids
 
+    @safely_accepts_kwargs
     def plot_raw(self, subplots=(10, 8), fignum=None, alpha=0.5, label_cells=False, ax=None, clus_use=None):
         """ Plots the Placefield raw spiking activity for all cells"""
         if self.ndim < 2:
@@ -215,7 +218,7 @@ class PfnDMixin(SimplePrintable):
             fig.suptitle(f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})")
             return fig
             
-        
+    @safely_accepts_kwargs
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
@@ -260,6 +263,7 @@ class PfnDMixin(SimplePrintable):
         )
         return ax
 
+    @safely_accepts_kwargs
     def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
         if fig is None:
             fig_use = plt.figure(figsize=[28.25, 11.75])

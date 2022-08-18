@@ -21,6 +21,7 @@ from neuropy.utils import mathutil
 from neuropy.utils.misc import RowColTuple
 from neuropy.utils.colors_util import get_neuron_colors
 from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range
+from neuropy.utils.debug_helpers import safely_accepts_kwargs
 from .figure import Fig
 
 def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=None):
@@ -39,8 +40,6 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
     spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'UNKNOWN_overlay_points'} | plot_opts))                
     spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
     return spike_overlay_points, spike_overlay_sc
-    
-    
     
 def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001,
                               plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None):
@@ -164,8 +163,8 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     ax.set_label(final_title)
     return im
     
-
 # all extracted from the 2D figures
+@safely_accepts_kwargs
 def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     
@@ -373,7 +372,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         
     return figures, page_gs
 
-
+@safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None):
     """Plot 1D place fields stacked
 
@@ -480,7 +479,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
 
     return ax, sort_ind, neurons_colors_array
 
-
+@safely_accepts_kwargs
 def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
     """Plot spike location on animal's path
 
