@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 from neuropy.utils import mathutil
 from neuropy.utils.misc import RowColTuple
 from neuropy.utils.colors_util import get_neuron_colors
-from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range
+from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 from .figure import Fig
 
@@ -133,33 +133,50 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     im = ax.imshow(curr_pfmap, **main_plot_kwargs, label='main_image')
     ax.axis("off")
         
-
-    # Labeling:
-    if neuron_extended_id is not None:    
-        full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
-    else:
-        full_extended_id_string = ''
-    
-    final_string_components = [full_extended_id_string]
-    
+    ## Labeling:
+    formatted_max_value_string = None
     if brev_mode.should_show_firing_rate_label:
-        # pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
         assert max_value_formatter is not None
-        formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
-        final_string_components.append(formatted_max_value_string)
-    
+        formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))        
+        
+    final_title = _build_neuron_identity_label(neuron_extended_id = neuron_extended_id, brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+
     if use_special_overlayed_title:
-        final_title = ' - '.join(final_string_components)
-        # t = add_inner_title(ax, final_title, loc='upper left', strokewidth=1.0)
-        # , strokewidth=3, stroke_foreground='w', text_foreground='k'
         t = add_inner_title(ax, final_title, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
         t.patch.set_ec("none")
         # t.patch.set_alpha(0.5)
     else:
         # conventional way:
-        final_title = '\n'.join(final_string_components)
         ax.set_title(final_title) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
     
+    
+    # if neuron_extended_id is not None:    
+    #     full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
+    # else:
+    #     full_extended_id_string = ''
+    
+    # final_string_components = [full_extended_id_string]
+    
+    # if brev_mode.should_show_firing_rate_label:
+    #     # pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
+    #     assert max_value_formatter is not None
+    #     formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
+    #     final_string_components.append(formatted_max_value_string)
+    
+    # if use_special_overlayed_title:
+    #     final_title = ' - '.join(final_string_components)
+    #     # t = add_inner_title(ax, final_title, loc='upper left', strokewidth=1.0)
+    #     # , strokewidth=3, stroke_foreground='w', text_foreground='k'
+    #     t = add_inner_title(ax, final_title, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
+    #     t.patch.set_ec("none")
+    #     # t.patch.set_alpha(0.5)
+    # else:
+    #     # conventional way:
+    #     final_title = '\n'.join(final_string_components)
+    #     ax.set_title(final_title) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
+    
+    
+    # always
     ax.set_label(final_title)
     return im
     

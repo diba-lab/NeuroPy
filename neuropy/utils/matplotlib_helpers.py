@@ -10,7 +10,11 @@ from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowC
 
 from neuropy.plotting.figure import compute_figure_size_pixels, compute_figure_size_inches # needed for _determine_best_placefield_2D_layout(...)'s internal _perform_compute_required_figure_sizes(...) function
 
-
+from typing import TYPE_CHECKING
+from neuropy.core.neuron_identities import PlotStringBrevityModeEnum # needed for _build_neuron_identity_label
+if TYPE_CHECKING:
+    from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple # needed for _build_neuron_identity_label
+    
 
 """ Note that currently the only Matplotlib-specific functions here are add_inner_title(...) and draw_sizebar(...). The rest have general uses! """
 
@@ -84,6 +88,27 @@ class enumTuningMap2DPlotMode(AutoNameEnum):
 class enumTuningMap2DPlotVariables(AutoNameEnum):
     TUNING_MAPS = auto() # DEFAULT
     SPIKES_MAPS = auto() 
+    
+    
+    
+def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentityTuple=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, formatted_max_value_string=None, use_special_overlayed_title=True):
+    """ builds the subplot title for 2D PFs that displays the neuron identity and other important info. """
+    if neuron_extended_id is not None:    
+        full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
+    else:
+        full_extended_id_string = ''
+    
+    final_string_components = [full_extended_id_string]
+    
+    if formatted_max_value_string is not None:
+        final_string_components.append(formatted_max_value_string)
+    
+    if use_special_overlayed_title:
+        final_title = ' - '.join(final_string_components)
+    else:
+        # conventional way:
+        final_title = '\n'.join(final_string_components) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
+    return final_title
     
     
 def _build_variable_max_value_label(plot_variable: enumTuningMap2DPlotVariables):
