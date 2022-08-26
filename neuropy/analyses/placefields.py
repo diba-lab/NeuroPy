@@ -269,7 +269,7 @@ class Pf2D:
         diff_posx = np.diff(x)
         diff_posy = np.diff(y)
 
-        speed = np.sqrt(diff_posx**2 + diff_posy**2) / (1 / trackingRate)
+        speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / (1 / trackingRate)
         speed = smooth_(speed)
 
         dt = t[1] - t[0]
