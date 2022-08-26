@@ -226,7 +226,6 @@ class Pf2D:
         grid_bin=1,
         sigma=1,
     ):
-
         """Calculates 2D placefields
         Parameters
         ----------
