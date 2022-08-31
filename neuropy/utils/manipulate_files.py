@@ -45,7 +45,7 @@ def get_record_time_from_pathname(
     return files, folder_dates
 
 
-def prepend_date_from_folder_to_file(
+def prepend_time_from_folder_to_file(
     folder,
     ext: str = "avi",
     time_str: str = "[0-9]{2}_[0-9]{2}_[0-9]{2}",
