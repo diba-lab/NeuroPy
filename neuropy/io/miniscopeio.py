@@ -8,6 +8,8 @@ import pickle
 import re
 import math
 
+from neuropy.utils.manipulate_files import prepend_time_from_folder_to_file
+
 
 class MiniscopeIO:
     def __init__(self, basedir) -> None:
@@ -282,9 +284,16 @@ def load_orientation(rec_folder, corrupted_videos=None):
     return orient_data, rec_metadata, vid_metadata, rec_start
 
 
-def move_files_to_combined_folder(parent_folder, re_pattern="**/My_V4_Miniscope/*.avi"):
+def move_files_to_combined_folder(
+    parent_folder,
+    re_pattern="**/My_V4_Miniscope/*.avi",
+    prepend_rec_time=True,
+    copy_during_prepend=False,
+):
     """Move files from home folder to miniscope combined folder with specified
-    regex pattern"""
+    regex pattern.
+    :param: prepend_rec_time = True (default) will add the folder recording time to the front
+    of each file"""
 
     parent_folder = Path(parent_folder)
     combined_folder = parent_folder / "Miniscope_combined"
@@ -292,6 +301,28 @@ def move_files_to_combined_folder(parent_folder, re_pattern="**/My_V4_Miniscope/
     # Get files
     movie_files = sorted(parent_folder.glob(re_pattern))
     nfiles = len(movie_files)
+
+    # Prepend recording time to each file before moving if not done already
+    if prepend_rec_time:
+        file_names = [file.parts[-1].split(".")[0] for file in movie_files]
+        unique_file_names = nfiles == len(
+            set(file_names)
+        )  # Check if all files are unique
+        if unique_file_names:
+            print("files already have recording time appended - moving/copying as-is")
+        else:
+            print("pre-pending recording time to each file before moving/copying")
+            folder_names = set(
+                [file.parent for file in movie_files]
+            )  # get unique folder names
+            for folder in folder_names:
+                prepend_time_from_folder_to_file(
+                    folder, ext=re_pattern.split(".")[-1], copy=copy_during_prepend
+                )
+
+        # Finally, get updated file names
+        movie_files = sorted(parent_folder.glob(re_pattern))
+
     success = 0
     for file in movie_files:
         try:
@@ -335,7 +366,5 @@ def euler_from_quaternion(qx, qy, qz, qw):
 
 
 if __name__ == "__main__":
-    # parent_folder = "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_20_training"
-    # move_files_to_combined_folder(parent_folder)
-    rec_folder = "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_20_training/2_training/Finn/gobears/2022_01_20/12_43_18"
-    load_orientation(rec_folder)
+    parent_folder = "/data2/Trace_FC/Recording_Rats/Rose/2022_06_20_habituation1"
+    move_files_to_combined_folder(parent_folder)
