@@ -45,8 +45,9 @@ def detect_local_sleep_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
     events = pd.DataFrame(
         {
             "start": time[offperiods[:, 0]],
-            "end": time[offperiods[:, 1]],
+            "stop": time[offperiods[:, 1]],
             "duration": duration / 1000,
+            "label": "",
         }
     )
 
