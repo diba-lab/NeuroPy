@@ -33,7 +33,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
-                 ripple = None, mua = None, laps= None, flattened_spiketrains = None, pbe = None):       
+                 ripple = None, mua = None, laps= None, flattened_spiketrains = None, pbe = None, **kwargs):       
         self.config = config
         
         self.is_loaded = False
@@ -53,6 +53,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         self.flattened_spiketrains = flattened_spiketrains # core.FlattenedSpiketrains
         self.pbe = pbe
         
+        
+        for an_additional_arg, arg_value in kwargs.items():
+            setattr(self, an_additional_arg, arg_value) # allows specifying additional information as optional arguments
     
     def __repr__(self) -> str:
         if self.recinfo is None:
@@ -132,6 +135,11 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             
         if copy_sess.laps is not None:
             copy_sess.laps = copy_sess.laps.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+        
+        if hasattr(copy_sess, 'replays') and copy_sess.replays is not None:            
+            copy_sess.replays = copy_sess.replays.time_slicer.time_slice(active_epoch_times[0], active_epoch_times[1])
+            
+            
             
         return copy_sess
     
@@ -203,16 +211,17 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def __str__(self) -> str:
         return self.get_description()
     
-    
-    
     @staticmethod
     def from_dict(d: dict):
-        return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
-                 eegfile = d['eegfile'], datfile = d['datfile'],
-                 neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
-                 ripple = d.get('ripple', None), mua = d.get('mua', None), pbe = d.get('pbe', None),
-                 laps= d.get('laps', None),
-                 flattened_spiketrains = d.get('flattened_spiketrains', None))
+        config = d.pop('config')
+        return DataSession(config, **d)
+        
+        # return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
+        #          eegfile = d['eegfile'], datfile = d['datfile'],
+        #          neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
+        #          ripple = d.get('ripple', None), mua = d.get('mua', None), pbe = d.get('pbe', None),
+        #          laps= d.get('laps', None),
+        #          flattened_spiketrains = d.get('flattened_spiketrains', None))
 
     def to_dict(self, recurrsively=False):
         simple_dict = deepcopy(self.__dict__)

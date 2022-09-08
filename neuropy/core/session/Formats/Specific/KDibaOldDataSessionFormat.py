@@ -257,7 +257,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         try:
             spikes_df, flat_spikes_out_dict = cls.__default_kdiba_pho_exported_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
         except FileNotFoundError as e:
-            print('FileNotFoundError: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
+            print(f'FileNotFoundError: {e}.\n Trying to fall back to original .spikeII.mat file...')
             spikes_df, flat_spikes_out_dict = cls.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
             
         except Exception as e:
@@ -283,11 +283,22 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             session, laps_df = cls.__default_kdiba_spikeII_load_laps_vars(session, time_variable_name=active_time_variable_name)
         except Exception as e:
             # raise e
-            print('session.laps could not be loaded from .spikes.mat due to error {}. Computing.'.format(e))
+            print(f'session.laps could not be loaded from .spikes.mat due to error {e}. Computing.')
             session, spikes_df = cls.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
         else:
             # Successful!
             print('session.laps loaded successfully!')
+            pass
+        
+        
+        ## Replays:
+        try:
+            session, replays_df = cls.__default_kdiba_spikeII_load_replays_vars(session, time_variable_name=active_time_variable_name)
+        except Exception as e:
+            print(f'session.replays could not be loaded from .replay_info.mat due to error {e}. Skipping (will be unavailable)')
+        else:
+            # Successful!
+            print('session.replays loaded successfully!')
             pass
 
         ## Neurons (by Cell):
@@ -464,14 +475,52 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         flat_var_out_dict = dict()
         for i in np.arange(num_mat_variables):
             curr_var_name = mat_variables_to_extract[i]
-            flat_var_out_dict[curr_var_name] = laps_mat_file[curr_var_name].flatten() # TODO: do we want .squeeze() instead of .flatten()??
+            flat_var_out_dict[curr_var_name] = laps_mat_file[curr_var_name].flatten()
             
         laps_df = Laps.build_dataframe(flat_var_out_dict, time_variable_name=time_variable_name, absolute_start_timestamp=session.config.absolute_start_timestamp)  # 1014937 rows × 11 columns
         session.laps = Laps(laps_df) # new DataFrame-based approach
-        
-        # session.laps = Laps(laps_df['lap_id'].to_numpy(), laps_df['num_spikes'].to_numpy(), laps_df[['start_spike_index', 'end_spike_index']].to_numpy(), t_variable)
-        
         return session, laps_df
+    
+    
+    
+    @classmethod
+    def __default_kdiba_spikeII_load_replays_vars(cls, session, time_variable_name='t_seconds'):
+        """ Loads the replays exported from the 'IIDataMat_Export_ToPython_2022_08_01.m' matlab script that produces a '*.replay_info.mat' file.
+            Adds session.replay to the session.
+        
+            WARNING: currently ignores time_variable_name, as the replays are always exported in relative seconds.
+            
+            
+            time_variable_name = 't_seconds'
+            sess, laps_df = __default_kdiba_spikeII_load_laps_vars(sess, time_variable_name=time_variable_name)
+            laps_df
+        """
+        ## Get Replay Events
+        session_replay_mat_file_path = Path(session.basepath).joinpath('{}.replay_info.mat'.format(session.name))
+        replay_mat_file = import_mat_file(mat_import_file=session_replay_mat_file_path)
+        mat_variables_to_extract = ['nreplayepochs', 'replay_epoch_ids', 'epoch_rel_replay_ids', 'start_t_seconds', 'end_t_seconds', 'replay_r', 'replay_p', 'replay_template_id']
+        num_mat_variables = len(mat_variables_to_extract)
+        flat_var_out_dict = dict()
+        for i in np.arange(num_mat_variables):
+            curr_var_name = mat_variables_to_extract[i]
+            flat_var_out_dict[curr_var_name] = replay_mat_file[curr_var_name].flatten()
+
+        replay_df = pd.DataFrame({'epoch_id': flat_var_out_dict['replay_epoch_ids'],
+                                'rel_id': flat_var_out_dict['epoch_rel_replay_ids'],
+                                'start': flat_var_out_dict['start_t_seconds'],
+                                'end': flat_var_out_dict['end_t_seconds'],
+                                'replay_r': flat_var_out_dict['replay_r'],
+                                'replay_p': flat_var_out_dict['replay_p'],
+                                'template_id': flat_var_out_dict['replay_template_id'],
+                                })
+
+        replay_df['flat_replay_idx'] = np.array(replay_df.index) # Add the flat index column
+        replay_df[['epoch_id', 'rel_id', 'flat_replay_idx', 'template_id']] = replay_df[['epoch_id', 'rel_id', 'flat_replay_idx', 'template_id']].astype('int') # convert integer calumns to correct datatype
+        replay_df['duration'] = replay_df['end'] - replay_df['start']
+        session.replay = replay_df # Assign the replay to the session's .replay object
+        return session, replay_df
+    
+    
 
     @classmethod
     def __default_kdiba_spikeII_load_mat(cls, sess, timestamp_scale_factor=(1/1E4)):

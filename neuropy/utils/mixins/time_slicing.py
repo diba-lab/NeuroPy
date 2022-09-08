@@ -1,5 +1,6 @@
+from copy import deepcopy
 import numpy as np
-
+import pandas as pd
 from neuropy.utils.efficient_interval_search import determine_event_interval_identity, determine_event_interval_is_included # numba acceleration
 
 
@@ -24,9 +25,6 @@ class TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         """ Implementors return a copy of themselves with each of their members sliced at the specified indicies """
         raise NotImplementedError
-
-
-
 
 class TimeSlicedMixin:
     """ Used in Pho's more recent Pandas DataFrame-based core classes """
@@ -59,21 +57,38 @@ class TimeSlicedMixin:
         # print(f'np.shape(start_stop_times_arr): {np.shape(start_stop_times_arr)}')
         inclusion_mask = determine_event_interval_is_included(self._obj[self.time_variable_name].to_numpy(), start_stop_times_arr)
         
-        # # old slow method:
-        # inclusion_mask = np.full_like(self._obj[self.time_variable_name], False, dtype=bool) # initialize entire inclusion_mask to False  
-        # num_slices = len(starts)
-        
-        # for i in np.arange(num_slices):
-        #     curr_slice_t_start, curr_slice_t_stop = starts[i], stops[i]
-        #     # TODO: BUG: I think we'd be double-counting here?
-        #     curr_lap_position_df_is_included = self._obj[self.time_variable_name].between(curr_slice_t_start, curr_slice_t_stop, inclusive='both') # returns a boolean array indicating inclusion
-        #     inclusion_mask[curr_lap_position_df_is_included] = True
-        #     # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
-            
         # once all slices have been computed and the inclusion_mask is complete, use it to mask the output dataframe
         return self._obj.loc[inclusion_mask, :].copy()
 
- 
+
+@pd.api.extensions.register_dataframe_accessor("time_slicer")
+class TimeSliceAccessor(TimeSlicableObjectProtocol):
+    """ Allows general epochs represented as Pandas DataFrames to be easily time-sliced and manipulated along with their accompanying data without making a custom class. """
+    
+    def __init__(self, pandas_obj):
+        self._validate(pandas_obj)
+        self._obj = pandas_obj
+
+    @staticmethod
+    def _validate(obj):
+        """ verify there are the appropriate time columns to slice on """ 
+        if "start" not in obj.columns or "end" not in obj.columns:
+            raise AttributeError("Must have temporal data columns named 'start' and 'end' that represent the start and ends of the epochs.")
+
+    # for TimeSlicableObjectProtocol:
+    def time_slice(self, t_start=None, t_stop=None):
+        """ Implementors return a copy of themselves with each of their members sliced at the specified indicies """
+        # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+        # df = self._obj[(self._obj["start"] > t_start) & (self._obj["start"] < t_stop)].reset_index(drop=True)
+        
+        # Approach copied from Laps object's time_slice(...) function
+        included_df = deepcopy(self._obj)
+        included_indicies = (((self._obj.start >= t_start) & (self._obj.start <= t_stop)) & ((self._obj.stop >= t_start) & (self._obj.stop <= t_stop)))
+        included_df = included_df[included_indicies].reset_index(drop=True)
+        return included_df
+    
+            
+
 
 def _compute_spike_PBE_ids(spk_df, pbe_epoch_df, no_interval_fill_value=np.nan):
     """ Computes the PBE identities for the spikes_df
