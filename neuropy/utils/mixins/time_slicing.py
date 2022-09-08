@@ -83,7 +83,7 @@ class TimeSliceAccessor(TimeSlicableObjectProtocol):
         
         # Approach copied from Laps object's time_slice(...) function
         included_df = deepcopy(self._obj)
-        included_indicies = (((self._obj.start >= t_start) & (self._obj.start <= t_stop)) & ((self._obj.stop >= t_start) & (self._obj.stop <= t_stop)))
+        included_indicies = (((self._obj.start >= t_start) & (self._obj.start <= t_stop)) & ((self._obj.end >= t_start) & (self._obj.end <= t_stop)))
         included_df = included_df[included_indicies].reset_index(drop=True)
         return included_df
     

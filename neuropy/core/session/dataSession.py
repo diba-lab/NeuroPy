@@ -110,10 +110,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     @property
     def has_replays(self):
         """The has_replays property."""
-        if not hasattr(self, 'replays'):
+        if not hasattr(self, 'replay'):
             return False
         else:
-            return  (self.replays is not None)
+            return (self.replay is not None)
         
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop, enable_debug=True):
@@ -145,7 +145,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             copy_sess.laps = copy_sess.laps.time_slice(active_epoch_times[0], active_epoch_times[1]) 
         
         if copy_sess.has_replays:            
-            copy_sess.replays = copy_sess.replays.time_slicer.time_slice(active_epoch_times[0], active_epoch_times[1])
+            copy_sess.replay = copy_sess.replay.time_slicer.time_slice(active_epoch_times[0], active_epoch_times[1])
             
             
             
