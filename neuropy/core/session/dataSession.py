@@ -107,6 +107,14 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def epochs(self, value):
         self.paradigm = value
         
+    @property
+    def has_replays(self):
+        """The has_replays property."""
+        if not hasattr(self, 'replays'):
+            return False
+        else:
+            return  (self.replays is not None)
+        
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop, enable_debug=True):
         """ Implementors return a copy of themselves with each of their members sliced at the specified indicies """
@@ -136,7 +144,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         if copy_sess.laps is not None:
             copy_sess.laps = copy_sess.laps.time_slice(active_epoch_times[0], active_epoch_times[1]) 
         
-        if hasattr(copy_sess, 'replays') and copy_sess.replays is not None:            
+        if copy_sess.has_replays:            
             copy_sess.replays = copy_sess.replays.time_slicer.time_slice(active_epoch_times[0], active_epoch_times[1])
             
             
