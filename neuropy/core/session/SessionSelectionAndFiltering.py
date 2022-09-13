@@ -45,15 +45,7 @@ class CustomSessionFilter(object):
     def build(self, sess):
         active_session_filter_configurations = build_custom_epochs_filters(sess)
         
-        
-# def f_factory(i):
-#     def f(offset):
-#       nonlocal i
-#       i += offset
-#       return i  # i is now a *local* variable of f_factory and can't ever change
-#     return f
-
-
+ 
 def _filter_function_factory(epoch_label):
     """ Use a function factory to capture the current value of i in a closure. 
         # epoch_label is now a *local* variable of f_factory and can't ever change
@@ -101,11 +93,6 @@ def build_custom_epochs_filters(sess, included_epoch_labels=None):
         out_filter_dict[a_label] = _filter_function_factory(a_label) # don't pass the session argument because we want the function to be callable
         
     return out_filter_dict
-
-
-
-
-
 
 
 

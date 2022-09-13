@@ -499,7 +499,13 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # Filter for speed:
         if debug_print:
             print(f'pre speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
-        self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
+            
+        if self.config.speed_thresh is None:
+            # No speed thresholding, all speeds allowed
+            self._filtered_spikes_df = self._filtered_spikes_df
+        else:
+            # threshold by speed
+            self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
         
