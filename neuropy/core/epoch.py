@@ -115,8 +115,8 @@ class Epoch(DataWriter):
             keep = (starts <= t_stop) & (stops >= t_start)
             epoch_df = self.to_dataframe()[keep].reset_index(drop=True)
             epoch_df = epoch_df.drop(["duration"], axis=1)
-            epoch_df[epoch_df["start"] < t_start] = t_start
-            epoch_df[epoch_df["stop"] > t_stop] = t_stop
+            epoch_df.loc[epoch_df["start"] < t_start,'start'] = t_start
+            epoch_df.loc[epoch_df["stop"] > t_stop,'stop'] = t_stop
 
         return Epoch(epoch_df)
 
