@@ -1,6 +1,79 @@
 import numpy as np
 import pandas as pd
 
+from dataclasses import dataclass # for BinningInfo
+
+@dataclass
+class BinningInfo(object):
+    """ Factored out of pyphocorehelpers.indexing_helpers.BinningInfo """
+    variable_extents: tuple
+    step: float
+    num_bins: int
+    bin_indicies: np.ndarray
+    
+
+def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None, variable_start_value:float=None, variable_end_value:float=None):
+    """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
+
+
+    Args:
+        variable_values ([type]): The variables to be binned, used to determine the start and end edges of the returned bins.
+        num_bins (int, optional): The total number of bins to create. Defaults to None.
+        bin_size (float, optional): The size of each bin. Defaults to None.
+        variable_start_value (float, optional): The minimum value of the binned variable. If specified, overrides the lower binned limit instead of computing it from variable_values. Defaults to None.
+        variable_end_value (float, optional): The maximum value of the binned variable. If specified, overrides the upper binned limit instead of computing it from variable_values. Defaults to None.
+        debug_print (bool, optional): Whether to print debug messages. Defaults to False.
+
+    Raises:
+        ValueError: [description]
+
+    Returns:
+        np.array<float>: The computed bins
+        BinningInfo: information about how the binning was performed
+        
+    Usage:
+        ## Binning with Fixed Number of Bins:    
+        xbin_edges, xbin_edges_binning_info = compute_spanning_bins(pos_df.x.to_numpy(), bin_size=active_config.computation_config.grid_bin[0]) # bin_size mode
+        print(xbin_edges_binning_info)
+        ## Binning with Fixed Bin Sizes:
+        xbin_edges_edges, xbin_edges_binning_info = compute_spanning_bins(pos_df.x.to_numpy(), num_bins=num_bins) # num_bins mode
+        print(xbin_edges_binning_info)
+        
+    """
+    assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
+    assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
+    if variable_start_value is not None:
+        curr_variable_min_extent = variable_start_value
+    else:
+        curr_variable_min_extent = np.nanmin(variable_values)
+        
+    if variable_end_value is not None:
+        curr_variable_max_extent = variable_end_value
+    else:
+        curr_variable_max_extent = np.nanmax(variable_values)
+        
+    curr_variable_extents = (curr_variable_min_extent, curr_variable_max_extent)
+    
+    if num_bins is not None:
+        ## Binning with Fixed Number of Bins:
+        mode = 'num_bins'
+        xnum_bins = num_bins
+        xbin, xstep = np.linspace(curr_variable_extents[0], curr_variable_extents[1], num=num_bins, retstep=True)  # binning of x position
+        
+    elif bin_size is not None:
+        ## Binning with Fixed Bin Sizes:
+        mode = 'bin_size'
+        xstep = bin_size
+        xbin = np.arange(curr_variable_extents[0], (curr_variable_extents[1] + xstep), xstep, )  # binning of x position
+        # the interval does not include this value, except in some cases where step is not an integer and floating point round-off affects the length of out.
+        xnum_bins = len(xbin)
+        
+    else:
+        raise ValueError
+    
+    return xbin, BinningInfo(curr_variable_extents, xstep, xnum_bins, np.arange(xnum_bins))
+      
+   
 
 class BinnedPositionsMixin(object):
     """ Adds common accessors for convenince properties such as *bin_centers/*bin_labels
@@ -43,6 +116,7 @@ class BinnedPositionsMixin(object):
         else:
             return np.arange(start=1, stop=len(self.ybin))
 
+   
 
 def bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
         """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size

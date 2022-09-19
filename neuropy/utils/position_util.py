@@ -6,8 +6,7 @@ from scipy.ndimage import gaussian_filter1d
 
 from .. import core
 from neuropy.utils.mathutil import contiguous_regions, threshPeriods
-
-from dataclasses import dataclass # for BinningInfo
+from neuropy.utils.mixins.binning_helpers import compute_spanning_bins
 
 
 def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):
@@ -195,65 +194,6 @@ def calculate_run_epochs(
     return run_epochs
 
 
-@dataclass
-class BinningInfo(object):
-    """Docstring for BinningInfo."""
-    variable_extents: tuple
-    step: float
-    num_bins: int
-    bin_indicies: np.ndarray
-    
-    
-
-def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None):
-    """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
-
-
-    Args:
-        variable_values ([type]): [description]
-        num_bins (int, optional): [description]. Defaults to None.
-        bin_size (float, optional): [description]. Defaults to None.
-        debug_print (bool, optional): [description]. Defaults to False.
-
-    Raises:
-        ValueError: [description]
-
-    Returns:
-        [type]: [description]
-        
-    Usage:
-        ## Binning with Fixed Number of Bins:    
-        xbin, ybin, bin_info = compute_spanning_bins(pos_df.x.to_numpy(), bin_size=active_config.computation_config.grid_bin[0]) # bin_size mode
-        print(bin_info)
-        ## Binning with Fixed Bin Sizes:
-        xbin, ybin, bin_info = compute_spanning_bins(pos_df.x.to_numpy(), num_bins=num_bins) # num_bins mode
-        print(bin_info)
-        
-    """
-    assert (num_bins is None) or (bin_size is None), 'You cannot constrain both num_bins AND bin_size. Specify only one or the other.'
-    assert (num_bins is not None) or (bin_size is not None), 'You must specify either the num_bins XOR the bin_size.'
-    curr_variable_extents = (np.nanmin(variable_values), np.nanmax(variable_values))
-    
-    if num_bins is not None:
-        ## Binning with Fixed Number of Bins:
-        mode = 'num_bins'
-        xnum_bins = num_bins
-        xbin, xstep = np.linspace(curr_variable_extents[0], curr_variable_extents[1], num=num_bins, retstep=True)  # binning of x position
-        
-    elif bin_size is not None:
-        ## Binning with Fixed Bin Sizes:
-        mode = 'bin_size'
-        xstep = bin_size
-        xbin = np.arange(curr_variable_extents[0], (curr_variable_extents[1] + xstep), xstep, )  # binning of x position
-        # the interval does not include this value, except in some cases where step is not an integer and floating point round-off affects the length of out.
-        xnum_bins = len(xbin)
-        
-    else:
-        raise ValueError
-    
-    return xbin, BinningInfo(curr_variable_extents, xstep, xnum_bins, np.arange(xnum_bins))
-      
-      
 def compute_position_grid_size(*any_1d_series, num_bins:tuple):
     """  Computes the required bin_sizes from the required num_bins (for each dimension independently)
     Usage:
