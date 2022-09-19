@@ -516,7 +516,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def from_dataframe(cls, spikes_df, dat_sampling_rate, time_variable_name='t_rel_seconds'):
         """ Builds a Neurons object from a spikes_df, such as the one belonging to its complementary FlattenedSpiketrains:
             Usage:
-                neurons_obj = build_neurons_obj(sess.flattened_spiketrains.spikes_df, sess.recinfo.dat_sampling_rate, time_variable_name='t_rel_seconds') 
+                neurons_obj = Neurons.from_dataframe(sess.flattened_spiketrains.spikes_df, sess.recinfo.dat_sampling_rate, time_variable_name='t_rel_seconds') 
         """
         ## Get unique cell ids to enable grouping flattened results by cell:
         unique_cell_ids = np.unique(spikes_df['aclu'])

@@ -264,7 +264,7 @@ class Decode1d:
 
 
 class Decode2d:
-    ## TODO: refactor to no longer use the obsolite PF2d and Spikes classes and instead use the Pf2d class
+    ## TODO: refactor to no longer use the obsolite PF2d and Spikes classes and instead use the PfNd class
     def __init__(self, pf2d_obj: Pf2D):
         assert isinstance(pf2d_obj, PF2d)
         self._obj = pf2d_obj._obj
