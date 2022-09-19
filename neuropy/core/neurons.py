@@ -266,8 +266,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             spktrn[(spktrn > t_start) & (spktrn < t_stop)]
             for spktrn in neurons.spiketrains
         ]
-        
-        
+
         return Neurons(
             spiketrains=spiketrains,
             t_stop=t_stop,

@@ -53,7 +53,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         self.flattened_spiketrains = flattened_spiketrains # core.FlattenedSpiketrains
         self.pbe = pbe
         
-        
         for an_additional_arg, arg_value in kwargs.items():
             setattr(self, an_additional_arg, arg_value) # allows specifying additional information as optional arguments
     
@@ -126,6 +125,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         
         copy_sess = DataSession.from_dict(deepcopy(self.to_dict()))
         # copy_sess = DataSession.from_dict(self.to_dict())
+        
+        # Slices the epochs:
+        copy_sess.epochs = copy_sess.epochs.time_slice(active_epoch_times[0], active_epoch_times[1])
         
         # update the copy_session's time_sliceable objects
         copy_sess.neurons = copy_sess.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
