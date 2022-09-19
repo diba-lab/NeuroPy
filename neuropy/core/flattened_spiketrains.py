@@ -8,6 +8,7 @@ import pandas as pd
 from copy import deepcopy
 
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+from neuropy.utils.mixins.binning_helpers import BinningInfo # for add_binned_time_column
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
@@ -184,6 +185,25 @@ class SpikesAccessor(TimeSlicedMixin):
             print("\t done updating 'fragile_linear_neuron_IDX' and 'neuron_IDX'.")
         return self._obj
         
+
+    def add_binned_time_column(self, time_window_edges, time_window_edges_binning_info:BinningInfo, debug_print:bool=False):
+        """ adds a 'binned_time' column to spikes_df given the time_window_edges and time_window_edges_binning_info provided 
+        
+        """
+        spike_timestamp_column_name = self.time_variable_name # 't_rel_seconds'
+        if not (np.shape(time_window_edges)[0] < np.shape(self._obj)[0]):
+            print('WARNING: PREVIOUSLY ASSERT: ')
+            print(f'\t spikes_df[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!')
+        # assert np.shape(time_window_edges)[0] < np.shape(self._obj)[0], f'self._obj[time_variable_name]: {np.shape(self._obj[time_variable_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!'
+
+        if debug_print:
+            print(f'self._obj[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])}\ntime_window_edges: {np.shape(time_window_edges)}')
+            # assert (np.shape(out_digitized_variable_bins)[0] == np.shape(self._obj)[0]), f'np.shape(out_digitized_variable_bins)[0]: {np.shape(out_digitized_variable_bins)[0]} should equal np.shape(self._obj)[0]: {np.shape(self._obj)[0]}'
+            print(time_window_edges_binning_info)
+
+        self._obj['binned_time'] = pd.cut(self._obj[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=time_window_edges_binning_info.bin_indicies[1:]) # same shape as the input data (time_binned_self._obj: (69142,))
+        return self._obj
+
 
 
 # class FlattenedSpiketrains(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
