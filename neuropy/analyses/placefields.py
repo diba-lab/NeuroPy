@@ -444,10 +444,6 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         self.ratemap = None
         self.ratemap_spiketrains = None
         self.ratemap_spiketrains_pos = None
-        # self.t = None
-        # self.x = None
-        # self.speed = None
-        # self.y = None
         self._filtered_pos_df = None
         self._filtered_spikes_df = None
         self.xbin = None
@@ -456,7 +452,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         
         # Perform the primary setup to build the placefield
         self.setup(position, spikes_df, epochs)
-        self.compute()    
+        self.compute()
         # done!
         
     def setup(self, position: Position, spikes_df, epochs: Epoch, debug_print=False):
