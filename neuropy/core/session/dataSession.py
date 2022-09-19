@@ -86,6 +86,8 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def position_sampling_rate(self):
         return self.position.sampling_rate
 
+
+    # Neurons Properties _________________________________________________________________________________________________ #
     @property
     def neuron_ids(self):
         return self.neurons.neuron_ids
@@ -98,6 +100,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def spikes_df(self):
         return self.flattened_spiketrains.spikes_df
     
+    # Epochs properties __________________________________________________________________________________________________ #
     @property
     def epochs(self):
         """The epochs property is an alias for self.paradigm."""
@@ -105,7 +108,16 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     @epochs.setter
     def epochs(self, value):
         self.paradigm = value
-        
+    @property
+    def t_start(self):
+        return self.paradigm.t_start    
+    @property
+    def duration(self):
+        return self.paradigm.duration
+    @property
+    def t_stop(self):
+        return self.paradigm.t_stop
+    
     @property
     def has_replays(self):
         """The has_replays property."""
