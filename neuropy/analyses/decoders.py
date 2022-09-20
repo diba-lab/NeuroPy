@@ -63,7 +63,10 @@ class Decode1d:
         self._events = None
         self.posterior = None
         self.neurons = neurons
-        self.bin_size = time_bin_size
+        self.time_bin_size = time_bin_size
+        self.decodingtime = None
+        self.time_bin_centers = None
+        
         self.decoded_position = None
         self.epochs = epochs
         self.slideby = slideby
@@ -81,7 +84,7 @@ class Decode1d:
             tau = binsize
         ===========================
         """
-        tau = self.bin_size
+        tau = self.time_bin_size
         nCells = spkcount.shape[0]
         cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
         for cell in range(nCells):
@@ -106,10 +109,13 @@ class Decode1d:
         bincntr = self.ratemap.xbin_centers
 
         if self.epochs is not None:
-            spkcount, nbins = epochs_spkcount(self.neurons, self.epochs, self.bin_size, self.slideby)
+            spkcount, nbins = epochs_spkcount(self.neurons, self.epochs, self.time_bin_size, self.slideby)
             posterior = self._decoder(np.hstack(spkcount), tuning_curves)
             decodedPos = bincntr[np.argmax(posterior, axis=0)]
             cum_nbins = np.cumsum(nbins)[:-1]
+
+            self.decodingtime = None # time bins are invalid for this mode
+            self.time_bin_centers = None
 
             self.decoded_position = np.hsplit(decodedPos, cum_nbins)
             self.posterior = np.hsplit(posterior, cum_nbins)
@@ -118,7 +124,12 @@ class Decode1d:
             self.score, _ = self.score_posterior(self.posterior)
 
         else:
-            spkcount = self.neurons.get_binned_spiketrains(bin_size=self.bin_size).spike_counts
+            flat_filtered_neurons = self.neurons.get_binned_spiketrains(bin_size=self.time_bin_size)
+            spkcount = flat_filtered_neurons.spike_counts
+            neuropy_decoder_time_bins = flat_filtered_neurons.time
+            self.decodingtime = neuropy_decoder_time_bins # get the time_bins (bin edges)
+            self.time_bin_centers = self.decodingtime[:-1] + np.diff(self.decodingtime) / 2.0
+            # spkcount = self.neurons.get_binned_spiketrains(bin_size=self.bin_size).spike_counts
 
             self.posterior = self._decoder(spkcount, tuning_curves)
             self.decoded_position = bincntr[np.argmax(self.posterior, axis=0)]
@@ -262,6 +273,15 @@ class Decode2d:
     def __init__(self, pf2d_obj: PfND):
         assert isinstance(pf2d_obj, PfND)
         self.pf = pf2d_obj
+        self._flat_all_positions_matrix = None
+        self.bin_size = None
+        self.decodingtime = None
+        self.time_bin_centers = None
+        
+        self.actualbin = None
+        self.posterior = None
+        self.actualpos = None
+        self.decoded_position = None
 
     def _decoder(self, spkcount, ratemaps):
         """
@@ -296,6 +316,7 @@ class Decode2d:
             ._flat_all_positions_matrix
             .bin_size
             .decodingtime
+            .time_bin_centers
             .actualbin
             .posterior
             .actualpos
@@ -333,6 +354,8 @@ class Decode2d:
         tmz = np.arange(t_start_end[0], t_start_end[1], time_bin_size)
         self.bin_size = time_bin_size
         self.decodingtime = tmz # time_bin_edges
+        self.time_bin_centers = tmz[:-1] + np.diff(tmz) / 2.0
+        
         
         actualposx = stats.binned_statistic(t, values=x, bins=tmz)[0]
         actualposy = stats.binned_statistic(t, values=y, bins=tmz)[0]
@@ -356,7 +379,7 @@ class Decode2d:
         # _test_most_likely_position_flat_idxs.shape # (3529,)
         _test_most_likely_positions = np.array([self._flat_all_positions_matrix[a_pos_idx] for a_pos_idx in _test_most_likely_position_flat_idxs])
         # _test_most_likely_positions.shape # (3529, 2)
-        self.decodedPos = _test_most_likely_positions
+        self.decoded_position = _test_most_likely_positions
         # _test_most_likely_position = np.argmax(self.posterior, axis=0)
         # print(f'_test_most_likely_position: {_test_most_likely_position}')        
         # self.decodedPos = gridcenter[:, _test_most_likely_position]
@@ -419,14 +442,14 @@ class Decode2d:
         # --- splitting concatenated time bins into separate arrays ------
         cum_nbins = np.cumsum(nbins)[:-1]
         self.posterior = np.hsplit(posterior, cum_nbins)
-        self.decodedPos = np.hsplit(decodedPos, cum_nbins)
+        self.decoded_position = np.hsplit(decodedPos, cum_nbins)
 
         return decodedPos, posterior
 
     def plot(self):
 
         # decodedPos = gaussian_filter1d(self.decodedPos, sigma=1, axis=1)
-        decodedPos = self.decodedPos
+        decodedPos = self.decoded_position
         posterior = self.posterior
         decodingtime = self.decodingtime[1:]
         actualPos = self.actualPos
