@@ -273,8 +273,13 @@ class Decode2d:
     def __init__(self, pf2d_obj: PfND):
         assert isinstance(pf2d_obj, PfND)
         self.pf = pf2d_obj
+        self.ratemap = self.pf.ratemap
+
+        self._all_positions_matrix = None
+        self._original_data_shape = None
         self._flat_all_positions_matrix = None
-        self.bin_size = None
+        
+        self.time_bin_size = None
         self.decodingtime = None
         self.time_bin_centers = None
         
@@ -292,8 +297,10 @@ class Decode2d:
             tau = binsize
         ===========================
         """
-        tau = self.bin_size
+        tau = self.time_bin_size
         nCells = spkcount.shape[0]
+        # nSpikes = spkcount.shape[1] 
+        # nFlatPositionBins = ratemaps.shape[1]
         cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
         for cell in range(nCells):
             cell_spkcnt = spkcount[cell, :][np.newaxis, :]
@@ -313,6 +320,8 @@ class Decode2d:
     def estimate_behavior(self, spikes_df, t_start_end, time_bin_size=0.25, smooth=1, plot=True):
         """ 
         Updates:
+            ._all_positions_matrix
+            ._original_data_shape
             ._flat_all_positions_matrix
             .bin_size
             .decodingtime
@@ -328,7 +337,8 @@ class Decode2d:
         spk_times = [cell_df[spikes_df.spikes.time_variable_name].to_numpy() for cell_df in spk_dfs]
         
         # ratemaps = self.pf.ratemap
-        tuning_curves = self.pf.ratemap.tuning_curves
+        # tuning_curves = self.pf.ratemap.tuning_curves
+        tuning_curves = self.ratemap.tuning_curves
         
         speed = self.pf.speed
         xgrid = self.pf.xbin
@@ -341,7 +351,7 @@ class Decode2d:
         
         # gridcenter = self.pf.gridcenter
         # gridcenter = self.pf.gridcenter
-        all_positions_matrix, self._flat_all_positions_matrix, original_data_shape = build_spanning_grid_matrix(x_values=self.pf.xbin_centers, y_values=self.pf.ybin_centers, debug_print=False)
+        self._all_positions_matrix, self._flat_all_positions_matrix, self._original_data_shape = build_spanning_grid_matrix(x_values=self.pf.xbin_centers, y_values=self.pf.ybin_centers, debug_print=False)
         # len(self._flat_all_positions_matrix) # 1066
         
         
@@ -352,7 +362,7 @@ class Decode2d:
         assert t_start_end is not None and isinstance(t_start_end, tuple)
         # t_start_end = self.pf.period
         tmz = np.arange(t_start_end[0], t_start_end[1], time_bin_size)
-        self.bin_size = time_bin_size
+        self.time_bin_size = time_bin_size
         self.decodingtime = tmz # time_bin_edges
         self.time_bin_centers = tmz[:-1] + np.diff(tmz) / 2.0
         
@@ -370,9 +380,18 @@ class Decode2d:
         spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spk_times])
         spkcount = gaussian_filter1d(spkcount, sigma=3, axis=1)
         # ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
-        tuning_curves = np.asarray([ratemap.flatten() for ratemap in tuning_curves])
+        tuning_curves = np.asarray([ratemap.flatten() for ratemap in tuning_curves]) # note .flatten() returns a deepcopy, np.ravel(a) returns a shallow copy
 
-        self.posterior = self._decoder(spkcount=spkcount, ratemaps=tuning_curves)
+        print(f'tuning_curves.shape: {np.shape(tuning_curves)}')
+        print(f'spkcount.shape: {np.shape(spkcount)}')
+        
+        nCells = spkcount.shape[0]
+        nTimeBins = spkcount.shape[1]
+        nFlatPositionBins = tuning_curves.shape[1]
+        print(f'\nnCells: {nCells}, nTimeBins: {nTimeBins}, nFlatPositionBins: {nFlatPositionBins}') # nCells: 66, nTimeBins: 3529, nFlatPositionBins: 1066
+        
+        self.posterior = self._decoder(spkcount=spkcount, ratemaps=tuning_curves) # self.posterior.shape: (nFlatPositionBins, nTimeBins)
+        print(f'self.posterior.shape: {np.shape(self.posterior)}') # self.posterior.shape: (1066, 3529)
         
         # Compute the decoded position from the posterior:
         _test_most_likely_position_flat_idxs = np.argmax(self.posterior, axis=0)
