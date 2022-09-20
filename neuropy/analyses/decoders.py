@@ -58,7 +58,7 @@ def epochs_spkcount(neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, sl
 class Decode1d:
     n_jobs = 8
 
-    def __init__(self, neurons: core.Neurons, ratemap: core.Ratemap, epochs: core.Epoch = None, time_bin_size=0.5, slideby=None):
+    def __init__(self, neurons: core.Neurons, ratemap: core.Ratemap, epochs: core.Epoch=None, time_bin_size=0.5, slideby=None):
         self.ratemap = ratemap
         self._events = None
         self.posterior = None
@@ -256,10 +256,11 @@ class Decode1d:
 
 
 class Decode2d:
-    ## TODO: refactor to no longer use the obsolite PF2d and Spikes classes and instead use the PfNd class
+    """ 2D Decoder 
+    
+    """
     def __init__(self, pf2d_obj: PfND):
         assert isinstance(pf2d_obj, PfND)
-        # self._obj = pf2d_obj._obj
         self.pf = pf2d_obj
 
     def _decoder(self, spkcount, ratemaps):
