@@ -312,38 +312,14 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n n_total_spikes: {self.n_total_spikes}\n t_start: {self.t_start}\n t_stop: {self.t_stop}"
 
-    # def __str__(self) -> str:
-    #     # num_original_total_spikes = np.sum(self.n_spikes)
-    #     return f"# neurons = {self.n_neurons}"
-    
-    
-
     def __len__(self):
         return self.n_neurons
-
 
     def add_metadata(self):
         pass
 
     def get_all_spikes(self):
         return np.concatenate(self.spiketrains)
-
-    # def get_flattened_spikes(self):
-    #     """ Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
-        
-    #         TODO: re-added 2022-06-22 because the functionality was missing for Bapun and Rach's data. 
-        
-    #     """
-    #     flattened_spike_identities = np.concatenate([np.full((self.n_spikes[i],), self.neuron_ids[i]) for i in np.arange(self.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
-    #     flattened_spike_times = np.concatenate(self.spiketrains)
-    #     # Get the indicies required to sort the flattened_spike_times
-    #     sorted_indicies = np.argsort(flattened_spike_times)
-    #     return FlattenedSpiketrains(
-    #         sorted_indicies,
-    #         flattened_spike_identities[sorted_indicies],
-    #         flattened_spike_times[sorted_indicies],
-    #         t_start=self.t_start
-    #     )
     
     @property
     def n_total_spikes(self):
@@ -396,7 +372,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         return similarity
 
     def get_binned_spiketrains(self, bin_size=0.25):
-
         """Get binned spike counts
 
         Parameters
@@ -409,18 +384,9 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         neuropy.core.BinnedSpiketrains
 
         """
-
         bins = np.arange(self.t_start, self.t_stop + bin_size, bin_size)
         spike_counts = np.asarray([np.histogram(_, bins=bins)[0] for _ in self.spiketrains])
-
-        return BinnedSpiketrain(
-            spike_counts,
-            t_start=self.t_start,
-            bin_size=bin_size,
-            neuron_ids=self.neuron_ids,
-            peak_channels=self.peak_channels,
-            shank_ids=self.shank_ids,
-        )
+        return BinnedSpiketrain(spike_counts, t_start=self.t_start, bin_size=bin_size, neuron_ids=self.neuron_ids, peak_channels=self.peak_channels, shank_ids=self.shank_ids)
 
     def get_mua(self, bin_size=0.001):
         """Get mua between two time points
@@ -443,11 +409,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
 
     def add_jitter(self):
         pass
-
-    # def get_psth(self, t, bin_size, window=0.25):
-    #     """Get peri-stimulus time histograms w.r.t time points in t"""
-
-    #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
 
     # DictionaryRepresentable Protocol:
     def to_dict(self, recurrsively=False):
@@ -482,13 +443,11 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             metadata=d["metadata"],
         )
 
-
     def to_dataframe(self):
         df = self._spikes_df.copy()
         # df['t_start'] = self.t_start
         return df
-    
-    
+        
     @classmethod
     def initialize_missing_spikes_df_columns(cls, spikes_df, debug_print=False):
         """ make sure the needed columns exist on spikes_df """
@@ -506,10 +465,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             if debug_print:
                 print('dataframe cluster column does not exist. Initializing it to the same as aclu')
             spikes_df['cluster'] = spikes_df['aclu']
-    
-    
-            
-        # return spikes_df
 
     @classmethod
     def from_dataframe(cls, spikes_df, dat_sampling_rate, time_variable_name='t_rel_seconds'):
@@ -551,8 +506,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         )
         return out_neurons
                        
-
-
     # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Union[Sequence, np.array]):
