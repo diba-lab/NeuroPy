@@ -354,7 +354,6 @@ class Decode2d:
         self._all_positions_matrix, self._flat_all_positions_matrix, self._original_data_shape = build_spanning_grid_matrix(x_values=self.pf.xbin_centers, y_values=self.pf.ybin_centers, debug_print=False)
         # len(self._flat_all_positions_matrix) # 1066
         
-        
         # --- average position in each time bin and which gridbin it belongs to ----
         t = self.pf.t
         x = self.pf.x
@@ -365,7 +364,6 @@ class Decode2d:
         self.time_bin_size = time_bin_size
         self.decodingtime = tmz # time_bin_edges
         self.time_bin_centers = tmz[:-1] + np.diff(tmz) / 2.0
-        
         
         actualposx = stats.binned_statistic(t, values=x, bins=tmz)[0]
         actualposy = stats.binned_statistic(t, values=y, bins=tmz)[0]
