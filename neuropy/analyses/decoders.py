@@ -10,11 +10,11 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 from tqdm import tqdm
 
-from neuropy.analyses.placefields import Pf2D
+from neuropy.analyses.placefields import PfND
 
-# from .placefields import Pf1d, Pf2d
 from .. import core
 from neuropy.utils import mathutil
+from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
 def epochs_spkcount(neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, slideby=None):
@@ -58,19 +58,12 @@ def epochs_spkcount(neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, sl
 class Decode1d:
     n_jobs = 8
 
-    def __init__(
-        self,
-        neurons: core.Neurons,
-        ratemap: core.Ratemap,
-        epochs: core.Epoch = None,
-        bin_size=0.5,
-        slideby=None,
-    ):
+    def __init__(self, neurons: core.Neurons, ratemap: core.Ratemap, epochs: core.Epoch = None, time_bin_size=0.5, slideby=None):
         self.ratemap = ratemap
         self._events = None
         self.posterior = None
         self.neurons = neurons
-        self.bin_size = bin_size
+        self.bin_size = time_bin_size
         self.decoded_position = None
         self.epochs = epochs
         self.slideby = slideby
@@ -107,7 +100,6 @@ class Decode1d:
         return posterior
 
     def _estimate(self):
-
         """Estimates position within each"""
 
         tuning_curves = self.ratemap.tuning_curves
@@ -265,67 +257,130 @@ class Decode1d:
 
 class Decode2d:
     ## TODO: refactor to no longer use the obsolite PF2d and Spikes classes and instead use the PfNd class
-    def __init__(self, pf2d_obj: Pf2D):
-        assert isinstance(pf2d_obj, PF2d)
-        self._obj = pf2d_obj._obj
-        self.pf2d = pf2d_obj
+    def __init__(self, pf2d_obj: PfND):
+        assert isinstance(pf2d_obj, PfND)
+        # self._obj = pf2d_obj._obj
+        self.pf = pf2d_obj
 
-    def estimate_behavior(self, binsize=0.25, smooth=1, plot=True):
+    def _decoder(self, spkcount, ratemaps):
+        """
+        ===========================
+        Probability is calculated using this formula
+        prob = (1 / nspike!)* ((tau * frate)^nspike) * exp(-tau * frate)
+        where,
+            tau = binsize
+        ===========================
+        """
+        tau = self.bin_size
+        nCells = spkcount.shape[0]
+        cell_prob = np.zeros((ratemaps.shape[1], spkcount.shape[1], nCells))
+        for cell in range(nCells):
+            cell_spkcnt = spkcount[cell, :][np.newaxis, :]
+            cell_ratemap = ratemaps[cell, :][:, np.newaxis]
 
-        ratemap_cell_ids = self.pf2d.cell_ids
-        spks = Spikes(self._obj).get_cells(ids=ratemap_cell_ids)
-        ratemaps = self.pf2d.ratemaps
-        speed = self.pf2d.speed
-        xgrid = self.pf2d.xgrid
-        ygrid = self.pf2d.ygrid
-        gridbin = self.pf2d.gridbin
-        gridcenter = self.pf2d.gridcenter
+            coeff = 1 / (factorial(cell_spkcnt))
+            # broadcasting
+            cell_prob[:, :, cell] = (((tau * cell_ratemap) ** cell_spkcnt) * coeff) * (
+                np.exp(-tau * cell_ratemap)
+            )
 
+        posterior = np.prod(cell_prob, axis=2)
+        posterior /= np.sum(posterior, axis=0)
+
+        return posterior
+    
+    def estimate_behavior(self, spikes_df, t_start_end, time_bin_size=0.25, smooth=1, plot=True):
+        """ 
+        Updates:
+            ._flat_all_positions_matrix
+            .bin_size
+            .decodingtime
+            .actualbin
+            .posterior
+            .actualpos
+            .decodedPos
+        """
+        ratemap_cell_ids = self.pf.cell_ids
+        # spks = Spikes(self._obj).get_cells(ids=ratemap_cell_ids)
+        spk_dfs = spikes_df.spikes.get_split_by_unit(included_neuron_ids=ratemap_cell_ids)
+        spk_times = [cell_df[spikes_df.spikes.time_variable_name].to_numpy() for cell_df in spk_dfs]
+        
+        # ratemaps = self.pf.ratemap
+        tuning_curves = self.pf.ratemap.tuning_curves
+        
+        speed = self.pf.speed
+        xgrid = self.pf.xbin
+        ygrid = self.pf.ybin
+        # gridbin = self.pf.gridbin
+        
+        # gridbin = (self.pf.bin_info['xstep'], self.pf.bin_info['ystep'])
+        gridbin_x = self.pf.bin_info['xstep']
+        gridbin_y = self.pf.bin_info['ystep']
+        
+        # gridcenter = self.pf.gridcenter
+        # gridcenter = self.pf.gridcenter
+        all_positions_matrix, self._flat_all_positions_matrix, original_data_shape = build_spanning_grid_matrix(x_values=self.pf.xbin_centers, y_values=self.pf.ybin_centers, debug_print=False)
+        # len(self._flat_all_positions_matrix) # 1066
+        
+        
         # --- average position in each time bin and which gridbin it belongs to ----
-        t = self.pf2d.t
-        x = self.pf2d.x
-        y = self.pf2d.y
-        period = self.pf2d.period
-        tmz = np.arange(period[0], period[1], binsize)
+        t = self.pf.t
+        x = self.pf.x
+        y = self.pf.y
+        assert t_start_end is not None and isinstance(t_start_end, tuple)
+        # t_start_end = self.pf.period
+        tmz = np.arange(t_start_end[0], t_start_end[1], time_bin_size)
+        self.bin_size = time_bin_size
+        self.decodingtime = tmz # time_bin_edges
+        
         actualposx = stats.binned_statistic(t, values=x, bins=tmz)[0]
         actualposy = stats.binned_statistic(t, values=y, bins=tmz)[0]
         actualpos = np.vstack((actualposx, actualposy))
+        self.actualpos = actualpos
 
-        actualbin_x = xgrid[np.digitize(actualposx, bins=xgrid) - 1] + gridbin / 2
-        actualbin_y = ygrid[np.digitize(actualposy, bins=ygrid) - 1] + gridbin / 2
+        actualbin_x = xgrid[np.digitize(actualposx, bins=xgrid) - 1] + gridbin_x / 2
+        actualbin_y = ygrid[np.digitize(actualposy, bins=ygrid) - 1] + gridbin_y / 2
         self.actualbin = np.vstack((actualbin_x, actualbin_y))
 
         # ---- spike counts and linearize 2d ratemaps -------
-        spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spks])
+        spkcount = np.asarray([np.histogram(cell, bins=tmz)[0] for cell in spk_times])
         spkcount = gaussian_filter1d(spkcount, sigma=3, axis=1)
-        ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
+        # ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
+        tuning_curves = np.asarray([ratemap.flatten() for ratemap in tuning_curves])
 
-        self.posterior = self._decoder(spkcount=spkcount, ratemaps=ratemaps)
-        self.decodedPos = gridcenter[:, np.argmax(self.posterior, axis=0)]
-        self.decodingtime = tmz
-        self.actualpos = actualpos
+        self.posterior = self._decoder(spkcount=spkcount, ratemaps=tuning_curves)
+        
+        # Compute the decoded position from the posterior:
+        _test_most_likely_position_flat_idxs = np.argmax(self.posterior, axis=0)
+        # _test_most_likely_position_flat_idxs.shape # (3529,)
+        _test_most_likely_positions = np.array([self._flat_all_positions_matrix[a_pos_idx] for a_pos_idx in _test_most_likely_position_flat_idxs])
+        # _test_most_likely_positions.shape # (3529, 2)
+        self.decodedPos = _test_most_likely_positions
+        # _test_most_likely_position = np.argmax(self.posterior, axis=0)
+        # print(f'_test_most_likely_position: {_test_most_likely_position}')        
+        # self.decodedPos = gridcenter[:, _test_most_likely_position]
+        
+        # if plot:
+        #     _, gs = Fig().draw(grid=(4, 4), size=(15, 6))
+        #     axposx = plt.subplot(gs[0, :3])
+        #     axposx.plot(self.actualbin[0, :], "k")
+        #     axposx.set_ylabel("Actual position")
 
-        if plot:
-            _, gs = Fig().draw(grid=(4, 4), size=(15, 6))
-            axposx = plt.subplot(gs[0, :3])
-            axposx.plot(self.actualbin[0, :], "k")
-            axposx.set_ylabel("Actual position")
+        #     axdecx = plt.subplot(gs[1, :3], sharex=axposx)
+        #     axdecx.plot(self.decodedPos[0, :], "gray")
+        #     axdecx.set_ylabel("Decoded position")
 
-            axdecx = plt.subplot(gs[1, :3], sharex=axposx)
-            axdecx.plot(self.decodedPos[0, :], "gray")
-            axdecx.set_ylabel("Decoded position")
+        #     axposy = plt.subplot(gs[2, :3], sharex=axposx)
+        #     axposy.plot(self.actualpos_gridcntr[1, :], "k")
+        #     axposy.set_ylabel("Actual position")
 
-            axposy = plt.subplot(gs[2, :3], sharex=axposx)
-            axposy.plot(self.actualpos_gridcntr[1, :], "k")
-            axposy.set_ylabel("Actual position")
-
-            axdecy = plt.subplot(gs[3, :3], sharex=axposx)
-            axdecy.plot(
-                # self.decodedPos,
-                self.decodedPos[1, :],
-                "gray",
-            )
-            axdecy.set_ylabel("Decoded position")
+        #     axdecy = plt.subplot(gs[3, :3], sharex=axposx)
+        #     axdecy.plot(
+        #         # self.decodedPos,
+        #         self.decodedPos[1, :],
+        #         "gray",
+        #     )
+        #     axdecy.set_ylabel("Decoded position")
 
     def decode_events(self, binsize=0.02, slideby=0.005):
         """Decodes position within events which are set using self.events
@@ -344,13 +399,13 @@ class Decode2d:
         """
 
         events = self.events
-        ratemap_cell_ids = self.pf2d.cell_ids
+        ratemap_cell_ids = self.pf.cell_ids
         spks = Spikes(self._obj).get_cells(ids=ratemap_cell_ids)
         nCells = len(spks)
         print(f"Number of cells/ratemaps in pf2d: {nCells}")
 
-        ratemaps = self.pf2d.ratemaps
-        gridcenter = self.pf2d.gridcenter
+        ratemaps = self.pf.ratemaps
+        gridcenter = self.pf.gridcenter
 
         nbins, spkcount = epochs_spkcount(binsize, slideby, events, spks)
 
