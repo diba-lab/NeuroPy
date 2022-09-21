@@ -37,7 +37,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
     Returns:
         list: spkcount - one for each epoch in filter_epochs
         list: nbins - A count of the number of time bins that compose each decoding epoch e.g. nbins: [7 2 7 1 5 2 7 6 8 5 8 4 1 3 5 6 6 6 3 3 4 3 6 7 2 6 4 1 7 7 5 6 4 8 8 5 2 5 5 8]
-        list: time_bins - None unless export_time_bins is True.  
+        list: time_bins - None unless export_time_bins is True.  ## TODO: time_bins returned are not correct, they're subsampled at a rate of 1000
         
     Usage:
     
