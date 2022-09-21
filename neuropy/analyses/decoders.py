@@ -1,3 +1,4 @@
+from typing import Union
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -17,13 +18,68 @@ from neuropy.utils import mathutil
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
-def epochs_spkcount(neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, slideby=None):
-    # ---- Binning events and calculating spike counts --------
-    spkcount = []
-    nbins = np.zeros(epochs.n_epochs, dtype="int")
+def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[core.Epoch, pd.DataFrame], bin_size=0.01, slideby=None, export_time_bins:bool=False, included_neuron_ids=None, debug_print:bool=False):
+    """Binning events and calculating spike counts
 
+    Args:
+        neurons (Union[core.Neurons, pd.DataFrame]): _description_
+        epochs (Union[core.Epoch, pd.DataFrame]): _description_
+        bin_size (float, optional): _description_. Defaults to 0.01.
+        slideby (_type_, optional): _description_. Defaults to None.
+        export_time_bins (bool, optional): If True returns a list of the actual time bins for each epoch in time_bins. Defaults to False.
+        included_neuron_ids (bool, optional): Only relevent if using a spikes_df for the neurons input. Ensures there is one spiketrain built for each neuron in included_neuron_ids, even if there are no spikes.
+        debug_print (bool, optional): _description_. Defaults to False.
+
+    Raises:
+        NotImplementedError: _description_
+        NotImplementedError: _description_
+
+    Returns:
+        list: spkcount - one for each epoch in filter_epochs
+        list: nbins - A count of the number of time bins that compose each decoding epoch e.g. nbins: [7 2 7 1 5 2 7 6 8 5 8 4 1 3 5 6 6 6 3 3 4 3 6 7 2 6 4 1 7 7 5 6 4 8 8 5 2 5 5 8]
+        list: time_bins - None unless export_time_bins is True.  
+        
+    Usage:
+    
+        spkcount, nbins, time_bins = 
+    """
+    
+    # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
+    if isinstance(neurons, core.Neurons):
+        spiketrains = neurons.spiketrains
+    elif isinstance(neurons, pd.DataFrame):
+        # a spikes_df is passed in, build the spiketrains
+        spikes_df = neurons
+        spiketrains = spikes_df.spikes.get_unit_spiketrains(included_neuron_ids=included_neuron_ids)
+    else:
+        raise NotImplementedError
+
+    # Handle either core.Epoch or pd.DataFrame objects:
+    if isinstance(epochs, core.Epoch):
+        epoch_df = epochs.to_dataframe()
+        n_epochs = epochs.n_epochs
+        
+    elif isinstance(epochs, pd.DataFrame):
+        epoch_df = epochs
+        n_epochs = np.shape(epoch_df)[0] # there is one row per epoch
+    else:
+        raise NotImplementedError
+    
+    spkcount = []
+    if export_time_bins:
+        time_bins = []
+    else:
+        time_bins = None
+
+    nbins = np.zeros(n_epochs, dtype="int")
+
+    window_shape  = int(bin_size * 1000)
     if slideby is None:
         slideby = bin_size
+        
+    if debug_print:
+        print(f'window_shape: {window_shape}, slideby: {slideby}')
+
     # ----- little faster but requires epochs to be non-overlapping ------
     # bins_epochs = []
     # for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
@@ -31,7 +87,7 @@ def epochs_spkcount(neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, sl
     #     nbins[i] = len(bins) - 1
     #     bins_epochs.extend(bins)
     # spkcount = np.asarray(
-    #     [np.histogram(_, bins=bins_epochs)[0] for _ in neurons.spiketrains]
+    #     [np.histogram(_, bins=bins_epochs)[0] for _ in spiketrains]
     # )
 
     # deleting unwanted columns that represent time between events
@@ -39,20 +95,22 @@ def epochs_spkcount(neurons: core.Neurons, epochs: core.Epoch, bin_size=0.01, sl
     # del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
     # spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
 
-    for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
+    for i, epoch in enumerate(epoch_df.itertuples()):
         # first dividing in 1ms
         bins = np.arange(epoch.start, epoch.stop, 0.001)
         spkcount_ = np.asarray(
-            [np.histogram(_, bins=bins)[0] for _ in neurons.spiketrains]
+            [np.histogram(_, bins=bins)[0] for _ in spiketrains]
         )
-        slide_view = np.lib.stride_tricks.sliding_window_view(
-            spkcount_, int(bin_size * 1000), axis=1
-        )[:, :: int(slideby * 1000), :].sum(axis=2)
+        if debug_print:
+            print(f'i: {i}, epoch: [{epoch.start}, {epoch.stop}], bins: {np.shape(bins)}, np.shape(spkcount_): {np.shape(spkcount_)}')
+        slide_view = np.lib.stride_tricks.sliding_window_view(spkcount_, window_shape, axis=1)[:, :: int(slideby * 1000), :].sum(axis=2)
 
         nbins[i] = slide_view.shape[1]
+        if export_time_bins:
+            time_bins.append(bins)
         spkcount.append(slide_view)
 
-    return spkcount, nbins
+    return spkcount, nbins, time_bins
 
 
 class Decode1d:
@@ -109,7 +167,7 @@ class Decode1d:
         bincntr = self.ratemap.xbin_centers
 
         if self.epochs is not None:
-            spkcount, nbins = epochs_spkcount(self.neurons, self.epochs, self.time_bin_size, self.slideby)
+            spkcount, nbins, time_bins = epochs_spkcount(self.neurons, self.epochs, self.time_bin_size, self.slideby)
             posterior = self._decoder(np.hstack(spkcount), tuning_curves)
             decodedPos = bincntr[np.argmax(posterior, axis=0)]
             cum_nbins = np.cumsum(nbins)[:-1]
@@ -448,7 +506,7 @@ class Decode2d:
         ratemaps = self.pf.ratemaps
         gridcenter = self.pf.gridcenter
 
-        nbins, spkcount = epochs_spkcount(binsize, slideby, events, spks)
+        nbins, spkcount, time_bins = epochs_spkcount(binsize, slideby, events, spks)
 
         # ---- linearize 2d ratemaps -------
         ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])
