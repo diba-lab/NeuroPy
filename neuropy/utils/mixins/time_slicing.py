@@ -89,34 +89,51 @@ class TimeSliceAccessor(TimeSlicableObjectProtocol):
     
             
 
-
-def _compute_spike_PBE_ids(spk_df, pbe_epoch_df, no_interval_fill_value=np.nan):
-    """ Computes the PBE identities for the spikes_df
+# ==================================================================================================================== #
+# General Spike Identities from Epochs                                                                                 #
+# ==================================================================================================================== #
+def _compute_spike_arbitrary_provided_epoch_ids(spk_df, provided_epochs_df, epoch_label_column_name=None, no_interval_fill_value=np.nan, override_time_variable_name=None, debug_print=False):
+    """ Computes the appropriate IDs from provided_epochs_df for each spikes to be added as an identities column to spikes_df
     
     Example:
         # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
         spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 
     """
-    # coming in: spk_df, pbe_epoch_df
-    spk_times_arr = spk_df.t_seconds.to_numpy()
-    pbe_start_stop_arr = pbe_epoch_df[['start','stop']].to_numpy()
-    # pbe_identity_label = pbe_epoch_df['label'].to_numpy()
-    pbe_identity_label = pbe_epoch_df.index.to_numpy() # currently using the index instead of the label.
-    # print(f'np.shape(spk_times_arr): {np.shape(spk_times_arr)}, p.shape(pbe_start_stop_arr): {np.shape(pbe_start_stop_arr)}, p.shape(pbe_identity_label): {np.shape(pbe_identity_label)}')
-    # spike_pbe_identity_arr = _parallel_compiled_PBE_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label)
-    spike_pbe_identity_arr = determine_event_interval_identity(spk_times_arr, pbe_start_stop_arr, pbe_identity_label, no_interval_fill_value=no_interval_fill_value)
-    
-    return spike_pbe_identity_arr
+    # spk_times_arr = spk_df.t_seconds.to_numpy()
+    active_time_variable_name = (override_time_variable_name or spk_df.spikes.time_variable_name) # by default use spk_df.spikes.time_variable_name, but an optional override can be provided (to ensure compatibility with PBEs)
+    spk_times_arr = spk_df[active_time_variable_name].to_numpy()
+    curr_epochs_start_stop_arr = provided_epochs_df[['start','stop']].to_numpy()
+    if epoch_label_column_name is None:
+        curr_epoch_identity_labels = provided_epochs_df.index.to_numpy() # currently using the index instead of the label.
+    else:
+        assert epoch_label_column_name in provided_epochs_df.columns, f"if epoch_label_column_name is specified (not None) than the column {epoch_label_column_name} must exist in the provided_epochs_df, but provided_epochs_df.columns: {list(provided_epochs_df.columns)}!"
+        curr_epoch_identity_labels = provided_epochs_df[epoch_label_column_name].to_numpy()
+        
+    if debug_print:
+        print(f'np.shape(spk_times_arr): {np.shape(spk_times_arr)}, p.shape(curr_epochs_start_stop_arr): {np.shape(curr_epochs_start_stop_arr)}, p.shape(curr_epoch_identity_labels): {np.shape(curr_epoch_identity_labels)}')
+    spike_epoch_identity_arr = determine_event_interval_identity(spk_times_arr, curr_epochs_start_stop_arr, curr_epoch_identity_labels, no_interval_fill_value=no_interval_fill_value)
+    return spike_epoch_identity_arr
 
-def add_PBE_identity(spk_df, pbe_epoch_df, no_interval_fill_value=np.nan):
-    """ Adds the PBE identity to the spikes_df
+def add_epochs_id_identity(spk_df, epochs_df, epoch_id_key_name='temp_epoch_id', epoch_label_column_name='label', override_time_variable_name=None, no_interval_fill_value=np.nan):
+    """ Adds the epoch IDs to each spike in spikes_df as a column named epoch_id_key_name
     
     Example:
         # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
         spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 , 89.04321789741516
     """
-    spike_pbe_identity_arr = _compute_spike_PBE_ids(spk_df, pbe_epoch_df, no_interval_fill_value=no_interval_fill_value)
-    # np.shape(spike_pbe_identity_arr) # (16318817,)
-    # np.where(np.logical_not(np.isnan(spike_pbe_identity_arr))) # (1, 2537652)
-    spk_df['PBE_id'] = spike_pbe_identity_arr
+    spike_epoch_identity_arr = _compute_spike_arbitrary_provided_epoch_ids(spk_df, epochs_df, epoch_label_column_name=epoch_label_column_name, override_time_variable_name=override_time_variable_name, no_interval_fill_value=no_interval_fill_value)
+    spk_df[epoch_id_key_name] = spike_epoch_identity_arr
+    return spk_df
+
+
+# ==================================================================================================================== #
+# Spike PBE Specific Columns                                                                                           #
+# ==================================================================================================================== #
+def add_PBE_identity(spk_df, pbe_epoch_df, no_interval_fill_value=np.nan):
+    """ Adds the PBE identity to the spikes_df
+    Example:
+        # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
+        spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 , 89.04321789741516
+    """
+    spk_df = add_epochs_id_identity(spk_df, epochs_df=pbe_epoch_df, epoch_id_key_name='PBE_id', epoch_label_column_name=None, override_time_variable_name='t_seconds', no_interval_fill_value=no_interval_fill_value) # uses new add_epochs_id_identity method which is general
     return spk_df
