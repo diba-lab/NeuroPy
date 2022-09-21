@@ -2,6 +2,8 @@ from collections import OrderedDict
 from typing import Sequence, Union
 # from warnings import warn
 import logging
+
+from neuropy.utils.misc import safe_pandas_get_group
 module_logger = logging.getLogger('com.PhoHale.neuropy') # create logger
 import numpy as np
 import pandas as pd
@@ -88,8 +90,15 @@ class SpikesAccessor(TimeSlicedMixin):
         # self.neuron_ids is the list of 'aclu' values found in the spikes_df table.
         if included_neuron_ids is None:
             included_neuron_ids = self.neuron_ids
-        return [self._obj.groupby('aclu').get_group(neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
+        return [safe_pandas_get_group(self._obj.groupby('aclu'), neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
+    
+    def get_unit_spiketrains(self, included_neuron_ids=None):
+        """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
+        return np.asarray([a_unit_spikes_df[self.time_variable_name].to_numpy() for a_unit_spikes_df in self.get_split_by_unit(included_neuron_ids=included_neuron_ids)])
         
+    # ==================================================================================================================== #
+    # Additive Mutating Functions: Adds or Update Columns in the Dataframe                                                 #
+    # ==================================================================================================================== #
     
     # sets the 'x','y' positions by interpolating over a position data frame
     def interpolate_spike_positions(self, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None):
@@ -101,7 +110,6 @@ class SpikesAccessor(TimeSlicedMixin):
         if position_speeds is not None:
             self._obj['speed'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_speeds)
         return self._obj
-    
     
     def add_same_cell_ISI_column(self):
         """ Compute the inter-spike-intervals (ISIs) for each cell/unit separately. Meaning the list should be the difference from the current spike to the last spike of the previous unit.
@@ -124,11 +132,10 @@ class SpikesAccessor(TimeSlicedMixin):
 
             for (i, a_cell_id) in enumerate(self._obj.spikes.neuron_ids):
                 # loop through the cell_ids
-                curr_df = self._obj.groupby('aclu').get_group(a_cell_id)
+                curr_df = safe_pandas_get_group(self._obj.groupby('aclu'), a_cell_id)
                 curr_series_differences = curr_df[spike_timestamp_column_name].diff() # These are the ISIs
                 #set the properties for the points in question:
                 self._obj.loc[curr_df.index,'scISI'] = curr_series_differences
-
 
     def rebuild_fragile_linear_neuron_IDXs(self, debug_print=False):
         """ Rebuilds the 'fragile_linear_neuron_IDX' and 'neuron_IDX' columns from the complete list of 'aclu' values in the current spike dataframe so that they're monotonic and without gaps. Ensures that all the fragile_linear_neuron_IDXs are valid after removing neurons or filtering cells.
@@ -186,7 +193,6 @@ class SpikesAccessor(TimeSlicedMixin):
             print("\t set self._obj['neuron_IDX']")
             print("\t done updating 'fragile_linear_neuron_IDX' and 'neuron_IDX'.")
         return self._obj
-        
 
     def add_binned_time_column(self, time_window_edges, time_window_edges_binning_info:BinningInfo, debug_print:bool=False):
         """ adds a 'binned_time' column to spikes_df given the time_window_edges and time_window_edges_binning_info provided 
