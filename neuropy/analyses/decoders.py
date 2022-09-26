@@ -16,7 +16,7 @@ from neuropy.analyses.placefields import PfND
 from .. import core
 from neuropy.utils import mathutil
 
-from neuropy.utils.mixins.binning_helpers import BinningContainer, get_bin_centers # for epochs_spkcount getting the correct time bins
+from neuropy.utils.mixins.binning_helpers import BinningContainer # for epochs_spkcount getting the correct time bins
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
