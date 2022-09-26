@@ -73,7 +73,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
 
     nbins = np.zeros(n_epochs, dtype="int")
 
-    window_shape  = int(bin_size * 1000)
+    window_shape  = int(bin_size * 1000) # Ah, forces integer binsizes!
     if slideby is None:
         slideby = bin_size
         
@@ -107,7 +107,33 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
 
         nbins[i] = slide_view.shape[1]
         if export_time_bins:
-            time_bins.append(bins)
+            # time_bins_slide_view = np.lib.stride_tricks.sliding_window_view(bins, window_shape, axis=1)[:, :: int(slideby * 1000), :].min(axis=2)
+            # time_bins.append(time_bins_slide_view)
+            if debug_print:
+                print(f'nbins: {nbins}') # nbins: 20716
+                # print(f'spkcount.shape: {spkcount.shape}') # spkcount.shape: (67, 20716)
+                # print(f'bins.shape: {bins.shape}') # bins.shape: (2071638,)
+            
+            # time_bins.append(bins)
+            
+            num_bad_time_bins = len(bins)
+            reduced_slide_by_amount = int(slideby * 1000)
+            # reduced_num_time_bins = int(num_bad_time_bins / (slideby * 1000))
+            # reduced_time_bin_edges = bins[np.arange(0, num_bad_time_bins, reduced_slide_by_amount, dtype=int)]
+            reduced_time_bin_edges = bins[:: reduced_slide_by_amount]
+            # reduced_time_bins: only the FULL number of bin *edges*
+            # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
+            
+            if debug_print:
+                print(f'num_bad_time_bins: {num_bad_time_bins}')
+                # print(f'reduced_num_time_bins: {reduced_num_time_bins}')
+                print(f'reduced_slide_by_amount: {reduced_slide_by_amount}')
+                print(f'reduced_time_bins.shape: {reduced_time_bin_edges.shape}') # reduced_time_bins.shape: (20717,)
+
+            time_bins.append(reduced_time_bin_edges)
+            
+            
+
         spkcount.append(slide_view)
 
     return spkcount, nbins, time_bins
