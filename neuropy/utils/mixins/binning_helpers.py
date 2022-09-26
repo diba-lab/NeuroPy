@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import pandas as pd
 
@@ -28,17 +29,72 @@ class BinningInfo(object):
     num_bins: int
     bin_indicies: np.ndarray
     
-    
+
 class BinningContainer(object):
-    """ Factored out of pyphocorehelpers.indexing_helpers.BinningInfo """
+    """A container that allows accessing either bin_edges (self.edges) or bin_centers (self.centers) 
+    Factored out of pyphocorehelpers.indexing_helpers.BinningContainer
+    """
     edges: np.ndarray
     centers: np.ndarray
     
     edge_info: BinningInfo
-    center_info: BinningInfo    
+    center_info: BinningInfo
+    
+    def __init__(self, edges: Optional[np.ndarray]=None, centers: Optional[np.ndarray]=None, edge_info: Optional[BinningInfo]=None, center_info: Optional[BinningInfo]=None):
+        super(BinningContainer, self).__init__()
+        assert (edges is not None) or (centers is not None) # Require either centers or edges to be provided
+        if edges is not None:
+            self.edges = edges
+        else:
+            # Compute from edges
+            self.edges = get_bin_edges(centers)
+            
+        if centers is not None:
+            self.centers = centers
+        else:
+            self.centers = get_bin_centers(edges)
+            
+            
+        if edge_info is not None:
+            self.edge_info = edge_info
+        else:
+            # Otherwise try to reverse engineer edge_info:
+            self.edge_info = BinningContainer.build_edge_binning_info(self.edges)
+            
+        if center_info is not None:
+            self.center_info = center_info
+        else:
+            self.center_info = BinningContainer.build_center_binning_info(self.centers, self.edge_info.variable_extents)
+            
+            
+    @classmethod
+    def build_edge_binning_info(cls, edges):
+        # Otherwise try to reverse engineer edge_info            
+        actual_window_size = edges[2] - edges[1]
+        variable_extents = [edges[0], edges[-1]] # get first and last values as the extents
+        return BinningInfo(variable_extents, actual_window_size, len(edges), np.arange(len(edges)))
+    
+    @classmethod
+    def build_center_binning_info(cls, centers, variable_extents):
+        # Otherwise try to reverse engineer center_info
+        actual_window_size = centers[2] - centers[1]
+        return BinningInfo(variable_extents, actual_window_size, len(centers), np.arange(len(centers)))
     
     
-    
+    def setup_from_edges(self, edges: np.ndarray, edge_info: Optional[BinningInfo]=None):
+        # Set the edges first:
+        self.edges = edges
+        if edge_info is not None:
+            self.edge_info = edge_info # valid edge_info provided, use that
+        else:
+            # Otherwise try to reverse engineer edge_info:
+            self.edge_info = BinningContainer.build_edge_binning_info(self.edges)
+        
+        ## Build the Centers from the new edges:
+        self.centers = get_bin_centers(edges)
+        self.center_info = BinningContainer.build_center_binning_info(self.centers, self.edge_info.variable_extents)
+            
+        
 
 def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None, variable_start_value:float=None, variable_end_value:float=None):
     """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
