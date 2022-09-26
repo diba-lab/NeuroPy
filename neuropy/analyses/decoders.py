@@ -15,6 +15,8 @@ from neuropy.analyses.placefields import PfND
 
 from .. import core
 from neuropy.utils import mathutil
+
+from neuropy.utils.mixins.binning_helpers import get_bin_centers # for epochs_spkcount getting the correct time bins
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
@@ -26,7 +28,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         epochs (Union[core.Epoch, pd.DataFrame]): _description_
         bin_size (float, optional): _description_. Defaults to 0.01.
         slideby (_type_, optional): _description_. Defaults to None.
-        export_time_bins (bool, optional): If True returns a list of the actual time bins for each epoch in time_bins. Defaults to False.
+        export_time_bins (bool, optional): If True returns a list of the actual time bin centers for each epoch in time_bins. Defaults to False.
         included_neuron_ids (bool, optional): Only relevent if using a spikes_df for the neurons input. Ensures there is one spiketrain built for each neuron in included_neuron_ids, even if there are no spikes.
         debug_print (bool, optional): _description_. Defaults to False.
 
@@ -37,11 +39,11 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
     Returns:
         list: spkcount - one for each epoch in filter_epochs
         list: nbins - A count of the number of time bins that compose each decoding epoch e.g. nbins: [7 2 7 1 5 2 7 6 8 5 8 4 1 3 5 6 6 6 3 3 4 3 6 7 2 6 4 1 7 7 5 6 4 8 8 5 2 5 5 8]
-        list: time_bins - None unless export_time_bins is True.  ## TODO: time_bins returned are not correct, they're subsampled at a rate of 1000
+        list: time_bin_centers - None unless export_time_bins is True.  ## TODO: time_bins returned are not correct, they're subsampled at a rate of 1000
         
     Usage:
     
-        spkcount, nbins, time_bins = 
+        spkcount, nbins, time_bin_centers_list = 
     """
     
     # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
@@ -67,9 +69,9 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
     
     spkcount = []
     if export_time_bins:
-        time_bins = []
+        time_bin_centers_list = []
     else:
-        time_bins = None
+        time_bin_centers_list = None
 
     nbins = np.zeros(n_epochs, dtype="int")
 
@@ -107,36 +109,27 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
 
         nbins[i] = slide_view.shape[1]
         if export_time_bins:
-            # time_bins_slide_view = np.lib.stride_tricks.sliding_window_view(bins, window_shape, axis=1)[:, :: int(slideby * 1000), :].min(axis=2)
-            # time_bins.append(time_bins_slide_view)
             if debug_print:
-                print(f'nbins: {nbins}') # nbins: 20716
-                # print(f'spkcount.shape: {spkcount.shape}') # spkcount.shape: (67, 20716)
-                # print(f'bins.shape: {bins.shape}') # bins.shape: (2071638,)
+                print(f'nbins[i]: {nbins[i]}') # nbins: 20716
             
-            # time_bins.append(bins)
-            
-            num_bad_time_bins = len(bins)
             reduced_slide_by_amount = int(slideby * 1000)
-            # reduced_num_time_bins = int(num_bad_time_bins / (slideby * 1000))
-            # reduced_time_bin_edges = bins[np.arange(0, num_bad_time_bins, reduced_slide_by_amount, dtype=int)]
-            reduced_time_bin_edges = bins[:: reduced_slide_by_amount]
+            reduced_time_bin_edges = bins[:: reduced_slide_by_amount] # equivalent to bins[np.arange(0, num_bad_time_bins, reduced_slide_by_amount, dtype=int)]
             # reduced_time_bins: only the FULL number of bin *edges*
-            # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
-            
+            # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])            
+            reduced_time_bin_centers = get_bin_centers(reduced_time_bin_edges) # get the centers of each bin. The length should be the same as nbins
             if debug_print:
+                num_bad_time_bins = len(bins)
                 print(f'num_bad_time_bins: {num_bad_time_bins}')
-                # print(f'reduced_num_time_bins: {reduced_num_time_bins}')
                 print(f'reduced_slide_by_amount: {reduced_slide_by_amount}')
-                print(f'reduced_time_bins.shape: {reduced_time_bin_edges.shape}') # reduced_time_bins.shape: (20717,)
+                print(f'reduced_time_bin_edges.shape: {reduced_time_bin_edges.shape}') # reduced_time_bin_edges.shape: (20717,)
+                print(f'reduced_time_bin_centers.shape: {reduced_time_bin_centers.shape}') # reduced_time_bin_centers.shape: (20716,)
 
-            time_bins.append(reduced_time_bin_edges)
+            assert len(reduced_time_bin_centers) == nbins[i], f"The length of the produced reduced_time_bin_centers and the nbins[i] should be the same, but len(reduced_time_bin_centers): {len(reduced_time_bin_centers)} and nbins[i]: {nbins[i]}!"
+            time_bin_centers_list.append(reduced_time_bin_centers)
             
-            
-
         spkcount.append(slide_view)
 
-    return spkcount, nbins, time_bins
+    return spkcount, nbins, time_bin_centers_list
 
 
 class Decode1d:
@@ -193,7 +186,7 @@ class Decode1d:
         bincntr = self.ratemap.xbin_centers
 
         if self.epochs is not None:
-            spkcount, nbins, time_bins = epochs_spkcount(self.neurons, self.epochs, self.time_bin_size, self.slideby)
+            spkcount, nbins, time_bin_centers_list = epochs_spkcount(self.neurons, self.epochs, self.time_bin_size, self.slideby)
             posterior = self._decoder(np.hstack(spkcount), tuning_curves)
             decodedPos = bincntr[np.argmax(posterior, axis=0)]
             cum_nbins = np.cumsum(nbins)[:-1]
@@ -532,7 +525,7 @@ class Decode2d:
         ratemaps = self.pf.ratemaps
         gridcenter = self.pf.gridcenter
 
-        nbins, spkcount, time_bins = epochs_spkcount(binsize, slideby, events, spks)
+        nbins, spkcount, time_bin_centers_list = epochs_spkcount(binsize, slideby, events, spks)
 
         # ---- linearize 2d ratemaps -------
         ratemaps = np.asarray([ratemap.flatten() for ratemap in ratemaps])

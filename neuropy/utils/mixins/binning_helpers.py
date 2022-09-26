@@ -3,6 +3,23 @@ import pandas as pd
 
 from dataclasses import dataclass # for BinningInfo
 
+
+def get_bin_centers(bin_edges):
+    """ For a series of 1D bin edges given by bin_edges, returns the center of the bins. Output will have one less element than bin_edges. """
+    return (bin_edges[:-1] + np.diff(bin_edges) / 2.0)
+    
+def get_bin_edges(bin_centers):
+    """ For a series of 1D bin centers given by bin_centers, returns the edges of the bins. Output will have one more element than bin_centers
+        Reciprocal of get_bin_centers(bin_edges)
+    """
+    bin_width = float((bin_centers[1] - bin_centers[0]))
+    half_bin_width = bin_width / 2.0 # TODO: assumes fixed bin width
+    bin_start_edges = bin_centers - half_bin_width
+    last_edge_bin = bin_centers[-1] + half_bin_width # the last edge bin is one half_bin_width beyond the last bin_center
+    out = bin_start_edges.tolist()
+    out.append(last_edge_bin) # append the last_edge_bin to the bins.
+    return np.array(out)
+
 @dataclass
 class BinningInfo(object):
     """ Factored out of pyphocorehelpers.indexing_helpers.BinningInfo """
@@ -10,6 +27,17 @@ class BinningInfo(object):
     step: float
     num_bins: int
     bin_indicies: np.ndarray
+    
+    
+class BinningContainer(object):
+    """ Factored out of pyphocorehelpers.indexing_helpers.BinningInfo """
+    edges: np.ndarray
+    centers: np.ndarray
+    
+    edge_info: BinningInfo
+    center_info: BinningInfo    
+    
+    
     
 
 def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None, variable_start_value:float=None, variable_end_value:float=None):
@@ -105,9 +133,6 @@ def build_spanning_grid_matrix(x_values, y_values, debug_print=False):
         print(f'flat_all_positions_matrix[0]: {flat_all_entries_matrix[0]}\nall_positions_matrix[0,0,:]: {all_entries_matrix[0,0,:]}')
 
     return all_entries_matrix, flat_all_entries_matrix, original_data_shape
-
-
-
 
 
 class BinnedPositionsMixin(object):
