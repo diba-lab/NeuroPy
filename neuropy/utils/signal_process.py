@@ -9,8 +9,15 @@ from joblib import Parallel, delayed
 from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
+import seaborn as sns
 from scipy.interpolate import interp2d
-from ..plotting import Fig
+
+try:
+    from ..plotting import Fig
+    from .. import core
+except ImportError:
+    from neuropy.plotting import Fig
+    from neuropy import core
 from .. import core
 
 import seaborn as sns
@@ -1250,4 +1257,3 @@ def plot_miniscope_noise(
 
 if __name__ == "__main__":
     pass
-

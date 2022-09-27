@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
 import numpy as np
 
 from ..core import Epoch, Signal
+from ..core import Signal, Epoch
 
 
 class BinarysignalIO:
