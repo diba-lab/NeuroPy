@@ -25,7 +25,6 @@ class Pf1D(core.Ratemap):
     ):
         """computes 1d place field using linearized coordinates. It always computes two place maps with and
         without speed thresholds.
-
         Parameters
         ----------
         neurons : core.Neurons
@@ -42,7 +41,10 @@ class Pf1D(core.Ratemap):
             speed threshold for calculating place field, by default None
         sigma : float
             standard deviation for smoothing occupancy and spikecounts in each position bin, in units of cm, default 1 cm
+<<<<<<< HEAD
+=======
 
+>>>>>>> neuropy_orig/main
         NOTE: speed_thresh is ignored if epochs is provided
         """
 
@@ -124,7 +126,6 @@ class Pf1D(core.Ratemap):
 
     def estimate_theta_phases(self, signal: core.Signal):
         """Calculates phase of spikes computed for placefields
-
         Parameters
         ----------
         theta_chan : int
@@ -229,7 +230,6 @@ class PF2d:
         self, period, spikes=None, gridbin=10, speed_thresh=5, frate_thresh=1, smooth=2
     ):
         """Calculates 2D placefields
-
         Parameters
         ----------
         period : list/array
@@ -238,7 +238,6 @@ class PF2d:
             bin size of grid in centimeters, by default 10
         speed_thresh : int, optional
             speed threshold in cm/s, by default 10 cm/s
-
         Returns
         -------
         [type]
@@ -358,7 +357,6 @@ class PF2d:
 
     def plotMap(self, subplots=(7, 4), fignum=None):
         """Plots heatmaps of placefields with peak firing rate
-
         Parameters
         ----------
         speed_thresh : bool, optional

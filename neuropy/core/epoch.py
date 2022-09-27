@@ -2,11 +2,18 @@ from enum import unique
 import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
+from pathlib import Path
 
 
 class Epoch(DataWriter):
-    def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
+    def __init__(self, epochs: pd.DataFrame or None, metadata=None, file=None) -> None:
         super().__init__(metadata=metadata)
+
+        if epochs is None:
+            assert (
+                file is not None
+            ), "Must specify file to load if no epochs dataframe entered"
+            epochs = np.load(file, allow_pickle=True).item()["epochs"]
 
         epochs = self._check_epochs(epochs)
         epochs.loc[:, "label"] = epochs["label"].astype("str")

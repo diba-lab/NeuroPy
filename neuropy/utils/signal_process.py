@@ -9,9 +9,28 @@ from joblib import Parallel, delayed
 from scipy import fftpack, stats
 from scipy.fftpack import next_fast_len
 from scipy.ndimage import gaussian_filter
+import seaborn as sns
 from scipy.interpolate import interp2d
-from ..plotting import Fig
+
+try:
+    from ..plotting import Fig
+    from .. import core
+except ImportError:
+    from neuropy.plotting import Fig
+    from neuropy import core
 from .. import core
+
+import seaborn as sns
+from scipy.interpolate import interp2d
+
+try:
+    from ..plotting import Fig
+    from .. import core
+except ImportError:
+    from neuropy.plotting import Fig
+    from neuropy import core
+from .. import core
+
 
 
 class filter_sig:
@@ -51,6 +70,36 @@ class filter_sig:
 
         b, a = sg.butter(order, cutoff / nyq, btype="lowpass")
         yf = sg.filtfilt(b, a, signal, axis=ax)
+
+        return yf
+
+    @staticmethod
+    def notch(
+        signal: np.ndarray,
+        w0: float or int,
+        Q: float or int or None,
+        bw: float or int or None = None,
+        fs: int = 30000,
+        ax: int = -1,
+    ):
+        """Runs a notch filter on your data. If Q is none, must enter bw (bandwidth) of noise to remove.
+        See scipy.signal.iirnotch for more info on parameters."""
+        if Q is None:
+            assert bw is float or int, "If Q is not specified, bw must be provided"
+            Quse = np.round(w0 / bw)
+        else:
+            Quse = Q
+        b, a = sg.iirnotch(w0=w0, Q=Quse, fs=fs)
+        try:
+            yf = sg.filtfilt(b, a, signal, axis=ax)
+        except np.core._exceptions._ArrayMemoryError:
+            yf = []
+            print(
+                "signal array is too large for memory, filtering each channel independently"
+            )
+            for trace in signal:
+                yf.append(sg.filtfilt(b, a, trace, axis=ax).astype("int16"))
+            yf = np.asarray(yf, dtype="int16")
 
         return yf
 
@@ -161,7 +210,7 @@ class WaveletSg(core.Spectrogram):
 
         sigma = ncycles / (2 * np.pi * freqs)
         A = (sigma * np.sqrt(np.pi)) ** -0.5
-        real_part = np.exp(-(t_wavelet**2) / (2 * sigma**2))
+        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
         img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
         wavelets = A * real_part * img_part
 
@@ -873,7 +922,7 @@ def psd_auc(signal: core.Signal, freq_band: tuple, window=10, overlap=5):
     return aucChans
 
 
-def hilbert_ampltiude_stat(signals, freq_band, fs, statistic="mean"):
+def hilbert_amplitude_stat(signals, freq_band, fs, statistic="mean"):
     """Calculates hilbert amplitude statistic over the entire signal
 
     Parameters
@@ -959,6 +1008,7 @@ def irasa(
     win_sec=4,
     kwargs_welch=dict(average="median", window="hamming"),
 ):
+
     """
     Separate the aperiodic (= fractal, or 1/f) and oscillatory component of the
     power spectra of EEG data using the IRASA method.
@@ -1120,7 +1170,7 @@ def irasa(
 
         def func(t, a, b):
             # See https://github.com/fooof-tools/fooof
-            return a + np.log(t**b)
+            return a + np.log(t ** b)
 
         for y in np.atleast_2d(psd_aperiodic):
             y_log = np.log(y)
@@ -1133,7 +1183,7 @@ def irasa(
             slopes.append(popt[1])
             # Calculate R^2: https://stackoverflow.com/q/19189362/10581531
             residuals = y_log - func(freqs, *popt)
-            ss_res = np.sum(residuals**2)
+            ss_res = np.sum(residuals ** 2)
             ss_tot = np.sum((y_log - np.mean(y_log)) ** 2)
             r_squared.append(1 - (ss_res / ss_tot))
 
@@ -1148,3 +1198,62 @@ def irasa(
         return freqs, psd_aperiodic, psd_osc, pd.DataFrame(fit_params)
     else:
         return freqs, psd_aperiodic, psd_osc
+
+
+def plot_miniscope_noise(
+    signal, ch, block_sec=10, interval_sec=60, remove_disconnects=False
+):
+
+    assert isinstance(signal, core.Signal)
+
+    f_full, Pxx_full, time = [], [], []
+    nblocks = np.floor(signal.duration / interval_sec).astype(int)
+    for id in range(nblocks):
+        block_start = int(interval_sec * id * signal.sampling_rate)
+        block_end = int(block_start + signal.sampling_rate * block_sec)
+        f, Pxx = sg.welch(
+            signal.traces[ch][block_start:block_end],
+            fs=signal.sampling_rate,
+            nperseg=signal.sampling_rate,
+            scaling="spectrum",
+        )
+        f_full.append(f)
+        Pxx_full.append(Pxx)
+        time.append(block_start / signal.sampling_rate)
+
+    f_full = np.asarray(f_full)
+    Pxx_full = np.asarray(Pxx_full)
+
+    # Quick and dirty method to remove disconnects - threshold excessive high frequency noise
+    if remove_disconnects:
+        freq_bool = np.bitwise_and(f_full[0] > 4354, f_full[0] < 4836)
+        good_epochs = Pxx_full[:, freq_bool].sum(axis=1) < 20000
+        f_full = f_full[good_epochs]
+        Pxx_full = Pxx_full[good_epochs]
+
+    fig, ax = plt.subplots(2, 3, figsize=(12, 8))
+    colors = plt.cm.rainbow(np.linspace(0, 1, nblocks))
+    for fT, PxxT, color in zip(f_full, Pxx_full, colors):
+        ax[0][0].plot(fT, PxxT, color=color)
+    ax[0][0].set_xlabel("Freq (Hz)")
+    ax[0][0].set_ylabel("PSD")
+
+    noise_limits = [[4835, 4855], [9670, 9700], [14510, 14550], [57, 63]]
+
+    for a, lim in zip(ax.reshape(-1)[1:], noise_limits):
+        freq_bool = np.bitwise_and(f > lim[0], f < lim[1])
+        sns.heatmap(Pxx_full[:, freq_bool].T, ax=a)
+        a.set_yticks([0, freq_bool.sum()])
+        a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
+        a.set_xticks((0, nblocks))
+        a.set(xticklabels=("0", str(time[-1])))
+        a.set_xlabel("Time (30 sec blocks)")
+        a.set_ylabel("Frez (Hz)")
+
+    fig.suptitle("Miniscope Noise Tracking")
+
+    return f_full, Pxx_full
+
+
+if __name__ == "__main__":
+    pass

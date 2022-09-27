@@ -4,10 +4,16 @@ from scipy import stats
 from ..core import Epoch
 from ..core import Signal
 from ..utils import signal_process
+from pathlib import Path
 
 
 def detect_artifact_epochs(
-    signal: Signal, thresh=4, edge_cutoff=2, merge=5, filt: list or np.ndarray = None
+    signal: Signal,
+    thresh=4,
+    edge_cutoff=2,
+    merge=5,
+    filt: list or np.ndarray = None,
+    data_use: str in ["raw_only", "filt_only", "both"] = "raw_only",
 ):
     """
     calculating artifact periods using z-score measure
@@ -27,7 +33,10 @@ def detect_artifact_epochs(
     filt : list, optional
         lower and upper limits with which to filter signal, e.g. 3, 3000] ->
         bandpass between and 3000 Hz while [45, None] -> high-pass above 45.
-
+    data_use: str, optional
+        'raw_only' (default): z-score raw only
+        'filt_only': z-score filtered data only
+        'both': z-score both raw and filtered data
     Returns
     -------
     core.Epoch
@@ -43,7 +52,7 @@ def detect_artifact_epochs(
         sig_raw = signal.traces.reshape((-1))
 
     # NRK todo: does this need to go BEFORE taking the median of the signal above?
-    # After condensing into one trace, filter things
+    # After condensing into one trace, filter signal if specified
     if filt is not None:
         assert len(filt) == 2, "Inputs for filtering signal must be length = 2"
         if filt[0] is not None:  # highpass
@@ -74,28 +83,36 @@ def detect_artifact_epochs(
     edge_end = np.where(edge_diff == -1)[0]
 
     edge_start = edge_start[np.digitize(firstPass[:, 0], edge_start) - 1]
-    edge_end = edge_end[np.digitize(firstPass[:, 1], edge_end)]
+    edge_end = edge_end[np.digitize(firstPass[:, 1], edge_end, right=True)]
     firstPass[:, 0], firstPass[:, 1] = edge_start, edge_end
 
     # --- merging neighbours -------
     minInterArtifactDist = merge * sampling_rate
     secondPass = []
-    artifact = firstPass[0]
-    for i in range(1, len(artifact_start)):
-        if firstPass[i, 0] - artifact[1] < minInterArtifactDist:
-            # Merging artifacts
-            artifact = [artifact[0], firstPass[i, 1]]
-        else:
-            secondPass.append(artifact)
-            artifact = firstPass[i]
 
-    secondPass.append(artifact)
+    if len(firstPass) > 0:
+        artifact = firstPass[0]
+        for i in range(1, len(artifact_start)):
+            if firstPass[i, 0] - artifact[1] < minInterArtifactDist:
+                # Merging artifacts
+                artifact = [artifact[0], firstPass[i, 1]]
+            else:
+                secondPass.append(artifact)
+                artifact = firstPass[i]
 
-    artifact_s = np.asarray(secondPass) / sampling_rate  # seconds
+        secondPass.append(artifact)
 
-    epochs = pd.DataFrame(
-        {"start": artifact_s[:, 0], "stop": artifact_s[:, 1], "label": ""}
-    )
-    metadata = {"threshold": thresh}
+        artifact_s = np.asarray(secondPass) / sampling_rate  # seconds
 
-    return Epoch(epochs, metadata)
+        epochs = pd.DataFrame(
+            {"start": artifact_s[:, 0], "stop": artifact_s[:, 1], "label": ""}
+        )
+        metadata = {"threshold": thresh}
+
+        art_epochs = Epoch(epochs, metadata)
+        art_epochs.filename = Path(signal.source_file)
+
+        return art_epochs
+    else:
+        print("No artifacts found at this threshold")
+        pass
