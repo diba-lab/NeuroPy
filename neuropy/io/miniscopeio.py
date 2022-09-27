@@ -18,45 +18,46 @@ class MiniscopeIO:
         self.orient_all = None
         pass
 
-    def load_minian(self, minian_folder=None):
-
-        # Try to autodetect minian folder
-        if minian_folder is None:
-            assert (
-                len(minian_folder := sorted(self.basedir.glob("**/minian"))) == 1
-            ), "More than one minian folder found, fill in directory manually"
-            self.minian_folder = Path(minian_folder[0])
-
-        self.minian = {
-            "A": np.load(self.minian_folder / "A.npy"),
-            "C": np.load(self.minian_folder / "C.npy"),
-            "S": np.load(self.minian_folder / "S.npy"),
-            "unit_id": None,
-            "YrA": None,
-            "curated_neurons": None,
-            "good_bool": None,
-        }
-
-        # Load in YrA (raw traces) if saved
-        try:
-            self.minian["YrA"] = np.load(self.minian_folder / "YrA.npy")
-        except FileNotFoundError:
-            print('No raw traces found. "YrA" variable not loaded')
-
-        # Load in unit ids if saved and warn if not!
-        try:
-            self.minian["unit_id"] = np.load(self.minian_folder / "unit_id.npy")
-        except FileNotFoundError:
-            print(
-                "No unit_id file found! Unit id references might not work later! Check and save this variable!"
-            )
-
-        # try to load in curated neurons if you have done so in the NRK modified minian pipeline
-        try:
-            with open(self.minian_folder / "curated_neurons.pkl", "rb") as f:
-                self.minian["curated_neurons"] = pickle.load(f)
-        except:
-            print("No curated neurons file found")
+    # Below has been moved to MinianIO class in minianio.py
+    # def load_minian(self, minian_folder=None):
+    #
+    #     # Try to autodetect minian folder
+    #     if minian_folder is None:
+    #         assert (
+    #             len(minian_folder := sorted(self.basedir.glob("**/minian"))) == 1
+    #         ), "More than one minian folder found, fill in directory manually"
+    #         self.minian_folder = Path(minian_folder[0])
+    #
+    #     self.minian = {
+    #         "A": np.load(self.minian_folder / "A.npy"),
+    #         "C": np.load(self.minian_folder / "C.npy"),
+    #         "S": np.load(self.minian_folder / "S.npy"),
+    #         "unit_id": None,
+    #         "YrA": None,
+    #         "curated_neurons": None,
+    #         "good_bool": None,
+    #     }
+    #
+    #     # Load in YrA (raw traces) if saved
+    #     try:
+    #         self.minian["YrA"] = np.load(self.minian_folder / "YrA.npy")
+    #     except FileNotFoundError:
+    #         print('No raw traces found. "YrA" variable not loaded')
+    #
+    #     # Load in unit ids if saved and warn if not!
+    #     try:
+    #         self.minian["unit_id"] = np.load(self.minian_folder / "unit_id.npy")
+    #     except FileNotFoundError:
+    #         print(
+    #             "No unit_id file found! Unit id references might not work later! Check and save this variable!"
+    #         )
+    #
+    #     # try to load in curated neurons if you have done so in the NRK modified minian pipeline
+    #     try:
+    #         with open(self.minian_folder / "curated_neurons.pkl", "rb") as f:
+    #             self.minian["curated_neurons"] = pickle.load(f)
+    #     except:
+    #         print("No curated neurons file found")
 
     def load_all_timestamps(self, format="UCLA", exclude_str: str = "WebCam"):
         """Loads multiple timestamps from multiple videos in the UCLA miniscope software file format
