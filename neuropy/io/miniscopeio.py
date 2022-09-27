@@ -18,7 +18,6 @@ class MiniscopeIO:
         self.orient_all = None
         pass
 
-
     def load_all_timestamps(self, format="UCLA", exclude_str: str = "WebCam"):
         """Loads multiple timestamps from multiple videos in the UCLA miniscope software file format
         (folder = ""hh_mm_ss")
@@ -52,22 +51,6 @@ class MiniscopeIO:
             times_list.append(times_temp)
 
         self.times_all = pd.concat(times_list)
-
-        # Remove any timestamps corresponding to frames you've removed.
-        try:
-            good_frames_bool = np.load(self.minian_folder / "good_frame_bool.npy")
-            print(
-                "Keeping "
-                + str(good_frames_bool.sum())
-                + ' good frames found in "good_frame_bool.npy" file'
-            )
-            self.times_all = self.times_all[good_frames_bool]
-        except:
-            print(
-                "no " + str(self.minian_folder / "good_frame_bool.npy") + " file found"
-            )
-            print("Check and make sure frames in data and timestamps match!")
-            pass
 
         return self.times_all
 
