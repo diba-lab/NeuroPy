@@ -16,6 +16,7 @@ dependencies:
     - opencv
     - pytables
     - tqdm
+    - zarr
     # These modules are for importing DeepLabCut data, comment out if you don't need.
     # - easydict
     # - ruamel.yaml
