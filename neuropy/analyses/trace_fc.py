@@ -239,10 +239,10 @@ class trace_behavior:
         # Grab start time
         header = pd.read_csv(self.event_file, header=None, nrows=1)
         self.events_start_time = pd.Timestamp(header[1][0]) + pd.Timedelta(
-            header[3][0] / 10 ** 6, unit="sec"
+            header[3][0] / 10**6, unit="sec"
         )
 
-        # Finally, add in absolutge timestamps to events pandas array
+        # Finally, add in absolute timestamps to events pandas array
         self.events["Timestamps"] = self.events_start_time + pd.to_timedelta(
             self.events["Time (s)"], unit="sec"
         )
@@ -1063,6 +1063,29 @@ def generate_session_names(paradigm):
     }
 
     return names_dict
+
+
+def load_events_from_csv(csvfile: str):
+    """Load events into pandas format and get absolute timestamps."""
+    event_header = pd.read_csv(csvfile, header=None, nrows=1)
+    assert (event_header[0] == "Start time").all(), "csv file not formatted properly"
+    assert (event_header[2] == "microseconds").all(), "csv file not formatted properly"
+
+    start_time = pd.Timestamp(event_header[1][0]) + pd.Timedelta(
+        event_header[3][0], unit="microseconds"
+    )
+
+    event_df = pd.read_csv(csvfile, header=1)
+    event_df["Timestamp"] = start_time + pd.to_timedelta(
+        event_df["Time (s)"], unit="sec"
+    )
+
+    return event_df
+
+
+def add_TTL_times_to_events(events_df, TTL):
+    """To be written function that adds another column to an events dataframe with timestamps from TTLs"""
+    pass
 
 
 if __name__ == "__main__":
