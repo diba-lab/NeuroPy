@@ -60,6 +60,9 @@ class MinianIO:
                 "Error importing miniscope timestamps. Check .basedir and look for miniscope folders"
             )
             self.times = None
+        assert (
+            self.times.shape[0] == self.C.shape[1]
+        ), "Different # frames in C and times vars. Check to make sure corrupted videos are properly accounted for"
 
         # Remove any timestamps corresponding to frames you've removed.
         if self.times is not None:
