@@ -18,13 +18,17 @@ class MiniscopeIO:
         self.orient_all = None
         pass
 
-    def load_all_timestamps(self, format="UCLA", exclude_str: str = "WebCam"):
+    def load_all_timestamps(
+        self, format="UCLA", exclude_str: str = "WebCam", print_included_folders=False
+    ):
         """Loads multiple timestamps from multiple videos in the UCLA miniscope software file format
         (folder = ""hh_mm_ss")
 
         :param format: str, either 'UCLA' (default) to use the UCLA miniscope folder format or a regex if you are
         using a different folder naming convention.
         :param exclude_str: exclude any folders containing this string from being loaded in.
+        :param print_included_folders: bool, True = prints folders included in generating timestamps, useful
+        for debugging mismatches in nframes, default=False
         :return:
         """
 
@@ -38,7 +42,8 @@ class MiniscopeIO:
             rec_folder2 = []
             for folder in self.rec_folders:
                 if re.search(exclude_str, str(folder)) is None:
-                    print("including folder " + str(folder))
+                    if print_included_folders:
+                        print("including folder " + str(folder))
                     rec_folder2.append(folder)
             self.rec_folders = rec_folder2
 
@@ -115,13 +120,18 @@ def get_recording_metadata(rec_folder: pathlib.Path):
     return rec_metadata, vid_metadata, vid_folder
 
 
-def load_timestamps(rec_folder, corrupted_videos=None):
+def load_timestamps(
+    rec_folder, corrupted_videos=None, print_success=False, print_corrupt_success=True
+):
     """Loads in timestamps corresponding to all videos in rec_folder.
 
     :param rec_folder: str or path
     :param corrupted_videos: (default) list of indices of corrupted files (e.g. [4, 6] would mean the 5th and 7th videos
     were corrupted and should be skipped - their timestamps will be omitted from the output.
     'from_file' will automatically grab any video indices provided as a csv file named 'corrupted_videos.csv'
+    :param print_success: bool, True = print # frames found in each file, False=default
+    :param print_corrupt_success: bool, True = print when you have succesfully detected and removed frames from a
+    corrupted video.
     :return:
     """
 
@@ -165,12 +175,13 @@ def load_timestamps(rec_folder, corrupted_videos=None):
         corrupt_array = []
 
     for corrupt_vid in corrupt_array:
-        print(
-            "Eliminating timestamps from corrupted video"
-            + str(corrupt_vid)
-            + " in "
-            + str(rec_folder.parts[-1] + " folder.")
-        )
+        if print_corrupt_success:
+            print(
+                "Eliminating timestamps from corrupted video"
+                + str(corrupt_vid)
+                + " in "
+                + str(rec_folder.parts[-1] + " folder.")
+            )
         good_frame_bool[
             range(
                 corrupt_vid * f_per_file,
@@ -179,7 +190,8 @@ def load_timestamps(rec_folder, corrupted_videos=None):
         ] = 0
 
     times = times[good_frame_bool]
-    print(str(sum(good_frame_bool)) + " total good frames found")
+    if print_success:
+        print(str(sum(good_frame_bool)) + " total good frames found")
 
     return times, rec_metadata, vid_metadata, rec_start
 
