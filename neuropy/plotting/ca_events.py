@@ -4,12 +4,12 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-
+## NRK todo: break up this into sub-functions, 1 calculates raster, the other plots.
 def plot_pe_traces(
     times: pd.Series,
     activity: np.ndarray,
     event_starts: pd.Series,
-    cell_id: int = None,
+    cell_id: int or None = None,
     event_ends: pd.Series = None,
     raw_trace: np.ndarray = None,
     start_buffer_sec: float or int = 10,
