@@ -40,7 +40,7 @@ def plot_pe_traces(
     if activity.ndim == 2:
         activity = activity[cell_id]
 
-    if raw_trace.ndim == 2:
+    if raw_trace is not None and raw_trace.ndim == 2:
         raw_trace = raw_trace[cell_id]
 
     # Send end times to start times if not specified
