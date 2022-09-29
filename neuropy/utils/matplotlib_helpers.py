@@ -237,7 +237,7 @@ def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_t
     """ Universally used to prepare the pfmap to be displayed (across every plot time)
     
     Input:
-        drop_below_threshold: if None, no indicies are dropped. Otherwise, values of occupancy less than the threshold specified are used to build a mask, which is subtracted from the returned image (the image is NaN'ed out in these places.
+        drop_below_threshold: if None, no indicies are dropped. Otherwise, values of occupancy less than the threshold specified are used to build a mask, which is subtracted from the returned image (the image is NaN'ed out in these places).
 
     Known Uses:
             NeuroPy.neuropy.plotting.ratemaps.plot_single_tuning_map_2D(...)
