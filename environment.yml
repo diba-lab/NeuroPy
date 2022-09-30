@@ -18,6 +18,7 @@ dependencies:
     - tqdm
     - xarray=0.16.2
     - zarr
+    - scikit-image
     # May need to install pingouin via pip after the fact
     - pingouin
     # These modules are for importing DeepLabCut data, comment out if you don't need.
