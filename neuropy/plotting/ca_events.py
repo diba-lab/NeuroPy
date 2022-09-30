@@ -140,7 +140,7 @@ def plot_pe_traces(
         a.plot(time_plot, arr.mean(axis=0), "k")
         a.axvspan(0, avg_event_sec, color=event_color)
         sns.despine(ax=a)
-        a.set_xlabel("Time from " + event_type + " start")
+        a.set_xlabel("Time (s) from " + event_type + " start")
         a.set_title("Cell #" + str(cell_id))
 
     # Label axes
