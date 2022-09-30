@@ -10,7 +10,7 @@ from neuropy.io.miniscopeio import MiniscopeIO
 
 class MinianIO:
     def __init__(
-        self, dirname: str or None = None, basedir: str or None = None
+        self, dirname: str or None = None, basedir: str or None = None,
     ) -> None:
         self.basedir = basedir
         # Try to autodetect minian folder - must specify basedir
@@ -103,7 +103,7 @@ class MinianIO:
         """
 
         # First send everything to CaNeurons class
-        caneurons = self.to_caneurons()
+        caneurons = self.to_caneurons(trim={'keep': keep, 'trim': trim})
 
         # Next check to see if there is a field for unit_id present in some data where minian
         # prunes neurons during one of the last steps
@@ -152,10 +152,11 @@ class MinianIO:
 
         return caneurons
 
-    def to_caneurons(self):
+    def to_caneurons(self, trim=None):
         """Send to CaNeurons class"""
 
-        return CaNeurons(A=self.A, C=self.C, S=self.S, YrA=self.YrA, t=self.times)
+        return CaNeurons(A=self.A, C=self.C, S=self.S, YrA=self.YrA, t=self.times,
+                         trim=trim)
 
 
 if __name__ == "__main__":
