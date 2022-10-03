@@ -22,6 +22,8 @@ dependencies:
     - notebook
     # May need to install pingouin via pip after the fact
     - pingouin
+    # May need to install libgcc for linux distributions
+    - libgcc
     # These modules are for importing DeepLabCut data, comment out if you don't need.
     # - easydict
     # - ruamel.yaml
