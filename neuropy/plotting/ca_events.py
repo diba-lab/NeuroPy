@@ -48,7 +48,9 @@ def plot_pe_traces(
         event_ends = event_starts
 
     # Calculate event durations
-    event_durs = (event_ends.values - event_starts.values).astype('timedelta64[ns]').astype(float) / 10 ** 9
+    event_durs = (event_ends.values - event_starts.values).astype(
+        "timedelta64[ns]"
+    ).astype(float) / 10 ** 9
     avg_event_sec = np.nanmean(event_durs)
 
     # Now loop through and chop out peri-event activity
@@ -91,7 +93,6 @@ def plot_pe_traces(
 
             time_list.append(trial_dt[good_frame_bool])
 
-
     if (
         raw_trace is None
     ):  # Set raw raster equal to deconvolved raster to make code below work.
@@ -125,16 +126,33 @@ def plot_pe_traces(
 
     # Set up figure and axes
     if ax is None:
-        fig, ax = plt.subplots(1, 2)
-        fig.set_size_inches([12, 4])
+        if raw_trace is not None:
+            fig, ax = plt.subplots(1, 2)
+            fig.set_size_inches([12, 4])
+        else:
+            fig, ax = plt.subplots(squeeze=False)
+            ax = ax.reshape(-1)
+            fig.set_size_inches([4, 4])
+    else:
+        fig = ax.figure
 
     # Plot rasters
     for raw_rast, rast in zip(raw_rast_array, rast_array):
         ax[0].plot(time_plot, rast, color=[0, 0, 1, 0.3])
-        ax[1].plot(time_plot, raw_rast, color=[0, 0, 1, 0.3])
+        if raw_trace is not None:
+            ax[1].plot(time_plot, raw_rast, color=[0, 0, 1, 0.3])
     good_frame_bool = np.bitwise_not(np.all(np.isnan(rast_array), axis=0))
-    ax[0].plot(time_plot[good_frame_bool], np.nanmean(rast_array[:, good_frame_bool], axis=0), "k")
-    ax[1].plot(time_plot[good_frame_bool], np.nanmean(raw_rast_array[:, good_frame_bool], axis=0), "k")
+    ax[0].plot(
+        time_plot[good_frame_bool],
+        np.nanmean(rast_array[:, good_frame_bool], axis=0),
+        "k",
+    )
+    if raw_trace is not None:
+        ax[1].plot(
+            time_plot[good_frame_bool],
+            np.nanmean(raw_rast_array[:, good_frame_bool], axis=0),
+            "k",
+        )
 
     for a, arr in zip(ax.reshape(-1), (rast_array, raw_rast_array)):
         a.plot(time_plot, arr.mean(axis=0), "k")
