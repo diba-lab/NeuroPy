@@ -48,8 +48,11 @@ class MinianIO:
             print(
                 "frames.npy not found in minian directory, trying to load in zarr files to get frames"
             )
-            motion = xr.open_zarr(self.minian_dir / "motion.zarr")
-            self.good_frames = motion.frame.values
+            try:
+                motion = xr.open_zarr(self.minian_dir / "motion.zarr")
+                self.good_frames = motion.frame.values
+            except:
+                print('No motion.zarr file found, unable to load in frames used during analysis')
 
         # Import timestamps
         try:
@@ -162,5 +165,5 @@ class MinianIO:
 if __name__ == "__main__":
     from session_directory import get_session_dir
 
-    sesh_dir = get_session_dir("Rose", "Recall1")
+    sesh_dir = get_session_dir("Rat698", "Recall1")
     min_test = MinianIO(basedir=sesh_dir)
