@@ -69,11 +69,6 @@ class MinianIO:
             )
             self.times = None
 
-        if not ignore_time_mismatch:
-            assert (
-                self.times.shape[0] == self.C.shape[1]
-            ), "Different # frames in C and times vars. Check to make sure corrupted videos are properly accounted for"
-
         # Remove any timestamps corresponding to frames you've removed.
         if self.times is not None:
             try:
@@ -102,6 +97,7 @@ class MinianIO:
                     print("Check and make sure frames in data and timestamps match!")
                 pass
 
+        if not ignore_time_mismatch:
             assert (
                 self.times.shape[0] == self.C.shape[1]
             ), "Different # frames in C and times vars. Check to make sure corrupted videos are properly accounted for"
@@ -185,5 +181,14 @@ class MinianIO:
 if __name__ == "__main__":
     from session_directory import get_session_dir
 
-    sesh_dir = get_session_dir("Rat698", "Recall1")
-    min_test = MinianIO(basedir=sesh_dir)
+    animal = "Rey"
+    session = "Recall1"
+
+    # Get session directory
+    sesh_dir = get_session_dir(animal, session)
+
+    # Load in ca imaging data from minian
+    minian = MinianIO(basedir=sesh_dir)
+
+    # Keep only good neurons
+    caneurons = minian.trim_neurons(keep="good")
