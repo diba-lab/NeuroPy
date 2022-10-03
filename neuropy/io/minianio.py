@@ -10,7 +10,10 @@ from neuropy.io.miniscopeio import MiniscopeIO
 
 class MinianIO:
     def __init__(
-        self, dirname: str or None = None, basedir: str or None = None,
+        self,
+        dirname: str or None = None,
+        basedir: str or None = None,
+        ignore_time_mismatch: bool = False,
     ) -> None:
         self.basedir = basedir
         # Try to autodetect minian folder - must specify basedir
@@ -52,7 +55,9 @@ class MinianIO:
                 motion = xr.open_zarr(self.minian_dir / "motion.zarr")
                 self.good_frames = motion.frame.values
             except:
-                print('No motion.zarr file found, unable to load in frames used during analysis')
+                print(
+                    "No motion.zarr file found, unable to load in frames used during analysis"
+                )
 
         # Import timestamps
         try:
@@ -63,6 +68,11 @@ class MinianIO:
                 "Error importing miniscope timestamps. Check .basedir and look for miniscope folders"
             )
             self.times = None
+
+        if not ignore_time_mismatch:
+            assert (
+                self.times.shape[0] == self.C.shape[1]
+            ), "Different # frames in C and times vars. Check to make sure corrupted videos are properly accounted for"
 
         # Remove any timestamps corresponding to frames you've removed.
         if self.times is not None:
@@ -106,15 +116,20 @@ class MinianIO:
         """
 
         # First send everything to CaNeurons class
-        caneurons = self.to_caneurons(trim={'keep': keep, 'trim': trim})
+        caneurons = self.to_caneurons(trim={"keep": keep, "trim": trim})
 
         # Next check to see if there is a field for unit_id present in some data where minian
         # prunes neurons during one of the last steps
-        if "unit_id_bool" in self.curated_neurons.keys() or "unit_id" in self.curated_neurons.keys():
+        if (
+            "unit_id_bool" in self.curated_neurons.keys()
+            or "unit_id" in self.curated_neurons.keys()
+        ):
             try:
                 unit_ids = self.curated_neurons["unit_id_bool"]
                 # Make sure that (despite its name, which is incorrect) that the array is of type int
-                assert unit_ids.dtype == int, "curated_neurons['unit_id'] is not the correct dtype, must be int"
+                assert (
+                    unit_ids.dtype == int
+                ), "curated_neurons['unit_id'] is not the correct dtype, must be int"
             except KeyError:
                 unit_ids = self.curated_neurons["unit_id"]
         else:
@@ -132,7 +147,9 @@ class MinianIO:
                 ), '"keep" input must be a key in "curated_neurons" field'
                 # keep_bool[self.curated_neurons[keep_type]] = True
                 keep_uid.extend(self.curated_neurons[keep_type])
-            keep_ind = np.sort([np.where(nid == unit_ids)[0][0] for nid in keep_uid])  # inds in keep_bool corresponding to uids
+            keep_ind = np.sort(
+                [np.where(nid == unit_ids)[0][0] for nid in keep_uid]
+            )  # inds in keep_bool corresponding to uids
             keep_bool[keep_ind] = True  # add in neurons to keep
 
         else:
@@ -146,7 +163,9 @@ class MinianIO:
                     trim_type in self.curated_neurons.keys()
                 ), '"trim" input must be a key in "curated_neurons"'
                 trim_uid.extend(self.curated_neurons[trim_type])
-                trim_ind = np.sort([np.where(nid == unit_ids)[0][0] for nid in trim_uid])
+                trim_ind = np.sort(
+                    [np.where(nid == unit_ids)[0][0] for nid in trim_uid]
+                )
                 keep_bool[trim_ind] = False  # cut out neurons
 
         # Now re-assign everything
@@ -158,8 +177,9 @@ class MinianIO:
     def to_caneurons(self, trim=None):
         """Send to CaNeurons class"""
 
-        return CaNeurons(A=self.A, C=self.C, S=self.S, YrA=self.YrA, t=self.times,
-                         trim=trim)
+        return CaNeurons(
+            A=self.A, C=self.C, S=self.S, YrA=self.YrA, t=self.times, trim=trim
+        )
 
 
 if __name__ == "__main__":
