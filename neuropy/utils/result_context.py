@@ -136,6 +136,12 @@ class IdentifyingContext(DiffableObject, object):
     def init_from_dict(cls, a_dict):
         return cls(**a_dict) # expand the dict as input args.
         
+
+    def as_tuple(self):
+        """ returns a tuple of just its values """
+        return tuple(self.to_dict().values())
+
+
     ## For serialization/pickling:
     def __getstate__(self):
         # Copy the object's state from self.__dict__ which contains
