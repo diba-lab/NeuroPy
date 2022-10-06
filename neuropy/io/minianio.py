@@ -129,7 +129,10 @@ class MinianIO:
             except KeyError:
                 unit_ids = self.curated_neurons["unit_id"]
         else:
-            unit_ids = np.arange(self.C.shape[0])
+            try:
+                unit_ids = np.load(self.minian_dir / "unit_id.npy")
+            except FileNotFoundError:
+                unit_ids = np.arange(self.C.shape[0])
 
         if keep is not None:
             # Set up and check variable input
@@ -143,9 +146,15 @@ class MinianIO:
                 ), '"keep" input must be a key in "curated_neurons" field'
                 # keep_bool[self.curated_neurons[keep_type]] = True
                 keep_uid.extend(self.curated_neurons[keep_type])
-            keep_ind = np.sort(
-                [np.where(nid == unit_ids)[0][0] for nid in keep_uid]
-            )  # inds in keep_bool corresponding to uids
+            try:
+                keep_ind = np.sort(
+                    [np.where(nid == unit_ids)[0][0] for nid in keep_uid]
+                )  # inds in keep_bool corresponding to uids
+            except IndexError:
+                raise (
+                    Exception,
+                    'unit_id mismatch: check data folder for unit_id.npy or curated_neurons.pkl with "unit_id" field',
+                )
             keep_bool[keep_ind] = True  # add in neurons to keep
 
         else:
@@ -181,8 +190,8 @@ class MinianIO:
 if __name__ == "__main__":
     from session_directory import get_session_dir
 
-    animal = "Rey"
-    session = "Recall1"
+    animal = "Finn"
+    session = "Training"
 
     # Get session directory
     sesh_dir = get_session_dir(animal, session)
