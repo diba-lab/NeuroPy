@@ -134,7 +134,11 @@ def plot_pe_traces(
             ax = ax.reshape(-1)
             fig.set_size_inches([4, 4])
     else:
-        fig = ax.figure
+        if isinstance(ax, plt.Axes):
+            fig = ax.figure
+            ax = np.array(ax).reshape(-1)  # Make into array for compatibility below
+        elif isinstance(ax, np.array):
+            fig = ax.reshape(-1)[0].figure
 
     # Plot rasters
     for raw_rast, rast in zip(raw_rast_array, rast_array):
