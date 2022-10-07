@@ -1,9 +1,10 @@
 from neuropy.core.neuron_identities import PlotStringBrevityModeEnum
 from neuropy.plotting.placemaps import plot_placefield_occupancy
 from neuropy.plotting.ratemaps import enumTuningMap2DPlotVariables, plot_ratemap_1D, plot_ratemap_2D, plot_ratemap_2D
+from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
 class PfnD_PlotOccupancy_Mixin:
-    
+    @safely_accepts_kwargs
     def plot_occupancy(self, identifier_details_list=[]):
         active_pf_occupancy_2D_identifier_string = '2D Occupancy'
         active_pf_occupancy_2D_identifier_string = ' - '.join([active_pf_occupancy_2D_identifier_string] + identifier_details_list)
@@ -18,6 +19,7 @@ class PfnD_PlotOccupancy_Mixin:
 
 class PfnDPlottingMixin(PfnD_PlotOccupancy_Mixin):
     # Extracted fro the 1D figures:
+    @safely_accepts_kwargs
     def plot_ratemaps_1D(self, ax=None, pad=2, normalize=True, sortby=None, cmap=None):
         """ Note that normalize is required to fit all of the plots on this kind of stacked figure. """
         # returns: ax , sort_ind, colors
