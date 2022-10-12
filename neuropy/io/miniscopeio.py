@@ -34,7 +34,8 @@ class MiniscopeIO:
 
         # Get recording folders, sorted by time of acquisition
         if format == "UCLA":
-            search_regex = "**/[0-1][0-9]_[0-6][0-9]_[0-6][0-9]"
+            # This searches for nested folders like this: YYYY_MM_DD/HH_MM_SS
+            search_regex = "**/[0-9][0-9][0-9][0-9]_[0-1][0-9]_[0-3][0-9]/[0-1][0-9]_[0-6][0-9]_[0-6][0-9]"
         self.rec_folders = sorted(self.basedir.glob(search_regex))
 
         # Exclude any folders containing the specified "exclude_str" parameter
