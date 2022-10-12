@@ -42,7 +42,7 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
     return spike_overlay_points, spike_overlay_sc
     
 def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001,
-                              plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None):
+                              plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None, use_special_overlayed_title:bool=True):
     """Plots a single tuning curve Heatmap using matplotlib
 
     Args:
@@ -60,7 +60,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         plot_mode = enumTuningMap2DPlotMode.IMSHOW
     assert plot_mode is enumTuningMap2DPlotMode.IMSHOW, f"Plot mode should not be specified to anything other than None or enumTuningMap2DPlotMode.IMSHOW as of 2022-08-15 but value was: {plot_mode}"
     
-    use_special_overlayed_title = True
+    # use_special_overlayed_title = True
     
     # use_alpha_by_occupancy = False # Only supported in IMSHOW mode
     use_alpha_by_occupancy = False # Only supported in IMSHOW mode
@@ -139,50 +139,23 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         assert max_value_formatter is not None
         formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))        
         
-    final_title = _build_neuron_identity_label(neuron_extended_id = neuron_extended_id, brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+    final_title_str = _build_neuron_identity_label(neuron_extended_id = neuron_extended_id, brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
 
     if use_special_overlayed_title:
-        t = add_inner_title(ax, final_title, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
-        t.patch.set_ec("none")
+        title_anchored_text = add_inner_title(ax, final_title_str, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
+        title_anchored_text.patch.set_ec("none")
         # t.patch.set_alpha(0.5)
     else:
         # conventional way:
-        ax.set_title(final_title) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
-    
-    
-    # if neuron_extended_id is not None:    
-    #     full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
-    # else:
-    #     full_extended_id_string = ''
-    
-    # final_string_components = [full_extended_id_string]
-    
-    # if brev_mode.should_show_firing_rate_label:
-    #     # pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
-    #     assert max_value_formatter is not None
-    #     formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
-    #     final_string_components.append(formatted_max_value_string)
-    
-    # if use_special_overlayed_title:
-    #     final_title = ' - '.join(final_string_components)
-    #     # t = add_inner_title(ax, final_title, loc='upper left', strokewidth=1.0)
-    #     # , strokewidth=3, stroke_foreground='w', text_foreground='k'
-    #     t = add_inner_title(ax, final_title, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
-    #     t.patch.set_ec("none")
-    #     # t.patch.set_alpha(0.5)
-    # else:
-    #     # conventional way:
-    #     final_title = '\n'.join(final_string_components)
-    #     ax.set_title(final_title) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
-    
-    
+        ax.set_title(final_title_str) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
+        title_anchored_text = None
     # always
-    ax.set_label(final_title)
-    return im
+    ax.set_label(final_title_str)
+    return im, title_anchored_text
     
 # all extracted from the 2D figures
 @safely_accepts_kwargs
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, use_special_overlayed_title=True, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     
     Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
@@ -218,6 +191,10 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     
     TODO: Cleaning up with  grid_layout_mode == 'imagegrid'
     plot_mode == 
+
+
+    Returns:
+            active_graphics_obj_dict[curr_neuron_ID] = {'axs': [curr_ax], 'image': curr_im, 'title_obj': curr_title_anchored_text}
     """
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
@@ -255,7 +232,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         else:
             fignum = 1
 
-    figures, page_gs = [], []
+    figures, page_gs, graphics_obj_dicts = [], [], []
     for fig_ind in range(nfigures):
         # Dynamic Figure Sizing: 
         curr_fig_page_grid_size = page_grid_sizes[fig_ind]
@@ -320,6 +297,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             
         fig.suptitle(title_string)
         figures.append(fig)
+        graphics_obj_dicts.append({}) # New empty dict
 
     # New page-based version:
     for page_idx in np.arange(num_pages):
@@ -327,6 +305,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             print(f'page_idx: {page_idx}')
         
         active_page_grid = page_gs[page_idx]
+        active_graphics_obj_dict = graphics_obj_dicts[page_idx]
         # print(f'active_page_grid: {active_page_grid}')
             
         for (a_linear_index, curr_row, curr_col, curr_included_unit_index) in included_combined_indicies_pages[page_idx]:
@@ -337,13 +316,19 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
             neuron_IDX = curr_included_unit_index
+            curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
+
             pfmap = active_maps[a_linear_index]
             # Get the axis to plot on:
             curr_ax = active_page_grid[curr_page_relative_linear_index]
             
             ## Plot the main heatmap for this pfmap:
-            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax, max_value_formatter=max_value_formatter)
+            curr_im, curr_title_anchored_text = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode,
+                                            ax=curr_ax, max_value_formatter=max_value_formatter, use_special_overlayed_title=use_special_overlayed_title)
             
+            active_graphics_obj_dict[curr_neuron_ID] = {'axs': [curr_ax], 'image': curr_im, 'title_obj': curr_title_anchored_text}
+
+
             if extended_overlay_points_datasource_dicts is not None:
                 for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():
                     # There can be multiple named datasources, with either of two modes: 
@@ -372,10 +357,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             if enable_spike_overlay:
                 spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
                                                                              scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
-            
-            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-            # cbar = fig.colorbar(im, cax=cbar_ax)
-            # cbar.set_label("firing rate (Hz)")
+                active_graphics_obj_dict[curr_neuron_ID] = active_graphics_obj_dict[curr_neuron_ID] | {'spike_overlay_points': spike_overlay_points, 'spike_overlay_sc': spike_overlay_sc} # Add in the spike_overlay_points and spike_overlay_sc
 
         # Remove the unused axes if there are any:
         num_axes_to_remove = (len(active_page_grid) - 1) - curr_page_relative_linear_index
@@ -387,7 +369,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         # Apply subplots adjust to fix margins:
         plt.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
         
-    return figures, page_gs
+    return figures, page_gs, graphics_obj_dicts
 
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None):

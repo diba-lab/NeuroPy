@@ -49,23 +49,50 @@ class PlotStringBrevityModeEnum(Enum):
         else:
             raise NameError
 
-    
-    def extended_identity_formatting_string(self, neuron_extended_id):
-        """The extended_identity_labels property."""
+    def _basic_identity_formatting_string(self, neuron_extended_id):
+        """Builds the string output for just the id (aclu) component of the neuron_extended_id """
         if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
-            return f'Cell cell_uid: {neuron_extended_id.id} - (shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+            return f'Cell cell_uid: {neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
-            return f'Cell {neuron_extended_id.id} - (shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+            return f'Cell {neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return f'Cell {neuron_extended_id.id} - (shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+            return f'Cell {neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return f'{neuron_extended_id.id} - s{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
+            return f'{neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return f'{neuron_extended_id.id}-{neuron_extended_id.shank},{neuron_extended_id.cluster}'
+            return f'{neuron_extended_id.id}'
         else:
             print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
             raise NameError
-        # return PlotStringBrevityModeEnum.extended_identity_formatting_string(self, neuron_extended_id)
+
+    def _extra_info_identity_formatting_string(self, neuron_extended_id):
+        """Builds the string output for just the shank and cluster components of the neuron_extended_id."""
+        if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
+            return f'(shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
+            return f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
+            return f'(shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
+            return f's{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            return f'{neuron_extended_id.shank},{neuron_extended_id.cluster}'
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
+
+    def extended_identity_formatting_string(self, neuron_extended_id):
+        """The extended_identity_labels property."""
+        if (self.name == PlotStringBrevityModeEnum.VERBOSE.name) or (self.name == PlotStringBrevityModeEnum.DEFAULT.name):
+            return ' - '.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
+        elif (self.name == PlotStringBrevityModeEnum.CONCISE.name) or (self.name == PlotStringBrevityModeEnum.MINIMAL.name):
+            return '-'.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            # Show only the id label:
+            return self._basic_identity_formatting_string(neuron_extended_id)
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
         
     @property
     def should_show_firing_rate_label(self):
@@ -75,7 +102,7 @@ class PlotStringBrevityModeEnum(Enum):
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
             return True # was False
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return True # was False
+            return False # was False
         else:
             return True
         
