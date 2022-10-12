@@ -95,7 +95,14 @@ def load_subset(minian_path: str, infer_from_zarr=True, save_pkl_if_missing=Fals
     return subset_dict
 
 
-def load_variable(minian_path: str, var_name: str, numpy_ok=True, flag_if_numpy=True):
+def load_variable(
+    minian_path: str,
+    var_name: str,
+    zarr_ok=True,
+    numpy_ok=True,
+    flag_if_numpy=True,
+    return_zarr=True,
+):
     """Loads a minian produced variable. Tries a .zarr group first, then
     looks for .npy file if allowed by user"""
 
@@ -103,8 +110,12 @@ def load_variable(minian_path: str, var_name: str, numpy_ok=True, flag_if_numpy=
     zarr_path = minian_path / f"{var_name}.zarr"
 
     var = None
-    if zarr_path.is_dir():
-        var = xr.open_zarr(zarr_path)
+    if zarr_path.is_dir() and zarr_ok:
+        var_ds = xr.open_zarr(zarr_path)
+        assert (
+            len(list(var_ds.keys())) == 1
+        ), "More than one variable found in .zarr group, load manually or set zarr_ok=False"
+        var = var_ds[list(var_ds.keys())[0]]
     else:
         if numpy_ok:
             np_path = minian_path / f"{var_name}.npy"
@@ -113,7 +124,10 @@ def load_variable(minian_path: str, var_name: str, numpy_ok=True, flag_if_numpy=
                 if flag_if_numpy:
                     print(f"No .zarr group found, {var_name}.npy file loaded")
 
-    return var
+    if return_zarr:
+        return var
+    else:
+        return var.values
 
 
 class Mask:
