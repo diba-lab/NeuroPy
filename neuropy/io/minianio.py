@@ -2,10 +2,13 @@ from pathlib import Path
 import numpy as np
 from pickle import dump, load
 import xarray as xr
+import zarr
 import pandas as pd
 
 from neuropy.core.ca_neurons import CaNeurons
 from neuropy.io.miniscopeio import MiniscopeIO
+from neuropy.utils.misc import flatten
+from neuropy.utils.minian_util import load_subset
 
 
 class MinianIO:
@@ -44,21 +47,6 @@ class MinianIO:
         with open(self.minian_dir / "curated_neurons.pkl", "rb") as f:
             self.curated_neurons = load(f)
 
-        # Load in good frames
-        try:
-            self.good_frames = np.load(self.minian_dir / "frames.npy")
-        except FileNotFoundError:
-            print(
-                "frames.npy not found in minian directory, trying to load in zarr files to get frames"
-            )
-            try:
-                motion = xr.open_zarr(self.minian_dir / "motion.zarr")
-                self.good_frames = motion.frame.values
-            except:
-                print(
-                    "No motion.zarr file found, unable to load in frames used during analysis"
-                )
-
         # Import timestamps
         try:
             msio = MiniscopeIO(self.basedir)
@@ -70,6 +58,7 @@ class MinianIO:
             self.times = None
 
         # Remove any timestamps corresponding to frames you've removed.
+        # Lots of error catching here to track different ways of saving good frames
         if self.times is not None:
             try:
                 good_frames_bool = np.load(self.minian_dir / "good_frames_bool.npy")
@@ -89,12 +78,17 @@ class MinianIO:
                         + ' good frames found in "frames.npy" file'
                     )
                 except FileNotFoundError:
-                    print(
-                        "no "
-                        + str(self.minian_dir / "good_frames_bool.npy")
-                        + " file found"
-                    )
-                    print("Check and make sure frames in data and timestamps match!")
+                    try:
+                        motion = xr.open_zarr(self.minian_dir / "motion.zarr")
+                        self.good_frames = motion.frame.values
+                        self.times = self.times.iloc[self.good_frames]
+                        print(
+                            f"Keeping {len(self.good_frames)} good frames found in motion.zarr file"
+                        )
+                    except zarr.errors.GroupNotFoundError:
+                        print(
+                            "No .zarr or frames.npy or good_frames.npy file found in directory. Check and make sure frames in data and timestamps match!"
+                        )
                 pass
 
         if not ignore_time_mismatch:
@@ -123,6 +117,8 @@ class MinianIO:
             try:
                 unit_ids = self.curated_neurons["unit_id_bool"]
                 # Make sure that (despite its name, which is incorrect) that the array is of type int
+                if isinstance(unit_ids, xr.DataArray):
+                    unit_ids = unit_ids["unit_id"].values
                 assert (
                     unit_ids.dtype == int
                 ), "curated_neurons['unit_id'] is not the correct dtype, must be int"
@@ -146,13 +142,20 @@ class MinianIO:
                 ), '"keep" input must be a key in "curated_neurons" field'
                 # keep_bool[self.curated_neurons[keep_type]] = True
                 keep_uid.extend(self.curated_neurons[keep_type])
+
+                # Flatten list in case you have nested lists
+                keep_uid_flat = [_ for _ in flatten(keep_uid)]
+                if keep_uid_flat != keep_uid:
+                    print(
+                        "Had to flatten list of units to keep - check to make sure you aren't un-merging units!"
+                    )
+                    keep_uid = keep_uid_flat
             try:
                 keep_ind = np.sort(
                     [np.where(nid == unit_ids)[0][0] for nid in keep_uid]
                 )  # inds in keep_bool corresponding to uids
             except IndexError:
-                raise (
-                    Exception,
+                raise IndexError(
                     'unit_id mismatch: check data folder for unit_id.npy or curated_neurons.pkl with "unit_id" field',
                 )
             keep_bool[keep_ind] = True  # add in neurons to keep
@@ -168,14 +171,26 @@ class MinianIO:
                     trim_type in self.curated_neurons.keys()
                 ), '"trim" input must be a key in "curated_neurons"'
                 trim_uid.extend(self.curated_neurons[trim_type])
-                trim_ind = np.sort(
-                    [np.where(nid == unit_ids)[0][0] for nid in trim_uid]
-                )
+                try:
+                    trim_ind = np.sort(
+                        [np.where(nid == unit_ids)[0][0] for nid in trim_uid]
+                    )
+                except IndexError:
+                    raise IndexError(
+                        'unit_id mismatch: check data folder for unit_id.npy or curated_neurons.pkl with "unit_id" field',
+                    )
                 keep_bool[trim_ind] = False  # cut out neurons
 
         # Now re-assign everything
+        # NRK todo - add in original neuron #s here after trimming so that you have a more consistent reference point
         for var_name in ["A", "C", "S", "YrA"]:
-            setattr(caneurons, var_name, getattr(caneurons, var_name)[keep_bool])
+            try:
+                setattr(caneurons, var_name, getattr(caneurons, var_name)[keep_bool])
+            except IndexError:
+                print(
+                    f"Error trimming variable {var_name}: using un-trimmed version. Be sure to cleanup before processing!"
+                )
+                setattr(caneurons, var_name, getattr(caneurons, var_name))
 
         return caneurons
 
@@ -183,8 +198,31 @@ class MinianIO:
         """Send to CaNeurons class"""
 
         return CaNeurons(
-            A=self.A, C=self.C, S=self.S, YrA=self.YrA, t=self.times, trim=trim
+            A=self.A,
+            C=self.C,
+            S=self.S,
+            YrA=self.YrA,
+            t=self.times,
+            trim=trim,
+            basedir=self.basedir,
         )
+
+
+def save_zarr_to_numpy(zarr, savepath):
+    """Saves a zarr/xarray variable as a numpy file"""
+    pass
+
+
+def load_var(var_name, allow_numpy=False):
+    """Loads a variable in .zarr format OR in numpy if allowed"""
+    pass
+
+
+def check_integrity(var_list, fix: str or bool in [False, "min_size"] = "min_size"):
+    """Checks integrity of variables to make sure they match across frames, width, and height depending on variable type.
+    e.g. checks if A and min_proj and max_proj all have the same width/height.
+    Optionally can fix variables to match the min # frames and min width/height if specified"""
+    pass
 
 
 if __name__ == "__main__":
@@ -200,4 +238,4 @@ if __name__ == "__main__":
     minian = MinianIO(basedir=sesh_dir)
 
     # Keep only good neurons
-    caneurons = minian.trim_neurons(keep="good")
+    caneurons = minian.trim_neurons(keep=None, trim="bad_units")
