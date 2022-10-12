@@ -6,6 +6,9 @@ import scipy.signal as sg
 from .datawriter import DataWriter
 from copy import deepcopy
 from skimage import feature
+from pathlib import Path
+
+from neuropy.utils.minian_util import load_variable
 
 
 class CaNeurons(DataWriter):
@@ -23,9 +26,11 @@ class CaNeurons(DataWriter):
         neuron_ids=None,
         neuron_type=None,
         metadata=None,
+        basedir: str or Path = None,
     ) -> None:
         super().__init__(metadata=metadata)
 
+        self.basedir = basedir
         self.S = S
         self.C = C
         self.A = A
@@ -36,7 +41,13 @@ class CaNeurons(DataWriter):
         self.neuron_ids = neuron_ids
         self.neuron_type = neuron_type
 
-    def plot_ROIs(self, neuronIDs: list or np.ndarray or None = None, label: bool = False, ax: plt.Axes or None = None):
+    def plot_ROIs(
+        self,
+        neuronIDs: list or np.ndarray or None = None,
+        label: bool = False,
+        ax: plt.Axes or None = None,
+        plot_masks: bool = True,
+    ):
         if ax is None:
             fig, ax = plt.subplots()
         elif isinstance(ax, plt.Axes):
@@ -44,15 +55,32 @@ class CaNeurons(DataWriter):
 
         neuronIDs = np.arange(self.A.shape[0]) if neuronIDs is None else neuronIDs
         Aplot = self.A[neuronIDs]
-        ax.imshow((Aplot > 0).sum(axis=0))
+        if plot_masks:
+            ax.imshow((Aplot > 0).sum(axis=0))
 
         if label:
             for id, roi in zip(neuronIDs, Aplot):
                 xedges, yedges = detect_roi_edges(roi > 0)
-                hl, = ax.plot(xedges, yedges, linewidth=0.7)
-                ax.text(xedges.mean(), yedges.mean(), str(id), color='w')
+                (hl,) = ax.plot(xedges, yedges, linewidth=0.7)
+                ax.text(xedges.mean(), yedges.mean(), str(id), color="w")
 
         return fig, ax, xedges, yedges
+
+    @property
+    def max_proj(self):
+        max_proj_dir = sorted(self.basedir.glob("**/max_proj*.*"))[0].parent
+        return load_variable(max_proj_dir, "max_proj")
+
+    def min_proj(self, proj_type: str in ["", "crop", "mc_crop"] = ""):
+        min_proj_dir = sorted(self.basedir.glob("**/min_proj*.*"))[
+            0
+        ].parent  # get min_proj directory
+
+        # Get name for min projection you want to grab
+        var_name = "min_proj" if proj_type == "" else "min_proj_crop"
+        var_name = "_".join(["mc", var_name]) if proj_type == "mc_crop" else var_name
+
+        return load_variable(min_proj_dir, var_name)
 
     def plot_traces(self):
         pass
@@ -64,8 +92,10 @@ class CaNeurons(DataWriter):
 def detect_roi_edges(roi_binary):
     """Detect roi edges and organize them nicely in CW/CCW fashion"""
     edges = feature.canny(roi_binary)  # detect edges
-    inds = np.where(edges) # Get edge locations in pixels
-    isort = np.argsort(np.arctan2(inds[1] - inds[1].mean(), inds[0] - inds[0].mean()))  # Sort by angle from center
+    inds = np.where(edges)  # Get edge locations in pixels
+    isort = np.argsort(
+        np.arctan2(inds[1] - inds[1].mean(), inds[0] - inds[0].mean())
+    )  # Sort by angle from center
 
     xedges = np.append(inds[1][isort], inds[1][isort[0]])
     yedges = np.append(inds[0][isort], inds[0][isort[0]])
