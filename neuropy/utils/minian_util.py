@@ -5,6 +5,9 @@ from matplotlib.axes import Axes
 
 from pathlib import Path
 import numpy as np
+import zarr
+import xarray as xr
+from pickle import load, dump
 
 
 def get_good_frames(
@@ -53,6 +56,64 @@ def get_good_frames(
         good_bool = np.bitwise_and(good_bool_abs, good_bool_diff)
 
     return good_bool
+
+
+def load_subset(minian_path: str, infer_from_zarr=True, save_pkl_if_missing=False):
+    """Grabs subset dictionary which tracks the frames and pixels used in the final videos. If subset.pkl is missing,
+    infers the values from other zarrs located in the file"""
+
+    pkl_file = Path(minian_path) / "subset.pkl"
+    if pkl_file.is_file():
+        with open(pkl_file, "rb") as f:
+            subset_dict = load(pkl_file)
+
+    else:
+        if infer_from_zarr:  # Try to load in
+            S_zarr_dir = Path(minian_path) / "S.zarr"
+            A_zarr_dir = Path(minian_path) / "A.zarr"
+            try:
+                Sz = xr.open_zarr(S_zarr_dir)
+                Az = xr.open_zarr(A_zarr_dir)
+                subset_dict = {
+                    "frame": Sz.frame.values,
+                    "height": Az.height.values,
+                    "width": Az.width.values,
+                }
+
+                if save_pkl_if_missing:
+                    with open(str(pkl_file), "wb") as f:
+                        dump(f, subset_dict)
+            except zarr.errors.GroupNotFoundError:
+                print(
+                    "S.zarr or A.zarr not found, could not infer subset from zarr groups"
+                )
+                subset_dict = None
+        else:
+            print(f'No "subset.pkl" file found in {minian_path}')
+            subset_dict = None
+
+    return subset_dict
+
+
+def load_variable(minian_path: str, var_name: str, numpy_ok=True, flag_if_numpy=True):
+    """Loads a minian produced variable. Tries a .zarr group first, then
+    looks for .npy file if allowed by user"""
+
+    minian_path = Path(minian_path)
+    zarr_path = minian_path / f"{var_name}.zarr"
+
+    var = None
+    if zarr_path.is_dir():
+        var = xr.open_zarr(zarr_path)
+    else:
+        if numpy_ok:
+            np_path = minian_path / f"{var_name}.npy"
+            if np_path.is_file():
+                var = np.load(np_path)
+                if flag_if_numpy:
+                    print(f"No .zarr group found, {var_name}.npy file loaded")
+
+    return var
 
 
 class Mask:
