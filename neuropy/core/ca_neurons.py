@@ -71,7 +71,7 @@ class CaNeurons(DataWriter):
         max_proj_dir = sorted(self.basedir.glob("**/max_proj*.*"))[0].parent
         return load_variable(max_proj_dir, "max_proj")
 
-    def min_proj(self, proj_type: str in ["", "crop", "mc_crop"] = ""):
+    def min_proj(self, proj_type: str in ["", "crop", "mc_crop"] = "mc_crop"):
         min_proj_dir = sorted(self.basedir.glob("**/min_proj*.*"))[
             0
         ].parent  # get min_proj directory
@@ -81,6 +81,25 @@ class CaNeurons(DataWriter):
         var_name = "_".join(["mc", var_name]) if proj_type == "mc_crop" else var_name
 
         return load_variable(min_proj_dir, var_name)
+
+    def plot_proj(self, proj_type, ax=None, flip_yaxis=False):
+        """Plot max, min, min_crop, or mc_min_crop projections"""
+
+        if not isinstance(ax, plt.Axes):
+            _, ax = plt.subplots()
+
+        # Grab appropriate projection
+        assert proj_type in ["max", "min", "min_crop", "mc_min_crop"]
+        if "max" in proj_type:
+            proj_plot = self.max_proj
+        else:
+            proj_plot = self.min_proj(
+                proj_type="_".join(sorted(proj_type.split("_"))[-2::-1])
+            )
+
+        # Plot
+        ax.imshow(proj_plot)
+        ax.invert_yaxis() if flip_yaxis else None  # invert axis if specified
 
     def plot_traces(self):
         pass
