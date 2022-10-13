@@ -36,7 +36,16 @@ class MiniscopeIO:
         if format == "UCLA":
             # This searches for nested folders like this: YYYY_MM_DD/HH_MM_SS
             search_regex = "**/[0-9][0-9][0-9][0-9]_[0-1][0-9]_[0-3][0-9]/[0-1][0-9]_[0-6][0-9]_[0-6][0-9]"
-        self.rec_folders = sorted(self.basedir.glob(search_regex))
+
+        rec_folders = sorted(self.basedir.glob(search_regex))
+        if len(rec_folders) > 0:
+            self.rec_folders = sorted(self.basedir.glob(search_regex))
+        else:
+            print(
+                "No folders found with YYYY_MM_DD/HH_MM_SS format, trying to get HH_MM_SS format"
+            )
+            search_regex = "**/[0-1][0-9]_[0-6][0-9]_[0-6][0-9]"
+            self.rec_folders = sorted(self.basedir.glob(search_regex))
 
         # Exclude any folders containing the specified "exclude_str" parameter
         if exclude_str is not None:
