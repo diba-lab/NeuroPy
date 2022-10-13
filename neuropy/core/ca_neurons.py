@@ -156,6 +156,7 @@ class CaNeuronReg:
         """Plot rois over max proj with min proj also across days.
         **kwargs to CaNeurons.plot_rois_with_min_proj"""
         fig, ax = plt.subplots(2, self.nsessions, figsize=(5.67 * self.nsessions, 12.6))
+        fig.suptitle(fig_title)
 
         # Get names for each session - either by session alias or overall session number
         names = (
@@ -167,8 +168,6 @@ class CaNeuronReg:
         for a, caneurons, name in zip(ax.T, self.caneurons, names):
             caneurons.plot_rois_with_min_proj(ax=a, **kwargs)
             a[0].set_title(name)
-
-        fig.suptitle(fig_title)
 
     def register_cells(self):
         pass
