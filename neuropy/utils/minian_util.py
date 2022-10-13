@@ -65,7 +65,7 @@ def load_subset(minian_path: str, infer_from_zarr=True, save_pkl_if_missing=Fals
     pkl_file = Path(minian_path) / "subset.pkl"
     if pkl_file.is_file():
         with open(pkl_file, "rb") as f:
-            subset_dict = load(pkl_file)
+            subset_dict = load(f)
 
     else:
         if infer_from_zarr:  # Try to load in
@@ -171,3 +171,9 @@ class Mask:
                 self.points_arr, self.points_arr[:, 0, None], axis=1
             )
             self.ax.plot(self.points_arr[0], self.points_arr[1], "r")
+
+
+if __name__ == "__main__":
+    load_subset(
+        "/data2/Trace_FC/Recording_Rats/Rey/2022_05_10_recall1/Miniscope_combined/minian"
+    )
