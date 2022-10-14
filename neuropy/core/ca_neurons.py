@@ -12,7 +12,10 @@ from neuropy.utils.minian_util import load_variable
 
 
 class CaNeurons(DataWriter):
-    """Class to hold calcium imaging data and their labels, raw traces, etc."""
+    """Class to hold calcium imaging data and their labels, raw traces, etc.
+    NOTE: neuron_IDs or neuron_ids always refers back to original #s from minian output.
+          neuron_inds refers to indices in CaNeurons class after trimming bad neurons.
+          So max(neuron_ids) >= #neurons - 1, while max(neuron_inds) = #neurons - 1"""
 
     def __init__(
         self,
@@ -43,11 +46,12 @@ class CaNeurons(DataWriter):
 
     def plot_rois(
         self,
-        neuronIDs: list or np.ndarray or None = None,
+        neuron_inds: list or np.ndarray or None = None,
         label: bool = False,
         ax: plt.Axes or None = None,
         plot_masks: bool = False,
         plot_max: bool = True,
+        highlight_inds: list = [],
     ):
         # Set up axes
         if ax is None:
@@ -56,8 +60,8 @@ class CaNeurons(DataWriter):
             fig = ax.figure
 
         # Get rois
-        neuronIDs = np.arange(self.A.shape[0]) if neuronIDs is None else neuronIDs
-        Aplot = self.A[neuronIDs]
+        neuron_inds = np.arange(self.A.shape[0]) if neuron_inds is None else neuron_inds
+        Aplot = self.A[neuron_inds]
 
         # Plot masks if specified
         if plot_masks:
@@ -68,11 +72,17 @@ class CaNeurons(DataWriter):
             ax.imshow(self.max_proj)
 
         # Plot roi outlines with numbers if specified
+        lines = []
         if label:
-            for id, roi in zip(neuronIDs, Aplot):
+            for id, roi in zip(neuron_inds, Aplot):
                 xedges, yedges = detect_roi_edges(roi > 0)
                 (hl,) = ax.plot(xedges, yedges, linewidth=0.7)
+                lines.append(hl)
                 ax.text(xedges.mean(), yedges.mean(), str(id), color="w")
+
+        if len(highlight_inds) > 0:
+            # [lines[hid].set_linewidth(4) for hid in highlight_inds]
+            [lines[hid].set(linewidth=3, color="r") for hid in highlight_inds]
 
         return fig, ax, xedges, yedges
 
@@ -156,7 +166,13 @@ class CaNeuronReg:
         """Plot rois over max proj with min proj also across days.
         **kwargs to CaNeurons.plot_rois_with_min_proj"""
 
-        fig, ax = plt.subplots(2, self.nsessions, figsize=(5.67 * self.nsessions, 12.6))
+        fig, ax = plt.subplots(
+            2,
+            self.nsessions,
+            figsize=(5.67 * self.nsessions, 12.6),
+            sharex=True,
+            sharey=True,
+        )
         fig.suptitle(fig_title)
 
         # Get names for each session - either by session alias or overall session number
@@ -170,19 +186,73 @@ class CaNeuronReg:
             caneurons.plot_rois_with_min_proj(ax=a, **kwargs)
             a[0].set_title(name)
 
+        plt.pause(0.1)
+
         return fig, ax
 
 
-def register_cells_manual(caneurons1: CaNeurons, caneurons2: CaNeurons):
-    """Load in and register neurons across days manually by making a list."""
+def register_cells_manual(caneurons1: CaNeurons, caneurons2: CaNeurons, **kwargs):
+    """Load in and register neurons across days manually by making a list.
+    **kwargs to CaNeurons.plot_rois"""
+
+    def plot1(careg):
+        print("test")
+        fig, ax = careg.plot_rois_across_sessions()
+        plt.draw()
+        plt.show(block=False)
+        plt.pause(0.1)
+
+        return fig, ax
+
     # Plot out cells from both sessions
     careg = CaNeuronReg([caneurons1, caneurons2])
-    careg.plot_rois_across_sessions()
+    fig, ax = plot1(careg)
+    # fig, ax = careg.plot_rois_across_sessions()
+
     # Select 3-4 reference cells that are clearly active and the same in both sessions
+    sesh1_inds = list(
+        map(
+            int,
+            input(
+                "\nEnter (co-active) reference neurons from session 1 (space between) : "
+            )
+            .strip()
+            .split(),
+        )
+    )
+    nrefs = len(sesh1_inds)
+    sesh2_inds = list(
+        map(
+            int,
+            input(
+                "\nEnter (co-active) reference neurons from session 2 (space between) : "
+            )
+            .strip()
+            .split(),
+        )
+    )[:nrefs]
+
+    # Replot cells with reference cells highlighted to check your work
+    caneurons1.plot_rois(
+        plot_max=True,
+        ax=ax[1][0],
+        label=True,
+        plot_masks=False,
+        highlight_inds=sesh1_inds,
+        **kwargs,
+    )
+    caneurons2.plot_rois(
+        plot_max=True,
+        ax=ax[1][1],
+        label=True,
+        plot_masks=False,
+        highlight_inds=sesh2_inds,
+        **kwargs,
+    )
 
     # Step through and match up each neuron from session1 to session2
 
-    pass
+    return None
 
 
 def detect_roi_edges(roi_binary, **kwargs):
