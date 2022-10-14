@@ -1,3 +1,4 @@
+import pathlib
 from pathlib import Path
 import numpy as np
 from pickle import dump, load
@@ -105,10 +106,7 @@ class MinianIO:
         :return:
         """
 
-        # First send everything to CaNeurons class
-        caneurons = self.to_caneurons(trim={"keep": keep, "trim": trim})
-
-        # Next check to see if there is a field for unit_id present in some data where minian
+        # First see if there is a field for unit_id present in some data where minian
         # prunes neurons during one of the last steps
         if (
             "unit_id_bool" in self.curated_neurons.keys()
@@ -129,6 +127,11 @@ class MinianIO:
                 unit_ids = np.load(self.minian_dir / "unit_id.npy")
             except FileNotFoundError:
                 unit_ids = np.arange(self.C.shape[0])
+
+        # Next send everything to CaNeurons class
+        caneurons = self.to_caneurons(
+            trim={"keep": keep, "trim": trim}, neuron_ids=unit_ids
+        )
 
         if keep is not None:
             # Set up and check variable input
@@ -183,7 +186,7 @@ class MinianIO:
 
         # Now re-assign everything
         # NRK todo - add in original neuron #s here after trimming so that you have a more consistent reference point
-        for var_name in ["A", "C", "S", "YrA"]:
+        for var_name in ["A", "C", "S", "YrA", "neuron_ids"]:
             try:
                 setattr(caneurons, var_name, getattr(caneurons, var_name)[keep_bool])
             except IndexError:
@@ -194,7 +197,7 @@ class MinianIO:
 
         return caneurons
 
-    def to_caneurons(self, trim=None):
+    def to_caneurons(self, trim=None, **kwargs):
         """Send to CaNeurons class"""
 
         return CaNeurons(
@@ -205,11 +208,58 @@ class MinianIO:
             t=self.times,
             trim=trim,
             basedir=self.basedir,
+            **kwargs,
         )
 
 
-def save_zarr_to_numpy(zarr, savepath):
+def fix_dim_mismatch(
+    bad_zarr_path, good_zarr_path, mismatch_dim="unit_id", save_numpy=True
+):
+    """Fixes 'bad_zarr' which has too many items (typically too many units)
+    by inferring those times from good_zarr.  Mostly happens with YrA."""
+    bad_var = xr.open_zarr(bad_zarr_path)
+    good_var = xr.open_zarr(good_zarr_path)
+
+    fixed_var = bad_var.sel({mismatch_dim: good_var[mismatch_dim].values})
+    var_name = list(bad_var.values())[0].name
+    fixed_var_path = Path(bad_zarr_path).parent / (var_name + "_fixed.zarr")
+
+    assert (
+        not fixed_var_path.is_dir()
+    ), f'Existing {var_name + "_fixed.zarr"} group exists. Delete and re-try.'
+    fixed_var.to_zarr(fixed_var_path)
+
+    if save_numpy:
+        fixed_var_np_path = Path(bad_zarr_path).parent / (var_name + "_fixed.npy")
+        save_zarr_to_numpy(fixed_var, fixed_var_np_path)
+
+    return None
+
+
+def save_zarr_to_numpy(
+    zarr_var: str or Path or xr.Dataset or xr.DataArray, save_dir=None
+):
     """Saves a zarr/xarray variable as a numpy file"""
+    if isinstance(zarr_var, str) or isinstance(zarr_var, Path):
+        zarr = list(xr.open_zarr(zarr_var).values())[0]
+        save_dir = Path(zarr_var).parent
+    elif isinstance(zarr_var, xr.Dataset):
+        zarr = list(zarr_var.values())[0]
+        assert (
+            save_dir is not None
+        ), "Must specify save_dir to save to if inputting xr.Dataset"
+        save_dir = Path(save_dir).parent
+    elif isinstance(zarr_var, xr.DataArray):
+        zarr = zarr_var
+        assert (
+            save_dir is not None
+        ), "Must specify save_dir to save to if inputting xr.DataArray"
+        save_dir = Path(save_dir).parent
+    elif not isinstance(zarr_var, xr.DataArray):
+        assert False, "zarr_var is not appropriate input type"
+
+    var_name = zarr.name
+    np.save(save_dir / (var_name + ".npy"), zarr.values)
     pass
 
 
@@ -228,7 +278,7 @@ def check_integrity(var_list, fix: str or bool in [False, "min_size"] = "min_siz
 if __name__ == "__main__":
     from session_directory import get_session_dir
 
-    animal = "Finn"
+    animal = "Jyn"
     session = "Training"
 
     # Get session directory
@@ -238,4 +288,5 @@ if __name__ == "__main__":
     minian = MinianIO(basedir=sesh_dir)
 
     # Keep only good neurons
-    caneurons = minian.trim_neurons(keep=None, trim="bad_units")
+    caneurons = minian.trim_neurons(keep=["good", "maybe_interneurons"], trim=None)
+    # caneurons.plot_rois_with_min_proj()

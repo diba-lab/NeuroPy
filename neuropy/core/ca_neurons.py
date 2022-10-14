@@ -155,6 +155,7 @@ class CaNeuronReg:
     def plot_rois_across_sessions(self, fig_title="", **kwargs):
         """Plot rois over max proj with min proj also across days.
         **kwargs to CaNeurons.plot_rois_with_min_proj"""
+
         fig, ax = plt.subplots(2, self.nsessions, figsize=(5.67 * self.nsessions, 12.6))
         fig.suptitle(fig_title)
 
@@ -169,8 +170,19 @@ class CaNeuronReg:
             caneurons.plot_rois_with_min_proj(ax=a, **kwargs)
             a[0].set_title(name)
 
-    def register_cells(self):
-        pass
+        return fig, ax
+
+
+def register_cells_manual(caneurons1: CaNeurons, caneurons2: CaNeurons):
+    """Load in and register neurons across days manually by making a list."""
+    # Plot out cells from both sessions
+    careg = CaNeuronReg([caneurons1, caneurons2])
+    careg.plot_rois_across_sessions()
+    # Select 3-4 reference cells that are clearly active and the same in both sessions
+
+    # Step through and match up each neuron from session1 to session2
+
+    pass
 
 
 def detect_roi_edges(roi_binary, **kwargs):
