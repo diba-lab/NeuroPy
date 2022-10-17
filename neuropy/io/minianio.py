@@ -185,7 +185,6 @@ class MinianIO:
                 keep_bool[trim_ind] = False  # cut out neurons
 
         # Now re-assign everything
-        # NRK todo - add in original neuron #s here after trimming so that you have a more consistent reference point
         for var_name in ["A", "C", "S", "YrA", "neuron_ids"]:
             try:
                 setattr(caneurons, var_name, getattr(caneurons, var_name)[keep_bool])
