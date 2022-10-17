@@ -6,6 +6,7 @@ import scipy.signal as sg
 from .datawriter import DataWriter
 from copy import deepcopy
 from skimage import feature
+from skimage.measure import regionprops
 from pathlib import Path
 
 from neuropy.utils.minian_util import load_variable
@@ -48,6 +49,7 @@ class CaNeurons(DataWriter):
         self,
         neuron_inds: list or np.ndarray or None = None,
         label: bool = False,
+        plot_cell_id: bool = True,
         ax: plt.Axes or None = None,
         plot_masks: bool = False,
         plot_max: bool = True,
@@ -78,20 +80,29 @@ class CaNeurons(DataWriter):
                 xedges, yedges = detect_roi_edges(roi > 0)
                 (hl,) = ax.plot(xedges, yedges, linewidth=0.7)
                 lines.append(hl)
-                ax.text(xedges.mean(), yedges.mean(), str(id), color="w")
+                if plot_cell_id:
+                    ax.text(xedges.mean(), yedges.mean(), str(id), color="w")
+        else:
+            lines = None
 
         if len(highlight_inds) > 0:
             # [lines[hid].set_linewidth(4) for hid in highlight_inds]
             [lines[hid].set(linewidth=3, color="r") for hid in highlight_inds]
 
-        return fig, ax, xedges, yedges
+        return fig, ax, lines
 
     @property
     def max_proj(self):
+        """Grab max projection for session. Motion-corrected and cropped only."""
         max_proj_dir = sorted(self.basedir.glob("**/max_proj*.*"))[0].parent
         return load_variable(max_proj_dir, "max_proj")
 
+    def roi_com(self, neuron_inds=None):
+        """Get center-of-mass of all neuron rois"""
+        return np.array([detect_roi_centroid(roi > 0) for roi in self.A[neuron_inds]])
+
     def min_proj(self, proj_type: str in ["", "crop", "mc_crop"] = "mc_crop"):
+        """Grab appropriate minimum projection"""
         min_proj_dir = sorted(self.basedir.glob("**/min_proj*.*"))[
             0
         ].parent  # get min_proj directory
@@ -162,52 +173,93 @@ class CaNeuronReg:
 
         return self.caneurons[sesh_ind]
 
-    def plot_rois_across_sessions(self, fig_title="", **kwargs):
+    def plot_rois_across_sessions(
+        self, fig_title="", sesh_plot: list or None = None, **kwargs
+    ):
         """Plot rois over max proj with min proj also across days.
         **kwargs to CaNeurons.plot_rois_with_min_proj"""
 
-        fig, ax = plt.subplots(
-            2,
-            self.nsessions,
-            figsize=(5.67 * self.nsessions, 12.6),
-            sharex=True,
-            sharey=True,
-        )
-        fig.suptitle(fig_title)
+        # Recursively plot a subset of sessions if specified in sesh_plot
+        if sesh_plot is not None:
+            use_alias = isinstance(sesh_plot[0], str)
+            if use_alias:
+                caneuro_use = [self.get_session(alias) for alias in sesh_plot]
+                alias_use = sesh_plot
+            else:
+                assert isinstance(
+                    sesh_plot[0], int
+                ), "sesh_plot must be a list or int or str"
+                caneuro_use = [self.caneurons[id] for id in sesh_plot]
+                alias_use = [f"Session {sesh}" for sesh in sesh_plot]
+            CaNeuronReg(caneuro_use, alias=alias_use).plot_rois_across_sessions()
+        elif sesh_plot is None:
+            # Set up plots
+            fig, ax = plt.subplots(
+                2,
+                self.nsessions,
+                figsize=(5.67 * self.nsessions, 12.6),
+                sharex=True,
+                sharey=True,
+            )
+            fig.suptitle(fig_title)
 
-        # Get names for each session - either by session alias or overall session number
-        names = (
-            self.alias
-            if self.alias is not None
-            else [f"Session {n+1}" for n in range(self.nsessions)]
-        )
+            # Get names for each session - either by session alias or overall session number
+            names = (
+                self.alias
+                if self.alias is not None
+                else [f"Session {n+1}" for n in range(self.nsessions)]
+            )
 
-        for a, caneurons, name in zip(ax.T, self.caneurons, names):
-            caneurons.plot_rois_with_min_proj(ax=a, **kwargs)
-            a[0].set_title(name)
+            # plot rois
+            for a, caneurons, name in zip(ax.T, self.caneurons, names):
+                caneurons.plot_rois_with_min_proj(ax=a, **kwargs)
+                a[0].set_title(name)
 
-        plt.pause(0.1)
+            return fig, ax
 
-        return fig, ax
+    @staticmethod
+    def shift_roi_edges(
+        roi_edges: plt.Line2D, delta_com: np.ndarray, use_mean: bool = True
+    ):
+        """Adjust plotted roi edges by amount in delta_com"""
+        assert delta_com.shape[1] == 2
+        ncells = len(roi_edges)
+
+        if use_mean:  # Adjust ALL rois by the mean x/y value in delta_com
+            delta_com = np.ones((ncells, 2)) * delta_com.mean(axis=0)
+
+        # Adjust all roi edges by amount specifiy and keep original color
+        for dcom, roi_edge in zip(delta_com, roi_edges):
+            roi_color = roi_edge.get_color()
+            roi_edge.set_xdata(roi_edge.get_xdata() + dcom[0])
+            roi_edge.set_ydata(roi_edge.get_ydata() + dcom[1])
+            roi_edge.set_color(roi_color)
+
+        return None
+
+    @staticmethod
+    def load_pairwise_map(map_filename):
+        """Load a pairwise map into a pandas dataframe"""
+        map_filename = Path(map_filename)
+        map_stem = map_filename.stem
+        assert (
+            len(map_stem.split("_")) == 3 and map_stem.split("_")[0] == "map"
+        ), 'map file must be of the format "map_sesh1identifier_sesh2identifier.npy"'
+        _, sesh1id, sesh2id = map_stem.split("_")
+
+        map_array = np.load(map_filename)
+
+        return pd.DataFrame({sesh1id: map_array[:, 0], sesh2id: map_array[:, 1]})
 
 
-def register_cells_manual(caneurons1: CaNeurons, caneurons2: CaNeurons, **kwargs):
-    """Load in and register neurons across days manually by making a list.
+def id_and_plot_reference_cells(caneurons1: CaNeurons, caneurons2: CaNeurons, **kwargs):
+    """identify and clearly plot reference cells active across both session to aid
+    in manual cell registration.
     **kwargs to CaNeurons.plot_rois"""
-
-    def plot1(careg):
-        print("test")
-        fig, ax = careg.plot_rois_across_sessions()
-        plt.draw()
-        plt.show(block=False)
-        plt.pause(0.1)
-
-        return fig, ax
 
     # Plot out cells from both sessions
     careg = CaNeuronReg([caneurons1, caneurons2])
-    fig, ax = plot1(careg)
-    # fig, ax = careg.plot_rois_across_sessions()
+    fig, ax = careg.plot_rois_across_sessions()
 
     # Select 3-4 reference cells that are clearly active and the same in both sessions
     sesh1_inds = list(
@@ -252,7 +304,7 @@ def register_cells_manual(caneurons1: CaNeurons, caneurons2: CaNeurons, **kwargs
 
     # Step through and match up each neuron from session1 to session2
 
-    return None
+    return fig, ax
 
 
 def detect_roi_edges(roi_binary, **kwargs):
@@ -267,3 +319,13 @@ def detect_roi_edges(roi_binary, **kwargs):
     yedges = np.append(inds[0][isort], inds[0][isort[0]])
 
     return xedges, yedges
+
+
+def detect_roi_centroid(roi_binary, **kwargs):
+    """Detect centroid of a cell roi, input = binary (boolean) mask"""
+    props = regionprops(roi_binary.astype(np.uint8))
+    com = props[0].centroid
+
+    com_y, com_x = com
+
+    return com_x, com_y
