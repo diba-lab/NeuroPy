@@ -252,6 +252,23 @@ class CaNeuronReg:
         return pd.DataFrame({sesh1id: map_array[:, 0], sesh2id: map_array[:, 1]})
 
 
+class PairwiseMap:
+    """Class to save pairwise neuron registration maps"""
+
+    def __init__(
+        self, caregobj: CaNeuronReg, map_df, animal: str, sesh1: str, sesh2: str
+    ):
+        self.map = map_df
+        self.animal = animal
+        self.sesh1 = sesh1
+        self.sesh2 = sesh2
+        self.trim1 = caregobj.get_session(sesh1).trim
+        self.trim2 = caregobj.get_session(sesh2).trim
+
+    def to_numpy(self, savename):
+        np.save(savename, self, allow_pickle=True)
+
+
 def id_and_plot_reference_cells(caneurons1: CaNeurons, caneurons2: CaNeurons, **kwargs):
     """identify and clearly plot reference cells active across both session to aid
     in manual cell registration.
