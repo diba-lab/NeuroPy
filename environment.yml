@@ -1,6 +1,7 @@
 name: NeuroPy
 channels:
     - conda-forge
+    - defaults
 dependencies:
     - python=3.9
     - pip
@@ -22,6 +23,10 @@ dependencies:
     - ruamel.yaml
     - pingouin
     - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
+    - numba
+    - param
+    - panel
+    - hdf5storage
     # mamba install scikit-learn hmmlearn joblib pytables tqdm
     # mamba install pingouin cupy ruamel.yaml easydict pingouin cupy ruamel.yaml easydict
     

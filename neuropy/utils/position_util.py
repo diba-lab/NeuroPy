@@ -6,6 +6,7 @@ from scipy.ndimage import gaussian_filter1d
 
 from .. import core
 from neuropy.utils.mathutil import contiguous_regions, threshPeriods
+from neuropy.utils.mixins.binning_helpers import compute_spanning_bins
 
 
 def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):
@@ -191,3 +192,30 @@ def calculate_run_epochs(
     data["direction"] = np.where(val > 0, "forward", "backward")
 
     return run_epochs
+
+
+def compute_position_grid_size(*any_1d_series, num_bins:tuple):
+    """  Computes the required bin_sizes from the required num_bins (for each dimension independently)
+    Usage:
+    out_grid_bin_size, out_bins, out_bins_infos = compute_position_grid_size(curr_kdiba_pipeline.sess.position.x, curr_kdiba_pipeline.sess.position.y, num_bins=(64, 64))
+    active_grid_bin = tuple(out_grid_bin_size)
+    print(f'active_grid_bin: {active_grid_bin}') # (3.776841861770752, 1.043326930905373)
+    
+    History:
+        Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
+    
+    """
+    assert (len(any_1d_series)) == len(num_bins), f'(len(other_1d_series)) must be the same length as the num_bins tuple! But (len(other_1d_series)): {(len(any_1d_series))} and len(num_bins): {len(num_bins)}!'
+    num_series = len(num_bins)
+    out_bins = []
+    out_bins_info = []
+    out_bin_grid_step_size = np.zeros((num_series,))
+
+    for i in np.arange(num_series):
+        xbins, xbin_info = compute_spanning_bins(any_1d_series[i], num_bins=num_bins[i])
+        out_bins.append(xbins)
+        out_bins_info.append(xbin_info)
+        out_bin_grid_step_size[i] = xbin_info.step
+
+    return out_bin_grid_step_size, out_bins, out_bins_info
+

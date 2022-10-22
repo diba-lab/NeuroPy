@@ -3,12 +3,14 @@ from collections import namedtuple
 from enum import Enum, IntEnum, auto, unique
 from itertools import islice
 import numpy as np
+import pandas as pd
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
-
 
 import collections
 import _collections_abc as cabc
 import abc
+
+
 
 
 ## Solution from Alexander McFarlane, https://stackoverflow.com/questions/1055360/how-to-tell-a-variable-is-iterable-but-not-a-string. answered Jun 30 '20 at 13:25
@@ -143,3 +145,77 @@ def print_seconds_human_readable(seconds):
         timestamp = '{}:{}'.format(timestamp, frac_seconds_string) # append the fracitonal seconds string to the timestamp string
     print(timestamp) # print the timestamp
     return h, m, s, fractional_seconds
+
+
+
+def copy_if_not_none(val):
+    """ solves the problem of AttributeError: 'NoneType' object has no attribute 'copy', gracefully passing None through if the value is None and copying it otherwise. """
+    if val is not None:
+        return val.copy()
+    else:
+        return None
+    
+    
+# ==================================================================================================================== #
+# Pandas Helpers                                                                                                       #
+# ==================================================================================================================== #
+def safe_pandas_get_group(dataframe_group, key):
+    """ returns an empty dataframe if the key isn't found in the group."""
+    if key in dataframe_group.groups.keys():
+        return dataframe_group.get_group(key)
+    else:
+        original_df = dataframe_group.obj
+        return original_df.drop(original_df.index)
+    
+def convert_dataframe_columns_to_datatype_if_possible(df, datatype_str_column_names_list_dict, debug_print=False):
+    """ If the columns specified in datatype_str_column_names_list_dict exist in the dataframe df, their type is changed to the key of the dict. See usage example below:
+    
+    Inputs:
+        df: Pandas.DataFrame 
+        datatype_str_column_names_list_dict: {'int':['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']}
+
+    Usage:
+        from neuropy.utils.misc import convert_dataframe_columns_to_datatype_if_possible
+        convert_dataframe_columns_to_datatype_if_possible(curr_active_pipeline.sess.spikes_df, {'int':['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']})
+    """
+    # spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']].astype('int') # convert integer calumns to correct datatype
+    for a_datatype_name, a_column_names_list in datatype_str_column_names_list_dict.items():
+        is_included = np.isin(a_column_names_list, df.columns)
+        if debug_print:
+            print(f'datatype: {a_datatype_name}: {a_column_names_list}:{is_included}')
+        a_column_names_list = np.array(a_column_names_list)
+        subset_extant_columns = a_column_names_list[is_included] # Get only the column names thare are included in the dataframe
+        if debug_print:
+            print(f'\t subset_extant_columns: {subset_extant_columns}')
+        # subset_extant_columns = a_column_names_list
+        df[subset_extant_columns] = df[subset_extant_columns].astype(a_datatype_name) # convert integer calumns to correct datatype
+
+
+def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, join_column_name='aclu'):
+    """ Uses a value (specified by `join_column_name`) in each row of `df` to lookup the appropriate values in `lookup_properties_map_df` to be explicitly added as columns to `df`
+    df: a dataframe. Each row has a join_column_name value (e.g. 'aclu')
+    
+    lookup_properties_map_df: a dataframe with one row for each `join_column_name` value (e.g. one row for each 'aclu', describing various properties of that neuron)
+    
+    
+    By default lookup_properties_map_df can be obtained from curr_active_pipeline.sess.neurons._extended_neuron_properties_df and has the columns:
+        ['aclu', 'qclu', 'cell_type', 'shank', 'cluster']
+    Which will be added to the spikes_df
+    
+    WARNING: the df will be unsorted after this operation, and you'll need to sort it again if you want it sorted
+    
+    
+    Usage:
+        curr_active_pipeline.sess.flattened_spiketrains._spikes_df = add_explicit_dataframe_columns_from_lookup_df(curr_active_pipeline.sess.spikes_df, curr_active_pipeline.sess.neurons._extended_neuron_properties_df)
+        curr_active_pipeline.sess.spikes_df.sort_values(by=['t_seconds'], inplace=True) # Need to re-sort by timestamps once done
+        curr_active_pipeline.sess.spikes_df
+
+    """
+    ## only find the columns in lookup_properties_map_df that are NOT in df. e.g. ['qclu', 'cluster']
+    missing_spikes_df_columns = list(lookup_properties_map_df.columns[np.logical_not(np.isin(lookup_properties_map_df.columns, df.columns))]) 
+    missing_spikes_df_columns.insert(0, join_column_name) # Insert 'aclu' into the list so we can join on it
+    subset_neurons_properties_df = lookup_properties_map_df[missing_spikes_df_columns] # get the subset dataframe with only the requested columns
+    ## Merge the result:
+    # df = pd.merge(subset_neurons_properties_df, df, on=join_column_name, how='outer', suffixes=('_neurons_properties', '_spikes_df'))
+    return pd.merge(df, subset_neurons_properties_df, on=join_column_name, how='left', suffixes=('_neurons_properties', '_spikes_df'), copy=False) # avoids copying if possible
+

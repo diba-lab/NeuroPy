@@ -3,16 +3,10 @@ from typing import Sequence, Union
 import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
 from pandas.core.indexing import IndexingError
-from neuropy.utils import mathutil
+
 import pandas as pd
-from scipy.ndimage import gaussian_filter1d
-
-
-
 from .epoch import Epoch
-from .signal import Signal
 from .datawriter import DataWriter
-from neuropy.utils.load_exported import import_mat_file 
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
@@ -446,7 +440,7 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
     @property
     def sampling_rate(self):
         # raise NotImplementedError
-        return 1.0/np.mean(np.diff(self.time))
+        return 1.0/np.nanmean(np.diff(self.time))
 
     @sampling_rate.setter
     def sampling_rate(self, sampling_rate):

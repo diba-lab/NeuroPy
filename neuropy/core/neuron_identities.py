@@ -24,7 +24,9 @@ from enum import Enum
 
 
 class PlotStringBrevityModeEnum(Enum):
-    """Docstring for PlotStringBrevityModeEnum."""
+    """An enum of different modes that specify how verbose/brief the rendered strings should be on a given plot.
+    More verbose means longer ouptuts with fewer abbreviations. For very brief modes, less important elements may be omitted entirely
+    """
     VERBOSE = "VERBOSE"
     DEFAULT = "DEFAULT"
     CONCISE = "CONCISE"
@@ -47,51 +49,60 @@ class PlotStringBrevityModeEnum(Enum):
         else:
             raise NameError
 
-
-    # @classmethod
-    # def extended_identity_formatting_string(cls, enum_value, neuron_extended_id):
-    #     """The extended_identity_labels property."""
-    #     if enum_value == PlotStringBrevityModeEnum.VERBOSE:
-    #         return f'Cell cell_uid: {neuron_extended_id.id} - (shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
-    #     elif enum_value == PlotStringBrevityModeEnum.DEFAULT:
-    #         return f'Cell {neuron_extended_id.id} - (shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
-    #     elif enum_value == PlotStringBrevityModeEnum.CONCISE:
-    #         return f'Cell {neuron_extended_id.id} - (shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
-    #     elif enum_value == PlotStringBrevityModeEnum.MINIMAL:
-    #         return f'{neuron_extended_id.id} - s {neuron_extended_id.shank}, c {neuron_extended_id.cluster}'
-    #     elif enum_value == PlotStringBrevityModeEnum.NONE:
-    #         return f'{neuron_extended_id.id} - {neuron_extended_id.shank}, {neuron_extended_id.cluster}'
-    #     else:
-    #         print(f'self: {enum_value} is unknown type!')
-    #         raise NameError
-    
-    
-    def extended_identity_formatting_string(self, neuron_extended_id):
-        """The extended_identity_labels property."""
+    def _basic_identity_formatting_string(self, neuron_extended_id):
+        """Builds the string output for just the id (aclu) component of the neuron_extended_id """
         if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
-            return f'Cell cell_uid: {neuron_extended_id.id} - (shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+            return f'Cell cell_uid: {neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
-            return f'Cell {neuron_extended_id.id} - (shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+            return f'Cell {neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return f'Cell {neuron_extended_id.id} - (shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+            return f'Cell {neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return f'{neuron_extended_id.id} - s{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
+            return f'{neuron_extended_id.id}'
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return f'{neuron_extended_id.id}-{neuron_extended_id.shank},{neuron_extended_id.cluster}'
+            return f'{neuron_extended_id.id}'
         else:
             print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
             raise NameError
-        # return PlotStringBrevityModeEnum.extended_identity_formatting_string(self, neuron_extended_id)
+
+    def _extra_info_identity_formatting_string(self, neuron_extended_id):
+        """Builds the string output for just the shank and cluster components of the neuron_extended_id."""
+        if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
+            return f'(shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
+            return f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
+            return f'(shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
+            return f's{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            return f'{neuron_extended_id.shank},{neuron_extended_id.cluster}'
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
+
+    def extended_identity_formatting_string(self, neuron_extended_id):
+        """The extended_identity_labels property."""
+        if (self.name == PlotStringBrevityModeEnum.VERBOSE.name) or (self.name == PlotStringBrevityModeEnum.DEFAULT.name):
+            return ' - '.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
+        elif (self.name == PlotStringBrevityModeEnum.CONCISE.name) or (self.name == PlotStringBrevityModeEnum.MINIMAL.name):
+            return '-'.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            # Show only the id label:
+            return self._basic_identity_formatting_string(neuron_extended_id)
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
         
     @property
     def should_show_firing_rate_label(self):
         """ Whether the firing rate in Hz should be showed on the plot """
         if self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return False
+            return True # was False
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return False
+            return True # was False
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return False
+            return False # was False
         else:
             return True
         
@@ -144,6 +155,26 @@ class NeuronIdentity(SimplePrintable):
         
         
 class NeuronIdentityAccessingMixin:
+    """ 
+        Requires implementor overrides the neuron_ids property to provide an ordered list of unique cell identifiers (such as the 'aclu' values from a spikes_df)
+        
+        provides functions to map between unique cell_identifiers (cell_ids) and implementor specific indicies (neuron_IDXs)
+    
+        NOTE: 
+            Based on how the neuron_IDXs are treated in self.get_neuron_id_and_idx(...), they are constrained to be:
+                1. Monotonically increasing from 0 to (len(self.neuron_ids)-1)
+                
+                Note that if an implementor violates this definition, for example if they filtered out or excluded some of the neurons and so were left with fewer self.neuron_ids than were had when the self.neuron_IDXs were first built, then there can potentially be:
+                    1. Indicies missing from the neuronIDXs (corresponding to the filtered out neuron_ids)
+                    2. Too many indicies present in neuronIDXs (with the extras corresponding to the neuron_ids that were removed after the IDXs were built).
+                    3. **IMPORTANT**: Values of neuronIDXs that are too large and would cause index out of bound errors when trying to get the corresponding to neuron_id value.
+                    4. **CRITICAL**: VALUE SHIFTED reverse lookups! If any neuronIDX is removed with its corresponding neuron_id, it will cause all the neuron_IDXs after it to be 1 value too large and throw off reverse lookups. This is what's happening with the placefields/spikes getting shifted!
+    
+    
+    CONCLUSIONS:
+        Implementor must be sure to keep self.neuron_ids up-to-date with any other list of neuron_ids it might use (like the 'aclu' values from the spikes_df) AND be sure to not hold references to (or keep them up-to-date) the neuron_IDXs. Any time IDXs are used (such as those retrieved from the spikes_df's neuron_IDX column) they must be up-to-date to be referenced.
+        
+    """
     @property
     def neuron_ids(self):
         """ e.g. return np.array(active_epoch_placefields2D.cell_ids) """
@@ -170,6 +201,26 @@ class NeuronIdentityAccessingMixin:
         # print(f'cell_i: {cell_i}, cell_id: {cell_id}')
         return neuron_i, neuron_id
 
+    def find_cell_ids_from_neuron_IDXs(self, neuron_IDXs):
+        """Finds the cell original IDs from the cell IDXs (not IDs)
+        Args:
+            neuron_IDXs ([type]): [description]
+        """
+        found_cell_ids = [self.get_neuron_id_and_idx(neuron_i=an_included_neuron_IDX)[1] for an_included_neuron_IDX in neuron_IDXs] # get the ids from the cell IDXs
+        return found_cell_ids
+    
+    
+    def find_neuron_IDXs_from_cell_ids(self, cell_ids):
+        """Finds the cell IDXs (not IDs) from the cell original IDs (cell_ids)
+        Args:
+            cell_ids ([type]): [description]
+        """
+        found_cell_INDEXES = [self.get_neuron_id_and_idx(neuron_id=an_included_cell_ID)[0] for an_included_cell_ID in cell_ids] # get the indexes from the cellIDs
+        return found_cell_INDEXES
+    
+    
+    
+    
         
 class NeuronIdentitiesDisplayerMixin:
     @property

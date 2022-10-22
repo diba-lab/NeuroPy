@@ -1,5 +1,6 @@
 import sys
 from typing import Sequence, Union
+from warnings import warn
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -24,10 +25,15 @@ from neuropy.utils.efficient_interval_search import determine_event_interval_ide
 
 
 class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
+    """ holds the collection of all data, both loaded and computed, related to an experimental recording session. Can contain multiple discontiguous time periods ('epochs') meaning it can represent the data collected over the course of an experiment for a single animal (across days), on a single day, etc.
+    
+    Provides methods for loading, accessing, and manipulating data such as neural spike trains, behavioral laps, etc.
+        
+    """
     def __init__(self, config, filePrefix = None, recinfo = None,
                  eegfile = None, datfile = None,
                  neurons = None, probegroup = None, position = None, paradigm = None,
-                 ripple = None, mua = None, laps= None, flattened_spiketrains = None, pbe = None):       
+                 ripple = None, mua = None, laps= None, flattened_spiketrains = None, pbe = None, **kwargs):       
         self.config = config
         
         self.is_loaded = False
@@ -47,9 +53,17 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         self.flattened_spiketrains = flattened_spiketrains # core.FlattenedSpiketrains
         self.pbe = pbe
         
+        for an_additional_arg, arg_value in kwargs.items():
+            setattr(self, an_additional_arg, arg_value) # allows specifying additional information as optional arguments
     
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
+        if self.recinfo is None:
+            return f"{self.__class__.__name__}(config: {self.config}): Not yet configured."
+        else:
+            if self.recinfo.source_file is None:
+                return f"{self.__class__.__name__}(configured from manual recinfo: {self.recinfo})"
+            else:
+                return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
     #######################################################
     ## Passthru Accessor Properties:
     @property
@@ -72,6 +86,8 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def position_sampling_rate(self):
         return self.position.sampling_rate
 
+
+    # Neurons Properties _________________________________________________________________________________________________ #
     @property
     def neuron_ids(self):
         return self.neurons.neuron_ids
@@ -80,28 +96,11 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def n_neurons(self):
         return self.neurons.n_neurons
     
-    
-    # @property
-    # def n_total_spikes(self):
-    #     return self.neurons.n_neurons
-    # @property
-    # def is_resolved(self):
-    #     return self.config.is_resolved
-    # @property
-    # def is_resolved(self):
-    #     return self.config.is_resolved
-
-
     @property
     def spikes_df(self):
         return self.flattened_spiketrains.spikes_df
     
-    
-    # @property
-    # def is_loaded(self):
-    #     """The epochs property is an alias for self.paradigm."""
-    #     return self.paradigm
-    
+    # Epochs properties __________________________________________________________________________________________________ #
     @property
     def epochs(self):
         """The epochs property is an alias for self.paradigm."""
@@ -109,6 +108,23 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     @epochs.setter
     def epochs(self, value):
         self.paradigm = value
+    @property
+    def t_start(self):
+        return self.paradigm.t_start    
+    @property
+    def duration(self):
+        return self.paradigm.duration
+    @property
+    def t_stop(self):
+        return self.paradigm.t_stop
+    
+    @property
+    def has_replays(self):
+        """The has_replays property."""
+        if not hasattr(self, 'replay'):
+            return False
+        else:
+            return (self.replay is not None)
         
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop, enable_debug=True):
@@ -122,15 +138,33 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         copy_sess = DataSession.from_dict(deepcopy(self.to_dict()))
         # copy_sess = DataSession.from_dict(self.to_dict())
         
+        # Slices the epochs:
+        copy_sess.epochs = copy_sess.epochs.time_slice(active_epoch_times[0], active_epoch_times[1])
+        
         # update the copy_session's time_sliceable objects
         copy_sess.neurons = copy_sess.neurons.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_session_Neurons: Filter by pyramidal cells only, returns a core.
         copy_sess.position = copy_sess.position.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid
         copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.time_slice(active_epoch_times[0], active_epoch_times[1]) # active_epoch_pos: active_epoch_pos's .time and start/end are all valid  
         
-        # copy_sess.laps = self.      
+        if copy_sess.ripple is not None:
+            copy_sess.ripple = copy_sess.ripple.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+        if copy_sess.mua is not None:
+            # copy_sess.mua = copy_sess.mua.time_slice(active_epoch_times[0], active_epoch_times[1])
+            # TODO: mua needs to be time_sliced as well, but I'm not sure how to best do this. Might be easier just to remake it.
+            copy_sess.mua = DataSession.compute_neurons_mua(copy_sess, save_on_compute=False)
+        if copy_sess.pbe is not None:
+            copy_sess.pbe = copy_sess.pbe.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+            
+        if copy_sess.laps is not None:
+            copy_sess.laps = copy_sess.laps.time_slice(active_epoch_times[0], active_epoch_times[1]) 
+        
+        if copy_sess.has_replays:            
+            copy_sess.replay = copy_sess.replay.time_slicer.time_slice(active_epoch_times[0], active_epoch_times[1])
+            
+            
+            
         return copy_sess
     
-
     def get_neuron_type(self, query_neuron_type):
         """ filters self by the specified query_neuron_type, only returning neurons that match. """
         print('Constraining to units with type: {}'.format(query_neuron_type))
@@ -151,7 +185,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     
 
     ## filtered_by_* functions:
-    
     def filtered_by_time_slice(self, t_start=None, t_stop=None):
         return self.time_slice(t_start, t_stop)
         
@@ -183,17 +216,35 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.get_by_id(ids)
         return copy_sess
 
-  
+    
+
+    # Context and Description ____________________________________________________________________________________________ #
+    def get_context(self):
+        """ returns an IdentifyingContext for the session """
+        return self.config.get_context()
+    
+    def get_description(self)->str:
+        """ returns a simple text descriptor of the session
+        Outputs:
+            a str like 'sess_kdiba_2006-6-07_11-26-53'
+        """
+        return self.config.get_description()
+    
+    def __str__(self) -> str:
+        return self.get_description()
+    
     @staticmethod
     def from_dict(d: dict):
-        return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
-                 eegfile = d['eegfile'], datfile = d['datfile'],
-                 neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
-                 ripple = d.get('ripple', None), mua = d.get('mua', None), 
-                 laps= d.get('laps', None),
-                 flattened_spiketrains = d.get('flattened_spiketrains', None))
-
+        config = d.pop('config')
+        return DataSession(config, **d)
         
+        # return DataSession(d['config'], filePrefix = d['filePrefix'], recinfo = d['recinfo'],
+        #          eegfile = d['eegfile'], datfile = d['datfile'],
+        #          neurons = d['neurons'], probegroup = d.get('probegroup', None), position = d['position'], paradigm = d['paradigm'],
+        #          ripple = d.get('ripple', None), mua = d.get('mua', None), pbe = d.get('pbe', None),
+        #          laps= d.get('laps', None),
+        #          flattened_spiketrains = d.get('flattened_spiketrains', None))
+
     def to_dict(self, recurrsively=False):
         simple_dict = deepcopy(self.__dict__)
         if recurrsively:
@@ -203,6 +254,19 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             # simple_dict['flattened_spiketrains'] = simple_dict['flattened_spiketrains'].to_dict() ## TODO: implement .to_dict() for FlattenedSpiketrains object to make this work
         return simple_dict
         
+        
+    def __sizeof__(self) -> int:
+        """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
+        return super().__sizeof__() + int(np.sum([sys.getsizeof(self.spikes_df), sys.getsizeof(self.epochs.to_dataframe()), sys.getsizeof(self.position.to_dataframe())]))
+
+    # DataSessionPanelMixin:
+    def panel_dataframes_overview(self, max_page_items=20):
+        return DataSessionPanelMixin.panel_session_dataframes_overview(self, max_page_items=max_page_items)
+    
+    # ==================================================================================================================== #
+    # Static Computation Helper Methods                                                                                    #
+    # ==================================================================================================================== #
+    
     ## Linearize Position:
     @staticmethod
     def compute_linearized_position(session, epochLabelName='maze1', method='isomap'):
@@ -219,42 +283,45 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     ## Ripple epochs
     #   To detect ripples one also needs probegroup.
     @staticmethod
-    def compute_neurons_ripples(session):
+    def compute_neurons_ripples(session, save_on_compute=False):
         print('computing ripple epochs for session...\n')
         from neuropy.analyses import oscillations
         signal = session.eegfile.get_signal()
         ripple_epochs = oscillations.detect_ripple_epochs(signal, session.probegroup)
-        ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
-        # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
-        with ProgressMessagePrinter(ripple_epochs.filename, 'Saving', 'ripple epochs'):
-            ripple_epochs.save()
+        if save_on_compute:
+            ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
+            # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
+            with ProgressMessagePrinter(ripple_epochs.filename, 'Saving', 'ripple epochs'):
+                ripple_epochs.save()
         # print('done.')
         return ripple_epochs
     # sess.ripple = compute_neurons_ripples(sess)
 
     ## BinnedSpiketrain and Mua objects using Neurons
     @staticmethod
-    def compute_neurons_mua(session):
+    def compute_neurons_mua(session, save_on_compute=False):
         print('computing neurons mua for session...\n')
         mua = session.neurons.get_mua()
-        mua.filename = session.filePrefix.with_suffix(".mua.npy")
-        # print('Saving mua results to {}...'.format(mua.filename), end=' ')
-        with ProgressMessagePrinter(mua.filename, 'Saving', 'mua results'):
-            mua.save()
+        if save_on_compute:
+            mua.filename = session.filePrefix.with_suffix(".mua.npy")
+            # print('Saving mua results to {}...'.format(mua.filename), end=' ')
+            with ProgressMessagePrinter(mua.filename, 'Saving', 'mua results'):
+                mua.save()
         # print('done.')
         return mua    
     # sess.mua = compute_neurons_mua(sess) # Set the .mua field on the session object once complete
 
     @staticmethod
-    def compute_pbe_epochs(session):
+    def compute_pbe_epochs(session, save_on_compute=False):
         from neuropy.analyses import detect_pbe_epochs
         print('computing PBE epochs for session...\n')
         smth_mua = session.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
         pbe = detect_pbe_epochs(smth_mua)
-        pbe.filename = session.filePrefix.with_suffix('.pbe.npy')
-        # print('Saving pbe results to {}...'.format(pbe.filename), end=' ')
-        with ProgressMessagePrinter(pbe.filename, 'Saving', 'pbe results'):
-            pbe.save()
+        if save_on_compute:
+            pbe.filename = session.filePrefix.with_suffix('.pbe.npy')
+            # print('Saving pbe results to {}...'.format(pbe.filename), end=' ')
+            with ProgressMessagePrinter(pbe.filename, 'Saving', 'pbe results'):
+                pbe.save()
         # print('done.')
         return pbe
     # sess.pbe = compute_pbe_epochs(sess)
@@ -266,12 +333,19 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
         session.position.linear_pos = np.full_like(session.position.time, np.nan)
         for anEpochLabelName in session.epochs.labels:
-            curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
-            # session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
-            if debug_print:
-                print('\t curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
+            try:
+                curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
+                # session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
+                if debug_print:
+                    print('\t curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
+                
+                session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_maze1.x
+            except ValueError as e:
+                # A ValueError occurs when the positions are empty during a given epoch (which occurs during any non-maze Epoch, such as 'pre' or 'post'.
+                if debug_print:
+                    # print(f'\t skipping non-maze epoch "{anEpochLabelName}"')
+                    warn(f'\t skipping non-maze epoch "{anEpochLabelName}" due to error: {e}')                
             
-            session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_maze1.x
 
         # session.position.filename = session.filePrefix.with_suffix(".position.npy")
         # print('\t Saving updated position results to {}...'.format(session.position.filename))
@@ -297,19 +371,21 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Union[Sequence, np.array]):
-        print('!! WARNING: Session.concat(...) is not yet fully implemented, meaning the returned session is not fully valid. Continue with caution.') 
+        print('!! WARNING: Session.concat(...) is not yet fully implemented, meaning the returned session is not fully valid. Continue with caution.')
+        raise NotImplementedError
+    
         new_neurons = neurons.Neurons.concat([aSession.neurons for aSession in objList])
         new_position = Position.concat([aSession.position for aSession in objList])
         new_flattened_spiketrains = FlattenedSpiketrains.concat([aSession.flattened_spiketrains for aSession in objList])
         
         # TODO: eegfile, datfile, recinfo, filePrefix should all be checked to ensure they're the same, and if they aren't, should be set to None
         # TODO: probegroup, paradigm should be checked to ensure that they're the same for all, and an exception should occur if they differ
-        # TODO: ripple, mua, and maybe others should be concatenated themselves once that functionality is implemented.
+        # TODO: ripple, mua, pbe, and maybe others should be concatenated themselves once that functionality is implemented.
         
         return cls(objList[0].config, filePrefix = objList[0].filePrefix, recinfo = objList[0].recinfo,
                  eegfile = objList[0].eegfile, datfile = objList[0].datfile,
                  neurons = new_neurons, probegroup = objList[0].probegroup, position = new_position, paradigm = objList[0].paradigm,
-                 ripple = None, mua = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
+                 ripple = None, mua = None, pbe = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
     
     
     # def filtered_by_laps(self, lap_indices=None):
@@ -393,9 +469,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         curr_pbe_epoch_df = curr_pbe_epoch.to_dataframe()
         # curr_spk_df = self.spikes_df.copy()
         # curr_spk_df = self.spikes_df
-        curr_spk_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df)
+        curr_spk_df = DataSession.compute_PBEs_spikes_df(self.spikes_df, curr_pbe_epoch_df) # column is added to the self.spikes_df, so the return value doesn't matter
         
-        # update:
+        # update: Not needed because the dataframe is updated in the DataSession.compute_PBE_spikes_df function.
         # self.neurons._data['PBE_id'] = curr_spk_df['PBE_id']
         # self.spikes_df['PBE_id'] = curr_spk_df['PBE_id']
         
@@ -414,8 +490,22 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # make sure the labels are just the PBE index:
         pbe_epoch_df['label'] = pbe_epoch_df.index
         pbe_epoch_df['label'] = pbe_epoch_df['label'].astype(str)
+        curr_time_variable_name = spk_df.spikes.time_variable_name
 
-        spk_times_arr = spk_df.t_seconds.to_numpy() # TODO: hardcoded t_seconds
+        try:
+            spk_times_arr = spk_df[curr_time_variable_name].copy().to_numpy() # get the timestamps column using the time_variable_name property. It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data:
+        except KeyError as e:
+            # curr_time_variable_name (spk_df.spikes.time_variable_name) is invalid for some reason. 
+            # raise "curr_time_variable_name is invalid for some reason!"
+            
+            proposed_updated_time_variable_name = 't_seconds'
+            print(f'encounter KeyError {e} when attempting to access spk_df using its spk_df.spikes.time_variable_name variable. Original spk_df.spikes.time_variable_name: "{spk_df.spikes.time_variable_name}". Changing it to "{proposed_updated_time_variable_name}" and proceeding forward')
+            # if 't_rel_seconds' is invalid, try the other one:
+            spk_df.spikes.set_time_variable_name(proposed_updated_time_variable_name)
+            # after the change, try again to get the spike times array:
+            spk_times_arr = spk_df[proposed_updated_time_variable_name].copy().to_numpy() # get the timestamps column using the time_variable_name property. It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data:    
+            
+
         pbe_start_stop_arr = pbe_epoch_df[['start','stop']].to_numpy()
         # pbe_identity_label = pbe_epoch_df['label'].to_numpy()
         pbe_identity_label = pbe_epoch_df.index.to_numpy() # currently using the index instead of the label.
@@ -425,19 +515,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # spk_df['PBE_id'] = spike_pbe_identity_arr
         # return the extracted traces and the updated curr_position_df
         return spk_df
-    
-    
-    
-    
-    
-    def __sizeof__(self) -> int:
-        """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
-        return super().__sizeof__() + int(np.sum([sys.getsizeof(self.spikes_df), sys.getsizeof(self.epochs.to_dataframe()), sys.getsizeof(self.position.to_dataframe())]))
 
-
-    # DataSessionPanelMixin:
-    def panel_dataframes_overview(self, max_page_items=20):
-        return DataSessionPanelMixin.panel_session_dataframes_overview(self, max_page_items=max_page_items)
         
 # # Helper function that processed the data in a given directory
 # def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):

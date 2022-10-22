@@ -128,6 +128,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         waveforms=None,
         peak_channels=None,
         shank_ids=None,
+        extended_neuron_properties_df=None,
         metadata=None,
     ) -> None:
         super().__init__(metadata=metadata)
@@ -135,6 +136,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         self.spiketrains = np.array(spiketrains, dtype="object")
         self._neuron_ids = None
         self._reverse_cellID_index_map = None
+        self._extended_neuron_properties_df = extended_neuron_properties_df
         if neuron_ids is None:
             self._neuron_ids = np.arange(len(self.spiketrains))
         else:
@@ -142,7 +144,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
                 neuron_ids = [neuron_ids] # if it's a single element, wrap it in a list.
             self._neuron_ids = np.array([int(cell_id) for cell_id in neuron_ids]) # ensures integer indexes for IDs
             
-        self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(self.neuron_ids)
+        self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(self._neuron_ids.copy())
         
         if waveforms is not None:
             assert (
@@ -264,6 +266,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             spktrn[(spktrn > t_start) & (spktrn < t_stop)]
             for spktrn in neurons.spiketrains
         ]
+
         return Neurons(
             spiketrains=spiketrains,
             t_stop=t_stop,
@@ -309,34 +312,14 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n n_total_spikes: {self.n_total_spikes}\n t_start: {self.t_start}\n t_stop: {self.t_stop}"
 
-    # def __str__(self) -> str:
-    #     # num_original_total_spikes = np.sum(self.n_spikes)
-    #     return f"# neurons = {self.n_neurons}"
-    
-    
-
     def __len__(self):
         return self.n_neurons
-
 
     def add_metadata(self):
         pass
 
     def get_all_spikes(self):
         return np.concatenate(self.spiketrains)
-
-    # def get_flattened_spikes(self):
-    #     # Gets the flattened spikes, sorted in ascending timestamp for all cells. Returns a FlattenedSpiketrains object
-    #     flattened_spike_identities = np.concatenate([np.full((self.n_spikes[i],), self.neuron_ids[i]) for i in np.arange(self.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
-    #     flattened_spike_times = np.concatenate(self.spiketrains)
-    #     # Get the indicies required to sort the flattened_spike_times
-    #     sorted_indicies = np.argsort(flattened_spike_times)
-    #     return FlattenedSpiketrains(
-    #         sorted_indicies,
-    #         flattened_spike_identities[sorted_indicies],
-    #         flattened_spike_times[sorted_indicies],
-    #         t_start=self.t_start
-    #     )
     
     @property
     def n_total_spikes(self):
@@ -389,7 +372,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         return similarity
 
     def get_binned_spiketrains(self, bin_size=0.25):
-
         """Get binned spike counts
 
         Parameters
@@ -402,18 +384,9 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         neuropy.core.BinnedSpiketrains
 
         """
-
         bins = np.arange(self.t_start, self.t_stop + bin_size, bin_size)
         spike_counts = np.asarray([np.histogram(_, bins=bins)[0] for _ in self.spiketrains])
-
-        return BinnedSpiketrain(
-            spike_counts,
-            t_start=self.t_start,
-            bin_size=bin_size,
-            neuron_ids=self.neuron_ids,
-            peak_channels=self.peak_channels,
-            shank_ids=self.shank_ids,
-        )
+        return BinnedSpiketrain(spike_counts, t_start=self.t_start, bin_size=bin_size, neuron_ids=self.neuron_ids, peak_channels=self.peak_channels, shank_ids=self.shank_ids)
 
     def get_mua(self, bin_size=0.001):
         """Get mua between two time points
@@ -436,11 +409,6 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
 
     def add_jitter(self):
         pass
-
-    # def get_psth(self, t, bin_size, window=0.25):
-    #     """Get peri-stimulus time histograms w.r.t time points in t"""
-
-    #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
 
     # DictionaryRepresentable Protocol:
     def to_dict(self, recurrsively=False):
@@ -475,13 +443,11 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             metadata=d["metadata"],
         )
 
-
     def to_dataframe(self):
         df = self._spikes_df.copy()
         # df['t_start'] = self.t_start
         return df
-    
-    
+        
     @classmethod
     def initialize_missing_spikes_df_columns(cls, spikes_df, debug_print=False):
         """ make sure the needed columns exist on spikes_df """
@@ -499,16 +465,12 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             if debug_print:
                 print('dataframe cluster column does not exist. Initializing it to the same as aclu')
             spikes_df['cluster'] = spikes_df['aclu']
-    
-    
-            
-        # return spikes_df
 
     @classmethod
     def from_dataframe(cls, spikes_df, dat_sampling_rate, time_variable_name='t_rel_seconds'):
         """ Builds a Neurons object from a spikes_df, such as the one belonging to its complementary FlattenedSpiketrains:
             Usage:
-                neurons_obj = build_neurons_obj(sess.flattened_spiketrains.spikes_df, sess.recinfo.dat_sampling_rate, time_variable_name='t_rel_seconds') 
+                neurons_obj = Neurons.from_dataframe(sess.flattened_spiketrains.spikes_df, sess.recinfo.dat_sampling_rate, time_variable_name='t_rel_seconds') 
         """
         ## Get unique cell ids to enable grouping flattened results by cell:
         unique_cell_ids = np.unique(spikes_df['aclu'])
@@ -542,16 +504,8 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             neuron_type=cell_type,
             shank_ids=shank_ids
         )
-        ## Ensure we have the 'unit_id' field, and if not, compute it        
-        # try:
-        #     test = sess.flattened_spiketrains.spikes_df['unit_id']
-        # except KeyError as e:
-        #     # build the valid key for unit_id:
-        #     sess.flattened_spiketrains.spikes_df['unit_id'] = np.array([int(session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in spikes_df['aclu'].values])
         return out_neurons
                        
-
-
     # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Union[Sequence, np.array]):
@@ -754,6 +708,7 @@ class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
     
     
 class Mua(DataWriter):
+    """ Mua stands for Multi-unit activity maybe? """
     def __init__(
         self,
         spike_counts: np.ndarray,

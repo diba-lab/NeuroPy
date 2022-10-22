@@ -15,9 +15,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="neuropy-bapungiri",
-    version="0.0.1",
-    author="Bapun Giri",
+    name="neuropy-pho",
+    version="0.0.2",
+    author="Bapun Giri, Pho Hale",
     author_email="bapung@umich.edu",
     maintainer=["Bapun Giri", "Nat Kinsky", "Pho Hale"],
     maintainer_email=["bapung@umich.edu", "nkinsky@umich.edu", "halechr@umich.edu"],

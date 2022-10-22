@@ -1,17 +1,11 @@
 from __future__ import annotations # otherwise have to do type like 'Ratemap'
 
-from enum import Enum, IntEnum, auto, unique
-from collections import namedtuple
 from ipywidgets import widgets
 from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
-
-
-# from .. import core
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 # from https://www.stefaanlippens.net/circular-imports-type-hints-python.html to avoid circular import issues
 # also you must add the following line to the beginning of this file:
@@ -23,143 +17,33 @@ if TYPE_CHECKING:
     from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
     from neuropy.core.ratemap import Ratemap
     
-
 from neuropy.utils import mathutil
-from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple, PaginatedGridIndexSpecifierTuple, RequiredSubplotsTuple
+from neuropy.utils.misc import RowColTuple
 from neuropy.utils.colors_util import get_neuron_colors
+from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label
+from neuropy.utils.debug_helpers import safely_accepts_kwargs
+from .figure import Fig
 
-
-from .figure import Fig, compute_figure_size_pixels
-
-## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to a single flat function (if that's appropriate).
-## TODO: refactor plot_ratemap_1D and plot_ratemap_2D to take a **kwargs and apply optional defaults (find previous code where I did that using the | and dict conversion. In my 3D code.
-
-
-def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', text_foreground='k', **kwargs):
-    from matplotlib.offsetbox import AnchoredText
-    from matplotlib.patheffects import withStroke    
-    # Afont = {'family': 'serif',
-    #     'backgroundcolor': 'blue',
-    #     'color':  'white',
-    #     'weight': 'normal',
-    #     'size': 14,
-    #     }
-    prop = dict(path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth)],
-                size=plt.rcParams['legend.fontsize'],
-                color=text_foreground)
-    at = AnchoredText(title, loc=loc, prop=prop, pad=0., borderpad=0.5, frameon=False, **kwargs)
-    ax.add_artist(at)
-    return at
-
-# refactored to pyPhoCoreHelpers.geometery_helpers but had to be bring back in explicitly
-Width_Height_Tuple = namedtuple('Width_Height_Tuple', 'width height')
-def compute_data_extent(xpoints, *other_1d_series):
-    """Computes the outer bounds, or "extent" of one or more 1D data series.
-
-    Args:
-        xpoints ([type]): [description]
-        other_1d_series: any number of other 1d data series
-
-    Returns:
-        xmin, xmax, ymin, ymax, imin, imax, ...: a flat list of paired min, max values for each data series provided.
+def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=None):
+    """ Adds the overlay points to the image plot with the specified axis. 
+    
+    Usage:
+        spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
+                                                                             scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
         
-    Usage:
-        # arbitrary number of data sequences:        
-        xmin, xmax, ymin, ymax, x_center_min, x_center_max, y_center_min, y_center_max = compute_data_extent(active_epoch_placefields2D.ratemap.xbin, active_epoch_placefields2D.ratemap.ybin, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers)
-        print(xmin, xmax, ymin, ymax, x_center_min, x_center_max, y_center_min, y_center_max)
-
-        # simple 2D extent:
-        extent = compute_data_extent(active_epoch_placefields2D.ratemap.xbin, active_epoch_placefields2D.ratemap.ybin)
-        print(extent)
     """
-    num_total_series = len(other_1d_series) + 1 # + 1 for the x-series
-    # pre-allocate output:     
-    extent = np.empty(((2 * num_total_series),))
-    # Do first-required series:
-    xmin, xmax = min_max_1d(xpoints)
-    extent[0], extent[1] = [xmin, xmax]
-    # finish remaining series passed as inputs.
-    for (i, a_series) in enumerate(other_1d_series):
-        curr_min, curr_xmax = min_max_1d(a_series)
-        curr_start_idx = 2 * (i + 1)
-        extent[curr_start_idx] = curr_min
-        extent[curr_start_idx+1] = curr_xmax
-    return extent
-def compute_data_aspect_ratio(xbin, ybin, sorted_inputs=True):
-    """Computes the aspect ratio of the provided data
-
-    Args:
-        xbin ([type]): [description]
-        ybin ([type]): [description]
-        sorted_inputs (bool, optional): whether the input arrays are pre-sorted in ascending order or not. Defaults to True.
-
-    Returns:
-        float: The aspect ratio of the data such that multiplying any height by the returned float would result in a width in the same aspect ratio as the data.
-    """
-    if sorted_inputs:
-        xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1]) # assumes-pre-sourced events, which is valid for bins but not general
-    else:
-        xmin, xmax, ymin, ymax = compute_data_extent(xbin, ybin) # more general form.
-
-    # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
-    # extent = (xmin, xmax, ymin, ymax)
+    if plot_opts is None:
+        plot_opts = {}
+    if scatter_opts is None:
+        scatter_opts = {}
+        
+    spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'UNKNOWN_overlay_points'} | plot_opts))                
+    spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
+    return spike_overlay_points, spike_overlay_sc
     
-    width = xmax - xmin
-    height = ymax - ymin
-    
-    aspect_ratio = width / height
-    return aspect_ratio, Width_Height_Tuple(width, height)
-
-@unique
-class enumTuningMap2DPlotMode(AutoNameEnum):
-    PCOLORFAST = auto() # DEFAULT prior to 2021-12-24
-    PCOLORMESH = auto() # UNTESTED
-    PCOLOR = auto() # UNTESTED
-    IMSHOW = auto() # New Default as of 2021-12-24
-
-@unique
-class enumTuningMap2DPlotVariables(AutoNameEnum):
-    TUNING_MAPS = auto() # DEFAULT
-    FIRING_MAPS = auto() 
-    
-    
-def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
-    """ builds a background checkerboard image used to indicate opacity
-    Usage:
-    # Updating Existing:
-    background_chessboard = _build_square_checkerboard_image(active_ax_main_image.get_extent(), num_checkerboard_squares_short_axis=8)
-    active_ax_bg_image.set_data(background_chessboard) # updating mode
-    
-    # Creation:
-    background_chessboard = _build_square_checkerboard_image(active_ax_main_image.get_extent(), num_checkerboard_squares_short_axis=8)
-    bg_im = ax.imshow(background_chessboard, cmap=plt.cm.gray, interpolation='nearest', **imshow_shared_kwargs, label='background_image')
-    
-    """
-    left, right, bottom, top = extent
-    width = np.abs(left - right)
-    height = np.abs(top - bottom) # width: 241.7178791533281, height: 30.256480996256016
-    if debug_print:
-        print(f'width: {width}, height: {height}')
-    
-    if width >= height:
-        short_axis_length = float(height)
-        long_axis_length = float(width)
-    else:
-        short_axis_length = float(width)
-        long_axis_length = float(height)
-    
-    checkerboard_square_side_length = short_axis_length / float(num_checkerboard_squares_short_axis) # checkerboard_square_side_length is the same along all axes
-    frac_num_checkerboard_squares_long_axis = long_axis_length / float(checkerboard_square_side_length)
-    num_checkerboard_squares_long_axis = int(np.round(frac_num_checkerboard_squares_long_axis))
-    if debug_print:
-        print(f'checkerboard_square_side: {checkerboard_square_side_length}, num_checkerboard_squares_short_axis: {num_checkerboard_squares_short_axis}, num_checkerboard_squares_long_axis: {num_checkerboard_squares_long_axis}')
-    # Grey checkerboard background:
-    background_chessboard = np.add.outer(range(num_checkerboard_squares_short_axis), range(num_checkerboard_squares_long_axis)) % 2  # chessboard
-    return background_chessboard
-
-
-def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001, plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE):
-    """Plots a single tuning curve Heatmap
+def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001,
+                              plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None, use_special_overlayed_title:bool=True):
+    """Plots a single tuning curve Heatmap using matplotlib
 
     Args:
         xbin ([type]): [description]
@@ -172,11 +56,11 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     Returns:
         [type]: [description]
     """
-    if plot_mode is None:    
-        # plot_mode = enumTuningMap2DPlotMode.PCOLORFAST
+    if plot_mode is None:
         plot_mode = enumTuningMap2DPlotMode.IMSHOW
-        
-    use_special_overlayed_title = True
+    assert plot_mode is enumTuningMap2DPlotMode.IMSHOW, f"Plot mode should not be specified to anything other than None or enumTuningMap2DPlotMode.IMSHOW as of 2022-08-15 but value was: {plot_mode}"
+    
+    # use_special_overlayed_title = True
     
     # use_alpha_by_occupancy = False # Only supported in IMSHOW mode
     use_alpha_by_occupancy = False # Only supported in IMSHOW mode
@@ -186,10 +70,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     if ax is None:
         ax = plt.gca()
             
-    curr_pfmap = np.array(pfmap.copy()) / np.nanmax(pfmap) # note scaling by maximum here!
-    if drop_below_threshold is not None:
-        curr_pfmap[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
-    
+    curr_pfmap = _scale_current_placefield_to_acceptable_range(pfmap, occupancy=occupancy, drop_below_threshold=drop_below_threshold)     
     # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
     # curr_pfmap = np.rot90(curr_pfmap)
     # curr_pfmap = np.fliplr(curr_pfmap) # I thought stopping after this was sufficient, as the values lined up with the 1D placefields... but it seems to be flipped vertically now!
@@ -200,124 +81,85 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
         
     # # curr_pfmap = curr_pfmap / np.nanmax(curr_pfmap) # for when the pfmap already had its transpose taken
 
-    if plot_mode is enumTuningMap2DPlotMode.PCOLORFAST:
-        im = ax.pcolorfast(
-            xbin,
-            ybin,
-            curr_pfmap,
-            cmap="jet", vmin=0.0
-        )
-        
-    elif plot_mode is enumTuningMap2DPlotMode.PCOLORMESH:
-        raise DeprecationWarning # 'Code not maintained, may be out of date'  
-        mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
-        ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0, edgecolors='k', linewidths=0.1)
-        # ax.pcolormesh(mesh_X, mesh_Y, curr_pfmap, cmap='jet', vmin=0)
-        
-    elif plot_mode is enumTuningMap2DPlotMode.PCOLOR: 
-        raise DeprecationWarning # 'Code not maintained, may be out of date'
-        im = ax.pcolor(
-            xbin,
-            ybin,
-            np.rot90(np.fliplr(pfmap)) / np.nanmax(pfmap),
-            cmap="jet",
-            vmin=0,
-        )    
-    elif plot_mode is enumTuningMap2DPlotMode.IMSHOW:
-        """ https://matplotlib.org/stable/tutorials/intermediate/imshow_extent.html """
-        """ Use the brightness to reflect the confidence in the outcome. Could also use opacity. """
-        # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
-        xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
-        # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
-        extent = (xmin, xmax, ymin, ymax)
-        # print(f'extent: {extent}')
-        # extent = None
+    """ https://matplotlib.org/stable/tutorials/intermediate/imshow_extent.html """
+    """ TODO: Use the brightness to reflect the confidence in the outcome. Could also use opacity. """
+    # mesh_X, mesh_Y = np.meshgrid(xbin, ybin)
+    xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
+    # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
+    extent = (xmin, xmax, ymin, ymax)
+    # print(f'extent: {extent}')
+    # extent = None
 
-        vmax = np.abs(curr_pfmap).max()
-                
-        imshow_shared_kwargs = {
-            'origin': 'lower',
-            'extent': extent,
-        }
-        
-        main_plot_kwargs = imshow_shared_kwargs | {
-            # 'vmax': vmax,
-            'vmin': 0,
-            'cmap': 'jet',
-        }
-        
-        if use_alpha_by_occupancy:
-            # alphas = np.ones(curr_pfmap.shape)
-            # alphas[:, :] = np.linspace(1, 0, curr_pfmap.shape[1]) # Test, blend transparency linearly
-            # Normalize:
-            # Create an alpha channel based on weight values
-            # Any value whose absolute value is > .0001 will have zero transparency
-            alphas = Normalize(clip=True)(np.abs(occupancy))
-            # alphas = Normalize(0, .3, clip=True)(np.abs(occupancy))
-            # alphas = np.clip(alphas, .4, 1)  # alpha value clipped at the bottom at .4
-            main_plot_kwargs['alpha'] = alphas
-            pass
-        else:
-            main_plot_kwargs['alpha'] = None
-        
-        if use_black_rendered_background_image:
-            # We'll also create a black background into which the pixels will fade
-            # background_black = np.full((*curr_pfmap.shape, 3), 0, dtype=np.uint8)
-            # bg_im = ax.imshow(background_black, **imshow_shared_kwargs, label='background_image')
+    # vmax = np.abs(curr_pfmap).max()
             
-            # Grey checkerboard background:
-            # background_chessboard = np.add.outer(range(8), range(8)) % 2  # chessboard
-            background_chessboard = _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis=8)
-            bg_im = ax.imshow(background_chessboard, cmap=plt.cm.gray, alpha=0.25, interpolation='nearest', **imshow_shared_kwargs, label='background_image')
-
-        else:
-            bg_im = None
-        
-        im = ax.imshow(curr_pfmap, **main_plot_kwargs, label='main_image')
-        ax.axis("off")
-        
-    else:
-        raise NotImplementedError   
+    imshow_shared_kwargs = {
+        'origin': 'lower',
+        'extent': extent,
+    }
     
-    # ax.vlines(200, 'ymin'=0, 'ymax'=1, 'r')
-    # ax.set_xticks([25, 50])
-    # ax.vline(50, 'r')
-    # ax.vlines([50], 0, 1, transform=ax.get_xaxis_transform(), colors='r')
-    # ax.vlines([50], 0, 1, colors='r')
-    # brev_mode = PlotStringBrevityModeEnum.MINIMAL
-
-    if neuron_extended_id is not None:    
-        # old way independent of brev_mode:
-        # extended_id_string = f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
-        # full_extended_id_string = f"Cell {neuron_extended_id.id} - {extended_id_string}"
-        # new brev_mode dependent way:
-        full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
-    else:
-        full_extended_id_string = ''
+    main_plot_kwargs = imshow_shared_kwargs | {
+        # 'vmax': vmax,
+        'vmin': 0,
+        'cmap': 'jet',
+    }
     
-    final_string_components = [full_extended_id_string]
+    if use_alpha_by_occupancy:
+        # alphas = np.ones(curr_pfmap.shape)
+        # alphas[:, :] = np.linspace(1, 0, curr_pfmap.shape[1]) # Test, blend transparency linearly
+        # Normalize:
+        # Create an alpha channel based on weight values
+        # Any value whose absolute value is > .0001 will have zero transparency
+        alphas = Normalize(clip=True)(np.abs(occupancy))
+        # alphas = Normalize(0, .3, clip=True)(np.abs(occupancy))
+        # alphas = np.clip(alphas, .4, 1)  # alpha value clipped at the bottom at .4
+        main_plot_kwargs['alpha'] = alphas
+        pass
+    else:
+        main_plot_kwargs['alpha'] = None
+    
+    if use_black_rendered_background_image:
+        # We'll also create a black background into which the pixels will fade
+        # background_black = np.full((*curr_pfmap.shape, 3), 0, dtype=np.uint8)
+        # bg_im = ax.imshow(background_black, **imshow_shared_kwargs, label='background_image')
+        
+        # Grey checkerboard background:
+        # background_chessboard = np.add.outer(range(8), range(8)) % 2  # chessboard
+        background_chessboard = _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis=8)
+        bg_im = ax.imshow(background_chessboard, cmap=plt.cm.gray, alpha=0.25, interpolation='nearest', **imshow_shared_kwargs, label='background_image')
+
+    else:
+        bg_im = None
+    
+    im = ax.imshow(curr_pfmap, **main_plot_kwargs, label='main_image')
+    ax.axis("off")
+        
+    ## Labeling:
+    formatted_max_value_string = None
     if brev_mode.should_show_firing_rate_label:
-        pf_firing_rate_string = f'{round(np.nanmax(pfmap),2)} Hz'
-        final_string_components.append(pf_firing_rate_string)
-    
+        assert max_value_formatter is not None
+        formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))        
+        
+    final_title_str = _build_neuron_identity_label(neuron_extended_id = neuron_extended_id, brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+
     if use_special_overlayed_title:
-        final_title = ' - '.join(final_string_components)
-        # t = add_inner_title(ax, final_title, loc='upper left', strokewidth=1.0)
-        t = add_inner_title(ax, final_title, loc='upper center', strokewidth=3.0, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
-        t.patch.set_ec("none")
+        title_anchored_text = add_inner_title(ax, final_title_str, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
+        title_anchored_text.patch.set_ec("none")
         # t.patch.set_alpha(0.5)
     else:
         # conventional way:
-        final_title = '\n'.join(final_string_components)
-        ax.set_title(final_title) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
+        ax.set_title(final_title_str) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
+        title_anchored_text = None
+    # always
+    ax.set_label(final_title_str)
+    return im, title_anchored_text
     
-    ax.set_label(final_title)
-    return im
-    
-
 # all extracted from the 2D figures
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, debug_print=False):
+@safely_accepts_kwargs
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, use_special_overlayed_title=True, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
+    
+    Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
+    
     Parameters
     ----------
     speed_thresh : bool, optional
@@ -328,155 +170,125 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         figure number to start from, by default None
     fig_subplotsize: tuple, optional
         fig_subplotsize: the size of a single subplot. used to compute the figure size
+        
+        
+    spike_overlay_spikes: a 
+    
+    extended_overlay_points_datasource_dicts: a general dict of additional overlay point datasources to potentially add to the images. Each is passed to _add_points_to_plot(...)
+        TODO: NOTE: currently the subplot the points are plotted on is determined by getting: `a_datasource['points_data'][neuron_IDX]`, meaning the assumption is that each datasource has one xy point to draw for every neuron. Obviously it would be better if multiple points could be provided for each neuron, so really the datasource should be re-speced to have a function that takes the neuron_id and returns the desired values (kinda like a datasource of datasources, or maybe a dataframe that it filters to get the points, that might be more 'flat' of a design. 
+        
+        Example:
+            # overlay_points data
+            peaks_overlay_points_data_dict = dict(is_enabled=True, points_data=peak_xy_points_pos_list, plot_opts={'markersize': 28, 'marker': '*', 'markeredgecolor': 'grey', 'linestyle': 'none', 'markerfacecolor': 'white', 'alpha': 0.9, 'label': 'peaks_overlay_points'},
+                                                                                        scatter_opts={'s': 28, 'c': 'white', 'alpha': 0.9, 'marker': '*', 'label': 'peaks_overlay_sc'}, plots={})
+
+            extended_overlay_points_datasource_dicts = {'peaks_overlay_points': peaks_overlay_points_data_dict}
+
+    
+    
     # TODO: maybe add a fig property: an explicit figure to use instead of fignum
+    
+    
+    TODO: Cleaning up with  grid_layout_mode == 'imagegrid'
+    plot_mode == 
+
+
+    Returns:
+            active_graphics_obj_dict[curr_neuron_ID] = {'axs': [curr_ax], 'image': curr_im, 'title_obj': curr_title_anchored_text}
     """
-    
-    # grid_layout_mode = 'gridspec'
-    grid_layout_mode = 'imagegrid'
-    # grid_layout_mode = 'subplot'
-    
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
     
-    if not isinstance(subplots, RowColTuple):
-        subplots = RowColTuple(subplots[0], subplots[1])
-    
+    ## Get Data to plot:
     if included_unit_indicies is None:
+        # included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
         included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
     
     if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
         active_maps = ratemap.tuning_curves[included_unit_indicies]
         title_substring = 'Placemaps'
-    elif plot_variable.name == enumTuningMap2DPlotVariables.FIRING_MAPS.name:
-        active_maps = ratemap.firing_maps[included_unit_indicies]
-        title_substring = 'Firing Maps'
+    elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+        active_maps = ratemap.spikes_maps[included_unit_indicies]
+        title_substring = 'Spikes Maps'
     else:
         raise ValueError
 
-    nMapsToShow = len(active_maps)
-    
-    data_aspect_ratio = compute_data_aspect_ratio(ratemap.xbin, ratemap.ybin)
-    if debug_print:
-        print(f'data_aspect_ratio: {data_aspect_ratio}')
-    
-    if (subplots.num_columns is None) or (subplots.num_rows is None):
-        # This will disable pagination by setting an arbitrarily high value
-        max_subplots_per_page = nMapsToShow
-        if debug_print:
-            print('Pagination is disabled because one of the subplots values is None. Output will be in a single figure/page.')
+    # Build the formatter for rendering the max values such as the peak firing rate or max spike counts:
+    if brev_mode.should_show_firing_rate_label:
+        max_value_formatter = _build_variable_max_value_label(plot_variable=plot_variable)
     else:
-        # valid specified maximum subplots per page
-        max_subplots_per_page = int(subplots.num_columns * subplots.num_rows)
-    
-    
-    # Paging Management: Constrain the subplots values to just those that you need
-    subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes = compute_paginated_grid_config(nMapsToShow, max_num_columns=subplots.num_columns, max_subplots_per_page=max_subplots_per_page, data_indicies=included_unit_indicies, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
-    num_pages = len(included_combined_indicies_pages)
+        max_value_formatter = None
 
-    nfigures = num_pages
-    # nfigures = nMapsToShow // np.prod(subplots) + 1 # "//" is floor division (rounding result down to nearest whole number)
-
+    ## BEGIN FACTORING OUT:
+    # nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio = _perform_plot_advanced_2D(xbin=ratemap.xbin, ybin=ratemap.ybin, included_unit_indicies=included_unit_indicies, subplots=subplots, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
+    ## NEW COMBINED METHOD, COMPUTES ALL PAGES AT ONCE:
+    if resolution_multiplier is None:
+        resolution_multiplier = 1.0
+    nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio, page_figure_sizes = _determine_best_placefield_2D_layout(xbin=ratemap.xbin, ybin=ratemap.ybin, included_unit_indicies=included_unit_indicies, subplots=subplots, fig_column_width=fig_column_width, fig_row_height=fig_row_height, resolution_multiplier=resolution_multiplier, max_screen_figure_size=max_screen_figure_size, last_figure_subplots_same_layout=last_figure_subplots_same_layout, debug_print=debug_print)
+    
     if fignum is None:
         if f := plt.get_fignums():
             fignum = f[-1] + 1
         else:
             fignum = 1
 
-    figures, page_gs = [], []
-    
-    if grid_layout_mode == 'subplot':
-        page_axes = []
-        
+    figures, page_gs, graphics_obj_dicts = [], [], []
     for fig_ind in range(nfigures):
         # Dynamic Figure Sizing: 
         curr_fig_page_grid_size = page_grid_sizes[fig_ind]
-        if resolution_multiplier is None:
-            resolution_multiplier = 1.0
-        if (fig_column_width is not None) and (fig_row_height is not None):
-            desired_single_map_width = fig_column_width * resolution_multiplier
-            desired_single_map_height = fig_row_height * resolution_multiplier
-        else:
-            desired_single_map_width = 4.0 * resolution_multiplier
-            desired_single_map_height = 1.0 * resolution_multiplier
-         
-        ## Figure size should be (Width, height)
-        required_figure_size = ((float(curr_fig_page_grid_size.num_columns) * float(desired_single_map_width)), (float(curr_fig_page_grid_size.num_rows) * float(desired_single_map_height))) # (width, height)
-        required_figure_size_px = compute_figure_size_pixels(required_figure_size)
-        if debug_print:
-            print(f'resolution_multiplier: {resolution_multiplier}, required_figure_size: {required_figure_size}, required_figure_size_px: {required_figure_size_px}') # this is figure size in inches
-
-        active_figure_size = required_figure_size
+        # active_figure_size = _perform_compute_required_figure_sizes(curr_fig_page_grid_size, data_aspect_ratio=data_aspect_ratio, fig_column_width=fig_column_width, fig_row_height=fig_row_height, resolution_multiplier=resolution_multiplier, max_screen_figure_size=max_screen_figure_size, debug_print=debug_print)
+        active_figure_size = page_figure_sizes[fig_ind]
         
-        # If max_screen_figure_size is not None (it should be a two element tuple, specifying the max width and height in pixels for the figure:
-        if max_screen_figure_size is not None:
-            active_figure_size = list(active_figure_size) # convert to a list instead of a tuple to make it mutable
-            if max_screen_figure_size[0] is not None:
-                active_figure_size[0] = min(active_figure_size[0], max_screen_figure_size[0])
-            if max_screen_figure_size[1] is not None:
-                active_figure_size[1] = min(active_figure_size[1], max_screen_figure_size[1])
-  
-        active_figure_size = tuple(active_figure_size)              
-        # active_figure_size=figsize
-        # active_figure_size=required_figure_size
-    
         if fig is not None:
             extant_fig = fig
             # fig = plt.figure(extant_fig)
+        else:
+            extant_fig = None # is this okay?
             
         if fig is not None:
             active_fig_id = fig
         else:
-            active_fig_id = fignum + fig_ind
-            
-        if grid_layout_mode == 'gridspec':
-            if extant_fig is None:
-                fig = plt.figure(active_fig_id, figsize=active_figure_size, clear=True)
+            if isinstance(fignum, int):
+                # a numeric fignum that can be incremented
+                active_fig_id = fignum + fig_ind
+            elif isinstance(fignum, str):
+                # a string-type fignum.
+                # TODO: deal with inadvertant reuse of figure? perhaps by appending f'{fignum}[{fig_ind}]'
+                if fig_ind > 0:
+                    active_fig_id = f'{fignum}[{fig_ind}]'
+                else:
+                    active_fig_id = fignum
             else:
-                fig = extant_fig
-
-                
-            if last_figure_subplots_same_layout:
-                page_gs.append(GridSpec(subplot_no_pagination_configuration.num_rows, subplot_no_pagination_configuration.num_columns, figure=fig))
-            else:
-                # print(f'fig_ind {fig_ind}: curr_fig_page_grid_size: {curr_fig_page_grid_size}')
-                page_gs.append(GridSpec(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns, figure=fig))
+                raise NotImplementedError        
+        
+        ## Configure Colorbar options:
+        ### curr_cbar_mode: 'each', 'one', None
+        # curr_cbar_mode = 'each'
+        curr_cbar_mode = None
+        
+        # grid_rect = (0.01, 0.05, 0.98, 0.9) # (left, bottom, width, height) 
+        grid_rect = 111
+        # fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=True)
+        if extant_fig is None:
+            fig = plt.figure(active_fig_id, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
+        else:
+            fig = extant_fig
             
-            fig.subplots_adjust(hspace=0.2)
+        grid = ImageGrid(fig, grid_rect,  # similar to subplot(211)
+                nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
+                axes_pad=0.05,
+                label_mode="1",
+                share_all=True,
+                aspect=True,
+                cbar_location="top",
+                cbar_mode=curr_cbar_mode,
+                cbar_size="7%",
+                cbar_pad="1%",
+                )
+        
+        page_gs.append(grid)
             
-        elif grid_layout_mode == 'imagegrid':
-            ## Configure Colorbar options:
-            ### curr_cbar_mode: 'each', 'one', None
-            # curr_cbar_mode = 'each'
-            curr_cbar_mode = None
-            
-            # grid_rect = (0.01, 0.05, 0.98, 0.9) # (left, bottom, width, height) 
-            grid_rect = 111
-            # fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=True)
-            if extant_fig is None:
-                fig = plt.figure(active_fig_id, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
-            else:
-                fig = extant_fig
-                
-                
-            grid = ImageGrid(fig, grid_rect,  # similar to subplot(211)
-                 nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
-                 axes_pad=0.05,
-                 label_mode="1",
-                 share_all=True,
-                 aspect=True,
-                 cbar_location="top",
-                 cbar_mode=curr_cbar_mode,
-                 cbar_size="7%",
-                 cbar_pad="1%",
-                 )
-            
-            page_gs.append(grid)
-            
-        elif grid_layout_mode == 'subplot':
-            # otherwise uses subplots mode:
-            fig, axs = plt.subplots(ncols=curr_fig_page_grid_size.num_columns, nrows=curr_fig_page_grid_size.num_rows, figsize=active_figure_size, clear=True, constrained_layout=True)
-            page_axes.append(axs)
-            
+    
         title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
         
         if computation_config is not None:
@@ -485,14 +297,16 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             
         fig.suptitle(title_string)
         figures.append(fig)
+        graphics_obj_dicts.append({}) # New empty dict
 
     # New page-based version:
     for page_idx in np.arange(num_pages):
         if debug_print:
             print(f'page_idx: {page_idx}')
-        if grid_layout_mode == 'imagegrid':
-            active_page_grid = page_gs[page_idx]
-            # print(f'active_page_grid: {active_page_grid}')
+        
+        active_page_grid = page_gs[page_idx]
+        active_graphics_obj_dict = graphics_obj_dicts[page_idx]
+        # print(f'active_page_grid: {active_page_grid}')
             
         for (a_linear_index, curr_row, curr_col, curr_included_unit_index) in included_combined_indicies_pages[page_idx]:
             # Need to convert to page specific:
@@ -501,40 +315,63 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
             # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
-            cell_idx = curr_included_unit_index
+            neuron_IDX = curr_included_unit_index
+            curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
+
             pfmap = active_maps[a_linear_index]
             # Get the axis to plot on:
-            if grid_layout_mode == 'gridspec':
-                curr_ax = figures[page_idx].add_subplot(page_gs[page_idx][a_linear_index])
-            elif grid_layout_mode == 'imagegrid':
-                curr_ax = active_page_grid[curr_page_relative_linear_index]
-            elif grid_layout_mode == 'subplot':
-                curr_ax = page_axes[page_idx][curr_page_relative_row, curr_page_relative_col]
+            curr_ax = active_page_grid[curr_page_relative_linear_index]
             
-            # Plot the main heatmap for this pfmap:
-            im = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[cell_idx], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode, ax=curr_ax)
+            ## Plot the main heatmap for this pfmap:
+            curr_im, curr_title_anchored_text = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode,
+                                            ax=curr_ax, max_value_formatter=max_value_formatter, use_special_overlayed_title=use_special_overlayed_title)
             
+            active_graphics_obj_dict[curr_neuron_ID] = {'axs': [curr_ax], 'image': curr_im, 'title_obj': curr_title_anchored_text}
+
+
+            if extended_overlay_points_datasource_dicts is not None:
+                for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():
+                    # There can be multiple named datasources, with either of two modes: 
+                    # 1. Linear indexed list
+                    if overlay_datasource.get('is_enabled', False):
+                        points_data = overlay_datasource.get('points_data', None)
+                        if points_data is not None:
+                            if debug_print:
+                                print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                            curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data[neuron_IDX], plot_opts=overlay_datasource.get('plot_opts', None), scatter_opts=overlay_datasource.get('scatter_opts', None))
+                            overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                    else:
+                        # 2. ACLU indexed dict
+                        curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
+                        found_neuron_aclu_datasource = overlay_datasource.get(curr_neuron_ID, None) 
+                        if found_neuron_aclu_datasource is not None:
+                            if found_neuron_aclu_datasource.get('is_enabled', False):
+                                points_data = found_neuron_aclu_datasource.get('points_data', None)
+                                if points_data is not None:
+                                    if debug_print:
+                                        print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                                    curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data.T, plot_opts=found_neuron_aclu_datasource.get('plot_opts', None), scatter_opts=found_neuron_aclu_datasource.get('scatter_opts', None))
+                                    found_neuron_aclu_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                    
+                            
             if enable_spike_overlay:
-                spike_overlay_points = curr_ax.plot(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], markersize=2, marker=',', markeredgecolor='red', linestyle='none', markerfacecolor='red', alpha=0.10, label='spike_overlay_points')                
-                spike_overlay_sc = curr_ax.scatter(spike_overlay_spikes[cell_idx][0], spike_overlay_spikes[cell_idx][1], s=2, c='white', alpha=0.10, marker=',', label='spike_overlay_sc')
-            
-            # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
-            # cbar = fig.colorbar(im, cax=cbar_ax)
-            # cbar.set_label("firing rate (Hz)")
+                spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
+                                                                             scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
+                active_graphics_obj_dict[curr_neuron_ID] = active_graphics_obj_dict[curr_neuron_ID] | {'spike_overlay_points': spike_overlay_points, 'spike_overlay_sc': spike_overlay_sc} # Add in the spike_overlay_points and spike_overlay_sc
 
         # Remove the unused axes if there are any:
-        if grid_layout_mode == 'imagegrid':
-            num_axes_to_remove = (len(active_page_grid) - 1) - curr_page_relative_linear_index
-            if (num_axes_to_remove > 0):
-                for a_removed_linear_index in np.arange(curr_page_relative_linear_index+1, len(active_page_grid)):
-                    removal_ax = active_page_grid[a_removed_linear_index]
-                    fig.delaxes(removal_ax)
+        num_axes_to_remove = (len(active_page_grid) - 1) - curr_page_relative_linear_index
+        if (num_axes_to_remove > 0):
+            for a_removed_linear_index in np.arange(curr_page_relative_linear_index+1, len(active_page_grid)):
+                removal_ax = active_page_grid[a_removed_linear_index]
+                fig.delaxes(removal_ax)
 
-            # Apply subplots adjust to fix margins:
-            plt.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
+        # Apply subplots adjust to fix margins:
+        plt.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
         
-    return figures, page_gs
+    return figures, page_gs, graphics_obj_dicts
 
+@safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None):
     """Plot 1D place fields stacked
 
@@ -641,7 +478,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
 
     return ax, sort_ind, neurons_colors_array
 
-
+@safely_accepts_kwargs
 def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
     """Plot spike location on animal's path
 
@@ -692,3 +529,8 @@ def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
                 ax = plt.subplot(gs[cell])
                 ax.set_yticks([])
                 plot_(cell, ax)
+
+
+
+
+

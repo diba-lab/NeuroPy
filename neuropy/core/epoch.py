@@ -1,3 +1,4 @@
+from importlib import metadata
 import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
@@ -176,8 +177,8 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         # falling in between the timepoints
         df = self.to_dataframe()
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        df = df[(df["start"] > t_start) & (df["start"] < t_stop)].reset_index(drop=True)
-        return Epoch(df)
+        df = df[(df["start"] >= t_start) & (df["start"] <= t_stop)].reset_index(drop=True)
+        return Epoch(epochs=df) # NOTE: drops metadata
         
     def label_slice(self, label):
         if isinstance(label, (list, np.ndarray)):

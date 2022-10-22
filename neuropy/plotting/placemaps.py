@@ -1,14 +1,9 @@
-import ipywidgets as widgets
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.gridspec import GridSpec
-from scipy.signal.signaltools import resample
-from neuropy.plotting.figure import pretty_plot
 
+from neuropy.utils.mixins.unwrap_placefield_computation_parameters import unwrap_placefield_computation_parameters
 
-
-def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True):
+def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True, **kwargs):
     """ Main function to plot all aspects of 1D and 2D placefields
     active_placefields1D: (Pf1D)
     active_placefields2D: (Pf2D)
@@ -17,7 +12,8 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config)
     """
     active_epoch_name = active_config.active_epochs.name
-    common_parent_foldername = active_config.computation_config.str_for_filename(True)
+    active_pf_computation_params = unwrap_placefield_computation_parameters(active_config.computation_config)
+    common_parent_foldername = active_pf_computation_params.str_for_filename(True)
     
     ## Linearized (1D) Position Placefields:
     if active_placefields1D is not None:
@@ -26,17 +22,12 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         if variant_identifier_label is not None:
             active_pf_1D_identifier_string = ' - '.join([active_pf_1D_identifier_string, variant_identifier_label])
 
-        # plt.title(active_pf_1D_identifier_string)
-        # active_pf_1D_output_filename = '{}.pdf'.format(active_pf_1D_identifier_string)
-        # active_pf_1D_output_filepath = active_config.plotting_config.active_output_parent_dir.joinpath(active_pf_1D_output_filename)
         
         title_string = ' '.join([active_pf_1D_identifier_string])
         subtitle_string = ' '.join([f'{active_placefields1D.config.str_for_display(False)}'])
         
         plt.gcf().suptitle(title_string, fontsize='14')
         plt.gca().set_title(subtitle_string, fontsize='10')
-        # plt.title(active_pf_1D_identifier_string, fontsize=22)
-        # common_parent_basename = active_placefields1D.config.str_for_filename(False)
         
         if should_save_to_disk:
             active_pf_1D_filename_prefix_string = f'Placefield1D-{active_epoch_name}'
@@ -79,8 +70,8 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
         title_string = ' '.join([active_pf_2D_identifier_string])
         subtitle_string = ' '.join([f'{active_placefields2D.config.str_for_display(True)}'])
         
-        # active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(80, 3), figsize=(30, 30))
-        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(80, 3), resolution_multiplier=2.5)
+        extended_overlay_points_datasource_dicts = kwargs.get('extended_overlay_points_datasource_dicts', None)
+        active_pf_2D_figures, active_pf_2D_gs = active_placefields2D.plot_ratemaps_2D(subplots=(80, 3), resolution_multiplier=2.5, extended_overlay_points_datasource_dicts=extended_overlay_points_datasource_dicts)
 
         if should_save_to_disk:
             active_pf_2D_filename_prefix_string = f'Placefields-{active_epoch_name}'

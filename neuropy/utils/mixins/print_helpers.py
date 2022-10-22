@@ -1,9 +1,11 @@
 # print_helpers.py
 from typing import OrderedDict # for OrderedMeta
+import numpy as np # for build_formatted_str_from_properties_dict
 
 class SimplePrintable:
     """ Adds the default print method for classes that displays the class name and its dictionary. """
     def __repr__(self) -> str:
+        ## TODO: this default printout is actually horrible for classes with any real content (like Pandas.DataFrame members, which spam the notebook)
         return f"<{self.__class__.__name__}: {self.__dict__};>"
     
     
@@ -81,3 +83,32 @@ class ProgressMessagePrinter(object):
         if self.returns_string:
             self.returned_string = f'{self.returned_string}{self.finished_message}\n'
             
+            
+
+def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', key_val_sep_char=':') -> str:
+    """ Builds a formatted output string from a dictionary of key:value pairs
+
+    Args:
+        dict_items (_type_): the dictionary of items to be built into an output string
+        param_sep_char (_type_): the separatior string between each key:value pair in the dictionary
+        key_val_sep_char (_type_): the value that separates individual key/value pairs.
+
+    Returns:
+        str: _description_
+        
+    Usage:
+        from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta, build_formatted_str_from_properties_dict
+        
+        
+    """
+    with np.printoptions(precision=3, suppress=True, threshold=5):
+        properties_key_val_list = []
+        for (name, val) in dict_items.items():
+            try:
+                curr_string = f'{name}{key_val_sep_char}{np.array(val)}'
+            except TypeError:
+                curr_string = f'{name}{key_val_sep_char}err'     
+            properties_key_val_list.append(curr_string)
+    
+    return param_sep_char.join(properties_key_val_list)
+
