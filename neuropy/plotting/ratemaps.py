@@ -236,7 +236,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     for fig_ind in range(nfigures):
         # Dynamic Figure Sizing: 
         curr_fig_page_grid_size = page_grid_sizes[fig_ind]
-        # active_figure_size = _perform_compute_required_figure_sizes(curr_fig_page_grid_size, data_aspect_ratio=data_aspect_ratio, fig_column_width=fig_column_width, fig_row_height=fig_row_height, resolution_multiplier=resolution_multiplier, max_screen_figure_size=max_screen_figure_size, debug_print=debug_print)
         active_figure_size = page_figure_sizes[fig_ind]
         
         if fig is not None:

@@ -155,7 +155,20 @@ def copy_if_not_none(val):
     else:
         return None
     
-    
+# ==================================================================================================================== #
+# Numpy Helpers                                                                                                        #
+# ==================================================================================================================== #
+def safe_item(arr: np.ndarray, *args, default=None):
+    """ a version of .item() for ndarrays that returns the scalar if there's a single item in a list, otherwise returns default_value
+    Usage:
+        safe_item(np.array([0]), default=None) # 0
+        safe_item(np.array([]), default=-1) # -1
+    """
+    try:
+        return arr.item(*args)
+    except ValueError as e:
+        return default
+
 # ==================================================================================================================== #
 # Pandas Helpers                                                                                                       #
 # ==================================================================================================================== #
