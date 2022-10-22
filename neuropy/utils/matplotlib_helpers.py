@@ -128,7 +128,12 @@ def _build_variable_max_value_label(plot_variable: enumTuningMap2DPlotVariables)
 def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), last_figure_subplots_same_layout=True, debug_print:bool=False):
     """ Computes the optimal sizes, number of rows and columns, and layout of the individual 2D placefield subplots in terms of the overarching pf_2D figure
     
+    Interally Calls:
+        neuropy.utils.misc.compute_paginated_grid_config(...)
+
+
     Known Uses:
+        display_all_pf_2D_pyqtgraph_binned_image_rendering
         plot_advanced_2D
     
     Major outputs:

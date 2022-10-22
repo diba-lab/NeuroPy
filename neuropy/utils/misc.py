@@ -88,7 +88,7 @@ def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_su
         num_required_subplots ([type]): [description]
         max_num_columns ([type]): [description]
         max_subplots_per_page ([type]): [description]
-        data_indicies ([type], optional): your indicies into your original data that will also be accessible in the main loop. Defaults to None.
+        data_indicies ([type], optional): your indicies into your original data that will also be accessible in the main loop. Defaults to None, in which case they will be the same as the linear indicies unless otherwise specified
     """
     
     def _compute_subplots_grid_layout(num_page_required_subplots, page_max_num_columns):
@@ -101,7 +101,7 @@ def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_su
     def _compute_num_subplots(num_required_subplots, max_num_columns, data_indicies=None):
         linear_indicies = np.arange(num_required_subplots)
         if data_indicies is None:
-            data_indicies = np.arange(num_required_subplots) # the data_indicies are just the same as the lienar indicies unless otherwise specified
+            data_indicies = np.arange(num_required_subplots) # the data_indicies are just the same as the linear indicies unless otherwise specified
         (total_needed_rows, fixed_columns) = _compute_subplots_grid_layout(num_required_subplots, max_num_columns)
         all_row_column_indicies = np.unravel_index(linear_indicies, (total_needed_rows, fixed_columns)) # inverse is: np.ravel_multi_index(row_column_indicies, (needed_rows, fixed_columns))
         all_combined_indicies = [PaginatedGridIndexSpecifierTuple(linear_indicies[i], all_row_column_indicies[0][i], all_row_column_indicies[1][i], data_indicies[i]) for i in np.arange(len(linear_indicies))]
