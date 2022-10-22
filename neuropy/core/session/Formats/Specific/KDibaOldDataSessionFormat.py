@@ -305,9 +305,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         session = cls.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(session.filePrefix.with_suffix(".probegroup.npy"))
         
-        # add the linear_pos to the spikes_df before building the FlattenedSpiketrains object:
-        # spikes_df['lin_pos'] = session.position.linear_pos
-
         # add the flat spikes to the session so they don't have to be recomputed:
         session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
         

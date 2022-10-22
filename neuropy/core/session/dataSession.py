@@ -335,7 +335,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         for anEpochLabelName in session.epochs.labels:
             try:
                 curr_active_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
-                # session.position.linear_pos[curr_active_epoch_timeslice_indicies] = linearized_positions_maze1.traces
                 if debug_print:
                     print('\t curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
                 
@@ -345,12 +344,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
                 if debug_print:
                     # print(f'\t skipping non-maze epoch "{anEpochLabelName}"')
                     warn(f'\t skipping non-maze epoch "{anEpochLabelName}" due to error: {e}')                
-            
 
-        # session.position.filename = session.filePrefix.with_suffix(".position.npy")
-        # print('\t Saving updated position results to {}...'.format(session.position.filename))
-        # session.position.save()
-        # print('\t done.\n')
         return session.position
         
 
