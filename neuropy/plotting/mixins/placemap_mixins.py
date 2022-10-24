@@ -5,12 +5,12 @@ from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
 class PfnD_PlotOccupancy_Mixin:
     @safely_accepts_kwargs
-    def plot_occupancy(self, identifier_details_list=[]):
+    def plot_occupancy(self, identifier_details_list=[], fig=None, ax=None, **kwargs):
         active_pf_occupancy_2D_identifier_string = '2D Occupancy'
         active_pf_occupancy_2D_identifier_string = ' - '.join([active_pf_occupancy_2D_identifier_string] + identifier_details_list)
         title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
         subtitle_string = ' '.join([f'{self.config.str_for_display(True)}'])
-        occupancy_fig, occupancy_ax = plot_placefield_occupancy(self)
+        occupancy_fig, occupancy_ax = plot_placefield_occupancy(self, fig=fig, ax=ax, **kwargs)
         occupancy_fig.suptitle(title_string, fontsize='14')
         occupancy_ax.set_title(subtitle_string, fontsize='10')
         return occupancy_fig, occupancy_ax

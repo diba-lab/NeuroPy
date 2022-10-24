@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from neuropy.utils.dynamic_container import overriding_dict_with # required for plot_placefield_occupancy
 from neuropy.utils.mixins.unwrap_placefield_computation_parameters import unwrap_placefield_computation_parameters
 
 def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True, **kwargs):
@@ -92,8 +93,9 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
     return ax_pf_1D, occupancy_fig, active_pf_2D_figures, active_pf_2D_gs
 
 
-def plot_placefield_occupancy(active_epoch_placefields2D):
-    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, max_normalized=True, drop_below_threshold=1E-16)
+
+def plot_placefield_occupancy(active_epoch_placefields2D, fig=None, ax=None, **kwargs):
+    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs))
 
 def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
     """ Plots a 2D Heatmap of the animal's occupancy (the amount of time the animal spent in each posiution bin)
@@ -110,11 +112,13 @@ def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_belo
     if fig is None:
         occupancy_fig = plt.figure()
     else:
+        print(f'using specified fig')
         occupancy_fig = fig
     
     if ax is None:
         occupancy_ax = occupancy_fig.gca()
     else:
+        print(f'using specified ax')
         occupancy_ax = ax
         
     only_visited_occupancy = occupancy.copy()
@@ -123,12 +127,7 @@ def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_belo
         only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
     if max_normalized:
         only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
-    im = occupancy_ax.pcolorfast(
-        xbin,
-        ybin,
-        np.rot90(np.fliplr(only_visited_occupancy)),
-        cmap="jet", vmin=0.0
-    )  # rot90(flipud... is necessary to match plotRaw configuration.
+    im = occupancy_ax.pcolorfast(xbin, ybin, np.rot90(np.fliplr(only_visited_occupancy)), cmap="jet", vmin=0.0)  # rot90(flipud... is necessary to match plotRaw configuration.
     occupancy_ax.set_title('Custom Occupancy')
     occupancy_cbar = occupancy_fig.colorbar(im, ax=occupancy_ax, location='right')
     occupancy_cbar.minorticks_on()
