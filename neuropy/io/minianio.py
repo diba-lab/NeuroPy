@@ -97,6 +97,11 @@ class MinianIO:
                 self.times.shape[0] == self.C.shape[1]
             ), "Different # frames in C and times vars. Check to make sure corrupted videos are properly accounted for"
 
+    def save_curated_neurons(self):
+        # Save updated hand-curated neurons to pickle file
+        with open(self.minian_dir / "curated_neurons.pkl", "wb") as f:
+            dump(self.curated_neurons, f)
+
     def trim_neurons(self, keep: str or list or None, trim: str or list or None = None):
         """
         Keep or trim out certain neurons from A, C, S, and YrA variables.
