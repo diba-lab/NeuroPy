@@ -10,6 +10,7 @@ from skimage.measure import regionprops
 from pathlib import Path
 
 from neuropy.utils.minian_util import load_variable
+from neuropy.utils.misc import flatten
 
 
 class CaNeurons(DataWriter):
@@ -189,6 +190,9 @@ class CaNeurons(DataWriter):
                 unit_ids=new_unit_ids,
                 method=method,
             )
+
+        if len(unit_ids) == 1:
+            unit_ids = list(flatten(unit_ids))
 
         # First mush unit ROIs into one
         Amush = np.zeros_like(self.A[0])
