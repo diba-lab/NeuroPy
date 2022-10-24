@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from neuropy.core.ratemap import Ratemap
     
 from neuropy.utils import mathutil
-from neuropy.utils.misc import RowColTuple
+from neuropy.utils.misc import RowColTuple, safe_item
 from neuropy.utils.colors_util import get_neuron_colors
 from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
@@ -41,7 +41,7 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
     spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
     return spike_overlay_points, spike_overlay_sc
     
-def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: NeuronExtendedIdentityTuple=None, drop_below_threshold: float=0.0000001,
+def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=None, drop_below_threshold: float=0.0000001,
                               plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None, use_special_overlayed_title:bool=True):
     """Plots a single tuning curve Heatmap using matplotlib
 
@@ -134,12 +134,8 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     ax.axis("off")
         
     ## Labeling:
-    formatted_max_value_string = None
-    if brev_mode.should_show_firing_rate_label:
-        assert max_value_formatter is not None
-        formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))        
-        
-    final_title_str = _build_neuron_identity_label(neuron_extended_id = neuron_extended_id, brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+    if final_title_str is None:
+        final_title_str = 'ERR'
 
     if use_special_overlayed_title:
         title_anchored_text = add_inner_title(ax, final_title_str, loc='upper center', strokewidth=2, stroke_foreground='k', text_foreground='w') # loc = 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center'
@@ -155,7 +151,7 @@ def plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, neuron_extended_id: 
     
 # all extracted from the 2D figures
 @safely_accepts_kwargs
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, use_special_overlayed_title=True, debug_print=False):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, included_unit_neuron_IDs=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, use_special_overlayed_title=True, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     
     Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
@@ -199,19 +195,66 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
     
-    ## Get Data to plot:
-    if included_unit_indicies is None:
-        # included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
-        included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
+    # ## Get Data to plot:
+    # if included_unit_indicies is None:
+    #     # included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
+    #     included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
     
-    if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
-        active_maps = ratemap.tuning_curves[included_unit_indicies]
-        title_substring = 'Placemaps'
-    elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
-        active_maps = ratemap.spikes_maps[included_unit_indicies]
-        title_substring = 'Spikes Maps'
+    # if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
+    #     active_maps = ratemap.tuning_curves[included_unit_indicies]
+    #     title_substring = 'Placemaps'
+    # elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+    #     active_maps = ratemap.spikes_maps[included_unit_indicies]
+    #     title_substring = 'Spikes Maps'
+    # else:
+    #     raise ValueError
+
+    ## Brought in from display_all_pf_2D_pyqtgraph_binned_image_rendering:
+    if included_unit_neuron_IDs is not None:
+        if debug_print:
+            print(f'included_unit_neuron_IDs: {included_unit_neuron_IDs}')
+        if not isinstance(included_unit_neuron_IDs, np.ndarray):
+            included_unit_neuron_IDs = np.array(included_unit_neuron_IDs) # convert to np.array if needed
+
+        n_neurons = np.size(included_unit_neuron_IDs)
+        if debug_print:
+            print(f'\t n_neurons: {n_neurons}')
+
+        shared_IDXs_map = [safe_item(np.squeeze(np.argwhere(aclu == ratemap.neuron_ids)), default=None) for aclu in included_unit_neuron_IDs] # [0, 1, None, 2, 3, 4, 5, None, 6, 7, 8, None, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66]
+
+        if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
+            active_maps = ratemap.tuning_curves
+            title_substring = 'Placemaps'
+        elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+            active_maps = ratemap.spikes_maps
+            title_substring = 'Spikes Maps'
+        else:
+            raise ValueError
+
+        ## Non-pre-build method where shared_IDXs_map is directly passed as included_unit_indicies so it's returned in the main loop:
+        included_unit_indicies = shared_IDXs_map
+        if debug_print:
+            print(f'active_maps.shape: {np.shape(active_maps)}, type: {type(active_maps)}') # _local_active_maps.shape: (70, 63, 16), type: <class 'numpy.ndarray'>
+
     else:
-        raise ValueError
+        ## normal (non-shared mode)
+        shared_IDXs_map = None
+        active_maps = None
+
+        if included_unit_indicies is None:
+            included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
+        
+        ## Get Data to plot:
+        if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
+            active_maps = ratemap.tuning_curves[included_unit_indicies]
+            title_substring = 'Placemaps'
+        elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+            active_maps = ratemap.spikes_maps[included_unit_indicies]
+            title_substring = 'Spikes Maps'
+        else:
+            raise ValueError
+
+    # ==================================================================================================================== #
 
     # Build the formatter for rendering the max values such as the peak firing rate or max spike counts:
     if brev_mode.should_show_firing_rate_label:
@@ -287,7 +330,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         
         page_gs.append(grid)
             
-    
         title_string = f'2D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
         
         if computation_config is not None:
@@ -314,51 +356,83 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
             # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
             
-            neuron_IDX = curr_included_unit_index
-            curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
+            # neuron_IDX = curr_included_unit_index
+            # curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
 
-            pfmap = active_maps[a_linear_index]
+            # pfmap = active_maps[a_linear_index]
+
+            if curr_included_unit_index is not None:
+                # valid neuron ID, access like normal
+                pfmap = active_maps[curr_included_unit_index]
+                # normal (non-shared mode)
+                curr_ratemap_relative_neuron_IDX = curr_included_unit_index
+                curr_neuron_ID = ratemap.neuron_ids[curr_ratemap_relative_neuron_IDX]
+                # curr_extended_id_string = ratemap.get_extended_neuron_id_string(neuron_i=neuron_IDX) 
+                
+                ## Labeling:
+                formatted_max_value_string = None
+                if brev_mode.should_show_firing_rate_label:
+                    assert max_value_formatter is not None
+                    ## NOTE: must set max_value_formatter on the pfmap BEFORE the `_scale_current_placefield_to_acceptable_range` is called to have it show accurate labels!
+                    formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
+                    
+                final_title_str = _build_neuron_identity_label(neuron_extended_id=ratemap.neuron_extended_ids[curr_ratemap_relative_neuron_IDX], brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+
+            else:
+                # invalid neuron ID, generate blank entry
+                curr_ratemap_relative_neuron_IDX = None # This neuron_ID doesn't correspond to a neuron_IDX in the current ratemap, so we'll mark this value as None
+                curr_neuron_ID = included_unit_neuron_IDs[a_linear_index]
+
+                pfmap = np.zeros((np.shape(active_maps)[1], np.shape(active_maps)[2])) # fully allocated new array of zeros
+                curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
+                final_title_str = f'{curr_extended_id_string} <shared>'
+
+
+
             # Get the axis to plot on:
             curr_ax = active_page_grid[curr_page_relative_linear_index]
             
             ## Plot the main heatmap for this pfmap:
-            curr_im, curr_title_anchored_text = plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, neuron_extended_id=ratemap.neuron_extended_ids[neuron_IDX], drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode,
+            curr_im, curr_title_anchored_text = _plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, final_title_str=final_title_str, drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode,
                                             ax=curr_ax, max_value_formatter=max_value_formatter, use_special_overlayed_title=use_special_overlayed_title)
             
             active_graphics_obj_dict[curr_neuron_ID] = {'axs': [curr_ax], 'image': curr_im, 'title_obj': curr_title_anchored_text}
 
+            if curr_ratemap_relative_neuron_IDX is not None:
+                # This means this neuron is included in the current ratemap:
+                ## Decision: Only do these extended plotting things when the neuron_IDX is included/valid.
+                if extended_overlay_points_datasource_dicts is not None:
+                    for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():
+                        # There can be multiple named datasources, with either of two modes: 
+                        # 1. Linear indexed list
+                        if overlay_datasource.get('is_enabled', False):
+                            points_data = overlay_datasource.get('points_data', None)
+                            if points_data is not None:
+                                if debug_print:
+                                    print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                                curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data[curr_ratemap_relative_neuron_IDX], plot_opts=overlay_datasource.get('plot_opts', None), scatter_opts=overlay_datasource.get('scatter_opts', None))
+                                overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                        else:
+                            # 2. ACLU indexed dict
+                            curr_neuron_ID = ratemap.neuron_ids[curr_ratemap_relative_neuron_IDX]
+                            found_neuron_aclu_datasource = overlay_datasource.get(curr_neuron_ID, None) 
+                            if found_neuron_aclu_datasource is not None:
+                                if found_neuron_aclu_datasource.get('is_enabled', False):
+                                    points_data = found_neuron_aclu_datasource.get('points_data', None)
+                                    if points_data is not None:
+                                        if debug_print:
+                                            print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
+                                        curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data.T, plot_opts=found_neuron_aclu_datasource.get('plot_opts', None), scatter_opts=found_neuron_aclu_datasource.get('scatter_opts', None))
+                                        found_neuron_aclu_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
+                        
+                                
+                if enable_spike_overlay:
+                    spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[curr_ratemap_relative_neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
+                                                                                scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
+                    active_graphics_obj_dict[curr_neuron_ID] = active_graphics_obj_dict[curr_neuron_ID] | {'spike_overlay_points': spike_overlay_points, 'spike_overlay_sc': spike_overlay_sc} # Add in the spike_overlay_points and spike_overlay_sc
 
-            if extended_overlay_points_datasource_dicts is not None:
-                for (overlay_datasource_name, overlay_datasource) in extended_overlay_points_datasource_dicts.items():
-                    # There can be multiple named datasources, with either of two modes: 
-                    # 1. Linear indexed list
-                    if overlay_datasource.get('is_enabled', False):
-                        points_data = overlay_datasource.get('points_data', None)
-                        if points_data is not None:
-                            if debug_print:
-                                print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
-                            curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data[neuron_IDX], plot_opts=overlay_datasource.get('plot_opts', None), scatter_opts=overlay_datasource.get('scatter_opts', None))
-                            overlay_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
-                    else:
-                        # 2. ACLU indexed dict
-                        curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
-                        found_neuron_aclu_datasource = overlay_datasource.get(curr_neuron_ID, None) 
-                        if found_neuron_aclu_datasource is not None:
-                            if found_neuron_aclu_datasource.get('is_enabled', False):
-                                points_data = found_neuron_aclu_datasource.get('points_data', None)
-                                if points_data is not None:
-                                    if debug_print:
-                                        print(f'overlay_datasource_name: {overlay_datasource_name} looks good. Trying to add.')
-                                    curr_overlay_points, curr_overlay_sc = _add_points_to_plot(curr_ax, points_data.T, plot_opts=found_neuron_aclu_datasource.get('plot_opts', None), scatter_opts=found_neuron_aclu_datasource.get('scatter_opts', None))
-                                    found_neuron_aclu_datasource['plots'] = dict(points=curr_overlay_points, sc=curr_overlay_sc)
-                    
-                            
-            if enable_spike_overlay:
-                spike_overlay_points, spike_overlay_sc = _add_points_to_plot(curr_ax, spike_overlay_spikes[neuron_IDX], plot_opts={'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'spike_overlay_points'},
-                                                                             scatter_opts={'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'spike_overlay_sc'})
-                active_graphics_obj_dict[curr_neuron_ID] = active_graphics_obj_dict[curr_neuron_ID] | {'spike_overlay_points': spike_overlay_points, 'spike_overlay_sc': spike_overlay_sc} # Add in the spike_overlay_points and spike_overlay_sc
-
-        # Remove the unused axes if there are any:
+        ## Remove the unused axes if there are any:
+        # Note that this makes use of the fact that curr_page_relative_linear_index is left maxed-out after the above loop finishes executing.
         num_axes_to_remove = (len(active_page_grid) - 1) - curr_page_relative_linear_index
         if (num_axes_to_remove > 0):
             for a_removed_linear_index in np.arange(curr_page_relative_linear_index+1, len(active_page_grid)):

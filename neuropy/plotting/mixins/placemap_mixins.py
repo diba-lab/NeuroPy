@@ -38,5 +38,5 @@ class PfnDPlottingMixin(PfnD_PlotOccupancy_Mixin):
                          'brev_mode': PlotStringBrevityModeEnum.CONCISE, 'plot_variable': enumTuningMap2DPlotVariables.TUNING_MAPS, 'use_special_overlayed_title': True} | kwargs))
         # return plot_ratemap_2D(self.ratemap, computation_config=self.config, **({'subplots': (10, 8), 'resolution_multiplier': 2.0, 'fignum': None, 'enable_spike_overlay': True, 'spike_overlay_spikes':self.spk_pos, 'extended_overlay_points_datasource_dicts':None, 'drop_below_threshold': 1e-07, 'brev_mode': PlotStringBrevityModeEnum.CONCISE, 'plot_variable': enumTuningMap2DPlotVariables.TUNING_MAPS} | kwargs))
         
-        
+
         
