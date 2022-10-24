@@ -31,6 +31,7 @@ class CaNeurons(DataWriter):
         neuron_type=None,
         metadata=None,
         basedir: str or Path = None,
+        posthocmerge: dict or None = None,
     ) -> None:
         super().__init__(metadata=metadata)
 
@@ -44,6 +45,7 @@ class CaNeurons(DataWriter):
         self.t = t
         self.neuron_ids = neuron_ids
         self.neuron_type = neuron_type
+        self.posthocmerge = posthocmerge
 
     def plot_rois(
         self,
@@ -81,7 +83,15 @@ class CaNeurons(DataWriter):
                 (hl,) = ax.plot(xedges, yedges, linewidth=0.7)
                 lines.append(hl)
                 if plot_cell_id:
-                    ax.text(xedges.mean(), yedges.mean(), str(id), color="w")
+                    jitter = np.random.randint(
+                        -5, 5, size=2
+                    )  # prevents numbers from being overlaid if rois are merged
+                    ax.text(
+                        xedges.mean() + jitter[0],
+                        yedges.mean() + jitter[1],
+                        str(id),
+                        color="w",
+                    )
         else:
             lines = None
 
@@ -156,6 +166,66 @@ class CaNeurons(DataWriter):
     def plot_traces_and_ROIs(self):
         pass
 
+    def quick_merge(self, unit_ids: list, method="max"):
+        """Quickly merge units post-hoc - will make copies of merged units at each index
+        noted in merge. Again make this recursive to accommodate list of lists (multiple
+        sets of neurons to merge). NOTE each nested pair of neuron in unit_ids can only be two units.
+        usage: CaNeuron.quick_merge([1, 3]) will merge units 1 and 3
+               CaNeuron.quick_merge([[1, 3], [2, 4]]) will merge 1 & 3 and 2 & 4 separately"""
+
+        if (
+            isinstance(unit_ids[0], list)
+            and len(unit_ids[0]) >= 2
+            and len(unit_ids) > 1
+        ):  # If first entry is a list, merge and then proceed recursively
+            caneuron_merge = self.quick_merge(unit_ids=unit_ids[0], method=method)
+            # Account for last entry in unit_ids being a neuron pair
+            new_unit_ids = (
+                unit_ids[1:][0]
+                if isinstance(unit_ids[1:], list) and len(unit_ids[1:]) == 1
+                else unit_ids[1:]
+            )
+            return caneuron_merge.quick_merge(
+                unit_ids=new_unit_ids,
+                method=method,
+            )
+
+        # First mush unit ROIs into one
+        Amush = np.zeros_like(self.A[0])
+        for A in self.A[unit_ids]:
+            Amush += A
+        Amerge = self.A.copy()
+        Amerge[unit_ids] = Amush
+
+        # Now iterate through unit activity time-series
+        Cmerge = self.C.copy()
+        Smerge = self.S.copy()
+        YrAmerge = self.YrA.copy()
+        for var_merge, var_use in zip([Cmerge, Smerge, YrAmerge], ["C", "S", "YrA"]):
+            if method == "max":
+                var_merge[unit_ids] = getattr(self, var_use)[unit_ids].max(axis=0)
+            else:
+                print("Methods other than 'max' not yet implemented")
+                return None
+
+        # Last return object
+        caneurons_merge = CaNeurons(
+            S=Smerge,
+            C=Cmerge,
+            A=Amerge,
+            YrA=YrAmerge,
+            trim=self.trim,
+            t=self.t,
+            sampling_rate=self.sampling_rate,
+            neuron_ids=self.neuron_ids,
+            neuron_type=self.neuron_type,
+            metadata=self.metadata,
+            basedir=self.basedir,
+            posthocmerge={"method": method, "unit_ids": unit_ids},
+        )
+
+        return caneurons_merge
+
 
 class CaNeuronReg:
     """All things related to tracking neurons across days"""
@@ -166,8 +236,25 @@ class CaNeuronReg:
         self.nsessions = len(caneurons)
         pass
 
+    def quick_merge(self, sesh_alias, in_place=False, **kwargs):
+        """Copy of CaNeurons.quick_merge() - see for inputs."""
+        sesh_ind = self.get_alias_index(sesh_alias)
+
+        caneurons_merge = self.caneurons[sesh_ind].quick_merge(**kwargs)
+        if in_place:
+            self.caneurons[sesh_ind] = caneurons_merge
+        return caneurons_merge
+
     def get_session(self, sesh_alias: str):
-        """grab a session from its alias"""
+        """grab data from a recording session from its alias or by index"""
+
+        sesh_ind = self.get_alias_index(sesh_alias)
+
+        return self.caneurons[sesh_ind]
+
+    def get_alias_index(self, sesh_alias: str):
+        """Get index for sesh_alias in .caneurons field"""
+
         assert sesh_alias in self.alias or (
             isinstance(sesh_alias, int)
         ), "'sesh_alias' must be in self.alias or be int"
@@ -177,7 +264,7 @@ class CaNeuronReg:
         else:
             sesh_ind = sesh_alias
 
-        return self.caneurons[sesh_ind]
+        return sesh_ind
 
     def plot_rois_across_sessions(
         self, fig_title="", sesh_plot: list or None = None, **kwargs
@@ -197,7 +284,9 @@ class CaNeuronReg:
                 ), "sesh_plot must be a list or int or str"
                 caneuro_use = [self.caneurons[id] for id in sesh_plot]
                 alias_use = [f"Session {sesh}" for sesh in sesh_plot]
-            CaNeuronReg(caneuro_use, alias=alias_use).plot_rois_across_sessions()
+            CaNeuronReg(caneuro_use, alias=alias_use).plot_rois_across_sessions(
+                **kwargs
+            )
         elif sesh_plot is None:
             # Set up plots
             fig, ax = plt.subplots(
@@ -228,6 +317,7 @@ class CaNeuronReg:
         sesh1: str or int,
         sesh2: str or int,
         map1_2: pd.DataFrame,
+        plot_max=True,
         ax=None,
         color=None,
     ):
@@ -247,12 +337,12 @@ class CaNeuronReg:
 
         # Plot cells overlaid on top of one another with shift applied
         _, _, roi_edges1 = self.get_session(sesh1).plot_rois(
-            neuron_inds=coactive_map[sesh1], label=True, ax=ax
+            neuron_inds=coactive_map[sesh1], label=True, ax=ax, plot_max=plot_max
         )
         ax.set_title(f"{sesh1} w/{sesh2} overlaid")
         ax.set_prop_cycle(
             None
-        )  # restart automatic coloring so that it session 2 colors match session 1 colors
+        )  # restart automatic coloring so that session 2 colors match session 1 colors
         _, _, roi_edges2 = self.get_session(sesh2).plot_rois(
             neuron_inds=coactive_map[sesh2],
             plot_max=False,
@@ -305,7 +395,41 @@ class CaNeuronReg:
     def load_pairwise_map(self, sesh1, sesh2):
         savename = self.get_session(sesh1).basedir / f"map_{sesh1}_{sesh2}.pwmap.npy"
 
-        return np.load(savename, allow_pickle=True).item()
+        pwmap = np.load(savename, allow_pickle=True).item()
+
+        assert (
+            pwmap.trim1 == self.get_session(sesh1).trim
+        ), "Session1 trim dictionary does not match loaded map"
+        assert (
+            pwmap.trim2 == self.get_session(sesh2).trim
+        ), "Session2 trim dictionary does not match loaded map"
+
+        try:
+            if pwmap.merge1 != self.get_session(sesh1).posthocmerge:
+                self.quick_merge(
+                    sesh1,
+                    in_place=True,
+                    method=pwmap.merge1["method"],
+                    unit_ids=pwmap.merge1["unit_ids"],
+                )
+            if pwmap.merge2 != self.get_session(sesh2).posthocmerge:
+                self.quick_merge(
+                    sesh2,
+                    in_place=True,
+                    method=pwmap.merge2["method"],
+                    unit_ids=pwmap.merge2["unit_ids"],
+                )
+            assert (
+                pwmap.merge1 == self.get_session(sesh1).posthocmerge
+            ), "pairwise map merge params don't match sesh1 merge params, double-check! May need to run .quick_merge before loading map"
+            assert (
+                pwmap.merge2 == self.get_session(sesh2).posthocmerge
+            ), "pairwise map merge params don't match sesh2 merge params, double-check! May need to run .quick_merge before loading map"
+        except AttributeError:
+            print(
+                "Merge params not found in either PairwiseMap or CaNeuronReg. Double check merging ok before proceeding!"
+            )
+        return pwmap
 
 
 class PairwiseMap:
@@ -320,8 +444,17 @@ class PairwiseMap:
         self.sesh2 = sesh2
         self.trim1 = caregobj.get_session(sesh1).trim
         self.trim2 = caregobj.get_session(sesh2).trim
+        try:
+            self.merge1 = caregobj.get_session(sesh1).posthocmerge
+            self.merge2 = caregobj.get_session(sesh2).posthocmerge
+        except AttributeError:
+            self.merge1, self.merge2 = None, None
+            print(
+                "Can't find .posthocmerge attribue in CaNeuronReg - make sure you haven't merged neurons before proceeding"
+            )
+
         self.savename = (
-            self.get_session(sesh1).basedir / f"map_{sesh1}_{sesh2}.pwmap.npy"
+            caregobj.get_session(sesh1).basedir / f"map_{sesh1}_{sesh2}.pwmap.npy"
         )
 
     def to_numpy(self, savename=None):
@@ -376,13 +509,11 @@ class MultiSessionMap:
         """Gets session maps going backwards in time."""
         pass
 
-    def stepwise_reg(self):
+    def stepwise_reg(self, **kwargs):
         """Step through and register each session in order to the next
         Current functionality is only for 3 sessions, trying to make recursive to
         easily add in however many sessions you want.
-
-        NOTE: This will ONLY identify cells that are active in at least 2 sessions. Loners
-        will not be plotted."""
+        :param **kwargs to .add_third_session()"""
 
         # Initialize multi_sesh_map with last two columns of input map
         if len(self.sesh_order) > 3:
@@ -392,13 +523,22 @@ class MultiSessionMap:
                 self.maps[:-1], self.sesh_order[:-1]
             ).stepwise_reg()
             pass
-        else:
+        elif len(self.sesh_order) == 3:
             sesh1, sesh2, sesh3 = self.sesh_order
             # Grab map from session 1->2 and session 2->3 (and 1->3 if there)
             map1_2 = self.grab_map([sesh1, sesh2])
             map2_3 = self.grab_map([sesh2, sesh3])
             map1_3 = self.grab_map([sesh1, sesh3])
             multi_sesh_map = map1_2.iloc[:, -2:].copy()
+        elif (
+            len(self.sesh_order) == 2
+        ):  # Just return map1_2 if only two sessions specified
+            sesh1, sesh2 = self.sesh_order
+            multi_sesh_map = self.grab_map([sesh1, sesh2])
+
+            self.multi_sesh_map = multi_sesh_map
+
+            return multi_sesh_map
 
         multi_sesh_map.insert(
             2, sesh3, np.ones_like(map1_2[sesh2]) * -1
@@ -424,7 +564,11 @@ class MultiSessionMap:
 
         # Optional: add in a map from sesh1 to sesh3 to fill in any neurons that are only active in sesh1 and 3
         if map1_3 is not None:
-            multi_sesh_map = self.add_third_session(multi_sesh_map, map1_3)
+            multi_sesh_map = self.add_third_session(multi_sesh_map, map1_3, **kwargs)
+        else:
+            print(
+                "Map from session 1 to session 3 not found, cannot fill neurons active in sessions 1 and 3 only"
+            )
 
         self.multi_sesh_map = multi_sesh_map
 
@@ -434,6 +578,7 @@ class MultiSessionMap:
     def add_third_session(
         multi_sesh_map: pd.DataFrame,
         sesh1_3map: pd.DataFrame,
+        overwrite_indirect: bool = False,
     ) -> pd.DataFrame:
         """Adds in any neurons mapped from session 1 to session 3 that went silent in session 2 and could not be mapped
         indirectly through session 2."""
@@ -448,10 +593,6 @@ class MultiSessionMap:
                 for n1 in sesh1_3map[sesh1]
             ]
         )  # get index for all session1 neurons in multi_sesh_map
-
-        # Identify mappings directly and indirectly (through session 2)
-        sesh3_directreg = sesh1_3map[sesh3]
-        sesh3_indirectreg = multi_sesh_map[sesh3].iloc[sesh1_multi_idx]
 
         # Identify new cells
         sesh2offbool = np.bitwise_and(
@@ -468,6 +609,13 @@ class MultiSessionMap:
             sesh3newbool
         ]
 
+        ## NRK todo
+        if overwrite_indirect:
+            # Identify mappings directly and indirectly (through session 2)
+            sesh3_directreg = sesh1_3map[sesh3]
+            sesh3_indirectreg = multi_sesh_map[sesh3].iloc[sesh1_multi_idx]
+            multi_sesh_map[sesh3].iloc[sesh1_multi_idx] = sesh3_directreg
+
         return multi_sesh_map
 
     @staticmethod
@@ -480,6 +628,11 @@ class MultiSessionMap:
 
         # Not yet implemented - only pairwise registrations considered.
         pass
+
+
+def load_pairwise_map(map_path):
+
+    return np.load(map_path, allow_pickle=True).item()
 
 
 def id_and_plot_reference_cells(caneurons1: CaNeurons, caneurons2: CaNeurons, **kwargs):
@@ -520,6 +673,7 @@ def id_and_plot_reference_cells(caneurons1: CaNeurons, caneurons2: CaNeurons, **
         plot_max=True,
         ax=ax[1][0],
         label=True,
+        plot_cell_id=False,
         plot_masks=False,
         highlight_inds=sesh1_inds,
         **kwargs,
@@ -528,6 +682,7 @@ def id_and_plot_reference_cells(caneurons1: CaNeurons, caneurons2: CaNeurons, **
         plot_max=True,
         ax=ax[1][1],
         label=True,
+        plot_cell_id=False,
         plot_masks=False,
         highlight_inds=sesh2_inds,
         **kwargs,
