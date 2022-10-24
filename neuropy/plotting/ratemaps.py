@@ -1,5 +1,6 @@
 from __future__ import annotations # otherwise have to do type like 'Ratemap'
 
+import enum
 from ipywidgets import widgets
 from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
@@ -40,9 +41,15 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
     spike_overlay_points = curr_ax.plot(overlay_points[0], overlay_points[1], **({'markersize': 2, 'marker': ',', 'markeredgecolor': 'red', 'linestyle': 'none', 'markerfacecolor': 'red', 'alpha': 0.1, 'label': 'UNKNOWN_overlay_points'} | plot_opts))                
     spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
     return spike_overlay_points, spike_overlay_sc
-    
+
+
+class BackgroundRenderingOptions(enum.Enum):
+    PATTERN_CHECKERBOARD = 1
+    SOLID_COLOR = 2
+    EMPTY = 3
+
 def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=None, drop_below_threshold: float=0.0000001,
-                              plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None, use_special_overlayed_title:bool=True):
+                              plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None, use_special_overlayed_title:bool=True, bg_rendering_mode=BackgroundRenderingOptions.PATTERN_CHECKERBOARD):
     """Plots a single tuning curve Heatmap using matplotlib
 
     Args:
@@ -64,16 +71,11 @@ def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=Non
     
     # use_alpha_by_occupancy = False # Only supported in IMSHOW mode
     use_alpha_by_occupancy = False # Only supported in IMSHOW mode
-    
-    use_black_rendered_background_image = True 
-    
+
     if ax is None:
         ax = plt.gca()
             
     curr_pfmap = _scale_current_placefield_to_acceptable_range(pfmap, occupancy=occupancy, drop_below_threshold=drop_below_threshold)     
-    # curr_pfmap = np.rot90(np.fliplr(curr_pfmap)) ## Bug was introduced here! At least with pcolorfast, this order of operations is wrong!
-    # curr_pfmap = np.rot90(curr_pfmap)
-    # curr_pfmap = np.fliplr(curr_pfmap) # I thought stopping after this was sufficient, as the values lined up with the 1D placefields... but it seems to be flipped vertically now!
     
     ## Seems to work:
     curr_pfmap = np.rot90(curr_pfmap, k=-1)
@@ -87,9 +89,6 @@ def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=Non
     xmin, xmax, ymin, ymax = (xbin[0], xbin[-1], ybin[0], ybin[-1])
     # The extent keyword arguments controls the bounding box in data coordinates that the image will fill specified as (left, right, bottom, top) in data coordinates, the origin keyword argument controls how the image fills that bounding box, and the orientation in the final rendered image is also affected by the axes limits.
     extent = (xmin, xmax, ymin, ymax)
-    # print(f'extent: {extent}')
-    # extent = None
-
     # vmax = np.abs(curr_pfmap).max()
             
     imshow_shared_kwargs = {
@@ -117,17 +116,24 @@ def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=Non
     else:
         main_plot_kwargs['alpha'] = None
     
-    if use_black_rendered_background_image:
-        # We'll also create a black background into which the pixels will fade
-        # background_black = np.full((*curr_pfmap.shape, 3), 0, dtype=np.uint8)
-        # bg_im = ax.imshow(background_black, **imshow_shared_kwargs, label='background_image')
-        
+    ## Determine which background graphics to use:    
+    if isinstance(bg_rendering_mode, str):
+        background_rendering_mode_name = bg_rendering_mode # Already a string.
+    else:
+        # Otherwise assume it's the enum type and get its .name property
+        background_rendering_mode_name = bg_rendering_mode.name
+
+    if background_rendering_mode_name == BackgroundRenderingOptions.PATTERN_CHECKERBOARD.name:
         # Grey checkerboard background:
         # background_chessboard = np.add.outer(range(8), range(8)) % 2  # chessboard
         background_chessboard = _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis=8)
         bg_im = ax.imshow(background_chessboard, cmap=plt.cm.gray, alpha=0.25, interpolation='nearest', **imshow_shared_kwargs, label='background_image')
-
+    elif background_rendering_mode_name == BackgroundRenderingOptions.SOLID_COLOR.name:
+        # We'll also create a black background into which the pixels will fade
+        background_black = np.full((*curr_pfmap.shape, 3), 0, dtype=np.uint8)
+        bg_im = ax.imshow(background_black, **imshow_shared_kwargs, label='background_image')
     else:
+        # No added background image
         bg_im = None
     
     im = ax.imshow(curr_pfmap, **main_plot_kwargs, label='main_image')
@@ -151,7 +157,8 @@ def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=Non
     
 # all extracted from the 2D figures
 @safely_accepts_kwargs
-def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, included_unit_neuron_IDs=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None, enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, use_special_overlayed_title=True, debug_print=False):
+def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, included_unit_neuron_IDs=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None,
+     enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, bg_rendering_mode=BackgroundRenderingOptions.PATTERN_CHECKERBOARD, use_special_overlayed_title=True, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     
     Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
@@ -195,20 +202,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
     
-    # ## Get Data to plot:
-    # if included_unit_indicies is None:
-    #     # included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
-    #     included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
-    
-    # if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
-    #     active_maps = ratemap.tuning_curves[included_unit_indicies]
-    #     title_substring = 'Placemaps'
-    # elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
-    #     active_maps = ratemap.spikes_maps[included_unit_indicies]
-    #     title_substring = 'Spikes Maps'
-    # else:
-    #     raise ValueError
-
     ## Brought in from display_all_pf_2D_pyqtgraph_binned_image_rendering:
     if included_unit_neuron_IDs is not None:
         if debug_print:
@@ -355,19 +348,13 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
             curr_page_relative_row = np.mod(curr_row, page_grid_sizes[page_idx].num_rows)
             curr_page_relative_col = np.mod(curr_col, page_grid_sizes[page_idx].num_columns)
             # print(f'a_linear_index: {a_linear_index}, curr_page_relative_linear_index: {curr_page_relative_linear_index}, curr_row: {curr_row}, curr_col: {curr_col}, curr_page_relative_row: {curr_page_relative_row}, curr_page_relative_col: {curr_page_relative_col}, curr_included_unit_index: {curr_included_unit_index}')
-            
-            # neuron_IDX = curr_included_unit_index
-            # curr_neuron_ID = ratemap.neuron_ids[neuron_IDX]
-
-            # pfmap = active_maps[a_linear_index]
-
+           
             if curr_included_unit_index is not None:
                 # valid neuron ID, access like normal
                 pfmap = active_maps[curr_included_unit_index]
                 # normal (non-shared mode)
                 curr_ratemap_relative_neuron_IDX = curr_included_unit_index
                 curr_neuron_ID = ratemap.neuron_ids[curr_ratemap_relative_neuron_IDX]
-                # curr_extended_id_string = ratemap.get_extended_neuron_id_string(neuron_i=neuron_IDX) 
                 
                 ## Labeling:
                 formatted_max_value_string = None
@@ -387,14 +374,12 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
                 curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
                 final_title_str = f'{curr_extended_id_string} <shared>'
 
-
-
             # Get the axis to plot on:
             curr_ax = active_page_grid[curr_page_relative_linear_index]
             
             ## Plot the main heatmap for this pfmap:
             curr_im, curr_title_anchored_text = _plot_single_tuning_map_2D(ratemap.xbin, ratemap.ybin, pfmap, ratemap.occupancy, final_title_str=final_title_str, drop_below_threshold=drop_below_threshold, brev_mode=brev_mode, plot_mode=plot_mode,
-                                            ax=curr_ax, max_value_formatter=max_value_formatter, use_special_overlayed_title=use_special_overlayed_title)
+                                            ax=curr_ax, max_value_formatter=max_value_formatter, use_special_overlayed_title=use_special_overlayed_title, bg_rendering_mode=bg_rendering_mode)
             
             active_graphics_obj_dict[curr_neuron_ID] = {'axs': [curr_ax], 'image': curr_im, 'title_obj': curr_title_anchored_text}
 
