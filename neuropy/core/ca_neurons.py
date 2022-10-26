@@ -98,7 +98,12 @@ class CaNeurons(DataWriter):
 
         if len(highlight_inds) > 0:
             # [lines[hid].set_linewidth(4) for hid in highlight_inds]
-            [lines[hid].set(linewidth=3, color="r") for hid in highlight_inds]
+            [
+                lines[np.where(hid == np.array(neuron_inds))[0][0].astype(int)].set(
+                    linewidth=3, color="r"
+                )
+                for hid in highlight_inds
+            ]
 
         return fig, ax, lines
 
@@ -361,6 +366,70 @@ class CaNeuronReg:
         if color is not None:  # Make all rois the same color if specified
             [roi_edge.set_color(color) for roi_edge in roi_edges1]
             [roi_edge.set_color(color) for roi_edge in roi_edges2]
+
+        return delta_com
+
+    def overlay_base_roi_on_reg(
+        self,
+        sesh1: str or int,
+        sesh2: str or int,
+        sesh1_ind: int,
+        delta_com: np.ndarray,
+        highlight_inds1: np.ndarray or list or None = None,
+        highlight_inds2: np.ndarray or list or None = None,
+        plot_max=True,
+        ax=None,
+    ):
+        """Reverse of above with a tweak - plot a single base session ROI overlaid on ALL reg neuron ROIs.
+        Good for hand registering neurons...output 'delta_com' above should be input as a negative here."""
+        if ax is None:
+            _, ax = plt.subplots(1, 2, figsize=(9, 4))
+
+        self.get_session(sesh1).plot_rois(
+            neuron_inds=[sesh1_ind], label=True, ax=ax[0], plot_max=plot_max
+        )
+        ax[0].set_title(f"{sesh1} ROI #{sesh1_ind}")
+        if highlight_inds1 is not None:
+            self.get_session(sesh1).plot_rois(
+                neuron_inds=highlight_inds1,
+                highlight_inds=highlight_inds1,
+                label=True,
+                plot_cell_id=False,
+                ax=ax[0],
+                plot_max=False,
+            )
+
+        self.get_session(sesh2).plot_rois(
+            label=True, ax=ax[1], plot_max=plot_max, highlight_inds=highlight_inds2
+        )
+        _, _, roi_edges1 = self.get_session(sesh1).plot_rois(
+            neuron_inds=[sesh1_ind],
+            plot_max=False,
+            plot_cell_id=False,
+            label=True,
+            ax=ax[1],
+        )
+
+        # Shift edges to overlay properly
+        self.shift_roi_edges(roi_edges1, delta_com)
+
+        # Make new roi stand out
+        [roi_edge.set_color("w") for roi_edge in roi_edges1]
+        [roi_edge.set_linewidth(3) for roi_edge in roi_edges1]
+
+        # Automatically zoom into the area around the roi which has already been shifteg
+        roi_mid = [
+            np.mean(roi_edges1[0].get_xdata()),
+            np.mean(roi_edges1[0].get_ydata()),
+        ]
+
+        # Zoom into reg axes.
+        zoom_amt = 100
+        ax[1].set_xlim(roi_mid[0] + np.array([-zoom_amt, zoom_amt]))
+        ax[1].set_ylim(roi_mid[1] + np.array([zoom_amt, -zoom_amt]))
+
+        # ax[0].set_xlim(roi_mid[0] - delta_com[0] + np.array([-60, 60]), auto=True)
+        # ax[0].set_ylim(roi_mid[1] - delta_com[1] + np.array([-60, 60]), auto=True)
 
     @staticmethod
     def shift_roi_edges(
@@ -639,7 +708,9 @@ def load_pairwise_map(map_path):
     return np.load(map_path, allow_pickle=True).item()
 
 
-def id_and_plot_reference_cells(caneurons1: CaNeurons, caneurons2: CaNeurons, **kwargs):
+def id_and_plot_reference_cells(
+    caneurons1: CaNeurons, caneurons2: CaNeurons, return_inds=False, **kwargs
+):
     """identify and clearly plot reference cells active across both session to aid
     in manual cell registration.
     **kwargs to CaNeurons.plot_rois"""
@@ -692,9 +763,10 @@ def id_and_plot_reference_cells(caneurons1: CaNeurons, caneurons2: CaNeurons, **
         **kwargs,
     )
 
-    # Step through and match up each neuron from session1 to session2
-
-    return fig, ax
+    if not return_inds:
+        return fig, ax
+    else:
+        return fig, ax, sesh1_inds, sesh2_inds
 
 
 def detect_roi_edges(roi_binary, **kwargs):
