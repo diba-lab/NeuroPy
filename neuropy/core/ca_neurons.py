@@ -156,7 +156,7 @@ class CaNeurons(DataWriter):
 
         # Set up axes
         if not isinstance(ax, np.ndarray):
-            _, ax = plt.subplots(1, 2)
+            _, ax = plt.subplots(1, 2, sharex=True, sharey=True)
         assert isinstance(ax, np.ndarray) and len(ax) == 2, "ax must be shape (2,)"
 
         # Plot min
