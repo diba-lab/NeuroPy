@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+from neuropy.utils.misc import interp_nans, find_nearest, arg_find_nearest
 from pathlib import Path
 
 
@@ -34,17 +35,23 @@ class Raster:
                 times
             ), "calcium activity and times must have the same number frames"
 
-        self.raster_time, self.raster = None, None
+        self.raster_time, self.raster, self.remove_nan = None, None, None
         if auto_generate:
             self.generate_raster(self.start_buffer_sec, self.end_buffer_sec)
 
-    def generate_raster(self, start_buffer_sec, end_buffer_sec):
+    @property
+    def raster_mean(self):
+        raster_mean = self.raster.mean(axis=0) if self.raster is not None else None
+        return raster_mean
+
+    def generate_raster(self, start_buffer_sec, end_buffer_sec, remove_nan=True):
         """Generate a peri-event raster - see below staticmethod for more documentation"""
 
         if (
             self.raster is not None
             and start_buffer_sec == self.start_buffer_sec
             and end_buffer_sec == end_buffer_sec
+            and remove_nan == self.remove_nan
         ):
             return self.raster, self.raster_time
         else:  # Update if not already run or if changing buffer secs.
@@ -56,12 +63,26 @@ class Raster:
                 self.event_ends,
                 start_buffer_sec=start_buffer_sec,
                 end_buffer_sec=end_buffer_sec,
+                remove_nan=remove_nan,
             )
 
             self.start_buffer_sec = start_buffer_sec
             self.end_buffer_sec = end_buffer_sec
+            self.remove_nan = remove_nan
 
             return self.raster, self.raster_time
+
+    def get_mean_peak(self):
+        """Get peak of mean raster and index where it occurs"""
+        idx = np.argmax(self.raster_mean)
+
+        return idx, self.raster_mean[idx]
+
+    def get_mean_trough(self):
+        """Get trough of mean raster and index where it occurs"""
+        idx = np.argmin(self.raster_mean)
+
+        return idx, self.raster_mean[idx]
 
     @staticmethod
     def generate_shuffled_raster_(
@@ -89,6 +110,7 @@ class Raster:
         event_ends,
         start_buffer_sec=10,
         end_buffer_sec=10,
+        remove_nan=True,
     ):
         """Generate a peri-event raster for the times in event_starts to event_ends
         (if specified) +/ buffer times indicated"""
@@ -169,6 +191,14 @@ class Raster:
             bins = np.digitize(time, rast_time, right=True)
             rast_array[idt][bins] = activity
 
+        if remove_nan:  # Remove any columns that are all nan
+            good_bool = np.bitwise_not(np.all(np.isnan(rast_array), axis=0))
+            rast_array = rast_array[:, good_bool]
+            rast_time = rast_time[good_bool]
+
+        # Last interpolate any nan values
+        rast_array = interp_nans(rast_array)
+
         return rast_array, rast_time
 
         # NRK todo - interpolate any NaN values that are smaller than just a few frames
@@ -204,8 +234,10 @@ class RasterGroup:
         auto_generate: bool = True,
     ):
         self.Raster = []
-        self.cell_ids = cell_ids
-        for cell_id in cell_ids:
+        self.cell_ids = (
+            cell_ids if cell_ids is not None else np.arange(ca_activity.shape[0])
+        )
+        for cell_id in self.cell_ids:
             self.Raster.append(
                 Raster(
                     ca_activity,
@@ -217,6 +249,9 @@ class RasterGroup:
                     end_buffer_sec,
                 )
             )
+
+        self.start_buffer_sec = start_buffer_sec
+        self.end_buffer_sec = end_buffer_sec
         if auto_generate:
             self.generate_rasters()
 
@@ -230,9 +265,62 @@ class RasterGroup:
         for rast_obj in self.Raster:
             rast_obj.generate_raster(start_buffer_sec, end_buffer_sec)
 
-    def snake_plot(self, sortby: list or str = "peak_time"):
+    def snake_plot(
+        self,
+        sortby: list or np.ndarray or str = "peak_time",
+        norm_each_row=True,
+        ax=None,
+        xlabel_increment=10,
+        **kwargs,
+    ):
         """Make snake plot of sorted cell activity"""
-        pass
+
+        # Sort mean rasters
+        assert isinstance(sortby, (list, np.ndarray)) or (
+            isinstance(sortby, str) and sortby in ["peak_time"]
+        )
+        if sortby == "peak_time":
+            peak_idx = []
+            for rast in self.Raster:
+                pid, _ = rast.get_mean_peak()
+                peak_idx.append(pid)
+            sort_ids = np.argsort(peak_idx)
+        else:
+            sort_ids = sortby
+
+        sorted_mean_rast = np.array([self.Raster[idx].raster_mean for idx in sort_ids])
+
+        # Normalize each row to itself
+        if norm_each_row:
+            sorted_mean_rast = sorted_mean_rast / sorted_mean_rast.max(axis=1)[:, None]
+
+        # Plot
+        assert ax is None or isinstance(ax, plt.Axes)
+        if ax is None:
+            _, ax = plt.subplots(figsize=(7.75, 10))
+        sns.heatmap(
+            sorted_mean_rast, ax=ax, xticklabels=self.Raster[0].raster_time, **kwargs
+        )
+
+        # Pretty up the plots
+        time_plot = self.Raster[0].raster_time
+        time_range = [np.floor(time_plot.min()), np.ceil(time_plot.max())]
+        xticks = [
+            ax.get_xticks()[arg_find_nearest(time_plot, t)]
+            for t in np.arange(time_range[0], time_range[1], xlabel_increment - 0.001)
+        ]
+        xticklabels = [
+            f"{t:0.0f}"
+            for t in np.arange(time_range[0], time_range[1], xlabel_increment - 0.001)
+        ]
+        ax.set(xticks=xticks, xticklabels=xticklabels)
+        ax.set_xlabel("Time (s)")
+        yticklabels = [str(cell) for cell in [0, len(self.cell_ids)]]
+        yticks = [ax.get_yticks()[0], ax.get_yticks()[-1]]
+        ax.set(yticks=yticks, yticklabels=yticklabels)
+        ax.set_ylabel("Cell #")
+
+        return sort_ids
 
 
 ## NRK todo: break up this into sub-functions, 1 calculates raster, the other plots.
