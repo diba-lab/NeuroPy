@@ -19,7 +19,7 @@ class MinianIO:
         basedir: str or None = None,
         ignore_time_mismatch: bool = False,
     ) -> None:
-        self.basedir = basedir
+        self.basedir = Path(basedir)
         # Try to autodetect minian folder - must specify basedir
         if dirname is None:
             assert (
