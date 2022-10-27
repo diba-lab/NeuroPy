@@ -71,5 +71,6 @@ def interp_nans(y: np.ndarray):
     else:
 
         nans, x = nan_helper(y)
-        y[nans] = np.interp(x(nans), x(~nans), y[~nans])
+        if not np.all(np.isnan(y)):
+            y[nans] = np.interp(x(nans), x(~nans), y[~nans])
     return y
