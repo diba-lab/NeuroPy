@@ -277,12 +277,16 @@ class RasterGroup:
 
         # Sort mean rasters
         assert isinstance(sortby, (list, np.ndarray)) or (
-            isinstance(sortby, str) and sortby in ["peak_time"]
+            isinstance(sortby, str) and sortby in ["peak_time", "trough_time"]
         )
-        if sortby == "peak_time":
+        if sortby == "peak_time" or sortby == "trough_time":
             peak_idx = []
             for rast in self.Raster:
-                pid, _ = rast.get_mean_peak()
+                pid, _ = (
+                    rast.get_mean_peak()
+                    if sortby == "peak_time"
+                    else rast.get_mean_trough()
+                )
                 peak_idx.append(pid)
             sort_ids = np.argsort(peak_idx)
         else:
@@ -372,83 +376,130 @@ def plot_pe_traces(
     ).astype(float) / 10 ** 9
     avg_event_sec = np.nanmean(event_durs)
 
-    # Get baselines for activity using only activity from the first to last event +/- buffers
-    bl_start = event_starts.min() - pd.Timedelta(start_buffer_sec, unit="sec")
-    bl_end = event_ends.max() + pd.Timedelta(end_buffer_sec, unit="sec")
-    bl_bool = (times > bl_start) & (times < bl_end)
-    baseline = np.nanmean(activity[bl_bool])
-    raw_baseline = np.nanmean(raw_trace[bl_bool]) if raw_trace is not None else None
+    # # Calculate event durations
+    # event_durs = (event_ends.values - event_starts.values).astype(
+    #     "timedelta64[ns]"
+    # ).astype(float) / 10 ** 9
+    # avg_event_sec = np.nanmean(event_durs)
+    #
+    # # Get baselines for activity using only activity from the first to last event +/- buffers
+    # bl_start = event_starts.min() - pd.Timedelta(start_buffer_sec, unit="sec")
+    # bl_end = event_ends.max() + pd.Timedelta(end_buffer_sec, unit="sec")
+    # bl_bool = (times > bl_start) & (times < bl_end)
+    # baseline = np.nanmean(activity[bl_bool])
+    # raw_baseline = np.nanmean(raw_trace[bl_bool]) if raw_trace is not None else None
+    #
+    # # Now loop through and chop out peri-event activity
+    # start_id, end_id = [], []
+    # raster, raw_raster, time_list = [], [], []
+    # for start, end in zip(event_starts, event_ends):
+    #     # first, id neural data time for start, end and account for buffer times before/after
+    #     start_id.append((times - start).dt.total_seconds().abs().argmin())
+    #     start_buffer = (
+    #         (times - (start - pd.Timedelta(start_buffer_sec, unit="sec")))
+    #         .dt.total_seconds()
+    #         .abs()
+    #         .argmin()
+    #     )
+    #     end_id.append((times - end).dt.total_seconds().abs().argmin())
+    #     end_buffer = (
+    #         (times - (end + pd.Timedelta(end_buffer_sec + avg_event_sec, unit="sec")))
+    #         .dt.total_seconds()
+    #         .abs()
+    #         .argmin()
+    #     )
+    #
+    #     # Get time from event start for this event and keep only frames within buffer second
+    #     # This is necessary to avoid grabbing frames super far away across a disconnect
+    #     trial_dt = (times[start_buffer : end_buffer + 1] - start).dt.total_seconds()
+    #     good_frame_bool = np.bitwise_and(
+    #         trial_dt > -start_buffer_sec, trial_dt < (end_buffer_sec + avg_event_sec)
+    #     )
+    #     if start_buffer == end_buffer:  # Skip adding anything if no data for that event
+    #         pass
+    #     else:
+    #         # Build up raster(s) of activity around event times
+    #         # raster.append(activity[start_buffer : end_buffer + 1])
+    #         raster.append(activity[start_buffer : end_buffer + 1][good_frame_bool])
+    #         if raw_trace is not None:
+    #             # raw_raster.append(raw_trace[start_buffer : end_buffer + 1])
+    #             raw_raster.append(
+    #                 raw_trace[start_buffer : end_buffer + 1][good_frame_bool]
+    #             )
+    #
+    #         time_list.append(trial_dt[good_frame_bool])
+    #
+    # if (
+    #     raw_trace is None
+    # ):  # Set raw raster equal to deconvolved raster to make code below work.
+    #     raw_raster = raster
+    #
+    # ## Set up times for plot
+    # # First infer sampling rate
+    # dt_good_bool = (
+    #     times.diff().dt.total_seconds() < 0.2
+    # )  # Assume any frames more than 0.2 sec apart are due to a disconnect
+    # sr = 1 / times.diff().dt.total_seconds()[dt_good_bool].mean()
+    # # Calculate trial duration
+    # dur_sec = start_buffer_sec + end_buffer_sec + avg_event_sec
+    # # last get times for each bin in the raster array relative to event start
+    # time_plot = np.linspace(
+    #     -start_buffer_sec,
+    #     -start_buffer_sec + dur_sec,
+    #     np.floor(dur_sec * sr).astype(int),
+    # )
+    # # Now build up arrays!
+    # nevents = len(raster)  # Only keep events with calcium activity during them
+    # nframes = len(time_plot)
+    # rast_array = np.ones((nevents, nframes)) * np.nan  # pre-allocate
+    # raw_rast_array = np.ones((nevents, nframes)) * np.nan  # pre-allocate
+    # for idt, (time, activity, raw_activity) in enumerate(
+    #     zip(time_list, raster, raw_raster)
+    # ):
+    #     bins = np.digitize(time, time_plot, right=True)
+    #     rast_array[idt][bins] = activity
+    #     raw_rast_array[idt][bins] = raw_activity
 
-    # Now loop through and chop out peri-event activity
-    start_id, end_id = [], []
-    raster, raw_raster, time_list = [], [], []
-    for start, end in zip(event_starts, event_ends):
-        # first, id neural data time for start, end and account for buffer times before/after
-        start_id.append((times - start).dt.total_seconds().abs().argmin())
-        start_buffer = (
-            (times - (start - pd.Timedelta(start_buffer_sec, unit="sec")))
-            .dt.total_seconds()
-            .abs()
-            .argmin()
-        )
-        end_id.append((times - end).dt.total_seconds().abs().argmin())
-        end_buffer = (
-            (times - (end + pd.Timedelta(end_buffer_sec + avg_event_sec, unit="sec")))
-            .dt.total_seconds()
-            .abs()
-            .argmin()
-        )
-
-        # Get time from event start for this event and keep only frames within buffer second
-        # This is necessary to avoid grabbing frames super far away across a disconnect
-        trial_dt = (times[start_buffer : end_buffer + 1] - start).dt.total_seconds()
-        good_frame_bool = np.bitwise_and(
-            trial_dt > -start_buffer_sec, trial_dt < (end_buffer_sec + avg_event_sec)
-        )
-        if start_buffer == end_buffer:  # Skip adding anything if no data for that event
-            pass
-        else:
-            # Build up raster(s) of activity around event times
-            # raster.append(activity[start_buffer : end_buffer + 1])
-            raster.append(activity[start_buffer : end_buffer + 1][good_frame_bool])
-            if raw_trace is not None:
-                # raw_raster.append(raw_trace[start_buffer : end_buffer + 1])
-                raw_raster.append(
-                    raw_trace[start_buffer : end_buffer + 1][good_frame_bool]
-                )
-
-            time_list.append(trial_dt[good_frame_bool])
-
-    if (
-        raw_trace is None
-    ):  # Set raw raster equal to deconvolved raster to make code below work.
-        raw_raster = raster
-
-    ## Set up times for plot
-    # First infer sampling rate
-    dt_good_bool = (
-        times.diff().dt.total_seconds() < 0.2
-    )  # Assume any frames more than 0.2 sec apart are due to a disconnect
-    sr = 1 / times.diff().dt.total_seconds()[dt_good_bool].mean()
-    # Calculate trial duration
-    dur_sec = start_buffer_sec + end_buffer_sec + avg_event_sec
-    # last get times for each bin in the raster array relative to event start
-    time_plot = np.linspace(
-        -start_buffer_sec,
-        -start_buffer_sec + dur_sec,
-        np.floor(dur_sec * sr).astype(int),
+    rast_array, time_plot = Raster.generate_raster_(
+        activity,
+        times,
+        cell_id,
+        event_starts,
+        event_ends,
+        start_buffer_sec,
+        end_buffer_sec,
     )
-    # Now build up arrays!
-    nevents = len(raster)  # Only keep events with calcium activity during them
-    nframes = len(time_plot)
-    rast_array = np.ones((nevents, nframes)) * np.nan  # pre-allocate
-    raw_rast_array = np.ones((nevents, nframes)) * np.nan  # pre-allocate
-    for idt, (time, activity, raw_activity) in enumerate(
-        zip(time_list, raster, raw_raster)
-    ):
-        bins = np.digitize(time, time_plot, right=True)
-        rast_array[idt][bins] = activity
-        raw_rast_array[idt][bins] = raw_activity
+
+    baseline, bl_bool = Raster.get_baseline(
+        activity,
+        times,
+        event_starts,
+        event_ends,
+        start_buffer_sec,
+        end_buffer_sec,
+    )
+
+    if raw_trace is not None:
+        raw_rast_array, time_plot = Raster.generate_raster_(
+            raw_trace,
+            times,
+            cell_id,
+            event_starts,
+            event_ends,
+            start_buffer_sec,
+            end_buffer_sec,
+        )
+        raw_baseline, bl_bool = Raster.get_baseline(
+            activity,
+            times,
+            event_starts,
+            event_ends,
+            start_buffer_sec,
+            end_buffer_sec,
+        )
+    else:
+        raw_baseline = None
+        raw_rast_array = rast_array
 
     # Set up figure and axes
     if ax is None:
