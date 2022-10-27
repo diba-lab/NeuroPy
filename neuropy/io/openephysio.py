@@ -141,7 +141,7 @@ def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
     assert (
         np.round(SRdat / SRlfp) == SRdat / SRlfp
     ), "SRdat file must be an integer multiple of SRlfp "
-    return taskdat_times.iloc[slice(0, None, int(SRdat / SRlfp))]
+    return dat_times.iloc[slice(0, None, int(SRdat / SRlfp))]
 
 
 def load_all_ttl_events(basepath: str or Path, sync: bool = False, **kwargs):
