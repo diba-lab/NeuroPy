@@ -9,7 +9,8 @@ class Signal:
         channel_id=None,
         source_file=None,
     ) -> None:
-        self.traces = traces
+        assert traces.ndim <= 2
+        self.traces = traces if traces.ndim == 2 else traces[None, :]
         self.t_start = t_start
         self._sampling_rate = sampling_rate
         if channel_id is None:
