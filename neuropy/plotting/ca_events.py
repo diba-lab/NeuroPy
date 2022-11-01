@@ -43,8 +43,27 @@ class Raster:
 
     @property
     def raster_mean(self):
-        raster_mean = self.raster.mean(axis=0) if self.raster is not None else None
+        raster_mean = (
+            np.nanmean(self.raster, axis=0) if self.raster is not None else None
+        )
         return raster_mean
+
+    @property
+    def raster_baseline(self):
+        """Get baseline activity from start to end of raster activity period"""
+        event_ends_use = (
+            self.event_starts if self.event_ends is None else self.event_ends
+        )
+        baseline, _ = self.get_baseline(
+            self.ca_activity,
+            self.times,
+            self.event_starts,
+            event_ends_use,
+            self.start_buffer_sec,
+            self.end_buffer_sec,
+        )
+
+        return baseline
 
     def generate_raster(self, start_buffer_sec, end_buffer_sec, remove_nan=True):
         """Generate a peri-event raster - see below staticmethod for more documentation"""
@@ -252,6 +271,128 @@ class Raster:
         baseline = np.nanmean(activity[bl_bool])
 
         return baseline, bl_bool
+
+    @staticmethod
+    def get_start_ends(
+        event_starts,
+        event_ends,
+        times,
+        start_buffer_sec,
+        end_buffer_sec,
+        avg_event_sec,
+        pd_to_np=True,
+    ):
+        """This automatically makes things run faster by using pd.Series only when necessary for identfying
+        frames with a trial.  Good target for elimination once data alignment is set!"""
+
+        if pd_to_np or isinstance(times, np.ndarray):
+            if pd_to_np and isinstance(times, pd.Series):
+                start_time = times.iloc[0]
+                event_starts = (event_starts - start_time).dt.total_seconds().values
+                event_ends = (event_ends - start_time).dt.total_seconds().values
+                times = (times - start_time).dt.total_seconds().values
+
+                (
+                    start_buffers,
+                    end_buffers,
+                    good_frames_bool,
+                    trial_dts,
+                ) = Raster.get_start_ends_np(
+                    event_starts,
+                    event_ends,
+                    times,
+                    start_buffer_sec,
+                    end_buffer_sec,
+                    avg_event_sec,
+                )
+        else:
+            (
+                start_buffers,
+                end_buffers,
+                good_frames_bool,
+                trial_dts,
+            ) = Raster.get_start_ends_pd(
+                event_starts,
+                event_ends,
+                times,
+                start_buffer_sec,
+                end_buffer_sec,
+                avg_event_sec,
+            )
+
+        return start_buffers, end_buffers, good_frames_bool, trial_dts
+
+    @staticmethod
+    def get_start_ends_pd(
+        event_starts, event_ends, times, start_buffer_sec, end_buffer_sec, avg_event_sec
+    ):
+        """Code to get start and end times for building rasters for above functions. Much slower using
+        pandas than numpy (6x slowdown)."""
+        start_buffers, end_buffers, good_frames_bool, trial_dts = [], [], [], []
+        for start, end in zip(event_starts, event_ends):
+            # first, id neural data time for start, end and account for buffer times before/after
+            start_buffer = (
+                (times - (start - pd.Timedelta(start_buffer_sec, unit="sec")))
+                .dt.total_seconds()
+                .abs()
+                .argmin()
+            )
+            start_buffers.append(start_buffer)
+            end_buffer = (
+                (
+                    times
+                    - (end + pd.Timedelta(end_buffer_sec + avg_event_sec, unit="sec"))
+                )
+                .dt.total_seconds()
+                .abs()
+                .argmin()
+            )
+            end_buffers.append(end_buffer)
+
+            # Get time from event start for this event and keep only frames within buffer second
+            # This is necessary to avoid grabbing frames super far away across a disconnect
+            trial_dt = (times[start_buffer : end_buffer + 1] - start).dt.total_seconds()
+            trial_dts.append(trial_dt)
+            good_frame_bool = np.bitwise_and(
+                trial_dt > -start_buffer_sec,
+                trial_dt < (end_buffer_sec + avg_event_sec),
+            )
+            good_frames_bool.append(good_frame_bool)
+
+        return start_buffers, end_buffers, good_frames_bool, trial_dts
+
+    @staticmethod
+    def get_start_ends_np(
+        event_starts,
+        event_ends,
+        times,
+        start_buffer_sec,
+        end_buffer_sec,
+        avg_event_sec,
+    ):
+        """Code for getting start and end times for building rasters above. Much faster than pandas (6x speedup)"""
+        start_buffers, end_buffers, good_frames_bool, trial_dts = [], [], [], []
+        for start, end in zip(event_starts, event_ends):
+            # first, id neural data time for start, end and account for buffer times before/after
+            start_buffer = np.argmin(np.abs(times - (start - start_buffer_sec)))
+            start_buffers.append(start_buffer)
+
+            end_buffer = np.argmin(
+                np.abs(times - (end + end_buffer_sec + avg_event_sec))
+            )
+            end_buffers.append(end_buffer)
+
+            # Get time from event start for this event and keep only frames within buffer second
+            # This is necessary to avoid grabbing frames super far away across a disconnect
+            trial_dt = times[start_buffer : end_buffer + 1] - start
+            trial_dts.append(trial_dt)
+            good_frame_bool = np.bitwise_and(
+                trial_dt > -start_buffer_sec,
+                trial_dt < (end_buffer_sec + avg_event_sec),
+            )
+            good_frames_bool.append(good_frame_bool)
+
+        return start_buffers, end_buffers, good_frames_bool, trial_dts
 
 
 class RasterGroup:
