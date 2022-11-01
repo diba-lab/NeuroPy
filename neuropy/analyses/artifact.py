@@ -116,3 +116,7 @@ def detect_artifact_epochs(
     else:
         print("No artifacts found at this threshold")
         pass
+
+
+if __name__ == "__main__":
+    print('test')
