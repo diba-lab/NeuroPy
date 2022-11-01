@@ -563,18 +563,29 @@ class MultiSessionMap:
         #         and map_use.sesh2 == self.sesh_names[idm + 1]
         #     ), "map sessions do not match the order of 'sesh_name' input"
 
-    def grab_map(self, sesh_pair_names):
+    def grab_map(self, sesh_pair_names, coactive_only: bool = False):
         """Grabs the appropriate pairwise map from the class. Returns none if that session pair doesn't exist"""
+        assert (
+            sesh_pair_names[0] != sesh_pair_names[1]
+        ), "Self-mapping not yet enabled, sesh1 must not be equal to sesh2"
         try:
             pair_idx = np.where(
                 [
-                    mapp.sesh1 == sesh_pair_names[0]
-                    and mapp.sesh2 == sesh_pair_names[1]
+                    (
+                        mapp.sesh1 == sesh_pair_names[0]
+                        and mapp.sesh2 == sesh_pair_names[1]
+                    )
+                    or (
+                        mapp.sesh1 == sesh_pair_names[1]
+                        and mapp.sesh2 == sesh_pair_names[0]
+                    )
                     for mapp in self.maps
                 ]
             )[0][0]
-
-            return self.maps[pair_idx].map
+            map_use = self.maps[pair_idx].map
+            if coactive_only:
+                map_use = map_use[(map_use >= 0).all(axis=1)]
+            return map_use
         except IndexError:
             return None
 
