@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class Signal:
     def __init__(
         self,

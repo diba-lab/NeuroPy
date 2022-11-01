@@ -34,3 +34,7 @@ class Animal(DataWriter):
     # @staticmethod
     # def from_dict(d):
     #     return Animal(**d)
+
+
+if __name__ == "__main__":
+    print('test')
