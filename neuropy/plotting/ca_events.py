@@ -471,7 +471,7 @@ class RasterGroup:
     def snake_plot(
         self,
         sortby: list or np.ndarray or str = "peak_time",
-        norm_each_row=True,
+        norm_each_row: None or str in ["max", "z"] = "max",
         ax=None,
         xlabel_increment=10,
         **kwargs,
@@ -498,8 +498,19 @@ class RasterGroup:
         sorted_mean_rast = np.array([self.Raster[idx].raster_mean for idx in sort_ids])
 
         # Normalize each row to itself
-        if norm_each_row:
+        if norm_each_row == "max":
             sorted_mean_rast = sorted_mean_rast / sorted_mean_rast.max(axis=1)[:, None]
+        elif norm_each_row == "z":
+            sorted_mean = np.array(
+                [np.nanmean(self.Raster[idx].raster.reshape(-1)) for idx in sort_ids]
+            )
+            sorted_std = np.array(
+                [np.nanstd(self.Raster[idx].raster.reshape(-1)) for idx in sort_ids]
+            )
+            sorted_mean_rast = (sorted_mean_rast - sorted_mean[:, None]) / sorted_std[
+                :, None
+            ]
+            pass
 
         # Plot
         assert ax is None or isinstance(ax, plt.Axes)
