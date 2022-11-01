@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from neuropy.utils.misc import interp_nans, find_nearest, arg_find_nearest
 from pathlib import Path
+from copy import deepcopy, copy
 
 
 class Raster:
@@ -83,6 +84,24 @@ class Raster:
         idx = np.argmin(self.raster_mean)
 
         return idx, self.raster_mean[idx]
+
+    def split(self, split_type: str in ["odd_even", "half_time", "half_events"]):
+        """Split rasters up to assess consistency"""
+        assert split_type in [
+            "odd_even",
+            "half_time",
+            "half_events",
+        ], "'split_type' entered not supported"
+        raster_split = [deepcopy(self), deepcopy(self)]
+        if split_type == "odd_even":
+            for idr, rast_sp in enumerate(raster_split):
+                rast_sp.event_starts = self.event_starts[idr::2]
+                if self.event_ends is not None:
+                    rast_sp.event_ends = self.event_ends[idr::2]
+                if self.raster is not None:
+                    rast_sp.raster = self.raster[idr::2]
+
+        return raster_split[0], raster_split[1]
 
     @staticmethod
     def generate_shuffled_raster_(
@@ -254,6 +273,35 @@ class RasterGroup:
         self.end_buffer_sec = end_buffer_sec
         if auto_generate:
             self.generate_rasters()
+
+    def cell_slice(self, cell_ids_to_grab):
+        """Grab cell_ids cells from larger set of rasters"""
+        # Get indexes of cells to grab, leaving silent/unmatched cells as -1s
+        cell_idxs = np.array(
+            [
+                np.where(cell_to_grab == self.cell_ids)[0][0]
+                if cell_to_grab >= 0
+                else -1
+                for cell_to_grab in cell_ids_to_grab
+            ]
+        )
+        RastGroupSlice = deepcopy(self)
+        rasters = []
+        for cell_idx in cell_idxs:
+            # for cell_to_grab in cell_ids_to_grab:
+            #     cell_idx = (
+            #         np.where(cell_to_grab == self.cell_ids)[0][0] if cell_idx >= 0 else -1
+            #     )
+            if cell_idx >= 0:
+                rasters.append(self.Raster[cell_idx])
+            else:  # Sent raster to all NaNs if not specified
+                rasters.append(deepcopy(self.Raster[0]))
+                rasters[-1].raster = np.ones_like(rasters[-1].raster) * np.nan
+
+        RastGroupSlice.Raster = rasters
+        RastGroupSlice.cell_ids = cell_ids_to_grab
+
+        return RastGroupSlice
 
     def generate_rasters(self, start_buffer_sec=None, end_buffer_sec=None):
         start_buffer_sec = (
