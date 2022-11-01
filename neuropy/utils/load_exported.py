@@ -1,13 +1,141 @@
 import sys
 import numpy as np
+import pandas as pd
 import h5py
 import hdf5storage # conda install hdf5storage
 from pathlib import Path
+from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 
 
 def import_mat_file(mat_import_file='data/RoyMaze1/positionAnalysis.mat'):
-	with ProgressMessagePrinter(mat_import_file, 'Loading', 'matlab import file'):
-		data = hdf5storage.loadmat(mat_import_file, appendmat=False)
-	return data
+    with ProgressMessagePrinter(mat_import_file, 'Loading', 'matlab import file'):
+        data = hdf5storage.loadmat(mat_import_file, appendmat=False)
+    return data
+
+
+def LoadXml(session_xml_filepath, MAX_CHANNEL_GROUP_LENGTH = 8, debug_print=False):
+    """ Based off of the MATLAB code `load_files\LoadXml.m`
+    Usage:
+        session_xml_filepath = Path(r'W:\Data\KDIBA\gor01\one\2006-6-08_14-26-15\2006-6-08_14-26-15.xml')
+        assert session_xml_filepath.exists() and session_xml_filepath.is_file()
+        out_xml_dict, d = LoadXml(session_xml_filepath)
+        out_xml_dict
+    """
+    d = benedict(str(session_xml_filepath.resolve()), format='xml')
+    out_xml_dict = {'nBits': int(d['parameters.acquisitionSystem.nBits']), 'nChannels': int(d['parameters.acquisitionSystem.nChannels']), 'samplingRate': int(d['parameters.acquisitionSystem.samplingRate']), 'voltageRange': int(d['parameters.acquisitionSystem.voltageRange']),
+ 'amplification': int(d['parameters.acquisitionSystem.amplification']), 'offset': int(d['parameters.acquisitionSystem.offset'])}
+    out_xml_dict = out_xml_dict | {'Date':d['parameters.generalInfo.date']}
+    out_xml_dict = out_xml_dict | {'lfpSampleRate':int(d['parameters.fieldPotentials.lfpSamplingRate'])}
+    
+    
+    ## Processing Channel Groups:
+    out_AnatomicalChannelGroupsList = []
+    # [{'channel': [{'@skip': '0', '#text': '72'},
+    #    {'@skip': '0', '#text': '73'},
+    #    {'@skip': '0', '#text': '74'},
+    #    {'@skip': '0', '#text': '75'},
+    #    {'@skip': '0', '#text': '76'},
+    #    {'@skip': '0', '#text': '77'},
+    #    {'@skip': '0', '#text': '78'},
+    #    {'@skip': '0', '#text': '79'}]},
+    #  {'channel': [{'@skip': '0', '#text': '80'},
+    #    {'@skip': '0', '#text': '81'},
+    #    {'@skip': '0', '#text': '82'},
+    #    {'@skip': '0', '#text': '83'},
+    #    {'@skip': '0', '#text': '84'},
+    #    {'@skip': '0', '#text': '85'},
+    #    {'@skip': '0', '#text': '86'},
+    #    {'@skip': '0', '#text': '87'}]},
+    #  ...
+    # ]
+    for a_group_dict in d['parameters.anatomicalDescription.channelGroups.group']:
+        """ a_channel_list: [{'@skip': '0', '#text': '72'}, {'@skip': '0', '#text': '73'}, {'@skip': '0', '#text': '74'}, {'@skip': '0', '#text': '75'}, {'@skip': '0', '#text': '76'}, {'@skip': '0', '#text': '77'}, {'@skip': '0', '#text': '78'}, {'@skip': '0', '#text': '79'}] """
+        if debug_print:
+            print(a_group_dict['channel'])
+        a_channel_list = [int(a_channel_entry['#text']) for a_channel_entry in a_group_dict['channel'] if a_channel_entry['@skip']=='0']
+        if debug_print:
+            print(a_channel_list)
+        if len(a_channel_list) > MAX_CHANNEL_GROUP_LENGTH:
+            # split long groups
+            if debug_print:
+                print(f'MAX_CHANNEL_GROUP_LENGTH: {MAX_CHANNEL_GROUP_LENGTH}')
+            chunked_channel_lists = [a_channel_list[i:i+MAX_CHANNEL_GROUP_LENGTH] for i in range(0, len(a_channel_list), MAX_CHANNEL_GROUP_LENGTH)]
+            # chunked_channel_lists = [list(array) for array in np.array_split(np.array(a_channel_list), MAX_CHANNEL_GROUP_LENGTH)]
+            out_AnatomicalChannelGroupsList.extend(chunked_channel_lists)
+            if debug_print:
+                print(f'split list: {a_channel_list} -> {chunked_channel_lists}')
+        else:
+            out_AnatomicalChannelGroupsList.append(a_channel_list)
+
+    out_xml_dict['AnatGrps'] = out_AnatomicalChannelGroupsList
+    out_xml_dict['nAnatGrps'] = len(out_AnatomicalChannelGroupsList)
+    
+    
+    ## Processing Spike Groups:
+    out_spikeGroupsList = []
+    out_extendedSpikeGroupsList = []
+    out_extendedSpikeGroupsDataframe = {}
+    # Initialize dataframe members:
+    # out_extendedSpikeGroupsDataframe['groupIdx'] = []
+    # out_extendedSpikeGroupsDataframe['channelIDX'] = []
+    for a_key in ['groupIdx','channelIDX','peakSampleIndex','nFeatures','nSamples']:
+        out_extendedSpikeGroupsDataframe[a_key] = []
+
+    # [{'channels': {'channel': ['0', '1', '2', '3', '4', '5', '6', '7']},
+    #   'nSamples': '54',
+    #   'peakSampleIndex': '26',
+    #   'nFeatures': '3'},
+    #  {'channels': {'channel': ['8', '9', '10', '11', '12', '13', '14', '15']},
+    #   'nSamples': '54',
+    #   'peakSampleIndex': '26',
+    #   'nFeatures': '3'}, ...
+
+    for i, a_group_dict in enumerate(d['parameters.spikeDetection.channelGroups.group']):
+        """ a_channel_list: {'channels': {'channel': ['0', '1', '2', '3', '4', '5', '6', '7']}, 'nSamples': '54', 'peakSampleIndex': '26', 'nFeatures': '3'} """
+        if debug_print:
+            print(a_group_dict)
+            print(a_group_dict['channels']['channel']) # ['0', '1', '2', '3', '4', '5', '6', '7']
+
+        a_channel_list = [int(a_channel_entry) for a_channel_entry in a_group_dict['channels']['channel']]
+        # build extended properties:
+        curr_group_properties = {'spikeDetection_channelGroupIdx': np.full_like(a_channel_list, i),'channels': a_channel_list, 'nSamples': int(a_group_dict['nSamples']), 'peakSampleIndex': int(a_group_dict['peakSampleIndex']), 'nFeatures': int(a_group_dict['nFeatures'])}
+        out_extendedSpikeGroupsList.append(curr_group_properties)
+
+
+        out_extendedSpikeGroupsDataframe['groupIdx'].extend(curr_group_properties['spikeDetection_channelGroupIdx'])
+        out_extendedSpikeGroupsDataframe['channelIDX'].extend(curr_group_properties['channels'])
+
+        # Repeat the scalar properties:
+        for a_key in ['peakSampleIndex','nFeatures','nSamples']:
+            out_extendedSpikeGroupsDataframe[a_key].extend(np.full_like(a_channel_list, curr_group_properties[a_key]))
+
+        # out_extendedSpikeGroupsDataframe['peakSampleIndex'].extend(np.full_like(a_channel_list, curr_group_properties['peakSampleIndex']))
+        # out_extendedSpikeGroupsDataframe['channelIDX'].extend(curr_group_properties['channels'])
+        # out_extendedSpikeGroupsDataframe['channelIDX'].extend(curr_group_properties['channels'])
+
+
+        if debug_print:
+            print(a_channel_list)
+        if len(a_channel_list) > MAX_CHANNEL_GROUP_LENGTH:
+            # split long groups
+            if debug_print:
+                print(f'MAX_CHANNEL_GROUP_LENGTH: {MAX_CHANNEL_GROUP_LENGTH}')
+            chunked_channel_lists = [a_channel_list[i:i+MAX_CHANNEL_GROUP_LENGTH] for i in range(0, len(a_channel_list), MAX_CHANNEL_GROUP_LENGTH)]
+            out_spikeGroupsList.extend(chunked_channel_lists)
+            if debug_print:
+                print(f'split list: {a_channel_list} -> {chunked_channel_lists}')
+        else:
+            out_spikeGroupsList.append(a_channel_list)
+
+    out_xml_dict['SpkGrps'] = out_spikeGroupsList
+    out_xml_dict['SpkGrps_Extended'] = out_extendedSpikeGroupsList
+
+    
+    out_xml_dict['ElecGp'] = out_AnatomicalChannelGroupsList
+    out_xml_dict['nElecGps'] = len(out_AnatomicalChannelGroupsList)
+
+    out_xml_dict['SpkGrps_ExtendedDf'] = pd.DataFrame(out_extendedSpikeGroupsDataframe)
+    return out_xml_dict, d
+
