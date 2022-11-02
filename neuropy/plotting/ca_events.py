@@ -105,11 +105,14 @@ class Raster:
 
         return idx, self.raster_mean[idx]
 
-    def split(self, split_type: str in ["odd_even", "half_time", "half_events"]):
-        """Split rasters up to assess consistency"""
+    def split(
+        self, split_type: str in ["odd_even", "random", "half_time", "half_events"]
+    ):
+        """Split rasters up to assess consistency
+        Better would be to make this super generic and let you grab any set of events"""
         assert split_type in [
             "odd_even",
-            "half_time",
+            "random" "half_time",
             "half_events",
         ], "'split_type' entered not supported"
         raster_split = [deepcopy(self), deepcopy(self)]
@@ -120,7 +123,19 @@ class Raster:
                     rast_sp.event_ends = self.event_ends[idr::2]
                 if self.raster is not None:
                     rast_sp.raster = self.raster[idr::2]
-
+        elif split_type == "random":  # Split up randomly into halves
+            nevents = self.event_starts.shape[0]
+            set1 = np.random.choice(nevents, int(nevents / 2), replace=True)
+            set2 = [nid if nid not in set1 else -1 for nid in range(nevents)]
+            set2 = np.array(set2)[np.array(set2) != -1].astype(int)
+            for event_ids, rast_sp in zip([set1, set2], raster_split):
+                rast_sp.event_starts = self.event_starts[event_ids]
+                if self.event_ends is not None:
+                    rast_sp.event_ends = self.event_ends[event_ids]
+                if self.raster is not None:
+                    rast_sp.raster = self.raster[event_ids]
+        else:
+            assert False, "'split_type' entered is not yet implemented"
         return raster_split[0], raster_split[1]
 
     @staticmethod
@@ -428,6 +443,14 @@ class RasterGroup:
         self.end_buffer_sec = end_buffer_sec
         if auto_generate:
             self.generate_rasters()
+
+    # def split(self, split_type: str in ["odd_even", "random", "half_time", "half_events"]
+    # ):
+    #
+    #     rast_split = [deepcopy(self), deepcopy(self)]
+    #     for rast_sp in rast_split:
+    #         rast_sp.Raster = []
+    #
 
     def cell_slice(self, cell_ids_to_grab):
         """Grab cell_ids cells from larger set of rasters"""
