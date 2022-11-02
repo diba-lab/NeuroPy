@@ -15,6 +15,39 @@ def import_mat_file(mat_import_file='data/RoyMaze1/positionAnalysis.mat'):
     return data
 
 
+# ==================================================================================================================== #
+# Session XML Related                                                                                                  #
+# ==================================================================================================================== #
+def find_session_xml(local_session_path, debug_print=False):
+    """finds the XML file for a given session provided the session folder path
+
+    Args:
+        local_session_path (_type_): _description_
+
+    Usage:
+        from neuropy.utils.load_exported import find_session_xml
+
+        # local_session_path = Path(r'W:\Data\KDIBA\gor01\one\2006-6-08_14-26-15')
+        # local_session_path = Path(r'W:\Data\KDIBA\gor01\one\2006-6-08_14-26-15')
+        local_session_path, session_stem, local_session_path = Path(r'W:\Data\KDIBA\gor01\one\2006-6-13_14-42-6')
+
+        session_xml_filepath = find_session_xml(local_session_path)
+        out_xml_dict, d = LoadXml(session_xml_filepath)
+        print(f"active_shank_channels_lists: {out_xml_dict['AnatGrps']}")
+
+    """
+    if isinstance(local_session_path, str):
+        local_session_path = Path(local_session_path)
+    session_stem = local_session_path.stem # '2006-6-08_14-26-15'
+    session_xml_filepath = local_session_path.joinpath(session_stem).with_suffix('.xml')
+    if debug_print:
+        print(f'local_session_path: {local_session_path}')
+        print(f'session_xml_filepath: {session_xml_filepath}')
+    assert session_xml_filepath.exists() and session_xml_filepath.is_file()
+    return session_xml_filepath, session_stem, local_session_path
+
+
+
 def LoadXml(session_xml_filepath, MAX_CHANNEL_GROUP_LENGTH = 8, debug_print=False):
     """ Based off of the MATLAB code `load_files\LoadXml.m`
     Usage:

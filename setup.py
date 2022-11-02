@@ -1,8 +1,8 @@
 import setuptools
 
 requires = [
-    "numpy>=1.19",
-    "scipy>=1.5",
+    "numpy>=1.20",
+    "scipy>=1.6",
     "matplotlib",
     "scikit-learn",
     "pandas",
@@ -10,13 +10,17 @@ requires = [
     "hmmlearn",
     "ipywidgets",
     "seaborn",
+    "h5py",
+    "hdf5storage",
+    "numba",
+    "python-benedict"
 ]
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="neuropy-pho",
-    version="0.0.2",
+    version="0.0.3",
     author="Bapun Giri, Pho Hale",
     author_email="bapung@umich.edu",
     maintainer=["Bapun Giri", "Nat Kinsky", "Pho Hale"],
