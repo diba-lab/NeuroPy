@@ -502,6 +502,42 @@ class RasterGroup:
         """Make snake plot of sorted cell activity"""
 
         # Sort mean rasters
+        sorted_mean_rast, sort_ids = self.sort_rasters(sortby, norm_each_row)
+
+        # Plot
+        assert ax is None or isinstance(ax, plt.Axes)
+        if ax is None:
+            _, ax = plt.subplots(figsize=(7.75, 10))
+        sns.heatmap(
+            sorted_mean_rast, ax=ax, xticklabels=self.Raster[0].raster_time, **kwargs
+        )
+
+        # Pretty up the plots
+        time_plot = self.Raster[0].raster_time
+        time_range = [np.floor(time_plot.min()), np.ceil(time_plot.max())]
+        xticks = [
+            ax.get_xticks()[arg_find_nearest(time_plot, t)]
+            for t in np.arange(time_range[0], time_range[1], xlabel_increment - 0.001)
+        ]
+        xticklabels = [
+            f"{t:0.0f}"
+            for t in np.arange(time_range[0], time_range[1], xlabel_increment - 0.001)
+        ]
+        ax.set(xticks=xticks, xticklabels=xticklabels)
+        ax.set_xlabel("Time (s)")
+        yticklabels = [str(cell) for cell in [0, len(self.cell_ids)]]
+        yticks = [ax.get_yticks()[0], ax.get_yticks()[-1]]
+        ax.set(yticks=yticks, yticklabels=yticklabels)
+        ax.set_ylabel("Cell #")
+
+        return sort_ids
+
+    def sort_rasters(
+        self,
+        sortby: list or np.ndarray or str = "peak_time",
+        norm_each_row: None or str in ["max", "z"] = "max",
+    ):
+
         assert isinstance(sortby, (list, np.ndarray)) or (
             isinstance(sortby, str) and sortby in ["peak_time", "trough_time"]
         )
@@ -533,35 +569,7 @@ class RasterGroup:
             sorted_mean_rast = (sorted_mean_rast - sorted_mean[:, None]) / sorted_std[
                 :, None
             ]
-            pass
-
-        # Plot
-        assert ax is None or isinstance(ax, plt.Axes)
-        if ax is None:
-            _, ax = plt.subplots(figsize=(7.75, 10))
-        sns.heatmap(
-            sorted_mean_rast, ax=ax, xticklabels=self.Raster[0].raster_time, **kwargs
-        )
-
-        # Pretty up the plots
-        time_plot = self.Raster[0].raster_time
-        time_range = [np.floor(time_plot.min()), np.ceil(time_plot.max())]
-        xticks = [
-            ax.get_xticks()[arg_find_nearest(time_plot, t)]
-            for t in np.arange(time_range[0], time_range[1], xlabel_increment - 0.001)
-        ]
-        xticklabels = [
-            f"{t:0.0f}"
-            for t in np.arange(time_range[0], time_range[1], xlabel_increment - 0.001)
-        ]
-        ax.set(xticks=xticks, xticklabels=xticklabels)
-        ax.set_xlabel("Time (s)")
-        yticklabels = [str(cell) for cell in [0, len(self.cell_ids)]]
-        yticks = [ax.get_yticks()[0], ax.get_yticks()[-1]]
-        ax.set(yticks=yticks, yticklabels=yticklabels)
-        ax.set_ylabel("Cell #")
-
-        return sort_ids
+        return sorted_mean_rast, sort_ids
 
 
 def plot_pe_traces(
