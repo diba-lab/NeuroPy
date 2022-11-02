@@ -541,7 +541,9 @@ class RasterGroup:
         assert isinstance(sortby, (list, np.ndarray)) or (
             isinstance(sortby, str) and sortby in ["peak_time", "trough_time"]
         )
-        if sortby == "peak_time" or sortby == "trough_time":
+        if isinstance(sortby, str) and (
+            sortby == "peak_time" or sortby == "trough_time"
+        ):
             peak_idx = []
             for rast in self.Raster:
                 pid, _ = (
