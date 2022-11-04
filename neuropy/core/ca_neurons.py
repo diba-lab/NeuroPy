@@ -646,6 +646,8 @@ class MultiSessionMap:
         ]  # Get id of each neuron in session 2 in multi_sesh_map
         multi_sesh_map[sesh3].iloc[sesh2idx_reorder] = map2_3[sesh3].iloc[sesh2neurons]
 
+        # Last add in any neurons in session3 that don't map to other neurons.
+
         # Optional: add in a map from sesh1 to sesh3 to fill in any neurons that are only active in sesh1 and 3
         if map1_3 is not None:
             multi_sesh_map = self.add_third_session(multi_sesh_map, map1_3, **kwargs)
