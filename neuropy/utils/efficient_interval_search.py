@@ -130,10 +130,13 @@ def _searchsorted_find_event_interval_indicies(times_arr, start_stop_times_arr):
         # found_end_indicies = found_start_end_indicies[:,1]
         
     """
+    assert np.shape(start_stop_times_arr)[1] == 2
     # Vectorized np.searchsorted mode:
     found_start_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,0], side='left')
     found_end_indicies = np.searchsorted(times_arr, start_stop_times_arr[:,1], side='right') # find the end of the range
-    return np.hstack((found_start_indicies, found_end_indicies))
+    found_start_end_indicies = np.vstack((found_start_indicies, found_end_indicies)).T 
+    assert np.shape(found_start_end_indicies)[1] == 2
+    return found_start_end_indicies
     
 
 
