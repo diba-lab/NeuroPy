@@ -113,8 +113,19 @@ class IdentifyingContext(DiffableObject, object):
         return descriptor_string
     
     def __str__(self) -> str:
+        """ 'kdiba_2006-6-08_14-26-15_maze1_PYR' """
         return self.get_description()
 
+
+    def __repr__(self) -> str:
+        """ 
+            "IdentifyingContext({'format_name': 'kdiba', 'session_name': '2006-6-08_14-26-15', 'filter_name': 'maze1_PYR'})" 
+            "IdentifyingContext<('kdiba', '2006-6-08_14-26-15', 'maze1_PYR')>"
+        """
+        # return f"IdentifyingContext({self.get_description(include_property_names=True)})"
+        # return f"IdentifyingContext({self.get_description(include_property_names=False)})"
+        return f"IdentifyingContext<{self.as_tuple().__repr__()}>"
+        # return f"IdentifyingContext({self.to_dict().__repr__()})"
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
         dict_rep = self.to_dict()
