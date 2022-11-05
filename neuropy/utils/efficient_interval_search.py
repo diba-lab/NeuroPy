@@ -1,5 +1,15 @@
+from enum import Enum
 import numpy as np
 from numba import jit, njit, prange # numba acceleration
+
+class OverlappingIntervalsFallbackBehavior(Enum):
+    """Describes the behavior of the search when the provided epochs overlap each other.
+        overlap_behavior: OverlappingIntervalsFallbackBehavior - If ASSERT_FAIL, an AssertionError will be thrown in the case that any of the intervals in provided_epochs_df overlap each other. Otherwise, if FALLBACK_TO_SLOW_SEARCH, a much slower search will be performed that will still work.
+    """
+    ASSERT_FAIL = "ASSERT_FAIL"
+    FALLBACK_TO_SLOW_SEARCH = "FALLBACK_TO_SLOW_SEARCH"
+    
+
 
 
 @jit(nopython=True, parallel = True) 
@@ -102,15 +112,26 @@ def _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, 
 
     """ 
     event_interval_identity_arr = np.full((times_arr.shape[0],), no_interval_fill_value) # fill with NaN for all entries initially
+    # interval_timestamp_start_stop_indicies_arr = np.full((start_stop_times_arr.shape[0], 2), no_interval_fill_value) # each period_identity_labels corresponds to a single two-element row, containing the start/stop spike index for that interval. fill with NaN for all entries initially. If an interval has no spikes, the indicies wil be left NaN
+    # interval_timestamp_start_stop_indicies_list = []  
+    interval_timestamp_indicies_lists = []  
+
     for i in range(start_stop_times_arr.shape[0]):
         # find the spikes that fall in the current PBE (PBE[i])
         curr_PBE_identity = period_identity_labels[i]
         curr_bool_mask = np.logical_and((start_stop_times_arr[i,0] <= times_arr), (times_arr < start_stop_times_arr[i,1]))
         # spike_pbe_identity_arr[((pbe_start_stop_arr[i,0] <= spk_times_arr) & (spk_times_arr < pbe_start_stop_arr[i,1]))] = curr_PBE_identity
         event_interval_identity_arr[curr_bool_mask] = curr_PBE_identity
+
+        # np.transpose(np.nonzero(curr_bool_mask))
+        curr_timestamp_indicies = np.flatnonzero(curr_bool_mask)
+        interval_timestamp_indicies_lists.append(curr_timestamp_indicies)
+        # curr_timestamp_start_stop_indicies = (curr_timestamp_indicies[0], curr_timestamp_indicies[-1])
+        # interval_timestamp_start_stop_indicies_list.append(curr_timestamp_start_stop_indicies)
+
         # print(f'')
     # returns the array containing the PBE identity for each spike
-    return event_interval_identity_arr
+    return event_interval_identity_arr, interval_timestamp_indicies_lists
 
 
 
@@ -178,20 +199,37 @@ def _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_a
     # returns the array containing the PBE identity for each spike
     return event_interval_identity_arr
 
-
-def determine_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels=None, no_interval_fill_value=np.nan):
+def determine_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels=None, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
     if period_identity_labels is None:
         period_identity_labels = np.arange(np.shape(start_stop_times_arr)[0]) # just label them ascending if they don't have labels
-    assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
     assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
-    return _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+
+    if overlap_behavior.name == OverlappingIntervalsFallbackBehavior.ASSERT_FAIL.name:
+        assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
+        return _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+    elif overlap_behavior.name == OverlappingIntervalsFallbackBehavior.FALLBACK_TO_SLOW_SEARCH.name:
+        are_intervals_overlapping = not verify_non_overlapping(start_stop_times_arr=start_stop_times_arr)
+        if are_intervals_overlapping:
+            print('WARNING: Intervals in start_stop_times_arr are normally non-overlapping, but we can continue since we are using the slower determine_unsorted_event_interval_identity(...). Continuing.')
+        return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+    else:
+        raise NotImplementedError
 
 
-def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=np.nan):
-    assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
+def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
     assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
+    if overlap_behavior.name == OverlappingIntervalsFallbackBehavior.ASSERT_FAIL.name:
+        assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
+        # return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+    elif overlap_behavior.name == OverlappingIntervalsFallbackBehavior.FALLBACK_TO_SLOW_SEARCH.name:
+        are_intervals_overlapping = not verify_non_overlapping(start_stop_times_arr=start_stop_times_arr)
+        if are_intervals_overlapping:
+            print('WARNING: Intervals in start_stop_times_arr are normally non-overlapping, but we can continue since we are using the slower determine_unsorted_event_interval_identity(...). Continuing.')
+        # return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+    else:
+        raise NotImplementedError
+    # If we've made it this far, perform the unsorted version either way
     return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
-
 
 
 @jit(nopython=True, parallel=True)

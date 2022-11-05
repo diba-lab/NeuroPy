@@ -1,7 +1,7 @@
 from copy import deepcopy
 import numpy as np
 import pandas as pd
-from neuropy.utils.efficient_interval_search import determine_event_interval_identity, determine_event_interval_is_included # numba acceleration
+from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior, determine_event_interval_identity, determine_event_interval_is_included # numba acceleration
 
 
 class StartStopTimesMixin:
@@ -92,8 +92,10 @@ class TimeSliceAccessor(TimeSlicableObjectProtocol):
 # ==================================================================================================================== #
 # General Spike Identities from Epochs                                                                                 #
 # ==================================================================================================================== #
-def _compute_spike_arbitrary_provided_epoch_ids(spk_df, provided_epochs_df, epoch_label_column_name=None, no_interval_fill_value=np.nan, override_time_variable_name=None, debug_print=False):
+def _compute_spike_arbitrary_provided_epoch_ids(spk_df, provided_epochs_df, epoch_label_column_name=None, no_interval_fill_value=np.nan, override_time_variable_name=None, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL, debug_print=False):
     """ Computes the appropriate IDs from provided_epochs_df for each spikes to be added as an identities column to spikes_df
+    
+    overlap_behavior: OverlappingIntervalsFallbackBehavior - If ASSERT_FAIL, an AssertionError will be thrown in the case that any of the intervals in provided_epochs_df overlap each other. Otherwise, if FALLBACK_TO_SLOW_SEARCH, a much slower search will be performed that will still work.
     
     Example:
         # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
@@ -111,17 +113,18 @@ def _compute_spike_arbitrary_provided_epoch_ids(spk_df, provided_epochs_df, epoc
         
     if debug_print:
         print(f'np.shape(spk_times_arr): {np.shape(spk_times_arr)}, p.shape(curr_epochs_start_stop_arr): {np.shape(curr_epochs_start_stop_arr)}, p.shape(curr_epoch_identity_labels): {np.shape(curr_epoch_identity_labels)}')
-    spike_epoch_identity_arr = determine_event_interval_identity(spk_times_arr, curr_epochs_start_stop_arr, curr_epoch_identity_labels, no_interval_fill_value=no_interval_fill_value)
+    spike_epoch_identity_arr = determine_event_interval_identity(spk_times_arr, curr_epochs_start_stop_arr, curr_epoch_identity_labels, no_interval_fill_value=no_interval_fill_value, overlap_behavior=overlap_behavior)
     return spike_epoch_identity_arr
 
-def add_epochs_id_identity(spk_df, epochs_df, epoch_id_key_name='temp_epoch_id', epoch_label_column_name='label', override_time_variable_name=None, no_interval_fill_value=np.nan):
+
+def add_epochs_id_identity(spk_df, epochs_df, epoch_id_key_name='temp_epoch_id', epoch_label_column_name='label', override_time_variable_name=None, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
     """ Adds the epoch IDs to each spike in spikes_df as a column named epoch_id_key_name
     
     Example:
         # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
         spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 , 89.04321789741516
     """
-    spike_epoch_identity_arr = _compute_spike_arbitrary_provided_epoch_ids(spk_df, epochs_df, epoch_label_column_name=epoch_label_column_name, override_time_variable_name=override_time_variable_name, no_interval_fill_value=no_interval_fill_value)
+    spike_epoch_identity_arr = _compute_spike_arbitrary_provided_epoch_ids(spk_df, epochs_df, epoch_label_column_name=epoch_label_column_name, override_time_variable_name=override_time_variable_name, no_interval_fill_value=no_interval_fill_value, overlap_behavior=overlap_behavior)
     spk_df[epoch_id_key_name] = spike_epoch_identity_arr
     return spk_df
 
@@ -129,11 +132,11 @@ def add_epochs_id_identity(spk_df, epochs_df, epoch_id_key_name='temp_epoch_id',
 # ==================================================================================================================== #
 # Spike PBE Specific Columns                                                                                           #
 # ==================================================================================================================== #
-def add_PBE_identity(spk_df, pbe_epoch_df, no_interval_fill_value=np.nan):
+def add_PBE_identity(spk_df, pbe_epoch_df, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
     """ Adds the PBE identity to the spikes_df
     Example:
         # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
         spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 , 89.04321789741516
     """
-    spk_df = add_epochs_id_identity(spk_df, epochs_df=pbe_epoch_df, epoch_id_key_name='PBE_id', epoch_label_column_name=None, override_time_variable_name='t_seconds', no_interval_fill_value=no_interval_fill_value) # uses new add_epochs_id_identity method which is general
+    spk_df = add_epochs_id_identity(spk_df, epochs_df=pbe_epoch_df, epoch_id_key_name='PBE_id', epoch_label_column_name=None, override_time_variable_name='t_seconds', no_interval_fill_value=no_interval_fill_value, overlap_behavior=overlap_behavior) # uses new add_epochs_id_identity method which is general
     return spk_df

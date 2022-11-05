@@ -175,7 +175,20 @@ def contiguous_regions(condition):
     a 2D array where the first column is the start index of the region and the
     second column is the end index. Taken directly from stackoverflow:
     https://stackoverflow.com/questions/4494404/find-large-number-of-
-    consecutive-values-fulfilling-condition-in-a-numpy-array"""
+    consecutive-values-fulfilling-condition-in-a-numpy-array
+        
+    Usage:
+        from neuropy.utils.mathutil import contiguous_regions
+        idnan = mathutil.contiguous_regions(np.isnan(x))  # identify missing data points
+
+            for ids in idnan:
+                missing_ids = range(ids[0], ids[-1])
+                bracket_ids = ids + [-1, 0]
+                xgood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], x[bracket_ids])
+                ygood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], y[bracket_ids])
+                zgood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], z[bracket_ids])
+
+    """
 
     # Find the indices of changes in "condition"
     d = np.diff(condition)
