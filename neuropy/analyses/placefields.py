@@ -219,7 +219,7 @@ class PfnDMixin(SimplePrintable):
             return fig
             
     @safely_accepts_kwargs
-    def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
+    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=(0, 0, 0.8), spikes_alpha=0.5, ax=None):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
         """   
@@ -252,7 +252,7 @@ class PfnDMixin(SimplePrintable):
 
         # plot spikes on trajectory
         for a, pos in zip(ax, spk_pos_[cellind]):
-            a.plot(spk_t_[cellind], pos, ".", color=[0, 0, 0.8, alpha])
+            a.plot(spk_t_[cellind], pos, ".", color=[*spikes_color, spikes_alpha])
 
         # Put info on title
         ax[0].set_title(
@@ -264,7 +264,7 @@ class PfnDMixin(SimplePrintable):
         return ax
 
     @safely_accepts_kwargs
-    def plot_all(self, cellind, speed_thresh=True, alpha=0.4, fig=None):
+    def plot_all(self, cellind, speed_thresh=True, spikes_color=(0, 0, 0.8), spikes_alpha=0.4, fig=None):
         if fig is None:
             fig_use = plt.figure(figsize=[28.25, 11.75])
         else:
@@ -276,7 +276,7 @@ class PfnDMixin(SimplePrintable):
         axy = fig_use.add_subplot(gs[1, 1:], sharex=axx)
 
         self.plot_raw(speed_thresh=speed_thresh, clus_use=[cellind], ax=[ax2d])
-        self.plotRaw_v_time(cellind, speed_thresh=speed_thresh, ax=[axx, axy], alpha=alpha)
+        self.plotRaw_v_time(cellind, speed_thresh=speed_thresh, ax=[axx, axy], spikes_color=spikes_color, spikes_alpha=spikes_alpha)
         self._obj.spikes.plot_ccg(clus_use=[cellind], type="acg", ax=axccg)
 
         return fig_use
