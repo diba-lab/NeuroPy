@@ -219,10 +219,10 @@ class PfnDMixin(SimplePrintable):
             return fig
             
     @safely_accepts_kwargs
-    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=(0, 0, 0.8), spikes_alpha=0.5, ax=None):
+    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=(0, 0, 0.8), spikes_alpha=0.5, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
-        """   
+        """
         if ax is None:
             fig, ax = plt.subplots(self.ndim, 1, sharex=True)
             fig.set_size_inches([23, 9.7])
@@ -239,7 +239,7 @@ class PfnDMixin(SimplePrintable):
             label_array = ["X position (cm)", "Y position (cm)"]
             
         for a, pos, ylabel in zip(ax, variable_array, label_array):
-            a.plot(self.t, pos)
+            a.plot(self.t, pos, **(position_plot_kwargs or {}))
             a.set_xlabel("Time (seconds)")
             a.set_ylabel(ylabel)
             pretty_plot(a)
@@ -252,7 +252,7 @@ class PfnDMixin(SimplePrintable):
 
         # plot spikes on trajectory
         for a, pos in zip(ax, spk_pos_[cellind]):
-            a.plot(spk_t_[cellind], pos, ".", color=[*spikes_color, spikes_alpha])
+            a.plot(spk_t_[cellind], pos, color=[*spikes_color, spikes_alpha], **(spike_plot_kwargs or {}))
 
         # Put info on title
         ax[0].set_title(
