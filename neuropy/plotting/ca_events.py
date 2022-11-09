@@ -678,8 +678,11 @@ def plot_pe_traces(
         if isinstance(ax, plt.Axes):
             fig = ax.figure
             ax = np.array(ax).reshape(-1)  # Make into array for compatibility below
-        elif isinstance(ax, np.array):
+        elif isinstance(ax, np.ndarray):
             fig = ax.reshape(-1)[0].figure
+
+    if raw_trace is not None:
+        ax[0].sharex(ax[1])
 
     # Plot rasters
     for raw_rast, rast in zip(raw_rast_array, rast_array):
