@@ -219,9 +219,12 @@ class PfnDMixin(SimplePrintable):
             return fig
             
     @safely_accepts_kwargs
-    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=(0, 0, 0.8), spikes_alpha=0.5, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None):
+    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=(0, 0, 0.8), spikes_alpha=0.5, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None, should_include_labels=True):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
+
+        should_include_labels:bool - whether the plot should include text labels, like the title, axes labels, etc
+
         """
         if ax is None:
             fig, ax = plt.subplots(self.ndim, 1, sharex=True)
@@ -240,8 +243,9 @@ class PfnDMixin(SimplePrintable):
             
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             a.plot(self.t, pos, **(position_plot_kwargs or {}))
-            a.set_xlabel("Time (seconds)")
-            a.set_ylabel(ylabel)
+            if should_include_labels:
+                a.set_xlabel("Time (seconds)")
+                a.set_ylabel(ylabel)
             pretty_plot(a)
 
         # Grab correct spike times/positions
@@ -255,12 +259,13 @@ class PfnDMixin(SimplePrintable):
             a.plot(spk_t_[cellind], pos, color=[*spikes_color, spikes_alpha], **(spike_plot_kwargs or {}))
 
         # Put info on title
-        ax[0].set_title(
-            "Cell "
-            + str(self.cell_ids[cellind])
-            + ":, speed_thresh="
-            + str(self.speed_thresh)
-        )
+        if should_include_labels:
+            ax[0].set_title(
+                "Cell "
+                + str(self.cell_ids[cellind])
+                + ":, speed_thresh="
+                + str(self.speed_thresh)
+            )
         return ax
 
     @safely_accepts_kwargs
