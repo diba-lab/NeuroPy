@@ -19,11 +19,11 @@ class PfnD_PlotOccupancy_Mixin:
 
 class PfnDPlottingMixin(PfnD_PlotOccupancy_Mixin):
     # Extracted fro the 1D figures:
-    @safely_accepts_kwargs
-    def plot_ratemaps_1D(self, ax=None, pad=2, normalize=True, sortby=None, cmap=None):
+    # @safely_accepts_kwargs
+    def plot_ratemaps_1D(self, ax=None, pad=2, normalize=True, sortby=None, cmap=None, **kwargs):
         """ Note that normalize is required to fit all of the plots on this kind of stacked figure. """
         # returns: ax , sort_ind, colors
-        return plot_ratemap_1D(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap)
+        return plot_ratemap_1D(self.ratemap, ax=ax, pad=pad, normalize_tuning_curve=normalize, sortby=sortby, cmap=cmap, **kwargs)
     
     # all extracted from the 2D figures
     def plot_ratemaps_2D(self, **kwargs):

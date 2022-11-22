@@ -79,9 +79,7 @@ def _help_plot_ratemap_neuronIDs(ratemap: Ratemap, included_unit_indicies=None, 
 
         ## Non-pre-build method where shared_IDXs_map is directly passed as included_unit_indicies so it's returned in the main loop:
         included_unit_indicies = shared_IDXs_map
-        if debug_print:
-            print(f'active_maps.shape: {np.shape(active_maps)}, type: {type(active_maps)}') # _local_active_maps.shape: (70, 63, 16), type: <class 'numpy.ndarray'>
-
+        
     else:
         ## normal (non-shared mode)
         shared_IDXs_map = None
@@ -100,6 +98,10 @@ def _help_plot_ratemap_neuronIDs(ratemap: Ratemap, included_unit_indicies=None, 
         else:
             raise ValueError
 
+    if debug_print:
+        print(f'included_unit_indicies.shape: {np.shape(included_unit_indicies)}, type: {type(included_unit_indicies)}') # included_unit_indicies.shape: (69,), type: <class 'list'>
+        print(f'active_maps.shape: {np.shape(active_maps)}, type: {type(active_maps)}') # _local_active_maps.shape: (70, 63, 16), type: <class 'numpy.ndarray'>
+            
     return active_maps, title_substring, included_unit_indicies #, shared_IDXs_map
 
 def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=None, drop_below_threshold: float=0.0000001,
@@ -267,7 +269,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         max_value_formatter = None
 
     ## BEGIN FACTORING OUT:
-    # nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio = _perform_plot_advanced_2D(xbin=ratemap.xbin, ybin=ratemap.ybin, included_unit_indicies=included_unit_indicies, subplots=subplots, last_figure_subplots_same_layout=last_figure_subplots_same_layout)
     ## NEW COMBINED METHOD, COMPUTES ALL PAGES AT ONCE:
     if resolution_multiplier is None:
         resolution_multiplier = 1.0
@@ -441,7 +442,8 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     return figures, page_gs, graphics_obj_dicts
 
 @safely_accepts_kwargs
-def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None):
+def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
+    brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -468,24 +470,24 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     Notes:
     Unlike the plot_ratemap_2D(...), this version seems to plot all the cells on a single axis: using `ax.set_yticklabels(list(sorted_neuron_id_labels))` to label each cell's tuning curve and offsets to plot them.
     """
-    
-    
+    use_special_overlayed_title = False
+
+    active_maps, title_substring, included_unit_indicies = _help_plot_ratemap_neuronIDs(ratemap, included_unit_indicies=included_unit_indicies, included_unit_neuron_IDs=included_unit_neuron_IDs, plot_variable=plot_variable, debug_print=debug_print)
+    # ==================================================================================================================== #
+
+    # Build the formatter for rendering the max values such as the peak firing rate or max spike counts:
+    if brev_mode.should_show_firing_rate_label:
+        max_value_formatter = _build_variable_max_value_label(plot_variable=plot_variable)
+    else:
+        max_value_formatter = None
+
     # cmap = mpl.cm.get_cmap(cmap)
 
     tuning_curves = ratemap.tuning_curves
     n_neurons = ratemap.n_neurons
-    bin_cntr = ratemap.xbin_centers
-    if normalize_xbin:
-        bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
-
-    if ax is None:
-        _, gs = Fig().draw(grid=(1, 1), size=(5.5, 11))
-        ax = plt.subplot(gs[0])
-
     if normalize_tuning_curve:
         tuning_curves = mathutil.min_max_scaler(tuning_curves)
         pad = 1
-
     if sortby is None:
         # sort by the location of the placefield's maximum
         sort_ind = np.argsort(np.argmax(tuning_curves, axis=1))
@@ -495,32 +497,77 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     else:
         sort_ind = np.arange(n_neurons)
 
+    if debug_print:
+        print(f'sort_ind: {sort_ind}.\tnp.shape: {np.shape(sort_ind)}')
     # Use the get_neuron_colors function to generate colors for these neurons
     neurons_colors_array = get_neuron_colors(sort_ind, cmap=cmap)
 
+    ## Old way:
     ## TODO: actually sort the ratemap object's neuron_ids and tuning_curves by the sort_ind
-    # sorted_neuron_ids = ratemap.neuron_ids[sort_ind]
-    
-    sorted_neuron_ids = np.take_along_axis(np.array(ratemap.neuron_ids), sort_ind, axis=0)
-    
-    sorted_alt_tuple_neuron_ids = ratemap.neuron_extended_ids.copy()
-    sorted_alt_tuple_neuron_ids = [sorted_alt_tuple_neuron_ids[a_sort_idx] for a_sort_idx in sort_ind]
-    
-    # sorted_tuning_curves = tuning_curves[sorted_neuron_ids, :]
-    # sorted_neuron_id_labels = [f'Cell[{a_neuron_id}]' for a_neuron_id in sorted_neuron_ids]
-    sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i].shank}|{sorted_alt_tuple_neuron_ids[i].cluster})' for i in np.arange(len(sorted_neuron_ids))]
-    
-    # neurons_colors_array = np.zeros((4, n_neurons))
-    for i, neuron_ind in enumerate(sort_ind):
-        color = neurons_colors_array[:, i]
-        curr_neuron_id = sorted_neuron_ids[i]
+    ## sorted_neuron_ids = ratemap.neuron_ids[sort_ind]
+    # sorted_neuron_ids = np.take_along_axis(np.array(ratemap.neuron_ids), sort_ind, axis=0)
 
-        ax.fill_between(bin_cntr, i * pad, i * pad + tuning_curves[neuron_ind], color=color, ec=None, alpha=0.5, zorder=i + 1)
-        ax.plot(bin_cntr, i * pad + tuning_curves[neuron_ind], color=color, alpha=0.7)
+    # sorted_alt_tuple_neuron_ids = ratemap.neuron_extended_ids.copy()
+    # sorted_alt_tuple_neuron_ids = [sorted_alt_tuple_neuron_ids[a_sort_idx] for a_sort_idx in sort_ind]
+    # sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i].shank}|{sorted_alt_tuple_neuron_ids[i].cluster})' for i in np.arange(len(sorted_neuron_ids))]
+
+
+    ## New way:
+    sorted_neuron_id_labels = []
+
+    ## Plotting Stuff:
+    bin_cntr = ratemap.xbin_centers
+    if normalize_xbin:
+        bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
+    if ax is None:
+        _, gs = Fig().draw(grid=(1, 1), size=(5.5, 11))
+        ax = plt.subplot(gs[0])
+    
+    # for i, neuron_ind in enumerate(sort_ind):
+    for i, curr_included_unit_index in enumerate(included_unit_indicies):
+
+        if curr_included_unit_index is not None:
+            # valid neuron ID, access like normal
+            pfmap = active_maps[curr_included_unit_index]
+            # normal (non-shared mode)
+            curr_ratemap_relative_neuron_IDX = curr_included_unit_index
+            curr_neuron_ID = ratemap.neuron_ids[curr_ratemap_relative_neuron_IDX]
+            
+            ## Labeling:
+            formatted_max_value_string = None
+            if brev_mode.should_show_firing_rate_label:
+                assert max_value_formatter is not None
+                ## NOTE: must set max_value_formatter on the pfmap BEFORE the `_scale_current_placefield_to_acceptable_range` is called to have it show accurate labels!
+                formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
+                
+            final_title_str = _build_neuron_identity_label(neuron_extended_id=ratemap.neuron_extended_ids[curr_ratemap_relative_neuron_IDX], brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+
+        else:
+            # invalid neuron ID, generate blank entry
+            curr_ratemap_relative_neuron_IDX = None # This neuron_ID doesn't correspond to a neuron_IDX in the current ratemap, so we'll mark this value as None
+            assert included_unit_neuron_IDs is not None
+            curr_neuron_ID = included_unit_neuron_IDs[i]
+
+            pfmap = np.zeros((np.shape(active_maps)[1],)) # fully allocated new array of zeros
+            curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
+            final_title_str = f'{curr_extended_id_string} <shared>'
+
+
+        # Old way:
+        # color = neurons_colors_array[:, i]
+        # curr_neuron_id = sorted_neuron_ids[i]
+        # ax.fill_between(bin_cntr, i * pad, i * pad + tuning_curves[neuron_ind], color=color, ec=None, alpha=0.5, zorder=i + 1)
+        # ax.plot(bin_cntr, i * pad + tuning_curves[neuron_ind], color=color, alpha=0.7)
         
+        # New way:
+        sorted_neuron_id_labels.append(final_title_str)
+        color = neurons_colors_array[:, i]
+        ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, color=color, ec=None, alpha=0.5, zorder=i + 1)
+        ax.plot(bin_cntr, i * pad + pfmap, color=color, alpha=0.7)
 
 
-    ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
+
+    ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5)) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
     ax.set_yticklabels(list(sorted_neuron_id_labels))
     
     ax.set_xlabel("Position")
@@ -528,7 +575,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     if normalize_xbin:
         ax.set_xlim([0, 1])
     ax.tick_params("y", length=0)
-    ax.set_ylim([0, len(sort_ind)])
+    ax.set_ylim([0, len(sort_ind)]) # OLD: ax.set_ylim([0, len(sort_ind)])
         
     title_string = f'1D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
     ax.set_title(title_string) # this doesn't appear to be visible, so what is it used for?
