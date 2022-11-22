@@ -443,7 +443,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
-    brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, debug_print=False):
+    brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -482,15 +482,21 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
         max_value_formatter = None
 
     # cmap = mpl.cm.get_cmap(cmap)
+        
+    ## OLD:
+    # tuning_curves = ratemap.tuning_curves
+    # n_neurons = ratemap.n_neurons
 
-    tuning_curves = ratemap.tuning_curves
-    n_neurons = ratemap.n_neurons
     if normalize_tuning_curve:
-        tuning_curves = mathutil.min_max_scaler(tuning_curves)
+        print(f'normalizing tuning curves...')
+        active_maps = mathutil.min_max_scaler(active_maps)
         pad = 1
+
+    ## Sorting (via sortby):
+    n_neurons = len(included_unit_indicies)
     if sortby is None:
         # sort by the location of the placefield's maximum
-        sort_ind = np.argsort(np.argmax(tuning_curves, axis=1))
+        sort_ind = np.argsort(np.argmax(active_maps, axis=1))
     elif isinstance(sortby, (list, np.ndarray)):
         # use the provided sort indicies
         sort_ind = sortby
@@ -566,7 +572,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
         ax.plot(bin_cntr, i * pad + pfmap, color=color, alpha=0.7)
 
 
-
+    # Set up cell labels (on each y-tick):
     ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5)) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
     ax.set_yticklabels(list(sorted_neuron_id_labels))
     
