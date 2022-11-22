@@ -48,6 +48,60 @@ class BackgroundRenderingOptions(enum.Enum):
     SOLID_COLOR = 2
     EMPTY = 3
 
+
+def _help_plot_ratemap_neuronIDs(ratemap: Ratemap, included_unit_indicies=None, included_unit_neuron_IDs=None, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, debug_print=False):
+    """ Builds shared neuron_IDs
+    Factored out of `plot_ratemap_2D(...) on 2022-11-22. 
+    Usage:
+        active_maps, title_substring, included_unit_indicies = _help_plot_ratemap_neuronIDs(ratemap, included_unit_indicies=included_unit_indicies, included_unit_neuron_IDs=included_unit_neuron_IDs, plot_variable=plot_variable, debug_print=debug_print)
+    """
+    ## Brought in from display_all_pf_2D_pyqtgraph_binned_image_rendering:
+    if included_unit_neuron_IDs is not None:
+        if debug_print:
+            print(f'included_unit_neuron_IDs: {included_unit_neuron_IDs}')
+        if not isinstance(included_unit_neuron_IDs, np.ndarray):
+            included_unit_neuron_IDs = np.array(included_unit_neuron_IDs) # convert to np.array if needed
+
+        n_neurons = np.size(included_unit_neuron_IDs)
+        if debug_print:
+            print(f'\t n_neurons: {n_neurons}')
+
+        shared_IDXs_map = [safe_item(np.squeeze(np.argwhere(aclu == ratemap.neuron_ids)), default=None) for aclu in included_unit_neuron_IDs] # [0, 1, None, 2, 3, 4, 5, None, 6, 7, 8, None, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66]
+
+        if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
+            active_maps = ratemap.tuning_curves
+            title_substring = 'Placemaps'
+        elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+            active_maps = ratemap.spikes_maps
+            title_substring = 'Spikes Maps'
+        else:
+            raise ValueError
+
+        ## Non-pre-build method where shared_IDXs_map is directly passed as included_unit_indicies so it's returned in the main loop:
+        included_unit_indicies = shared_IDXs_map
+        if debug_print:
+            print(f'active_maps.shape: {np.shape(active_maps)}, type: {type(active_maps)}') # _local_active_maps.shape: (70, 63, 16), type: <class 'numpy.ndarray'>
+
+    else:
+        ## normal (non-shared mode)
+        shared_IDXs_map = None
+        active_maps = None
+
+        if included_unit_indicies is None:
+            included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
+        
+        ## Get Data to plot:
+        if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
+            active_maps = ratemap.tuning_curves[included_unit_indicies]
+            title_substring = 'Placemaps'
+        elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
+            active_maps = ratemap.spikes_maps[included_unit_indicies]
+            title_substring = 'Spikes Maps'
+        else:
+            raise ValueError
+
+    return active_maps, title_substring, included_unit_indicies #, shared_IDXs_map
+
 def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=None, drop_below_threshold: float=0.0000001,
                               plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None, use_special_overlayed_title:bool=True, bg_rendering_mode=BackgroundRenderingOptions.PATTERN_CHECKERBOARD):
     """Plots a single tuning curve Heatmap using matplotlib
@@ -202,50 +256,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
     
-    ## Brought in from display_all_pf_2D_pyqtgraph_binned_image_rendering:
-    if included_unit_neuron_IDs is not None:
-        if debug_print:
-            print(f'included_unit_neuron_IDs: {included_unit_neuron_IDs}')
-        if not isinstance(included_unit_neuron_IDs, np.ndarray):
-            included_unit_neuron_IDs = np.array(included_unit_neuron_IDs) # convert to np.array if needed
-
-        n_neurons = np.size(included_unit_neuron_IDs)
-        if debug_print:
-            print(f'\t n_neurons: {n_neurons}')
-
-        shared_IDXs_map = [safe_item(np.squeeze(np.argwhere(aclu == ratemap.neuron_ids)), default=None) for aclu in included_unit_neuron_IDs] # [0, 1, None, 2, 3, 4, 5, None, 6, 7, 8, None, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66]
-
-        if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
-            active_maps = ratemap.tuning_curves
-            title_substring = 'Placemaps'
-        elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
-            active_maps = ratemap.spikes_maps
-            title_substring = 'Spikes Maps'
-        else:
-            raise ValueError
-
-        ## Non-pre-build method where shared_IDXs_map is directly passed as included_unit_indicies so it's returned in the main loop:
-        included_unit_indicies = shared_IDXs_map
-        if debug_print:
-            print(f'active_maps.shape: {np.shape(active_maps)}, type: {type(active_maps)}') # _local_active_maps.shape: (70, 63, 16), type: <class 'numpy.ndarray'>
-
-    else:
-        ## normal (non-shared mode)
-        shared_IDXs_map = None
-        active_maps = None
-
-        if included_unit_indicies is None:
-            included_unit_indicies = np.arange(ratemap.n_neurons) # include all unless otherwise specified
-        
-        ## Get Data to plot:
-        if plot_variable.name is enumTuningMap2DPlotVariables.TUNING_MAPS.name:
-            active_maps = ratemap.tuning_curves[included_unit_indicies]
-            title_substring = 'Placemaps'
-        elif plot_variable.name == enumTuningMap2DPlotVariables.SPIKES_MAPS.name:
-            active_maps = ratemap.spikes_maps[included_unit_indicies]
-            title_substring = 'Spikes Maps'
-        else:
-            raise ValueError
+    active_maps, title_substring, included_unit_indicies = _help_plot_ratemap_neuronIDs(ratemap, included_unit_indicies=included_unit_indicies, included_unit_neuron_IDs=included_unit_neuron_IDs, plot_variable=plot_variable, debug_print=debug_print)
 
     # ==================================================================================================================== #
 
@@ -452,6 +463,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     -------
     [type]
         [description]
+
+
+    Notes:
+    Unlike the plot_ratemap_2D(...), this version seems to plot all the cells on a single axis: using `ax.set_yticklabels(list(sorted_neuron_id_labels))` to label each cell's tuning curve and offsets to plot them.
     """
     
     
@@ -489,7 +504,6 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     sorted_neuron_ids = np.take_along_axis(np.array(ratemap.neuron_ids), sort_ind, axis=0)
     
     sorted_alt_tuple_neuron_ids = ratemap.neuron_extended_ids.copy()
-    # sorted_alt_tuple_neuron_ids = ratemap.metadata['tuple_neuron_ids'].copy()
     sorted_alt_tuple_neuron_ids = [sorted_alt_tuple_neuron_ids[a_sort_idx] for a_sort_idx in sort_ind]
     
     # sorted_tuning_curves = tuning_curves[sorted_neuron_ids, :]
@@ -498,31 +512,15 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     
     # neurons_colors_array = np.zeros((4, n_neurons))
     for i, neuron_ind in enumerate(sort_ind):
-        # color = cmap(i / len(sort_ind))
-        # neurons_colors_array[:, i] = color
         color = neurons_colors_array[:, i]
         curr_neuron_id = sorted_neuron_ids[i]
 
-        ax.fill_between(
-            bin_cntr,
-            i * pad,
-            i * pad + tuning_curves[neuron_ind],
-            color=color,
-            ec=None,
-            alpha=0.5,
-            zorder=i + 1,
-        )
-        ax.plot(
-            bin_cntr,
-            i * pad + tuning_curves[neuron_ind],
-            color=color,
-            alpha=0.7,
-        )
-        ax.set_title('Cell[{}]'.format(curr_neuron_id)) # this doesn't appear to be visible, so what is it used for?
+        ax.fill_between(bin_cntr, i * pad, i * pad + tuning_curves[neuron_ind], color=color, ec=None, alpha=0.5, zorder=i + 1)
+        ax.plot(bin_cntr, i * pad + tuning_curves[neuron_ind], color=color, alpha=0.7)
+        
 
-    # ax.set_yticks(list(range(len(sort_ind)) + 0.5))
+
     ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
-    # ax.set_yticklabels(list(sort_ind))
     ax.set_yticklabels(list(sorted_neuron_id_labels))
     
     ax.set_xlabel("Position")
@@ -531,10 +529,16 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
         ax.set_xlim([0, 1])
     ax.tick_params("y", length=0)
     ax.set_ylim([0, len(sort_ind)])
+        
+    title_string = f'1D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
+    ax.set_title(title_string) # this doesn't appear to be visible, so what is it used for?
     # if self.run_dir is not None:
     #     ax.set_title(self.run_dir.capitalize() + " Runs only")
 
+
     return ax, sort_ind, neurons_colors_array
+
+
 
 @safely_accepts_kwargs
 def plot_raw(ratemap: Ratemap, t, x, run_dir, ax=None, subplots=(8, 9)):
