@@ -295,12 +295,6 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         
         # grid_rect = (0.01, 0.05, 0.98, 0.9) # (left, bottom, width, height) 
         grid_rect = 111
-        # fig = plt.figure(fignum + fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=True)
-        if extant_fig is None:
-            fig = plt.figure(active_fig_id, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
-        else:
-            fig = extant_fig
-            
         grid = ImageGrid(fig, grid_rect,  # similar to subplot(211)
                 nrows_ncols=(curr_fig_page_grid_size.num_rows, curr_fig_page_grid_size.num_columns),
                 axes_pad=0.05,
@@ -421,8 +415,9 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         
     return figures, page_gs, graphics_obj_dicts
 
+
 @safely_accepts_kwargs
-def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
+def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=1, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, debug_print=False):
     """Plot 1D place fields stacked
 
@@ -502,12 +497,19 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     sorted_neuron_id_labels = []
 
     ## Plotting Stuff:
+    if ax is None:
+        fig = build_or_reuse_figure(fignum=fignum, fig=fig, fig_idx=0, figsize=(5.5, 11), dpi=None, clear=True, tight_layout=False)
+        gs = GridSpec(1, 1, figure=fig)
+        # fig, gs = Fig().draw(grid=(1, 1), size=(5.5, 11))
+        ax = plt.subplot(gs[0])
+
+    else:
+        # otherwise get the figure from the passed axis
+        fig = ax.get_figure()
+
     bin_cntr = ratemap.xbin_centers
     if normalize_xbin:
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
-    if ax is None:
-        _, gs = Fig().draw(grid=(1, 1), size=(5.5, 11))
-        ax = plt.subplot(gs[0])
 
     # for i, neuron_ind in enumerate(sort_ind):
     for i, curr_included_unit_index in enumerate(included_unit_indicies):
@@ -548,7 +550,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
         # New way:
         sorted_neuron_id_labels.append(final_title_str)
         color = neurons_colors_array[:, i]
+        # ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, color=color, ec=None, alpha=0.5, zorder=i + 1, hatch='\\')
         ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, color=color, ec=None, alpha=0.5, zorder=i + 1)
+        # ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, hatch='\\', facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=i + 2)
+
         ax.plot(bin_cntr, i * pad + pfmap, color=color, alpha=0.7)
 
 
