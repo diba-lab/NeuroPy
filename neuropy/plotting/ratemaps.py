@@ -417,8 +417,9 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 
 
 @safely_accepts_kwargs
-def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=1, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
-    brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, debug_print=False):
+def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
+    brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
+    curve_hatch_style = None, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -435,6 +436,8 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=1, fig=None, 
         [description], by default True
     cmap : str, optional
         [description], by default "tab20b"
+    curve_hatch_style : str, optional
+        if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves, by default None
 
     Returns
     -------
@@ -446,6 +449,13 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=1, fig=None, 
     Unlike the plot_ratemap_2D(...), this version seems to plot all the cells on a single axis: using `ax.set_yticklabels(list(sorted_neuron_id_labels))` to label each cell's tuning curve and offsets to plot them.
     """
     use_special_overlayed_title = False
+
+    ## Feature: Hatching
+    # if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves
+    # hatch_styles = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**']
+    # curve_hatch_style = None # hatching disabled
+    # curve_hatch_style = '///' # hatching enabled
+    # TODO: FEATURE: could easily allow passing a list of curve_hatch_styles to individually specify hatching for each curve (might be useful to emphasize some curves, etc)
 
     active_maps, title_substring, included_unit_indicies = _help_plot_ratemap_neuronIDs(ratemap, included_unit_indicies=included_unit_indicies, included_unit_neuron_IDs=included_unit_neuron_IDs, plot_variable=plot_variable, debug_print=debug_print)
     # ==================================================================================================================== #
@@ -550,9 +560,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=1, fig=None, 
         # New way:
         sorted_neuron_id_labels.append(final_title_str)
         color = neurons_colors_array[:, i]
-        # ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, color=color, ec=None, alpha=0.5, zorder=i + 1, hatch='\\')
+        # TODO: PERFORMANCE: can the hatching and the fill be drawn at the same time?
         ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, color=color, ec=None, alpha=0.5, zorder=i + 1)
-        # ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, hatch='\\', facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=i + 2)
+        if curve_hatch_style is not None:
+            ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, hatch=curve_hatch_style, facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=i + 2)
 
         ax.plot(bin_cntr, i * pad + pfmap, color=color, alpha=0.7)
 
