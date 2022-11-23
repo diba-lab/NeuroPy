@@ -285,28 +285,9 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
         curr_fig_page_grid_size = page_grid_sizes[fig_ind]
         active_figure_size = page_figure_sizes[fig_ind]
         
-        if fig is not None:
-            extant_fig = fig
-            # fig = plt.figure(extant_fig)
-        else:
-            extant_fig = None # is this okay?
-            
-        if fig is not None:
-            active_fig_id = fig
-        else:
-            if isinstance(fignum, int):
-                # a numeric fignum that can be incremented
-                active_fig_id = fignum + fig_ind
-            elif isinstance(fignum, str):
-                # a string-type fignum.
-                # TODO: deal with inadvertant reuse of figure? perhaps by appending f'{fignum}[{fig_ind}]'
-                if fig_ind > 0:
-                    active_fig_id = f'{fignum}[{fig_ind}]'
-                else:
-                    active_fig_id = fignum
-            else:
-                raise NotImplementedError        
-        
+        ## Figure Setup:
+        fig = build_or_reuse_figure(fignum=fignum, fig=fig, fig_idx=fig_ind, figsize=active_figure_size, dpi=None, clear=True, tight_layout=False)
+
         ## Configure Colorbar options:
         ### curr_cbar_mode: 'each', 'one', None
         # curr_cbar_mode = 'each'
@@ -527,7 +508,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, ax=None, pad=2, norm
     if ax is None:
         _, gs = Fig().draw(grid=(1, 1), size=(5.5, 11))
         ax = plt.subplot(gs[0])
-    
+
     # for i, neuron_ind in enumerate(sort_ind):
     for i, curr_included_unit_index in enumerate(included_unit_indicies):
 
