@@ -90,39 +90,8 @@ class Fig:
     def draw(self, num=None, grid=(2, 2), size=(8.5, 11), style="figPublish", **kwargs):
 
         # --- plot settings --------
-        if style == "figPublish":
-            mpl.rcParams["axes.linewidth"] = 2
-            mpl.rcParams["axes.labelsize"] = 8
-            mpl.rcParams["axes.titlesize"] = 8
-            mpl.rcParams["xtick.labelsize"] = 8
-            mpl.rcParams["ytick.labelsize"] = 8
-            mpl.rcParams["axes.spines.top"] = False
-            mpl.rcParams["axes.spines.right"] = False
-            mpl.rcParams["axes.prop_cycle"] = cycler(
-                "color",
-                [
-                    "#5cc0eb",
-                    "#faa49d",
-                    "#05d69e",
-                    "#253237",
-                    "#ef6e4e",
-                    "#f0a8e6",
-                    "#aaa8f0",
-                    "#f0a8af",
-                    "#dfe36b",
-                    "#825265",
-                    "#e8594f",
-                ],
-            )
-
-        if style == "Pres":
-            mpl.rcParams["axes.linewidth"] = 3
-            mpl.rcParams["axes.labelsize"] = 10
-            mpl.rcParams["axes.titlesize"] = 10
-            mpl.rcParams["xtick.labelsize"] = 10
-            mpl.rcParams["ytick.labelsize"] = 10
-            mpl.rcParams["axes.spines.right"] = False
-            mpl.rcParams["axes.spines.top"] = False
+        mpl_rcParams_style_dict = self.get_mpl_style(style=style)
+        mpl.rcParams.update(mpl_rcParams_style_dict)
 
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
@@ -202,9 +171,47 @@ class Fig:
 
     @staticmethod
     def set_spines_width(ax, lw=2, sides=("bottom", "left")):
-
         for side in sides:
             ax.spines[side].set_linewidth(lw)
+
+
+    @classmethod
+    def get_mpl_style(cls, style:str="figPublish"):
+        """ Gets the matplotlib rcParams for various formatted styles
+        Usage:
+            from neuropy.plotting.figure import Fig
+            mpl_rcParams_style_dict = Fig.get_mpl_style(style='figPublish')
+            mpl.rcParams.update(mpl_rcParams_style_dict)
+
+        with mpl.rc_context(Fig.get_mpl_style(style='figPublish')):
+            plt.plot(data)
+
+        @mpl.rc_context(Fig.get_mpl_style(style='figPublish'))
+        def plotting_function():
+            plt.plot(data)
+
+        """
+        if style == "figPublish":
+            return {'axes.linewidth': 2,
+                'axes.labelsize': 8,
+                'axes.titlesize': 8,
+                'xtick.labelsize': 8,
+                'ytick.labelsize': 8,
+                'axes.spines.top': False,
+                'axes.spines.right': False,
+                'axes.prop_cycle': cycler("color", [ "#5cc0eb", "#faa49d", "#05d69e", "#253237", "#ef6e4e", "#f0a8e6", "#aaa8f0", "#f0a8af", "#dfe36b", "#825265", "#e8594f", ], )
+                }
+        elif style == "Pres":
+            return {'axes.linewidth': 3,
+                'axes.labelsize': 10,
+                'axes.titlesize': 10,
+                'xtick.labelsize': 10,
+                'ytick.labelsize': 10,
+                'axes.spines.right': False,
+                'axes.spines.top': False
+                }
+        else:
+            raise NotImplementedError
 
 
 def pretty_plot(ax, round_ylim=False):
@@ -262,11 +269,6 @@ def compute_figure_size_inches(figure_size_pixels):
     """ inverse of compute_figure_size_pixels """
     inches_to_px = float(plt.rcParams['figure.dpi'])  # pixel in inches
     return (np.round(float(figure_size_pixels[0])/inches_to_px), np.round(float(figure_size_pixels[1])/inches_to_px))
-
-
-
-
-
 
 def neuron_number_title(neurons):
     titles = ["Neuron: " + str(n) for n in neurons]
