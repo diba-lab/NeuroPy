@@ -473,7 +473,8 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # n_neurons = ratemap.n_neurons
 
     if normalize_tuning_curve:
-        print(f'normalizing tuning curves...')
+        if debug_print:
+            print(f'normalizing tuning curves...')
         active_maps = mathutil.min_max_scaler(active_maps)
         pad = 1
 
