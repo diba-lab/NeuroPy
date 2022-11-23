@@ -333,3 +333,52 @@ def draw_sizebar(ax):
                           frameon=False)
     ax.add_artist(asb)
     
+
+def build_or_reuse_figure(fignum=1, fig=None, fig_idx:int=0, **kwargs):
+    """ Reuses a Matplotlib figure if it exists, or creates a new one if needed
+    Inputs:
+        fignum - an int or str that identifies a figure
+        fig - an existing Matplotlib figure
+        fig_idx:int - an index to identify this figure as part of a series of related figures, e.g. plot_pf_1D[0], plot_pf_1D[1], ... 
+        **kwargs - are passed as kwargs to the plt.figure(...) command when creating a new figure
+    Outputs:
+        fig: a Matplotlib figure object
+
+    History: factored out of `plot_ratemap_2D`
+    """
+    if fignum is None:
+        if f := plt.get_fignums():
+            fignum = f[-1] + 1
+        else:
+            fignum = 1
+
+    ## Figure Setup:
+    if fig is not None:
+        # provided figure
+        extant_fig = fig
+    else:
+        extant_fig = None # is this okay?
+        
+    if fig is not None:
+        # provided figure
+        active_fig_id = fig
+    else:
+        if isinstance(fignum, int):
+            # a numeric fignum that can be incremented
+            active_fig_id = fignum + fig_idx
+        elif isinstance(fignum, str):
+            # a string-type fignum.
+            # TODO: deal with inadvertant reuse of figure? perhaps by appending f'{fignum}[{fig_ind}]'
+            if fig_idx > 0:
+                active_fig_id = f'{fignum}[{fig_idx}]'
+            else:
+                active_fig_id = fignum
+        else:
+            raise NotImplementedError
+    
+    if extant_fig is None:
+        fig = plt.figure(active_fig_id, **({'dpi': None, 'clear': True, 'tight_layout': False} | kwargs))
+    else:
+        fig = extant_fig
+    return fig
+

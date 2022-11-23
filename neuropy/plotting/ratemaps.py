@@ -21,9 +21,10 @@ if TYPE_CHECKING:
 from neuropy.utils import mathutil
 from neuropy.utils.misc import RowColTuple, safe_item
 from neuropy.utils.colors_util import get_neuron_colors
-from neuropy.utils.matplotlib_helpers import _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label
+from neuropy.utils.matplotlib_helpers import build_or_reuse_figure, _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 from .figure import Fig
+
 
 def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=None):
     """ Adds the overlay points to the image plot with the specified axis. 
@@ -42,12 +43,10 @@ def _add_points_to_plot(curr_ax, overlay_points, plot_opts=None, scatter_opts=No
     spike_overlay_sc = curr_ax.scatter(overlay_points[0], overlay_points[1], **({'s': 2, 'c': 'white', 'alpha': 0.1, 'marker': ',', 'label': 'UNKNOWN_overlay_sc'} | scatter_opts))
     return spike_overlay_points, spike_overlay_sc
 
-
 class BackgroundRenderingOptions(enum.Enum):
     PATTERN_CHECKERBOARD = 1
     SOLID_COLOR = 2
     EMPTY = 3
-
 
 def _help_plot_ratemap_neuronIDs(ratemap: Ratemap, included_unit_indicies=None, included_unit_neuron_IDs=None, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, debug_print=False):
     """ Builds shared neuron_IDs
