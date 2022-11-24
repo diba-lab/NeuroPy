@@ -584,15 +584,22 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # Set the neuron id labels on the y-axis to the color of their cell:
     for i, a_tick_label in enumerate(ax.get_yticklabels()):
         color = neurons_colors_array[:, i]
-        a_tick_label.set_color(color)
-        # stroke_foreground = 'black'
-        stroke_foreground = 'gray'
-        stroke_foreground = 'white'
-        # stroke_foreground = 'orange'
-        strokewidth = 0.1
-        background_stroke = withStroke(foreground='black', linewidth=min(strokewidth+1, strokewidth*0.5))
-        fg_stroke = withStroke(foreground=stroke_foreground, linewidth=strokewidth)
-        a_tick_label.set_path_effects([background_stroke, fg_stroke])
+        ## Cell color is text-color mode:
+        # a_tick_label.set_color(color)
+        # # stroke_foreground = 'black'
+        # stroke_foreground = 'gray'
+        # stroke_foreground = 'white'
+        # # stroke_foreground = 'orange'
+        # strokewidth = 0.1
+        # background_stroke = withStroke(foreground='black', linewidth=min(strokewidth+1, strokewidth*0.5))
+        # fg_stroke = withStroke(foreground=stroke_foreground, linewidth=strokewidth)
+        # a_tick_label.set_path_effects([background_stroke, fg_stroke])
+
+        ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
+        a_tick_label.set_color('black')
+        strokewidth = 0.8
+        a_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
+
 
     ax.set_xlabel("Position")
     ax.spines["left"].set_visible(False)
