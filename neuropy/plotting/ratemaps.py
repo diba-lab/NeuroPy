@@ -7,6 +7,7 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import ImageGrid
+from matplotlib.patheffects import withStroke # used in plot_ratemap_1D
 
 # from https://www.stefaanlippens.net/circular-imports-type-hints-python.html to avoid circular import issues
 # also you must add the following line to the beginning of this file:
@@ -213,7 +214,7 @@ def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=Non
 # all extracted from the 2D figures
 @safely_accepts_kwargs
 def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_indicies=None, included_unit_neuron_IDs=None, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), fignum=1, fig=None,
-     enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, bg_rendering_mode=BackgroundRenderingOptions.PATTERN_CHECKERBOARD, use_special_overlayed_title=True, debug_print=False):
+     enable_spike_overlay=False, spike_overlay_spikes=None, extended_overlay_points_datasource_dicts=None, drop_below_threshold: float=0.0000001, brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.CONCISE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS, plot_mode: enumTuningMap2DPlotMode=None, bg_rendering_mode=BackgroundRenderingOptions.PATTERN_CHECKERBOARD, use_special_overlayed_title=True, missing_aclu_string_formatter=None, debug_print=False):
     """Plots heatmaps of placefields with peak firing rate
     
     Internally calls plot_single_tuning_map_2D(...) for each individual ratemap (regardless of the plot_mode)
@@ -256,7 +257,11 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
     """
     # last_figure_subplots_same_layout = False
     last_figure_subplots_same_layout = True
-    
+    # missing_aclu_string_formatter: a lambda function that takes the current aclu string and returns a modified string that reflects that this aclu value is missing from the current result (e.g. missing_aclu_string_formatter('3') -> '3 <shared>')
+    if missing_aclu_string_formatter is None:
+        # missing_aclu_string_formatter = lambda curr_extended_id_string: f'{curr_extended_id_string} <shared>'
+        missing_aclu_string_formatter = lambda curr_extended_id_string: f'{curr_extended_id_string}-'
+
     active_maps, title_substring, included_unit_indicies = _help_plot_ratemap_neuronIDs(ratemap, included_unit_indicies=included_unit_indicies, included_unit_neuron_IDs=included_unit_neuron_IDs, plot_variable=plot_variable, debug_print=debug_print)
 
     # ==================================================================================================================== #
@@ -358,7 +363,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 
                 pfmap = np.zeros((np.shape(active_maps)[1], np.shape(active_maps)[2])) # fully allocated new array of zeros
                 curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
-                final_title_str = f'{curr_extended_id_string} <shared>'
+                final_title_str = missing_aclu_string_formatter(curr_extended_id_string)
 
             # Get the axis to plot on:
             curr_ax = active_page_grid[curr_page_relative_linear_index]
@@ -419,7 +424,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
-    curve_hatch_style = None, debug_print=False):
+    curve_hatch_style = None, missing_aclu_string_formatter=None, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -449,6 +454,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     Unlike the plot_ratemap_2D(...), this version seems to plot all the cells on a single axis: using `ax.set_yticklabels(list(sorted_neuron_id_labels))` to label each cell's tuning curve and offsets to plot them.
     """
     use_special_overlayed_title = False
+    # missing_aclu_string_formatter: a lambda function that takes the current aclu string and returns a modified string that reflects that this aclu value is missing from the current result (e.g. missing_aclu_string_formatter('3') -> '3 <shared>')
+    if missing_aclu_string_formatter is None:
+        # missing_aclu_string_formatter = lambda curr_extended_id_string: f'{curr_extended_id_string} <shared>'
+        missing_aclu_string_formatter = lambda curr_extended_id_string: f'{curr_extended_id_string}-'
 
     ## Feature: Hatching
     # if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves
@@ -504,6 +513,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i].shank}|{sorted_alt_tuple_neuron_ids[i].cluster})' for i in np.arange(len(sorted_neuron_ids))]
 
 
+
     ## New way:
     sorted_neuron_id_labels = []
 
@@ -549,8 +559,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
 
             pfmap = np.zeros((np.shape(active_maps)[1],)) # fully allocated new array of zeros
             curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
-            final_title_str = f'{curr_extended_id_string} <shared>'
-
+            final_title_str = missing_aclu_string_formatter(curr_extended_id_string)
 
         # Old way:
         # color = neurons_colors_array[:, i]
@@ -572,7 +581,19 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # Set up cell labels (on each y-tick):
     ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5)) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
     ax.set_yticklabels(list(sorted_neuron_id_labels))
-    
+    # Set the neuron id labels on the y-axis to the color of their cell:
+    for i, a_tick_label in enumerate(ax.get_yticklabels()):
+        color = neurons_colors_array[:, i]
+        a_tick_label.set_color(color)
+        # stroke_foreground = 'black'
+        stroke_foreground = 'gray'
+        stroke_foreground = 'white'
+        # stroke_foreground = 'orange'
+        strokewidth = 0.1
+        background_stroke = withStroke(foreground='black', linewidth=min(strokewidth+1, strokewidth*0.5))
+        fg_stroke = withStroke(foreground=stroke_foreground, linewidth=strokewidth)
+        a_tick_label.set_path_effects([background_stroke, fg_stroke])
+
     ax.set_xlabel("Position")
     ax.spines["left"].set_visible(False)
     if normalize_xbin:
