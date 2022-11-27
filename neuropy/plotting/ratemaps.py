@@ -424,7 +424,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
-    curve_hatch_style = None, missing_aclu_string_formatter=None, debug_print=False):
+    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -441,8 +441,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         [description], by default True
     cmap : str, optional
         [description], by default "tab20b"
-    curve_hatch_style : str, optional
+    curve_hatch_style : dict, optional
         if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves, by default None
+    single_cell_pfmap_processing_fn: Callable
+
 
     Returns
     -------
@@ -458,6 +460,12 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     if missing_aclu_string_formatter is None:
         # missing_aclu_string_formatter = lambda curr_extended_id_string: f'{curr_extended_id_string} <shared>'
         missing_aclu_string_formatter = lambda curr_extended_id_string: f'{curr_extended_id_string}-'
+
+    if single_cell_pfmap_processing_fn is None:
+        single_cell_pfmap_processing_fn = lambda i, aclu, pfmap: pfmap # no change (identity)
+
+    # single_cell_pfmap_processing_fn = lambda i, aclu, pfmap: -1.0 * pfmap # flip over the y-axis
+
 
     ## Feature: Hatching
     # if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves
@@ -503,9 +511,9 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # Use the get_neuron_colors function to generate colors for these neurons
     neurons_colors_array = get_neuron_colors(sort_ind, cmap=cmap)
 
-    ## Old way:
-    ## TODO: actually sort the ratemap object's neuron_ids and tuning_curves by the sort_ind
-    ## sorted_neuron_ids = ratemap.neuron_ids[sort_ind]
+    # Old way:
+    # # TODO: actually sort the ratemap object's neuron_ids and tuning_curves by the sort_ind
+    # # sorted_neuron_ids = ratemap.neuron_ids[sort_ind]
     # sorted_neuron_ids = np.take_along_axis(np.array(ratemap.neuron_ids), sort_ind, axis=0)
 
     # sorted_alt_tuple_neuron_ids = ratemap.neuron_extended_ids.copy()
@@ -560,6 +568,16 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
             final_title_str = missing_aclu_string_formatter(curr_extended_id_string)
 
+
+        # Apply the function:
+        pfmap = single_cell_pfmap_processing_fn(i, curr_neuron_ID, pfmap)
+
+
+        # bin_cntr # contains the x-positions of each point. Same for all cells
+        y_baseline = (i * pad) # y_baseline (y1): the y-position for each cell 
+        y2 = (y_baseline + pfmap) # (y2): the top of each point is determined by adding the specific pfmap values to the baseline
+
+
         # Old way:
         # color = neurons_colors_array[:, i]
         # curr_neuron_id = sorted_neuron_ids[i]
@@ -570,17 +588,16 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         sorted_neuron_id_labels.append(final_title_str)
         color = neurons_colors_array[:, i]
         # TODO: PERFORMANCE: can the hatching and the fill be drawn at the same time?
-        ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), color=color, ec=None, alpha=0.5, zorder=(i + 1))
+        
+        ax.fill_between(bin_cntr, y_baseline, y2, zorder=(i + 1), color=color, ec=None, alpha=0.5)
         if curve_hatch_style is not None:
             if not isinstance(curve_hatch_style, dict):
                 assert isinstance(curve_hatch_style, str) # old mode used a string value for curve_hatch_style, which the argument to the 'hatch' kwarg
                 curve_hatch_style = {'hatch': curve_hatch_style}
             # I think the stripe color for the hatch is specified by `edgecolor`
-            # ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), hatch=curve_hatch_style, facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=(i + 2))
-            ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), zorder=(i + 2), **({'hatch': '///', 'facecolor': 'none', 'edgecolor': 'k', 'linewidth': 0.0, 'alpha': 0.5} | curve_hatch_style))
+            ax.fill_between(bin_cntr, y_baseline, y2, zorder=(i + 2), **({'hatch': '///', 'facecolor': 'none', 'edgecolor': 'k', 'linewidth': 0.0, 'alpha': 0.5} | curve_hatch_style))
 
-
-        ax.plot(bin_cntr, ((i * pad) + pfmap), color=color, alpha=0.7)
+        ax.plot(bin_cntr, y2, color=color, alpha=0.7) # This is essential for drawing the outer bold border line that makes each cell's curve easily distinguishable.
 
 
     # Set up cell labels (on each y-tick):
