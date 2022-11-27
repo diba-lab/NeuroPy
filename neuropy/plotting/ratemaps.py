@@ -513,7 +513,6 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i].shank}|{sorted_alt_tuple_neuron_ids[i].cluster})' for i in np.arange(len(sorted_neuron_ids))]
 
 
-
     ## New way:
     sorted_neuron_id_labels = []
 
@@ -571,11 +570,12 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         sorted_neuron_id_labels.append(final_title_str)
         color = neurons_colors_array[:, i]
         # TODO: PERFORMANCE: can the hatching and the fill be drawn at the same time?
-        ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, color=color, ec=None, alpha=0.5, zorder=i + 1)
+        ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), color=color, ec=None, alpha=0.5, zorder=(i + 1))
         if curve_hatch_style is not None:
-            ax.fill_between(bin_cntr, i * pad, i * pad + pfmap, hatch=curve_hatch_style, facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=i + 2)
+            # I think the stripe color for the hatch is specified by `edgecolor`
+            ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), hatch=curve_hatch_style, facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=(i + 2))
 
-        ax.plot(bin_cntr, i * pad + pfmap, color=color, alpha=0.7)
+        ax.plot(bin_cntr, ((i * pad) + pfmap), color=color, alpha=0.7)
 
 
     # Set up cell labels (on each y-tick):
@@ -597,7 +597,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
 
         ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
         a_tick_label.set_color('black')
-        strokewidth = 0.8
+        strokewidth = 0.5
         a_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
 
 
