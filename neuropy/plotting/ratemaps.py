@@ -572,8 +572,13 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         # TODO: PERFORMANCE: can the hatching and the fill be drawn at the same time?
         ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), color=color, ec=None, alpha=0.5, zorder=(i + 1))
         if curve_hatch_style is not None:
+            if not isinstance(curve_hatch_style, dict):
+                assert isinstance(curve_hatch_style, str) # old mode used a string value for curve_hatch_style, which the argument to the 'hatch' kwarg
+                curve_hatch_style = {'hatch': curve_hatch_style}
             # I think the stripe color for the hatch is specified by `edgecolor`
-            ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), hatch=curve_hatch_style, facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=(i + 2))
+            # ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), hatch=curve_hatch_style, facecolor='none', edgecolor='k', linewidth=0.0, alpha=0.5, zorder=(i + 2))
+            ax.fill_between(bin_cntr, (i * pad), ((i * pad) + pfmap), zorder=(i + 2), **({'hatch': '///', 'facecolor': 'none', 'edgecolor': 'k', 'linewidth': 0.0, 'alpha': 0.5} | curve_hatch_style))
+
 
         ax.plot(bin_cntr, ((i * pad) + pfmap), color=color, alpha=0.7)
 
