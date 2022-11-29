@@ -219,7 +219,7 @@ class PfnDMixin(SimplePrintable):
             return fig
             
     @safely_accepts_kwargs
-    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=(0, 0, 0.8), spikes_alpha=0.5, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None, should_include_labels=True):
+    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=None, spikes_alpha=None, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None, should_include_labels=True):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
 
@@ -247,25 +247,47 @@ class PfnDMixin(SimplePrintable):
                 a.set_xlabel("Time (seconds)")
                 a.set_ylabel(ylabel)
             pretty_plot(a)
-
-        # Grab correct spike times/positions
-        if speed_thresh:
-            spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
-        else:
-            spk_pos_, spk_t_ = self.spk_pos, self.spk_t
-
+        
         # plot spikes on trajectory
-        for a, pos in zip(ax, spk_pos_[cellind]):
-            a.plot(spk_t_[cellind], pos, color=[*spikes_color, spikes_alpha], **(spike_plot_kwargs or {}))
+        if cellind is not None:
+            # Grab correct spike times/positions
+            if speed_thresh:
+                spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
+            else:
+                spk_pos_, spk_t_ = self.spk_pos, self.spk_t
 
-        # Put info on title
-        if should_include_labels:
-            ax[0].set_title(
-                "Cell "
-                + str(self.cell_ids[cellind])
-                + ":, speed_thresh="
-                + str(self.speed_thresh)
-            )
+            if spike_plot_kwargs is None:
+                spike_plot_kwargs = {}
+
+            if spikes_alpha is None:
+                spikes_alpha = 0.5 # default value of 0.5
+
+            if spikes_color is not None:
+                spikes_color_RGBA = [*spikes_color, spikes_alpha]
+                # Check for existing values in spike_plot_kwargs which will be overriden
+                markerfacecolor = spike_plot_kwargs.get('markerfacecolor', None)
+                # markeredgecolor = spike_plot_kwargs.get('markeredgecolor', None)
+                if markerfacecolor is not None:
+                    if markerfacecolor != spikes_color_RGBA:
+                        print(f"WARNING: spike_plot_kwargs's extant 'markerfacecolor' and 'markeredgecolor' values will be overriden by the provided spikes_color argument, meaning its original value will be lost.")
+                        spike_plot_kwargs['markerfacecolor'] = spikes_color_RGBA
+                        spike_plot_kwargs['markeredgecolor'] = spikes_color_RGBA
+            else:
+                # assign the default
+                spikes_color_RGBA = [*(0, 0, 0.8), spikes_alpha]
+
+            for a, pos in zip(ax, spk_pos_[cellind]):
+                # WARNING: if spike_plot_kwargs contains the 'markerfacecolor' key, it's value will override plot's color= argument, so the specified spikes_color will be ignored.
+                a.plot(spk_t_[cellind], pos, color=spikes_color_RGBA, **(spike_plot_kwargs or {})) # , color=[*spikes_color, spikes_alpha]
+
+            # Put info on title
+            if should_include_labels:
+                ax[0].set_title(
+                    "Cell "
+                    + str(self.cell_ids[cellind])
+                    + ":, speed_thresh="
+                    + str(self.speed_thresh)
+                )
         return ax
 
     @safely_accepts_kwargs
@@ -559,7 +581,6 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         for cell_df in cell_spikes_dfs:
             # cell_spike_times = cell_df[spikes_df.spikes.time_variable_name].to_numpy()
             cell_spike_times = cell_df[self.filtered_spikes_df.spikes.time_variable_name].to_numpy()
-            # spk_spd = np.interp(cell_spike_times, self.t, self.speed)
             spk_x = np.interp(cell_spike_times, self.t, self.x) # TODO: shouldn't we already have interpolated spike times for all spikes in the dataframe?
             
             # update the dataframe 'x','speed' and 'y' properties:
