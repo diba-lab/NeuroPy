@@ -219,11 +219,14 @@ class PfnDMixin(SimplePrintable):
             return fig
             
     @safely_accepts_kwargs
-    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=None, spikes_alpha=None, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None, should_include_labels=True):
+    def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=None, spikes_alpha=None, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None,
+        should_include_trajectory=True, should_include_spikes=True, should_include_labels=True):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
 
+        should_include_trajectory:bool - if False, will not try to plot the animal's trajectory/position
         should_include_labels:bool - whether the plot should include text labels, like the title, axes labels, etc
+        should_include_spikes:bool - if False, will not try to plot points for spikes
 
         """
         if ax is None:
@@ -242,7 +245,8 @@ class PfnDMixin(SimplePrintable):
             label_array = ["X position (cm)", "Y position (cm)"]
             
         for a, pos, ylabel in zip(ax, variable_array, label_array):
-            a.plot(self.t, pos, **(position_plot_kwargs or {}))
+            if should_include_trajectory:
+                a.plot(self.t, pos, **(position_plot_kwargs or {}))
             if should_include_labels:
                 a.set_xlabel("Time (seconds)")
                 a.set_ylabel(ylabel)
@@ -250,35 +254,36 @@ class PfnDMixin(SimplePrintable):
         
         # plot spikes on trajectory
         if cellind is not None:
-            # Grab correct spike times/positions
-            if speed_thresh:
-                spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
-            else:
-                spk_pos_, spk_t_ = self.spk_pos, self.spk_t
+            if should_include_spikes:
+                # Grab correct spike times/positions
+                if speed_thresh:
+                    spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
+                else:
+                    spk_pos_, spk_t_ = self.spk_pos, self.spk_t
 
-            if spike_plot_kwargs is None:
-                spike_plot_kwargs = {}
+                if spike_plot_kwargs is None:
+                    spike_plot_kwargs = {}
 
-            if spikes_alpha is None:
-                spikes_alpha = 0.5 # default value of 0.5
+                if spikes_alpha is None:
+                    spikes_alpha = 0.5 # default value of 0.5
 
-            if spikes_color is not None:
-                spikes_color_RGBA = [*spikes_color, spikes_alpha]
-                # Check for existing values in spike_plot_kwargs which will be overriden
-                markerfacecolor = spike_plot_kwargs.get('markerfacecolor', None)
-                # markeredgecolor = spike_plot_kwargs.get('markeredgecolor', None)
-                if markerfacecolor is not None:
-                    if markerfacecolor != spikes_color_RGBA:
-                        print(f"WARNING: spike_plot_kwargs's extant 'markerfacecolor' and 'markeredgecolor' values will be overriden by the provided spikes_color argument, meaning its original value will be lost.")
-                        spike_plot_kwargs['markerfacecolor'] = spikes_color_RGBA
-                        spike_plot_kwargs['markeredgecolor'] = spikes_color_RGBA
-            else:
-                # assign the default
-                spikes_color_RGBA = [*(0, 0, 0.8), spikes_alpha]
+                if spikes_color is not None:
+                    spikes_color_RGBA = [*spikes_color, spikes_alpha]
+                    # Check for existing values in spike_plot_kwargs which will be overriden
+                    markerfacecolor = spike_plot_kwargs.get('markerfacecolor', None)
+                    # markeredgecolor = spike_plot_kwargs.get('markeredgecolor', None)
+                    if markerfacecolor is not None:
+                        if markerfacecolor != spikes_color_RGBA:
+                            print(f"WARNING: spike_plot_kwargs's extant 'markerfacecolor' and 'markeredgecolor' values will be overriden by the provided spikes_color argument, meaning its original value will be lost.")
+                            spike_plot_kwargs['markerfacecolor'] = spikes_color_RGBA
+                            spike_plot_kwargs['markeredgecolor'] = spikes_color_RGBA
+                else:
+                    # assign the default
+                    spikes_color_RGBA = [*(0, 0, 0.8), spikes_alpha]
 
-            for a, pos in zip(ax, spk_pos_[cellind]):
-                # WARNING: if spike_plot_kwargs contains the 'markerfacecolor' key, it's value will override plot's color= argument, so the specified spikes_color will be ignored.
-                a.plot(spk_t_[cellind], pos, color=spikes_color_RGBA, **(spike_plot_kwargs or {})) # , color=[*spikes_color, spikes_alpha]
+                for a, pos in zip(ax, spk_pos_[cellind]):
+                    # WARNING: if spike_plot_kwargs contains the 'markerfacecolor' key, it's value will override plot's color= argument, so the specified spikes_color will be ignored.
+                    a.plot(spk_t_[cellind], pos, color=spikes_color_RGBA, **(spike_plot_kwargs or {})) # , color=[*spikes_color, spikes_alpha]
 
             # Put info on title
             if should_include_labels:
