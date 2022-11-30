@@ -377,7 +377,8 @@ def build_or_reuse_figure(fignum=1, fig=None, fig_idx:int=0, **kwargs):
             raise NotImplementedError
     
     if extant_fig is None:
-        fig = plt.figure(active_fig_id, **({'dpi': None, 'clear': True, 'tight_layout': False} | kwargs))
+        fig = plt.figure(active_fig_id, **({'dpi': None, 'clear': True} | kwargs)) # , 'tight_layout': False - had to remove 'tight_layout': False because it can't coexist with 'constrained_layout'
+            #  UserWarning: The Figure parameters 'tight_layout' and 'constrained_layout' cannot be used together.
     else:
         fig = extant_fig
     return fig
