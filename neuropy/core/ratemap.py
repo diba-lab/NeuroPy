@@ -219,8 +219,8 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
             
     
     def get_sort_indicies(self, sortby=None):
-        curr_tuning_curves = self.normalized_tuning_curves
-        ind = np.unravel_index(np.argsort(curr_tuning_curves, axis=None), curr_tuning_curves.shape)
+        # curr_tuning_curves = self.normalized_tuning_curves
+        # ind = np.unravel_index(np.argsort(curr_tuning_curves, axis=None), curr_tuning_curves.shape)
         
         if sortby is None:
             sort_ind = np.argsort(np.argmax(self.normalized_tuning_curves, axis=1))
@@ -228,7 +228,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
             sort_ind = sortby
         else:
             sort_ind = np.arange(self.n_neurons)
-            
+        return sort_ind
  
     @staticmethod           
     def build_never_visited_mask(occupancy):
