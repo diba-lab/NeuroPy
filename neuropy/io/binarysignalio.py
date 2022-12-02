@@ -71,3 +71,28 @@ class BinarysignalIO:
             write_filename, dtype=self.dtype, mode="w+", shape=(len(read_data))
         )
         write_data[: len(read_data)] = read_data
+
+
+    # Persistance
+    def __getstate__(self):
+        """ Custom serialization/deserialization method to enable saving pipeline on macOS. Previously failed with the error:
+            TypeError: cannot pickle 'mmap.mmap' object ' #11823
+            Issue with macOS (Darwin) and multi-processing
+            https://github.com/stamparm/maltrail/issues/11823
+        """
+        # Copy the object's state from self.__dict__ which contains
+        # all our instance attributes. Always use the dict.copy()
+        # method to avoid modifying the original state.
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        del state['_raw_traces']
+        return state
+
+    def __setstate__(self, state):
+        # Restore instance attributes (i.e., filename and lineno).
+        self.__dict__.update(state)
+        # Re-load the raw traces from file on load from the saved properties. The same file must exist, meaning this solution isn't portable.
+        self._raw_traces = (
+            np.memmap(self.source_file, dtype=self.dtype, mode="r").reshape(-1, self.n_channels).T
+        )
+
