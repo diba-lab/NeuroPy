@@ -17,7 +17,6 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from neuropy.utils.position_util import compute_position_grid_size
 
 
-
 class DataSessionFormatRegistryHolder(type):
     """ a metaclass that automatically registers its conformers as a known loadable data session format.     
         
@@ -290,27 +289,45 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         """ adds the 'fragile_linear_neuron_IDX' column to the spikes_df and updates the neurons_obj with a new reverse_cellID_index_map """
         spikes_df, neurons_obj._reverse_cellID_index_map = spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
         spikes_df['t'] = spikes_df[cls._time_variable_name] # add the 't' column required for visualization
-        
-        
-    
-    
+ 
     @classmethod
     def _default_extended_postload(cls, fp, session):
         # Computes Common Extended properties:
         ## Ripples:
-        active_file_suffix = '.ripple.npy'
-        found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
+        # Externally Computed Ripples (from 'ripple_df.pkl') file:
+        # Load `ripple_df.pkl` previously saved:
+        external_computed_ripple_df_filepath = session.basepath.joinpath('ripple_df.pkl')
+        external_computed_ripple_df = pd.read_pickle(external_computed_ripple_df_filepath)
+        # Add the required columns for Epoch(...):
+        external_computed_ripple_df['label'] = [str(an_idx) for an_idx in external_computed_ripple_df.index]
+        external_computed_ripple_df = external_computed_ripple_df.reset_index(drop=True)
+        found_datafile = Epoch(external_computed_ripple_df) # Epoch from dataframe
+        
         if found_datafile is not None:
-            print('Loading success: {}.'.format(active_file_suffix))
+            print('Loading success: {}.'.format(external_computed_ripple_df_filepath))
             session.ripple = found_datafile
+            found_datafile.filename = external_computed_ripple_df_filepath
+
         else:
-            # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-            try:
-                session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
-            except (ValueError, AttributeError) as e:
-                print(f'Computation failed with error {e}. Skipping .ripple')
-                session.ripple = None
+            ## try the '.ripple.npy' ripples:
+            active_file_suffix = '.ripple.npy'
+            found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
+            if found_datafile is not None:
+                print('Loading success: {}.'.format(active_file_suffix))
+                session.ripple = found_datafile
+                # ## TODO: overwrite the '.ripple.npy' version?
+                # session.ripple.filename = session.filePrefix.with_suffix('.ripple.npy')
+                # # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
+                # with ProgressMessagePrinter(session.ripple.filename, 'Saving', 'ripple epochs'):
+                #     session.ripple.save()
+            else:
+                # Otherwise both loads failed, perform the fallback computation:
+                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+                try:
+                    session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
+                except (ValueError, AttributeError) as e:
+                    print(f'Computation failed with error {e}. Skipping .ripple')
+                    session.ripple = None
 
         ## MUA:
         active_file_suffix = '.mua.npy'
