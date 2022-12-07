@@ -169,7 +169,9 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         else:
             global_epoch_filter_fn_dict = {} # empty dict
 
-        return {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in epoch_name_whitelist} | global_epoch_filter_fn_dict
+        epoch_filter_configs_dict = {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in epoch_name_whitelist}
+        final_configs_dict = dict(epoch_filter_configs_dict, **global_epoch_filter_fn_dict)
+        return  final_configs_dict
 
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
