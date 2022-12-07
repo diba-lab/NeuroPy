@@ -10,6 +10,7 @@ from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec
 
 # For specific load functions:
 from neuropy.core import Mua, Epoch
+from neuropy.core.epoch import NamedTimerange # required for DataSessionFormatBaseRegisteredClass.build_global_filter_config_function(.)
 from neuropy.io import NeuroscopeIO, BinarysignalIO 
 from neuropy.analyses.placefields import PlacefieldComputationParameters
 from neuropy.utils.dynamic_container import DynamicContainer, override_dict, overriding_dict_with, get_dict_subset
@@ -22,7 +23,12 @@ class DataSessionFormatRegistryHolder(type):
         
     Usage:
         from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
-        
+        from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
+        from neuropy.core.session.Formats.Specific.BapunDataSessionFormat import BapunDataSessionFormatRegisteredClass
+        from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+        from neuropy.core.session.Formats.Specific.RachelDataSessionFormat import RachelDataSessionFormat
+        from neuropy.core.session.Formats.Specific.HiroDataSessionFormat import HiroDataSessionFormatRegisteredClass
+
         DataSessionFormatRegistryHolder.get_registry()
         
     """
@@ -54,6 +60,7 @@ class DataSessionFormatRegistryHolder(type):
         return {a_class._session_class_name:a_class.get_known_data_session_type_properties(override_basepath=override_data_basepath) for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
     
     
+
 
 class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHolder):
     """
@@ -103,24 +110,66 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         """ MUST be overriden by implementor to return the a session_spec """
         raise NotImplementedError # innheritor must override
         
+    @classmethod
+    def build_global_epoch_filter_config_dict(cls, sess, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None, debug_print=True):
+        """ builds the 'global' filter for the entire session that includes by default the times from all other epochs in sess. 
+        e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
+
+        Usage:
+            global_epoch_filter_fn_dict, global_named_timerange = build_global_epoch_filter_config_dict(sess, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None, debug_print=True)
+            global_epoch_filter_fn_dict
+
+        """
+        all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
+        if global_epoch_name in all_epoch_names:
+            global_epoch_name = f"{global_epoch_name}_GLOBAL"
+            print('WARNING: name collision "{global_epoch_name}" already exists in all_epoch_names: {all_epoch_names}! Using {global_epoch_name} instead.')
+        
+        if first_included_epoch_name is not None:
+            # global_start_end_times[0] = sess.epochs[first_included_epoch_name][0] # 'maze1'
+            pass
+        else:
+            first_included_epoch_name = sess.epochs.get_unique_labels()[0]
+            
+        if last_included_epoch_name is not None:
+            # global_start_end_times[1] = sess.epochs[last_included_epoch_name][1] # 'maze2'
+            pass
+        else:
+            last_included_epoch_name = sess.epochs.get_unique_labels()[-1]
     
-    
+        # global_start_end_times = [epochs.t_start, epochs.t_stop]
+        global_start_end_times = [sess.epochs[first_included_epoch_name][0], sess.epochs[last_included_epoch_name][1]]
+        # global_start_end_times_fn = lambda x: [sess.epochs[first_included_epoch_name][0], sess.epochs[last_included_epoch_name][1]]
+        
+        global_named_timerange = NamedTimerange(name=global_epoch_name, start_end_times=global_start_end_times)
+        # global_epoch_filter_fn = (lambda x: (x.filtered_by_epoch(NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])))
+        if debug_print:
+            print(f'global_named_timerange: {global_named_timerange}, first_included_epoch_name: {first_included_epoch_name}, last_included_epoch_name: {last_included_epoch_name}')
+        global_epoch_filter_fn = (lambda x: (x.filtered_by_epoch(NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]])), NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]])))
+        return {global_epoch_name: global_epoch_filter_fn}, global_named_timerange
+
     
     @classmethod
-    def build_default_filter_functions(cls, sess, included_epoch_names=None, filter_name_suffix=None):
+    def build_default_filter_functions(cls, sess, epoch_name_whitelist=None, filter_name_suffix=None, include_global_epoch=True):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions
         Inputs:
-            included_epoch_names: an optional list of names to restrict to, must already be valid epochs to filter by. e.g. ['maze1']
+            epoch_name_whitelist: an optional list of names to restrict to, must already be valid epochs to filter by. e.g. ['maze1']
             filter_name_suffix: an optional string suffix to be added to the end of each filter_name. An example would be '_PYR'
+            include_global_epoch: bool - If True, uses cls.build_global_epoch_filter_config_dict(...) to generate a global epoch that will be included in the filters
         """
-        if included_epoch_names is None:
+        if epoch_name_whitelist is None:
             all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
-            included_epoch_names = all_epoch_names
+            epoch_name_whitelist = all_epoch_names
             
         if filter_name_suffix is None:
             filter_name_suffix = ''
 
-        return {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in included_epoch_names}
+        if include_global_epoch:
+            global_epoch_filter_fn_dict, global_named_timerange = cls.build_global_epoch_filter_config_dict(sess, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None, debug_print=True)
+        else:
+            global_epoch_filter_fn_dict = {} # empty dict
+
+        return {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in epoch_name_whitelist} | global_epoch_filter_fn_dict
 
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):

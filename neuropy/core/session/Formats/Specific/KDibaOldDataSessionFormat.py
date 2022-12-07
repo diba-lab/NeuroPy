@@ -158,24 +158,14 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
 
     @classmethod
-    def build_default_filter_functions(cls, sess, included_epoch_names=None, filter_name_suffix=None):
+    def build_default_filter_functions(cls, sess, epoch_name_whitelist=None, filter_name_suffix=None, include_global_epoch=True):
         # all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
         # default_filter_functions = DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess)
         ## TODO: currently hard-coded
         # active_session_filter_configurations = cls.build_pyramidal_epochs_filters(sess)
-        active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
+        # active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
+        return DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess, epoch_name_whitelist=epoch_name_whitelist, filter_name_suffix=filter_name_suffix, include_global_epoch=include_global_epoch)
         
-        # if included_epoch_names is not None:
-        #     # if the whitelist is specified, get only the specified epochs
-        #     active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in included_epoch_names}
-            
-        if filter_name_suffix is not None:
-            # if a filter_name_suffix is specified, change the keys of the returned dict to include the suffix
-            active_session_filter_configurations = {f'{name}{filter_name_suffix}':filter_fn for name, filter_fn in active_session_filter_configurations.items()} 
-            
-        
-        return active_session_filter_configurations
-    
     
     
     @classmethod
