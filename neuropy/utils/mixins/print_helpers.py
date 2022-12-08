@@ -53,20 +53,13 @@ class FileProgressAction(ExtendedEnum):
     GENERIC = "Generic"
 
     @classmethod
-    def init(cls, name):
-        if name.upper() == cls.LOADING.name.upper():
-            return cls.LOADING
-        elif name.upper() == cls.SAVING.name.upper():
-            return cls.SAVING
-        elif name.upper() == cls.GENERIC.name.upper():
-            return cls.GENERIC
-        else:
-            return cls.GENERIC
-            # raise NotImplementedError
-        
+    def init(cls, name=None, value=None, fallback_value=None):
+        """ e.g. FileProgressAction.init('lOaDing') # <FileProgressAction.LOADING: 'Loading'> """
+        return ExtendedEnum.init(name=name, value=value, fallback_value=(fallback_value or cls.GENERIC))
+
     @property
     def actionVerb(self):
-        return FileProgressAction.actionVerbsList()[self.value]
+        return FileProgressAction.actionVerbsList()[self]
 
     # Static properties
     @classmethod
