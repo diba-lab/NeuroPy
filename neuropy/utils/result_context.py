@@ -32,6 +32,7 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 """
 
 import copy
+from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from neuropy.utils.mixins.diffable import DiffableObject
 
 
@@ -78,6 +79,7 @@ class IdentifyingContext(DiffableObject, object):
             if hasattr(duplicate_ctxt, name):
                 print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
                 ## TODO: rename the current attribute to be set by appending a prefix
+                assert collision_prefix is not None, f"namespace collision in add_context! attr with name {name} already exists but collision_prefix is None!"
                 final_name = f'{collision_prefix}{name}'
             else:
                 final_name = name
@@ -88,7 +90,7 @@ class IdentifyingContext(DiffableObject, object):
                        
                        
         
-    def get_description(self, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', prefix_items=[], suffix_items=[])->str:
+    def get_description(self, subset_whitelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
         include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
@@ -99,10 +101,10 @@ class IdentifyingContext(DiffableObject, object):
         """
         ## Build a session descriptor string:
         if include_property_names:
-            descriptor_array = [[name.replace(separator, replace_separator_in_property_names), str(val)]  for name, val in self.to_dict().items()] # creates a list of [name, val] list items
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names), str(val)]  for name, val in self.to_dict(subset_whitelist=subset_whitelist).items()] # creates a list of [name, val] list items
             descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
         else:
-            descriptor_array = [str(val) for val in list(self.to_dict().values())] # ensures each value is a string
+            descriptor_array = [str(val) for val in list(self.to_dict(subset_whitelist=subset_whitelist).values())] # ensures each value is a string
             
         if prefix_items is not None:
             descriptor_array.extend(prefix_items)
@@ -141,16 +143,32 @@ class IdentifyingContext(DiffableObject, object):
         return NotImplemented
     
     
-    def to_dict(self):
-        return self.__dict__
+    def to_dict(self, subset_whitelist=None):
+        """ 
+        Inputs:
+            subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
+        """
+        if subset_whitelist is None:
+            return benedict(self.__dict__)
+        else:
+            return benedict(self.__dict__).subset(subset_whitelist)
+
     @classmethod
     def init_from_dict(cls, a_dict):
         return cls(**a_dict) # expand the dict as input args.
         
 
-    def as_tuple(self):
-        """ returns a tuple of just its values """
-        return tuple(self.to_dict().values())
+    def as_tuple(self, subset_whitelist=None):
+        """ returns a tuple of just its values 
+        Inputs:
+            subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
+
+        Usage:
+        curr_sess_ctx_tuple = curr_sess_ctx.as_tuple(subset_whitelist=['format_name','animal','exper_name', 'session_name'])
+        curr_sess_ctx_tuple # ('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')
+
+        """
+        return tuple(self.to_dict(subset_whitelist=subset_whitelist).values())
 
 
     ## For serialization/pickling:
