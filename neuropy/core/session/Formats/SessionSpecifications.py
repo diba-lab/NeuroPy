@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 
 
+
 # Local imports:
 ## Core:
 # from .datawriter import DataWriter
@@ -168,7 +169,7 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_optional_filespecs_dict.items()}
     
     
-    def __init__(self, basepath, session_spec, session_name, format_name):
+    def __init__(self, basepath, session_spec, session_name, session_context, format_name):
         """[summary]
         Args:
             basepath (pathlib.Path): [description].
@@ -181,15 +182,17 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         self.session_name = session_name
         # Session spec:
         self.session_spec=session_spec
+        self.session_context = session_context
         self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
         
+
     def validate(self):
         """ re-validates the self.session_spec items and updates the resolved dicts """
         self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
 
 
     def to_dict(self):
-        out_dict = {a_key:str(a_value) for a_key, a_value in self.__dict__.items() if a_key in ['format_name', 'basepath', 'session_name', 'absolute_start_timestamp', 'position_sampling_rate_Hz']}
+        out_dict = {a_key:str(a_value) for a_key, a_value in self.__dict__.items() if a_key in ['format_name', 'basepath', 'session_name', 'session_context', 'absolute_start_timestamp', 'position_sampling_rate_Hz']}
         # need to flatten: 'resolved_required_filespecs_dict', 'resolved_optional_filespecs_dict':
         out_dict['resolved_required_filespecs_dict'] = [str(a_path) for a_path in self.resolved_required_file_specs.keys()]
         out_dict['resolved_optional_filespecs_dict'] = [str(a_path) for a_path in self.resolved_optional_file_specs.keys()]
@@ -198,13 +201,15 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     # Context and Description ____________________________________________________________________________________________ #
     def get_context(self):
         """ returns an IdentifyingContext for the session """
-        
-        return IdentifyingContext(format_name=self.format_name, session_name=self.session_name)
-
-
-
-    
-
+        if self.session_context is not None:
+            return self.session_context
+        else:
+            from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
+            ## Tries to get the appropriate class using its self.format_name and compute its context
+            active_data_mode_registered_class = DataSessionFormatRegistryHolder.get_registry_data_session_type_class_name_dict()[self.format_name]
+            self.session_context = active_data_mode_registered_class.parse_session_basepath_to_context(self.basepath)
+            return self.session_context
+            # return IdentifyingContext(format_name=self.format_name, session_name=self.session_name)
 
     def get_description(self, prefix_items=['sess'])->str:
         """ returns a simple text descriptor of the session
@@ -219,3 +224,30 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         return self.get_description()
     
     
+    ## For serialization/pickling:
+    def __getstate__(self):
+        # Copy the object's state from self.__dict__ which contains
+        # all our instance attributes (_mapping and _keys_at_init). Always use the dict.copy()
+        # method to avoid modifying the original state.
+        state = self.__dict__.copy()
+        # state = self.to_dict().copy()
+        # Remove the unpicklable entries.
+        # del state['file']
+        return state
+
+    def __setstate__(self, state):
+
+        # Restore instance attributes (i.e., _mapping and _keys_at_init).
+        # print(f'SessionConfig.__setstate__(state: {state})')
+        if 'session_context' not in state:
+            from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
+            # self.session_context = None
+            state['session_context'] = None
+            ## Tries to get the appropriate class using its self.format_name and compute its context
+            active_data_mode_registered_class = DataSessionFormatRegistryHolder.get_registry_data_session_type_class_name_dict()[state['format_name']]
+            state['session_context'] = active_data_mode_registered_class.parse_session_basepath_to_context(state['basepath'])
+
+        self.__dict__.update(state)
+        
+
+        

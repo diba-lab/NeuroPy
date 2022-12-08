@@ -143,22 +143,47 @@ class IdentifyingContext(DiffableObject, object):
         return NotImplemented
     
     
-    def to_dict(self, subset_whitelist=None):
+    def to_dict(self, subset_whitelist=None, subset_blacklist=None):
         """ 
         Inputs:
             subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
         """
+        if subset_blacklist is not None:
+            # if we have a blacklist, assert that we don't have a whitelist
+            assert subset_whitelist is None, f"subset_whitelist MUST be None when a subset_blacklist is provided, but instead it's {subset_whitelist}!"
+            subset_whitelist = self.keys(subset_blacklist=subset_blacklist) # get all but the excluded keys
+
         if subset_whitelist is None:
             return benedict(self.__dict__)
         else:
             return benedict(self.__dict__).subset(subset_whitelist)
+
+    def keys(self, subset_whitelist=None, subset_blacklist=None):
+        # return benedict(self.__dict__).keys()
+        if subset_whitelist is None:
+            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_blacklist or [])]
+        else:
+            assert subset_blacklist is None, f"subset_blacklist MUST be None when a subset_whitelist is provided, but instead it's {subset_blacklist}!"
+            return [a_key for a_key in benedict(self.__dict__).subset(subset_whitelist).keys() if a_key not in (subset_blacklist or [])]
+
+    def keypaths(self, subset_whitelist=None, subset_blacklist=None): 
+        if subset_whitelist is None:
+            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_blacklist or [])]
+        else:
+            assert subset_blacklist is None, f"subset_blacklist MUST be None when a subset_whitelist is provided, but instead it's {subset_blacklist}!"
+            return [a_key for a_key in benedict(self.__dict__).subset(subset_whitelist).keys() if a_key not in (subset_blacklist or [])]
+
+
+
+        return benedict(self.__dict__).keypaths()
+
 
     @classmethod
     def init_from_dict(cls, a_dict):
         return cls(**a_dict) # expand the dict as input args.
         
 
-    def as_tuple(self, subset_whitelist=None, drop_missing:bool=False):
+    def as_tuple(self, subset_whitelist=None, subset_blacklist=None, drop_missing:bool=False):
         """ returns a tuple of just its values 
         Inputs:
             subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
@@ -169,9 +194,9 @@ class IdentifyingContext(DiffableObject, object):
 
         """
         if drop_missing:
-            return tuple([v for v in tuple(self.to_dict(subset_whitelist=subset_whitelist).values()) if v is not None]) # Drops all 'None' values in the tuple
+            return tuple([v for v in tuple(self.to_dict(subset_whitelist=subset_whitelist, subset_blacklist=subset_blacklist).values()) if v is not None]) # Drops all 'None' values in the tuple
         else:
-            return tuple(self.to_dict(subset_whitelist=subset_whitelist).values())
+            return tuple(self.to_dict(subset_whitelist=subset_whitelist, subset_blacklist=subset_blacklist).values())
 
 
     def has_keys(self, keys_list):

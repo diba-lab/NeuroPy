@@ -233,6 +233,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         """ parses the session's path to determine its proper context. Depends on the data_type.
         finds global_data_root
 
+        USED: Called only in `cls.build_session(.)`
 
         KDIBA: 'W:/Data/KDIBA/gor01/one/2006-6-09_3-23-37' | context_keys = ['format_name','animal','exper_name', 'session_name']
         HIRO: 'W:/Data/Hiro/RoyMaze1' | context_keys = ['format_name', 'session_name']
@@ -253,6 +254,9 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         assert len(context_keys) == num_parts
         context_kwargs_dict = dict(zip(context_keys, post_data_root_dir_parts))
         curr_sess_ctx = IdentifyingContext(**context_kwargs_dict)
+        # want to replace the 'format_name' with the one known for this session (e.g. 'KDIBA' vs. 'kdiba')
+        format_name = cls.get_session_format_name() 
+        curr_sess_ctx.format_name = format_name
         return curr_sess_ctx # IdentifyingContext<('KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')>
 
 
@@ -269,9 +273,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     def build_session(cls, basedir):
         basedir = Path(basedir)
         session_name = cls.get_session_name(basedir) # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
+        session_context = cls.parse_session_basepath_to_context(basedir) 
         session_spec = cls.get_session_spec(session_name)
         format_name = cls.get_session_format_name()
-        session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name)
+        session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name, session_context=session_context)
         assert session_config.is_resolved, "active_sess_config could not be resolved!"
         session_obj = DataSession(session_config)
         return session_obj
