@@ -49,7 +49,8 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
     _session_default_relative_basedir = r'data/Bapun/Day5TwoNovel'
     _session_default_basedir = r'R:\data\Bapun\Day5TwoNovel' # WINDOWS
     # _session_default_basedir = r'/run/media/halechr/MoverNew/data/Bapun/Day5TwoNovel'
- 
+    _session_basepath_to_context_parsing_keys = ['format_name','animal', 'session_name']
+
     _time_variable_name = 't_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
    
     @classmethod

@@ -198,7 +198,13 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     # Context and Description ____________________________________________________________________________________________ #
     def get_context(self):
         """ returns an IdentifyingContext for the session """
+        
         return IdentifyingContext(format_name=self.format_name, session_name=self.session_name)
+
+
+
+    
+
 
     def get_description(self, prefix_items=['sess'])->str:
         """ returns a simple text descriptor of the session

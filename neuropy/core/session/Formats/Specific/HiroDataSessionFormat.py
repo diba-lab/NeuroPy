@@ -67,6 +67,8 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
     _session_default_relative_basedir = r'PhoMatlabDataScripting\ExportedData\RoyMaze1' # Not quite right on this data
     _session_default_basedir = r'R:\rMBP Python Repos 2022-07-07\PhoNeuronGillespie2021CodeRepo\PhoMatlabDataScripting\ExportedData\RoyMaze1' # WINDOWS
     # _session_default_basedir = r'/run/media/halechr/MoverNew/data/KDIBA/gor01/one/2006-6-07_11-26-53'
+    _session_basepath_to_context_parsing_keys = ['format_name', 'session_name']
+
     _time_variable_name = 't_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format/Hiro data
     
     @classmethod

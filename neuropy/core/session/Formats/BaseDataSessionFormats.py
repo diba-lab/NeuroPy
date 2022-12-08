@@ -16,6 +16,7 @@ from neuropy.analyses.placefields import PlacefieldComputationParameters
 from neuropy.utils.dynamic_container import DynamicContainer, override_dict, overriding_dict_with, get_dict_subset
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from neuropy.utils.position_util import compute_position_grid_size
+from neuropy.utils.result_context import IdentifyingContext
 
 
 class DataSessionFormatRegistryHolder(type):
@@ -147,7 +148,6 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             print(f'global_named_timerange: {global_named_timerange}, first_included_epoch_name: {first_included_epoch_name}, last_included_epoch_name: {last_included_epoch_name}')
         global_epoch_filter_fn = (lambda x: (x.filtered_by_epoch(NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]])), NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]])))
         return {global_epoch_name: global_epoch_filter_fn}, global_named_timerange
-
     
     @classmethod
     def build_default_filter_functions(cls, sess, epoch_name_whitelist=None, filter_name_suffix=None, include_global_epoch=True):
@@ -217,6 +217,44 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         if debug_print:
             print('file_prefix: {}\nfile_basename: {}'.format(file_prefix, file_basename))
         return file_basename # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
+
+
+    @classmethod
+    def get_session_basepath_to_context_parsing_keys(cls):
+        """ Just a wrapper to access the cls._session_basepath_to_context_parsing_keys property
+        Used only by `parse_session_basepath_to_context(.)`
+        """
+        return cls._session_basepath_to_context_parsing_keys
+
+
+
+    @classmethod
+    def parse_session_basepath_to_context(cls, basedir) -> IdentifyingContext:
+        """ parses the session's path to determine its proper context. Depends on the data_type.
+        finds global_data_root
+
+
+        KDIBA: 'W:/Data/KDIBA/gor01/one/2006-6-09_3-23-37' | context_keys = ['format_name','animal','exper_name', 'session_name']
+        HIRO: 'W:/Data/Hiro/RoyMaze1' | context_keys = ['format_name', 'session_name']
+            # Additional parsing needed: W:\Data\Hiro\RoyMaze2
+
+        BAPUN: 'W:/Data/Bapun/RatS/Day5TwoNovel' | context_keys = ['format_name','animal', 'session_name']
+        RACHEL: 'W:/Data/Rachel/merged_M1_20211123_raw_phy' | context_keys = ['format_name', 'session_name']
+
+        """
+        # IdentifyingContext<('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')>
+        basedir = Path(basedir) # basedir WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-07_11-26-53')
+        dir_parts = basedir.parts # ('W:\\', 'Data', 'KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')
+        # Finds the index of the 'Data' or 'data' (global_data_root) part of the path to include only what's after that.
+        data_index = tuple(map(str.casefold, dir_parts)).index('DATA'.casefold()) # .casefold is equivalent to .lower, but works for unicode characters
+        post_data_root_dir_parts = dir_parts[data_index+1:] # ('KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')
+        num_parts = len(post_data_root_dir_parts)
+        context_keys = cls.get_session_basepath_to_context_parsing_keys()
+        assert len(context_keys) == num_parts
+        context_kwargs_dict = dict(zip(context_keys, post_data_root_dir_parts))
+        curr_sess_ctx = IdentifyingContext(**context_kwargs_dict)
+        return curr_sess_ctx # IdentifyingContext<('KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')>
+
 
     @classmethod
     def get_known_data_session_type_properties(cls, override_basepath=None):
