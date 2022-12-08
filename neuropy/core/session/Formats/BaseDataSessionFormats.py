@@ -111,7 +111,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         raise NotImplementedError # innheritor must override
         
     @classmethod
-    def build_global_epoch_filter_config_dict(cls, sess, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None, debug_print=True):
+    def build_global_epoch_filter_config_dict(cls, sess, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None, debug_print=False):
         """ builds the 'global' filter for the entire session that includes by default the times from all other epochs in sess. 
         e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
 
@@ -165,7 +165,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             filter_name_suffix = ''
 
         if include_global_epoch:
-            global_epoch_filter_fn_dict, global_named_timerange = cls.build_global_epoch_filter_config_dict(sess, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None, debug_print=True)
+            global_epoch_filter_fn_dict, global_named_timerange = cls.build_global_epoch_filter_config_dict(sess, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None, debug_print=False)
         else:
             global_epoch_filter_fn_dict = {} # empty dict
 

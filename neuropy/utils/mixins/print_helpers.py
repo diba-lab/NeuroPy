@@ -38,6 +38,42 @@ class OrderedMeta(type):
         return c
     
 
+
+from enum import Enum, unique
+from pyphocorehelpers.DataStructure.enum_helpers import ExtendedEnum
+
+
+@unique
+class FileProgressAction(ExtendedEnum):
+    """Describes the type of file progress actions that can be performed to get the right verbage.
+    Used by `print_file_progress_message(...)`
+    """
+    LOADING = "Loading"
+    SAVING = "Saving"
+    GENERIC = "Generic"
+
+    @classmethod
+    def init(cls, name):
+        if name.upper() == cls.LOADING.name.upper():
+            return cls.LOADING
+        elif name.upper() == cls.SAVING.name.upper():
+            return cls.SAVING
+        elif name.upper() == cls.GENERIC.name.upper():
+            return cls.GENERIC
+        else:
+            return cls.GENERIC
+            # raise NotImplementedError
+        
+    @property
+    def actionVerb(self):
+        return FileProgressAction.actionVerbsList()[self.value]
+
+    # Static properties
+    @classmethod
+    def actionVerbsList(cls):
+        return cls.build_member_value_dict(['from','to',':'])
+    
+
 def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=' ', returns_string=False):
     """[summary]
         
@@ -51,12 +87,13 @@ def print_file_progress_message(filepath, action: str, contents_description: str
         contents_description (str): [description]
     """
     #  print_file_progress_message(ripple_epochs.filename, 'Saving', 'mua results') # replaces: print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
+    parsed_action_type = FileProgressAction.init(action)
     if returns_string:
-        out_string = f'{action} {contents_description} results to {str(filepath)}...'
+        out_string = f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...'
         print(out_string, end=print_line_ending)
         return f'{out_string}{print_line_ending}'
     else:
-        print(f'{action} {contents_description} results to {str(filepath)}...', end=print_line_ending)
+        print(f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...', end=print_line_ending)
     
     
 class ProgressMessagePrinter(object):
