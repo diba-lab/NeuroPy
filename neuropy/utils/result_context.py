@@ -158,7 +158,7 @@ class IdentifyingContext(DiffableObject, object):
         return cls(**a_dict) # expand the dict as input args.
         
 
-    def as_tuple(self, subset_whitelist=None):
+    def as_tuple(self, subset_whitelist=None, drop_missing:bool=False):
         """ returns a tuple of just its values 
         Inputs:
             subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
@@ -168,7 +168,35 @@ class IdentifyingContext(DiffableObject, object):
         curr_sess_ctx_tuple # ('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')
 
         """
-        return tuple(self.to_dict(subset_whitelist=subset_whitelist).values())
+        if drop_missing:
+            return tuple([v for v in tuple(self.to_dict(subset_whitelist=subset_whitelist).values()) if v is not None]) # Drops all 'None' values in the tuple
+        else:
+            return tuple(self.to_dict(subset_whitelist=subset_whitelist).values())
+
+
+    def has_keys(self, keys_list):
+        """ returns a boolean array with each entry indicating whether that element in keys_list was found in the context """
+        is_key_found = [(v is not None) for v in self.as_tuple(subset_whitelist=keys_list)]
+        return is_key_found
+
+    def check_keys(self, keys_list, debug_print=False):
+        """ checks whether it has the keys or not
+        Usage:
+            all_keys_found, found_keys, missing_keys = curr_sess_ctx.check_keys(['format_name','animal','exper_name', 'session_name'], debug_print=False)
+        """
+        is_key_found = self.has_keys(keys_list)
+
+        found_keys = [k for k, is_found in zip(keys_list, is_key_found) if is_found]
+        missing_keys = [k for k, is_found in zip(keys_list, is_key_found) if not is_found]
+
+        all_keys_found = (len(missing_keys) == 0)
+        if not all_keys_found:
+            if debug_print:
+                print(f'missing {len(missing_keys)} keys: {missing_keys}')
+        else:
+            if debug_print:
+                print(f'found all {len(found_keys)} keys: {found_keys}')
+        return all_keys_found, found_keys, missing_keys
 
 
     ## For serialization/pickling:
