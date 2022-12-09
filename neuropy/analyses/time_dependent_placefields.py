@@ -741,9 +741,7 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
         active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
                                         speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                         grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
-        
-        ## TODO: get 1D time-dependent placefields working.
-        # active_epoch_placefields1D = None
+
         print('\t done.')
     else:
         print('active_epoch_placefields1D already exists, reusing it.')
