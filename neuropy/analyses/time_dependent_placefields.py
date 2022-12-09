@@ -624,7 +624,7 @@ class PfND_TimeDependent(PfND):
                 bin_values = (xbin_values, ybin_values)
 
             # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
-            active_pf_spikes_df, out_bins, bin_info = build_df_discretized_binned_position_columns(active_pf_spikes_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False) # removed , position_column_names=pos_col_names, binned_column_names=binned_col_names
+            active_pf_spikes_df, out_bins, bin_info = build_df_discretized_binned_position_columns(active_pf_spikes_df.copy(), bin_values=bin_values, binned_column_names=binned_col_names, position_column_names=pos_col_names, active_computation_config=active_computation_config, force_recompute=False, debug_print=False) # removed , position_column_names=pos_col_names, binned_column_names=binned_col_names
             
             if ndim == 1:
                 # Assume 1D:
