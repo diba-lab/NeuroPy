@@ -142,10 +142,13 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
 
     @classmethod
     def compute_grid_bin_bounds(cls, x, y):
-        grid_bin_bounds = [[np.nanmin(x), np.nanmax(x)], None] # x_range
+        # grid_bin_bounds = [[np.nanmin(x), np.nanmax(x)], None] # x_range
+        # if (y is not None):
+        #     grid_bin_bounds[1] = [np.nanmin(y), np.nanmax(y)] # y_range
+        grid_bin_bounds = [(np.nanmin(x), np.nanmax(x)), None] # x_range
         if (y is not None):
-            grid_bin_bounds[1] = [np.nanmin(y), np.nanmax(y)] # y_range
-        return grid_bin_bounds
+            grid_bin_bounds[1] = (np.nanmin(y), np.nanmax(y)) # y_range
+        return tuple(grid_bin_bounds)
 
 
 
