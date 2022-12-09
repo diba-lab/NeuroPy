@@ -332,6 +332,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
             General.Decoder.decoder_result.py - build_position_df_discretized_binned_positions(...)
     """
     ndim = len(bin_values)
+    print(f'ndim: {ndim}, position_column_names: {position_column_names}, binned_column_names: {binned_column_names}')
     assert len(bin_values) == len(position_column_names) == len(binned_column_names), f"all input tuples should be of equal length (of the n position dimension dimensions to bin, e.g. ('x', 'y')) but len(bin_values): {len(bin_values)} == len(position_column_names): {len(position_column_names)} == len(binned_column_names): {len(binned_column_names)}"
     # See if we need any bin_values computed for any dimension:
     updated_bin_values = []

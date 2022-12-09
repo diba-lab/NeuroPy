@@ -225,22 +225,37 @@ class PfND_TimeDependent(PfND):
         self.setup_time_varying()
         
 
+    @property
+    def dims_coord_tuple(self):
+        """Returns a tuple containing the number of bins in each dimension. For 1D it will be (n_xbins,) for 2D (n_xbins, n_ybins) """
+        n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
+        if (self.ndim > 1):
+            n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
+            dims_coord_ist = (n_xbins, n_ybins)
+        else:
+            # 1D Only
+            n_ybins = None # singleton dimension along this axis. Decide how we want to shape it.
+            dims_coord_ist = (n_xbins,)
+        return dims_coord_ist
+
+
+
     def reset(self):
         """ used to reset the calculations to an initial value. """
         self.setup_time_varying()
 
     def setup_time_varying(self):
         # Initialize for the 0th timestamp:
-        n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
-        n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
-        self.curr_spikes_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
+        dims_coord_tuple = self.dims_coord_tuple
+
+        self.curr_spikes_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, *dims_coord_tuple), dtype=int) # create an initially zero occupancy map
         self.curr_smoothed_spikes_maps_matrix = None
-        self.curr_num_pos_samples_occupancy_map = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero occupancy map
+        self.curr_num_pos_samples_occupancy_map = np.zeros(dims_coord_tuple, dtype=int) # create an initially zero occupancy map
         self.curr_num_pos_samples_smoothed_occupancy_map = None
         self.last_t = 0.0
-        self.curr_seconds_occupancy = np.zeros((n_xbins, n_ybins), dtype=float)
+        self.curr_seconds_occupancy = np.zeros(dims_coord_tuple, dtype=float)
         self.curr_normalized_occupancy = self.curr_seconds_occupancy.copy()
-        self.curr_occupancy_weighted_tuning_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, n_xbins, n_ybins), dtype=float) # will have units of # spikes/sec
+        self.curr_occupancy_weighted_tuning_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, *dims_coord_tuple), dtype=float) # will have units of # spikes/sec
         self.historical_snapshots = OrderedDict({})
 
 
@@ -491,7 +506,7 @@ class PfND_TimeDependent(PfND):
         computed_out_results = PfND_TimeDependent.perform_time_range_computation(self.all_time_filtered_spikes_df, self.all_time_filtered_pos_df, position_srate=self.position_srate,
                                                              xbin=self.xbin, ybin=self.ybin,
                                                              start_time=start_time, end_time=end_time,
-                                                             included_neuron_IDs=self.included_neuron_IDs, active_computation_config=None, override_smooth=self.smooth)
+                                                             included_neuron_IDs=self.included_neuron_IDs, active_computation_config=self.config, override_smooth=self.smooth) # previously active_computation_config=None
 
         if assign_results_to_member_variables:
             # Unwrap the returned variables from the output dictionary and assign them to the member variables:        
@@ -532,30 +547,125 @@ class PfND_TimeDependent(PfND):
                                                              
                                                              
         """
-        def _build_bin_pos_counts(active_pf_pos_df, bin_values=(xbin, ybin), active_computation_config=active_computation_config):
-            active_pf_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_pos_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
-            n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
-            n_ybins = len(ybin) - 1 # the -1 is to get the counts for the centers only
-            num_position_samples_occupancy = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero position occupancy map. # TODO: should it be NaN or np.masked where we haven't visisted at all yet?
-            curr_counts_df = active_pf_pos_df.value_counts(subset=['binned_x', 'binned_y'], normalize=False, sort=False, ascending=True, dropna=True).to_frame(name='counts').reset_index()
-            xbin_indicies = curr_counts_df.binned_x.values.astype('int') - 1
-            ybin_indicies = curr_counts_df.binned_y.values.astype('int') - 1
-            num_position_samples_occupancy[xbin_indicies, ybin_indicies] = curr_counts_df.counts.values # Assignment
-            # num_position_samples_occupancy[xbin_indicies, ybin_indicies] += curr_counts_df.counts.values # Additive
+        def _build_bin_pos_counts(active_pf_pos_df, xbin_values=None, ybin_values=None, active_computation_config=active_computation_config):
+
+            # bin_values=(None, None), position_column_names = ('x', 'y'), binned_column_names = ('binned_x', 'binned_y'),
+            # active_pf_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_pos_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
+
+            ## This version was brought in from PfND.perform_time_range_computation(...):
+            # If xbin_values is not None and ybin_values is None, assume 1D
+            # if xbin_values is not None and ybin_values is None:
+            if 'y' not in active_pf_pos_df.columns:
+                # Assume 1D:
+                ndim = 1
+                pos_col_names = ('x',)
+                binned_col_names = ('binned_x',)
+                bin_values = (xbin_values,)
+            else:
+                # otherwise assume 2D:
+                print('ERROR: 2D!!!')
+                ndim = 2
+                pos_col_names = ('x', 'y')
+                binned_col_names = ('binned_x', 'binned_y')
+                bin_values = (xbin_values, ybin_values)
+
+            # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
+            active_pf_pos_df, out_bins, bin_info = build_df_discretized_binned_position_columns(active_pf_pos_df.copy(), bin_values=bin_values, position_column_names=pos_col_names, binned_column_names=binned_col_names, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)
+            
+            if ndim == 1:
+                # Assume 1D:
+                xbin = out_bins[0]
+                ybin = None
+                n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
+                num_position_samples_occupancy = np.zeros((n_xbins, ), dtype=int) # create an initially zero position occupancy map. # TODO: should it be NaN or np.masked where we haven't visisted at all yet?
+                curr_counts_df = active_pf_pos_df.value_counts(subset=['binned_x'], normalize=False, sort=False, ascending=True, dropna=True).to_frame(name='counts').reset_index()
+                xbin_indicies = curr_counts_df.binned_x.values.astype('int') - 1
+                num_position_samples_occupancy[xbin_indicies] = curr_counts_df.counts.values # Assignment
+
+            else:            
+                (xbin, ybin) = out_bins
+                n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
+                n_ybins = len(ybin) - 1 # the -1 is to get the counts for the centers only
+                num_position_samples_occupancy = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero position occupancy map. # TODO: should it be NaN or np.masked where we haven't visisted at all yet?
+                curr_counts_df = active_pf_pos_df.value_counts(subset=['binned_x', 'binned_y'], normalize=False, sort=False, ascending=True, dropna=True).to_frame(name='counts').reset_index()
+                xbin_indicies = curr_counts_df.binned_x.values.astype('int') - 1
+                ybin_indicies = curr_counts_df.binned_y.values.astype('int') - 1
+                num_position_samples_occupancy[xbin_indicies, ybin_indicies] = curr_counts_df.counts.values # Assignment
+                # num_position_samples_occupancy[xbin_indicies, ybin_indicies] += curr_counts_df.counts.values # Additive
+
+            # Old version:
+            # active_pf_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_pos_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
+            # n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
+            # n_ybins = len(ybin) - 1 # the -1 is to get the counts for the centers only
+            # num_position_samples_occupancy = np.zeros((n_xbins, n_ybins), dtype=int) # create an initially zero position occupancy map. # TODO: should it be NaN or np.masked where we haven't visisted at all yet?
+            # curr_counts_df = active_pf_pos_df.value_counts(subset=['binned_x', 'binned_y'], normalize=False, sort=False, ascending=True, dropna=True).to_frame(name='counts').reset_index()
+            # xbin_indicies = curr_counts_df.binned_x.values.astype('int') - 1
+            # ybin_indicies = curr_counts_df.binned_y.values.astype('int') - 1
+            # num_position_samples_occupancy[xbin_indicies, ybin_indicies] = curr_counts_df.counts.values # Assignment
+            # # num_position_samples_occupancy[xbin_indicies, ybin_indicies] += curr_counts_df.counts.values # Additive
             return curr_counts_df, num_position_samples_occupancy
 
-        def _build_bin_spike_counts(active_pf_spikes_df, neuron_ids=included_neuron_IDs, bin_values=(xbin, ybin), active_computation_config=active_computation_config):
-            active_pf_spikes_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_spikes_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
-            n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
-            n_ybins = len(ybin) - 1 # the -1 is to get the counts for the centers only
-            n_neuron_ids = len(neuron_ids)
-            curr_spikes_map_dict = {neuron_id:np.zeros((n_xbins, n_ybins), dtype=int) for neuron_id in neuron_ids} # create an initially zero spikes map, one for each possible neruon_id, even if there aren't spikes for that neuron yet
-            curr_counts_df = active_pf_spikes_df.value_counts(subset=['aclu', 'binned_x', 'binned_y'], sort=False).to_frame(name='counts').reset_index()
-            for name, group in curr_counts_df.groupby('aclu'):
-                xbin_indicies = group.binned_x.values.astype('int') - 1
-                ybin_indicies = group.binned_y.values.astype('int') - 1
-                # curr_spikes_map_dict[name][xbin_indicies, ybin_indicies] += group.counts.values # Additive
-                curr_spikes_map_dict[name][xbin_indicies, ybin_indicies] = group.counts.values # Assignment
+        def _build_bin_spike_counts(active_pf_spikes_df, neuron_ids=included_neuron_IDs, xbin_values=None, ybin_values=None, active_computation_config=active_computation_config):
+            ## This version was brought in from PfND.perform_time_range_computation(...):
+            # If xbin_values is not None and ybin_values is None, assume 1D
+            # if xbin_values is not None and ybin_values is None:
+            if 'y' not in active_pf_spikes_df.columns:
+                # Assume 1D:
+                ndim = 1
+                pos_col_names = ('x',)
+                binned_col_names = ('binned_x',)
+                bin_values = (xbin_values,)
+            else:
+                # otherwise assume 2D:
+                print('ERROR: 2D!!!')
+                ndim = 2
+                pos_col_names = ('x', 'y')
+                binned_col_names = ('binned_x', 'binned_y')
+                bin_values = (xbin_values, ybin_values)
+
+            # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
+            active_pf_spikes_df, out_bins, bin_info = build_df_discretized_binned_position_columns(active_pf_spikes_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False) # removed , position_column_names=pos_col_names, binned_column_names=binned_col_names
+            
+            if ndim == 1:
+                # Assume 1D:
+                xbin = out_bins[0]
+                ybin = None
+                n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
+                n_neuron_ids = len(neuron_ids)
+                curr_spikes_map_dict = {neuron_id:np.zeros((n_xbins, ), dtype=int) for neuron_id in neuron_ids} # create an initially zero spikes map, one for each possible neruon_id, even if there aren't spikes for that neuron yet
+                curr_counts_df = active_pf_spikes_df.value_counts(subset=['aclu', 'binned_x'], sort=False).to_frame(name='counts').reset_index()
+                for name, group in curr_counts_df.groupby('aclu'):
+                    xbin_indicies = group.binned_x.values.astype('int') - 1
+                    # curr_spikes_map_dict[name][xbin_indicies, ybin_indicies] += group.counts.values # Additive
+                    curr_spikes_map_dict[name][xbin_indicies] = group.counts.values # Assignment
+
+            else:
+                # Regular 2D:
+                (xbin, ybin) = out_bins
+                n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
+                n_ybins = len(ybin) - 1 # the -1 is to get the counts for the centers only
+                n_neuron_ids = len(neuron_ids)
+                curr_spikes_map_dict = {neuron_id:np.zeros((n_xbins, n_ybins), dtype=int) for neuron_id in neuron_ids} # create an initially zero spikes map, one for each possible neruon_id, even if there aren't spikes for that neuron yet
+                curr_counts_df = active_pf_spikes_df.value_counts(subset=['aclu', 'binned_x', 'binned_y'], sort=False).to_frame(name='counts').reset_index()
+                for name, group in curr_counts_df.groupby('aclu'):
+                    xbin_indicies = group.binned_x.values.astype('int') - 1
+                    ybin_indicies = group.binned_y.values.astype('int') - 1
+                    # curr_spikes_map_dict[name][xbin_indicies, ybin_indicies] += group.counts.values # Additive
+                    curr_spikes_map_dict[name][xbin_indicies, ybin_indicies] = group.counts.values # Assignment
+
+
+            ## Old Version:
+            # active_pf_spikes_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_spikes_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
+            # n_xbins = len(xbin) - 1 # the -1 is to get the counts for the centers only
+            # n_ybins = len(ybin) - 1 # the -1 is to get the counts for the centers only
+            # n_neuron_ids = len(neuron_ids)
+            # curr_spikes_map_dict = {neuron_id:np.zeros((n_xbins, n_ybins), dtype=int) for neuron_id in neuron_ids} # create an initially zero spikes map, one for each possible neruon_id, even if there aren't spikes for that neuron yet
+            # curr_counts_df = active_pf_spikes_df.value_counts(subset=['aclu', 'binned_x', 'binned_y'], sort=False).to_frame(name='counts').reset_index()
+            # for name, group in curr_counts_df.groupby('aclu'):
+            #     xbin_indicies = group.binned_x.values.astype('int') - 1
+            #     ybin_indicies = group.binned_y.values.astype('int') - 1
+            #     # curr_spikes_map_dict[name][xbin_indicies, ybin_indicies] += group.counts.values # Additive
+            #     curr_spikes_map_dict[name][xbin_indicies, ybin_indicies] = group.counts.values # Assignment
             return curr_counts_df, curr_spikes_map_dict
 
 
@@ -575,13 +685,15 @@ class PfND_TimeDependent(PfND):
         active_pf_spikes_df = active_pf_spikes_df.spikes.time_sliced(start_time, end_time)
         active_pf_pos_df = active_pf_pos_df.position.time_sliced(start_time, end_time)
 
-        counts_df, num_position_samples_occupancy = _build_bin_pos_counts(active_pf_pos_df, bin_values=(xbin, ybin), active_computation_config=active_computation_config)
-        spikes_counts_df, spikes_map_dict = _build_bin_spike_counts(active_pf_spikes_df, neuron_ids=included_neuron_IDs, bin_values=(xbin, ybin), active_computation_config=active_computation_config)
+        counts_df, num_position_samples_occupancy = _build_bin_pos_counts(active_pf_pos_df, xbin_values=xbin, ybin_values=ybin, active_computation_config=active_computation_config)
+        spikes_counts_df, spikes_map_dict = _build_bin_spike_counts(active_pf_spikes_df, neuron_ids=included_neuron_IDs, xbin_values=xbin, ybin_values=ybin, active_computation_config=active_computation_config)
         # Convert curr_spikes_map_dict from a dict into the expected 3-dim matrix:
         spikes_maps_matrix = np.array([spikes_matrix for an_aclu, spikes_matrix in spikes_map_dict.items()])  # spikes_maps_matrix.shape # (40, 64, 29) (len(curr_spikes_map_dict), n_xbins, n_ybins)
 
         # active_computation_config.grid_bin, smooth=active_computation_config.smooth
         seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_position_samples_occupancy, position_srate=position_srate)
+
+        ## TODO: Copy the 1D Gaussian filter code here. Currently it always does 2D:
 
         # Smooth the final tuning map if needed and valid smooth parameter. Default FALSE.
         if (cls.should_smooth_spatial_occupancy_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
@@ -619,12 +731,12 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
         print('Recomputing active_epoch_time_dependent_placefields...', end=' ')
         # PfND version:
-        # active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
-        #                                 speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-        #                                 grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
+        active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
+                                        speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+                                        grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
         
         ## TODO: get 1D time-dependent placefields working.
-        active_epoch_placefields1D = None
+        # active_epoch_placefields1D = None
         print('\t done.')
     else:
         print('active_epoch_placefields1D already exists, reusing it.')
