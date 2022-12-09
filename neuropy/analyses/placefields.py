@@ -756,12 +756,12 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     @property
     def included_neuron_IDXs(self):
         """The neuron INDEXES, NOT IDs (not 'aclu' values) that were included after filtering by frate and etc. """
-        return self._included_thresh_neurons_indx
+        return self._included_thresh_neurons_indx ## TODO: these are basically wrong, we should use self.ratemap.neuron_IDs instead!
     
     @property
     def included_neuron_IDs(self):
         """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
-        return self._filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs]
+        return self._filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs] ## TODO: these are basically wrong, we should use self.ratemap.neuron_IDs instead!
     
     
     
