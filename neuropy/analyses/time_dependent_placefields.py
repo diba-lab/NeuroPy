@@ -196,6 +196,11 @@ class PfND_TimeDependent(PfND):
         # Perform the primary setup to build the placefield
         self.setup(position, spikes_df, epochs) # Sets up self.xbin, self.ybin, self.bin_info, self._filtered_pos_df, self.filtered_spikes_df
         
+        if (self.ndim < 2):
+            # Drop any 'y' related columns if it's a 1D version:
+            print(f"dropping 'y'-related columns in self._filtered_spikes_df because self.ndim: {self.ndim} (< 2).")
+            self._filtered_spikes_df.drop(columns=['y','y_loaded'], inplace=True)
+
         self._filtered_pos_df.dropna(axis=0, how='any', subset=[*self._position_variable_names], inplace=True) # dropped NaN values
         
         if 'binned_x' in self._filtered_pos_df:
@@ -694,6 +699,10 @@ class PfND_TimeDependent(PfND):
         if (cls.should_smooth_final_tuning_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
             occupancy_weighted_tuning_maps_matrix = gaussian_filter(occupancy_weighted_tuning_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
             
+
+
+
+
         return DynamicContainer.init_from_dict({'num_position_samples_occupancy': num_position_samples_occupancy, 'seconds_occupancy': seconds_occupancy,
          'spikes_maps_matrix': spikes_maps_matrix, 'smoothed_spikes_maps_matrix': smoothed_spikes_maps_matrix,
          'occupancy_weighted_tuning_maps_matrix':occupancy_weighted_tuning_maps_matrix})
