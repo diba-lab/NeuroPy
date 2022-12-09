@@ -681,25 +681,41 @@ class PfND_TimeDependent(PfND):
         seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_position_samples_occupancy, position_srate=position_srate)
 
         ## TODO: Copy the 1D Gaussian filter code here. Currently it always does 2D:
+        if 'y' not in active_pf_spikes_df.columns:
+            # Assume 1D:
+            ndim = 1
+            smooth_criteria_fn = lambda smooth: (smooth > 0.0)
+            occupancy_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter1d(x, sigma=smooth) 
+            spikes_maps_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter1d(x, sigma=smooth) 
+        else:
+            # otherwise assume 2D:
+            ndim = 2
+            smooth_criteria_fn = lambda smooth: ((smooth[0] > 0.0) & (smooth[1] > 0.0))
+            occupancy_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter(x, sigma=(smooth[1], smooth[0])) 
+            spikes_maps_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter(x, sigma=(0, smooth[1], smooth[0])) 
+
 
         # Smooth the final tuning map if needed and valid smooth parameter. Default FALSE.
-        if (cls.should_smooth_spatial_occupancy_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
-            num_position_samples_occupancy = gaussian_filter(num_position_samples_occupancy, sigma=(smooth[1], smooth[0])) 
-            seconds_occupancy = gaussian_filter(seconds_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
+        if (cls.should_smooth_spatial_occupancy_map and (smooth is not None) and smooth_criteria_fn(smooth)):
+            # num_position_samples_occupancy = gaussian_filter(num_position_samples_occupancy, sigma=(smooth[1], smooth[0])) 
+            # seconds_occupancy = gaussian_filter(seconds_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
+            num_position_samples_occupancy = occupancy_smooth_gaussian_filter_fn(num_position_samples_occupancy, smooth) 
+            seconds_occupancy = occupancy_smooth_gaussian_filter_fn(seconds_occupancy, smooth)
+            
 
         # Smooth the spikes maps if needed and valid smooth parameter. Default False.
-        if (cls.should_smooth_spikes_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
-            smoothed_spikes_maps_matrix = gaussian_filter(spikes_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
+        if (cls.should_smooth_spikes_map and (smooth is not None) and smooth_criteria_fn(smooth)): 
+            # smoothed_spikes_maps_matrix = gaussian_filter(spikes_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
+            smoothed_spikes_maps_matrix = spikes_maps_smooth_gaussian_filter_fn(spikes_maps_matrix, smooth)
             occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(seconds_occupancy, smoothed_spikes_maps_matrix)
         else:
             smoothed_spikes_maps_matrix = None
             occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(seconds_occupancy, spikes_maps_matrix)
 
         # Smooth the final tuning map if needed and valid smooth parameter. Default True.            
-        if (cls.should_smooth_final_tuning_map and (smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
-            occupancy_weighted_tuning_maps_matrix = gaussian_filter(occupancy_weighted_tuning_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
-            
-
+        if (cls.should_smooth_final_tuning_map and (smooth is not None) and smooth_criteria_fn(smooth)): 
+            # occupancy_weighted_tuning_maps_matrix = gaussian_filter(occupancy_weighted_tuning_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
+            occupancy_weighted_tuning_maps_matrix = spikes_maps_smooth_gaussian_filter_fn(occupancy_weighted_tuning_maps_matrix, smooth)
 
 
 
