@@ -129,13 +129,8 @@ class PfND_TimeDependent(PfND):
         """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
         # return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, spikes_maps=self.curr_spikes_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
         # DO I need neuron_ids=self.frate_filter_fcn(self.included_neuron_IDs)?
-        
-        # curr_smoothed_spikes_maps_matrix
-        
-        
-        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix[self._included_thresh_neurons_indx,:,:], spikes_maps=self.curr_spikes_maps_matrix[self._included_thresh_neurons_indx,:,:],
+        return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix[self._included_thresh_neurons_indx], spikes_maps=self.curr_spikes_maps_matrix[self._included_thresh_neurons_indx],
                        xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
-    
     
     
 
@@ -198,7 +193,7 @@ class PfND_TimeDependent(PfND):
         
         if (self.ndim < 2):
             # Drop any 'y' related columns if it's a 1D version:
-            print(f"dropping 'y'-related columns in self._filtered_spikes_df because self.ndim: {self.ndim} (< 2).")
+            # print(f"dropping 'y'-related columns in self._filtered_spikes_df because self.ndim: {self.ndim} (< 2).")
             self._filtered_spikes_df.drop(columns=['y','y_loaded'], inplace=True)
 
         self._filtered_pos_df.dropna(axis=0, how='any', subset=[*self._position_variable_names], inplace=True) # dropped NaN values
