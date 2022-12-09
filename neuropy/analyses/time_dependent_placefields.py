@@ -684,9 +684,9 @@ class PfND_TimeDependent(PfND):
         if 'y' not in active_pf_spikes_df.columns:
             # Assume 1D:
             ndim = 1
-            smooth_criteria_fn = lambda smooth: (smooth > 0.0)
-            occupancy_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter1d(x, sigma=smooth) 
-            spikes_maps_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter1d(x, sigma=smooth) 
+            smooth_criteria_fn = lambda smooth: (smooth[0] > 0.0)
+            occupancy_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter1d(x, sigma=smooth[0]) 
+            spikes_maps_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter1d(x, sigma=smooth[0]) 
         else:
             # otherwise assume 2D:
             ndim = 2
