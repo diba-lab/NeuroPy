@@ -32,12 +32,16 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
     variable_names=['speed_thresh', 'grid_bin', 'smooth', 'frate_thresh']
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
-    
-    def __init__(self, speed_thresh=3, grid_bin=2, smooth=2, frate_thresh=1, **kwargs):
+    # Note that I think it's okay to exclude `self.grid_bin_bounds` from these lists
+
+    def __init__(self, speed_thresh=3, grid_bin=2, grid_bin_bounds=None, smooth=2, frate_thresh=1, **kwargs):
         self.speed_thresh = speed_thresh
         if not isinstance(grid_bin, (tuple, list)):
             grid_bin = (grid_bin, grid_bin) # make it into a 2 element tuple
         self.grid_bin = grid_bin
+        if not isinstance(grid_bin_bounds, (tuple, list)):
+            grid_bin_bounds = (grid_bin_bounds, grid_bin_bounds) # make it into a 2 element tuple
+        self.grid_bin_bounds = grid_bin_bounds
         if not isinstance(smooth, (tuple, list)):
             smooth = (smooth, smooth) # make it into a 2 element tuple
         self.smooth = smooth
@@ -55,6 +59,14 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             return self.grid_bin
         else:
             return self.grid_bin[0]
+
+    @property
+    def grid_bin_bounds_1D(self):
+        """The grid_bin_bounds property."""
+        if np.isscalar(self.grid_bin_bounds):
+            return self.grid_bin_bounds
+        else:
+            return self.grid_bin_bounds[0]
 
     @property
     def smooth_1D(self):
@@ -118,8 +130,6 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             time_bin_size	0.5
         """
         return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char)
-        
-
 
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
@@ -128,6 +138,16 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         values_tuple = list(self.__dict__.values())
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
+
+
+    @classmethod
+    def compute_grid_bin_bounds(cls, x, y):
+        grid_bin_bounds = [[np.nanmin(x), np.nanmax(x)], None] # x_range
+        if (y is not None):
+            grid_bin_bounds[1] = [np.nanmin(y), np.nanmax(y)] # y_range
+        return grid_bin_bounds
+
+
 
 def _normalized_occupancy(raw_occupancy, position_srate=None):
     """Computes seconds_occupancy and normalized_occupancy from the raw_occupancy. See Returns section for definitions and more info.
@@ -449,7 +469,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. """
 
-    def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
+    def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
 
@@ -466,7 +486,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         """
         self._save_intermediate_spikes_maps = True # False is not yet implemented
         # save the config that was used to perform the computations
-        self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
+        self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh)
         self.position_srate = position.sampling_rate
         # Set the dimensionality of the PfND object from the position's dimensionality
         self.ndim = position.ndim
@@ -537,7 +557,8 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
         
-        ## Binning with Fixed bin size:    
+        ## Binning with Fixed bin size:
+        # TODO: 2022-12-09 - We want to be able to have both long/short track placefields have the same bins. 
         if (self.ndim > 1):
             self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy(), bin_size=self.config.grid_bin) # bin_size mode                        
         else:
@@ -871,7 +892,10 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         
         return active_pos_df, xbin, ybin, bin_info
 
-### Global Placefield Computation Functions
+
+# ==================================================================================================================== #
+# Global Placefield Computation Functions                                                                              #
+# ==================================================================================================================== #
 """ Global Placefield perform Computation Functions """
 
 def perform_compute_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
@@ -889,7 +913,7 @@ def perform_compute_placefields(active_session_spikes_df, active_pos, computatio
         # PfND version:
         active_epoch_placefields1D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-                                          grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+                                          grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
 
         print('\t done.')
     else:
@@ -901,7 +925,7 @@ def perform_compute_placefields(active_session_spikes_df, active_pos, computatio
         # PfND version:
         active_epoch_placefields2D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-                                          grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+                                          grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
 
         print('\t done.')
     else:

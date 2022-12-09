@@ -140,7 +140,7 @@ class PfND_TimeDependent(PfND):
     
 
 
-    def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1)):
+    def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
 
@@ -178,7 +178,7 @@ class PfND_TimeDependent(PfND):
         
         """
         # save the config that was used to perform the computations
-        self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, smooth=smooth, frate_thresh=frate_thresh)
+        self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh)
         self.position_srate = position.sampling_rate
         # Set the dimensionality of the PfND object from the position's dimensionality
         self.ndim = position.ndim
@@ -621,7 +621,7 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
         # PfND version:
         # active_epoch_placefields1D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
         #                                 speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-        #                                 grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+        #                                 grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
         
         ## TODO: get 1D time-dependent placefields working.
         active_epoch_placefields1D = None
@@ -635,7 +635,7 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
         # PfND version:
         active_epoch_placefields2D = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
                                         speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
-                                        grid_bin=computation_config.grid_bin, smooth=computation_config.smooth)
+                                        grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
 
         print('\t done.')
     else:

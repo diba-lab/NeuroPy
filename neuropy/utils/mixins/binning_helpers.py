@@ -297,7 +297,7 @@ def bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
         bin_info_out_dict = {'mode':mode, 'xstep':xstep, 'xnum_bins':xnum_bins}
         if y is not None:
             # if at least 2D output, add the y-axis properties to the info dictionary
-            bin_info_out_dict['ystep'], bin_info_out_dict['ynum_bins']  = ystep, ynum_bins
+            bin_info_out_dict['ystep'], bin_info_out_dict['ynum_bins'] = ystep, ynum_bins
         else:
             ybin = None
             
