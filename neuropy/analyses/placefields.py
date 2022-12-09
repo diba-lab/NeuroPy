@@ -378,16 +378,28 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         else:
             smooth_spikes_map = smooth
         spikes_map, unsmoothed_spikes_map = Pf1D._compute_spikes_map(spk_x, xbin, smooth_spikes_map)
-        never_smoothed_tuning_map = unsmoothed_spikes_map / occupancy # completely unsmoothed tuning map
-        tuning_map = spikes_map / occupancy # tuning map that hasn't yet been smoothed but uses the potentially smoothed spikes_map
         
+        # never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # completely unsmoothed tuning map
+        # occupancy_weighted_tuning_map = spikes_map / occupancy # tuning map that hasn't yet been smoothed but uses the potentially smoothed spikes_map
+        
+        ## Copied from Pf2D._compute_tuning_map to handle zero occupancy locations:
+        occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
+        never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        never_smoothed_occupancy_weighted_tuning_map = np.nan_to_num(never_smoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        unsmoothed_occupancy_weighted_tuning_map = spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
+        unsmoothed_occupancy_weighted_tuning_map = np.nan_to_num(unsmoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
+        occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
+
+
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and (smooth > 0.0)):
-            tuning_map = gaussian_filter1d(tuning_map, sigma=smooth)
+            occupancy_weighted_tuning_map = gaussian_filter1d(unsmoothed_occupancy_weighted_tuning_map, sigma=smooth)
+        else:
+            occupancy_weighted_tuning_map = unsmoothed_occupancy_weighted_tuning_map
         
         if should_also_return_intermediate_spikes_map:
-            return tuning_map, never_smoothed_tuning_map, spikes_map, unsmoothed_spikes_map
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map, spikes_map, unsmoothed_spikes_map
         else:
-            return tuning_map, never_smoothed_tuning_map
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
     
     def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=1, smooth=1, ):
         raise DeprecationWarning
@@ -656,7 +668,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         filtered_unsmoothed_tuning_maps = np.asarray(self._peak_frate_filter_function(unsmoothed_tuning_maps.copy()))
         
         filtered_spikes_maps = self._peak_frate_filter_function(spikes_maps.copy())
-        filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)        
+        filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)
         filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
         
         self.ratemap = Ratemap(filtered_tuning_maps, unsmoothed_tuning_maps=filtered_unsmoothed_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
