@@ -568,7 +568,6 @@ class PfND_TimeDependent(PfND):
                 bin_values = (xbin_values,)
             else:
                 # otherwise assume 2D:
-                print('ERROR: 2D!!!')
                 ndim = 2
                 pos_col_names = ('x', 'y')
                 binned_col_names = ('binned_x', 'binned_y')
@@ -612,7 +611,6 @@ class PfND_TimeDependent(PfND):
                 bin_values = (xbin_values,)
             else:
                 # otherwise assume 2D:
-                print('ERROR: 2D!!!')
                 ndim = 2
                 pos_col_names = ('x', 'y')
                 binned_col_names = ('binned_x', 'binned_y')

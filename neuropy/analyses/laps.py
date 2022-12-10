@@ -47,17 +47,14 @@ from neuropy.core.laps import Laps
 #     desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = _perform_estimate_laps(pos_df, hardcoded_track_midpoint_x=hardcoded_track_midpoint_x)
 #     custom_test_laps_obj = _build_laps_object(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings)
 
-def compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
-    ## Determine the spikes included with each computed lap:
-    laps_obj._data = perform_compute_laps_spike_indicies(laps_obj._data, spikes_df, time_variable_name=time_variable_name) # adds the 'start_spike_index' and 'end_spike_index' columns to the dataframe
-    laps_obj._data = Laps._update_dataframe_computed_vars(laps_obj._data) # call this to update the column types and any computed columns that depend on the added columns (such as num_spikes)
-    return laps_obj
 
 
-def perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
+def _subfn_perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
     """ Adds the 'start_spike_index' and 'end_spike_index' columns to the laps_df
     laps_df has two columns added: 'start_spike_index' and 'end_spike_index'
     spikes_df is not modified
+        
+    Known Usages: Called only by `compute_laps_spike_indicies(...)`
     """
     n_laps = len(laps_df['start'])
     start_spike_index = np.zeros_like(laps_df['start'])
@@ -72,12 +69,20 @@ def perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.Dat
     laps_df['start_spike_index'] = start_spike_index
     laps_df['end_spike_index'] = end_spike_index
 
-    # laps_df['start_spike_index'] = spikes_df.loc[start_spike_index, 'flat_spike_idx']
-    # laps_df['end_spike_index'] = spikes_df.loc[end_spike_index, 'flat_spike_idx']
     return laps_df
 
+
+def _subfn_compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
+    """ Determine the spikes included with each computed lap 
+
+    Called only by `estimation_session_laps(...)`    
+    """
+    laps_obj._data = _subfn_perform_compute_laps_spike_indicies(laps_obj._data, spikes_df, time_variable_name=time_variable_name) # adds the 'start_spike_index' and 'end_spike_index' columns to the dataframe
+    laps_obj._data = Laps._update_dataframe_computed_vars(laps_obj._data) # call this to update the column types and any computed columns that depend on the added columns (such as num_spikes)
+    return laps_obj
+
  
-def estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
+def _subfn_perform_estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
     """ Pho 2021-12-20 - Custom lap computation based on position/velocity thresholding to detect laps
     pos_df
     hardcoded_track_midpoint_x: Take 150.0 as the x midpoint line to be crossed for each trajectory
@@ -85,6 +90,7 @@ def estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
     Usage:
         desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = estimate_laps(pos_df)
         
+    Known Usages: Called only by `estimation_session_laps(...)`
     """
     assert set(['x','velocity_x_smooth']).issubset(pos_df.columns), 'pos_df requires the columns "x", and "velocity_x_smooth" at a minimum'
     zero_centered_x = pos_df['x'] - hardcoded_track_midpoint_x
@@ -100,6 +106,20 @@ def estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
 
     asc_crossing_beginings = np.zeros_like(asc_crossing_midpoints)
     asc_crossing_endings = np.zeros_like(asc_crossing_midpoints)
+
+    ## Ensure that there are the same number of desc/asc crossings (meaning full laps). Drop the last one of the set that has the extra if they aren't equal.
+    if len(desc_crossing_midpoints) > len(asc_crossing_midpoints):
+        print(f'WARNING: must drop last desc_crossing_midpoint.')
+        assert len(desc_crossing_midpoints) > 1
+        desc_crossing_midpoints = desc_crossing_midpoints[:-1] # all but the very last which is dropped
+        
+    elif len(asc_crossing_midpoints) > len(desc_crossing_midpoints):
+        print(f'WARNING: must drop last asc_crossing_midpoints.')
+        assert len(asc_crossing_midpoints) > 1
+        asc_crossing_midpoints = asc_crossing_midpoints[:-1] # all but the very last which is dropped
+        
+    assert len(asc_crossing_midpoints) == len(desc_crossing_midpoints), f"desc_crossings_x: {np.shape(desc_crossing_midpoints)}, asc_crossings_x: {np.shape(asc_crossing_midpoints)}"
+    desc_crossing_midpoints, asc_crossing_midpoints
 
     # testing-only, work on a single crossing:
     for a_desc_crossing_i in np.arange(len(desc_crossing_midpoints)):
@@ -165,10 +185,10 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
     # custom_test_laps = deepcopy(sess.laps)
     spikes_df = deepcopy(sess.spikes_df)
 
-    desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = estimate_laps(pos_df)
+    desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = _subfn_perform_estimate_laps(pos_df)
     custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_endings, asc_crossing_beginings, asc_crossing_endings)
     ## Determine the spikes included with each computed lap:
-    custom_test_laps_obj = compute_laps_spike_indicies(custom_test_laps_obj, spikes_df, time_variable_name=time_variable_name)
+    custom_test_laps_obj = _subfn_compute_laps_spike_indicies(custom_test_laps_obj, spikes_df, time_variable_name=time_variable_name)
     sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
 
     if should_plot_laps_2d:

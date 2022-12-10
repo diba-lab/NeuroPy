@@ -490,7 +490,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 
         Parameters
         ----------
-        spikes_df: pd.DataFrame
+        spikes_df: pd.Dahistorical_snapshotstaFrame
         position : core.Position
         epochs : core.Epoch
             specifies the list of epochs to include.
