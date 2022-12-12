@@ -129,12 +129,31 @@ class PfND_TimeDependent(PfND):
         """The ratemap property is computed only as needed. Note, this might be the slowest way to get this data, it's like this just for compatibility with the other display functions."""
         # return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix, spikes_maps=self.curr_spikes_maps_matrix, xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
         # DO I need neuron_ids=self.frate_filter_fcn(self.included_neuron_IDs)?
+
         return Ratemap(self.curr_occupancy_weighted_tuning_maps_matrix[self._included_thresh_neurons_indx], spikes_maps=self.curr_spikes_maps_matrix[self._included_thresh_neurons_indx],
                        xbin=self.xbin, ybin=self.ybin, neuron_ids=self.included_neuron_IDs, occupancy=self.curr_seconds_occupancy, neuron_extended_ids=self.frate_filter_fcn(self.all_time_filtered_spikes_df.spikes.neuron_probe_tuple_ids))
-    
-    
+
+        ## Passes self.included_neuron_IDs explicitly
 
 
+    
+    @property
+    def dims_coord_tuple(self):
+        """Returns a tuple containing the number of bins in each dimension. For 1D it will be (n_xbins,) for 2D (n_xbins, n_ybins) """
+        n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
+        if (self.ndim > 1):
+            n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
+            dims_coord_ist = (n_xbins, n_ybins)
+        else:
+            # 1D Only
+            n_ybins = None # singleton dimension along this axis. Decide how we want to shape it.
+            dims_coord_ist = (n_xbins,)
+        return dims_coord_ist
+
+
+    # ==================================================================================================================== #
+    # Initializer                                                                                                          #
+    # ==================================================================================================================== #
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1)):
         """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
         without speed thresholds.
@@ -225,27 +244,16 @@ class PfND_TimeDependent(PfND):
         self.setup_time_varying()
         
 
-    @property
-    def dims_coord_tuple(self):
-        """Returns a tuple containing the number of bins in each dimension. For 1D it will be (n_xbins,) for 2D (n_xbins, n_ybins) """
-        n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
-        if (self.ndim > 1):
-            n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
-            dims_coord_ist = (n_xbins, n_ybins)
-        else:
-            # 1D Only
-            n_ybins = None # singleton dimension along this axis. Decide how we want to shape it.
-            dims_coord_ist = (n_xbins,)
-        return dims_coord_ist
-
-
+# ==================================================================================================================== #
+# Time-dependent state manipulation                                                                                    #
+# ==================================================================================================================== #
 
     def reset(self):
         """ used to reset the calculations to an initial value. """
         self.setup_time_varying()
 
     def setup_time_varying(self):
-        # Initialize for the 0th timestamp:
+        """ Initialize for the 0th timestamp """
         dims_coord_tuple = self.dims_coord_tuple
 
         self.curr_spikes_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, *dims_coord_tuple), dtype=int) # create an initially zero occupancy map
