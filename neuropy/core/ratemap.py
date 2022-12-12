@@ -92,9 +92,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     @property
     def normalized_tuning_curves(self):
         return self.pdf_normalized_tuning_curves
-        # return self.minmax_normalized_tuning_curves
-        # return mathutil.min_max_scaler(self.tuning_curves)
-        # return Ratemap.NormalizeData(self.tuning_curves)
+        
 
     # ---------------------- occupancy properties -------------------------
     @property
