@@ -11,23 +11,35 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         In addition, it also holds (tuning curves).
         
         
+    Internal:
+
+
+        # Map Properties:
+        self.occupancy 
+        self.spikes_maps
+        self.tuning_curves
+        self.unsmoothed_tuning_maps
+
+        # Neuron Identity:
+        self._neuron_ids
+        self._neuron_extended_ids
+
+        # Position Identity:
+        self.xbin
+        self.ybin
+        
+        # Other:
+        self.metadata
+        
     Args:
         NeuronIdentitiesDisplayerMixin (_type_): _description_
         RatemapPlottingMixin (_type_): _description_
         DataWriter (_type_): _description_
     """
-    def __init__(
-        self,
-        tuning_curves,
-        unsmoothed_tuning_maps=None,
-        spikes_maps=None,
-        xbin=None,
-        ybin=None,
-        occupancy=None,
-        neuron_ids=None,
-        neuron_extended_ids=None,
-        metadata=None,
-    ) -> None:
+    def __init__(self, tuning_curves, unsmoothed_tuning_maps=None, spikes_maps=None, 
+        xbin=None, ybin=None, occupancy=None,
+        neuron_ids=None, neuron_extended_ids=None, metadata=None) -> None:
+        
         super().__init__()
 
         self.spikes_maps = np.asarray(spikes_maps)
@@ -74,7 +86,6 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
     def neuron_extended_ids(self):
         """The neuron_extended_ids property."""
         return self._neuron_extended_ids
-        # return self.metadata['tuple_neuron_ids']
     @neuron_extended_ids.setter
     def neuron_extended_ids(self, value):
         self._neuron_extended_ids = value
