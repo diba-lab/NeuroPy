@@ -407,26 +407,6 @@ class PfND_TimeDependent(PfND):
 
     def _apply_snapshot_data(self, snapshot_t, snapshot_data):
         """ applys the snapshot_data to replace the current state of this object (except for historical_snapshots) """
-         
-        ## Unwrap the returned variables from the output dictionary and assign them to the member variables:        
-        # self.curr_seconds_occupancy = snapshot_data.seconds_occupancy
-        # self.curr_normalized_occupancy = snapshot_data.normalized_occupancy
-        # self.curr_num_pos_samples_occupancy_map = snapshot_data.num_position_samples_occupancy
-        # self.curr_spikes_maps_matrix = snapshot_data.spikes_maps_matrix
-        # self.curr_smoothed_spikes_maps_matrix = snapshot_data.smoothed_spikes_maps_matrix
-        # self.curr_occupancy_weighted_tuning_maps_matrix = snapshot_data.occupancy_weighted_tuning_maps_matrix
-        
-
-        ## Previous dict-only version:
-        # self.curr_spikes_maps_matrix = snapshot_data['spikes_maps_matrix']
-        # self.curr_smoothed_spikes_maps_matrix = snapshot_data['smoothed_spikes_maps_matrix']
-        # self.curr_num_pos_samples_occupancy_map = snapshot_data['raw_occupancy_map']
-        # self.curr_num_pos_samples_smoothed_occupancy_map = snapshot_data['raw_smoothed_occupancy_map']
-
-        # self.curr_seconds_occupancy = snapshot_data['seconds_occupancy']
-        # self.curr_normalized_occupancy = snapshot_data['normalized_occupancy']
-        # self.curr_occupancy_weighted_tuning_maps_matrix = snapshot_data['occupancy_weighted_tuning_maps_matrix']
-
         ## PlacefieldSnapshot class version:
         self.curr_spikes_maps_matrix = snapshot_data.spikes_maps_matrix
         self.curr_smoothed_spikes_maps_matrix = snapshot_data.smoothed_spikes_maps_matrix
@@ -436,7 +416,6 @@ class PfND_TimeDependent(PfND):
         self.curr_seconds_occupancy = snapshot_data.seconds_occupancy
         self.curr_normalized_occupancy = snapshot_data.normalized_occupancy
         self.curr_occupancy_weighted_tuning_maps_matrix = snapshot_data.occupancy_weighted_tuning_maps_matrix
-            
         # Common:
         self.last_t = snapshot_t
         
@@ -478,10 +457,13 @@ class PfND_TimeDependent(PfND):
             self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot.
         except AttributeError as e:
             # convert old dict-style snapshots to new PlacefieldSnapshot objects:
-            print(f'found old dict-style snapshots in self.historical_snapshots: Converting to new PlacefieldSnapshot objects')
-            self.historical_snapshots = {t:PlacefieldSnapshot.from_dict(v) for t, v in self.historical_snapshots.items()} # if not isinstance(v, PlacefieldSnapshot)
-            # ['spikes_maps_matrix', 'smoothed_spikes_maps_matrix', 'raw_occupancy_map', 'raw_smoothed_occupancy_map', 'seconds_occupancy', 'normalized_occupancy', 'occupancy_weighted_tuning_maps_matrix']
-            self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot. Now try running again now that self.historical_snapshots are converted.
+            # print(f'found old dict-style snapshots in self.historical_snapshots: Converting to new PlacefieldSnapshot objects')
+            # self.historical_snapshots = {t:PlacefieldSnapshot.from_dict(v) for t, v in self.historical_snapshots.items()} # if not isinstance(v, PlacefieldSnapshot)
+            # # ['spikes_maps_matrix', 'smoothed_spikes_maps_matrix', 'raw_occupancy_map', 'raw_smoothed_occupancy_map', 'seconds_occupancy', 'normalized_occupancy', 'occupancy_weighted_tuning_maps_matrix']
+            # self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot. Now try running again now that self.historical_snapshots are converted.
+            # Just reset:
+            print(f'WARNING: failed to unpickle PfND_TimeDependent - just resetting. Snapshots will not be loaded.')
+            self.reset()
 
         except Exception as e:
             print(f'ERROR: unhandled exception: {e}')
