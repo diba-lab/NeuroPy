@@ -4,6 +4,11 @@ import pandas as pd
 
 from neuropy.core.laps import Laps
 
+from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs # for _build_new_lap_and_intra_lap_intervals
+
+
+
+
 ## Separate Runs on the Track
 
 # Change of direction/inflection point by looking at the acceleration curve.
@@ -234,3 +239,86 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
 
 
 ## Laps:
+
+
+# ==================================================================================================================== #
+# 2022-12-13 _build_new_lap_and_intra_lap_intervals                                                                    #
+# ==================================================================================================================== #
+
+## Newest way of dropping bad laps:
+
+def _build_new_lap_and_intra_lap_intervals(sess):
+    """ 
+    
+    Factored out of Notebook on 2022-12-13
+    
+    Usage:
+        from neuropy.analyses.laps import _build_new_lap_and_intra_lap_intervals
+        sess = curr_active_pipeline.sess
+        sess, combined_records_list = _build_new_lap_and_intra_lap_intervals(sess)
+
+    """
+    from pyphocorehelpers.indexing_helpers import interleave_elements # for _build_new_lap_and_intra_lap_intervals TODO: remove this dependency
+    ## Backup original laps object if it hasn't already been done:
+    if not hasattr(sess, 'old_laps_obj'):
+        print(f'backing up laps object to sess.old_laps_obj.')
+        sess.old_laps_obj = deepcopy(sess.laps)
+
+    ## Get only the non-overlapping laps (dropping the overlapping ones) and replace the old laps object in sess.laps with this new good one:
+    is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
+    only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
+    sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
+    ## Extract the epochs from the new good (non-overlapping) laps:
+    lap_specific_epochs = sess.laps.as_epoch_obj()
+    any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
+    even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
+    odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+
+    only_good_laps_df['epoch_type'] = 'lap'
+    laps_records_list = list(only_good_laps_df[['epoch_type','start','stop','lap_id']].itertuples(index=False, name='lap')) # len(laps_records_list) # 74
+
+    ## Build the intra-lap periods and make a dataframe for them (`intra_lap_df`)
+    starts = [sess.paradigm[0][0,0]]
+    stops = []
+    preceeding_lap_ids = [-1]
+    for i, row in only_good_laps_df.iterrows():
+        # print(f'row: {row}')
+        stops.append(row.start)
+        starts.append(row.stop)
+        preceeding_lap_ids.append(row.lap_id)
+    stops.append(sess.paradigm[1][0,1])
+    intra_lap_df = pd.DataFrame(dict(start=starts, stop=stops, preceding_lap_id=preceeding_lap_ids))
+    intra_lap_df['intra_lap_interval_id'] = intra_lap_df.index.astype(int)
+    intra_lap_df['epoch_type'] = 'intra'
+
+    intra_lap_interval_records = list(intra_lap_df[['epoch_type','start','stop','intra_lap_interval_id']].itertuples(index=False, name='intera_lap')) # len(intra_lap_interval_records) # 75
+    # intra_lap_interval_records
+
+    ## interleave the two lists to get alternting tuples: [(inter-lap), (lap 1), (inter-lap), (lap 2), ...]
+    combined_records_list = interleave_elements(intra_lap_interval_records[:-1], laps_records_list).tolist()
+    combined_records_list.append(list(intra_lap_interval_records[-1])) # add the last element which was omitted so they would be the same length.
+    # combined_records_list: [['intra', '0.0', '8.806375011103228', '0'],
+    #  ['lap', '8.806375011103228', '16.146792372805066', '1'],
+    #  ['intra', '16.146792372805066', '33.77391934779007', '1'],
+    #  ['lap', '33.77391934779007', '39.23866662976798', '2'],
+    #  ['intra', '39.23866662976798', '136.07198921125382', '2'],
+    #  ['lap', '136.07198921125382', '143.75791423593182', '3'],
+    #  ...
+    #  ['intra', '1975.4521520885173', '1978.5230138762854', '73'],
+    #  ['lap', '1978.5230138762854', '1988.0340438865824', '74'],
+    #  ['intra', 1988.0340438865824, 2093.8978568242164, 74]]
+    # combined_records_list
+    
+    ## Can build a pd.DataFrame version:
+#     combined_df = pd.DataFrame.from_records(combined_records_list, columns=['epoch_type','start','stop','interval_type_id'], coerce_float=True)
+#     combined_df['label'] = combined_df.index.astype("str") # add the required 'label' column so it can be convereted into an Epoch object
+#     combined_df[['start','stop']] = combined_df[['start','stop']].astype('float')
+#     combined_df[['interval_type_id']] = combined_df[['interval_type_id']].astype('int')
+#     combined_df
+
+    ## Can build an Epoch object version:
+#     combined_epoch_obj = Epoch(epochs=combined_df)
+#     combined_epoch_obj
+    return sess, combined_records_list
+
+
