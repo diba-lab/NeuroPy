@@ -668,10 +668,6 @@ class PfND_TimeDependent(PfND):
 
         """
         def _build_bin_pos_counts(active_pf_pos_df, xbin_values=None, ybin_values=None, active_computation_config=active_computation_config):
-
-            # bin_values=(None, None), position_column_names = ('x', 'y'), binned_column_names = ('binned_x', 'binned_y'),
-            # active_pf_pos_df, (xbin, ybin), bin_info = build_df_discretized_binned_position_columns(active_pf_pos_df.copy(), bin_values=bin_values, active_computation_config=active_computation_config, force_recompute=False, debug_print=False)   
-
             ## This version was brought in from PfND.perform_time_range_computation(...):
             # If xbin_values is not None and ybin_values is None, assume 1D
             # if xbin_values is not None and ybin_values is None:
@@ -802,18 +798,13 @@ class PfND_TimeDependent(PfND):
             occupancy_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter(x, sigma=(smooth[1], smooth[0])) 
             spikes_maps_smooth_gaussian_filter_fn = lambda x, smooth: gaussian_filter(x, sigma=(0, smooth[1], smooth[0])) 
 
-
         # Smooth the final tuning map if needed and valid smooth parameter. Default FALSE.
         if (cls.should_smooth_spatial_occupancy_map and (smooth is not None) and smooth_criteria_fn(smooth)):
-            # num_position_samples_occupancy = gaussian_filter(num_position_samples_occupancy, sigma=(smooth[1], smooth[0])) 
-            # seconds_occupancy = gaussian_filter(seconds_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter
             num_position_samples_occupancy = occupancy_smooth_gaussian_filter_fn(num_position_samples_occupancy, smooth) 
             seconds_occupancy = occupancy_smooth_gaussian_filter_fn(seconds_occupancy, smooth)
-            
 
         # Smooth the spikes maps if needed and valid smooth parameter. Default False.
         if (cls.should_smooth_spikes_map and (smooth is not None) and smooth_criteria_fn(smooth)): 
-            # smoothed_spikes_maps_matrix = gaussian_filter(spikes_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
             smoothed_spikes_maps_matrix = spikes_maps_smooth_gaussian_filter_fn(spikes_maps_matrix, smooth)
             occupancy_weighted_tuning_maps_matrix = PfND_TimeDependent.compute_occupancy_weighted_tuning_map(seconds_occupancy, smoothed_spikes_maps_matrix)
         else:
@@ -822,13 +813,9 @@ class PfND_TimeDependent(PfND):
 
         # Smooth the final tuning map if needed and valid smooth parameter. Default True.            
         if (cls.should_smooth_final_tuning_map and (smooth is not None) and smooth_criteria_fn(smooth)): 
-            # occupancy_weighted_tuning_maps_matrix = gaussian_filter(occupancy_weighted_tuning_maps_matrix, sigma=(0, smooth[1], smooth[0])) # 2d gaussian filter
             occupancy_weighted_tuning_maps_matrix = spikes_maps_smooth_gaussian_filter_fn(occupancy_weighted_tuning_maps_matrix, smooth)
-
-        # return DynamicContainer.init_from_dict({'num_position_samples_occupancy': num_position_samples_occupancy, 'seconds_occupancy': seconds_occupancy,
-        #  'spikes_maps_matrix': spikes_maps_matrix, 'smoothed_spikes_maps_matrix': smoothed_spikes_maps_matrix,
-        #  'occupancy_weighted_tuning_maps_matrix':occupancy_weighted_tuning_maps_matrix})
-        return PlacefieldSnapshot(num_position_samples_occupancy=num_position_samples_occupancy, num_position_samples_smoothed_occupancy=None, seconds_occupancy=seconds_occupancy, normalized_occupancy=None,
+        
+        return PlacefieldSnapshot(num_position_samples_occupancy=num_position_samples_occupancy, num_position_samples_smoothed_occupancy=None, seconds_occupancy=seconds_occupancy, normalized_occupancy=normalized_occupancy,
             spikes_maps_matrix=spikes_maps_matrix, smoothed_spikes_maps_matrix=smoothed_spikes_maps_matrix, 
             occupancy_weighted_tuning_maps_matrix=occupancy_weighted_tuning_maps_matrix)
         
