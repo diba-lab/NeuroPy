@@ -353,14 +353,42 @@ class PfND_TimeDependent(PfND):
                     self.snapshot()
                     
 
-    def batch_snapshotting(self, epochs, reset_at_start:bool = True):
+    def batch_snapshotting(self, combined_records_list, reset_at_start:bool = True, debug_print=False):
         """ Updates sequentially, snapshotting each time.
+
+        combined_records_list: can be an Epoch object, a epoch-formatted pd.DataFrame, or a series of tuples to convert into combined_records_list
 
         """
         if reset_at_start:
             self.reset() ## Reset completely to start
 
+        if isinstance(combined_records_list, Epoch):
+            # convert to pd.DataFrame:
+            combined_records_list = combined_records_list.to_dataframe()
 
+        if isinstance(combined_records_list, pd.DataFrame):
+            combined_records_list = list(combined_records_list[['epoch_type','start','stop','interval_type_id']].itertuples(index=False, name='combined_epochs')) # len(intra_lap_interval_records) # 75
+
+        ## dataframe:
+        # initial_start_t = combined_records_list.start[0]
+
+        # Tuples list:
+        initial_start_t = float(combined_records_list[0][1])
+        self.update(t=initial_start_t, start_relative_t=True, should_snapshot=True)
+
+        ## Use the combined records list (which is a list of tuples) to update the self:
+        for epoch_type, start_t, stop_t, item_id in combined_records_list: ## tuple list
+            if debug_print:
+                print(f'{epoch_type}, start_t: {start_t}, stop_t: {stop_t}, item_id: {item_id}')
+            self.update(t=float(stop_t), start_relative_t=True, should_snapshot=True) # advance the self to the current start time
+        if debug_print:
+            print(f'done.')
+        
+        if debug_print:
+            print(f'batch_snapshotting(...): took {len(self.historical_snapshots)} snapshots.') # 150 snapshots
+            print(f'\t of {len(combined_records_list)} combined records') # 149 combined records
+            # print_object_memory_usage(self) # object size: 204.464939 MB for 150 snapshots of a 1D track
+        return self.historical_snapshots
 
 
 
@@ -370,17 +398,8 @@ class PfND_TimeDependent(PfND):
     
     def snapshot(self):
         """ takes a snapshot of the current values at this time."""    
-        # Add this entry to the historical snapshot dict:                
-        # self.historical_snapshots[self.last_t] = {
-        #     'spikes_maps_matrix':self.curr_spikes_maps_matrix.copy(),
-        #     'smoothed_spikes_maps_matrix': copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
-        #     'raw_occupancy_map':self.curr_num_pos_samples_occupancy_map.copy(),
-        #     'raw_smoothed_occupancy_map': copy_if_not_none(self.curr_num_pos_samples_smoothed_occupancy_map),
-        #     'seconds_occupancy':self.curr_seconds_occupancy.copy(),
-        #     'normalized_occupancy':self.curr_normalized_occupancy.copy(),
-        #     'occupancy_weighted_tuning_maps_matrix':self.curr_occupancy_weighted_tuning_maps_matrix.copy()
-        # }
-        self.historical_snapshots[self.last_t] = PlacefieldSnapshot(num_position_samples_occupancy=self.curr_num_pos_samples_occupancy_map.copy(), num_position_samples_smoothed_occupancy=copy_if_not_none(self.curr_num_pos_samples_smoothed_occupancy_map), seconds_occupancy=self.curr_seconds_occupancy.copy(), normalized_occupancy=self.curr_normalized_occupancy.copy(),
+        # Add this entry to the historical snapshot dict:
+        self.historical_snapshots[self.last_t] = PlacefieldSnapshot(num_position_samples_occupancy=self.curr_num_pos_samples_occupancy_map.copy(), num_position_samples_smoothed_occupancy=copy_if_not_none(self.curr_num_pos_samples_smoothed_occupancy_map), seconds_occupancy=self.curr_seconds_occupancy.copy(), normalized_occupancy=copy_if_not_none(self.curr_normalized_occupancy),
             spikes_maps_matrix=self.curr_spikes_maps_matrix.copy(), smoothed_spikes_maps_matrix=copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
             occupancy_weighted_tuning_maps_matrix=self.curr_occupancy_weighted_tuning_maps_matrix.copy())
         return (self.last_t, self.historical_snapshots[self.last_t]) # return the (snapshot_time, snapshot_data) pair
@@ -827,7 +846,7 @@ class PfND_TimeDependent(PfND):
         # return DynamicContainer.init_from_dict({'num_position_samples_occupancy': num_position_samples_occupancy, 'seconds_occupancy': seconds_occupancy,
         #  'spikes_maps_matrix': spikes_maps_matrix, 'smoothed_spikes_maps_matrix': smoothed_spikes_maps_matrix,
         #  'occupancy_weighted_tuning_maps_matrix':occupancy_weighted_tuning_maps_matrix})
-        return PlacefieldSnapshot(num_position_samples_occupancy=num_position_samples_occupancy, seconds_occupancy=seconds_occupancy,
+        return PlacefieldSnapshot(num_position_samples_occupancy=num_position_samples_occupancy, num_position_samples_smoothed_occupancy=None, seconds_occupancy=seconds_occupancy, normalized_occupancy=None,
             spikes_maps_matrix=spikes_maps_matrix, smoothed_spikes_maps_matrix=smoothed_spikes_maps_matrix, 
             occupancy_weighted_tuning_maps_matrix=occupancy_weighted_tuning_maps_matrix)
         
