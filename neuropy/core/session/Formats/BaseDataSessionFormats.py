@@ -18,6 +18,62 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from neuropy.utils.position_util import compute_position_grid_size
 from neuropy.utils.result_context import IdentifyingContext
 
+# ==================================================================================================================== #
+# 2022-12-07 - Finding Local Session Paths
+# ==================================================================================================================== #
+
+def find_local_session_paths(local_session_parent_path, blacklist=[], debug_print=True):
+    """Finds the local session paths
+
+    History: From PendingNotebookCode's 2022-12-07 section - "Finding Local Session Paths"
+
+    Args:
+        local_session_parent_path (_type_): _description_
+        blacklist (list, optional): _description_. Defaults to [].
+        debug_print (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+
+    History: extracted from PendingNotebookCode on 2022-12-13 from section "2022-12-07 - Finding Local Session Paths"
+
+    Usage:
+
+        from neuropy.core.session.Formats.BaseDataSessionFormats import find_local_session_paths
+
+        active_data_mode_name = 'kdiba'
+        local_session_root_parent_context = IdentifyingContext(format_name=active_data_mode_name)
+        local_session_root_parent_path = global_data_root_parent_path.joinpath('KDIBA')
+
+        ## Animal `gor01`:
+        local_session_parent_context = local_session_root_parent_context.adding_context(collision_prefix='animal', animal='gor01', exper_name='one')
+        local_session_parent_path = local_session_root_parent_path.joinpath(local_session_parent_context.animal, local_session_parent_context.exper_name)
+        local_session_paths_list, local_session_names_list =  find_local_session_paths(local_session_parent_path, blacklist=['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused'])
+
+    >>> local_session_names_list: ['2006-6-07_11-26-53', '2006-6-08_14-26-15', '2006-6-09_1-22-43', '2006-6-09_3-23-37', '2006-6-12_15-55-31', '2006-6-13_14-42-6']
+        local_session_paths_list: {WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-07_11-26-53'): <SessionBatchProgress.NOT_STARTED: 'NOT_STARTED'>,
+            WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-08_14-26-15'): <SessionBatchProgress.NOT_STARTED: 'NOT_STARTED'>,
+            WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-09_1-22-43'): <SessionBatchProgress.NOT_STARTED: 'NOT_STARTED'>,
+            WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-09_3-23-37'): <SessionBatchProgress.NOT_STARTED: 'NOT_STARTED'>,
+            WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-12_15-55-31'): <SessionBatchProgress.NOT_STARTED: 'NOT_STARTED'>,
+            WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-13_14-42-6'): <SessionBatchProgress.NOT_STARTED: 'NOT_STARTED'>}
+    """
+    try:
+        found_local_session_paths_list = [x for x in local_session_parent_path.iterdir() if x.is_dir()]
+        local_session_names_list = [a_path.name for a_path in found_local_session_paths_list if a_path.name not in blacklist]
+        if debug_print:
+            print(f'local_session_names_list: {local_session_names_list}')
+        local_session_paths_list = [local_session_parent_path.joinpath(a_name).resolve() for a_name in local_session_names_list]
+        
+    except Exception as e:
+        print(f"Error processing path: '{local_session_parent_path}' due to exception: {e}. Skipping...")
+        local_session_paths_list = None
+        local_session_names_list = None
+        
+    return local_session_paths_list, local_session_names_list
+
+
+
 
 class DataSessionFormatRegistryHolder(type):
     """ a metaclass that automatically registers its conformers as a known loadable data session format.     
