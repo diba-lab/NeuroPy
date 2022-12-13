@@ -172,10 +172,9 @@ class PfND_TimeDependent(PfND):
         
         NOTE: doesn't call super().__init__(...)
         
-        
         NOTE: _peak_frate_filter_function is only used in computing self.ratemap, meaning it keeps and does calculations for all neuron_IDs (not just those passing _peak_frate_filter_function) behind the scenes. This can be taken advantage of if you want a ratemap only for certain neurons by setting self._included_thresh_neurons_indx manually
 
-        EXAMPLE of filtering by neuron_IDs:        
+        EXAMPLE of filtering by neuron_IDs:
             # Find the neuron_IDs that are included in the active_pf_2D for filtering the active_pf_2D_dt's results:
             is_pf_2D_included_neuron = np.isin(active_pf_2D_dt.included_neuron_IDs, active_pf_2D.included_neuron_IDs)
             pf_2D_included_neuron_indx = active_pf_2D_dt._included_thresh_neurons_indx[is_pf_2D_included_neuron]
@@ -187,8 +186,6 @@ class PfND_TimeDependent(PfND):
             active_pf_2D_dt._peak_frate_filter_function = lambda list_: [list_[_] for _ in active_pf_2D_dt._included_thresh_neurons_indx]
 
             assert (active_pf_2D_dt.ratemap.spikes_maps == active_pf_2D.ratemap.spikes_maps).all(), f"active_pf_2D_dt.ratemap.spikes_maps: {active_pf_2D_dt.ratemap.spikes_maps}\nactive_pf_2D.ratemap.spikes_maps: {active_pf_2D.ratemap.spikes_maps}"
-
-
         
         """
         # save the config that was used to perform the computations
@@ -510,8 +507,6 @@ class PfND_TimeDependent(PfND):
     # 2022-08-02 - New Simple Time-Dependent Placefield Overhaul                                                           #
     # ==================================================================================================================== #
     # Idea: use simple dataframes and operations on them to easily get the placefield results for a given time range.
-
-
         
     def complete_time_range_computation(self, start_time, end_time, assign_results_to_member_variables=True):
         """ recomputes the entire time period from start_time to end_time with few other assumptions """
@@ -532,12 +527,7 @@ class PfND_TimeDependent(PfND):
         else:
             # if assign_results_to_member_variables is False, don't update any of the member variables and just return the wrapped result.
             return computed_out_results        
-        
-        
-        
-        
-        
-    
+
     @classmethod    
     def perform_time_range_computation(cls, spikes_df, pos_df, position_srate, xbin, ybin, start_time, end_time, included_neuron_IDs, active_computation_config=None, override_smooth=None):
         """ This method performs complete calculation witihin a single function. 
