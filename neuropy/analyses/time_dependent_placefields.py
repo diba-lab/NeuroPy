@@ -851,7 +851,60 @@ class PfND_TimeDependent(PfND):
             occupancy_weighted_tuning_maps_matrix=occupancy_weighted_tuning_maps_matrix)
         
 
+    @classmethod
+    def validate_pf_dt_equivalent(cls, active_pf_nD, active_pf_nD_dt):
+        """ Asserts to make sure that the fully-updated dt is equal to the normal 
 
+        Usage:
+            from neuropy.analyses.time_dependent_placefields import PfND_TimeDependent
+
+            computation_result = curr_active_pipeline.computation_results[global_epoch_name]
+            active_session, pf_computation_config = computation_result.sess, computation_result.computation_config.pf_params
+            active_session_spikes_df, active_pos, computation_config, active_epoch_placefields1D, active_epoch_placefields2D, included_epochs, should_force_recompute_placefields = active_session.spikes_df, active_session.position, pf_computation_config, None, None, pf_computation_config.computation_epochs, True
+            active_pf_1D_dt = PfND_TimeDependent(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
+                                                speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
+                                                grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
+
+
+            ## Update the time-dependent pf:
+            active_pf_1D_dt.reset()
+
+            ## Find the neuron_IDs that are included in the active_pf_1D for filtering the active_pf_1D_dt's results:
+            is_pf_1D_included_neuron = np.isin(active_pf_1D_dt.included_neuron_IDs, active_pf_1D.included_neuron_IDs)
+            pf_1D_included_neuron_indx = active_pf_1D_dt._included_thresh_neurons_indx[is_pf_1D_included_neuron]
+            active_pf_1D_dt._included_thresh_neurons_indx = pf_1D_included_neuron_indx
+            active_pf_1D_dt._peak_frate_filter_function = lambda list_: [list_[_] for _ in active_pf_1D_dt._included_thresh_neurons_indx]
+
+            earliest_pos_t = active_pf_1D_dt.all_time_filtered_pos_df['t'].values[0]
+            print(f'earliest_pos_t: {earliest_pos_t}')
+            # active_pf_1D_dt.update(t=earliest_pos_t)
+            # active_pf_1D_dt.step(num_seconds_to_advance=6000.0)
+
+            last_pos_t = active_pf_1D_dt.all_time_filtered_pos_df['t'].values[-1]
+            print(f'last_pos_t: {last_pos_t}')
+            # active_pf_1D_dt.update(t=last_pos_t)
+
+            # active_pf_1D_dt.update(t=earliest_pos_t+(60.0 * 5.0))
+            active_pf_1D_dt.update(t=3000000.0)
+            print(f'post-update time: {active_pf_1D_dt.last_t}')
+
+            # earliest_pos_t: 22.26785500004189
+            # last_pos_t: 1739.1316560000414
+            # post-update time: 322.2678550000419
+
+            validate_pf_dt_equivalent(active_pf_1D, active_pf_1D_dt)
+
+        """
+        assert active_pf_nD_dt.all_time_filtered_pos_df.shape == active_pf_nD_dt.filtered_pos_df.shape, f"active_pf_nD_dt.all_time_filtered_pos_df.shape: {active_pf_nD_dt.all_time_filtered_pos_df.shape}\nactive_pf_nD_dt.filtered_pos_df.shape: {active_pf_nD_dt.filtered_pos_df.shape} "
+        assert active_pf_nD_dt.all_time_filtered_spikes_df.shape == active_pf_nD_dt.filtered_spikes_df.shape, f"active_pf_nD_dt.all_time_filtered_spikes_df.shape: {active_pf_nD_dt.all_time_filtered_spikes_df.shape}\nactive_pf_nD_dt.filtered_spikes_df.shape: {active_pf_nD_dt.filtered_spikes_df.shape} "
+        # Occupancies are equal:
+
+        assert np.isclose(active_pf_nD_dt.ratemap.occupancy, active_pf_nD.ratemap.occupancy).all(), f"active_pf_nD_dt.ratemap.occupancy: {active_pf_nD_dt.ratemap.occupancy}\nactive_pf_nD.ratemap.occupancy: {active_pf_nD.ratemap.occupancy}"
+        # assert (active_pf_nD_dt.ratemap.occupancy == active_pf_nD.ratemap.occupancy).all(), f"active_pf_nD_dt.ratemap.occupancy: {active_pf_nD_dt.ratemap.occupancy}\nactive_pf_nD.ratemap.occupancy: {active_pf_nD.ratemap.occupancy}"
+        
+        # assert (active_pf_nD_dt.ratemap.spikes_maps == active_pf_nD.ratemap.spikes_maps).all(), f"active_pf_nD_dt.ratemap.spikes_maps: {active_pf_nD_dt.ratemap.spikes_maps}\nactive_pf_nD.ratemap.spikes_maps: {active_pf_nD.ratemap.spikes_maps}"
+        assert np.isclose(active_pf_nD_dt.ratemap.spikes_maps, active_pf_nD.ratemap.spikes_maps).all(), f"active_pf_nD_dt.ratemap.spikes_maps: {active_pf_nD_dt.ratemap.spikes_maps}\nactive_pf_nD.ratemap.spikes_maps: {active_pf_nD.ratemap.spikes_maps}"
+        
 
 
 
