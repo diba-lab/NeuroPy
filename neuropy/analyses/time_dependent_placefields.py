@@ -238,7 +238,7 @@ class PfND_TimeDependent(PfND):
             if 'binned_y' not in self._filtered_spikes_df:
                 self._filtered_spikes_df['binned_y'] = pd.cut(self._filtered_spikes_df['y'].to_numpy(), bins=self.ybin, include_lowest=True, labels=self.ybin_labels)
     
-        self.setup_time_varying()
+        self._setup_time_varying()
         
 
 # ==================================================================================================================== #
@@ -247,9 +247,9 @@ class PfND_TimeDependent(PfND):
 
     def reset(self):
         """ used to reset the calculations to an initial value. """
-        self.setup_time_varying()
+        self._setup_time_varying()
 
-    def setup_time_varying(self):
+    def _setup_time_varying(self):
         """ Initialize for the 0th timestamp """
         dims_coord_tuple = self.dims_coord_tuple
 
@@ -317,6 +317,7 @@ class PfND_TimeDependent(PfND):
         self.curr_smoothed_spikes_maps_matrix = snapshot_data['smoothed_spikes_maps_matrix']
         self.curr_num_pos_samples_occupancy_map = snapshot_data['raw_occupancy_map']
         self.curr_num_pos_samples_smoothed_occupancy_map = snapshot_data['raw_smoothed_occupancy_map']
+
         self.curr_seconds_occupancy = snapshot_data['seconds_occupancy']
         self.curr_normalized_occupancy = snapshot_data['normalized_occupancy']
         self.curr_occupancy_weighted_tuning_maps_matrix = snapshot_data['occupancy_weighted_tuning_maps_matrix']
@@ -403,7 +404,10 @@ class PfND_TimeDependent(PfND):
     
     def _display_additive_update(self, t):
         """ updates the extended variables:
-        
+
+
+        TODO: MAKE_1D: remove 'binned_y' references, Refactor for 1D support if deciding to continue additive update mode.
+
         Using:
             self.position_srate
             self.curr_num_pos_samples_occupancy_map
