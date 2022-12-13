@@ -1,5 +1,6 @@
 from copy import deepcopy
-from typing import OrderedDict
+from typing import Optional, OrderedDict # PlacefieldSnapshot
+from dataclasses import dataclass # PlacefieldSnapshot
 import pandas as pd
 import numpy as np
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
@@ -13,6 +14,29 @@ from neuropy.utils.misc import safe_pandas_get_group, copy_if_not_none
 ## Need to apply position binning to the spikes_df's position columns to find the bins they fall in:
 from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_position_columns # for perform_time_range_computation only
 
+
+class PlacefieldSnapshot(object):
+    """Docstring for PlacefieldSnapshot."""
+
+    def __init__(self, num_position_samples_occupancy, seconds_occupancy, spikes_maps_matrix, smoothed_spikes_maps_matrix, occupancy_weighted_tuning_maps_matrix):
+        super(PlacefieldSnapshot, self).__init__()        
+        self.num_position_samples_occupancy = num_position_samples_occupancy
+        self.seconds_occupancy = seconds_occupancy
+        self.spikes_maps_matrix = spikes_maps_matrix
+        self.smoothed_spikes_maps_matrix = smoothed_spikes_maps_matrix
+        self.occupancy_weighted_tuning_maps_matrix = occupancy_weighted_tuning_maps_matrix
+
+
+    def to_dict(self):
+        return {
+            'spikes_maps_matrix':self.spikes_maps_matrix.copy(),
+            'smoothed_spikes_maps_matrix': copy_if_not_none(self.smoothed_spikes_maps_matrix),
+            'raw_occupancy_map':self.num_position_samples_occupancy.copy(),
+            # 'raw_smoothed_occupancy_map': copy_if_not_none(self.num_position_samples_occupancy),
+            'seconds_occupancy':self.seconds_occupancy.copy(),
+            # 'normalized_occupancy':self.curr_normalized_occupancy.copy(),
+            'occupancy_weighted_tuning_maps_matrix':self.occupancy_weighted_tuning_maps_matrix.copy()
+        }
 class PfND_TimeDependent(PfND):
     """ Time Dependent N-dimensional Placefields
         A version PfND that can return the current state of placefields considering only up to a certain period of time.
