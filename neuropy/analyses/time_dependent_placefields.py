@@ -630,20 +630,12 @@ class PfND_TimeDependent(PfND):
                                                              included_neuron_IDs=self.included_neuron_IDs, active_computation_config=self.config, override_smooth=self.smooth) # previously active_computation_config=None
 
         if assign_results_to_member_variables:
-            # Unwrap the returned variables from the output dictionary and assign them to the member variables:        
-            # self.curr_seconds_occupancy = computed_out_results.seconds_occupancy
-            # self.curr_num_pos_samples_occupancy_map = computed_out_results.num_position_samples_occupancy
-            # self.curr_spikes_maps_matrix = computed_out_results.spikes_maps_matrix
-            # self.curr_smoothed_spikes_maps_matrix = computed_out_results.smoothed_spikes_maps_matrix
-            # self.curr_occupancy_weighted_tuning_maps_matrix = computed_out_results.occupancy_weighted_tuning_maps_matrix
-            # self.last_t = end_time ## TODO: note that there is no notion of a start_time later than the start of the session for this class!
-
             # Should replace above:
             self._apply_snapshot_data(end_time, computed_out_results)
 
         else:
             # if assign_results_to_member_variables is False, don't update any of the member variables and just return the wrapped result.
-            return computed_out_results        
+            return computed_out_results
 
     @classmethod    
     def perform_time_range_computation(cls, spikes_df, pos_df, position_srate, xbin, ybin, start_time, end_time, included_neuron_IDs, active_computation_config=None, override_smooth=None):
