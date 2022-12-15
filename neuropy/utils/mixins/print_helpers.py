@@ -39,11 +39,9 @@ class OrderedMeta(type):
     
 
 
-from enum import Enum, unique
+
 from pyphocorehelpers.DataStructure.enum_helpers import ExtendedEnum
 
-
-@unique
 class FileProgressAction(ExtendedEnum):
     """Describes the type of file progress actions that can be performed to get the right verbage.
     Used by `print_file_progress_message(...)`
