@@ -433,7 +433,7 @@ class PfND_TimeDependent(PfND):
         self._apply_snapshot_data(snapshot_t, snapshot_data)
         
     def to_dict(self):
-        print(f'to_dict(...): {list(self.__dict__.keys())}')
+        # print(f'to_dict(...): {list(self.__dict__.keys())}')
         curr_snapshot_time, curr_snapshot_data = self.snapshot() # take a snapshot of the current state
 
         # self._setup_time_varying() # reset completely before saving. Throw out everything
