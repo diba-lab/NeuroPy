@@ -332,10 +332,11 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
 
     @property
     def firing_rate(self):
+        """Return average firing rate for each neuron over the entire duration of the recording """
         return self.n_spikes / (self.t_stop - self.t_start)
 
     def get_above_firing_rate(self, thresh: float):
-        """Return neurons which have firing rate above thresh"""
+        """Return neurons which have firing rate above thresh (on average, for the entire duration of the recording) """
         indices = self.firing_rate > thresh
         return self[indices]
 

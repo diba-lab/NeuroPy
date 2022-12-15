@@ -347,7 +347,7 @@ class PfND_TimeDependent(PfND):
                     self._display_additive_update(t)
                 else:
                     # non-additive mode, recompute:
-                    self.complete_time_range_computation(0.0, t)
+                    self.complete_time_range_computation(0.0, t, should_snapshot=False) # should_snapshot=False during this call because we snapshot ourselves in the next step if should_snapshot==True
                     
                 if should_snapshot:
                     self.snapshot()
@@ -622,7 +622,7 @@ class PfND_TimeDependent(PfND):
     # ==================================================================================================================== #
     # Idea: use simple dataframes and operations on them to easily get the placefield results for a given time range.
         
-    def complete_time_range_computation(self, start_time, end_time, assign_results_to_member_variables=True):
+    def complete_time_range_computation(self, start_time, end_time, assign_results_to_member_variables=True, should_snapshot=True):
         """ recomputes the entire time period from start_time to end_time with few other assumptions """
         computed_out_results = PfND_TimeDependent.perform_time_range_computation(self.all_time_filtered_spikes_df, self.all_time_filtered_pos_df, position_srate=self.position_srate,
                                                              xbin=self.xbin, ybin=self.ybin,
@@ -630,10 +630,13 @@ class PfND_TimeDependent(PfND):
                                                              included_neuron_IDs=self.included_neuron_IDs, active_computation_config=self.config, override_smooth=self.smooth) # previously active_computation_config=None
 
         if assign_results_to_member_variables:
-            # Should replace above:
+            # Should replace current time variables with those from this most recently added snapshot:
             self._apply_snapshot_data(end_time, computed_out_results)
+            if should_snapshot:
+                self.snapshot()
 
         else:
+            assert not should_snapshot, "should_snapshot must be False if assign_results_to_member_variables is False, but instead should_snapshot == True!"
             # if assign_results_to_member_variables is False, don't update any of the member variables and just return the wrapped result.
             return computed_out_results
 
