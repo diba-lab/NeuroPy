@@ -493,6 +493,38 @@ class PfND_TimeDependent(PfND):
     # ==================================================================================================================== #
     # Common Methods                                                                                                       #
     # ==================================================================================================================== #
+    
+
+    def conform_to_position_bins(self, target_pf1D):
+        """ Allow overriding PfND's bins:
+            # 2022-12-09 - We want to be able to have both long/short track placefields have the same spatial bins.
+            This function standardizes the short pf1D's xbins to the same ones as the long_pf1D, and then recalculates it.
+            Usage:
+                short_pf1D, did_update_bins = short_pf1D.conform_to_position_bins(long_pf1D)
+        """
+        did_update_bins = False
+        if (len(self.xbin) < len(target_pf1D.xbin)) or ((self.ndim > 1) and (len(self.ybin) < len(target_pf1D.ybin))):
+            print(f'self will be re-binned to match target_pf1D...')
+            # bak_self = deepcopy(self) # Backup the original first
+            xbin, ybin, bin_info, grid_bin = target_pf1D.xbin, target_pf1D.ybin, target_pf1D.bin_info, target_pf1D.config.grid_bin
+            ## Apply to the short dataframe:
+            self.xbin, self.ybin, self.bin_info, self.config.grid_bin = xbin, ybin, bin_info, grid_bin
+            ## Updates (replacing) the 'binned_x' (and if 2D 'binned_y') columns to the position dataframe:
+            self._filtered_pos_df, _, _, _ = PfND.build_position_df_discretized_binned_positions(self._filtered_pos_df, self.config, xbin_values=self.xbin, ybin_values=self.ybin, debug_print=False) # Finishes setup
+            self.compute() # does compute
+
+            raise NotImplementedError # Not yet implemented for Pf1D_dt (time-dependent version) although it might be quite simple and similar to the non-time dependent implementation (copied here).
+
+            print(f'done.') ## Successfully re-bins pf1D:
+            did_update_bins = True # set the update flag
+        else:
+            # No changes needed:
+            did_update_bins = False
+
+        return self, did_update_bins
+
+
+
     @classmethod
     def compute_occupancy_weighted_tuning_map(cls, curr_seconds_occupancy_map, curr_spikes_maps_matrix, debug_print=False):
         """ Given the curr_occupancy_map and curr_spikes_maps_matrix for this timestamp, returns the occupancy weighted tuning map
