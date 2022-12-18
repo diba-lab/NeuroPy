@@ -523,6 +523,17 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         """ do the preliminary setup required to build the placefields
         
         Adds columns to the spikes and positions dataframes, etc.
+
+        Depends on:
+            self.config.smooth
+            self.config.grid_bin_bounds
+
+        Assigns:
+
+            self._filtered_pos_df
+            self._filtered_spikes_df
+
+            self.xbin, self.ybin, self.bin_info
         """
 
         pos_df = position.to_dataframe()
@@ -570,7 +581,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
         
         ## Binning with Fixed bin size:
-        # TODO: 2022-12-09 - We want to be able to have both long/short track placefields have the same bins. 
+        # 2022-12-09 - We want to be able to have both long/short track placefields have the same bins. 
         if (self.ndim > 1):
             if self.config.grid_bin_bounds is None:
                 grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
@@ -601,6 +612,12 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def compute(self):
         """ actually compute the placefields after self.setup(...) is complete.
         
+
+        Depends on:
+            self.config.smooth
+            self.x, self.y, self.xbin, self.ybin, self.position_srate
+
+
         Assigns:
         
             self.ratemap
