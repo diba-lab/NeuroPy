@@ -11,7 +11,9 @@ class OverlappingIntervalsFallbackBehavior(Enum):
     
 
 
-
+# ==================================================================================================================== #
+# Overlap Detection                                                                                                    #
+# ==================================================================================================================== #
 @jit(nopython=True, parallel = True) 
 def _compiled_verify_non_overlapping(start_stop_times_arr): # Function is compiled by numba and runs in machine code
     # coming in: spk_times_arr, pbe_start_stop_arr, pbe_identity_label
@@ -52,7 +54,7 @@ def get_non_overlapping_epochs(start_stop_times_arr):
     Example:        
         from neuropy.utils.efficient_interval_search import drop_overlapping
         start_stop_times_arr = any_lap_specific_epochs.to_dataframe()[['start','stop']].to_numpy() # note that this returns one less than the number of epochs.
-        non_overlapping_start_stop_times_arr = drop_overlapping(start_stop_times_arr)
+        non_overlapping_start_stop_times_arr = get_non_overlapping_epochs(start_stop_times_arr)
         non_overlapping_start_stop_times_arr
     """
     # print(f'start_stop_times_arr: {start_stop_times_arr}')
@@ -73,8 +75,6 @@ def get_non_overlapping_epochs(start_stop_times_arr):
         # print(f'is_good_lap: {is_good_epoch}, np.shape(is_good_lap): {np.shape(is_good_epoch)}')
         # return only the non-overlapping periods
         return is_good_epoch
-    
-    
 
 def drop_overlapping(start_stop_times_arr):
     """Drops the overlapping epochs
@@ -93,6 +93,32 @@ def drop_overlapping(start_stop_times_arr):
 
 
 
+def get_overlapping_indicies(start_stop_times_arr):
+    """Gets the indicies of any epochs that DO overlap one another.
+    
+    Args:
+        start_stop_times_arr (_type_): An N x 2 numpy array of start, stop times
+        
+    Example:        
+        from neuropy.utils.efficient_interval_search import get_overlapping_indicies
+        curr_laps_obj = deepcopy(sess.laps)
+        start_stop_times_arr = np.vstack([curr_laps_obj.starts, curr_laps_obj.stops]).T # (80, 2)
+        all_overlapping_lap_indicies = get_overlapping_indicies(start_stop_times_arr)
+        all_overlapping_lap_indicies
+    """
+    is_non_overlapping = _compiled_verify_non_overlapping(start_stop_times_arr)
+    overlapping_lap_indicies = np.array(np.where(np.logical_not(is_non_overlapping))) # get the start indicies of all overlapping laps
+    # print(f'overlapping_lap_indicies: {overlapping_lap_indicies}')
+    following_overlapping_lap = [i + 1 for i in overlapping_lap_indicies] # get the following index that it overlaps
+    # print(f'following_overlapping_lap: {following_overlapping_lap}')
+    all_overlapping_lap_indicies = np.union1d(ar1=overlapping_lap_indicies, ar2=following_overlapping_lap)
+    # print(f'all_overlapping_lap_indicies: {all_overlapping_lap_indicies}')
+    return all_overlapping_lap_indicies
+
+
+# ==================================================================================================================== #
+# Event Interval Identity                                                                                              #
+# ==================================================================================================================== #
 @jit(nopython=True, parallel = True)
 def _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=np.nan): # Function is compiled by numba and runs in machine code
     """MUCH slower than _compiled_searchsorted_event_interval_identity(...), but it works with non-sorted or overlapping start_stop intervals
@@ -133,8 +159,6 @@ def _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, 
     # returns the array containing the PBE identity for each spike
     return event_interval_identity_arr, interval_timestamp_indicies_lists
 
-
-
 def _searchsorted_find_event_interval_indicies(times_arr, start_stop_times_arr): # Function is compiled by numba and runs in machine code
     """Converts the L x 2 array of start and stop times (start_stop_times_arr) representing intervals in time to an array of indicies into times_arr of the same size
 
@@ -159,7 +183,6 @@ def _searchsorted_find_event_interval_indicies(times_arr, start_stop_times_arr):
     assert np.shape(found_start_end_indicies)[1] == 2
     return found_start_end_indicies
     
-
 
 @jit(nopython=True, parallel = True)
 def _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=np.nan): # Function is compiled by numba and runs in machine code
@@ -215,7 +238,6 @@ def determine_event_interval_identity(times_arr, start_stop_times_arr, period_id
     else:
         raise NotImplementedError
 
-
 def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
     assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
     if overlap_behavior.name == OverlappingIntervalsFallbackBehavior.ASSERT_FAIL.name:
@@ -232,6 +254,9 @@ def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, 
     return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
 
 
+# ==================================================================================================================== #
+# Event Interval is_included                                                                                           #
+# ==================================================================================================================== #
 @jit(nopython=True, parallel=True)
 def _compiled_searchsorted_event_interval_is_included(times_arr, start_stop_times_arr): # Function is compiled by numba and runs in machine code
     """ Consider an L x 2 array of start and stop times (start_stop_times_arr) representing intervals in time.
