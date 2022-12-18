@@ -435,9 +435,6 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
             return seconds_occupancy, seconds_unsmoothed_occupancy, xedges, yedges
 
-
-        # return seconds_occupancy, xedges, yedges
-        
     @staticmethod   
     def _compute_spikes_map(spk_x, spk_y, xbin, ybin, smooth):
         # spikes_map: is the number of spike counts in each bin for this unit
@@ -777,7 +774,33 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def included_neuron_IDs(self):
         """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
         return self._filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs] ## TODO: these are basically wrong, we should use self.ratemap.neuron_IDs instead!
-    
+
+
+    def conform_to_position_bins(self, target_pf1D):
+        """ Allow overriding PfND's bins:
+            # 2022-12-09 - We want to be able to have both long/short track placefields have the same spatial bins.
+            This function standardizes the short pf1D's xbins to the same ones as the long_pf1D, and then recalculates it.
+            Usage:
+                short_pf1D, did_update_bins = short_pf1D.conform_to_position_bins(long_pf1D)
+        """
+        did_update_bins = False
+        if (len(self.xbin) < len(target_pf1D.xbin)) or ((self.ndim > 1) and (len(self.ybin) < len(target_pf1D.ybin))):
+            print(f'self will be re-binned to match target_pf1D...')
+            # bak_self = deepcopy(self) # Backup the original first
+            xbin, ybin, bin_info, grid_bin = target_pf1D.xbin, target_pf1D.ybin, target_pf1D.bin_info, target_pf1D.config.grid_bin
+            ## Apply to the short dataframe:
+            self.xbin, self.ybin, self.bin_info, self.config.grid_bin = xbin, ybin, bin_info, grid_bin
+            ## Updates (replacing) the 'binned_x' (and if 2D 'binned_y') columns to the position dataframe:
+            self._filtered_pos_df, _, _, _ = PfND.build_position_df_discretized_binned_positions(self._filtered_pos_df, self.config, xbin_values=self.xbin, ybin_values=self.ybin, debug_print=False) # Finishes setup
+            self.compute() # does compute
+            print(f'done.') ## Successfully re-bins pf1D:
+            did_update_bins = True # set the update flag
+        else:
+            # No changes needed:
+            did_update_bins = False
+
+        return self, did_update_bins
+
     
     
     def str_for_filename(self, prefix_string=''):
@@ -827,16 +850,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
         self._included_thresh_neurons_indx = None
         self._peak_frate_filter_function = None
-        # self._filtered_pos_df = state.get('_filtered_pos_df', None)
-        # self._filtered_spikes_df = state.get('_filtered_spikes_df', None)
-     
-        # # Set ratemap:
-        # # print(f"ratemap: {state.get('ratemap', None)}")
-        # self.ratemap = state.get('ratemap', None)
-        # self.ratemap_spiketrains = state.get('ratemap_spiketrains', None)
-        # self.ratemap_spiketrains_pos = state.get('ratemap_spiketrains_pos', None)
-        # print(f'__setstate__(self: {self}, state: {state})')
-        # return self
+        
 
     @staticmethod
     def _build_peak_frate_filter(tuning_maps, frate_thresh, debug_print=False):
@@ -924,6 +938,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         return active_pos_df, xbin, ybin, bin_info
 
 
+
 # ==================================================================================================================== #
 # Global Placefield Computation Functions                                                                              #
 # ==================================================================================================================== #
@@ -974,7 +989,6 @@ def compute_placefields_masked_by_epochs(sess, active_config, included_epochs=No
     # active_session, active_config, good_placefield_neuronIDs = process_by_good_placefields(active_session, active_config, active_epoch_placefields)
     # debug_print_spike_counts(active_session)
     return active_epoch_placefields1D, active_epoch_placefields2D
-
 
 def compute_placefields_as_needed(active_session, computation_config:PlacefieldComputationParameters=None, general_config=None, active_placefields1D = None, active_placefields2D = None, included_epochs=None, should_force_recompute_placefields=True, should_display_2D_plots=False):
     from neuropy.plotting.placemaps import plot_all_placefields
