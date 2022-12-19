@@ -205,34 +205,42 @@ def detect_ripple_epochs(
     mergedist=0.05,
     sigma=0.0125,
     ignore_epochs: Epoch = None,
+    ripple_channel: int or list = None,
 ):
     # TODO chewing artifact frequency (>300 Hz) or emg based rejection of ripple epochs
 
-    if probegroup is None:
-        selected_chans = signal.channel_id
-        traces = signal.traces
+    if ripple_channel is None:  # auto-detect ripple channel
+        if probegroup is None:
+            selected_chans = signal.channel_id
+            traces = signal.traces
 
+        else:
+            if isinstance(probegroup, np.ndarray):
+                changrps = np.array(probegroup, dtype="object")
+            if isinstance(probegroup, ProbeGroup):
+                changrps = probegroup.get_connected_channels(groupby="shank")
+                # if changrp:
+            selected_chans = []
+            for changrp in changrps:
+                signal_slice = signal.time_slice(
+                    channel_id=changrp.astype("int"),
+                    t_start=0,
+                    t_stop=np.min((3600, signal.duration)),
+                )
+                hil_stat = signal_process.hilbert_amplitude_stat(
+                    signal_slice.traces,
+                    freq_band=freq_band,
+                    fs=signal.sampling_rate,
+                    statistic="mean",
+                )
+                selected_chans.append(changrp[np.argmax(hil_stat)])
+
+            traces = signal.time_slice(channel_id=selected_chans).traces
     else:
-        if isinstance(probegroup, np.ndarray):
-            changrps = np.array(probegroup, dtype="object")
-        if isinstance(probegroup, ProbeGroup):
-            changrps = probegroup.get_connected_channels(groupby="shank")
-            # if changrp:
-        selected_chans = []
-        for changrp in changrps:
-            signal_slice = signal.time_slice(
-                channel_id=changrp.astype("int"),
-                t_start=0,
-                t_stop=np.min((3600, signal.duration)),
-            )
-            hil_stat = signal_process.hilbert_amplitude_stat(
-                signal_slice.traces,
-                freq_band=freq_band,
-                fs=signal.sampling_rate,
-                statistic="mean",
-            )
-            selected_chans.append(changrp[np.argmax(hil_stat)])
-
+        assert isinstance(ripple_channel, (list, int))
+        selected_chans = (
+            [ripple_channel] if isinstance(ripple_channel, int) else ripple_channel
+        )
         traces = signal.time_slice(channel_id=selected_chans).traces
 
     print(f"Selected channels for ripples: {selected_chans}")
@@ -269,33 +277,42 @@ def detect_sharpwave_epochs(
     mergedist=0.05,
     sigma=0.0125,
     ignore_epochs: Epoch = None,
+    sharpwave_channel: int or list = None,
 ):
+    if sharpwave_channel is None:
+        if probegroup is None:  # auto-detect sharpwave channel
+            selected_chans = signal.channel_id
+            traces = signal.traces
 
-    if probegroup is None:
-        selected_chans = signal.channel_id
-        traces = signal.traces
+        else:
+            if isinstance(probegroup, np.ndarray):
+                changrps = np.array(probegroup, dtype="object")
+            if isinstance(probegroup, ProbeGroup):
+                changrps = probegroup.get_connected_channels(groupby="shank")
+                # if changrp:
+            selected_chans = []
+            for changrp in changrps:
+                signal_slice = signal.time_slice(
+                    channel_id=changrp.astype("int"),
+                    t_start=0,
+                    t_stop=np.min((3600, signal.duration)),
+                )
+                hil_stat = signal_process.hilbert_amplitude_stat(
+                    signal_slice.traces,
+                    freq_band=freq_band,
+                    fs=signal.sampling_rate,
+                    statistic="mean",
+                )
+                selected_chans.append(changrp[np.argmax(hil_stat)])
 
+            traces = signal.time_slice(channel_id=selected_chans).traces
     else:
-        if isinstance(probegroup, np.ndarray):
-            changrps = np.array(probegroup, dtype="object")
-        if isinstance(probegroup, ProbeGroup):
-            changrps = probegroup.get_connected_channels(groupby="shank")
-            # if changrp:
-        selected_chans = []
-        for changrp in changrps:
-            signal_slice = signal.time_slice(
-                channel_id=changrp.astype("int"),
-                t_start=0,
-                t_stop=np.min((3600, signal.duration)),
-            )
-            hil_stat = signal_process.hilbert_amplitude_stat(
-                signal_slice.traces,
-                freq_band=freq_band,
-                fs=signal.sampling_rate,
-                statistic="mean",
-            )
-            selected_chans.append(changrp[np.argmax(hil_stat)])
-
+        assert isinstance(sharpwave_channel, (list, int))
+        selected_chans = (
+            [sharpwave_channel]
+            if isinstance(sharpwave_channel, int)
+            else sharpwave_channel
+        )
         traces = signal.time_slice(channel_id=selected_chans).traces
 
     print(f"Selected channels for sharp-waves: {selected_chans}")
