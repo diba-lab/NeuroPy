@@ -444,20 +444,23 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     def _default_extended_postload(cls, fp, session):
         # Computes Common Extended properties:
         ## Ripples:
-        # Externally Computed Ripples (from 'ripple_df.pkl') file:
-        # Load `ripple_df.pkl` previously saved:
-        external_computed_ripple_df_filepath = session.basepath.joinpath('ripple_df.pkl')
-        external_computed_ripple_df = pd.read_pickle(external_computed_ripple_df_filepath)
-        # Add the required columns for Epoch(...):
-        external_computed_ripple_df['label'] = [str(an_idx) for an_idx in external_computed_ripple_df.index]
-        external_computed_ripple_df = external_computed_ripple_df.reset_index(drop=True)
-        found_datafile = Epoch(external_computed_ripple_df) # Epoch from dataframe
-        
+        try:
+            # Externally Computed Ripples (from 'ripple_df.pkl') file:
+            # Load `ripple_df.pkl` previously saved:
+            external_computed_ripple_df_filepath = session.basepath.joinpath('ripple_df.pkl')
+            external_computed_ripple_df = pd.read_pickle(external_computed_ripple_df_filepath)
+            # Add the required columns for Epoch(...):
+            external_computed_ripple_df['label'] = [str(an_idx) for an_idx in external_computed_ripple_df.index]
+            external_computed_ripple_df = external_computed_ripple_df.reset_index(drop=True)
+            found_datafile = Epoch(external_computed_ripple_df) # Epoch from dataframe
+        except FileNotFoundError:
+            print(f'externally computed ripple_df.pkl not found. Falling back to .ripple.npy...')
+            found_datafile = None
+
         if found_datafile is not None:
             print('Loading success: {}.'.format(external_computed_ripple_df_filepath))
             session.ripple = found_datafile
             found_datafile.filename = external_computed_ripple_df_filepath
-
         else:
             ## try the '.ripple.npy' ripples:
             active_file_suffix = '.ripple.npy'
