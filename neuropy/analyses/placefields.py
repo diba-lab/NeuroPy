@@ -961,7 +961,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 # ==================================================================================================================== #
 """ Global Placefield perform Computation Functions """
 
-def perform_compute_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True):
+def perform_compute_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True, progress_logger=None):
     """ Most general computation function. Computes both 1D and 2D placefields.
     active_epoch_session_Neurons: 
     active_epoch_pos: a Position object
@@ -970,29 +970,31 @@ def perform_compute_placefields(active_session_spikes_df, active_pos, computatio
     Usage:
         active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config, should_force_recompute_placefields=True)
     """
+    if progress_logger is None:
+        progress_logger = lambda x, end='\n': print(x, end=end)
     ## Linearized (1D) Position Placefields:
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields...', end=' ')
+        progress_logger('Recomputing active_epoch_placefields...', end=' ')
         # PfND version:
         active_epoch_placefields1D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                           grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
 
-        print('\t done.')
+        progress_logger('\t done.')
     else:
-        print('active_epoch_placefields1D already exists, reusing it.')
+        progress_logger('active_epoch_placefields1D already exists, reusing it.')
 
     ## 2D Position Placemaps:
     if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
-        print('Recomputing active_epoch_placefields2D...', end=' ')
+        progress_logger('Recomputing active_epoch_placefields2D...', end=' ')
         # PfND version:
         active_epoch_placefields2D = PfND(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                           grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
 
-        print('\t done.')
+        progress_logger('\t done.')
     else:
-        print('active_epoch_placefields2D already exists, reusing it.')
+        progress_logger('active_epoch_placefields2D already exists, reusing it.')
     
     return active_epoch_placefields1D, active_epoch_placefields2D
 
