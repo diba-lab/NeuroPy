@@ -237,7 +237,6 @@ def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, sub
         
     return nfigures, num_pages, included_combined_indicies_pages, page_grid_sizes, data_aspect_ratio, page_figure_sizes
 
-
 def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_threshold: float=0.0000001):
     """ Universally used to prepare the pfmap to be displayed (across every plot time)
     
@@ -256,7 +255,6 @@ def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_t
         if drop_below_threshold is not None:
             image[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
         return image # return the modified and masked image
-
 
     
 def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
@@ -473,3 +471,93 @@ def scale_title_label(ax, curr_title_obj, curr_im, debug_print=False):
 #     adjusted_size = fontsize * rect_width / bbox.width
 #     print(f'bbox: {bbox}, adjusted_size: {adjusted_size}')
 #     text.set_fontsize(adjusted_size)
+
+# ==================================================================================================================== #
+# 2022-12-14 Batch Surprise Recomputation                                                                              #
+# ==================================================================================================================== #
+
+from matplotlib.collections import BrokenBarHCollection # for add_epochs
+
+def _subfn_build_epoch_region_label(xy, text, ax, **labels_kwargs):
+    """ places a text label inside a square area the top, just inside of it 
+    the epoch at
+
+    Used by:
+        draw_epoch_regions: to draw the epoch name inside the epoch
+    """
+    if labels_kwargs is None:
+        labels_kwargs = {}
+    labels_y_offset = labels_kwargs.pop('y_offset', -0.05)
+    # y = xy[1]
+    y = xy[1] + labels_y_offset  # shift y-value for label so that it's below the artist
+    return ax.text(xy[0], y, text, **({'ha': 'center', 'va': 'top', 'family': 'sans-serif', 'size': 14, 'rotation': 0} | labels_kwargs)) # va="top" places it inside the box if it's aligned to the top
+
+def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors=("black",), alpha=0.25, labels_kwargs=None, defer_render=False, debug_print=False):
+    """ plots epoch rectangles with customizable color, edgecolor, and labels on an existing matplotlib axis
+    2022-12-14
+
+    Usage:
+        from neuropy.utils.matplotlib_helpers import draw_epoch_regions
+        epochs_collection, epoch_labels = draw_epoch_regions(curr_active_pipeline.sess.epochs, ax, defer_render=False, debug_print=False)
+
+    Full Usage Examples:
+
+    ## Example 1:
+        active_filter_epochs = curr_active_pipeline.sess.replay
+        active_filter_epochs
+
+        if not 'stop' in active_filter_epochs.columns:
+            # Make sure it has the 'stop' column which is expected as opposed to the 'end' column
+            active_filter_epochs['stop'] = active_filter_epochs['end'].copy()
+            
+        if not 'label' in active_filter_epochs.columns:
+            # Make sure it has the 'stop' column which is expected as opposed to the 'end' column
+            active_filter_epochs['label'] = active_filter_epochs['flat_replay_idx'].copy()
+
+        active_filter_epoch_obj = Epoch(active_filter_epochs)
+        active_filter_epoch_obj
+
+
+        fig, ax = plt.subplots()
+        ax.plot(post_update_times, flat_surprise_across_all_positions)
+        ax.set_ylabel('Relative Entropy across all positions')
+        ax.set_xlabel('t (seconds)')
+        epochs_collection, epoch_labels = draw_epoch_regions(curr_active_pipeline.sess.epochs, ax, facecolor=('red','cyan'), alpha=0.1, edgecolors=None, labels_kwargs={'y_offset': -0.05, 'size': 14}, defer_render=True, debug_print=False)
+        laps_epochs_collection, laps_epoch_labels = draw_epoch_regions(curr_active_pipeline.sess.laps.as_epoch_obj(), ax, facecolor='red', edgecolors='black', labels_kwargs={'y_offset': -16.0, 'size':8}, defer_render=True, debug_print=False)
+        replays_epochs_collection, replays_epoch_labels = draw_epoch_regions(active_filter_epoch_obj, ax, facecolor='orange', edgecolors=None, labels_kwargs=None, defer_render=False, debug_print=False)
+        fig.show()
+
+
+    ## Example 2:
+
+        # Show basic relative entropy vs. time plot:
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        ax.plot(post_update_times, flat_relative_entropy_results)
+        ax.set_ylabel('Relative Entropy')
+        ax.set_xlabel('t (seconds)')
+        epochs_collection, epoch_labels = draw_epoch_regions(curr_active_pipeline.sess.epochs, ax, defer_render=False, debug_print=False)
+        fig.show()
+
+    """
+    # epoch_obj
+
+    epoch_tuples = [(start_t, width_duration) for start_t, width_duration in zip(epoch_obj.starts, epoch_obj.durations)] # [(0.0, 1211.5580800310709), (1211.5580800310709, 882.3397767931456)]
+    epoch_mid_t = [a_tuple[0]+(0.5*a_tuple[1]) for a_tuple in epoch_tuples] # used for labels
+
+    curr_span_ymin = curr_ax.get_ylim()[0]
+    curr_span_ymax = curr_ax.get_ylim()[1]
+    curr_span_height = curr_span_ymax-curr_span_ymin
+    # xrange: list of (float, float) The sequence of (left-edge-position, width) pairs for each bar.
+    # yrange: (lower-edge, height) 
+    epochs_collection = BrokenBarHCollection(xranges=epoch_tuples, yrange=(curr_span_ymin, curr_span_height), facecolor=facecolor, alpha=alpha, edgecolors=edgecolors, linewidths=(1,)) # , offset_transform=curr_ax.transData
+    if debug_print:
+        print(f'(curr_span_ymin, curr_span_ymax): ({curr_span_ymin}, {curr_span_ymax}), epoch_tuples: {epoch_tuples}')
+    curr_ax.add_collection(epochs_collection)
+    if labels_kwargs is not None:
+        epoch_labels = [_subfn_build_epoch_region_label((a_mid_t, curr_span_ymax), a_label, curr_ax, **labels_kwargs) for a_label, a_mid_t in zip(epoch_obj.labels, epoch_mid_t)]
+    else:
+        epoch_labels = None
+    if not defer_render:
+        curr_ax.get_figure().canvas.draw()
+    return epochs_collection, epoch_labels
