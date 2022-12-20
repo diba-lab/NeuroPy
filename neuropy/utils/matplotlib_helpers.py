@@ -4,6 +4,8 @@ from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
+
 import numpy as np
 
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple
@@ -472,11 +474,59 @@ def scale_title_label(ax, curr_title_obj, curr_im, debug_print=False):
 #     print(f'bbox: {bbox}, adjusted_size: {adjusted_size}')
 #     text.set_fontsize(adjusted_size)
 
+
+def plot_position_curves_figure(position_obj, include_velocity=True, include_accel=False, figsize=(24, 10)):
+    """ Renders a figure with a position curve and optionally its higher-order derivatives """
+    num_subplots = 1
+    out_axes_list = []
+    if include_velocity:
+        num_subplots = num_subplots + 1
+    if include_accel:
+        num_subplots = num_subplots + 1
+    subplots=(num_subplots, 1)
+    fig = plt.figure(figsize=figsize, clear=True)
+    gs = plt.GridSpec(subplots[0], subplots[1], figure=fig, hspace=0.02)
+    
+    ax0 = fig.add_subplot(gs[0])
+    ax0.plot(position_obj.time, position_obj.x, 'k')
+    ax0.set_ylabel('pos_x')
+    out_axes_list.append(ax0)
+    
+    if include_velocity:
+        ax1 = fig.add_subplot(gs[1])
+        # ax1.plot(position_obj.time, pos_df['velocity_x'], 'grey')
+        # ax1.plot(position_obj.time, pos_df['velocity_x_smooth'], 'r')
+        ax1.plot(position_obj.time, position_obj._data['velocity_x_smooth'], 'k')
+        ax1.set_ylabel('Velocity_x')
+        ax0.set_xticklabels([]) # this is intensionally ax[i-1], as we want to disable the tick labels on above plots        
+        out_axes_list.append(ax1)
+
+    if include_accel:  
+        ax2 = fig.add_subplot(gs[2])
+        # ax2.plot(position_obj.time, position_obj.velocity)
+        # ax2.plot(position_obj.time, pos_df['velocity_x'])
+        ax2.plot(position_obj.time, position_obj._data['acceleration_x'], 'k')
+        # ax2.plot(position_obj.time, pos_df['velocity_y'])
+        ax2.set_ylabel('Higher Order Terms')
+        ax1.set_xticklabels([]) # this is intensionally ax[i-1], as we want to disable the tick labels on above plots
+        out_axes_list.append(ax2)
+    
+    # Shared:
+    # ax0.get_shared_x_axes().join(ax0, ax1)
+    ax0.get_shared_x_axes().join(*out_axes_list)
+    ax0.set_xticklabels([])
+    ax0.set_xlim([position_obj.time[0], position_obj.time[-1]])
+
+    return fig, out_axes_list
+
+    
+
+
 # ==================================================================================================================== #
 # 2022-12-14 Batch Surprise Recomputation                                                                              #
 # ==================================================================================================================== #
 
-from matplotlib.collections import BrokenBarHCollection # for add_epochs
+
 
 def _subfn_build_epoch_region_label(xy, text, ax, **labels_kwargs):
     """ places a text label inside a square area the top, just inside of it 
@@ -561,3 +611,18 @@ def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors
     if not defer_render:
         curr_ax.get_figure().canvas.draw()
     return epochs_collection, epoch_labels
+
+
+def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
+    """ builds a MATPLOTLIB figure showing the position and velocity overlayed by the epoch intervals in epoch_obj. Useful for diagnosing overlapping epochs.
+    Usage:
+        from neuropy.utils.matplotlib_helpers import plot_overlapping_epoch_analysis_diagnoser
+        fig, out_axes_list = plot_overlapping_epoch_analysis_diagnoser(sess.position, curr_active_pipeline.sess.laps.as_epoch_obj())
+    """
+    fig, out_axes_list = plot_position_curves_figure(position_obj, include_velocity=True, include_accel=False, figsize=(24, 10))
+    for ax in out_axes_list:
+        laps_epochs_collection, laps_epoch_labels = draw_epoch_regions(epoch_obj, ax, facecolor=('red','green'), edgecolors='black', labels_kwargs={'y_offset': -16.0, 'size':8, 'rotation':90}, defer_render=False, debug_print=False)
+    fig.show()
+    return fig, out_axes_list
+
+
