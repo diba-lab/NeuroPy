@@ -70,7 +70,10 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
 
     @property
     def ybin_centers(self):
-        return self.ybin[:-1] + np.diff(self.ybin) / 2
+        if self.ybin is None:
+            return None
+        else:
+            return self.ybin[:-1] + np.diff(self.ybin) / 2
     
     # NeuronIdentitiesDisplayerMixin requirements
     @property
