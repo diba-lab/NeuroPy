@@ -105,7 +105,7 @@ class Laps(DataFrameRepresentable, DataWriter):
         return laps_df
 
     @classmethod
-    def from_estimated_laps(cls, pos_t_rel_seconds, desc_crossing_beginings, desc_crossing_endings, asc_crossing_beginings, asc_crossing_endings):
+    def from_estimated_laps(cls, pos_t_rel_seconds, desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs):
         """Builds a Laps object from the output of the neuropy.analyses.laps.estimate_laps function.
         Args:
             pos_t_rel_seconds ([type]): [description]
@@ -121,13 +121,13 @@ class Laps(DataFrameRepresentable, DataWriter):
         ### Note that these crossing_* indicies are for the position dataframe, not the spikes_df (which is what the previous Laps object was computed from).
             # This means we don't have 'start_spike_index' or 'end_spike_index', and we'd have to compute them if we want them.
         custom_test_laps_df = pd.DataFrame({
-            'start_position_index': np.concatenate([desc_crossing_beginings, asc_crossing_beginings]),
-            'end_position_index': np.concatenate([desc_crossing_endings, asc_crossing_endings]),
-            'lap_dir': np.concatenate([np.zeros_like(desc_crossing_beginings), np.ones_like(asc_crossing_beginings)])
+            'start_position_index': np.concatenate([desc_crossing_begining_idxs, asc_crossing_begining_idxs]),
+            'end_position_index': np.concatenate([desc_crossing_ending_idxs, asc_crossing_ending_idxs]),
+            'lap_dir': np.concatenate([np.zeros_like(desc_crossing_begining_idxs), np.ones_like(asc_crossing_begining_idxs)])
         })
         # Get start/end times from the indicies
-        custom_test_laps_df['start_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_beginings], pos_t_rel_seconds[asc_crossing_beginings]])
-        custom_test_laps_df['end_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_endings], pos_t_rel_seconds[asc_crossing_endings]])
+        custom_test_laps_df['start_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_begining_idxs], pos_t_rel_seconds[asc_crossing_begining_idxs]])
+        custom_test_laps_df['end_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_ending_idxs], pos_t_rel_seconds[asc_crossing_ending_idxs]])
         custom_test_laps_df['start'] = custom_test_laps_df['start_t_rel_seconds']
         custom_test_laps_df['stop'] = custom_test_laps_df['end_t_rel_seconds']
         # Sort the laps based on the start time, reset the index, and finally assign lap_id's from the sorted laps

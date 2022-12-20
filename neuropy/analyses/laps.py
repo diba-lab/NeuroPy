@@ -67,8 +67,13 @@ def _subfn_perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df:
     for i in np.arange(n_laps):
         included_df = spikes_df[((spikes_df[time_variable_name] >= laps_df.loc[i,'start']) & (spikes_df[time_variable_name] <= laps_df.loc[i,'stop']))]
         included_indicies = included_df.index
-        start_spike_index[i] = included_indicies[0]
-        end_spike_index[i] = included_indicies[-1]
+        if len(included_indicies) > 0:
+            start_spike_index[i] = included_indicies[0]
+            end_spike_index[i] = included_indicies[-1]
+        else:
+            # there were no spikes at all that fell within this lap. Is it a real lap?
+            start_spike_index[i] = 0 # or np.nan?
+            end_spike_index[i] = 0
 
     # Add the start and end spike indicies to the laps df:
     laps_df['start_spike_index'] = start_spike_index
@@ -87,83 +92,89 @@ def _subfn_compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame, 
     return laps_obj
 
  
-def _subfn_perform_estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
+def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
     """ Pho 2021-12-20 - Custom lap computation based on position/velocity thresholding to detect laps
     pos_df
     hardcoded_track_midpoint_x: Take 150.0 as the x midpoint line to be crossed for each trajectory
 
     Usage:
         desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = estimate_laps(pos_df)
-        
+
+        # there are three variables for each of the two movement directions (ascending and descending)
+        # for each movement direction:        
+            crossing_midpoints: the indicies were the animal crosses the hardcoded_track_midpoint_x
+            beginnings and endings: the nearest {preceding/following} points where the animal changes direction.
+
     Known Usages: Called only by `estimation_session_laps(...)`
     """
     assert set(['x','velocity_x_smooth']).issubset(pos_df.columns), 'pos_df requires the columns "x", and "velocity_x_smooth" at a minimum'
     zero_centered_x = pos_df['x'] - hardcoded_track_midpoint_x
     zero_crossings_x = np.diff(np.sign(zero_centered_x))
     # Find ascending crossings:
-    asc_crossing_midpoints = np.where(zero_crossings_x > 0)[0] # (24,), corresponding to increasing positions
+    asc_crossing_midpoint_idxs = np.where(zero_crossings_x > 0)[0] # (24,), corresponding to increasing positions
     # find descending crossings:
-    desc_crossing_midpoints = np.where(zero_crossings_x < 0)[0] # (24,)
-    print(f'desc_crossings_x: {np.shape(desc_crossing_midpoints)}, asc_crossings_x: {np.shape(asc_crossing_midpoints)}') # desc_crossings_x: (24,), asc_crossings_x: (24,)
+    desc_crossing_midpoint_idxs = np.where(zero_crossings_x < 0)[0] # (24,)
+    print(f'desc_crossings_x: {np.shape(desc_crossing_midpoint_idxs)}, asc_crossings_x: {np.shape(asc_crossing_midpoint_idxs)}') # desc_crossings_x: (24,), asc_crossings_x: (24,)
 
-    desc_crossing_beginings = np.zeros_like(desc_crossing_midpoints)
-    desc_crossing_endings = np.zeros_like(desc_crossing_midpoints)
+    ## Build output arrays:
+    desc_crossing_begining_idxs = np.zeros_like(desc_crossing_midpoint_idxs)
+    desc_crossing_ending_idxs = np.zeros_like(desc_crossing_midpoint_idxs)
 
-    asc_crossing_beginings = np.zeros_like(asc_crossing_midpoints)
-    asc_crossing_endings = np.zeros_like(asc_crossing_midpoints)
+    asc_crossing_begining_idxs = np.zeros_like(asc_crossing_midpoint_idxs)
+    asc_crossing_ending_idxs = np.zeros_like(asc_crossing_midpoint_idxs)
 
     ## Ensure that there are the same number of desc/asc crossings (meaning full laps). Drop the last one of the set that has the extra if they aren't equal.
-    if len(desc_crossing_midpoints) > len(asc_crossing_midpoints):
+    if len(desc_crossing_midpoint_idxs) > len(asc_crossing_midpoint_idxs):
         print(f'WARNING: must drop last desc_crossing_midpoint.')
-        assert len(desc_crossing_midpoints) > 1
-        desc_crossing_midpoints = desc_crossing_midpoints[:-1] # all but the very last which is dropped
+        assert len(desc_crossing_midpoint_idxs) > 1
+        desc_crossing_midpoint_idxs = desc_crossing_midpoint_idxs[:-1] # all but the very last which is dropped
         
-    elif len(asc_crossing_midpoints) > len(desc_crossing_midpoints):
+    elif len(asc_crossing_midpoint_idxs) > len(desc_crossing_midpoint_idxs):
         print(f'WARNING: must drop last asc_crossing_midpoints.')
-        assert len(asc_crossing_midpoints) > 1
-        asc_crossing_midpoints = asc_crossing_midpoints[:-1] # all but the very last which is dropped
+        assert len(asc_crossing_midpoint_idxs) > 1
+        asc_crossing_midpoint_idxs = asc_crossing_midpoint_idxs[:-1] # all but the very last which is dropped
         
-    assert len(asc_crossing_midpoints) == len(desc_crossing_midpoints), f"desc_crossings_x: {np.shape(desc_crossing_midpoints)}, asc_crossings_x: {np.shape(asc_crossing_midpoints)}"
-    desc_crossing_midpoints, asc_crossing_midpoints
+    assert len(asc_crossing_midpoint_idxs) == len(desc_crossing_midpoint_idxs), f"desc_crossings_x: {np.shape(desc_crossing_midpoint_idxs)}, asc_crossings_x: {np.shape(asc_crossing_midpoint_idxs)}"
+    desc_crossing_midpoint_idxs, asc_crossing_midpoint_idxs
 
     # testing-only, work on a single crossing:
-    for a_desc_crossing_i in np.arange(len(desc_crossing_midpoints)):
-        a_desc_crossing = desc_crossing_midpoints[a_desc_crossing_i]
+
+    # If it's a descending crossing, we'll look for the times where the velocity becomes positive (meaning the animal is moving in the ascending direction again)
+    for a_desc_crossing_i in np.arange(len(desc_crossing_midpoint_idxs)):
+        a_desc_crossing = desc_crossing_midpoint_idxs[a_desc_crossing_i]
         # print(f'a_desc_crossing: {a_desc_crossing}')
-        # pos_df.loc[a_desc_crossing:, :]
+        
         curr_remainder_pos_df = pos_df.loc[a_desc_crossing:, :]
-        # pos_df.loc[a_desc_crossing:, ['velocity_x_smooth']]
         curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df['velocity_x_smooth'] > 0.0].index # the first increasing
         curr_next_transition_point = curr_next_transition_points[0] # desc endings
-        desc_crossing_endings[a_desc_crossing_i] = curr_next_transition_point
+        desc_crossing_ending_idxs[a_desc_crossing_i] = curr_next_transition_point
 
         # Preceeding points:
         curr_preceeding_pos_df = pos_df.loc[0:a_desc_crossing, :]
         curr_prev_transition_points = curr_preceeding_pos_df[curr_preceeding_pos_df['velocity_x_smooth'] > 0.0].index # the last increasing # TODO: this is not quite right.
         curr_prev_transition_point = curr_prev_transition_points[-1] # Get last (nearest to curr_preceeding_pos_df's end) point. desc beginings
-        desc_crossing_beginings[a_desc_crossing_i] = curr_prev_transition_point
-        # ax0.scatter(curr_points[curr_next_transition_point,0], curr_points[curr_next_transition_point,1], s=15, c='orange')
-        # ax0.vlines(curr_points[curr_next_transition_point,0], 0, 1, transform=ax0.get_xaxis_transform(), colors='r')
+        desc_crossing_begining_idxs[a_desc_crossing_i] = curr_prev_transition_point
 
-    for a_asc_crossing_i in np.arange(len(asc_crossing_midpoints)):
-        an_asc_crossing = asc_crossing_midpoints[a_asc_crossing_i]
+    # If it's an ascending crossing, we'll look for the nearest times where the velocity is positive (meaning the animal is moving in the descending direction):
+    for a_asc_crossing_i in np.arange(len(asc_crossing_midpoint_idxs)):
+        an_asc_crossing = asc_crossing_midpoint_idxs[a_asc_crossing_i]
         # print(f'a_desc_crossing: {a_desc_crossing}')
-        # pos_df.loc[a_desc_crossing:, :]
-        curr_remainder_pos_df = pos_df.loc[an_asc_crossing:, :]
-        # pos_df.loc[a_desc_crossing:, ['velocity_x_smooth']]
+        curr_remainder_pos_df = pos_df.loc[an_asc_crossing:, :] # get from the an_asc_crossing up to the end of the pos_df
+
+        # find the first index where the velocity is decreasing:
         curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df['velocity_x_smooth'] < 0.0].index # the first decreasing
         curr_next_transition_point = curr_next_transition_points[0] # asc endings
-        asc_crossing_endings[a_asc_crossing_i] = curr_next_transition_point
-        # ax0.scatter(curr_points[curr_next_transition_point,0], curr_points[curr_next_transition_point,1], s=15, c='orange')
-        # ax0.vlines(curr_points[curr_next_transition_point,0], 0, 1, transform=ax0.get_xaxis_transform(), colors='g')
-
+        asc_crossing_ending_idxs[a_asc_crossing_i] = curr_next_transition_point
+        
         # Preceeding points:
-        curr_preceeding_pos_df = pos_df.loc[0:an_asc_crossing, :]
+        curr_preceeding_pos_df = pos_df.loc[0:an_asc_crossing, :] # get all pos_df prior to an_asc_crossing
         curr_prev_transition_points = curr_preceeding_pos_df[curr_preceeding_pos_df['velocity_x_smooth'] < 0.0].index #
         curr_prev_transition_point = curr_prev_transition_points[-1] # Get last (nearest to curr_preceeding_pos_df's end) point. desc beginings
-        asc_crossing_beginings[a_asc_crossing_i] = curr_prev_transition_point
+        asc_crossing_begining_idxs[a_asc_crossing_i] = curr_prev_transition_point
 
-    return desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings
+    # return desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings
+    return (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs)
+
 
 
 
@@ -190,8 +201,14 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
     # custom_test_laps = deepcopy(sess.laps)
     spikes_df = deepcopy(sess.spikes_df)
 
-    desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = _subfn_perform_estimate_laps(pos_df)
-    custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_endings, asc_crossing_beginings, asc_crossing_endings)
+    lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df)
+    (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies
+
+    ## Get the timestamps corresponding to the indicies:
+    # pos_times = pos_df['t'].to_numpy()
+    # desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = [pos_times[idxs] for idxs in (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs)]
+
+    custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs)
     ## Determine the spikes included with each computed lap:
     custom_test_laps_obj = _subfn_compute_laps_spike_indicies(custom_test_laps_obj, spikes_df, time_variable_name=time_variable_name)
     sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
