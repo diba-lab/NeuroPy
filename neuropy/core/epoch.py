@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
-from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin
 
 
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
@@ -37,35 +37,73 @@ class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
         return Epoch(pd.DataFrame({'start': [self.t_start], 'stop': [self.t_stop], 'label':[self.name]}))
         
 
+@pd.api.extensions.register_dataframe_accessor("epochs")
+class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectProtocol):
+    """ A Pandas pd.DataFrame representation of [start, stop, label] epoch intervals """
+    
+    _column_name_synonyms = {"start":{'begin','start_t'},
+            "stop":['end','stop_t'],
+            "label":['name', 'id', 'flat_replay_idx']
+        }
 
+    def __init__(self, pandas_obj):
+        pandas_obj = self._validate(pandas_obj)
+        self._obj = pandas_obj
+        self._obj = self._obj.sort_values(by=["start"]) # sorts all values in ascending order
+        # Optional: If the 'label' column of the dataframe is empty, should populate it with the index (after sorting) as a string.
+        # self._obj['label'] = self._obj.index
+        self._obj["label"] = self._obj["label"].astype("str")
+        # Optional: Add 'duration' column:
+        self._obj["duration"] = self._obj["stop"] - self._obj["start"]
+        # Optional: check for and remove overlaps
 
-class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
-    def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
-        """[summary]
-        Args:
-            epochs (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
-            metadata (dict, optional): [description]. Defaults to None.
-        """
-        super().__init__(metadata=metadata)
-        self._check_epochs(epochs)
-        self._data = epochs.sort_values(by=["start"]) # sorts all values in ascending order
+    @classmethod
+    def _validate(cls, obj):
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
+        if "start" not in obj.columns:
+            # try to rename based on synonyms
+            for a_synonym in cls._column_name_synonyms["start"]:
+                if a_synonym in obj.columns:
+                    obj = obj.rename({a_synonym: "start"}, axis="columns") # rename the synonym column to "start"
+                    # obj["start"] = obj[a_synonym].copy()
+            ## must be in there by the time that you're done.
+            if "start" not in obj.columns:
+                raise AttributeError("Must have unit id column 'start' column.")
+        if "stop" not in obj.columns:
+            # try to rename based on synonyms
+            for a_synonym in cls._column_name_synonyms["stop"]:
+                if a_synonym in obj.columns:
+                    obj = obj.rename({a_synonym: "stop"}, axis="columns") # rename the synonym column to "stop"
+            ## must be in there by the time that you're done.
+            if "stop" not in obj.columns:
+                raise AttributeError("Must have unit id column 'stop' column.")
+        if "label" not in obj.columns:
+            # try to rename based on synonyms
+            for a_synonym in cls._column_name_synonyms["label"]:
+                if a_synonym in obj.columns:
+                    obj = obj.rename({a_synonym: "label"}, axis="columns") # rename the synonym column to "label"
+            ## must be in there by the time that you're done.
+            if "label" not in obj.columns:
+                raise AttributeError("Must have unit id column 'label' column.")
         
-        # TODO: If the 'label' column of the dataframe is empty, should populate it with the index (after sorting) as a string.
-        # epochs['label'] = epochs.index
-        epochs["label"] = epochs["label"].astype("str")
+        return obj # important! Must return the modified obj to be assigned (since its columns were altered by renaming
+
+    @property
+    def is_valid(self):
+        """ The dataframe is valid (because it passed _validate(...) in __init__(...) so just return True."""
+        return True
 
     @property
     def starts(self):
-        return self._data.start.values
+        return self._obj.start.values
 
     @property
     def stops(self):
-        return self._data.stop.values
+        return self._obj.stop.values
     
     @property
     def t_start(self):
         return self.starts[0]
-    
     @t_start.setter
     def t_start(self, t):
         include_indicies = np.argwhere(t < self.stops)
@@ -74,17 +112,13 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
             print('Error: this proposed t_start ({}) is after any contained epochs, so the returned object would be empty'.format(t))
             raise ValueError
         first_include_index = include_indicies[0]
-        # print('\t first_include_index: {}'.format(first_include_index))
-        # print('\t changing ._data.loc[first_include_index, (\'start\')] from {} to {}'.format(self._data.loc[first_include_index, ('start')].item(), t))
         
         if (first_include_index > 0):
             # drop the epochs preceeding the first_include_index:
             drop_indicies = np.arange(first_include_index)
             print('drop_indicies: {}'.format(drop_indicies))
             raise NotImplementedError # doesn't yet drop the indicies before the first_include_index
-        self._data.loc[first_include_index, ('start')] = t # exclude the first short period where the animal isn't on the maze yet
-        
-        
+        self._obj.loc[first_include_index, ('start')] = t # exclude the first short period where the animal isn't on the maze yet
 
     @property
     def duration(self):
@@ -93,10 +127,6 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     @property
     def t_stop(self):
         return self.stops[-1]
-    
-    # @t_stop.setter
-    # def t_stop(self, t):
-    #     self.start_end_times[1] = t
 
     @property
     def durations(self):
@@ -108,23 +138,88 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
 
     @property
     def labels(self):
-        return self._data.label.values
+        return self._obj.label.values
+
+    def as_array(self):
+        return self._obj[["start", "stop"]].to_numpy()
+
+    def get_unique_labels(self):
+        return np.unique(self.labels)
+
+    # for TimeSlicableObjectProtocol:
+    def time_slice(self, t_start, t_stop):
+        # TODO time_slice should also include partial epochs falling in between the timepoints
+        df = self._obj.copy() 
+        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
+        df = df[(df["start"] >= t_start) & (df["start"] <= t_stop)].reset_index(drop=True)
+        return df
+        
+    def label_slice(self, label):
+        if isinstance(label, (list, np.ndarray)):
+            df = self._obj[np.isin(self._obj["label"], label)].reset_index(drop=True)
+        else:
+            assert isinstance(label, str), "label must be string"
+            df = self._obj[self._obj["label"] == label].reset_index(drop=True)
+        return df
+
+
+class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
+    def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
+        """[summary]
+        Args:
+            epochs (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
+            metadata (dict, optional): [description]. Defaults to None.
+        """
+        super().__init__(metadata=metadata)
+        self._df = epochs.epochs._obj # gets already sorted appropriately and everything
+        self._check_epochs(epochs) # check anyway
+
+    @property
+    def starts(self):
+        return self._df.epochs.starts
+
+    @property
+    def stops(self):
+        return self._df.epochs.stops
+    
+    @property
+    def t_start(self):
+        return self.starts[0]
+    @t_start.setter
+    def t_start(self, t):
+        self._df.epochs.t_start = t
+
+    @property
+    def duration(self):
+        return self.t_stop - self.t_start
+    
+    @property
+    def t_stop(self):
+        return self.stops[-1]
+
+    @property
+    def durations(self):
+        return self.stops - self.starts
+
+    @property
+    def n_epochs(self):
+        return self._df.epochs.n_epochs
+    @property
+    def labels(self):
+        return self._df.epochs.labels
 
     def get_unique_labels(self):
         return np.unique(self.labels)
     
-    
     def get_named_timerange(self, epoch_name):
         return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
 
-
     def to_dict(self, recurrsively=False):
-        d = {"epochs": self._data, "metadata": self.metadata}
+        d = {"epochs": self._df, "metadata": self.metadata}
         return d
 
     def to_dataframe(self):
-        df = self._data.copy()
-        df["duration"] = self.durations
+        df = self._df.copy()
         return df
 
     @property
@@ -139,6 +234,7 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
+        # epochs.epochs.
         assert (
             pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
         ), "Epoch dataframe should at least have columns with names: start, stop, label"
@@ -147,14 +243,10 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         # return f"{len(self.starts)} epochs"
         return f"{len(self.starts)} epochs\n{self.as_array().__repr__()}\n"
 
-
     def _repr_pretty_(self, p, cycle=False):
         """ The cycle parameter will be true if the representation recurses - e.g. if you put a container inside itself. """
         # p.text(self.__repr__() if not cycle else '...')
         p.text(self.to_dataframe().__repr__() if not cycle else '...')
-        
-        # return self.as_array().__repr__() # p.text(repr(self))
-
 
     def __str__(self) -> str:
         return f"{len(self.starts)} epochs\n{self.as_array().__repr__()}\n"
@@ -173,24 +265,14 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
-        # TODO time_slice should also include partial epochs
-        # falling in between the timepoints
-        df = self.to_dataframe()
-        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        df = df[(df["start"] >= t_start) & (df["start"] <= t_stop)].reset_index(drop=True)
-        return Epoch(epochs=df) # NOTE: drops metadata
+        return Epoch(epochs=self._df.epochs.time_slice(t_start, t_stop)) # NOTE: drops metadata
         
     def label_slice(self, label):
-        if isinstance(label, (list, np.ndarray)):
-            df = self._data[np.isin(self._data["label"], label)].reset_index(drop=True)
-        else:
-            assert isinstance(label, str), "label must be string"
-            df = self._data[self._data["label"] == label].reset_index(drop=True)
-        return Epoch(epochs=df)
+        return Epoch(epochs=self._df.epochs.label_slice(label))
 
     def to_dict(self, recurrsively=False):
         return {
-            "epochs": self._data,
+            "epochs": self._df,
             "metadata": self._metadata,
         }
 
@@ -198,7 +280,7 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def from_dict(d: dict):
         return Epoch(d["epochs"], metadata=d["metadata"])
 
-
+    ## TODO: refactor these methods into the 'epochs' pd.DataFrame accessor above and then wrap them:
     def fill_blank(self, method="from_left"):
         ep_starts = self.epochs["start"].values
         ep_stops = self.epochs["stop"].values
@@ -274,7 +356,7 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
 
         duration = t_stop - t_start
 
-        ep = self._data.copy()
+        ep = self._df.copy()
         ep = ep[(ep.stop > t_start) & (ep.start < t_stop)].reset_index(drop=True)
 
         if ep["start"].iloc[0] < t_start:
