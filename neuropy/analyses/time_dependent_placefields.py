@@ -494,7 +494,7 @@ class PfND_TimeDependent(PfND):
     # ==================================================================================================================== #
     
 
-    def conform_to_position_bins(self, target_pf1D):
+    def conform_to_position_bins(self, target_pf1D, force_recompute=False):
         """ Allow overriding PfND's bins:
             # 2022-12-09 - We want to be able to have both long/short track placefields have the same spatial bins.
             This function standardizes the short pf1D's xbins to the same ones as the long_pf1D, and then recalculates it.
@@ -502,7 +502,7 @@ class PfND_TimeDependent(PfND):
                 short_pf1D, did_update_bins = short_pf1D.conform_to_position_bins(long_pf1D)
         """
         did_update_bins = False
-        if (len(self.xbin) < len(target_pf1D.xbin)) or ((self.ndim > 1) and (len(self.ybin) < len(target_pf1D.ybin))):
+        if force_recompute or (len(self.xbin) < len(target_pf1D.xbin)) or ((self.ndim > 1) and (len(self.ybin) < len(target_pf1D.ybin))):
             print(f'self will be re-binned to match target_pf1D...')
             # bak_self = deepcopy(self) # Backup the original first
             xbin, ybin, bin_info, grid_bin = target_pf1D.xbin, target_pf1D.ybin, target_pf1D.bin_info, target_pf1D.config.grid_bin
