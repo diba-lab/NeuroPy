@@ -1,3 +1,4 @@
+from copy import deepcopy
 from enum import Enum
 import numpy as np
 from numba import jit, njit, prange # numba acceleration
@@ -299,3 +300,51 @@ def _compiled_searchsorted_event_interval_is_included(times_arr, start_stop_time
 def determine_event_interval_is_included(times_arr, start_stop_times_arr):
     assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
     return _compiled_searchsorted_event_interval_is_included(times_arr, start_stop_times_arr)
+
+
+
+def debug_overlapping_epochs(epochs_df):
+    """
+    from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping, get_overlapping_indicies, OverlappingIntervalsFallbackBehavior
+    curr_epochs_obj = deepcopy(sess.ripple)
+    debug_overlapping_epochs(curr_epochs_obj.to_dataframe())
+    
+    """
+    start_stop_times_arr = np.vstack([epochs_df.epochs.starts, epochs_df.epochs.stops]).T # (80, 2)
+    # start_stop_times_arr.shape
+    all_overlapping_lap_indicies = get_overlapping_indicies(start_stop_times_arr)
+    n_total_epochs = start_stop_times_arr.shape[0]
+    n_overlapping = len(all_overlapping_lap_indicies)
+    print(f'n_overlapping: {n_overlapping} of n_total_epochs: {n_total_epochs}')
+    return all_overlapping_lap_indicies
+
+
+# ==================================================================================================================== #
+# De-Duplication                                                                                                       #
+# ==================================================================================================================== #
+def deduplicate_epochs(epochs_df, agressive_deduplicate:bool=True):
+    """ Attempts to remove literal duplicate ('start', 'stop') entries in the epochs_df. Does not do anything about overlap if the epochs don't match
+    returns the non-duplicated epochs in epochs_df.
+
+    Usage:
+        from neuropy.utils.efficient_interval_search import deduplicate_epochs
+        curr_epochs_df = deduplicate_epochs(epochs_df, agressive_deduplicate=True)
+
+    """
+    df = deepcopy(epochs_df)
+
+    if agressive_deduplicate:
+        ## A more aggressive method that re-sorts first and eliminates more duplicates (meaning the version above leaves in some duplicates):
+        # original epochs_df: np.shape(curr_epochs_df) = (770, 9)
+        # above version: np.shape(non_duplicated_epochs_df) = (412, 9)
+        # this agressive version: np.shape(non_duplicated_epochs_df) = (358, 11)
+        df['index_original'] = df.groupby(['start','stop']).start.transform('idxmin')
+        df['integer_label'] = df['label'].astype('int')
+        df.sort_values(by='integer_label')
+        return df[df.duplicated(subset=['start','stop'], keep='first')]
+    else:
+        # less agressive (more conservative) de-duplication mode:
+        is_duplicated_epoch = df.duplicated(subset=['start','stop'], keep='first')
+        return df[np.logical_not(is_duplicated_epoch)]
+
+

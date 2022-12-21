@@ -4,7 +4,7 @@ import pandas as pd
 from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin
-
+from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, deduplicate_epochs # for EpochsAccessor's .get_non_overlapping_df()
 
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
     """ A simple named period of time with a known start and end time """
@@ -149,6 +149,17 @@ class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectPro
     def get_valid_df(self):
         """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
         return self._obj.copy()
+
+    ## Handling overlapping
+    def get_non_overlapping_df(self):
+        active_filter_epochs = self.get_valid_df()
+        ## De-duplicate epochs:
+        active_filter_epochs = deduplicate_epochs(active_filter_epochs, agressive_deduplicate=True)
+
+        ## HANDLE OVERLAPPING EPOCHS: Note that there is a problem that occurs here with overlapping epochs for laps. Below we remove any overlapping epochs and leave only the valid ones.
+        is_non_overlapping = get_non_overlapping_epochs(active_filter_epochs[['start','stop']].to_numpy()) # returns a boolean array of the same length as the number of epochs 
+        # Just drop the rows of the dataframe that are overlapping:
+        return active_filter_epochs.loc[is_non_overlapping]
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
