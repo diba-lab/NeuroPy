@@ -146,6 +146,10 @@ class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectPro
     def get_unique_labels(self):
         return np.unique(self.labels)
 
+    def get_valid_df(self):
+        """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
+        return self._obj.copy()
+
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         # TODO time_slice should also include partial epochs falling in between the timepoints
@@ -171,7 +175,7 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
             metadata (dict, optional): [description]. Defaults to None.
         """
         super().__init__(metadata=metadata)
-        self._df = epochs.epochs._obj # gets already sorted appropriately and everything
+        self._df = epochs.epochs.get_valid_df() # gets already sorted appropriately and everything
         self._check_epochs(epochs) # check anyway
 
     @property
