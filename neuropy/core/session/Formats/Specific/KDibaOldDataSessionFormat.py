@@ -479,6 +479,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
             WARNING: currently ignores time_variable_name, as the replays are always exported in relative seconds.
             
+            ERROR: the 'epoch_id' that's imported has NOTHING to do with the two epochs in the maze for some reason. I checked the MATLAB code and it's unclear in the original data why this is or what they stand for. Probably best to ignore this variable entirely, or only import one, or something similar.
             
             time_variable_name = 't_seconds'
             sess, laps_df = __default_kdiba_spikeII_load_laps_vars(sess, time_variable_name=time_variable_name)
