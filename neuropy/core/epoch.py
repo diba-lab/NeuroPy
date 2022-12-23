@@ -151,15 +151,39 @@ class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectPro
         return self._obj.copy()
 
     ## Handling overlapping
-    def get_non_overlapping_df(self):
+    def get_non_overlapping_df(self, debug_print=False):
         active_filter_epochs = self.get_valid_df()
+        if debug_print:
+            before_num_rows = np.shape(active_filter_epochs)[0]
         ## De-duplicate epochs:
         active_filter_epochs = deduplicate_epochs(active_filter_epochs, agressive_deduplicate=True)
-
         ## HANDLE OVERLAPPING EPOCHS: Note that there is a problem that occurs here with overlapping epochs for laps. Below we remove any overlapping epochs and leave only the valid ones.
         is_non_overlapping = get_non_overlapping_epochs(active_filter_epochs[['start','stop']].to_numpy()) # returns a boolean array of the same length as the number of epochs 
         # Just drop the rows of the dataframe that are overlapping:
-        return active_filter_epochs.loc[is_non_overlapping]
+        if debug_print:
+            filtered_epochs = active_filter_epochs.loc[is_non_overlapping]
+            after_num_rows = np.shape(filtered_epochs)[0]
+            changed_num_rows = after_num_rows - before_num_rows
+            print(f'Dataframe Changed from {before_num_rows} -> {after_num_rows} ({changed_num_rows = })')
+            return filtered_epochs
+        else:
+            return active_filter_epochs.loc[is_non_overlapping]
+
+    def get_epochs_longer_than(self, minimum_duration, debug_print=False):
+        """ returns a copy of the dataframe contining only epochs longer than the specified minimum_duration. """
+        active_filter_epochs = self.get_valid_df()
+        if debug_print:
+            before_num_rows = np.shape(active_filter_epochs)[0]
+        if 'duration' not in active_filter_epochs.columns:
+            active_filter_epochs['duration'] = active_filter_epochs['stop'] - active_filter_epochs['start']
+        if debug_print:
+            filtered_epochs = active_filter_epochs[active_filter_epochs['duration'] >= minimum_duration]
+            after_num_rows = np.shape(filtered_epochs)[0]
+            changed_num_rows = after_num_rows - before_num_rows
+            print(f'Dataframe Changed from {before_num_rows} -> {after_num_rows} ({changed_num_rows = })')
+            return filtered_epochs
+        else:
+            return active_filter_epochs[active_filter_epochs['duration'] >= minimum_duration]
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
