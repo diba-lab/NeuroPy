@@ -69,8 +69,15 @@ class BinningContainer(object):
             
     @classmethod
     def build_edge_binning_info(cls, edges):
-        # Otherwise try to reverse engineer edge_info            
-        actual_window_size = edges[2] - edges[1]
+        # Otherwise try to reverse engineer edge_info
+        try:
+            actual_window_size = edges[2] - edges[1] # if at least 3 bins long, safer to use the 2nd and 3rd bin to determine the actual_window_size
+        except IndexError:
+            # If edges is smaller than size 3, use the only two we have
+            assert len(edges) == 2
+            actual_window_size = edges[1] - edges[0]
+        except Exception as e:
+            raise e
         variable_extents = [edges[0], edges[-1]] # get first and last values as the extents
         return BinningInfo(variable_extents, actual_window_size, len(edges), np.arange(len(edges)))
     
