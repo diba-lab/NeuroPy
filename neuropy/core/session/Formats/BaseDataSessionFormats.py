@@ -202,7 +202,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # global_epoch_filter_fn = (lambda x: (x.filtered_by_epoch(NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])))
         if debug_print:
             print(f'global_named_timerange: {global_named_timerange}, first_included_epoch_name: {first_included_epoch_name}, last_included_epoch_name: {last_included_epoch_name}')
-        global_epoch_filter_fn = (lambda x: (x.filtered_by_epoch(NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]])), NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]])))
+        global_epoch_filter_fn = (lambda x: (x.filtered_by_epoch(NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]])), NamedTimerange(name=global_epoch_name, start_end_times=[x.epochs[(first_included_epoch_name or x.epochs.get_unique_labels()[0])][0], x.epochs[(last_included_epoch_name or x.epochs.get_unique_labels()[-1])][1]]), sess.get_context().adding_context('filter', filter_name=f'{global_epoch_name}{filter_name_suffix or ""}')))
         return {global_epoch_name: global_epoch_filter_fn}, global_named_timerange
     
     @classmethod
@@ -225,7 +225,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         else:
             global_epoch_filter_fn_dict = {} # empty dict
 
-        epoch_filter_configs_dict = {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in epoch_name_whitelist}
+        epoch_filter_configs_dict = {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name), a_sess.get_context().adding_context('filter', filter_name=f'{an_epoch_name}{filter_name_suffix}')) for an_epoch_name in epoch_name_whitelist}
         final_configs_dict = dict(epoch_filter_configs_dict, **global_epoch_filter_fn_dict)
         return  final_configs_dict
 
