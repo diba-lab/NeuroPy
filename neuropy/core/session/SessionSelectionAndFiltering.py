@@ -46,7 +46,7 @@ class CustomSessionFilter(object):
         active_session_filter_configurations = build_custom_epochs_filters(sess)
         
  
-def _filter_function_factory(epoch_label):
+def _filter_function_factory(epoch_label, filter_name_suffix=None):
     """ Use a function factory to capture the current value of i in a closure. 
         # epoch_label is now a *local* variable of f_factory and can't ever change
     Reference:
@@ -56,12 +56,13 @@ def _filter_function_factory(epoch_label):
         # nonlocal epoch_label # if we want to modify epoch_label
         active_named_timerange = a_sess.epochs.get_named_timerange(epoch_label)
         active_session = batch_filter_session(a_sess, a_sess.position, a_sess.spikes_df, active_named_timerange.to_Epoch())
-        return active_session, active_named_timerange
+        active_filter_context = a_sess.get_context().adding_context('filter', filter_name=f'{epoch_label}{filter_name_suffix or ""}')
+        return active_session, active_named_timerange, active_filter_context
     return _temp_filter_session_by_curr_epoch
 
 
 
-def build_custom_epochs_filters(sess, epoch_name_whitelist=None):
+def build_custom_epochs_filters(sess, epoch_name_whitelist=None, filter_name_suffix=None):
     """ Called by build_filters_any_epochs and build_filters_any_maze_epochs
     
         # Usage Example:
@@ -88,9 +89,10 @@ def build_custom_epochs_filters(sess, epoch_name_whitelist=None):
     
     # curr_named_timeranges = [sess.epochs.get_named_timerange(a_label) for a_label in curr_epoch_labels]
     out_filter_dict = dict()
-    for a_label in curr_epoch_labels:
+    for an_epoch_label in curr_epoch_labels:
         # build the filter function:
-        out_filter_dict[a_label] = _filter_function_factory(a_label) # don't pass the session argument because we want the function to be callable
+        filter_label = f'{an_epoch_label}{filter_name_suffix or ""}'
+        out_filter_dict[filter_label] = _filter_function_factory(an_epoch_label, filter_name_suffix=filter_name_suffix) # don't pass the session argument because we want the function to be callable
         
     return out_filter_dict
 

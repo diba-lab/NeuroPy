@@ -88,14 +88,14 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
     
     # Not limited:
     @classmethod
-    def build_filters_any_epochs(cls, sess):
-        return build_custom_epochs_filters(sess)
+    def build_filters_any_epochs(cls, sess, filter_name_suffix=None):
+        return build_custom_epochs_filters(sess, filter_name_suffix=filter_name_suffix)
     
     # Any epoch on the maze, not limited to pyramidal cells, etc
     @classmethod
-    def build_filters_any_maze_epochs(cls, sess):
+    def build_filters_any_maze_epochs(cls, sess, filter_name_suffix=None):
         maze_only_name_filter_fn = lambda names: list(filter(lambda elem: elem.startswith('maze'), names))
-        maze_only_filters = build_custom_epochs_filters(sess, epoch_name_whitelist=maze_only_name_filter_fn)
+        maze_only_filters = build_custom_epochs_filters(sess, epoch_name_whitelist=maze_only_name_filter_fn, filter_name_suffix=filter_name_suffix)
         return maze_only_filters
 
 
@@ -103,7 +103,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
     def build_default_filter_functions(cls, sess, epoch_name_whitelist=None, filter_name_suffix=None, include_global_epoch=False):
         ## TODO: currently hard-coded
         # active_session_filter_configurations = cls.build_filters_any_epochs(sess)
-        active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
+        active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess, filter_name_suffix=filter_name_suffix)
         return active_session_filter_configurations
     
         
