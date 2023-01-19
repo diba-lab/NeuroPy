@@ -139,6 +139,9 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
 
+    def to_dict(self):
+        return self.__dict__
+
 
     @classmethod
     def compute_grid_bin_bounds(cls, x, y):
