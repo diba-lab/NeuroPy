@@ -344,7 +344,7 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
     def get_by_id(self, ids):
         """Returns neurons object with neuron_ids equal to ids"""
         indices = np.isin(self.neuron_ids, ids)
-        return self[indices]
+        return self[indices] # TODO 2023-01-01: should this use 'safe_pandas_get_group' to ensure that an empty dataframe is returned if no neurons are found?
 
     def get_isi(self, bin_size=0.001, n_bins=200):
         """Interspike interval
