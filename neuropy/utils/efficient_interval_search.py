@@ -3,6 +3,10 @@ from enum import Enum
 import numpy as np
 from numba import jit, njit, prange # numba acceleration
 
+import portion as P # Required for interval search: portion~=2.3.0
+
+
+
 class OverlappingIntervalsFallbackBehavior(Enum):
     """Describes the behavior of the search when the provided epochs overlap each other.
         overlap_behavior: OverlappingIntervalsFallbackBehavior - If ASSERT_FAIL, an AssertionError will be thrown in the case that any of the intervals in provided_epochs_df overlap each other. Otherwise, if FALLBACK_TO_SLOW_SEARCH, a much slower search will be performed that will still work.
@@ -347,4 +351,154 @@ def deduplicate_epochs(epochs_df, agressive_deduplicate:bool=True):
         is_duplicated_epoch = df.duplicated(subset=['start','stop'], keep='first')
         return df[np.logical_not(is_duplicated_epoch)]
 
+
+# ==================================================================================================================== #
+# `portion`-based interval search and operations                                                                       #
+# ==================================================================================================================== #
+
+def _convert_start_end_tuples_list_to_Intervals(start_end_tuples_list):
+    return P.from_data([(P.CLOSED, start, stop, P.CLOSED) for start, stop in start_end_tuples_list])
+
+def _convert_Intervals_to_4uples_list(intervals: P.Interval):
+    return P.to_data(intervals)
+
+def _convert_4uples_list_to_epochs_df(tuples_list):
+    """ Convert tuples list to epochs dataframe """
+    if len(tuples_list) > 0:
+        assert len(tuples_list[0]) == 4
+    combined_df = pd.DataFrame.from_records(tuples_list, columns=['is_interval_start_closed','start','stop','is_interval_end_closed'], exclude=['is_interval_start_closed','is_interval_end_closed'], coerce_float=True)
+    combined_df['label'] = combined_df.index.astype("str") # add the required 'label' column so it can be convereted into an Epoch object
+    combined_df[['start','stop']] = combined_df[['start','stop']].astype('float')
+    combined_df = combined_df.epochs.get_valid_df() # calling the .epochs.get_valid_df() method ensures all the appropriate columns are added (such as 'duration') to be used as an epochs_df
+    return combined_df
+
+def convert_Intervals_to_epochs_df(intervals: P.Interval) -> pd.DataFrame:
+    """ 
+    Usage:
+        epochs_df = convert_Intervals_to_epochs_df(long_replays_intervals)
+    """
+    return _convert_4uples_list_to_epochs_df(_convert_Intervals_to_4uples_list(intervals))
+
+def convert_Intervals_to_Epoch_obj(intervals: P.Interval):
+    """ build an Epoch object version
+    Usage:
+        combined_epoch_obj = convert_Intervals_to_Epoch_obj(long_replays_intervals)
+    """
+    from neuropy.core.epoch import Epoch # import here to avoid circular import
+    return Epoch(epochs=convert_Intervals_to_epochs_df(intervals))
+
+# # to_string/from_string:
+# P.to_string(long_replays_intervals)
+# P.from_string(P.to_string(long_replays_intervals), conv=float)
+
+### Get global intervals above/below a given speed threshold:
+def _find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interpolated: bool) -> list:
+    """ written by ChatGPT 2023-01-26
+    Used by `_filter_epochs_by_speed`
+    """
+    # speed_threshold_comparison_operator_fn: defines the function to compare a given speed with the threshold (e.g. > or <)
+    speed_threshold_comparison_operator_fn = lambda a_speed, a_speed_thresh: (a_speed > a_speed_thresh) # greater than
+    # speed_threshold_comparison_operator_fn = lambda a_speed, a_speed_thresh: (a_speed < a_speed_thresh) # less than
+    speed_threshold_condition_fn = lambda start_speed, end_speed, speed_thresh: speed_threshold_comparison_operator_fn(start_speed, speed_thresh) and speed_threshold_comparison_operator_fn(end_speed, speed_thresh)
+    # curr_df_record_fn = lambda i, col_name='speed': df.loc[i, col_name]
+    curr_df_record_fn = lambda i, col_name='speed': df.loc[df.index[i], col_name]
+    df = df.copy()
+    df.index = df.index.astype(int) #use astype to convert to int
+    # df = df.reset_index(drop=True) # reset and drop the index so the `df.loc[i, *]` and  `df.loc[df.index[i], *]` align    
+    intervals = []
+    start_time = None
+    for i in range(len(df)):
+        # curr_t = curr_df_record_fn(i, col_name='t')
+        curr_speed = curr_df_record_fn(i, col_name='speed')
+        if speed_threshold_comparison_operator_fn(curr_speed, speed_thresh):
+            if start_time is None:
+                start_time = df.loc[i, 't']
+                # start_time = df.loc[df.index[i], 't']
+                # start_time = curr_t
+        else:
+            if start_time is not None:
+                end_time = df.loc[i, 't']
+                # end_time = df.loc[df.index[i], 't']
+                # end_time = curr_t
+                if is_interpolated:
+                    start_speed = np.interp(start_time, df.t, df.speed)
+                    end_speed = np.interp(end_time, df.t, df.speed)
+                    if speed_threshold_condition_fn(start_speed, end_speed, speed_thresh):
+                        intervals.append((start_time, end_time))
+                else:
+                    intervals.append((start_time, end_time))
+                start_time = None
+                
+    # Last (unclosed) interval:
+    if start_time is not None:
+        end_time = df.loc[len(df)-1, 't']
+        # end_time = df.loc[df.index[len(df)-1], 't']
+        # end_time = curr_df_record_fn((len(df)-1), col_name='t')
+        if is_interpolated:
+            start_speed = np.interp(start_time, df.t, df.speed)
+            end_speed = np.interp(end_time, df.t, df.speed)
+            if speed_threshold_condition_fn(start_speed, end_speed, speed_thresh):
+                intervals.append((start_time, end_time))
+        else:
+            intervals.append((start_time, end_time))
+    return intervals
+
+# def _filter_epochs_by_speed(speed_df, long_replays, short_replays, global_replays, speed_thresh=2.0, debug_print=False):
+#     """ Filter *_replays_Interval by requiring them to be below the speed """
+#     start_end_tuples_interval_list = _find_intervals_above_speed(speed_df, speed_thresh, is_interpolated=True)
+#     above_speed_threshold_intervals = _convert_start_end_tuples_list_to_Intervals(start_end_tuples_interval_list)
+#     if debug_print:
+#         print(f'len(above_speed_threshold_intervals): {len(above_speed_threshold_intervals)}')
+
+#     # find the intervals below the threshold speed by taking the complement:
+#     below_speed_threshold_intervals = above_speed_threshold_intervals.complement()
+#     if debug_print:
+#         print(f'len(below_speed_threshold_intervals): {len(below_speed_threshold_intervals)}')
+#         # print(f'len(long_replays): {len(long_replays)}, len(short_replays): {len(short_replays)}, len(global_replays): {len(global_replays)}')
+#         print(f'Pre-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
+
+#     long_replays_Interval, short_replays_Interval, global_replays_Interval = [_convert_start_end_tuples_list_to_Intervals(zip(a_replays_epoch_obj.starts, a_replays_epoch_obj.stops)) for a_replays_epoch_obj in [long_replays, short_replays, global_replays]] # returns P.Interval objects
+#     ## Filter *_replays_Interval by requiring them to be below the speed:
+#     long_replays_Interval, short_replays_Interval, global_replays_Interval = [below_speed_threshold_intervals.intersection(a_replays_Interval_obj) for a_replays_Interval_obj in [long_replays_Interval, short_replays_Interval, global_replays_Interval]] # returns P.Interval objects
+#     ## Convert back to Epoch objects:
+#     long_replays, short_replays, global_replays = [convert_Intervals_to_Epoch_obj(a_replays_Interval_obj) for a_replays_Interval_obj in [long_replays_Interval, short_replays_Interval, global_replays_Interval]] # returns P.Interval objects
+#     if debug_print:
+#         print(f'Post-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
+#     return long_replays, short_replays, global_replays, above_speed_threshold_intervals, below_speed_threshold_intervals
+
+
+def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=False):
+    """ Filter *_replays_Interval by requiring them to be below the speed 
+    *epoch_args = long_replays, short_replays, global_replays
+
+    Usage:
+        from neuropy.utils.efficient_interval_search import filter_epochs_by_speed
+        speed_thresh = 2.0
+        speed_df = global_session.position.to_dataframe()
+        long_replays, short_replays, global_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(speed_df, long_replays, short_replays, global_replays, speed_thresh=speed_thresh, debug_print=True)
+    """
+    start_end_tuples_interval_list = _find_intervals_above_speed(speed_df, speed_thresh, is_interpolated=True)
+    above_speed_threshold_intervals = _convert_start_end_tuples_list_to_Intervals(start_end_tuples_interval_list)
+    if debug_print:
+        print(f'len(above_speed_threshold_intervals): {len(above_speed_threshold_intervals)}')
+    # find the intervals below the threshold speed by taking the complement:
+    below_speed_threshold_intervals = above_speed_threshold_intervals.complement()
+    if debug_print:
+        print(f'len(below_speed_threshold_intervals): {len(below_speed_threshold_intervals)}')
+        # print(f'len(long_replays): {len(long_replays)}, len(short_replays): {len(short_replays)}, len(global_replays): {len(global_replays)}')
+        # print(f'Pre-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
+        print(f'Pre-speed-filtering: ' + ', '.join([f"n_epochs: {an_interval.n_epochs}" for an_interval in epoch_args]))
+    
+    # Only this part depends on *epoch_args:
+    if debug_print:
+        print(f'len(epoch_args): {len(epoch_args)}')
+    epoch_args_Interval = [_convert_start_end_tuples_list_to_Intervals(zip(a_replays_epoch_obj.starts, a_replays_epoch_obj.stops)) for a_replays_epoch_obj in epoch_args] # returns P.Interval objects
+    ## Filter *_replays_Interval by requiring them to be below the speed:
+    epoch_args_Interval = [below_speed_threshold_intervals.intersection(a_replays_Interval_obj) for a_replays_Interval_obj in epoch_args_Interval] # returns P.Interval objects
+    ## Convert back to Epoch objects:
+    epoch_args = [convert_Intervals_to_Epoch_obj(a_replays_Interval_obj) for a_replays_Interval_obj in epoch_args_Interval] # returns P.Interval objects
+    if debug_print:
+        # print(f'Post-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
+        print(f'Post-speed-filtering: ' + ', '.join([f"n_epochs: {an_interval.n_epochs}" for an_interval in epoch_args]))
+    return *epoch_args, above_speed_threshold_intervals, below_speed_threshold_intervals
 
