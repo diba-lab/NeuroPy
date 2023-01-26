@@ -389,8 +389,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # filter_epochs = a_session.ripple # Epoch object
         # filter_epoch_replacement_type = KnownFilterEpochs.RIPPLE
 
+        # active_identifying_session_ctx = a_session.get_context() # 'bapun_RatN_Day4_2019-10-15_11-30-06' # curr_sess_ctx # IdentifyingContext<('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')>
+        # active_context = active_identifying_session_ctx.adding_context(collision_prefix='fn', fn_name='long_short_firing_rate_indicies')
         print(f'missing .replay epochs, using {filter_epoch_replacement_type} as surrogate replays...')
-        active_context = active_context.adding_context(collision_prefix='replay_surrogate', replays=filter_epoch_replacement_type.name)
+        # active_context = active_context.adding_context(collision_prefix='replay_surrogate', replays=filter_epoch_replacement_type.name)
 
         curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=min_epoch_included_duration) # returns Epoch object
         # Filter *_replays_Interval by requiring them to be below the speed:

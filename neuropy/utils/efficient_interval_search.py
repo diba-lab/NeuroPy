@@ -413,14 +413,25 @@ def _find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interp
         curr_speed = curr_df_record_fn(i, col_name='speed')
         if speed_threshold_comparison_operator_fn(curr_speed, speed_thresh):
             if start_time is None:
-                start_time = df.loc[i, 't']
-                # start_time = df.loc[df.index[i], 't']
-                # start_time = curr_t
+                try:
+                    start_time = df.loc[i, 't']
+                except KeyError as e:
+                    # start_time = df.loc[df.index[i], 't']
+                    # start_time = curr_t
+                    start_time = df.t.to_numpy()[i]
+                except Exception as e:
+                    raise e                
         else:
             if start_time is not None:
-                end_time = df.loc[i, 't']
-                # end_time = df.loc[df.index[i], 't']
-                # end_time = curr_t
+                try:
+                    end_time = df.loc[i, 't']
+                except KeyError as e:
+                    # end_time = df.loc[df.index[i], 't']
+                    # end_time = curr_t
+                    end_time = df.t.to_numpy()[i]
+                except Exception as e:
+                    raise e
+
                 if is_interpolated:
                     start_speed = np.interp(start_time, df.t, df.speed)
                     end_speed = np.interp(end_time, df.t, df.speed)
@@ -432,9 +443,15 @@ def _find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interp
                 
     # Last (unclosed) interval:
     if start_time is not None:
-        end_time = df.loc[len(df)-1, 't']
-        # end_time = df.loc[df.index[len(df)-1], 't']
-        # end_time = curr_df_record_fn((len(df)-1), col_name='t')
+        try:
+            end_time = df.loc[len(df)-1, 't']
+        except KeyError as e:
+            # end_time = df.loc[df.index[len(df)-1], 't']
+            # end_time = curr_df_record_fn((len(df)-1), col_name='t')
+            end_time = df.t.to_numpy()[(len(df)-1)]
+        except Exception as e:
+            raise e
+
         if is_interpolated:
             start_speed = np.interp(start_time, df.t, df.speed)
             end_speed = np.interp(end_time, df.t, df.speed)
