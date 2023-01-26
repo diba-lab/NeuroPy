@@ -365,8 +365,21 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
     ## Estimate Replay epochs from PBE and Position data.
     @staticmethod
-    def compute_estimated_replay_epochs(a_session, save_on_compute=False, debug_print=False):
+    def compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
+        """estimates replay epochs from PBE and Position data.
+
+        Args:
+            a_session (_type_): _description_
+            min_epoch_included_duration (float, optional): all epochs shorter than min_epoch_included_duration will be excluded from analysis. Defaults to 0.06.
+            maximum_speed_thresh (float, optional): epochs are only included if the animal's interpolated speed (as determined from the session's position dataframe) is below the speed. Defaults to 2.0 [cm/sec].
+            save_on_compute (bool, optional): _description_. Defaults to False.
+            debug_print (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            _type_: _description_
+        """
         from pyphoplacecellanalysis.General.Pipeline.Stages.ComputationFunctions.DefaultComputationFunctions import KnownFilterEpochs
+        from neuropy.utils.efficient_interval_search import filter_epochs_by_speed
         # from neuropy.core import Epoch
 
         print('computing estimated replay epochs for session...\n')
@@ -376,19 +389,12 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # filter_epochs = a_session.ripple # Epoch object
         # filter_epoch_replacement_type = KnownFilterEpochs.RIPPLE
 
-        decoding_time_bin_size = 0.03333
-        min_epoch_included_duration = decoding_time_bin_size * float(2) # 0.06666 # all epochs shorter than min_epoch_included_duration will be excluded from analysis
         print(f'missing .replay epochs, using {filter_epoch_replacement_type} as surrogate replays...')
         active_context = active_context.adding_context(collision_prefix='replay_surrogate', replays=filter_epoch_replacement_type.name)
 
-        # long_replays, short_replays, global_replays = [Epoch(curr_active_pipeline.filtered_sessions[an_epoch_name].pbe.epochs.get_valid_df()) for an_epoch_name in [long_epoch_name, short_epoch_name, global_epoch_name]] # NOTE: this includes a few overlapping epochs since the function to remove overlapping ones seems to be broken
         curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=min_epoch_included_duration) # returns Epoch object
-
         # Filter *_replays_Interval by requiring them to be below the speed:
-        speed_thresh = 2.0
-        speed_df = a_session.position.to_dataframe()
-        long_replays, short_replays, global_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(speed_df, curr_replays, speed_thresh=speed_thresh, debug_print=debug_print)
-
+        curr_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(a_session.position.to_dataframe(), curr_replays, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
         # print('done.')
         return curr_replays
 

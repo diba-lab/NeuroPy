@@ -1,6 +1,7 @@
 from copy import deepcopy
 from enum import Enum
 import numpy as np
+import pandas as pd
 from numba import jit, njit, prange # numba acceleration
 
 import portion as P # Required for interval search: portion~=2.3.0
