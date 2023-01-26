@@ -160,9 +160,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         
         if copy_sess.has_replays:            
             copy_sess.replay = copy_sess.replay.time_slicer.time_slice(active_epoch_times[0], active_epoch_times[1])
-            
-            
-            
+
         return copy_sess
     
     def get_neuron_type(self, query_neuron_type):
@@ -360,6 +358,42 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     #     else:
     #         print('skipping 2D placefield plots')
     #     return active_epoch_placefields1D, active_epoch_placefields2D
+
+
+
+
+
+    ## Estimate Replay epochs from PBE and Position data.
+    @staticmethod
+    def compute_estimated_replay_epochs(a_session, save_on_compute=False, debug_print=False):
+        from pyphoplacecellanalysis.General.Pipeline.Stages.ComputationFunctions.DefaultComputationFunctions import KnownFilterEpochs
+        # from neuropy.core import Epoch
+
+        print('computing estimated replay epochs for session...\n')
+        filter_epochs = a_session.pbe # Epoch object
+        filter_epoch_replacement_type = KnownFilterEpochs.PBE
+
+        # filter_epochs = a_session.ripple # Epoch object
+        # filter_epoch_replacement_type = KnownFilterEpochs.RIPPLE
+
+        decoding_time_bin_size = 0.03333
+        min_epoch_included_duration = decoding_time_bin_size * float(2) # 0.06666 # all epochs shorter than min_epoch_included_duration will be excluded from analysis
+        print(f'missing .replay epochs, using {filter_epoch_replacement_type} as surrogate replays...')
+        active_context = active_context.adding_context(collision_prefix='replay_surrogate', replays=filter_epoch_replacement_type.name)
+
+        # long_replays, short_replays, global_replays = [Epoch(curr_active_pipeline.filtered_sessions[an_epoch_name].pbe.epochs.get_valid_df()) for an_epoch_name in [long_epoch_name, short_epoch_name, global_epoch_name]] # NOTE: this includes a few overlapping epochs since the function to remove overlapping ones seems to be broken
+        curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=min_epoch_included_duration) # returns Epoch object
+
+        # Filter *_replays_Interval by requiring them to be below the speed:
+        speed_thresh = 2.0
+        speed_df = a_session.position.to_dataframe()
+        long_replays, short_replays, global_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(speed_df, curr_replays, speed_thresh=speed_thresh, debug_print=debug_print)
+
+        # print('done.')
+        return curr_replays
+
+
+
 
 
     # ConcatenationInitializable protocol:
