@@ -180,7 +180,7 @@ def detect_brainstates_epochs(
         theta_ratio = theta / delta_all
 
     if delta_channel is not None:
-        delta_signal = signal.time_slice(channel_id=[theta_channel])
+        delta_signal = signal.time_slice(channel_id=[delta_channel])
         delta_chan_sg = signal_process.FourierSg(delta_signal, **spect_kw)
         delta = smooth_(delta_chan_sg.delta)
 
@@ -204,7 +204,7 @@ def detect_brainstates_epochs(
         for noisy_ind in range(noisy.shape[0]):
             st = noisy[noisy_ind, 0]
             en = noisy[noisy_ind, 1]
-            noisy_indices = np.where((time > st) & (time < en))[0]
+            noisy_indices = np.where((time >= st) & (time <= en))[0]
             noisy_timepoints.extend(noisy_indices)
 
         delta[noisy_timepoints] = np.nan
@@ -213,6 +213,7 @@ def detect_brainstates_epochs(
 
     # --zscore parameters
     delta = stats.zscore(delta, nan_policy="omit")
+    delta = np.where(delta > 1.5, 1.5, delta)
     emg = stats.zscore(emg, nan_policy="omit")
     theta_ratio = stats.zscore(theta_ratio, nan_policy="omit")
 
