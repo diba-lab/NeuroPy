@@ -461,28 +461,6 @@ def _find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interp
             intervals.append((start_time, end_time))
     return intervals
 
-# def _filter_epochs_by_speed(speed_df, long_replays, short_replays, global_replays, speed_thresh=2.0, debug_print=False):
-#     """ Filter *_replays_Interval by requiring them to be below the speed """
-#     start_end_tuples_interval_list = _find_intervals_above_speed(speed_df, speed_thresh, is_interpolated=True)
-#     above_speed_threshold_intervals = _convert_start_end_tuples_list_to_Intervals(start_end_tuples_interval_list)
-#     if debug_print:
-#         print(f'len(above_speed_threshold_intervals): {len(above_speed_threshold_intervals)}')
-
-#     # find the intervals below the threshold speed by taking the complement:
-#     below_speed_threshold_intervals = above_speed_threshold_intervals.complement()
-#     if debug_print:
-#         print(f'len(below_speed_threshold_intervals): {len(below_speed_threshold_intervals)}')
-#         # print(f'len(long_replays): {len(long_replays)}, len(short_replays): {len(short_replays)}, len(global_replays): {len(global_replays)}')
-#         print(f'Pre-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
-
-#     long_replays_Interval, short_replays_Interval, global_replays_Interval = [_convert_start_end_tuples_list_to_Intervals(zip(a_replays_epoch_obj.starts, a_replays_epoch_obj.stops)) for a_replays_epoch_obj in [long_replays, short_replays, global_replays]] # returns P.Interval objects
-#     ## Filter *_replays_Interval by requiring them to be below the speed:
-#     long_replays_Interval, short_replays_Interval, global_replays_Interval = [below_speed_threshold_intervals.intersection(a_replays_Interval_obj) for a_replays_Interval_obj in [long_replays_Interval, short_replays_Interval, global_replays_Interval]] # returns P.Interval objects
-#     ## Convert back to Epoch objects:
-#     long_replays, short_replays, global_replays = [convert_Intervals_to_Epoch_obj(a_replays_Interval_obj) for a_replays_Interval_obj in [long_replays_Interval, short_replays_Interval, global_replays_Interval]] # returns P.Interval objects
-#     if debug_print:
-#         print(f'Post-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
-#     return long_replays, short_replays, global_replays, above_speed_threshold_intervals, below_speed_threshold_intervals
 
 
 def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=False):
@@ -503,8 +481,6 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
     below_speed_threshold_intervals = above_speed_threshold_intervals.complement()
     if debug_print:
         print(f'len(below_speed_threshold_intervals): {len(below_speed_threshold_intervals)}')
-        # print(f'len(long_replays): {len(long_replays)}, len(short_replays): {len(short_replays)}, len(global_replays): {len(global_replays)}')
-        # print(f'Pre-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
         print(f'Pre-speed-filtering: ' + ', '.join([f"n_epochs: {an_interval.n_epochs}" for an_interval in epoch_args]))
     
     # Only this part depends on *epoch_args:
@@ -516,7 +492,6 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
     ## Convert back to Epoch objects:
     epoch_args = [convert_Intervals_to_Epoch_obj(a_replays_Interval_obj) for a_replays_Interval_obj in epoch_args_Interval] # returns P.Interval objects
     if debug_print:
-        # print(f'Post-speed-filtering: long_replays.n_epochs: {long_replays.n_epochs}, short_replays.n_epochs: {short_replays.n_epochs}, global_replays.n_epochs: {global_replays.n_epochs}')
         print(f'Post-speed-filtering: ' + ', '.join([f"n_epochs: {an_interval.n_epochs}" for an_interval in epoch_args]))
     return *epoch_args, above_speed_threshold_intervals, below_speed_threshold_intervals
 
