@@ -9,7 +9,9 @@ from joblib import Parallel, delayed
 from scipy import stats
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
-from tqdm import tqdm
+
+# from tqdm import tqdm # tqdm progress bar library used in `calculate_shuffle_score`
+tqdm = lambda x: x # NO-OP alternative to tqdm progress bar when not using tqdm
 
 from neuropy.analyses.placefields import PfND
 
