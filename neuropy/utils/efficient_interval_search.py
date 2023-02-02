@@ -2,10 +2,17 @@ from copy import deepcopy
 from enum import Enum
 import numpy as np
 import pandas as pd
-from numba import jit, njit, prange # numba acceleration
+
+try:
+    from numba import jit # numba acceleration
+except ImportError:
+    print("Numba not installed. Using slower fallback search.")
+    # define numba.jit NO-OP function
+    def jit(signature_or_function=None, locals={}, cache=False, pipeline_class=None, boundscheck=None, **options):
+        """ This decorator is a no-OP to be used when numba is not installed. Just returns the unmodified function. Signatured copied from numba.jit """
+        return signature_or_function
 
 import portion as P # Required for interval search: portion~=2.3.0
-
 
 
 class OverlappingIntervalsFallbackBehavior(Enum):

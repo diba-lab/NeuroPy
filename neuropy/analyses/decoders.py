@@ -10,9 +10,6 @@ from scipy import stats
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.special import factorial
 
-# from tqdm import tqdm # tqdm progress bar library used in `calculate_shuffle_score`
-tqdm = lambda x: x # NO-OP alternative to tqdm progress bar when not using tqdm
-
 from neuropy.analyses.placefields import PfND
 
 from .. import core
@@ -244,6 +241,11 @@ class Decode1d:
 
                 mat = np.array([np.roll(mat[:, i], sh) for i, sh in enumerate(shift)])
                 return mat.T
+
+            try:
+                from tqdm import tqdm
+            except ImportError:
+                tqdm = lambda x: x # NO-OP alternative to tqdm progress bar when not using tqdm
 
             score = []
             for i in tqdm(range(n_iter)):
