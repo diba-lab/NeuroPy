@@ -263,6 +263,7 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
 # ==================================================================================================================== #
 
 ## Newest way of dropping bad laps:
+from neuropy.utils.mixins.indexing_helpers import interleave_elements # for _build_new_lap_and_intra_lap_intervals
 
 def _build_new_lap_and_intra_lap_intervals(sess):
     """ 
@@ -275,7 +276,6 @@ def _build_new_lap_and_intra_lap_intervals(sess):
         sess, combined_records_list = _build_new_lap_and_intra_lap_intervals(sess)
 
     """
-    from pyphocorehelpers.indexing_helpers import interleave_elements # for _build_new_lap_and_intra_lap_intervals TODO: remove this dependency
     ## Backup original laps object if it hasn't already been done:
     if not hasattr(sess, 'old_laps_obj'):
         print(f'backing up laps object to sess.old_laps_obj.')
