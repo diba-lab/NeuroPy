@@ -2,7 +2,7 @@
 name = "neuropy"
 version = "0.0.3"
 description = "package is primarily developed for hippocampal recordings, but can also be used for general ephys data."
-authors = ["Pho Hale <CommanderPho@users.noreply.github.com>"]
+authors = ["Bapun Giri <bapung@umich.edu>", "Pho Hale <halechr@umich.edu>", "Nat Kinsky <nkinsky@umich.edu>"]
 license = "GPL License"
 readme = "README.md"
 
@@ -11,25 +11,30 @@ python = "^3.9"
 hdf5storage = "^0.1.19"
 python-benedict = "^0.28.3"
 h5py = "^3.8.0"
-numpy = "1.20.*"
-scipy = "1.6.*"
+numpy = "^1.20"
+scipy = "^1.6"
 pandas = "^1.5.3"
 joblib = "^1.2.0"
 hmmlearn = "^0.2.8"
 scikit-learn = "^1.2.1"
-cupy = "^11.5.0"
-numba = "^0.56.4"
 scikit-posthocs = "^0.7.0"
 ipywidgets = "^8.0.4"
 seaborn = "^0.12.2"
-tqdm = "^4.64.1"
 pingouin = "^0.5.3"
 panel = "^0.14.3"
 matplotlib = "^3.6.3"
+numba = {version = "^0.56.4", optional = true}
+cupy = {version = "^11.5.0", optional = true}
+tqdm = {version = "^4.64.1", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pip = "^23.0"
 
+[tool.poetry.extras]
+gui = ["tqdm"]
+acceleration = ["numba", "cupy"]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+

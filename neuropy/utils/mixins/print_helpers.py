@@ -39,8 +39,7 @@ class OrderedMeta(type):
     
 
 
-
-from pyphocorehelpers.DataStructure.enum_helpers import ExtendedEnum
+from neuropy.utils.mixins.enum_helpers import ExtendedEnum
 
 class FileProgressAction(ExtendedEnum):
     """Describes the type of file progress actions that can be performed to get the right verbage.

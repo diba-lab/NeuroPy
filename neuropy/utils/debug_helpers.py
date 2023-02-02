@@ -56,7 +56,7 @@ def safely_accepts_kwargs(fn):
             
             
     TODO: Tests:
-        from pyphocorehelpers.general_helpers import safely_accepts_kwargs
+        from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
         # def _test_fn_with_limited_parameters(newitem, item1=None, item2='', item3=5.0):
         #     print(f'item1={item1}, item2={item2}, item3={item3}')
