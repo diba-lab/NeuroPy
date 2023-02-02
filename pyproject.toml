@@ -7,7 +7,7 @@ license = "GPL License"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.9, < 3.11" # Note: 3.11 is excluded by mamba. Otherwise it works fine.
 hdf5storage = "^0.1.19"
 python-benedict = "^0.28.3"
 h5py = "^3.8.0"
@@ -30,6 +30,7 @@ portion = "^2.3.1"
 
 [tool.poetry.group.dev.dependencies]
 pip = "^23.0"
+ipdb = "^0.13.11"
 
 [tool.poetry.extras]
 gui = ["tqdm"]
