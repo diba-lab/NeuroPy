@@ -12,7 +12,6 @@ from sklearn.decomposition import PCA, FastICA
 from neuropy.utils.mathutil import getICA_Assembly, parcorr_mult
 from .. import core
 from ..plotting import Fig
-import pingouin as pg
 
 
 class ExplainedVariance(core.DataWriter):
