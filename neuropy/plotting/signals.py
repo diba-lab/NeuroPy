@@ -85,7 +85,7 @@ def plot_spectrogram(
     return ax
 
 
-def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1):
+def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1, axlabel=False):
 
     n_channels = signal.n_channels
     sig = signal.traces
@@ -106,11 +106,14 @@ def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1):
     for i, trace in enumerate(sig):
         ax.plot(signal.time, trace, color=colors[i], lw=lw)
 
+    channel_id = [signal.channel_id] if isinstance(signal.channel_id, int) else signal.channel_id
     ax.set_yticks(pad_vals)
-    ax.set_yticklabels(signal.channel_id)
-    ax.set_xticklabels([])
+    ax.set_yticklabels(channel_id)
+    if not axlabel:
+        ax.set_xticklabels([])
+        ax.spines["bottom"].set_visible(False)
     ax.spines["left"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
+
     ax.tick_params(axis="both", length=0)
 
     return ax
