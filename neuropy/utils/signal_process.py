@@ -57,10 +57,23 @@ class filter_sig:
 
     @staticmethod
     def highpass(signal, cutoff, fs=1250, order=6, ax=-1):
-        nyq = 0.5 * fs
 
-        b, a = sg.butter(order, cutoff / nyq, btype="highpass")
-        yf = sg.filtfilt(b, a, signal, axis=ax)
+        if isinstance(signal, core.Signal):
+            y = signal.traces
+            nyq = 0.5 * signal.sampling_rate
+            b, a = sg.butter(order, cutoff / nyq, btype="highpass")
+            yf = sg.filtfilt(b, a, y, axis=-1)
+            yf = core.Signal(
+                traces=yf,
+                sampling_rate=signal.sampling_rate,
+                t_start=signal.t_start,
+                channel_id=signal.channel_id,
+            )
+        else:
+            nyq = 0.5 * fs
+
+            b, a = sg.butter(order, cutoff / nyq, btype="highpass")
+            yf = sg.filtfilt(b, a, signal, axis=ax)
 
         return yf
 
