@@ -346,6 +346,8 @@ def detect_theta_epochs(
     mindur=0.25,
     maxdur=5,
     mergedist=0.5,
+    sigma=0.125,
+    edge_cutoff=-0.25,
     ignore_epochs: Epoch = None,
 ):
 
@@ -378,7 +380,7 @@ def detect_theta_epochs(
     else:
         ignore_times = None
 
-    epochs, metadata = _detect_freq_band_epochs(
+    epochs = _detect_freq_band_epochs(
         signals=traces,
         freq_band=freq_band,
         thresh=thresh,
@@ -387,12 +389,12 @@ def detect_theta_epochs(
         mergedist=mergedist,
         fs=signal.sampling_rate,
         ignore_times=ignore_times,
+        sigma=sigma,
+        edge_cutoff=edge_cutoff,
     )
-    epochs["start"] = epochs["start"] + signal.t_start
-    epochs["stop"] = epochs["stop"] + signal.t_start
-
-    metadata["channels"] = selected_chan
-    return Epoch(epochs=epochs, metadata=metadata)
+    epochs = epochs.shift(dt=signal.t_start)
+    epochs.metadata = dict(channels=selected_chan)
+    return epochs
 
 
 def detect_spindle_epochs(
