@@ -361,7 +361,21 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
 
 
+    def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
+        """estimates replay epochs from PBE and Position data.
 
+        Args:
+            self (_type_): _description_
+            min_epoch_included_duration (float, optional): all epochs shorter than min_epoch_included_duration will be excluded from analysis. Defaults to 0.06.
+            maximum_speed_thresh (float, optional): epochs are only included if the animal's interpolated speed (as determined from the session's position dataframe) is below the speed. Defaults to 2.0 [cm/sec].
+            save_on_compute (bool, optional): _description_. Defaults to False.
+            debug_print (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            _type_: _description_
+        """
+        return DataSession.compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, save_on_compute=save_on_compute, debug_print=debug_print)
+    
 
     ## Estimate Replay epochs from PBE and Position data.
     @staticmethod
