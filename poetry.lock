@@ -415,23 +415,14 @@ test = ["Pillow", "matplotlib", "pytest"]
 test-no-images = ["pytest"]
 
 [[package]]
-name = "cupy-cuda11x"
+name = "cupy"
 version = "11.5.0"
 description = "CuPy: NumPy & SciPy for GPU"
 category = "main"
 optional = true
 python-versions = ">=3.7"
 files = [
-    {file = "cupy_cuda11x-11.5.0-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:f801152415393ddcfb3818707c8c93058e63421755259584432f7414270e8882"},
-    {file = "cupy_cuda11x-11.5.0-cp310-cp310-win_amd64.whl", hash = "sha256:6a5b363c36815a57bb2ef55daa99d07a8903d43af6f595b8d62552f28a2c4401"},
-    {file = "cupy_cuda11x-11.5.0-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:5fd21e5d8b9d2e9c59cdc046d4f905fa931f2a3db3f0842aad30f98d77c6bbf9"},
-    {file = "cupy_cuda11x-11.5.0-cp311-cp311-win_amd64.whl", hash = "sha256:4e44f2ab9b960d9dfbf9bb7b6fe188d6473d32cc9322fc271d5f9b6f2afaadf3"},
-    {file = "cupy_cuda11x-11.5.0-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:e49ec76479b0b9e5f8982b4cc92e2da7590ced73f0d2de3688b61ffa2e668219"},
-    {file = "cupy_cuda11x-11.5.0-cp37-cp37m-win_amd64.whl", hash = "sha256:ba7fcffdbf688a0de96b2bf93b7b19f5288ca6a02accac3235010beea4c35b3f"},
-    {file = "cupy_cuda11x-11.5.0-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:8e59b728a4432347a5062a5b2d8941657f048c9771869ed8c0d50ad4fc120485"},
-    {file = "cupy_cuda11x-11.5.0-cp38-cp38-win_amd64.whl", hash = "sha256:4a308a6fd5f481d894eb563056ef6fce776027db4a739cc0c47976311d6996db"},
-    {file = "cupy_cuda11x-11.5.0-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:ca6fccb29f5f3b5fb481689b17067557faec8f9358448910a050a8e80e5eddf7"},
-    {file = "cupy_cuda11x-11.5.0-cp39-cp39-win_amd64.whl", hash = "sha256:8da616fabbeb410dd264bda724c3a2d2b289f4b2f32ede96bc91f6b0f058f72e"},
+    {file = "cupy-11.5.0.tar.gz", hash = "sha256:4bc8565bded22cc89b210fd9fb48a5d5316f30701e12bb23852a60314e1f9f6e"},
 ]
 
 [package.dependencies]
@@ -2754,10 +2745,10 @@ docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker
 testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
 
 [extras]
-acceleration = ["numba", "cupy-cuda11x"]
+acceleration = ["numba", "cupy"]
 gui = ["tqdm"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.11" # Note: 3.11 is excluded by mamba. Otherwise it works fine.
-content-hash = "d68c6308fb5c5078d241d03b2f1138622afbc15db9fffce08af33a16a4f3dcbc"
+content-hash = "16b94f7e4948d939d2af68e548fc05c101ede86c9c044cd6d26e10efe4e88461"
