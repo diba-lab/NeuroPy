@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "neuropy"
-version = "0.0.3"
+version = "0.0.5"
 description = "package is primarily developed for hippocampal recordings, but can also be used for general ephys data."
 authors = ["Bapun Giri <bapung@umich.edu>", "Pho Hale <halechr@umich.edu>", "Nat Kinsky <nkinsky@umich.edu>"]
 license = "GPL License"
