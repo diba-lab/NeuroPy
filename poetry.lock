@@ -84,18 +84,18 @@ typing-extensions = ">=3.10.0"
 
 [[package]]
 name = "boto3"
-version = "1.26.62"
+version = "1.26.65"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.62-py3-none-any.whl", hash = "sha256:0a0171c648da81916e6f5badebfefdbd15280118f69462eb9425f7bff4c1323f"},
-    {file = "boto3-1.26.62.tar.gz", hash = "sha256:0271e05cf962de53deb4ee5c6e37433c8284584a26f45275cf43de3f99410aa4"},
+    {file = "boto3-1.26.65-py3-none-any.whl", hash = "sha256:9e23ec51e1fe162ecb5efee41bd9346d90ebbb8ff094ef8088223305d48ffaec"},
+    {file = "boto3-1.26.65.tar.gz", hash = "sha256:9fc94b3078f5047c1fc40529fa12eb82a2432bb1dca0ee37b1c54f902f46191f"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.62,<1.30.0"
+botocore = ">=1.29.65,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -104,14 +104,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.62"
+version = "1.29.65"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.62-py3-none-any.whl", hash = "sha256:11730086c8acc33372f438dd9ae3e960e6fc1c0dfa2801768b0585c8c874977e"},
-    {file = "botocore-1.29.62.tar.gz", hash = "sha256:8c7fdc6b14d9ef48ee8d1070700ab4204c121bc04ee57874e8419a9cdbe51144"},
+    {file = "botocore-1.29.65-py3-none-any.whl", hash = "sha256:f566a9aa1b477cd1bdedb8f694f99fc257240eacdd7a73cc7d19d43cb20870b9"},
+    {file = "botocore-1.29.65.tar.gz", hash = "sha256:6b7ae2dee621cb863935461ba4b8aa32420e945f5b7d94bb2852b79f90b9f8de"},
 ]
 
 [package.dependencies]
@@ -120,7 +120,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = ">=1.25.4,<1.27"
 
 [package.extras]
-crt = ["awscrt (==0.15.3)"]
+crt = ["awscrt (==0.16.9)"]
 
 [[package]]
 name = "certifi"
@@ -415,14 +415,23 @@ test = ["Pillow", "matplotlib", "pytest"]
 test-no-images = ["pytest"]
 
 [[package]]
-name = "cupy"
+name = "cupy-cuda11x"
 version = "11.5.0"
 description = "CuPy: NumPy & SciPy for GPU"
 category = "main"
 optional = true
 python-versions = ">=3.7"
 files = [
-    {file = "cupy-11.5.0.tar.gz", hash = "sha256:4bc8565bded22cc89b210fd9fb48a5d5316f30701e12bb23852a60314e1f9f6e"},
+    {file = "cupy_cuda11x-11.5.0-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:f801152415393ddcfb3818707c8c93058e63421755259584432f7414270e8882"},
+    {file = "cupy_cuda11x-11.5.0-cp310-cp310-win_amd64.whl", hash = "sha256:6a5b363c36815a57bb2ef55daa99d07a8903d43af6f595b8d62552f28a2c4401"},
+    {file = "cupy_cuda11x-11.5.0-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:5fd21e5d8b9d2e9c59cdc046d4f905fa931f2a3db3f0842aad30f98d77c6bbf9"},
+    {file = "cupy_cuda11x-11.5.0-cp311-cp311-win_amd64.whl", hash = "sha256:4e44f2ab9b960d9dfbf9bb7b6fe188d6473d32cc9322fc271d5f9b6f2afaadf3"},
+    {file = "cupy_cuda11x-11.5.0-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:e49ec76479b0b9e5f8982b4cc92e2da7590ced73f0d2de3688b61ffa2e668219"},
+    {file = "cupy_cuda11x-11.5.0-cp37-cp37m-win_amd64.whl", hash = "sha256:ba7fcffdbf688a0de96b2bf93b7b19f5288ca6a02accac3235010beea4c35b3f"},
+    {file = "cupy_cuda11x-11.5.0-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:8e59b728a4432347a5062a5b2d8941657f048c9771869ed8c0d50ad4fc120485"},
+    {file = "cupy_cuda11x-11.5.0-cp38-cp38-win_amd64.whl", hash = "sha256:4a308a6fd5f481d894eb563056ef6fce776027db4a739cc0c47976311d6996db"},
+    {file = "cupy_cuda11x-11.5.0-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:ca6fccb29f5f3b5fb481689b17067557faec8f9358448910a050a8e80e5eddf7"},
+    {file = "cupy_cuda11x-11.5.0-cp39-cp39-win_amd64.whl", hash = "sha256:8da616fabbeb410dd264bda724c3a2d2b289f4b2f32ede96bc91f6b0f058f72e"},
 ]
 
 [package.dependencies]
@@ -767,22 +776,23 @@ tomli = {version = "*", markers = "python_version > \"3.6\" and python_version <
 
 [[package]]
 name = "ipykernel"
-version = "6.20.2"
+version = "6.21.1"
 description = "IPython Kernel for Jupyter"
 category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "ipykernel-6.20.2-py3-none-any.whl", hash = "sha256:5d0675d5f48bf6a95fd517d7b70bcb3b2c5631b2069949b5c2d6e1d7477fb5a0"},
-    {file = "ipykernel-6.20.2.tar.gz", hash = "sha256:1893c5b847033cd7a58f6843b04a9349ffb1031bc6588401cadc9adb58da428e"},
+    {file = "ipykernel-6.21.1-py3-none-any.whl", hash = "sha256:1a04bb359212e23e46adc0116ec82ea128c1e5bd532fde4fbe679787ff36f0cf"},
+    {file = "ipykernel-6.21.1.tar.gz", hash = "sha256:a0f8eece39cab1ee352c9b59ec67bbe44d8299f8238e4c16ff7f4cf0052d3378"},
 ]
 
 [package.dependencies]
 appnope = {version = "*", markers = "platform_system == \"Darwin\""}
 comm = ">=0.1.1"
-debugpy = ">=1.0"
+debugpy = ">=1.6.5"
 ipython = ">=7.23.1"
 jupyter-client = ">=6.1.12"
+jupyter-core = ">=4.12,<5.0.0 || >=5.1.0"
 matplotlib-inline = ">=0.1"
 nest-asyncio = "*"
 packaging = "*"
@@ -1058,19 +1068,19 @@ files = [
 
 [[package]]
 name = "lazy-loader"
-version = "0.1rc2"
+version = "0.1"
 description = "lazy_loader"
 category = "main"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.7"
 files = [
-    {file = "lazy_loader-0.1rc2-py3-none-any.whl", hash = "sha256:8b0481f5440f216b999e7c41349605d33654797d38a56e5f56b50d93e52f4337"},
-    {file = "lazy_loader-0.1rc2.tar.gz", hash = "sha256:1130fe8ddf64e7bfbeea185e14a08575b55a4680ed1585482eaeb796faca242b"},
+    {file = "lazy_loader-0.1-py3-none-any.whl", hash = "sha256:623bd4831a40ce659d74472af40a58d016f2a5a047685409affbc2ba5c044641"},
+    {file = "lazy_loader-0.1.tar.gz", hash = "sha256:77ce7f2737ebabf9c0ff73b4a99c947876d74d24c2f026544e32246ecca5feca"},
 ]
 
 [package.extras]
-dev = ["flit"]
-test = ["black", "flake8", "pre-commit", "pytest"]
+lint = ["pre-commit (>=2.20)"]
+test = ["codecov (>=2.1)", "pytest (>=7.1)", "pytest-cov (>=3.0)"]
 
 [[package]]
 name = "littleutils"
@@ -1474,18 +1484,18 @@ test = ["hypothesis (>=5.5.3)", "pytest (>=6.0)", "pytest-xdist (>=1.31)"]
 
 [[package]]
 name = "pandas-flavor"
-version = "0.3.0"
+version = "0.5.0"
 description = "The easy way to write your own Pandas flavor."
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "pandas_flavor-0.3.0-py3-none-any.whl", hash = "sha256:af968da59cbc204c5a7c596b2a454e72b081494439dec3364f830792cf2f97b8"},
-    {file = "pandas_flavor-0.3.0.tar.gz", hash = "sha256:db5739481f5382b80cec3fd2905adeaaa0b03b8ed26912675b222a1d4a6672b5"},
+    {file = "pandas_flavor-0.5.0-py3-none-any.whl", hash = "sha256:2d9aef3ff13b6679ded9b944c457493820b2afce22d4029b7f36457710df8679"},
+    {file = "pandas_flavor-0.5.0.tar.gz", hash = "sha256:a1ebb90512b4b2cb84e5b86b8d46fa2702eca9e45d17d30b1f4f69dbd6a4e310"},
 ]
 
 [package.dependencies]
-lazy-loader = "0.1rc2"
+lazy-loader = ">=0.1"
 pandas = ">=0.23"
 xarray = "*"
 
@@ -1741,19 +1751,19 @@ files = [
 
 [[package]]
 name = "platformdirs"
-version = "2.6.2"
+version = "3.0.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "platformdirs-2.6.2-py3-none-any.whl", hash = "sha256:83c8f6d04389165de7c9b6f0c682439697887bca0aa2f1c87ef1826be3584490"},
-    {file = "platformdirs-2.6.2.tar.gz", hash = "sha256:e1fea1fe471b9ff8332e229df3cb7de4f53eeea4998d3b6bfff542115e998bd2"},
+    {file = "platformdirs-3.0.0-py3-none-any.whl", hash = "sha256:b1d5eb14f221506f50d6604a561f4c5786d9e80355219694a1b244bcd96f4567"},
+    {file = "platformdirs-3.0.0.tar.gz", hash = "sha256:8a1228abb1ef82d788f74139988b137e78692984ec7b08eaa6c65f1723af28f9"},
 ]
 
 [package.extras]
-docs = ["furo (>=2022.12.7)", "proselint (>=0.13)", "sphinx (>=5.3)", "sphinx-autodoc-typehints (>=1.19.5)"]
-test = ["appdirs (==1.4.4)", "covdefaults (>=2.2.2)", "pytest (>=7.2)", "pytest-cov (>=4)", "pytest-mock (>=3.10)"]
+docs = ["furo (>=2022.12.7)", "proselint (>=0.13)", "sphinx (>=6.1.3)", "sphinx-autodoc-typehints (>=1.22,!=1.23.4)"]
+test = ["appdirs (==1.4.4)", "covdefaults (>=2.2.2)", "pytest (>=7.2.1)", "pytest-cov (>=4)", "pytest-mock (>=3.10)"]
 
 [[package]]
 name = "portion"
@@ -2375,14 +2385,14 @@ stats = ["scipy (>=1.3)", "statsmodels (>=0.10)"]
 
 [[package]]
 name = "setuptools"
-version = "67.1.0"
+version = "67.2.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "setuptools-67.1.0-py3-none-any.whl", hash = "sha256:a7687c12b444eaac951ea87a9627c4f904ac757e7abdc5aac32833234af90378"},
-    {file = "setuptools-67.1.0.tar.gz", hash = "sha256:e261cdf010c11a41cb5cb5f1bf3338a7433832029f559a6a7614bd42a967c300"},
+    {file = "setuptools-67.2.0-py3-none-any.whl", hash = "sha256:16ccf598aab3b506593c17378473978908a2734d7336755a8769b480906bec1c"},
+    {file = "setuptools-67.2.0.tar.gz", hash = "sha256:b440ee5f7e607bb8c9de15259dba2583dd41a38879a7abc1d43a71c59524da48"},
 ]
 
 [package.extras]
@@ -2675,20 +2685,20 @@ files = [
 
 [[package]]
 name = "xarray"
-version = "2023.1.0"
+version = "2023.2.0"
 description = "N-D labeled arrays and datasets in Python"
 category = "main"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "xarray-2023.1.0-py3-none-any.whl", hash = "sha256:7e530b1deafdd43e5c2b577d0944e6b528fbe88045fd849e49a8d11871ecd522"},
-    {file = "xarray-2023.1.0.tar.gz", hash = "sha256:7bee552751ff1b29dab8b7715726e5ecb56691ac54593cf4881dff41978ce0cd"},
+    {file = "xarray-2023.2.0-py3-none-any.whl", hash = "sha256:9fb925e47deb68e2486c8d80d13e3ad97ff6f0e02a26d622c0b6559be707c22e"},
+    {file = "xarray-2023.2.0.tar.gz", hash = "sha256:aa760500a2d8f8be8efd8f3b27a94b2af3b0a8c2c037347d595eaf6ff09d8a77"},
 ]
 
 [package.dependencies]
-numpy = ">=1.20"
+numpy = ">=1.21"
 packaging = ">=21.3"
-pandas = ">=1.3"
+pandas = ">=1.4"
 
 [package.extras]
 accel = ["bottleneck", "flox", "numbagg", "scipy"]
@@ -2729,14 +2739,14 @@ files = [
 
 [[package]]
 name = "zipp"
-version = "3.12.0"
+version = "3.12.1"
 description = "Backport of pathlib-compatible object wrapper for zip files"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "zipp-3.12.0-py3-none-any.whl", hash = "sha256:9eb0a4c5feab9b08871db0d672745b53450d7f26992fd1e4653aa43345e97b86"},
-    {file = "zipp-3.12.0.tar.gz", hash = "sha256:73efd63936398aac78fd92b6f4865190119d6c91b531532e798977ea8dd402eb"},
+    {file = "zipp-3.12.1-py3-none-any.whl", hash = "sha256:6c4fe274b8f85ec73c37a8e4e3fa00df9fb9335da96fb789e3b96b318e5097b3"},
+    {file = "zipp-3.12.1.tar.gz", hash = "sha256:a3cac813d40993596b39ea9e93a18e8a2076d5c378b8bc88ec32ab264e04ad02"},
 ]
 
 [package.extras]
@@ -2744,10 +2754,10 @@ docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker
 testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
 
 [extras]
-acceleration = ["numba", "cupy"]
+acceleration = ["numba", "cupy-cuda11x"]
 gui = ["tqdm"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.9, < 3.11" # Note: 3.11 is excluded by mamba. Otherwise it works fine.
-content-hash = "abb41405587b96d77e39ccf24acfacec6702511d37a3253e717748b5a330bb68"
+python-versions = ">=3.9,<3.11" # Note: 3.11 is excluded by mamba. Otherwise it works fine.
+content-hash = "d68c6308fb5c5078d241d03b2f1138622afbc15db9fffce08af33a16a4f3dcbc"
