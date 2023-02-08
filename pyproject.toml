@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "neuropy"
-version = "0.0.6"
+version = "0.0.7"
 description = "package is primarily developed for hippocampal recordings, but can also be used for general ephys data."
 authors = ["Bapun Giri <bapung@umich.edu>", "Pho Hale <halechr@umich.edu>", "Nat Kinsky <nkinsky@umich.edu>"]
 license = "GPL License"
@@ -27,6 +27,8 @@ numba = {version = "^0.56.4", optional = true}
 cupy = {version = "^11.5.0", optional = true}
 tqdm = {version = "^4.64.1", optional = true}
 portion = "^2.3.1"
+klepto = {version = "^0.2.3", optional = false} # {version = "^0.2.3", extras="archives"}
+sqlalchemy = {version = "^2.0.2", optional = false}
 
 [tool.poetry.group.dev.dependencies]
 pip = "^23.0"

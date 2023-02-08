@@ -3,6 +3,7 @@ from typing import Sequence, Union
 from warnings import warn
 import numpy as np
 import pandas as pd
+from klepto.safe import lru_cache as memoized
 from pathlib import Path
 from neuropy import core
 from neuropy.core import neurons
@@ -360,7 +361,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     #     return active_epoch_placefields1D, active_epoch_placefields2D
 
 
-
+    @memoized(ignore=('self', 'save_on_compute', 'debug_print'))
     def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
