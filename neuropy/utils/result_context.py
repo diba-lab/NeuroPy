@@ -380,6 +380,7 @@ class context_extraction(object):
             try:
                 # get cache entry
                 result = cache[key]
+                raise KeyError # Disable loading from cache by raising a key error no matter what. TODO: potentially enable cache.
                 stats[HIT] += 1
             except KeyError:
                 # if not in cache, look in archive
@@ -387,6 +388,7 @@ class context_extraction(object):
                     cache.load(key)
                 try:
                     result = cache[key]
+                    raise KeyError # Disable loading from cache by raising a key error no matter what. TODO: potentially enable cache.
                     stats[LOAD] += 1
                 except KeyError:
                     # if not found, then compute
