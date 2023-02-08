@@ -3,7 +3,9 @@ from typing import Sequence, Union
 from warnings import warn
 import numpy as np
 import pandas as pd
-from klepto.safe import lru_cache as memoized
+# from klepto.safe import lru_cache as memoized
+from neuropy.utils.result_context import context_extraction as memoized
+
 from pathlib import Path
 from neuropy import core
 from neuropy.core import neurons
@@ -23,6 +25,25 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.panel import DataSessionPanelMixin
 
 from neuropy.utils.efficient_interval_search import determine_event_interval_identity # numba acceleration
+
+
+# Klepto caching/memoization
+# from klepto.archives import sqltable_archive as sql_archive
+from klepto.archives import file_archive, sql_archive, dict_archive
+from klepto.keymaps import keymap, hashmap, stringmap
+
+_context_keymap = stringmap(flat=False, sentinel='||')
+# _context_keymap = keymap(flat=False, sentinel='||')
+# _context_keymap = hashmap(sentinel='||') # signature not recoverable
+
+#d = sql_archive('postgresql://user:pass@localhost/defaultdb', cached=False)
+#d = sql_archive('mysql://user:pass@localhost/defaultdb', cached=False)
+# _context_cache = sql_archive(cached=False)
+_context_cache = dict_archive('_test_context_cache')
+# _context_cache = dict_archive(cached=False)
+
+
+
 
 
 class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
@@ -361,7 +382,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     #     return active_epoch_placefields1D, active_epoch_placefields2D
 
 
-    @memoized(ignore=('self', 'save_on_compute', 'debug_print'))
+    @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
     def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
