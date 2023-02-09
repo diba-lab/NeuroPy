@@ -383,7 +383,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
 
     @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
-    def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
+    def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
@@ -396,12 +396,12 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         Returns:
             _type_: _description_
         """
-        return DataSession.compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, save_on_compute=save_on_compute, debug_print=debug_print)
+        return DataSession.compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, save_on_compute=save_on_compute, debug_print=debug_print)
     
 
     ## Estimate Replay epochs from PBE and Position data.
     @staticmethod
-    def compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
+    def compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
@@ -431,7 +431,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # active_context = active_context.adding_context(collision_prefix='replay_surrogate', replays=filter_epoch_replacement_type.name)
 
         # `KnownFilterEpochs.perform_get_filter_epochs_df(...)` returns one of the pre-known types of epochs (e.g. PBE, Ripple, etc.) as an Epoch object.
-        curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=min_epoch_included_duration) # returns Epoch object
+        curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=None) # returns Epoch object, don't use min_epoch_included_duration here, we'll do it in the next step.
+        # Filter by duration bounds:
+        curr_replays = curr_replays.filtered_by_duration(min_duration=min_epoch_included_duration, max_duration=max_epoch_included_duration)
         # Filter *_replays_Interval by requiring them to be below the speed:
         curr_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(a_session.position.to_dataframe(), curr_replays, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
         # print('done.')
