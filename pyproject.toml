@@ -29,6 +29,7 @@ tqdm = {version = "^4.64.1", optional = true}
 portion = "^2.3.1"
 klepto = {version = "^0.2.3", optional = false} # {version = "^0.2.3", extras="archives"}
 sqlalchemy = {version = "^2.0.2", optional = false}
+pynapple = "^0.3.1" # {version = "^0.3.1", optional = false}
 
 [tool.poetry.group.dev.dependencies]
 pip = "^23.0"
@@ -37,6 +38,7 @@ ipdb = "^0.13.11"
 [tool.poetry.extras]
 gui = ["tqdm"]
 acceleration = ["numba", "cupy"]
+# data_io = ["pynapple"]
 
 [build-system]
 requires = ["poetry-core"]

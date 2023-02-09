@@ -428,10 +428,13 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         bins = np.arange(t_start, t_stop + binsize, binsize)
         return np.histogram(mid_times, bins=bins)[0]
 
-    def to_neuroscope(self, ext="evt"):
-        with self.filename.with_suffix(f".evt.{ext}").open("w") as a:
-            for event in self.epochs.itertuples():
+    def to_neuroscope(self, ext="PHO"):
+        assert self.filename is not None
+        out_filepath = self.filename.with_suffix(f".{ext}.evt")
+        with out_filepath.open("w") as a:
+            for event in self._df.itertuples():
                 a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
+        return out_filepath
 
     def as_array(self):
         return self.to_dataframe()[["start", "stop"]].to_numpy()
