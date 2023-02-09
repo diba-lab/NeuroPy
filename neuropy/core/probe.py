@@ -137,8 +137,16 @@ class Probe:
             assert np.all([_.__class__.__name__ == "Shank" for _ in shanks])
 
         self._data = pd.DataFrame(
-            columns=["x", "y", "contact_id", "channel_id", "connected", "shank_id"]
+            {
+                "x": np.array([]),
+                "y": np.array([]),
+                "contact_id": np.array([]),
+                "channel_id": np.array([]),
+                "connected": np.array([], dtype=bool),
+                "shank_id": np.array([]),
+            }
         )
+
         x = np.arange(len(shanks)) * shank_pitch[0]
         y = np.arange(len(shanks)) * shank_pitch[1]
         for i, shank in enumerate(shanks):
@@ -146,7 +154,8 @@ class Probe:
             shank_df["x"] += x[i]
             shank_df["y"] += y[i]
             shank_df["shank_id"] = i * np.ones(shank.n_contacts)
-            self._data = self._data.append(shank_df)
+            # self._data = self._data.append(shank_df)
+            self._data = pd.concat([self._data, shank_df])
         self._data = self._data.reset_index(drop=True)
         self._data["contact_id"] = np.arange(len(self._data))
 
@@ -193,7 +202,7 @@ class Probe:
         for shank in shanks:
             shank_df = shank.to_dataframe()
             shank_df["shank_id"] = (self.n_shanks - 1) * np.ones(shank.n_contacts)
-            self._data = self._data.append(shank_df)
+            self._data = pd.concat([self._data, shank_df])
 
     def to_dict(self):
         return self._data.to_dict()
@@ -358,7 +367,7 @@ class ProbeGroup(DataWriter):
         if self.n_probes > 0:
             probe_df["shank_id"] = probe_df["shank_id"] + self.n_shanks
 
-        self._data = self._data.append(probe_df)
+        self._data = pd.concat([self._data, probe_df])
 
         # _, counts = np.unique(self.get_channel_ids(), return_counts=True)
 
