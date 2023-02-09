@@ -201,6 +201,10 @@ class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectPro
             df = self._obj[self._obj["label"] == label].reset_index(drop=True)
         return df
 
+    def filtered_by_duration(self, min_duration=None, max_duration=None):
+        return self._obj[(self.durations >= (min_duration or 0.0)) & (self.durations <= (max_duration or np.inf))].reset_index(drop=True)
+        
+
 
 class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
@@ -308,6 +312,10 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         
     def label_slice(self, label):
         return Epoch(epochs=self._df.epochs.label_slice(label))
+
+    def filtered_by_duration(self, min_duration=None, max_duration=None):
+        return Epoch(epochs=self._df.epochs.filtered_by_duration(min_duration, max_duration), metadata=self.metadata)
+
 
     def to_dict(self, recurrsively=False):
         return {
