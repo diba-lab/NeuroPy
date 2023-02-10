@@ -502,3 +502,58 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
         print(f'Post-speed-filtering: ' + ', '.join([f"n_epochs: {an_interval.n_epochs}" for an_interval in epoch_args]))
     return *epoch_args, above_speed_threshold_intervals, below_speed_threshold_intervals
 
+
+def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_num_unique_aclu_inclusions=1):
+    from neuropy.core.epoch import Epoch # `filter_epochs_by_num_active_units` used to rebuild the spike-constrained epochs:
+    # active_spikes_df = active_sess.spikes_df.spikes.sliced_by_neuron_type('pyr')
+    all_aclus = active_spikes_df.spikes.neuron_ids
+    # all_spiketrains_list = active_spikes_df.spikes.get_unit_spiketrains()
+    # These contain spike_dfs for all units split by each epoch:
+    epoch_split_spike_dfs = [active_spikes_df.spikes.time_sliced(t_start, t_stop) for t_start, t_stop in zip(active_epochs.starts, active_epochs.stops)] # oh, very fast actually!
+    is_epoch_non_empty_spikes_df = np.logical_not([len(v)<=0 for v in epoch_split_spike_dfs]) # the epochs have no active cells (no spikes at all)
+    # Drop empty epochs:
+    active_epochs = active_epochs.boolean_indicies_slice(is_epoch_non_empty_spikes_df) # np.shape(epoch_first_last_spike_times) # (207, 2)
+    # Drop empty spikes dfs:
+    epoch_split_spike_dfs = [v for v in epoch_split_spike_dfs if len(v)>0]
+    # epoch_split_spike_dfs = epoch_split_spike_dfs[is_epoch_non_empty_spikes_df]
+    assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
+
+
+    # Get the number of unique active units in each epoch:
+    epoch_split_n_unique_aclus = np.array([len(np.unique(a_spikes_df.spikes.neuron_ids)) for a_spikes_df in epoch_split_spike_dfs])
+
+    # Filter epochs by the number of unique active units:
+    is_epoch_num_unique_aclus_above_thresh = epoch_split_n_unique_aclus >= min_num_unique_aclu_inclusions
+    active_epochs = active_epochs.boolean_indicies_slice(is_epoch_num_unique_aclus_above_thresh)
+    epoch_split_spike_dfs = [v for v, is_included in zip(epoch_split_spike_dfs, is_epoch_num_unique_aclus_above_thresh) if is_included]
+    assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
+
+
+    # Get the first and last spike times for each epoch:
+    # Valid epochs should be pruned to this interval (when the first/last pyramidal spike happened):
+    def _safe_min_max(arr):
+        try:
+            out_min = np.nanmin(arr)
+            out_max = np.nanmax(arr)
+        except ValueError:
+            # catch `ValueError: zero-size array to reduction operation fmin which has no identity` for empty arrays
+            out_min = None
+            out_max = None
+        except Exception as e:
+            raise e
+        return out_min, out_max
+
+    epoch_first_last_spike_times = np.array([_safe_min_max(a_spikes_df[a_spikes_df.spikes.time_variable_name].to_numpy()) for a_spikes_df in epoch_split_spike_dfs])
+    # epoch_first_last_spike_times = epoch_first_last_spike_times[is_epoch_non_empty_spikes_df] # drop the empty ones, which have (None, None) values anyway
+    # epoch_first_last_spike_times
+    
+
+    ## Trim active_epochs to the start/end spikes within them. Most easily done by just buiilding a new Epochs object with these times and then copying the info:
+    spike_trimmed_active_epochs_df = pd.DataFrame(epoch_first_last_spike_times, columns=['start', 'stop'])
+    spike_trimmed_active_epochs_df['label'] = active_epochs.labels # add the original label from the active_epochs
+    spike_trimmed_active_epochs = Epoch(epochs=spike_trimmed_active_epochs_df, metadata=active_epochs.metadata)
+    assert spike_trimmed_active_epochs.n_epochs == len(epoch_split_spike_dfs)
+
+    return spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus
+
+
