@@ -96,6 +96,28 @@ class SpikesAccessor(TimeSlicedMixin):
         """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
         return np.asarray([a_unit_spikes_df[self.time_variable_name].to_numpy() for a_unit_spikes_df in self.get_split_by_unit(included_neuron_ids=included_neuron_ids)])
         
+
+    def sliced_by_neuron_type(self, query_neuron_type):
+        """ returns a copy of self._obj filtered by the specified query_neuron_type, only returning neurons that match.
+            e.g. query_neuron_type = NeuronType.PYRAMIDAL 
+                or query_neuron_type = 'PYRAMIDAL' 
+                or query_neuron_type = 'Pyr'
+         """
+        try:
+            # Try with the assumption that it's a string first:
+            query_neuron_type = NeuronType.from_string(query_neuron_type) ## Works
+        except ValueError:
+            # Try to interpret as a NeuronType object:
+            query_neuron_type = query_neuron_type
+        except Exception as e:
+            raise e
+        
+        # Compare via .shortClassName for both query_neuron_type and self._obj.cell_type
+        inclusion_mask = np.isin(np.array([a_type.shortClassName for a_type in self._obj.cell_type]), [query_neuron_type.shortClassName])
+        return self._obj.loc[inclusion_mask, :].copy()
+        # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.cell_type]), [query_neuron_type.shortClassName])]
+        
+
     # ==================================================================================================================== #
     # Additive Mutating Functions: Adds or Update Columns in the Dataframe                                                 #
     # ==================================================================================================================== #
