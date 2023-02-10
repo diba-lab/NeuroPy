@@ -313,6 +313,10 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def label_slice(self, label):
         return Epoch(epochs=self._df.epochs.label_slice(label), metadata=self.metadata)
 
+    def boolean_indicies_slice(self, boolean_indicies):
+        return Epoch(epochs=self._df[boolean_indicies], metadata=self.metadata)
+
+
     def filtered_by_duration(self, min_duration=None, max_duration=None):
         return Epoch(epochs=self._df.epochs.filtered_by_duration(min_duration, max_duration), metadata=self.metadata)
 
