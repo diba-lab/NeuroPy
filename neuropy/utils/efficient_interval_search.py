@@ -14,6 +14,8 @@ except ImportError:
 
 import portion as P # Required for interval search: portion~=2.3.0
 
+from indexed import IndexedOrderedDict # used in `filter_epochs_by_num_active_units`
+
 
 class OverlappingIntervalsFallbackBehavior(Enum):
     """Describes the behavior of the search when the provided epochs overlap each other.
@@ -503,9 +505,19 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
     return *epoch_args, above_speed_threshold_intervals, below_speed_threshold_intervals
 
 
-def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_num_unique_aclu_inclusions=1):
+
+
+def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh:float=0.0, min_num_unique_aclu_inclusions=1):
+    """ Filter active_epochs by requiring them to have at least `min_num_unique_aclu_inclusions` active units as determined by filtering active_spikes_df.
+    Inputs:
+        active_spikes_df: a spike_df with only active units
+        min_inclusion_fr_active_thresh: the minimum firing rate (Hz) for a unit during a given epoch for it to be considered active for that epoch
+        min_num_unique_aclu_inclusions: the minimum number of unique active units that must be present in the epoch for it to be considered active
+
+
+    """
     from neuropy.core.epoch import Epoch # `filter_epochs_by_num_active_units` used to rebuild the spike-constrained epochs:
-    # active_spikes_df = active_sess.spikes_df.spikes.sliced_by_neuron_type('pyr')
+
     all_aclus = active_spikes_df.spikes.neuron_ids
     # all_spiketrains_list = active_spikes_df.spikes.get_unit_spiketrains()
     # These contain spike_dfs for all units split by each epoch:
@@ -515,9 +527,7 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_num_u
     active_epochs = active_epochs.boolean_indicies_slice(is_epoch_non_empty_spikes_df) # np.shape(epoch_first_last_spike_times) # (207, 2)
     # Drop empty spikes dfs:
     epoch_split_spike_dfs = [v for v in epoch_split_spike_dfs if len(v)>0]
-    # epoch_split_spike_dfs = epoch_split_spike_dfs[is_epoch_non_empty_spikes_df]
     assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
-
 
     # Get the number of unique active units in each epoch:
     epoch_split_n_unique_aclus = np.array([len(np.unique(a_spikes_df.spikes.neuron_ids)) for a_spikes_df in epoch_split_spike_dfs])
@@ -544,8 +554,6 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_num_u
         return out_min, out_max
 
     epoch_first_last_spike_times = np.array([_safe_min_max(a_spikes_df[a_spikes_df.spikes.time_variable_name].to_numpy()) for a_spikes_df in epoch_split_spike_dfs])
-    # epoch_first_last_spike_times = epoch_first_last_spike_times[is_epoch_non_empty_spikes_df] # drop the empty ones, which have (None, None) values anyway
-    # epoch_first_last_spike_times
     
 
     ## Trim active_epochs to the start/end spikes within them. Most easily done by just buiilding a new Epochs object with these times and then copying the info:
@@ -554,6 +562,23 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_num_u
     spike_trimmed_active_epochs = Epoch(epochs=spike_trimmed_active_epochs_df, metadata=active_epochs.metadata)
     assert spike_trimmed_active_epochs.n_epochs == len(epoch_split_spike_dfs)
 
-    return spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus
+    ## Firing Rate and Number of Active Aclus Filtering:
+    epoch_split_spike_dfs_aclu_spikecounts = [a_spike_df['aclu'].value_counts().to_dict() for a_spike_df in epoch_split_spike_dfs] # This code takes the column 'aclu' from the Pandas DataFrame df, counts the number of occurrences of each unique value, and converts the resulting Pandas Series object to a dictionary using to_dict(). The keys in the dictionary correspond to each unique aclu value and their count.
+
+    # epoch_split_spike_dfs_aclu_firingrates_Hz = [np.array(list(a_spike_count_dict.values()))/trimmed_epoch_duration for trimmed_epoch_duration, a_spike_count_dict in zip(spike_trimmed_active_epochs.durations, epoch_split_spike_dfs_aclu_spikecounts)]
+    epoch_split_spike_dfs_aclu_firingrates_Hz = [{an_aclu:(float(a_count)/trimmed_epoch_duration) for an_aclu, a_count in a_spike_count_dict.items()} for trimmed_epoch_duration, a_spike_count_dict in zip(spike_trimmed_active_epochs.durations, epoch_split_spike_dfs_aclu_spikecounts)] # just the non-zero aclus values: e.g. {108: 16.582832394938322, 36: 16.582832394938322, 34: 16.582832394938322, 66: 16.582832394938322, 58: 12.437124296203741, 74: 12.437124296203741, 51: 12.437124296203741, 23: 8.291416197469161, 57: 8.291416197469161, 32: 8.291416197469161, 63: 8.291416197469161, 11: 8.291416197469161, 73: 8.291416197469161, 88: 8.291416197469161, 16: 8.291416197469161, 31: 8.291416197469161, 13: 4.1457080987345805, 27: 4.1457080987345805, 10: 4.1457080987345805, 19: 4.1457080987345805, 25: 4.1457080987345805, 62: 4.1457080987345805, 59: 4.1457080987345805, 21: 4.1457080987345805, 98: 4.1457080987345805, 14: 4.1457080987345805}
+
+    # Loop through each epoch and update the non-zero entries in the dense_epoch_split_frs item's values
+    # dense_epoch_split_frs = [(a_dense_fr_dict | _a_test_fr_dict) for _a_test_fr_dict, a_dense_fr_dict in zip(epoch_split_spike_dfs_aclu_firingrates_Hz, dense_epoch_split_frs)] # list of dense dictionaries with keys of aclu and values of firing rate in Hz
+    dense_epoch_split_frs = [(IndexedOrderedDict.fromkeys(all_aclus, value=0.0) | _a_test_fr_dict) for _a_test_fr_dict in epoch_split_spike_dfs_aclu_firingrates_Hz] # list of dense dictionaries with keys of aclu and values of firing rate in Hz
+    dense_epoch_split_frs_mat = np.vstack([np.array(a_dense_fr_dict.values()) for a_dense_fr_dict in dense_epoch_split_frs]) # .shape: (60, 70). The columns represent the aclus in `all_aclus` for each row (which represents an epoch)
+    
+    ## Apply any filters:
+    is_cell_active_in_epoch_mat = dense_epoch_split_frs_mat > min_inclusion_fr_active_thresh
+    # num_cells_included_in_epoch_mat: the num unique cells included in each epoch that mean the min_inclusion_fr_active_thresh criteria. Should have one value per epoch of interest.
+    num_cells_active_in_epoch_mat = np.sum(is_cell_active_in_epoch_mat, 1)
+    # dense_epoch_split_frs_mat = dense_epoch_split_frs_mat[:, is_active_aclus] # filter out inactive aclus
+
+    return spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat # (is_cell_active_in_epoch_mat, num_cells_active_in_epoch_mat)
 
 
