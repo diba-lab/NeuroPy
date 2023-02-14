@@ -205,15 +205,9 @@ class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectPro
         return self._obj[(self.durations >= (min_duration or 0.0)) & (self.durations <= (max_duration or np.inf))].reset_index(drop=True)
         
     # Requires Optional `portion` library
+    # import portion as P # Required for interval search: portion~=2.3.0
     @classmethod
     def from_PortionInterval(cls, portion_interval):
-        """[summary]
-        Args:
-            portion_interval ([type]): [description]
-            label ([type], optional): [description]. Defaults to None.
-        Returns:
-            [type]: [description]
-        """
         from neuropy.utils.efficient_interval_search import convert_PortionInterval_to_epochs_df
         return convert_PortionInterval_to_epochs_df(portion_interval)
 

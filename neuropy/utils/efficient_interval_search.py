@@ -392,20 +392,16 @@ def convert_PortionInterval_to_epochs_df(intervals: P.Interval) -> pd.DataFrame:
 def convert_PortionInterval_to_Epoch_obj(interval: P.Interval):
     """ build an Epoch object version
     Usage:
-        combined_epoch_obj = convert_Intervals_to_Epoch_obj(long_replays_intervals)
+        combined_epoch_obj = convert_PortionInterval_to_Epoch_obj(long_replays_intervals)
     """
     from neuropy.core.epoch import Epoch # import here to avoid circular import
     return Epoch(epochs=convert_PortionInterval_to_epochs_df(interval))
 
-
-
 def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj) -> P.Interval:
     """ build an Interval object version
     Usage:
-        combined_interval_obj = convert_Epoch_obj_to_Interval_obj(long_replays_intervals)
+        combined_interval_obj = convert_Epoch_obj_to_PortionInterval_obj(long_replays_intervals)
     """
-    # from neuropy.core.epoch import Epoch # import here to avoid circular import
-    # return _convert_start_end_tuples_list_to_Intervals(epoch_obj.to_dataframe()[['start','stop']].values.tolist())
     return _convert_start_end_tuples_list_to_PortionInterval(zip(epoch_obj.starts, epoch_obj.stops))
 
 # # to_string/from_string:
@@ -416,6 +412,8 @@ def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj) -> P.Interval:
 def _find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interpolated: bool) -> list:
     """ written by ChatGPT 2023-01-26
     Used by `_filter_epochs_by_speed`
+    TODO: Should be tested!
+
     """
     # speed_threshold_comparison_operator_fn: defines the function to compare a given speed with the threshold (e.g. > or <)
     speed_threshold_comparison_operator_fn = lambda a_speed, a_speed_thresh: (a_speed > a_speed_thresh) # greater than
