@@ -204,6 +204,25 @@ class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectPro
     def filtered_by_duration(self, min_duration=None, max_duration=None):
         return self._obj[(self.durations >= (min_duration or 0.0)) & (self.durations <= (max_duration or np.inf))].reset_index(drop=True)
         
+    # Requires Optional `portion` library
+    @classmethod
+    def from_PortionInterval(cls, portion_interval):
+        """[summary]
+        Args:
+            portion_interval ([type]): [description]
+            label ([type], optional): [description]. Defaults to None.
+        Returns:
+            [type]: [description]
+        """
+        from neuropy.utils.efficient_interval_search import convert_PortionInterval_to_epochs_df
+        return convert_PortionInterval_to_epochs_df(portion_interval)
+
+    def to_PortionInterval(self):
+        from neuropy.utils.efficient_interval_search import _convert_start_end_tuples_list_to_PortionInterval
+        return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
+
+
+
 
 
 class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
@@ -315,7 +334,6 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
 
     def boolean_indicies_slice(self, boolean_indicies):
         return Epoch(epochs=self._df[boolean_indicies], metadata=self.metadata)
-
 
     def filtered_by_duration(self, min_duration=None, max_duration=None):
         return Epoch(epochs=self._df.epochs.filtered_by_duration(min_duration, max_duration), metadata=self.metadata)
@@ -450,3 +468,13 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
 
     def as_array(self):
         return self.to_dataframe()[["start", "stop"]].to_numpy()
+
+    # Requires Optional `portion` library
+    @classmethod
+    def from_PortionInterval(cls, portion_interval, metadata=None):
+        return Epoch(epochs=EpochsAccessor.from_PortionInterval(portion_interval), metadata=metadata) 
+
+    def to_PortionInterval(self):
+        return self._df.epochs.to_PortionInterval()
+
+

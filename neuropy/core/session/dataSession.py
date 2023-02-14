@@ -427,7 +427,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
         # active_identifying_session_ctx = a_session.get_context() # 'bapun_RatN_Day4_2019-10-15_11-30-06' # curr_sess_ctx # IdentifyingContext<('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')>
         # active_context = active_identifying_session_ctx.adding_context(collision_prefix='fn', fn_name='long_short_firing_rate_indicies')
-        print(f'missing .replay epochs, using {filter_epoch_replacement_type} as surrogate replays...')
+        print(f'\t using {filter_epoch_replacement_type} as surrogate replays...')
         # active_context = active_context.adding_context(collision_prefix='replay_surrogate', replays=filter_epoch_replacement_type.name)
 
         # `KnownFilterEpochs.perform_get_filter_epochs_df(...)` returns one of the pre-known types of epochs (e.g. PBE, Ripple, etc.) as an Epoch object.

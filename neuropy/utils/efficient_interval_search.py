@@ -366,11 +366,11 @@ def deduplicate_epochs(epochs_df, agressive_deduplicate:bool=True):
 # `portion`-based interval search and operations                                                                       #
 # ==================================================================================================================== #
 
-def _convert_start_end_tuples_list_to_Intervals(start_end_tuples_list):
+def _convert_start_end_tuples_list_to_PortionInterval(start_end_tuples_list):
     return P.from_data([(P.CLOSED, start, stop, P.CLOSED) for start, stop in start_end_tuples_list])
 
-def _convert_Intervals_to_4uples_list(intervals: P.Interval):
-    return P.to_data(intervals)
+def _convert_PortionInterval_to_4uples_list(interval: P.Interval):
+    return P.to_data(interval)
 
 def _convert_4uples_list_to_epochs_df(tuples_list):
     """ Convert tuples list to epochs dataframe """
@@ -382,20 +382,31 @@ def _convert_4uples_list_to_epochs_df(tuples_list):
     combined_df = combined_df.epochs.get_valid_df() # calling the .epochs.get_valid_df() method ensures all the appropriate columns are added (such as 'duration') to be used as an epochs_df
     return combined_df
 
-def convert_Intervals_to_epochs_df(intervals: P.Interval) -> pd.DataFrame:
+def convert_PortionInterval_to_epochs_df(intervals: P.Interval) -> pd.DataFrame:
     """ 
     Usage:
-        epochs_df = convert_Intervals_to_epochs_df(long_replays_intervals)
+        epochs_df = convert_PortionInterval_to_epochs_df(long_replays_intervals)
     """
-    return _convert_4uples_list_to_epochs_df(_convert_Intervals_to_4uples_list(intervals))
+    return _convert_4uples_list_to_epochs_df(_convert_PortionInterval_to_4uples_list(intervals))
 
-def convert_Intervals_to_Epoch_obj(intervals: P.Interval):
+def convert_PortionInterval_to_Epoch_obj(interval: P.Interval):
     """ build an Epoch object version
     Usage:
         combined_epoch_obj = convert_Intervals_to_Epoch_obj(long_replays_intervals)
     """
     from neuropy.core.epoch import Epoch # import here to avoid circular import
-    return Epoch(epochs=convert_Intervals_to_epochs_df(intervals))
+    return Epoch(epochs=convert_PortionInterval_to_epochs_df(interval))
+
+
+
+def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj) -> P.Interval:
+    """ build an Interval object version
+    Usage:
+        combined_interval_obj = convert_Epoch_obj_to_Interval_obj(long_replays_intervals)
+    """
+    # from neuropy.core.epoch import Epoch # import here to avoid circular import
+    # return _convert_start_end_tuples_list_to_Intervals(epoch_obj.to_dataframe()[['start','stop']].values.tolist())
+    return _convert_start_end_tuples_list_to_PortionInterval(zip(epoch_obj.starts, epoch_obj.stops))
 
 # # to_string/from_string:
 # P.to_string(long_replays_intervals)
@@ -483,7 +494,7 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
         long_replays, short_replays, global_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(speed_df, long_replays, short_replays, global_replays, speed_thresh=speed_thresh, debug_print=True)
     """
     start_end_tuples_interval_list = _find_intervals_above_speed(speed_df, speed_thresh, is_interpolated=True)
-    above_speed_threshold_intervals = _convert_start_end_tuples_list_to_Intervals(start_end_tuples_interval_list)
+    above_speed_threshold_intervals = _convert_start_end_tuples_list_to_PortionInterval(start_end_tuples_interval_list)
     if debug_print:
         print(f'len(above_speed_threshold_intervals): {len(above_speed_threshold_intervals)}')
     # find the intervals below the threshold speed by taking the complement:
@@ -495,11 +506,11 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
     # Only this part depends on *epoch_args:
     if debug_print:
         print(f'len(epoch_args): {len(epoch_args)}')
-    epoch_args_Interval = [_convert_start_end_tuples_list_to_Intervals(zip(a_replays_epoch_obj.starts, a_replays_epoch_obj.stops)) for a_replays_epoch_obj in epoch_args] # returns P.Interval objects
+    epoch_args_Interval = [_convert_start_end_tuples_list_to_PortionInterval(zip(a_replays_epoch_obj.starts, a_replays_epoch_obj.stops)) for a_replays_epoch_obj in epoch_args] # returns P.Interval objects
     ## Filter *_replays_Interval by requiring them to be below the speed:
     epoch_args_Interval = [below_speed_threshold_intervals.intersection(a_replays_Interval_obj) for a_replays_Interval_obj in epoch_args_Interval] # returns P.Interval objects
     ## Convert back to Epoch objects:
-    epoch_args = [convert_Intervals_to_Epoch_obj(a_replays_Interval_obj) for a_replays_Interval_obj in epoch_args_Interval] # returns P.Interval objects
+    epoch_args = [convert_PortionInterval_to_Epoch_obj(a_replays_Interval_obj) for a_replays_Interval_obj in epoch_args_Interval] # returns P.Interval objects
     if debug_print:
         print(f'Post-speed-filtering: ' + ', '.join([f"n_epochs: {an_interval.n_epochs}" for an_interval in epoch_args]))
     return *epoch_args, above_speed_threshold_intervals, below_speed_threshold_intervals
