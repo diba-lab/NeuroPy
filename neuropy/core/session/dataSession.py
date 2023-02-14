@@ -432,23 +432,8 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
         # `KnownFilterEpochs.perform_get_filter_epochs_df(...)` returns one of the pre-known types of epochs (e.g. PBE, Ripple, etc.) as an Epoch object.
         curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=None) # returns Epoch object, don't use min_epoch_included_duration here, we'll do it in the next step.
-
-
         
         ## Filter based on required overlap with Ripples:
-
-        # active_filter_epochs = deepcopy(a_session.ripple) # epoch ripple object
-        # if not isinstance(active_filter_epochs, pd.DataFrame):
-            # active_filter_epochs = active_filter_epochs.to_dataframe()
-        # active_filter_epochs = active_filter_epochs.epochs.get_non_overlapping_df()
-        # active_filter_epochs['label'] = active_filter_epochs.index.to_numpy() # integer ripple indexing
-
-        ## Filter by overlapping ripple critiera first:
-        # ripple_interval_obj = a_session.ripple.to_PortionInterval()
-        # ripple_interval_obj
-
-        # replays_Interval_obj = a_session.ripple.to_PortionInterval().intersection(curr_replays.to_PortionInterval())
-        # replays_Interval_obj
         curr_replays = Epoch.from_PortionInterval(a_session.ripple.to_PortionInterval().intersection(curr_replays.to_PortionInterval()))
 
         # Filter by duration bounds:
