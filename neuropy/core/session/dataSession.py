@@ -383,7 +383,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
 
     @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
-    def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
+    def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
@@ -396,12 +396,12 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         Returns:
             _type_: _description_
         """
-        return DataSession.compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, save_on_compute=save_on_compute, debug_print=debug_print)
+        return DataSession.compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, save_on_compute=save_on_compute, debug_print=debug_print)
     
 
     ## Estimate Replay epochs from PBE and Position data.
     @staticmethod
-    def compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, save_on_compute=False, debug_print=False):
+    def compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
@@ -416,7 +416,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         """
         from pyphoplacecellanalysis.General.Pipeline.Stages.ComputationFunctions.DefaultComputationFunctions import KnownFilterEpochs
         from neuropy.utils.efficient_interval_search import filter_epochs_by_speed
-        # from neuropy.core import Epoch
+        from neuropy.utils.efficient_interval_search import filter_epochs_by_num_active_units
 
         print('computing estimated replay epochs for session...\n')
         filter_epochs = a_session.pbe # Epoch object
@@ -435,8 +435,15 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # Filter by duration bounds:
         curr_replays = curr_replays.filtered_by_duration(min_duration=min_epoch_included_duration, max_duration=max_epoch_included_duration)
         # Filter *_replays_Interval by requiring them to be below the speed:
-        curr_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(a_session.position.to_dataframe(), curr_replays, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
-        # print('done.')
+        if maximum_speed_thresh is not None:
+            curr_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(a_session.position.to_dataframe(), curr_replays, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
+
+        # 2023-02-10 - Trimming and Filtering Estimated Replay Epochs based on cell activity and pyramidal cell start/end times:
+        if (min_inclusion_fr_active_thresh is not None) or (min_num_unique_aclu_inclusions is not None):
+            active_spikes_df = a_session.spikes_df.spikes.sliced_by_neuron_type('pyr') # trim based on pyramidal cell activity only
+            spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat = filter_epochs_by_num_active_units(active_spikes_df, curr_replays, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions) # TODO: seems wasteful considering we compute all these spikes_df metrics and refinements and then don't return them.
+            curr_replays = spike_trimmed_active_epochs # use the spike_trimmed_active_epochs as the new curr_replays
+
         return curr_replays
 
 
