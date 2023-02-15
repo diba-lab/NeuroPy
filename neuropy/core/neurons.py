@@ -207,6 +207,17 @@ class Neurons(DataWriter):
         indices = np.array([np.where(self.neuron_ids == _)[0][0] for _ in ids])
         return self[indices]
 
+    def to_dataframe(self):
+        """Generates a pandas dataframe with some descriptions about the neurons"""
+        print("Number of neurons:", self.n_neurons)
+        return pd.DataFrame(
+            dict(
+                neuron_type=self.neuron_type,
+                nspikes=self.n_spikes,
+                mean_frate=self.firing_rate,
+            )
+        )
+
     def get_isi(self, bin_size=0.001, n_bins=200):
         """Interspike interval
 
