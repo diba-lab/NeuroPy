@@ -559,22 +559,18 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
     return *epoch_args, above_speed_threshold_intervals, below_speed_threshold_intervals
 
 
+def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_unique_aclu_inclusions=1):
+    """ Trim the active_epochs to the first and last spike times for each epoch.
 
-
-def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh:float=0.0, min_num_unique_aclu_inclusions=1):
-    """ Filter active_epochs by requiring them to have at least `min_num_unique_aclu_inclusions` active units as determined by filtering active_spikes_df.
-    Inputs:
-        active_spikes_df: a spike_df with only active units
-        min_inclusion_fr_active_thresh: the minimum firing rate (Hz) for a unit during a given epoch for it to be considered active for that epoch
-        min_num_unique_aclu_inclusions: the minimum number of unique active units that must be present in the epoch for it to be considered active
-
-
+    Usage:
+        from neuropy.utils.efficient_interval_search import trim_epochs_to_first_last_spikes
+        spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs)
     """
+    # Get the first and last spike times for each epoch:
+    # Valid epochs should be pruned to this interval (when the first/last pyramidal spike happened):
+
     from neuropy.core.epoch import Epoch # `filter_epochs_by_num_active_units` used to rebuild the spike-constrained epochs:
 
-    all_aclus = active_spikes_df.spikes.neuron_ids
-    # all_spiketrains_list = active_spikes_df.spikes.get_unit_spiketrains()
-    # These contain spike_dfs for all units split by each epoch:
     epoch_split_spike_dfs = [active_spikes_df.spikes.time_sliced(t_start, t_stop) for t_start, t_stop in zip(active_epochs.starts, active_epochs.stops)] # oh, very fast actually!
     is_epoch_non_empty_spikes_df = np.logical_not([len(v)<=0 for v in epoch_split_spike_dfs]) # the epochs have no active cells (no spikes at all)
     # Drop empty epochs:
@@ -592,9 +588,6 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
     epoch_split_spike_dfs = [v for v, is_included in zip(epoch_split_spike_dfs, is_epoch_num_unique_aclus_above_thresh) if is_included]
     assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
 
-
-    # Get the first and last spike times for each epoch:
-    # Valid epochs should be pruned to this interval (when the first/last pyramidal spike happened):
     def _safe_min_max(arr):
         try:
             out_min = np.nanmin(arr)
@@ -608,13 +601,26 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
         return out_min, out_max
 
     epoch_first_last_spike_times = np.array([_safe_min_max(a_spikes_df[a_spikes_df.spikes.time_variable_name].to_numpy()) for a_spikes_df in epoch_split_spike_dfs])
-    
 
     ## Trim active_epochs to the start/end spikes within them. Most easily done by just buiilding a new Epochs object with these times and then copying the info:
     spike_trimmed_active_epochs_df = pd.DataFrame(epoch_first_last_spike_times, columns=['start', 'stop'])
     spike_trimmed_active_epochs_df['label'] = active_epochs.labels # add the original label from the active_epochs
     spike_trimmed_active_epochs = Epoch(epochs=spike_trimmed_active_epochs_df, metadata=active_epochs.metadata)
     assert spike_trimmed_active_epochs.n_epochs == len(epoch_split_spike_dfs)
+
+    return spike_trimmed_active_epochs, epoch_split_spike_dfs
+
+def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh:float=0.0, min_num_unique_aclu_inclusions=1):
+    """ Filter active_epochs by requiring them to have at least `min_num_unique_aclu_inclusions` active units as determined by filtering active_spikes_df.
+    Inputs:
+        active_spikes_df: a spike_df with only active units
+        min_inclusion_fr_active_thresh: the minimum firing rate (Hz) for a unit during a given epoch for it to be considered active for that epoch
+        min_num_unique_aclu_inclusions: the minimum number of unique active units that must be present in the epoch for it to be considered active
+
+
+    """
+    all_aclus = active_spikes_df.spikes.neuron_ids
+    spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs)
 
     ## Firing Rate and Number of Active Aclus Filtering:
     epoch_split_spike_dfs_aclu_spikecounts = [a_spike_df['aclu'].value_counts().to_dict() for a_spike_df in epoch_split_spike_dfs] # This code takes the column 'aclu' from the Pandas DataFrame df, counts the number of occurrences of each unique value, and converts the resulting Pandas Series object to a dictionary using to_dict(). The keys in the dictionary correspond to each unique aclu value and their count.
