@@ -5,5 +5,5 @@ from .artifact import *
 from .brainstates import *
 from .spkepochs import *
 from .reactivation import ExplainedVariance, NeuronEnsembles
-from .placefields import Pf1D, PF2d
+from .placefields import Pf1D, Pf2D
 from .decoders import Decode1d, Decode2d

@@ -68,7 +68,7 @@ def _detect_freq_band_epochs(
     power = stats.zscore(power)
     power_thresh = np.where(power >= edge_cutoff, power, 0)
     peaks, props = sg.find_peaks(
-        power_thresh, height=[lowthresh, highthresh], prominence=0.5
+        power_thresh, height=[lowthresh, highthresh], prominence=0
     )
     starts, stops = props["left_bases"], props["right_bases"]
     peaks_power = power_thresh[peaks]
