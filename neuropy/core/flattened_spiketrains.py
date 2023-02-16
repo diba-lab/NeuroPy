@@ -59,6 +59,14 @@ class SpikesAccessor(TimeSlicedMixin):
             module_logger.warning(f"\t time variable changed from '{original_time_variable_name}' to '{new_time_variable_name}'.")
             print('\t time variable changed!')
         
+
+    @property
+    def times(self):
+        """ convenience property to access the times of the spikes in the dataframe 
+            ## TODO: why doesn't this have a `times` property to access `self._obj[self.time_variable_name].values`?
+        """
+        return self._obj[self.time_variable_name].values
+
     @property
     def neuron_ids(self):
         """ return the unique cell identifiers (given by the unique values of the 'aclu' column) for this DataFrame """
