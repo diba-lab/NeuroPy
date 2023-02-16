@@ -481,6 +481,51 @@ def _find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interp
 
 
 
+# def find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interpolated: bool) -> list:
+#     """ Chat GPT version 2023-02-15 """
+#     # Create boolean array indicating where speed is above threshold
+#     speed_above_thresh = df['speed'] > speed_thresh
+    
+#     # Compute difference between each adjacent element of speed_above_thresh
+#     speed_above_thresh_diff = np.diff(speed_above_thresh.astype(int))
+    
+#     # Indices where speed crosses threshold from below to above
+#     start_indices = np.where(speed_above_thresh_diff == 1)[0]
+    
+#     # Indices where speed crosses threshold from above to below
+#     end_indices = np.where(speed_above_thresh_diff == -1)[0]
+    
+#     # If speed is above threshold at end of the dataset, add last index to end_indices
+#     if speed_above_thresh[-1]:
+#         end_indices = np.append(end_indices, len(df) - 1)
+    
+#     # If no intervals are found, return an empty list
+#     if len(start_indices) == 0 or len(end_indices) == 0:
+#         return []
+    
+#     # Check if first interval starts with speed above threshold, and remove if not
+#     if start_indices[0] > end_indices[0]:
+#         end_indices = end_indices[1:]
+    
+#     # Check if last interval ends with speed above threshold, and remove if not
+#     if start_indices[-1] > end_indices[-1]:
+#         start_indices = start_indices[:-1]
+    
+#     # Create list of intervals as tuples of (start_time, end_time)
+#     intervals = list(zip(df.iloc[start_indices]['t'], df.iloc[end_indices]['t']))
+    
+#     # If data is interpolated, filter intervals where start and end speeds are below threshold
+#     if is_interpolated:
+#         start_speed = np.interp(df.iloc[start_indices]['t'], df['t'], df['speed'])
+#         end_speed = np.interp(df.iloc[end_indices]['t'], df['t'], df['speed'])
+#         intervals = [intervals[i] for i in range(len(intervals)) if (start_speed[i] > speed_thresh and end_speed[i] > speed_thresh)]
+    
+#     return intervals
+
+
+
+
+
 def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=False):
     """ Filter *_replays_Interval by requiring them to be below the speed 
     *epoch_args = long_replays, short_replays, global_replays

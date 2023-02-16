@@ -9,6 +9,16 @@
 					"label": "IMPORTANT_HELPER: add_epochs_id_identity"
 				}
 			]
+		},
+		{
+			"path": "utils/efficient_interval_search.py",
+			"bookmarks": [
+				{
+					"line": 411,
+					"column": 31,
+					"label": "_find_intervals_above_speed"
+				}
+			]
 		}
 	]
 }
