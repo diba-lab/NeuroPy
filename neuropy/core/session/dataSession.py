@@ -42,10 +42,6 @@ _context_keymap = stringmap(flat=False, sentinel='||')
 _context_cache = dict_archive('_test_context_cache')
 # _context_cache = dict_archive(cached=False)
 
-
-
-
-
 class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
     """ holds the collection of all data, both loaded and computed, related to an experimental recording session. Can contain multiple discontiguous time periods ('epochs') meaning it can represent the data collected over the course of an experiment for a single animal (across days), on a single day, etc.
     
@@ -383,31 +379,35 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
 
     @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
-    def perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
+    def estimate_replay_epochs(self, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
             self (_type_): _description_
             min_epoch_included_duration (float, optional): all epochs shorter than min_epoch_included_duration will be excluded from analysis. Defaults to 0.06.
             maximum_speed_thresh (float, optional): epochs are only included if the animal's interpolated speed (as determined from the session's position dataframe) is below the speed. Defaults to 2.0 [cm/sec].
-            save_on_compute (bool, optional): _description_. Defaults to False.
+            save_on_compute (bool, optional): _description_. Defaults to False.`
             debug_print (bool, optional): _description_. Defaults to False.
 
         Returns:
             _type_: _description_
         """
-        return DataSession.compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, save_on_compute=save_on_compute, debug_print=debug_print)
+        return DataSession.perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, save_on_compute=save_on_compute, debug_print=debug_print)
     
 
     ## Estimate Replay epochs from PBE and Position data.
     @staticmethod
-    def compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
+    def perform_compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
             a_session (_type_): _description_
             min_epoch_included_duration (float, optional): all epochs shorter than min_epoch_included_duration will be excluded from analysis. Defaults to 0.06.
+            max_epoch_included_duration (float, optional): all epochs longer than max_epoch_included_duration will be excluded from analysis. Defaults to 0.6.
             maximum_speed_thresh (float, optional): epochs are only included if the animal's interpolated speed (as determined from the session's position dataframe) is below the speed. Defaults to 2.0 [cm/sec].
+            min_inclusion_fr_active_thresh: minimum firing rate (in Hz) for a unit to be considered "active" for inclusion.
+            min_num_unique_aclu_inclusions: minimum number of unique active cells that must be included in an epoch to have it included.
+
             save_on_compute (bool, optional): _description_. Defaults to False.
             debug_print (bool, optional): _description_. Defaults to False.
 
@@ -601,30 +601,5 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # spk_df['PBE_id'] = spike_pbe_identity_arr
         # return the extracted traces and the updated curr_position_df
         return spk_df
-
-        
-# # Helper function that processed the data in a given directory
-# def processDataSession(basedir='/Volumes/iNeo/Data/Bapun/Day5TwoNovel'):
-#     # sess = DataSession(basedir)
-#     curr_args_dict = dict()
-#     curr_args_dict['basepath'] = basedir
-#     curr_args_dict['session_obj'] = DataSession() # Create an empty session object
-#     sess = DataSessionLoader._default_load_bapun_npy_session_folder(curr_args_dict)
-#     return sess
-
-
-# ## Main:
-# if __name__ == "__main__":
-#     # Now initiate the class
-#     # basedir = '/data/Working/Opto/Jackie671/Jackie_placestim_day2/Jackie_TRACK_2020-10-07_11-21-39'  # fill in here
-#     basedir = 'R:\data\Bapun\Day5TwoNovel'
-#     # basedir = '/Volumes/iNeo/Data/Bapun/Day5TwoNovel'
-#     sess = processDataSession(basedir)
-#     print(sess.recinfo)
-#     sess.epochs.to_dataframe()
-#     sess.neurons.get_all_spikes()
-#     sess.position.sampling_rate # 60
-    
-#     pass
 
 
