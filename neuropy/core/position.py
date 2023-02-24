@@ -117,7 +117,7 @@ class PositionDimDataMixin:
         return len(self.df.index)
 
 class PositionComputedDataMixin:
-    """ Requires conformance to PositionDimDataMixin as well."""
+    """ Requires conformance to PositionDimDataMixin as well. Adds computed properties like velocity and acceleration (higher-order derivatives of position) and smoothed values to the dataframe."""
     
     ## Computed Variable Labels Properties:
     @staticmethod
@@ -135,8 +135,6 @@ class PositionComputedDataMixin:
         computed_column_labels = list(itertools.chain.from_iterable(computed_column_labels)) # ['dt', 'velocity_x', 'acceleration_x', 'velocity_y', 'acceleration_y']
         return computed_column_labels
     
-
-    ## TODO: _perform_compute_higher_order_derivatives has been depricated in favor of factoring this functionality into the pho_custom_placefields "position" pandas Dataframe extension. (See PositionAccessor)
     @staticmethod
     def _perform_compute_higher_order_derivatives(pos_df: pd.DataFrame, component_label: str, time_variable_name: str = 't'):
         """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
@@ -171,7 +169,6 @@ class PositionComputedDataMixin:
         for dim_i in np.arange(self.ndim):
             curr_column_label = self.dim_columns[dim_i]
             self.df = PositionComputedDataMixin._perform_compute_higher_order_derivatives(self.df, curr_column_label, time_variable_name=self.time_variable_name)
-            # self.df = self.df.position._perform_compute_higher_order_derivatives(curr_column_label) # uses the position accessor
         return self.df
     
     
@@ -194,7 +191,7 @@ class PositionComputedDataMixin:
     
     @staticmethod
     def _perform_compute_smoothed_position_info(pos_df: pd.DataFrame, non_smoothed_column_labels,  N: int = 20):
-        """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
+        """Computes the smoothed quantities for a single component (given by component_label) of the pos_df
         Args:
             pos_df (pd.DataFrame): [description]
             non_smoothed_column_labels (list(str)): a list of the columns to be smoothed
@@ -214,7 +211,7 @@ class PositionComputedDataMixin:
     def compute_smoothed_position_info(self, N: int = 20, non_smoothed_column_labels=None):
         """Computes smoothed position variables and adds them as columns to the internal dataframe
         Args:
-            N (int, optional): [description]. Defaults to 20.
+            N (int, optional): Number of previous samples to smooth over. Defaults to 20.
         Returns:
             [type]: [description]
         """
@@ -258,6 +255,7 @@ class PositionComputedDataMixin:
         if 'speed' in self.df.columns:
             return self.df['speed'].to_numpy()
         else:
+            # Compute the speed if not already done upon first access
             dt = np.mean(np.diff(self.time))
             self.df['speed'] = np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)        
         return self.df['speed'].to_numpy()
@@ -335,33 +333,6 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
     def df(self, value):
         self._obj = value # for PositionAccessor
     
-    
-    # # TODO: The documentation says this is the preferred method, but it doesn't actually seem to be used anywhere!
-    # def compute_higher_order_derivatives(self, component_label: str):
-    #     """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
-    #     Args:
-    #         self (pd.DataFrame): [a pos_df]
-    #         component_label (str): [description]
-    #     Returns:
-    #         pd.DataFrame: The updated dataframe with the dt, velocity, and acceleration columns added.
-    #     """
-    #     # compute each component separately:
-    #     velocity_column_key = f'velocity_{component_label}'
-    #     acceleration_column_key = f'acceleration_{component_label}'
-                
-    #     dt = np.insert(np.diff(self._obj['t']), 0, np.nan)
-    #     velocity_comp = np.insert(np.diff(self._obj[component_label]), 0, 0.0) / dt
-    #     velocity_comp[np.isnan(velocity_comp)] = 0.0 # replace NaN components with zero
-    #     acceleration_comp = np.insert(np.diff(velocity_comp), 0, 0.0) / dt
-    #     acceleration_comp[np.isnan(acceleration_comp)] = 0.0 # replace NaN components with zero
-    #     dt[np.isnan(dt)] = 0.0 # replace NaN components with zero
-        
-    #     # add the columns to the dataframe:
-    #     self._obj['dt'] = dt
-    #     self._obj[velocity_column_key] = velocity_comp
-    #     self._obj[acceleration_column_key] = acceleration_comp
-        
-    #     return self._obj  
     
     
 """ --- """
