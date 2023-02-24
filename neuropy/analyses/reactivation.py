@@ -43,8 +43,6 @@ class ExplainedVariance(core.DataWriter):
 
     """
 
-    colors = {"ev": "#4a4a4a", "rev": "#05d69e"}  # colors of each curve
-
     def __init__(
         self,
         neurons: core.Neurons,
@@ -186,7 +184,9 @@ class ExplainedVariance(core.DataWriter):
         self.matching_time = np.mean(matching_windows, axis=1)
         self.control_time = np.mean(control_windows, axis=1)
 
-    def plot(self, ax=None, t_start=0, legend=True):
+    def plot(
+        self, ax=None, t_start=0, legend=True, color_ev="#4a4a4a", color_rev="#05d69e"
+    ):
 
         if ax is None:
             fig, ax = plt.subplots()
@@ -195,7 +195,7 @@ class ExplainedVariance(core.DataWriter):
             (self.matching_time - t_start) / 3600,
             self.rev - self.rev_std,
             self.rev + self.rev_std,
-            color=self.colors["rev"],
+            color=color_rev,
             zorder=1,
             alpha=0.5,
             label="REV",
@@ -203,7 +203,7 @@ class ExplainedVariance(core.DataWriter):
         ax.plot(
             (self.matching_time - t_start) / 3600,
             self.rev,
-            color=self.colors["rev"],
+            color=color_rev,
             zorder=2,
         )
 
@@ -212,14 +212,12 @@ class ExplainedVariance(core.DataWriter):
             (self.matching_time - t_start) / 3600,
             self.ev - self.ev_std,
             self.ev + self.ev_std,
-            color=self.colors["ev"],
+            color=color_ev,
             zorder=3,
             alpha=0.5,
             label="EV",
         )
-        ax.plot(
-            (self.matching_time - t_start) / 3600, self.ev, self.colors["ev"], zorder=4
-        )
+        ax.plot((self.matching_time - t_start) / 3600, self.ev, color_ev, zorder=4)
 
         ax.set_xlabel("Time (h)")
         ax.set_ylabel("Explained variance")
