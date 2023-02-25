@@ -11,6 +11,40 @@ from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableO
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 
+""" --- Helper FUNCTIONS """
+def build_position_df_time_window_idx(active_pos_df, curr_active_time_windows, debug_print=False):
+    """ adds the time_window_idx column to the active_pos_df
+    Usage:
+        curr_active_time_windows = np.array(pho_custom_decoder.active_time_windows)
+        active_pos_df = build_position_df_time_window_idx(sess.position.to_dataframe(), curr_active_time_windows)
+    """
+    active_pos_df['time_window_idx'] = np.full_like(active_pos_df['t'], -1, dtype='int')
+    starts = curr_active_time_windows[:,0]
+    stops = curr_active_time_windows[:,1]
+    num_slices = len(starts)
+    if debug_print:
+        print(f'starts: {np.shape(starts)}, stops: {np.shape(stops)}, num_slices: {num_slices}')
+    for i in np.arange(num_slices):
+        active_pos_df.loc[active_pos_df[active_pos_df.position.time_variable_name].between(starts[i], stops[i], inclusive='both'), ['time_window_idx']] = int(i) # set the 'time_window_idx' identifier on the object
+    active_pos_df['time_window_idx'] = active_pos_df['time_window_idx'].astype(int) # ensure output is the correct datatype
+    return active_pos_df
+
+
+def build_position_df_resampled_to_time_windows(active_pos_df, time_bin_size=0.02):
+    """ Note that this returns a TimedeltaIndexResampler, not a dataframe proper. To get the real dataframe call .nearest() on output.
+
+    Usage:
+        time_binned_position_resampler = build_position_df_resampled_to_time_windows(computation_result.sess.position.to_dataframe(), time_bin_size=computation_result.computation_config.pf_params.time_bin_size) # TimedeltaIndexResampler
+        time_binned_position_df = time_binned_position_resampler.nearest() # an actual dataframe
+    """
+    position_time_delta = pd.to_timedelta(active_pos_df[active_pos_df.position.time_variable_name], unit="sec")
+    active_pos_df['time_delta_sec'] = position_time_delta
+    active_pos_df = active_pos_df.set_index('time_delta_sec')
+    window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S', base=0)#.nearest() # '0.02S' 0.02 second bins
+    return window_resampled_pos_df
+
+
+
 """ --- Helper MIXINS """
 class PositionDimDataMixin:
     """ Implementors gain convenience properties to access .x, .y, and .z variables as properties. 
