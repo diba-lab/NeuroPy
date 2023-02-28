@@ -185,7 +185,13 @@ class ExplainedVariance(core.DataWriter):
         self.control_time = np.mean(control_windows, axis=1)
 
     def plot(
-        self, ax=None, t_start=0, legend=True, color_ev="#4a4a4a", color_rev="#05d69e"
+        self,
+        ax=None,
+        t_start=0,
+        legend=True,
+        color_ev="#4a4a4a",
+        color_rev="#05d69e",
+        show_ignore_epochs=True,
     ):
 
         if ax is None:
@@ -230,16 +236,17 @@ class ExplainedVariance(core.DataWriter):
             ]
         )
 
-        if self.ignore_epochs is not None:
-            for i, epoch in enumerate(self.ignore_epochs.itertuples()):
-                ax.axvspan(
-                    (epoch.start - t_start) / 3600,
-                    (epoch.stop - t_start) / 3600,
-                    color="k",
-                    edgecolor=None,
-                    # alpha=alpha,
-                    zorder=5,
-                )
+        if show_ignore_epochs:
+            if self.ignore_epochs is not None:
+                for i, epoch in enumerate(self.ignore_epochs.itertuples()):
+                    ax.axvspan(
+                        (epoch.start - t_start) / 3600,
+                        (epoch.stop - t_start) / 3600,
+                        color="k",
+                        edgecolor=None,
+                        # alpha=alpha,
+                        zorder=5,
+                    )
 
         return ax
 
