@@ -46,11 +46,11 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             smooth = (smooth, smooth) # make it into a 2 element tuple
         self.smooth = smooth
         self.frate_thresh = frate_thresh
-        
+
         # Dump all arguments into parameters.
         for key, value in kwargs.items():
             setattr(self, key, value)
-                
+
 
     @property
     def grid_bin_1D(self):
@@ -101,15 +101,15 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
                         raise e
 
         return out_list
-        
-    
+
+
     def str_for_filename(self, is_2D):
         extras_strings = self._unlisted_parameter_strings()
         if is_2D:
             return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
         else:
             return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
-        
+
     def str_for_display(self, is_2D):
         """ For rendering in a title, etc """
         extras_string = ', '.join(self._unlisted_parameter_strings())
@@ -120,7 +120,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
 
 
     def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t'):
-        """ For rendering in attributes list like outputs 
+        """ For rendering in attributes list like outputs
         # Default for attributes lists outputs:
         Example Output:
             speed_thresh	2.0
@@ -165,16 +165,16 @@ def _normalized_occupancy(raw_occupancy, position_srate=None):
     Returns:
         tuple<float,float>: (seconds_occupancy, normalized_occupancy)
             *seconds_occupancy* is the number of seconds spent in each bin. This is computed by multiplying the raw occupancy (in # samples) by the duration of each sample.
-            **normalized occupancy** gives the ratio of samples that fall in each bin. ALL BINS ADD UP TO ONE.        
+            **normalized occupancy** gives the ratio of samples that fall in each bin. ALL BINS ADD UP TO ONE.
     """
-    
+
     # if position_srate is not None:
     #     dt = 1.0 / float(position_srate)
-    # 
+    #
     # seconds_occupancy = raw_occupancy * dt  # converting to seconds
     seconds_occupancy = raw_occupancy / (float(position_srate) + 1e-16) # converting to seconds
-    
-    # 
+
+    #
     normalized_occupancy = raw_occupancy / np.nansum(raw_occupancy) # the normalized occupancy determines the relative number of samples spent in each bin
 
     return seconds_occupancy, normalized_occupancy
@@ -185,22 +185,22 @@ class PfnConfigMixin:
     def str_for_filename(self, is_2D=True):
         return self.config.str_for_filename(is_2D)
 
-    
+
 class PfnDMixin(SimplePrintable):
-    
+
     should_smooth_speed = False
     should_smooth_spikes_map = False
     should_smooth_spatial_occupancy_map = False
     should_smooth_final_tuning_map = True
-    
+
     @property
     def spk_pos(self):
         return self.ratemap_spiketrains_pos
-    
+
     @property
     def spk_t(self):
         return self.ratemap_spiketrains
-    
+
     @property
     def cell_ids(self):
         return self.ratemap.neuron_ids
@@ -211,7 +211,7 @@ class PfnDMixin(SimplePrintable):
         if self.ndim < 2:
             ## TODO: Pf1D Temporary Workaround:
             return plotting.plot_raw(self.ratemap, self.t, self.x, 'BOTH', ax=ax, subplots=subplots)
-        else:        
+        else:
             if ax is None:
                 fig = plt.figure(fignum, figsize=(12, 20))
                 gs = GridSpec(subplots[0], subplots[1], figure=fig)
@@ -243,7 +243,7 @@ class PfnDMixin(SimplePrintable):
 
             fig.suptitle(f"Place maps for cells with their peak firing rate (frate thresh={self.frate_thresh},speed_thresh={self.speed_thresh})")
             return fig
-            
+
     @safely_accepts_kwargs
     def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=None, spikes_alpha=None, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None,
         should_include_trajectory=True, should_include_spikes=True, should_include_labels=True):
@@ -258,10 +258,10 @@ class PfnDMixin(SimplePrintable):
         if ax is None:
             fig, ax = plt.subplots(self.ndim, 1, sharex=True)
             fig.set_size_inches([23, 9.7])
-        
+
         if not is_iterable(ax):
             ax = [ax]
-            
+
         # plot trajectories
         if self.ndim < 2:
             variable_array = [self.x]
@@ -269,7 +269,7 @@ class PfnDMixin(SimplePrintable):
         else:
             variable_array = [self.x, self.y]
             label_array = ["X position (cm)", "Y position (cm)"]
-            
+
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             if should_include_trajectory:
                 a.plot(self.t, pos, **(position_plot_kwargs or {}))
@@ -277,7 +277,7 @@ class PfnDMixin(SimplePrintable):
                 a.set_xlabel("Time (seconds)")
                 a.set_ylabel(ylabel)
             pretty_plot(a)
-        
+
         # plot spikes on trajectory
         if cellind is not None:
             if should_include_spikes:
@@ -341,11 +341,11 @@ class PfnDMixin(SimplePrintable):
 
 
 class Pf1D(PfnConfigMixin, PfnDMixin):
-    
+
     @staticmethod
     def _compute_occupancy(x, xbin, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
         """  occupancy map calculations
-        
+
         should_return_num_pos_samples_occupancy:bool - If True, the occupanies returned are specified in number of pos samples. Otherwise, they're returned in units of seconds.
         """
         # --- occupancy map calculation -----------
@@ -356,16 +356,16 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         else:
             num_pos_samples_occupancy = num_pos_samples_unsmoothed_occupancy
         # # raw occupancy is defined in terms of the number of samples that fall into each bin.
-        
+
         if should_return_num_pos_samples_occupancy:
             return num_pos_samples_occupancy, num_pos_samples_unsmoothed_occupancy, xedges
-        else:   
+        else:
             seconds_unsmoothed_occupancy, normalized_unsmoothed_occupancy = _normalized_occupancy(num_pos_samples_unsmoothed_occupancy, position_srate=position_srate)
             seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
             return seconds_occupancy, seconds_unsmoothed_occupancy, xedges
-    
-    
-    @staticmethod   
+
+
+    @staticmethod
     def _compute_spikes_map(spk_x, xbin, smooth):
         unsmoothed_spikes_map = np.histogram(spk_x, bins=xbin)[0]
         if ((smooth is not None) and (smooth > 0.0)):
@@ -373,18 +373,18 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         else:
             spikes_map = unsmoothed_spikes_map
         return spikes_map, unsmoothed_spikes_map
-    
-    @staticmethod   
+
+    @staticmethod
     def _compute_tuning_map(spk_x, xbin, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
         if not PfnDMixin.should_smooth_spikes_map:
             smooth_spikes_map = None
         else:
             smooth_spikes_map = smooth
         spikes_map, unsmoothed_spikes_map = Pf1D._compute_spikes_map(spk_x, xbin, smooth_spikes_map)
-        
+
         # never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # completely unsmoothed tuning map
         # occupancy_weighted_tuning_map = spikes_map / occupancy # tuning map that hasn't yet been smoothed but uses the potentially smoothed spikes_map
-        
+
         ## Copied from Pf2D._compute_tuning_map to handle zero occupancy locations:
         occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
         never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
@@ -398,12 +398,12 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             occupancy_weighted_tuning_map = gaussian_filter1d(unsmoothed_occupancy_weighted_tuning_map, sigma=smooth)
         else:
             occupancy_weighted_tuning_map = unsmoothed_occupancy_weighted_tuning_map
-        
+
         if should_also_return_intermediate_spikes_map:
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map, spikes_map, unsmoothed_spikes_map
         else:
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
-    
+
     def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=1, smooth=1, ):
         raise DeprecationWarning
 
@@ -414,9 +414,9 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
     @staticmethod
     def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
         """  occupancy map calculations
-        
+
         should_return_num_pos_samples_occupancy:bool - If True, the occupanies returned are specified in number of pos samples. Otherwise, they're returned in units of seconds.
-        
+
         """
         # --------------
         # NRK todo: might need to normalize occupancy so sum adds up to 1
@@ -424,7 +424,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         num_pos_samples_unsmoothed_occupancy, xedges, yedges = np.histogram2d(x, y, bins=(xbin, ybin))
         # occupancy = occupancy.T # transpose the occupancy before applying other operations
         # raw_occupancy = raw_occupancy / position_srate + 10e-16  # converting to seconds
-        if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))): 
+        if ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
             num_pos_samples_occupancy = gaussian_filter(num_pos_samples_unsmoothed_occupancy, sigma=(smooth[1], smooth[0])) # 2d gaussian filter: need to flip smooth because the x and y are transposed
         else:
             num_pos_samples_occupancy = num_pos_samples_unsmoothed_occupancy
@@ -433,12 +433,12 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         # raw occupancy is defined in terms of the number of samples that fall into each bin.
         if should_return_num_pos_samples_occupancy:
             return num_pos_samples_occupancy, num_pos_samples_unsmoothed_occupancy, xedges, yedges
-        else:   
+        else:
             seconds_unsmoothed_occupancy, normalized_unsmoothed_occupancy = _normalized_occupancy(num_pos_samples_unsmoothed_occupancy, position_srate=position_srate)
             seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
             return seconds_occupancy, seconds_unsmoothed_occupancy, xedges, yedges
 
-    @staticmethod   
+    @staticmethod
     def _compute_spikes_map(spk_x, spk_y, xbin, ybin, smooth):
         # spikes_map: is the number of spike counts in each bin for this unit
         unsmoothed_spikes_map = np.histogram2d(spk_x, spk_y, bins=(xbin, ybin))[0]
@@ -447,8 +447,8 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         else:
             spikes_map = unsmoothed_spikes_map
         return spikes_map, unsmoothed_spikes_map
-    
-    @staticmethod   
+
+    @staticmethod
     def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
         # raw_tuning_map: is the number of spike counts in each bin for this unit
         if not PfnDMixin.should_smooth_spikes_map:
@@ -456,19 +456,19 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         else:
             smoothing_widths_spikes_map = smooth
         spikes_map, unsmoothed_spikes_map = Pf2D._compute_spikes_map(spk_x, spk_y, xbin, ybin, smoothing_widths_spikes_map)
-        
+
         occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
         never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         never_smoothed_occupancy_weighted_tuning_map = np.nan_to_num(never_smoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
         unsmoothed_occupancy_weighted_tuning_map = spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         unsmoothed_occupancy_weighted_tuning_map = np.nan_to_num(unsmoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
         occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
-        
+
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and ((smooth[0] > 0.0) & (smooth[1] > 0.0))):
             occupancy_weighted_tuning_map = gaussian_filter(unsmoothed_occupancy_weighted_tuning_map, sigma=(smooth[1], smooth[0])) # need to flip smooth because the x and y are transposed
         else:
             occupancy_weighted_tuning_map = unsmoothed_occupancy_weighted_tuning_map
-            
+
         if should_also_return_intermediate_spikes_map:
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map, spikes_map, unsmoothed_spikes_map
         else:
@@ -479,7 +479,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 
 # First, interested in answering the question "where did the animal spend its time on the track" to assess the relative frequency of events that occur in a given region. If the animal spends a lot of time in a certain region,
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
-    # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing. 
+    # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing.
 
 class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. """
@@ -505,26 +505,26 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         self.position_srate = position.sampling_rate
         # Set the dimensionality of the PfND object from the position's dimensionality
         self.ndim = position.ndim
-        
+
         self._included_thresh_neurons_indx = None
-        self._peak_frate_filter_function = None        
+        self._peak_frate_filter_function = None
         self.ratemap = None
         self.ratemap_spiketrains = None
         self.ratemap_spiketrains_pos = None
         self._filtered_pos_df = None
         self._filtered_spikes_df = None
         self.xbin = None
-        self.ybin = None         
+        self.ybin = None
         self.bin_info = None
-        
+
         # Perform the primary setup to build the placefield
         self.setup(position, spikes_df, epochs)
         self.compute()
         # done!
-        
+
     def setup(self, position: Position, spikes_df, epochs: Epoch, debug_print=False):
         """ do the preliminary setup required to build the placefields
-        
+
         Adds columns to the spikes and positions dataframes, etc.
 
         Depends on:
@@ -541,7 +541,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 
         pos_df = position.to_dataframe()
         spk_df = spikes_df.copy()
-        
+
         # filtering:
         if epochs is not None:
             # filter the spikes_df:
@@ -552,16 +552,16 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             # if no epochs filtering, set the filtered objects to be sliced by the available range of the position data (given by position.t_start, position.t_stop)
             self._filtered_spikes_df = spk_df.spikes.time_sliced(position.t_start, position.t_stop)
             self._filtered_pos_df = pos_df.position.time_sliced(position.t_start, position.t_stop)
-        
+
         # drop positions with either X or Y NA values:
-        
+
         if (self.ndim > 1):
             pos_non_NA_column_labels = ['x','y']
         else:
             pos_non_NA_column_labels = ['x']
 
         self._filtered_pos_df.dropna(axis=0, how='any', subset=pos_non_NA_column_labels, inplace=True) # dropped NaN values
-            
+
         # Set animal observed position member variables:
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
             self._filtered_pos_df['speed_smooth'] = gaussian_filter1d(self._filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
@@ -569,11 +569,11 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # Add interpolated velocity information to spikes dataframe:
         if 'speed' not in self._filtered_spikes_df.columns:
             self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.filtered_pos_df.t.to_numpy(), self.speed) ## NOTE: self.speed is either the regular ['speed'] column of the position_df OR the 'speed_smooth'] column if self.should_smooth_speed  is True
-            
+
         # Filter for speed:
         if debug_print:
             print(f'pre speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
-            
+
         if self.config.speed_thresh is None:
             # No speed thresholding, all speeds allowed
             self._filtered_spikes_df = self._filtered_spikes_df
@@ -582,9 +582,9 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
-        
+
         ## Binning with Fixed bin size:
-        # 2022-12-09 - We want to be able to have both long/short track placefields have the same bins. 
+        # 2022-12-09 - We want to be able to have both long/short track placefields have the same bins.
         if (self.ndim > 1):
             if self.config.grid_bin_bounds is None:
                 grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
@@ -596,7 +596,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
                     grid_bin_bounds = self.config.grid_bin_bounds
             x_range, y_range = grid_bin_bounds # unpack grid_bin_bounds
 
-            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(x_range, y_range, bin_size=self.config.grid_bin) # bin_size mode                        
+            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(x_range, y_range, bin_size=self.config.grid_bin) # bin_size mode
         else:
             # 1D case
             if self.config.grid_bin_bounds_1D is None:
@@ -605,16 +605,16 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
                 print(f'using self.config.grid_bin_bounds_1D: {self.config.grid_bin_bounds_1D}')
                 grid_bin_bounds_1D = self.config.grid_bin_bounds_1D
             x_range = grid_bin_bounds_1D
-            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(x_range, None, bin_size=self.config.grid_bin) # bin_size mode            
-                                
+            self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(x_range, None, bin_size=self.config.grid_bin) # bin_size mode
+
         ## Adds the 'binned_x' (and if 2D 'binned_y') columns to the position dataframe:
         if 'binned_x' not in self._filtered_pos_df.columns:
             self._filtered_pos_df, _, _, _ = PfND.build_position_df_discretized_binned_positions(self._filtered_pos_df, self.config, xbin_values=self.xbin, ybin_values=self.ybin, debug_print=False)
-   
-   
+
+
     def compute(self):
         """ actually compute the placefields after self.setup(...) is complete.
-        
+
 
         Depends on:
             self.config.smooth
@@ -622,14 +622,14 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 
 
         Assigns:
-        
+
             self.ratemap
             self.ratemap_spiketrains
             self.ratemap_spiketrains_pos
-            
+
             self._included_thresh_neurons_indx
             self._peak_frate_filter_function
-            
+
         """
         # --- occupancy map calculation -----------
         if not self.should_smooth_spatial_occupancy_map:
@@ -640,23 +640,23 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             occupancy, unsmoothed_occupancy, xedges, yedges = Pf2D._compute_occupancy(self.x, self.y, self.xbin, self.ybin, self.position_srate, smooth_occupancy_map)
         else:
             occupancy, unsmoothed_occupancy, xedges = Pf1D._compute_occupancy(self.x, self.xbin, self.position_srate, smooth_occupancy_map[0])
-        
+
         # Output lists, for compatibility with Pf1D and Pf2D:
         spk_pos, spk_t, spikes_maps, tuning_maps, unsmoothed_tuning_maps = [], [], [], [], []
-        
+
         # Once filtering and binning is done, apply the grouping:
         # Group by the aclu (cluster indicator) column
         cell_grouped_spikes_df = self.filtered_spikes_df.groupby(['aclu'])
         cell_spikes_dfs = [cell_grouped_spikes_df.get_group(a_neuron_id) for a_neuron_id in self.filtered_spikes_df.spikes.neuron_ids] # a list of dataframes for each neuron_id
 
         # NOTE: regardless of whether should_smooth_final_tuning_map is true or not, we must pass in the actual smooth value to the _compute_tuning_map(...) function so it can choose to filter its firing map or not. Only if should_smooth_final_tuning_map is enabled will the final product be smoothed.
-            
+
         # re-interpolate given the updated spks
         for cell_df in cell_spikes_dfs:
             # cell_spike_times = cell_df[spikes_df.spikes.time_variable_name].to_numpy()
             cell_spike_times = cell_df[self.filtered_spikes_df.spikes.time_variable_name].to_numpy()
             spk_x = np.interp(cell_spike_times, self.t, self.x) # TODO: shouldn't we already have interpolated spike times for all spikes in the dataframe?
-            
+
             # update the dataframe 'x','speed' and 'y' properties:
             # cell_df.loc[:, 'x'] = spk_x
             # cell_df.loc[:, 'speed'] = spk_spd
@@ -665,34 +665,34 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
                 # cell_df.loc[:, 'y'] = spk_y
                 spk_pos.append([spk_x, spk_y])
                 curr_cell_tuning_map, curr_cell_never_smoothed_tuning_map, curr_cell_spikes_map, curr_cell_unsmoothed_spikes_map = Pf2D._compute_tuning_map(spk_x, spk_y, self.xbin, self.ybin, occupancy, self.config.smooth, should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
-            
+
             else:
                 # otherwise only 1D:
                 spk_pos.append([spk_x])
                 curr_cell_tuning_map, curr_cell_never_smoothed_tuning_map, curr_cell_spikes_map, curr_cell_unsmoothed_spikes_map = Pf1D._compute_tuning_map(spk_x, self.xbin, occupancy, self.config.smooth[0], should_also_return_intermediate_spikes_map=self._save_intermediate_spikes_maps)
-            
+
             spk_t.append(cell_spike_times)
             tuning_maps.append(curr_cell_tuning_map)
-            unsmoothed_tuning_maps.append(curr_cell_never_smoothed_tuning_map)    
+            unsmoothed_tuning_maps.append(curr_cell_never_smoothed_tuning_map)
             spikes_maps.append(curr_cell_spikes_map)
-            
-            
-        # ---- cells with peak frate abouve thresh 
+
+
+        # ---- cells with peak frate abouve thresh
         self._included_thresh_neurons_indx, self._peak_frate_filter_function = PfND._build_peak_frate_filter(tuning_maps, self.config.frate_thresh)
-        
+
         # there is only one tuning_map per neuron that means the thresh_neurons_indx:
         filtered_tuning_maps = np.asarray(self._peak_frate_filter_function(tuning_maps.copy()))
         filtered_unsmoothed_tuning_maps = np.asarray(self._peak_frate_filter_function(unsmoothed_tuning_maps.copy()))
-        
+
         filtered_spikes_maps = self._peak_frate_filter_function(spikes_maps.copy())
         filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)
         filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
-        
+
         self.ratemap = Ratemap(filtered_tuning_maps, unsmoothed_tuning_maps=filtered_unsmoothed_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
-        
-           
+
+
     @property
     def t(self):
         """The position timestamps property."""
@@ -717,10 +717,10 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             return self.filtered_pos_df.speed_smooth.to_numpy()
         else:
             return self.filtered_pos_df.speed.to_numpy()
-        
-        
-        
-        
+
+
+
+
     @property
     def xbin_centers(self):
         return self.xbin[:-1] + np.diff(self.xbin) / 2
@@ -728,9 +728,9 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     @property
     def ybin_centers(self):
         return self.ybin[:-1] + np.diff(self.ybin) / 2
-    
-    
-        
+
+
+
     @property
     def filtered_spikes_df(self):
         """The filtered_spikes_df property."""
@@ -738,7 +738,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     @filtered_spikes_df.setter
     def filtered_spikes_df(self, value):
         self._filtered_spikes_df = value
-        
+
     @property
     def filtered_pos_df(self):
         """The filtered_pos_df property."""
@@ -746,7 +746,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     @filtered_pos_df.setter
     def filtered_pos_df(self, value):
         self._filtered_pos_df = value
-        
+
 
     ## ratemap convinence accessors
     @property
@@ -769,7 +769,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     @neuron_extended_ids.setter
     def neuron_extended_ids(self, value):
         self.ratemap.neuron_extended_ids = value
-    
+
     ## self.config convinence accessors. Mostly for compatibility with Pf1D and Pf2D
     @property
     def frate_thresh(self):
@@ -779,17 +779,17 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def speed_thresh(self):
         """The speed_thresh property."""
         return self.config.speed_thresh
-    
+
     @property
     def frate_filter_fcn(self):
         """The frate_filter_fcn property."""
         return self._peak_frate_filter_function
-    
+
     @property
     def included_neuron_IDXs(self):
         """The neuron INDEXES, NOT IDs (not 'aclu' values) that were included after filtering by frate and etc. """
         return self._included_thresh_neurons_indx ## TODO: these are basically wrong, we should use self.ratemap.neuron_IDs instead!
-    
+
     @property
     def included_neuron_IDs(self):
         """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
@@ -821,25 +821,25 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 
         return self, did_update_bins
 
-    
-    
+
+
     def str_for_filename(self, prefix_string=''):
         if self.ndim <= 1:
             return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_filename(False)}'])
         else:
             return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_filename(True)}'])
-    
+
     def str_for_display(self, prefix_string=''):
         if self.ndim <= 1:
             return '-'.join(['pf1D', f'{prefix_string}{self.config.str_for_display(False)}', f'cell_{curr_cell_id:02d}'])
         else:
             return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
-        
+
     def to_dict(self):
         # print(f'to_dict(...): {list(self.__dict__.keys())}')
         return {'config': self.config,
                 'position_srate': self.position_srate,
-                'ndim': self.ndim, 
+                'ndim': self.ndim,
                 'xbin': self.xbin,
                 'ybin': self.ybin,
                 'bin_info': self.bin_info,
@@ -855,7 +855,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         return self.to_dict()
 
     def __setstate__(self, state):
-        """ assumes state is a dict generated by calling self.__getstate__() previously"""        
+        """ assumes state is a dict generated by calling self.__getstate__() previously"""
         # print(f'__setstate__(self: {self}, state: {state})')
         # print(f'__setstate__(...): {list(self.__dict__.keys())}')
         self.__dict__ = state # set the dict
@@ -865,33 +865,33 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         # self.position_srate = state.get('position_srate', None)
         # self.ndim = state.get('ndim', None)
         # self.xbin = state.get('xbin', None)
-        # self.ybin = state.get('ybin', None) 
-        # self.bin_info = state.get('bin_info', None)        
+        # self.ybin = state.get('ybin', None)
+        # self.bin_info = state.get('bin_info', None)
         # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
         self._included_thresh_neurons_indx = None
         self._peak_frate_filter_function = None
-        
+
 
     @staticmethod
     def _build_peak_frate_filter(tuning_maps, frate_thresh, debug_print=False):
         """ Finds the peak value of the tuning map for each cell and compares it to the frate_thresh to see if it should be included.
-        
+
         Returns:
             thresh_neurons_indx: the list of indicies that meet the peak firing rate threshold critiera
             filter_function: a function that takes any list of length n_neurons (original number of neurons) and just indexes its passed list argument by thresh_neurons_indx (including only neurons that meet the thresholding criteria)
         """
         # ---- cells with peak frate abouve thresh ------
         n_neurons = len(tuning_maps)
-        
+
         if debug_print:
             print('_build_peak_frate_filter(...):')
             print('\t frate_thresh: {}'.format(frate_thresh))
             print('\t n_neurons: {}'.format(n_neurons))
-        
+
         max_neurons_firing_rates = [np.nanmax(tuning_maps[neuron_indx]) for neuron_indx in range(n_neurons)]
         if debug_print:
             print(f'max_neurons_firing_rates: {max_neurons_firing_rates}')
-        
+
         # only include the indicies that have a max firing rate greater than frate_thresh
         included_thresh_neurons_indx = [
             neuron_indx
@@ -902,20 +902,20 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
             print('\t thresh_neurons_indx: {}'.format(included_thresh_neurons_indx))
         # filter_function: just indexes its passed list argument by thresh_neurons_indx (including only neurons that meet the thresholding criteria)
         filter_function = lambda list_: [list_[_] for _ in included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria
-        
-        return included_thresh_neurons_indx, filter_function 
+
+        return included_thresh_neurons_indx, filter_function
 
     @staticmethod
     def _bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
         """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
         Usage:
-            ## Binning with Fixed Number of Bins:    
+            ## Binning with Fixed Number of Bins:
             xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), bin_size=active_config.computation_config.grid_bin) # bin_size mode
             print(bin_info)
             ## Binning with Fixed Bin Sizes:
             xbin, ybin, bin_info = _bin_pos(pos_df.x.to_numpy(), pos_df.y.to_numpy(), num_bins=num_bins) # num_bins mode
             print(bin_info)
-            
+
         TODO: 2022-04-22 - Note that I discovered that the bins generated here might cause an error when used with Pandas .cut function, which does not include the left (most minimum) values by default. This would cause the minimumal values not to be included.
         """
         return bin_pos_nD(x, y, num_bins=num_bins, bin_size=bin_size)
@@ -925,10 +925,10 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     @staticmethod
     def build_position_df_discretized_binned_positions(active_pos_df, active_computation_config, xbin_values=None, ybin_values=None, debug_print=False):
         """ Adds the 'binned_x' and 'binned_y' columns to the position dataframe
-        
-        Assumes either 1D or 2D positions dependent on whether the 'y' column exists in active_pos_df.columns. 
+
+        Assumes either 1D or 2D positions dependent on whether the 'y' column exists in active_pos_df.columns.
         Wraps the build_df_discretized_binned_position_columns and appropriately unwraps the result for compatibility with previous implementations.
-        
+
         """
         # If xbin_values is not None and ybin_values is None, assume 1D
         # if xbin_values is not None and ybin_values is None:
@@ -947,14 +947,14 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 
         # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
         active_pos_df, out_bins, bin_info = build_df_discretized_binned_position_columns(active_pos_df, bin_values=bin_values, position_column_names=pos_col_names, binned_column_names=binned_col_names, active_computation_config=active_computation_config, force_recompute=False, debug_print=debug_print)
-        
+
         if ndim == 1:
             # Assume 1D:
             xbin = out_bins[0]
             ybin = None
-        else:            
+        else:
             (xbin, ybin) = out_bins
-        
+
         return active_pos_df, xbin, ybin, bin_info
 
 
@@ -966,7 +966,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
 
 def perform_compute_placefields(active_session_spikes_df, active_pos, computation_config: PlacefieldComputationParameters, active_epoch_placefields1D=None, active_epoch_placefields2D=None, included_epochs=None, should_force_recompute_placefields=True, progress_logger=None):
     """ Most general computation function. Computes both 1D and 2D placefields.
-    active_epoch_session_Neurons: 
+    active_epoch_session_Neurons:
     active_epoch_pos: a Position object
     included_epochs: a Epoch object to filter with, only included epochs are included in the PF calculations
     active_epoch_placefields1D (Pf1D, optional) & active_epoch_placefields2D (Pf2D, optional): allow you to pass already computed Pf1D and Pf2D objects from previous runs and it won't recompute them so long as should_force_recompute_placefields=False, which is useful in interactive Notebooks/scripts
@@ -998,7 +998,7 @@ def perform_compute_placefields(active_session_spikes_df, active_pos, computatio
         progress_logger('\t done.')
     else:
         progress_logger('active_epoch_placefields2D already exists, reusing it.')
-    
+
     return active_epoch_placefields1D, active_epoch_placefields2D
 
 def compute_placefields_masked_by_epochs(sess, active_config, included_epochs=None, should_display_2D_plots=False):
@@ -1014,7 +1014,7 @@ def compute_placefields_masked_by_epochs(sess, active_config, included_epochs=No
 
 def compute_placefields_as_needed(active_session, computation_config:PlacefieldComputationParameters=None, general_config=None, active_placefields1D = None, active_placefields2D = None, included_epochs=None, should_force_recompute_placefields=True, should_display_2D_plots=False):
     from neuropy.plotting.placemaps import plot_all_placefields
-    
+
     if computation_config is None:
         computation_config = PlacefieldComputationParameters(speed_thresh=9, grid_bin=2, smooth=0.5)
     # active_placefields1D, active_placefields2D = perform_compute_placefields(active_session.neurons, active_session.position, computation_config, active_placefields1D, active_placefields2D, included_epochs=included_epochs, should_force_recompute_placefields=True)
