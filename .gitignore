@@ -131,3 +131,4 @@ dmypy.json
 tests/PositionTestingVariables.npz
 neuropy/.vscode/settings.json
 .vscode/bookmarks.json
+desktop.ini
