@@ -162,6 +162,54 @@ def debug_print_subsession_neuron_differences(prev_session_Neurons, subsession_N
     num_subsession_total_spikes = np.sum(subsession_Neurons.n_spikes)
     print('{}/{} total spikes spanning {}/{} units remain in subsession'.format(num_subsession_total_spikes, num_original_total_spikes, num_subsession_neurons, num_original_neurons))
 
+
+def print_aligned_columns(column_labels, column_values, pad_fill_str:str = ' ', enable_print:bool = True, enable_string_return:bool = False):
+    """ Prints a text representation of a table of values. All columns must have the same number of rows.
+
+    Usage:
+        pad_fill_str = ' ' # the string to pad with
+        list_of_names = ['frate_thresh', 'num_good_neurons', 'num_total_spikes']
+        list_of_values = [frate_thresh_options, num_good_placefield_neurons_list, num_total_spikes_list]
+        print_aligned_columns(list_of_names, list_of_values, pad_fill_str = ' ')
+
+        Example Output:
+
+        frate_thresh  num_good_neurons  num_total_spikes  
+        0.0           70                58871             
+        0.1           70                58871             
+        1.0           65                57937             
+        5.0           35                38800             
+        10.0          14                20266             
+        100.0         0                 0.0               
+
+
+    """
+
+    # align_command = lambda x, col_width, pad_fill_str: x.center(col_width, pad_fill_str)
+    align_command = lambda x, col_width, pad_fill_str: x.ljust(col_width, pad_fill_str)
+    
+    num_rows_list = [len(v) for v in column_values]
+    assert np.all(np.array(num_rows_list) == num_rows_list[0]), f"all lists must be the same length, but row lengths equal: {num_rows_list}"
+    num_rows = num_rows_list[0] # all the same, so get the first one
+    column_widths = [len(n)+2 for n in column_labels] # add 1 to the length of each list name to get that column's width
+    column_header_strings = [align_command(col_str, col_width, pad_fill_str) for col_width, col_str in zip(column_widths, column_labels)]
+    aligned_header = ''.join(column_header_strings)
+    if enable_print:
+        print(aligned_header)
+    if enable_string_return:
+        aligned_row_strings_list = []
+    for row_i in np.arange(num_rows):
+        aligned_row = ''.join([align_command(str(col_val[row_i]), col_width, pad_fill_str) for col_width, col_val in zip(column_widths, column_values)])
+        if enable_string_return:
+            aligned_row_strings_list.append(aligned_row)
+        if enable_print:
+            print(aligned_row)
+    if enable_string_return:
+        return aligned_header, aligned_row_strings_list
+
+
+
+
 # ==================================================================================================================== #
 # Parameter Sweeps                                                                                                     #
 # ==================================================================================================================== #
