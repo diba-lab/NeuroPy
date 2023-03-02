@@ -45,6 +45,40 @@ def _compute_parameter_sweep(spikes_df, active_pos, all_param_sweep_options: dic
         
     return output_pfs
 
+def compare_placefields_info(output_pfs):
+    """Compares a list of placefields
+
+    Args:
+        output_pfs (_type_): _description_
+
+    Returns:
+        _type_: _description_
+
+    Usage:
+
+        num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(output_pfs)
+
+    """
+    num_good_placefield_neurons_list = []
+    num_spikes_per_spiketrain_list = []
+    num_total_spikes_list = []
+
+    for output_pf in output_pfs.values():
+        # Get the cell IDs that have a good place field mapping:
+        good_placefield_neuronIDs = np.array(output_pf.ratemap.neuron_ids) # in order of ascending ID
+        num_good_placefield_neurons = len(good_placefield_neuronIDs)
+        num_spikes_per_spiketrain = np.array([np.shape(a_spk_train)[0] for a_spk_train in output_pf.spk_t])
+        num_total_spikes = np.sum(num_spikes_per_spiketrain)
+        num_good_placefield_neurons_list.append(num_good_placefield_neurons)
+        num_spikes_per_spiketrain_list.append(num_spikes_per_spiketrain)
+        num_total_spikes_list.append(num_total_spikes)
+        # debug_print_placefield(output_pf)
+
+    return num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list
+
+
+
+
 class TestPlacefieldsMethods(unittest.TestCase):
 
     def setUp(self):
@@ -55,6 +89,9 @@ class TestPlacefieldsMethods(unittest.TestCase):
             spikes_df.to_hdf(finalized_testing_file, key=f'{sess_identifier_key}/spikes_df')
             active_pos.to_dataframe().to_hdf(finalized_testing_file, key=f'{sess_identifier_key}/pos_df', format='table')
         """
+        self.enable_debug_plotting = False
+        self.enable_debug_printing = True
+
         finalized_testing_file = tests_folder.joinpath('neuropy_pf_testing.h5')
         sess_identifier_key='sess'
         # Load the saved .h5 spikes_df and active_pos dataframes for testing:
@@ -72,52 +109,35 @@ class TestPlacefieldsMethods(unittest.TestCase):
 
 
     def test_monotonically_decreasing_spikes_with_speed_filter(self):
-        """ show that the number of spikes in each placefield decrease monotonically with higher speed filter values. """
+        """ show that the number of spikes and active cells decrease monotonically with higher speed filter values. """
         speed_thresh_options = [0.0, 1.0, 25.0, 50.0, 100.0, 200.0]
         all_param_sweep_options, param_sweep_option_n_values = parameter_sweeps(speed_thresh=speed_thresh_options)
         output_pfs = _compute_parameter_sweep(self.spikes_df, self.active_pos, all_param_sweep_options)
-        # fig, axs = _plot_parameter_sweep(output_pfs, param_sweep_option_n_values) # Visual Debugging
 
-        num_good_placefield_neurons_list = []
-        num_total_spikes_list = []
+        num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(output_pfs)
+        if self.enable_debug_printing:
+            print_aligned_columns(['speed_thresh', 'num_good_neurons', 'num_total_spikes'], 
+                        [speed_thresh_options, num_good_placefield_neurons_list, num_total_spikes_list])
+        if self.enable_debug_plotting:
+            fig, axs = _plot_parameter_sweep(output_pfs, param_sweep_option_n_values) # Visual Debugging
 
-        for i, (param_sweep_tuple, output_pf) in enumerate(output_pfs.items()):
-            # Get the cell IDs that have a good place field mapping:
-            good_placefield_neuronIDs = np.array(output_pf.ratemap.neuron_ids) # in order of ascending ID
-            num_good_placefield_neurons = len(good_placefield_neuronIDs)
-            num_spikes_per_spiketrain = np.array([np.shape(a_spk_train)[0] for a_spk_train in output_pf.spk_t])
-            num_total_spikes = np.sum(num_spikes_per_spiketrain)
-            num_good_placefield_neurons_list.append(num_good_placefield_neurons)
-            num_total_spikes_list.append(num_total_spikes)
-            # debug_print_placefield(output_pf)
 
-        is_num_total_spikes_decreasing_monotonic = all(num_total_spikes_list[i] >= num_total_spikes_list[i+1] for i in range(len(num_total_spikes_list)-1))
-        self.assertTrue(is_num_total_spikes_decreasing_monotonic)
         self.assertMonotonicallyDecreasing(num_total_spikes_list)
-
-        is_num_good_placefield_neurons_decreasing_monotonic = all(num_good_placefield_neurons_list[i] >= num_good_placefield_neurons_list[i+1] for i in range(len(num_good_placefield_neurons_list)-1))
-        self.assertTrue(is_num_good_placefield_neurons_decreasing_monotonic)
         self.assertMonotonicallyDecreasing(num_good_placefield_neurons_list)
 
+
     def test_monotonically_decreasing_spikes_with_increasing_frate_thresh(self):
-        """ show that the number of spikes in each placefield decrease monotonically with higher speed filter values. """
+        """ show that the number of spikes and active cells decrease monotonically with higher firing rate threshold (frate_thresh) values. """
         frate_thresh_options = [0.0, 0.1, 1.0, 5.0, 10.0, 100.0]
         all_param_sweep_options, param_sweep_option_n_values = parameter_sweeps(frate_thresh=frate_thresh_options)
         output_pfs = _compute_parameter_sweep(self.spikes_df, self.active_pos, all_param_sweep_options)
-        # fig, axs = _plot_parameter_sweep(output_pfs, param_sweep_option_n_values) # Visual Debugging
 
-        num_good_placefield_neurons_list = []
-        num_total_spikes_list = []
-
-        for i, (param_sweep_tuple, output_pf) in enumerate(output_pfs.items()):
-            # Get the cell IDs that have a good place field mapping:
-            good_placefield_neuronIDs = np.array(output_pf.ratemap.neuron_ids) # in order of ascending ID
-            num_good_placefield_neurons = len(good_placefield_neuronIDs)
-            num_spikes_per_spiketrain = np.array([np.shape(a_spk_train)[0] for a_spk_train in output_pf.spk_t])
-            num_total_spikes = np.sum(num_spikes_per_spiketrain)
-            num_good_placefield_neurons_list.append(num_good_placefield_neurons)
-            num_total_spikes_list.append(num_total_spikes)
-            # debug_print_placefield(output_pf)
+        num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(output_pfs)
+        if self.enable_debug_printing:
+            print_aligned_columns(['frate_thresh', 'num_good_neurons', 'num_total_spikes'], 
+                        [frate_thresh_options, num_good_placefield_neurons_list, num_total_spikes_list])
+        if self.enable_debug_plotting:
+            fig, axs = _plot_parameter_sweep(output_pfs, param_sweep_option_n_values) # Visual Debugging
 
         self.assertMonotonicallyDecreasing(num_total_spikes_list)
         self.assertMonotonicallyDecreasing(num_good_placefield_neurons_list)
