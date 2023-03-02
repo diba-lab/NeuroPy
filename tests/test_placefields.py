@@ -17,7 +17,6 @@ except ModuleNotFoundError as e:
     sys.path.insert(0, str(root_project_folder))
 finally:
     from neuropy.core import Position, Neurons
-    from neuropy.analyses import Pf1D
     from neuropy.analyses.placefields import PlacefieldComputationParameters
 
 
