@@ -24,7 +24,7 @@ finally:
     from neuropy.utils.debug_helpers import debug_print_placefield, debug_print_subsession_neuron_differences
     from neuropy.utils.debug_helpers import debug_print_ratemap, debug_print_spike_counts, debug_plot_2d_binning
     from neuropy.utils.debug_helpers import parameter_sweeps, _plot_parameter_sweep
-
+    from neuropy.utils.debug_helpers import print_aligned_columns
 
 def _compute_parameter_sweep(spikes_df, active_pos, all_param_sweep_options: dict) -> dict:
     """ Computes the PfNDs for all the swept parameters (combinations of grid_bin, smooth, etc)
@@ -65,6 +65,11 @@ class TestPlacefieldsMethods(unittest.TestCase):
     def tearDown(self):
         pass
         
+    def assertMonotonicallyDecreasing(self, a_list):
+        """ Assert that the list is monotonically decreasing """
+        self.assertTrue(all(a_list[i] >= a_list[i+1] for i in range(len(a_list)-1)))
+        
+
 
     def test_monotonically_decreasing_spikes_with_speed_filter(self):
         """ show that the number of spikes in each placefield decrease monotonically with higher speed filter values. """
@@ -88,11 +93,34 @@ class TestPlacefieldsMethods(unittest.TestCase):
 
         is_num_total_spikes_decreasing_monotonic = all(num_total_spikes_list[i] >= num_total_spikes_list[i+1] for i in range(len(num_total_spikes_list)-1))
         self.assertTrue(is_num_total_spikes_decreasing_monotonic)
-        # self.assertListEqual(num_total_spikes_list, sorted(num_total_spikes_list, reverse=True)) # alternative way to test monotonicity
-        
+        self.assertMonotonicallyDecreasing(num_total_spikes_list)
+
         is_num_good_placefield_neurons_decreasing_monotonic = all(num_good_placefield_neurons_list[i] >= num_good_placefield_neurons_list[i+1] for i in range(len(num_good_placefield_neurons_list)-1))
         self.assertTrue(is_num_good_placefield_neurons_decreasing_monotonic)
+        self.assertMonotonicallyDecreasing(num_good_placefield_neurons_list)
 
+    def test_monotonically_decreasing_spikes_with_increasing_frate_thresh(self):
+        """ show that the number of spikes in each placefield decrease monotonically with higher speed filter values. """
+        frate_thresh_options = [0.0, 0.1, 1.0, 5.0, 10.0, 100.0]
+        all_param_sweep_options, param_sweep_option_n_values = parameter_sweeps(frate_thresh=frate_thresh_options)
+        output_pfs = _compute_parameter_sweep(self.spikes_df, self.active_pos, all_param_sweep_options)
+        # fig, axs = _plot_parameter_sweep(output_pfs, param_sweep_option_n_values) # Visual Debugging
+
+        num_good_placefield_neurons_list = []
+        num_total_spikes_list = []
+
+        for i, (param_sweep_tuple, output_pf) in enumerate(output_pfs.items()):
+            # Get the cell IDs that have a good place field mapping:
+            good_placefield_neuronIDs = np.array(output_pf.ratemap.neuron_ids) # in order of ascending ID
+            num_good_placefield_neurons = len(good_placefield_neuronIDs)
+            num_spikes_per_spiketrain = np.array([np.shape(a_spk_train)[0] for a_spk_train in output_pf.spk_t])
+            num_total_spikes = np.sum(num_spikes_per_spiketrain)
+            num_good_placefield_neurons_list.append(num_good_placefield_neurons)
+            num_total_spikes_list.append(num_total_spikes)
+            # debug_print_placefield(output_pf)
+
+        self.assertMonotonicallyDecreasing(num_total_spikes_list)
+        self.assertMonotonicallyDecreasing(num_good_placefield_neurons_list)
 
     # def test_pf(self):
         ## Unfinished.
