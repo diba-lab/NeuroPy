@@ -114,18 +114,18 @@ typing-extensions = ">=3.10.0"
 
 [[package]]
 name = "boto3"
-version = "1.26.81"
+version = "1.26.83"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.81-py3-none-any.whl", hash = "sha256:a631ce2d22662f326cdf121967b53c251338e4ae7cdfa166c11a31e94a8b6a60"},
-    {file = "boto3-1.26.81.tar.gz", hash = "sha256:898fa38387e2f5a9136aec6cf9caa0a44ddbf78f1c4aaa33f7b1611ac44b4a4d"},
+    {file = "boto3-1.26.83-py3-none-any.whl", hash = "sha256:c07ed643aa72940f92b2c807591e1ba803c1b79d20ca129a6f8cccf846c40ff8"},
+    {file = "boto3-1.26.83.tar.gz", hash = "sha256:df81bfa4f8dfb3a645c43b7fd317f48df3e7fa402115ef21fc2f6430d73a1821"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.81,<1.30.0"
+botocore = ">=1.29.83,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -134,14 +134,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.81"
+version = "1.29.83"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.81-py3-none-any.whl", hash = "sha256:b0b9f4b784e6e58e52f6756bd28d32240016377659adc04e0a0a12df2a90e3f9"},
-    {file = "botocore-1.29.81.tar.gz", hash = "sha256:b140c865fce64097c54cba37420c27f24b26cdec0fc00ce83ad439d3bdb053e1"},
+    {file = "botocore-1.29.83-py3-none-any.whl", hash = "sha256:b7df2a1413f32992f350dd66bc5c8747b7211b776cf6500f64aebba7eddbe4f0"},
+    {file = "botocore-1.29.83.tar.gz", hash = "sha256:2e3d215b94df4e4c0ce3da250db43fb39ef7834f8f8fd19e5b223b35edb4d073"},
 ]
 
 [package.dependencies]
@@ -446,18 +446,18 @@ test-no-images = ["pytest"]
 
 [[package]]
 name = "cupy"
-version = "11.5.0"
+version = "11.6.0"
 description = "CuPy: NumPy & SciPy for GPU"
 category = "main"
 optional = true
 python-versions = ">=3.7"
 files = [
-    {file = "cupy-11.5.0.tar.gz", hash = "sha256:4bc8565bded22cc89b210fd9fb48a5d5316f30701e12bb23852a60314e1f9f6e"},
+    {file = "cupy-11.6.0.tar.gz", hash = "sha256:53dbb840072bb32d4bfbaa6bfa072365a30c98b1fcd1f43e48969071ad98f1a7"},
 ]
 
 [package.dependencies]
 fastrlock = ">=0.5"
-numpy = ">=1.20,<1.26"
+numpy = ">=1.20,<1.27"
 
 [package.extras]
 all = ["Cython (>=0.29.22,<3)", "optuna (>=2.0)", "scipy (>=1.6,<1.12)"]
@@ -3135,14 +3135,14 @@ files = [
 
 [[package]]
 name = "tifffile"
-version = "2023.2.27"
+version = "2023.2.28"
 description = "Read and write TIFF files"
 category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "tifffile-2023.2.27-py3-none-any.whl", hash = "sha256:a9355dcec7b4eb5b79cb5a2ed376131ffa3436d5fc7fff86b721618e0e91eebb"},
-    {file = "tifffile-2023.2.27.tar.gz", hash = "sha256:dac6e0ceda765657d4ec71491664b8e9329c0da0d15768c3fad8d19baa5aa79b"},
+    {file = "tifffile-2023.2.28-py3-none-any.whl", hash = "sha256:8357cd8ccbdd4378ad4d6b84ffe3ab15b1d96630b1719f576d4de386f45546f1"},
+    {file = "tifffile-2023.2.28.tar.gz", hash = "sha256:2d2baba8dea6609f553fe61853db9a61f715d60ba3bce6a20b5a1ab72407dfed"},
 ]
 
 [package.dependencies]
