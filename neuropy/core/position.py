@@ -367,7 +367,13 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
     def df(self, value):
         self._obj = value # for PositionAccessor
     
-    
+    def to_Position_obj(self, metadata=None):
+        """ builds a Position object from the PositionAccessor's dataframe 
+        Usage:
+            pos_df.position.to_Position_obj()
+        """
+        return Position(self._obj, metadata=metadata)
+
     
 """ --- """
 class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):

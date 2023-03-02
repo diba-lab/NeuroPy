@@ -19,6 +19,13 @@ def min_max_scaler(x, axis=-1):
     -------
     np.array
         scaled array
+
+
+    ERRORS:
+        2023-03-02 - ValueError: zero-size array to reduction operation minimum which has no identity
+            Occurs when np.shape(x) is (0,)
+
+
     """
     return (x - np.min(x, axis=axis, keepdims=True)) / np.ptp(
         x, axis=axis, keepdims=True

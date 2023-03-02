@@ -1,3 +1,5 @@
+from copy import deepcopy
+import itertools # required for parameter_sweeps
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -159,4 +161,100 @@ def debug_print_subsession_neuron_differences(prev_session_Neurons, subsession_N
     num_subsession_neurons = subsession_Neurons.n_neurons
     num_subsession_total_spikes = np.sum(subsession_Neurons.n_spikes)
     print('{}/{} total spikes spanning {}/{} units remain in subsession'.format(num_subsession_total_spikes, num_original_total_spikes, num_subsession_neurons, num_original_neurons))
+
+# ==================================================================================================================== #
+# Parameter Sweeps                                                                                                     #
+# ==================================================================================================================== #
+
+def parameter_sweeps(**kwargs):
+    """ Returns every unique combination of the passed in parameters. Superior to cartesian_product as it preserves the labels (returning a flat list of dicts) and accepts more than 2 inputs.
+    
+    Usage:
+        from IsolatedSpike3DEnv.NeuroPy.neuropy.utils.debug_helpers import parameter_sweeps
+        all_param_sweep_options, param_sweep_option_n_values = parameter_sweeps(smooth=[(None, None), (0.5, 0.5), (1.0, 1.0), (2.0, 2.0), (5.0, 5.0)], grid_bin=[(1,1),(5,5),(10,10)])
+        >> all_param_sweep_options:  [{'smooth': (None, None), 'grid_bin': (1, 1)}, {'smooth': (None, None), 'grid_bin': (5, 5)}, {'smooth': (None, None), 'grid_bin': (10, 10)},
+        {'smooth': (0.5, 0.5), 'grid_bin': (1, 1)},  {'smooth': (0.5, 0.5), 'grid_bin': (5, 5)},  {'smooth': (0.5, 0.5), 'grid_bin': (10, 10)},
+        {'smooth': (1.0, 1.0), 'grid_bin': (1, 1)}, ...]
+        >> param_sweep_option_n_values: {'smooth': 5, 'grid_bin': 3}
+
+        # !! SEE EXAMPLE BELOW `_compute_parameter_sweep` for usage of the returned values
+        
+    NOTE:
+        Replaces:
+            all_param_sweep_options = cartesian_product(grid_bin_options, smooth_options)
+            param_sweep_option_n_values = dict(grid_bin=len(grid_bin_options), smooth=len(smooth_options)) 
+
+    """
+    all_param_sweep_options = []
+    param_sweep_option_n_values = {k:len(v) for k, v in kwargs.items()}
+    for values in itertools.product(*kwargs.values()):
+        all_param_sweep_options.append(dict(zip(kwargs.keys(), values))) # Output dictionary
+    return all_param_sweep_options, param_sweep_option_n_values
+                      
+
+""" USAGE EXAMPLE of `_compute_parameter_sweep`
+
+def _compute_parameter_sweep(all_param_sweep_options: dict) -> dict:
+    ''' Computes the PfNDs for all the swept parameters (combinations of grid_bin, smooth, etc)
+    
+    Usage:
+        smooth_options = [(None, None), (0.5, 0.5), (1.0, 1.0), (2.0, 2.0), (5.0, 5.0)]
+        grid_bin_options = [(1,1),(5,5),(10,10)]
+        all_param_sweep_options = cartesian_product(smooth_options, grid_bin_options)
+        param_sweep_option_n_values = dict(smooth=len(smooth_options), grid_bin=len(grid_bin_options)) 
+        output_pfs = _compute_parameter_sweep(all_param_sweep_options)
+
+    '''
+    output_pfs = {} # empty dict
+
+    for a_sweep_dict in all_param_sweep_options:
+        a_sweep_tuple = frozenset(a_sweep_dict.items())
+        output_pfs[a_sweep_tuple] = PfND(deepcopy(spikes_df).spikes.sliced_by_neuron_type('pyramidal'), deepcopy(active_pos.linear_pos_obj), **a_sweep_dict) # grid_bin=, etc
+        
+    return output_pfs
+
+
+"""
+
+def _plot_parameter_sweep(output_pfs, param_sweep_option_n_values, debug_print=False):
+    """ Sweeps a 1D parameter for the placefields and plots it
+    
+    Usage:
+        fig, axs = _plot_parameter_sweep(output_pfs, param_sweep_option_n_values)
+        
+    """
+    if len(output_pfs)>0:        
+        if len(param_sweep_option_n_values) > 1:
+            # more than one variable
+            num_rows = list(param_sweep_option_n_values.values())[1] # get the first length
+        else:
+            # only one variable
+            num_rows = 1
+        
+        num_columns = len(output_pfs) // num_rows
+        
+        # remove any singleton variables
+        formatting_included_items_list = [k for k, v in param_sweep_option_n_values.items() if v>1]
+
+        def _plot_title_formatter(x):
+            # printable_dict = {k:v for k, v in x.items() if k in formatting_included_items_list} # if `x` is dict and has .items() method
+            printable_dict = {k:v for k, v in x if k in formatting_included_items_list}
+            return f"{printable_dict}"
+        
+        plot_title_formatter = _plot_title_formatter
+        
+    else:
+        return # empty
+    
+    if debug_print:
+        print(f'{num_rows = }, {num_columns = }')
+    fig, axs = plt.subplots(num_rows, num_columns, sharex=True);
+    plt.subplots_adjust(top=0.968,bottom=0.05,left=0.021,right=0.993,hspace=0.2,wspace=0.116)
+    # Flatten the axs array
+    axs = axs.ravel()
+    for i, (param_sweep_tuple, output_pf) in enumerate(output_pfs.items()):
+        output_pf.plot_ratemaps_1D(ax=axs[i])
+        axs[i].set_title(plot_title_formatter(param_sweep_tuple)) # TODO: display the parameter value without losing the number of good cells for each.
+        debug_print_placefield(output_pf)
+    return fig, axs
 
