@@ -272,17 +272,17 @@ def _plot_parameter_sweep(output_pfs, param_sweep_option_n_values, debug_print=F
         
     """
     if len(output_pfs)>0:        
-        if len(param_sweep_option_n_values) > 1:
+        # remove any singleton variables
+        formatting_included_items_list = [k for k, v in param_sweep_option_n_values.items() if v>1]
+        
+        if len(formatting_included_items_list) > 1:
             # more than one variable
-            num_rows = list(param_sweep_option_n_values.values())[1] # get the first length
+            num_rows = list(param_sweep_option_n_values.values())[1] # get the first length TODO: check
         else:
             # only one variable
             num_rows = 1
         
         num_columns = len(output_pfs) // num_rows
-        
-        # remove any singleton variables
-        formatting_included_items_list = [k for k, v in param_sweep_option_n_values.items() if v>1]
 
         def _plot_title_formatter(x):
             # printable_dict = {k:v for k, v in x.items() if k in formatting_included_items_list} # if `x` is dict and has .items() method
