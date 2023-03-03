@@ -377,11 +377,7 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
     
 """ --- """
 class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
-    def __init__(
-        self,
-        pos_df: pd.DataFrame,
-        metadata=None,
-    ) -> None:
+    def __init__(self, pos_df: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
             pos_df (pd.DataFrame): Each column is a pd.Series(["t", "x", "y"])
@@ -394,13 +390,8 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         
     def time_slice_indicies(self, t_start, t_stop):
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        # indicies = np.where((self._data['t'].to_numpy() >= t_start) & (self._data['t'].to_numpy() <= t_stop))[0]
-        # included_indicies = ((self._data['t'] >= t_start) & (self._data['t'] <= t_stop))
-        # print('time_slice_indicies(...): t_start: {}, t_stop: {}, included_indicies: {}'.format(t_start, t_stop, included_indicies))
         included_indicies = self._data[self.time_variable_name].between(t_start, t_stop, inclusive='both') # returns a boolean array indicating inclusion in teh current lap
-        # position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
         return self._data.index[included_indicies]# note that this currently returns a Pandas.Series object. I could get the normal indicis by using included_indicies.to_numpy()
-    
         
     @classmethod
     def init(cls, traces: np.ndarray, computed_traces: np.ndarray=None, t_start=0, sampling_rate=120, metadata=None):
@@ -432,7 +423,7 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         return Position(df, metadata=metadata)
 
 
-## Compatibility:
+    ## Compatibility:
     @classmethod
     def legacy_from_dict(cls, dict_rep: dict):
         """ Tries to load the dict using previous versions of this code. """
@@ -487,11 +478,8 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        # indices = self.time_slice_indicies(t_start, t_stop) # from TimeSlicableIndiciesMixin
         included_df = deepcopy(self._data)
         included_df = included_df[((included_df[self.time_variable_name] >= t_start) & (included_df[self.time_variable_name] <= t_stop))]
-        
-        # df.query('Salary_in_1000 >= 100 & Age < 60 & FT_Team.str.startswith("S").values')
         return Position(included_df, metadata=deepcopy(self.metadata))
         
 
