@@ -19,9 +19,6 @@ from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from .neurons import NeuronType
 
 
-
-
-
 @pd.api.extensions.register_dataframe_accessor("spikes")
 class SpikesAccessor(TimeSlicedMixin):
     """ Part of the December 2021 Rewrite of the neuropy.core classes to be Pandas DataFrame based and easily manipulatable """
