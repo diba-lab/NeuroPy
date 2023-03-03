@@ -141,7 +141,24 @@ class TestPlacefieldsMethods(unittest.TestCase):
         #  self.assertTrue(assert num_spikes_per_spiketrain_list[0] == num_spikes_per_spiketrain_list[-1]) # require the rebinned pf to have the same number of spikes in each spiketrain as the one that it conformed to
 
 
+    def test_get_by_neuron_id(self):
+        # Test excluding certain neurons from the placefield
+        original_pf = PfND(deepcopy(self.spikes_df).spikes.sliced_by_neuron_type('pyramidal'), deepcopy(self.active_pos.linear_pos_obj), frate_thresh=0.0) # all other settings default
+        original_pf_neuron_ids = original_pf.included_neuron_IDs.copy()
+        subset_included_neuron_IDXs = np.arange(10) # only get the first 10 neuron_ids
+        subset_included_neuron_ids = original_pf_neuron_ids[subset_included_neuron_IDXs] # only get the first 10 neuron_ids
+        if self.enable_debug_printing:
+            print(f'{original_pf_neuron_ids = }\n{subset_included_neuron_ids = }')
+        neuron_sliced_pf = deepcopy(original_pf)
+        neuron_sliced_pf = neuron_sliced_pf.get_by_id(subset_included_neuron_ids)
+        neuron_sliced_pf_neuron_ids = neuron_sliced_pf.included_neuron_IDs
+        if self.enable_debug_printing:
+            print(f'{neuron_sliced_pf_neuron_ids = }')
 
+        self.assertTrue(np.all(neuron_sliced_pf_neuron_ids == subset_included_neuron_ids)) # ensure that the returned neuron ids actually equal the desired subset
+        self.assertTrue(np.all(np.array(neuron_sliced_pf.ratemap.neuron_ids) == subset_included_neuron_ids)) # ensure that the ratemap neuron ids actually equal the desired subset
+        self.assertTrue(len(neuron_sliced_pf.ratemap.tuning_curves) == len(subset_included_neuron_ids)) # ensure one output tuning curve for each neuron_id
+        self.assertTrue(np.all(np.isclose(neuron_sliced_pf.ratemap.tuning_curves, [original_pf.ratemap.tuning_curves[idx] for idx in subset_included_neuron_IDXs]))) # ensure that the tuning curves built for the neuron_slided_pf are the same as those subset as retrieved from the  original_pf
 
     # def test_pf(self):
         ## Unfinished.
