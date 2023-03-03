@@ -121,15 +121,25 @@ class TestPlacefieldsMethods(unittest.TestCase):
         all_param_sweep_options, param_sweep_option_n_values = parameter_sweeps(grid_bin=grid_bin_options, smooth=smooth_options, frate_thresh=[0.0])
         output_pfs = _compute_parameter_sweep(self.spikes_df, self.active_pos, all_param_sweep_options)
         num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(output_pfs)
-        print_aligned_columns(['grid_bin x smooth', 'num_good_neurons', 'num_total_spikes'], 
-                            [all_param_sweep_options, num_good_placefield_neurons_list, num_total_spikes_list], enable_checking_all_values_width=True)
+        if self.enable_debug_printing:
+            print_aligned_columns(['grid_bin x smooth', 'num_good_neurons', 'num_total_spikes'], [all_param_sweep_options, num_good_placefield_neurons_list, num_total_spikes_list], enable_checking_all_values_width=True)
         fine_binned_pf = list(output_pfs.values())[0]
         coarse_binned_pf = list(output_pfs.values())[-1]
 
-        print(f'{coarse_binned_pf.bin_info = }\n{fine_binned_pf.bin_info = }')
+        if self.enable_debug_printing:
+            print(f'{coarse_binned_pf.bin_info = }\n{fine_binned_pf.bin_info = }')
         rebinned_fine_binned_pf = deepcopy(fine_binned_pf)
         rebinned_fine_binned_pf.conform_to_position_bins(target_pf1D=coarse_binned_pf, force_recompute=True)
         self.assertTrue(rebinned_fine_binned_pf.bin_info == coarse_binned_pf.bin_info) # the bins must be equal after conforming
+
+        num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(dict(zip(['coarse', 'original', 'rebinned'],[coarse_binned_pf, fine_binned_pf, rebinned_fine_binned_pf])))
+        if self.enable_debug_printing:
+            print_aligned_columns(['pf', 'num_good_neurons', 'num_total_spikes'], [['coarse', 'original', 'rebinned'], num_good_placefield_neurons_list, num_total_spikes_list], enable_checking_all_values_width=True)
+
+        self.assertTrue(num_good_placefield_neurons_list[0] == num_good_placefield_neurons_list[-1]) # require the rebinned pf to have the same number of good neurons as the one that it conformed to
+        self.assertTrue(num_total_spikes_list[0] == num_total_spikes_list[-1]) # require the rebinned pf to have the same number of total spikes as the one that it conformed to
+        #  self.assertTrue(assert num_spikes_per_spiketrain_list[0] == num_spikes_per_spiketrain_list[-1]) # require the rebinned pf to have the same number of spikes in each spiketrain as the one that it conformed to
+
 
 
 
