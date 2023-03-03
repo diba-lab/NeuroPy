@@ -6,10 +6,7 @@ import logging
 from neuropy.utils.misc import safe_pandas_get_group
 module_logger = logging.getLogger('com.PhoHale.neuropy') # create logger
 import numpy as np
-try:
-    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
-except ImportError:
-    import pandas as pd # fallback to pandas when modin isn't available
+import pandas as pd
 from copy import deepcopy
 
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple

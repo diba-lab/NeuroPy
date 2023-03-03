@@ -4,10 +4,7 @@ import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
 from pandas.core.indexing import IndexingError
 
-try:
-    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
-except ImportError:
-    import pandas as pd # fallback to pandas when modin isn't available
+import pandas as pd
 from .epoch import Epoch
 from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin

@@ -1,9 +1,6 @@
 from dataclasses import dataclass
 from typing import Any
-try:
-    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
-except ImportError:
-    import pandas as pd # fallback to pandas when modin isn't available
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as filtSig

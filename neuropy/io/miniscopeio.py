@@ -1,8 +1,5 @@
 import numpy as np
-try:
-    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
-except ImportError:
-    import pandas as pd # fallback to pandas when modin isn't available
+import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import json

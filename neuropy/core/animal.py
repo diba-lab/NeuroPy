@@ -1,7 +1,4 @@
-try:
-    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
-except ImportError:
-    import pandas as pd # fallback to pandas when modin isn't available
+import pandas as pd
 from . import DataWriter
 from pathlib import Path
 from dataclasses import dataclass

@@ -2,10 +2,7 @@ import sys
 from typing import Sequence, Union
 from warnings import warn
 import numpy as np
-try:
-    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
-except ImportError:
-    import pandas as pd # fallback to pandas when modin isn't available
+import pandas as pd
 # from klepto.safe import lru_cache as memoized
 from neuropy.utils.result_context import context_extraction as memoized
 

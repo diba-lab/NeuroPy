@@ -1,9 +1,6 @@
 import numpy as np
 from .. import core
-try:
-    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
-except ImportError:
-    import pandas as pd # fallback to pandas when modin isn't available
+import pandas as pd
 
 
 def corr_across_time_window(neurons: core.Neurons, window=300, bin_size=0.25):

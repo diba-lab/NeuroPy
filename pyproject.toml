@@ -14,7 +14,6 @@ h5py = "^3.8.0"
 numpy = "^1.20"
 scipy = "^1.6"
 pandas = "^1.5.3"
-modin = {version = "^0.18.1", extras = ["all"]} # used to accelerate pandas
 joblib = "^1.2.0"
 hmmlearn = "^0.2.8"
 scikit-learn = "^1.2.1"
