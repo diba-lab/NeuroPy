@@ -35,10 +35,12 @@ pynapple = "^0.3.1" # {version = "^0.3.1", optional = false}
 [tool.poetry.group.dev.dependencies]
 pip = "^23.0"
 ipdb = "^0.13.11"
+dvc = {extras = ["gdrive"], version = "^2.45.1", optional = true}
 
 [tool.poetry.extras]
 gui = ["tqdm"]
 acceleration = ["numba", "cupy"]
+data_version_control = ["dvc[gdrive]"]
 # data_io = ["pynapple"]
 
 [build-system]
