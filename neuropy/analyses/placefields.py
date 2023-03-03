@@ -18,6 +18,8 @@ from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_n
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
+from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
+
 
 # from .. import core
 # import neuropy.core as core
@@ -481,7 +483,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing.
 
-class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. """
 
     def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1)):
@@ -685,7 +687,7 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
         filtered_unsmoothed_tuning_maps = np.asarray(self._peak_frate_filter_function(unsmoothed_tuning_maps.copy()))
 
         filtered_spikes_maps = self._peak_frate_filter_function(spikes_maps.copy())
-        filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids)
+        filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids) 
         filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
 
         self.ratemap = Ratemap(filtered_tuning_maps, unsmoothed_tuning_maps=filtered_unsmoothed_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
@@ -794,6 +796,18 @@ class PfND(BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     def included_neuron_IDs(self):
         """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
         return self._filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs] ## TODO: these are basically wrong, we should use self.ratemap.neuron_IDs instead!
+
+    # for NeuronUnitSlicableObjectProtocol:
+    def get_by_id(self, ids):
+        """Implementors return a copy of themselves with neuron_ids equal to ids
+            Needs to update: copy_pf._filtered_spikes_df, copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, 
+        """
+        copy_pf = deepcopy(self)
+        # filter the spikes_df:
+        copy_pf._filtered_spikes_df = copy_pf._filtered_spikes_df[np.isin(copy_pf._filtered_spikes_df.aclu, ids)]
+        ## Recompute:
+        copy_pf.compute() # does recompute, updating: copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, and more. TODO EFFICIENCY 2023-03-02 - This is overkill and I could filter the tuning_curves and etc directly, but this is easier for now. 
+        return copy_pf
 
 
     def conform_to_position_bins(self, target_pf1D, force_recompute=False):
