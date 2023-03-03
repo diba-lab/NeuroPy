@@ -13,18 +13,17 @@ from neuropy.utils.dynamic_container import DynamicContainer
 from neuropy.utils.misc import safe_pandas_get_group, copy_if_not_none
 ## Need to apply position binning to the spikes_df's position columns to find the bins they fall in:
 from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_position_columns # for perform_time_range_computation only
+from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
 
 
-class PlacefieldSnapshot(object):
+class PlacefieldSnapshot(NeuronUnitSlicableObjectProtocol, object):
     """Holds a snapshot in time for `PfND_TimeDependent`
 
     raw_occupancy_map: num_position_samples_occupancy
     raw_smoothed_occupancy_map: num_position_samples_smoothed_occupancy
     """
 
-    def __init__(self, num_position_samples_occupancy, num_position_samples_smoothed_occupancy, seconds_occupancy, normalized_occupancy, 
-        spikes_maps_matrix, smoothed_spikes_maps_matrix, 
-        occupancy_weighted_tuning_maps_matrix):
+    def __init__(self, num_position_samples_occupancy, num_position_samples_smoothed_occupancy, seconds_occupancy, normalized_occupancy, spikes_maps_matrix, smoothed_spikes_maps_matrix, occupancy_weighted_tuning_maps_matrix):
         super(PlacefieldSnapshot, self).__init__()
         self.num_position_samples_occupancy = num_position_samples_occupancy
         self.num_position_samples_smoothed_occupancy = num_position_samples_smoothed_occupancy
@@ -77,7 +76,26 @@ class PlacefieldSnapshot(object):
 
         self.__dict__ = state # set the dict
 
+    # for NeuronUnitSlicableObjectProtocol:
+    def get_by_id(self, ids):
+        """Implementors return a copy of themselves with neuron_ids equal to ids
+            Needs to update: spikes_maps_matrix=self.curr_spikes_maps_matrix.copy(), smoothed_spikes_maps_matrix=copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
+            occupancy_weighted_tuning_maps_matrix=self.curr_occupancy_weighted_tuning_maps_matrix.copy()
+        """
+        
 
+        copy_snapshot = deepcopy(self)
+        included_indicies = np.isin(copy_snapshot._filtered_spikes_df.aclu, ids)
+
+        copy_snapshot.spikes_maps_matrix = copy_snapshot.spikes_maps_matrix
+        copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix
+        copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix
+
+        # filter the spikes_df:
+        copy_snapshot._filtered_spikes_df = copy_snapshot._filtered_spikes_df[]
+        ## Recompute:
+        copy_snapshot.compute() # does recompute, updating: copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, and more. TODO EFFICIENCY 2023-03-02 - This is overkill and I could filter the tuning_curves and etc directly, but this is easier for now. 
+        return copy_snapshot
 
 
 
@@ -286,14 +304,8 @@ class PfND_TimeDependent(PfND):
             else:
                 self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
 
-        # Reset the rebuild_fragile_linear_neuron_IDXs:
-        self._filtered_spikes_df, _reverse_cellID_index_map = self._filtered_spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
-        self.fragile_linear_neuron_IDXs = np.unique(self._filtered_spikes_df.fragile_linear_neuron_IDX) # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
-        self.n_fragile_linear_neuron_IDXs = len(self.fragile_linear_neuron_IDXs)
-        self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
-        
-        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria
-        
+        self._reset_after_neuron_index_update()
+
         ## Interpolate the spikes over positions
         self._filtered_spikes_df['x'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.x)
         if 'binned_x' not in self._filtered_spikes_df:
@@ -314,6 +326,18 @@ class PfND_TimeDependent(PfND):
     def reset(self):
         """ used to reset the calculations to an initial value. """
         self._setup_time_varying()
+
+    def _reset_after_neuron_index_update(self):
+        """ Called after an update to `self._filtered_spikes_df` that will effect the neuron_ids (such as `self.get_by_id(neuron_ids)`.
+        Uses only `self._filtered_spikes_df` to rebuild the other various properties.
+         
+        """
+        self._filtered_spikes_df, _reverse_cellID_index_map = self._filtered_spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
+        self.fragile_linear_neuron_IDXs = np.unique(self._filtered_spikes_df.fragile_linear_neuron_IDX) # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
+        self.n_fragile_linear_neuron_IDXs = len(self.fragile_linear_neuron_IDXs)
+        self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
+        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria
+        
 
     def _setup_time_varying(self):
         """ Initialize for the 0th timestamp """
@@ -492,7 +516,29 @@ class PfND_TimeDependent(PfND):
     # ==================================================================================================================== #
     # Common Methods                                                                                                       #
     # ==================================================================================================================== #
-    
+    # for NeuronUnitSlicableObjectProtocol:
+    def get_by_id(self, ids):
+        """Implementors return a copy of themselves with neuron_ids equal to ids
+            Needs to update: spikes_maps_matrix=self.curr_spikes_maps_matrix.copy(), smoothed_spikes_maps_matrix=copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
+            occupancy_weighted_tuning_maps_matrix=self.curr_occupancy_weighted_tuning_maps_matrix.copy()
+        """
+        
+
+        copy_snapshot = deepcopy(self)
+        included_indicies = np.isin(copy_snapshot._filtered_spikes_df.aclu, ids)
+
+        copy_snapshot.spikes_maps_matrix = copy_snapshot.spikes_maps_matrix
+        copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix
+        copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix
+
+        # filter the spikes_df:
+        copy_snapshot._filtered_spikes_df = copy_snapshot._filtered_spikes_df[]
+        ## Recompute:
+        copy_snapshot.compute() # does recompute, updating: copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, and more. TODO EFFICIENCY 2023-03-02 - This is overkill and I could filter the tuning_curves and etc directly, but this is easier for now. 
+        return copy_snapshot
+
+
+
 
     def conform_to_position_bins(self, target_pf1D, force_recompute=False):
         """ Allow overriding PfND's bins:
