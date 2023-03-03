@@ -4,7 +4,10 @@ from pathlib import Path
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 from joblib import Parallel, delayed
 from scipy import stats
 from scipy.ndimage import gaussian_filter, gaussian_filter1d

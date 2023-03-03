@@ -1,7 +1,10 @@
 from copy import deepcopy
 from enum import Enum
 import numpy as np
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 
 try:
     from numba import jit # numba acceleration

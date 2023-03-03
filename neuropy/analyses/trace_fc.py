@@ -5,7 +5,10 @@ from matplotlib.gridspec import GridSpec
 import neuropy.io.dlcio as dio
 from pathlib import Path
 import scipy.ndimage as simage
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 import re
 import csv
 from matplotlib.backends.backend_pdf import PdfPages

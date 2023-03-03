@@ -1,6 +1,9 @@
 import sys
 import numpy as np
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 import h5py
 import hdf5storage # conda install hdf5storage
 from pathlib import Path

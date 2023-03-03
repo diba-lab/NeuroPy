@@ -3,7 +3,10 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
 from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons

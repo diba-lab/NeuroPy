@@ -4,7 +4,10 @@ import os
 import re
 from pathlib import Path
 from xml.etree import ElementTree
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 
 
 def get_dat_timestamps(basepath: str or Path, sync: bool = True):

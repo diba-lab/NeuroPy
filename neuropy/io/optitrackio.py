@@ -6,7 +6,10 @@ from datetime import datetime
 from pathlib import Path
 import numpy as np
 from datetime import datetime
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 from neuropy.utils import position_util, mathutil
 from pathlib import Path
 from ..core import Position

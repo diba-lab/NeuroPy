@@ -3,7 +3,10 @@ from collections import namedtuple
 from enum import Enum, IntEnum, auto, unique
 from itertools import islice
 import numpy as np
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
 
 import collections

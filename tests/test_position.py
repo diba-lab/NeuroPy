@@ -1,6 +1,9 @@
 import unittest
 import numpy as np
-import pandas as pd
+try:
+    import modin.pandas as pd # modin is a drop-in replacement for pandas that uses multiple cores
+except ImportError:
+    import pandas as pd # fallback to pandas when modin isn't available
 # import the package
 import sys, os
 from pathlib import Path
