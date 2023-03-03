@@ -16,7 +16,7 @@ from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_pos
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
 
 
-class PlacefieldSnapshot(NeuronUnitSlicableObjectProtocol, object):
+class PlacefieldSnapshot(object):
     """Holds a snapshot in time for `PfND_TimeDependent`
 
     raw_occupancy_map: num_position_samples_occupancy
@@ -76,27 +76,15 @@ class PlacefieldSnapshot(NeuronUnitSlicableObjectProtocol, object):
 
         self.__dict__ = state # set the dict
 
-    # for NeuronUnitSlicableObjectProtocol:
-    def get_by_id(self, ids):
-        """Implementors return a copy of themselves with neuron_ids equal to ids
-            Needs to update: spikes_maps_matrix=self.curr_spikes_maps_matrix.copy(), smoothed_spikes_maps_matrix=copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
-            occupancy_weighted_tuning_maps_matrix=self.curr_occupancy_weighted_tuning_maps_matrix.copy()
+    def get_by_IDX(self, included_indicies):
+        """Returns a copy of the snapshot with only the neurons specified by the included_indicies        
+        NOTE: cannot provide the usual get_by_ids() because this class doesn't keep track of or have access to the neuron_ids.
         """
-        
-
         copy_snapshot = deepcopy(self)
-        included_indicies = np.isin(copy_snapshot._filtered_spikes_df.aclu, ids)
-
-        copy_snapshot.spikes_maps_matrix = copy_snapshot.spikes_maps_matrix
-        copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix
-        copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix
-
-        # filter the spikes_df:
-        copy_snapshot._filtered_spikes_df = copy_snapshot._filtered_spikes_df[]
-        ## Recompute:
-        copy_snapshot.compute() # does recompute, updating: copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, and more. TODO EFFICIENCY 2023-03-02 - This is overkill and I could filter the tuning_curves and etc directly, but this is easier for now. 
+        copy_snapshot.spikes_maps_matrix = copy_snapshot.spikes_maps_matrix[included_indicies]
+        copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix[included_indicies]
+        copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix[included_indicies]
         return copy_snapshot
-
 
 
 class PfND_TimeDependent(PfND):
@@ -340,7 +328,9 @@ class PfND_TimeDependent(PfND):
         
 
     def _setup_time_varying(self):
-        """ Initialize for the 0th timestamp """
+        """ Initialize for the 0th timestamp 
+        Depends on `self.n_fragile_linear_neuron_IDXs` and other values setup in `self._reset_after_neuron_index_update()`
+        """
         dims_coord_tuple = self.dims_coord_tuple
 
         self.curr_spikes_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, *dims_coord_tuple), dtype=int) # create an initially zero occupancy map
@@ -522,22 +512,45 @@ class PfND_TimeDependent(PfND):
             Needs to update: spikes_maps_matrix=self.curr_spikes_maps_matrix.copy(), smoothed_spikes_maps_matrix=copy_if_not_none(self.curr_smoothed_spikes_maps_matrix),
             occupancy_weighted_tuning_maps_matrix=self.curr_occupancy_weighted_tuning_maps_matrix.copy()
         """
-        
+        ## Method 0: Completely new initialization of the PfND_TimeDependent:
+        # copy_pf = PfND_TimeDependent(spikes_df=deepcopy(self._filtered_spikes_df[np.isin(self._filtered_spikes_df.aclu, ids)]), position=self.position, epochs=self.epochs, config=self.config)
 
-        copy_snapshot = deepcopy(self)
-        included_indicies = np.isin(copy_snapshot._filtered_spikes_df.aclu, ids)
-
-        copy_snapshot.spikes_maps_matrix = copy_snapshot.spikes_maps_matrix
-        copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix
-        copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix
-
-        # filter the spikes_df:
-        copy_snapshot._filtered_spikes_df = copy_snapshot._filtered_spikes_df[]
-        ## Recompute:
-        copy_snapshot.compute() # does recompute, updating: copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, and more. TODO EFFICIENCY 2023-03-02 - This is overkill and I could filter the tuning_curves and etc directly, but this is easier for now. 
-        return copy_snapshot
+        # ## Method 1: Exhaustive (inefficient) rebuild from scratch:
+        # copy_pf = deepcopy(self)
+        # # filter the spikes_df:
+        # copy_pf._filtered_spikes_df = copy_pf._filtered_spikes_df[np.isin(copy_pf._filtered_spikes_df.aclu, ids)] # refers to `self.all_time_filtered_spikes_df`
+        # # diverge from the non-time-dependent placefields here (which call self.compute() here):
+        # self._reset_after_neuron_index_update()
+        # self._setup_time_varying()
 
 
+        ## Method 2: Updating `copy_pf._included_thresh_neurons_indx`:
+        copy_pf = deepcopy(self)
+        # Find the neuron_IDs that are included in the active_pf_2D for filtering the active_pf_2D_dt's results:
+        is_included_neuron = np.isin(copy_pf.included_neuron_IDs, ids)
+        included_neuron_IDXs = copy_pf._included_thresh_neurons_indx[is_included_neuron]
+        # included_neuron_ids = copy_pf.included_neuron_IDs[is_included_neuron]
+
+        # #NOTE: to reset and include all neurons:
+        # copy_pf._included_thresh_neurons_indx = np.arange(copy_pf.n_fragile_linear_neuron_IDXs)
+
+        copy_pf._included_thresh_neurons_indx = included_neuron_IDXs
+        copy_pf._peak_frate_filter_function = lambda list_: [list_[_] for _ in copy_pf._included_thresh_neurons_indx]
+
+        ## Backup the historical snapshots and slice them by the indicies to avoid recomputation:
+        copy_pf.historical_snapshots = OrderedDict({k:v.get_by_IDX(included_neuron_IDXs) for k, v in copy_pf.historical_snapshots.items()})
+
+        try:
+            copy_pf.restore_from_snapshot(copy_pf.last_t) # after slicing the copy_pf's historical_snapshots, copy_pf.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot.
+        except (AttributeError, KeyError) as e:
+            # No previous snapshots, just reset:
+            self.reset()
+        except Exception as e:
+            print(f'ERROR: unhandled exception: {e}')
+            raise e
+
+        # assert (copy_pf.ratemap.spikes_maps == active_pf_2D.ratemap.spikes_maps).all(), f"copy_pf.ratemap.spikes_maps: {copy_pf.ratemap.spikes_maps}\nactive_pf_2D.ratemap.spikes_maps: {active_pf_2D.ratemap.spikes_maps}"
+        return copy_pf
 
 
     def conform_to_position_bins(self, target_pf1D, force_recompute=False):
