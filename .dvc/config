@@ -1,0 +1,4 @@
+[core]
+    remote = diba_shared_gdrive
+['remote "diba_shared_gdrive"']
+    url = gdrive://1DyUM5aOhE5kIKzc7OOkVyBltYjUbJ7tX/dvcstore

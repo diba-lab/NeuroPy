@@ -33,6 +33,22 @@ plotting.plot_raster(neurons,color = 'jet')
 
 ![Example Image](images/raster.png)
 
+
+### DVC (Data Version Control) Setup
+DVC is used to access and version the files used in testing neuropy (excuting the unit tests in `/tests`).
+
+##### Instalation:
+It can be installed via poetry via: `poetry add dvc[gdrive] --dev`, but this adds a butch of uneeded libraries
+
+Or installed locally on Windows via: `choco install dvc`
+
+See also: https://dvc.org/doc/user-guide/how-to/setup-google-drive-remote#using-a-custom-google-cloud-project-recommended
+
+```bash
+dvc remote add --default diba_shared_gdrive gdrive://1DyUM5aOhE5kIKzc7OOkVyBltYjUbJ7tX/dvcstore
+dvc pull # this will be fetch the files needed from Google Drive, first prompting you for your credentials
+```
+
 ### Citing this package
 If you use NeuroPy in your research, please consider citing as
 ```
