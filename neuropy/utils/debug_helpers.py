@@ -324,7 +324,6 @@ def _plot_parameter_sweep(output_pfs, param_sweep_option_n_values, debug_print=F
         num_columns = len(output_pfs) // num_rows
 
         def _plot_title_formatter(x):
-            # printable_dict = {k:v for k, v in x.items() if k in formatting_included_items_list} # if `x` is dict and has .items() method
             printable_dict = {k:v for k, v in x if k in formatting_included_items_list}
             return f"{printable_dict}"
         
@@ -342,6 +341,7 @@ def _plot_parameter_sweep(output_pfs, param_sweep_option_n_values, debug_print=F
     for i, (param_sweep_tuple, output_pf) in enumerate(output_pfs.items()):
         output_pf.plot_ratemaps_1D(ax=axs[i])
         axs[i].set_title(plot_title_formatter(param_sweep_tuple)) # TODO: display the parameter value without losing the number of good cells for each.
-        debug_print_placefield(output_pf)
+        if debug_print:
+            debug_print_placefield(output_pf)
     return fig, axs
 

@@ -226,7 +226,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
         """Implementors return a copy of themselves with neuron_ids equal to ids"""
-        # copy_sess = DataSession.from_dict(deepcopy(self.to_dict()))
         copy_sess = deepcopy(self)
         copy_sess.neurons = copy_sess.neurons.get_by_id(ids)
         copy_sess.flattened_spiketrains = copy_sess.flattened_spiketrains.get_by_id(ids)
