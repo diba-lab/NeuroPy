@@ -22,7 +22,7 @@ finally:
     from neuropy.analyses.placefields import PlacefieldComputationParameters
     from neuropy.analyses.placefields import PfND
     from neuropy.utils.debug_helpers import debug_print_placefield, debug_print_subsession_neuron_differences
-    from neuropy.utils.debug_helpers import debug_print_ratemap, debug_print_spike_counts, debug_plot_2d_binning
+    from neuropy.utils.debug_helpers import debug_print_ratemap, debug_print_spike_counts, debug_plot_2d_binning, compare_placefields_info
     from neuropy.utils.debug_helpers import parameter_sweeps, _plot_parameter_sweep
     from neuropy.utils.debug_helpers import print_aligned_columns
 
@@ -45,36 +45,6 @@ def _compute_parameter_sweep(spikes_df, active_pos, all_param_sweep_options: dic
         
     return output_pfs
 
-def compare_placefields_info(output_pfs):
-    """Compares a list of placefields
-
-    Args:
-        output_pfs (_type_): _description_
-
-    Returns:
-        _type_: _description_
-
-    Usage:
-
-        num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(output_pfs)
-
-    """
-    num_good_placefield_neurons_list = []
-    num_spikes_per_spiketrain_list = []
-    num_total_spikes_list = []
-
-    for output_pf in output_pfs.values():
-        # Get the cell IDs that have a good place field mapping:
-        good_placefield_neuronIDs = np.array(output_pf.ratemap.neuron_ids) # in order of ascending ID
-        num_good_placefield_neurons = len(good_placefield_neuronIDs)
-        num_spikes_per_spiketrain = np.array([np.shape(a_spk_train)[0] for a_spk_train in output_pf.spk_t])
-        num_total_spikes = np.sum(num_spikes_per_spiketrain)
-        num_good_placefield_neurons_list.append(num_good_placefield_neurons)
-        num_spikes_per_spiketrain_list.append(num_spikes_per_spiketrain)
-        num_total_spikes_list.append(num_total_spikes)
-        # debug_print_placefield(output_pf)
-
-    return num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list
 
 
 
@@ -141,6 +111,27 @@ class TestPlacefieldsMethods(unittest.TestCase):
 
         self.assertMonotonicallyDecreasing(num_total_spikes_list)
         self.assertMonotonicallyDecreasing(num_good_placefield_neurons_list)
+
+
+    def test_conform_to_position_bins(self):
+        ## Generate Placefields with varying bin-sizes:
+        ### Here we use frate_thresh=0.0 which ensures that differently binned ratemaps don't have different numbers of spikes or cells.
+        smooth_options = [(None, None)]
+        grid_bin_options = [(0.5, 0.5), (1.0, 1.0), (2.0, 2.0), (5.0, 5.0)]
+        all_param_sweep_options, param_sweep_option_n_values = parameter_sweeps(grid_bin=grid_bin_options, smooth=smooth_options, frate_thresh=[0.0])
+        output_pfs = _compute_parameter_sweep(self.spikes_df, self.active_pos, all_param_sweep_options)
+        num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(output_pfs)
+        print_aligned_columns(['grid_bin x smooth', 'num_good_neurons', 'num_total_spikes'], 
+                            [all_param_sweep_options, num_good_placefield_neurons_list, num_total_spikes_list], enable_checking_all_values_width=True)
+        fine_binned_pf = list(output_pfs.values())[0]
+        coarse_binned_pf = list(output_pfs.values())[-1]
+
+        print(f'{coarse_binned_pf.bin_info = }\n{fine_binned_pf.bin_info = }')
+        rebinned_fine_binned_pf = deepcopy(fine_binned_pf)
+        rebinned_fine_binned_pf.conform_to_position_bins(target_pf1D=coarse_binned_pf, force_recompute=True)
+        self.assertTrue(rebinned_fine_binned_pf.bin_info == coarse_binned_pf.bin_info) # the bins must be equal after conforming
+
+
 
     # def test_pf(self):
         ## Unfinished.

@@ -155,6 +155,57 @@ def copy_if_not_none(val):
     else:
         return None
     
+
+# ==================================================================================================================== #
+# Dictionary Helpers                                                                                                   #
+# ==================================================================================================================== #
+def split_list_of_dicts(list_of_dicts: list) -> dict:
+    """ Converts of a list<dict> (a list of dictionaries) where each element dictionary has the same keys to a dictionary of equal-length lists.
+    
+    Input:
+        [{'smooth': (None, None), 'grid_bin': (0.5, 0.5)},
+         {'smooth': (None, None), 'grid_bin': (1.0, 1.0)},
+         {'smooth': (None, None), 'grid_bin': (2.0, 2.0)},
+         {'smooth': (None, None), 'grid_bin': (5.0, 5.0)},
+         {'smooth': (0.5, 0.5), 'grid_bin': (0.5, 0.5)},
+         {'smooth': (0.5, 0.5), 'grid_bin': (1.0, 1.0)},
+         {'smooth': (0.5, 0.5), 'grid_bin': (2.0, 2.0)},
+         {'smooth': (0.5, 0.5), 'grid_bin': (5.0, 5.0)},
+         {'smooth': (1.0, 1.0), 'grid_bin': (0.5, 0.5)},
+         {'smooth': (1.0, 1.0), 'grid_bin': (1.0, 1.0)},
+         {'smooth': (1.0, 1.0), 'grid_bin': (2.0, 2.0)},
+         {'smooth': (1.0, 1.0), 'grid_bin': (5.0, 5.0)}]
+
+    from neuropy.utils.misc import split_list_of_dicts
+    split_list_of_dicts(all_param_sweep_options)
+
+    Output:
+        {'smooth': [(None, None), (None, None), (None, None), (None, None), (0.5, 0.5), (0.5, 0.5), (0.5, 0.5), (0.5, 0.5), (1.0, 1.0), (1.0, 1.0), (1.0, 1.0), (1.0, 1.0)], 
+         'grid_bin': [(0.5, 0.5), (1.0, 1.0), (2.0, 2.0), (5.0, 5.0), (0.5, 0.5), (1.0, 1.0), (2.0, 2.0), (5.0, 5.0), (0.5, 0.5), (1.0, 1.0), (2.0, 2.0), (5.0, 5.0)]
+         }
+
+    """
+    # Extract the keys from the first dictionary in the list
+    keys = list(list_of_dicts[0].keys())
+
+    # ALTERNATIVE: Use a list comprehension to extract the values for each key and zip them together
+    # list_of_lists = [list(x) for x in zip(*[d.values() for d in list_of_dicts])]
+    
+    # Initialize the output list of lists
+    list_of_lists = [[] for _ in keys]
+
+    # Loop over the dictionaries in the input list
+    for d in list_of_dicts:
+        # Loop over the keys and append the corresponding value to the appropriate list
+        for i, k in enumerate(keys):
+            list_of_lists[i].append(d[k])
+
+    dict_of_lists = dict(zip(keys, list_of_lists))
+    return dict_of_lists
+
+
+
+
 # ==================================================================================================================== #
 # Numpy Helpers                                                                                                        #
 # ==================================================================================================================== #

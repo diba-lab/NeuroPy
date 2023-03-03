@@ -115,7 +115,6 @@ def debug_print_placefield(active_epoch_placefield, short=True):
         print('num_spikes: {}; ({} total spikes)'.format(num_spikes_per_spiketrain, np.sum(num_spikes_per_spiketrain)), end='\n')
     return pd.DataFrame({'neuronID':good_placefield_neuronIDs, 'num_spikes':num_spikes_per_spiketrain}).T
 
-
 def debug_print_spike_counts(session):
     uniques, indicies, inverse_indicies, count_arr = np.unique(session.spikes_df['aclu'].values, return_index=True, return_inverse=True, return_counts=True)
     # count_arr = np.bincount(active_epoch_session.spikes_df['aclu'].values)
@@ -163,8 +162,10 @@ def debug_print_subsession_neuron_differences(prev_session_Neurons, subsession_N
     print('{}/{} total spikes spanning {}/{} units remain in subsession'.format(num_subsession_total_spikes, num_original_total_spikes, num_subsession_neurons, num_original_neurons))
 
 
-def print_aligned_columns(column_labels, column_values, pad_fill_str:str = ' ', enable_print:bool = True, enable_string_return:bool = False):
+def print_aligned_columns(column_labels, column_values, pad_fill_str:str = ' ', enable_print:bool = True, enable_string_return:bool = False, enable_checking_all_values_width:bool=False):
     """ Prints a text representation of a table of values. All columns must have the same number of rows.
+
+    enable_checking_all_values_width: if True, will compute the explicit width of the string representation of each element in the table and use the maximum of those widths as the width for that column. If False, will use the width of the column label as the width for that column.
 
     Usage:
         pad_fill_str = ' ' # the string to pad with
@@ -187,11 +188,17 @@ def print_aligned_columns(column_labels, column_values, pad_fill_str:str = ' ', 
 
     # align_command = lambda x, col_width, pad_fill_str: x.center(col_width, pad_fill_str)
     align_command = lambda x, col_width, pad_fill_str: x.ljust(col_width, pad_fill_str)
-    
+    extra_column_padding = 2 # add 2 spaces between columns
+
     num_rows_list = [len(v) for v in column_values]
     assert np.all(np.array(num_rows_list) == num_rows_list[0]), f"all lists must be the same length, but row lengths equal: {num_rows_list}"
     num_rows = num_rows_list[0] # all the same, so get the first one
-    column_widths = [len(n)+2 for n in column_labels] # add 1 to the length of each list name to get that column's width
+    column_widths = [len(n)+extra_column_padding for n in column_labels] # add 1 to the length of each list name to get that column's width
+    if enable_checking_all_values_width:
+        max_col_values_width = [max(col_width, np.max([len(str(col_val[row_i]))+extra_column_padding for row_i in np.arange(num_rows)])) for col_width, col_val in zip(column_widths, column_values)]
+        # print(f'{max_col_values_width = }')
+        column_widths = max_col_values_width # update the column widths
+
     column_header_strings = [align_command(col_str, col_width, pad_fill_str) for col_width, col_str in zip(column_widths, column_labels)]
     aligned_header = ''.join(column_header_strings)
     if enable_print:
@@ -206,6 +213,38 @@ def print_aligned_columns(column_labels, column_values, pad_fill_str:str = ' ', 
             print(aligned_row)
     if enable_string_return:
         return aligned_header, aligned_row_strings_list
+
+
+def compare_placefields_info(output_pfs):
+    """Compares a list of placefields
+
+    Args:
+        output_pfs (_type_): _description_
+
+    Returns:
+        _type_: _description_
+
+    Usage:
+
+        num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(output_pfs)
+
+    """
+    num_good_placefield_neurons_list = []
+    num_spikes_per_spiketrain_list = []
+    num_total_spikes_list = []
+
+    for output_pf in output_pfs.values():
+        # Get the cell IDs that have a good place field mapping:
+        good_placefield_neuronIDs = np.array(output_pf.ratemap.neuron_ids) # in order of ascending ID
+        num_good_placefield_neurons = len(good_placefield_neuronIDs)
+        num_spikes_per_spiketrain = np.array([np.shape(a_spk_train)[0] for a_spk_train in output_pf.spk_t])
+        num_total_spikes = np.sum(num_spikes_per_spiketrain)
+        num_good_placefield_neurons_list.append(num_good_placefield_neurons)
+        num_spikes_per_spiketrain_list.append(num_spikes_per_spiketrain)
+        num_total_spikes_list.append(num_total_spikes)
+        # debug_print_placefield(output_pf)
+
+    return num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list
 
 
 
