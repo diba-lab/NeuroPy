@@ -228,8 +228,8 @@ class SpikesAccessor(TimeSlicedMixin):
         spike_timestamp_column_name = self.time_variable_name # 't_rel_seconds'
         if not (np.shape(time_window_edges)[0] < np.shape(self._obj)[0]):
             print('WARNING: PREVIOUSLY ASSERT: ')
-            print(f'\t spikes_df[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!')
-        # assert np.shape(time_window_edges)[0] < np.shape(self._obj)[0], f'self._obj[time_variable_name]: {np.shape(self._obj[time_variable_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!'
+            print(f'\t spikes_df[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!') # 2023-03-06 - I no longer know why this should be the case.... more spikes than time windows?
+            # assert np.shape(time_window_edges)[0] < np.shape(self._obj)[0], f'self._obj[time_variable_name]: {np.shape(self._obj[time_variable_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!'
 
         if debug_print:
             print(f'self._obj[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])}\ntime_window_edges: {np.shape(time_window_edges)}')
