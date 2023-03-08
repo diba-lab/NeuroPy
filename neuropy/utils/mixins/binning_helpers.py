@@ -407,7 +407,56 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
     :return: Transition matrix
 
     Usage:
-    from neuropy.utils.mixins.binning_helpers import transition_matrix
+        from neuropy.utils.mixins.binning_helpers import transition_matrix
+
+        pf1D = deepcopy(curr_active_pipeline.computation_results['maze1'].computed_data['pf1D'])
+        num_position_states = len(pf1D.xbin_labels)
+        binned_x = pf1D.filtered_pos_df['binned_x'].to_numpy()
+        binned_x_indicies = binned_x - 1
+        binned_x_transition_matrix = transition_matrix(deepcopy(binned_x_indicies), markov_order=1, max_state_index=num_position_states)
+        binned_x_transition_matrix_higher_order_list = [binned_x_transition_matrix, transition_matrix(deepcopy(binned_x_indicies), markov_order=2, max_state_index=num_position_states), transition_matrix(deepcopy(binned_x_indicies), markov_order=3, max_state_index=num_position_states)]
+
+        ## Old method without using markov_order parameter:
+        binned_x_transition_matrix[np.isnan(binned_x_transition_matrix)] = 0.0
+        binned_x_transition_matrix_higher_order_list = [binned_x_transition_matrix, np.linalg.matrix_power(binned_x_transition_matrix, 2), np.linalg.matrix_power(binned_x_transition_matrix, 3)]
+
+        ## Visualize Result:
+        from pyphoplacecellanalysis.GUI.PyQtPlot.BinnedImageRenderingWindow import BasicBinnedImageRenderingWindow, LayoutScrollability
+        out = BasicBinnedImageRenderingWindow(binned_x_transition_matrix, pf1D.xbin_labels, pf1D.xbin_labels, name='binned_x_transition_matrix', title="Transition Matrix for binned x (from, to)", variable_label='Transition Matrix', scrollability_mode=LayoutScrollability.NON_SCROLLABLE)
+
+        ## print the entries in the transition matrix:
+        for row in binned_x_transition_matrix: print(' '.join(f'{x:.2f}' for x in row))
+
+
+    TODO 2023-03-08 13:49: - [ ] 2D Placefield Position Transition Matrix
+        pf2D = deepcopy(curr_active_pipeline.computation_results['maze1'].computed_data['pf2D'])
+        # try to get the position sizes for the 2D placefields:
+        original_position_data_shape = np.shape(pf2D.occupancy) # (63, 16)
+        flat_position_size = np.shape(np.reshape(deepcopy(pf2D.occupancy), (-1, 1)))[0] # 1008
+        print(f'{original_position_data_shape = }, {flat_position_size = }')
+        num_position_states = int(float(len(pf2D.xbin_labels)) * float(len(pf2D.ybin_labels)))
+        # num_position_states = flat_position_size
+        print(f'{num_position_states = }')
+        binned_x = pf2D.filtered_pos_df['binned_x'].to_numpy()
+        binned_y = pf2D.filtered_pos_df['binned_y'].to_numpy()
+
+        binned_x_indicies = binned_x - 1
+        binned_y_indicies = binned_y - 1
+        ## Reference: Method of getting all combinations from pyphoplacecellanalysis.General.Pipeline.Stages.ComputationFunctions.PlacefieldDensityAnalysisComputationFunctions.PlacefieldDensityAnalysisComputationFunctions._perform_placefield_overlap_computation
+        ```python
+            all_pairwise_neuron_IDs_combinations = np.array(list(itertools.combinations(computation_result.computed_data['pf2D_Decoder'].neuron_IDs, 2)))
+            list_of_unit_pfs = [computation_result.computed_data['pf2D_Decoder'].pf.ratemap.normalized_tuning_curves[i,:,:] for i in computation_result.computed_data['pf2D_Decoder'].neuron_IDXs]
+            all_pairwise_pfs_combinations = np.array(list(itertools.combinations(list_of_unit_pfs, 2)))
+            # np.shape(all_pairwise_pfs_combinations) # (903, 2, 63, 63)
+            all_pairwise_overlaps = np.squeeze(np.prod(all_pairwise_pfs_combinations, axis=1)) # multiply over the dimension containing '2' (multiply each pair of pfs).
+        ```
+        for a_row in pf2D.filtered_pos_df[['binned_x', 'binned_y']].itertuples():
+            x_bin_idx, y_bin_idx = (a_row.binned_x-1), (a_row.binned_y-1)
+            print(f'')
+
+        # binned_x_transition_matrix = transition_matrix(deepcopy(binned_x))
+        binned_x_transition_matrix = transition_matrix(deepcopy(binned_x_indicies), markov_order=1)
+        binned_x_transition_matrix_higher_order_list = [binned_x_transition_matrix, transition_matrix(deepcopy(binned_x_indicies), markov_order=2), transition_matrix(deepcopy(binned_x_indicies), markov_order=3)]
 
     """
     if max_state_index is None:
