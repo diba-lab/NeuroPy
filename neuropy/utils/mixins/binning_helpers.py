@@ -395,3 +395,26 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
         
     return active_df, updated_bin_values, updated_combined_bin_infos
 
+
+## Transition Matrix Computations
+def transition_matrix(state_sequence, markov_order:int=1):
+    """" Computes the transition matrix from Markov chain sequence of order `n`.
+    See https://stackoverflow.com/questions/58048810/building-n-th-order-markovian-transition-matrix-from-a-given-sequence
+
+    :param state_sequence: Discrete Markov chain state sequence in discrete time with states in 0, ..., N
+    :param markov_order: Transition order
+
+    :return: Transition matrix
+
+    Usage:
+    from neuropy.utils.mixins.binning_helpers import transition_matrix
+
+    """
+    num_states = 1 + max(state_sequence) #number of states
+    M = np.zeros(shape=(num_states, num_states))
+    for (i, j) in zip(state_sequence, state_sequence[1:]):
+        M[i, j] += 1
+        
+    #now convert to probabilities:
+    T = (M.T / M.sum(axis=1, keepdims=True)).T
+    return np.linalg.matrix_power(T, markov_order)
