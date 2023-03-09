@@ -1,12 +1,12 @@
 from warnings import warn
 import numpy as np
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
+from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin
 from neuropy.plotting.mixins.ratemap_mixins import RatemapPlottingMixin
 from neuropy.utils import mathutil
 from . import DataWriter
 
-
-class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
+class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositionsMixin, DataWriter):
     """A Ratemap holds information about each unit's firing rate across binned positions. 
         In addition, it also holds (tuning curves).
         
@@ -63,17 +63,6 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, DataWriter):
         self.occupancy = occupancy
 
         self.metadata = metadata
-
-    @property
-    def xbin_centers(self):
-        return self.xbin[:-1] + np.diff(self.xbin) / 2
-
-    @property
-    def ybin_centers(self):
-        if self.ybin is None:
-            return None
-        else:
-            return self.ybin[:-1] + np.diff(self.ybin) / 2
     
     # NeuronIdentitiesDisplayerMixin requirements
     @property
