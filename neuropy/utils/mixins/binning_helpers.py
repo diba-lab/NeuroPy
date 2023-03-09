@@ -210,6 +210,7 @@ class BinnedPositionsMixin(object):
     """ Adds common accessors for convenince properties such as *bin_centers/*bin_labels
     
     Requires (Implementor Must Provide):
+        self.ndim
         self.xbin
         self.ybin
     
@@ -219,6 +220,7 @@ class BinnedPositionsMixin(object):
             ybin_centers
             xbin_labels
             ybin_labels
+            dims_coord_tuple
         
     """
     @property
@@ -247,7 +249,23 @@ class BinnedPositionsMixin(object):
         else:
             return np.arange(start=1, stop=len(self.ybin))
 
-   
+    @property
+    def dims_coord_tuple(self):
+        """Returns a tuple containing the number of bins in each dimension. For 1D it will be (n_xbins,) for 2D (n_xbins, n_ybins) 
+        TODO 2023-03-08 19:31: - [ ] Add to parent class (PfND) since it should have the same implementation.
+        """
+        n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
+        if (self.ndim > 1):
+            n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
+            dims_coord_ist = (n_xbins, n_ybins)
+        else:
+            # 1D Only
+            n_ybins = None # singleton dimension along this axis. Decide how we want to shape it.
+            dims_coord_ist = (n_xbins,)
+        return dims_coord_ist
+
+
+
 
 def bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
         """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size

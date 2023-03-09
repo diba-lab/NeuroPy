@@ -207,22 +207,7 @@ class PfND_TimeDependent(PfND):
 
         ## Passes self.included_neuron_IDs explicitly
 
-
-    
-    @property
-    def dims_coord_tuple(self):
-        """Returns a tuple containing the number of bins in each dimension. For 1D it will be (n_xbins,) for 2D (n_xbins, n_ybins) """
-        n_xbins = len(self.xbin) - 1 # the -1 is to get the counts for the centers only
-        if (self.ndim > 1):
-            n_ybins = len(self.ybin) - 1 # the -1 is to get the counts for the centers only
-            dims_coord_ist = (n_xbins, n_ybins)
-        else:
-            # 1D Only
-            n_ybins = None # singleton dimension along this axis. Decide how we want to shape it.
-            dims_coord_ist = (n_xbins,)
-        return dims_coord_ist
-
-
+  
     # ==================================================================================================================== #
     # Initializer                                                                                                          #
     # ==================================================================================================================== #
@@ -263,13 +248,12 @@ class PfND_TimeDependent(PfND):
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh)
         self.position_srate = position.sampling_rate
-        # Set the dimensionality of the PfND object from the position's dimensionality
-        self.ndim = position.ndim
-        
+
         self._included_thresh_neurons_indx = None
         self._peak_frate_filter_function = None
         self._filtered_pos_df = None
         self._filtered_spikes_df = None
+        self.ndim = None # Set the dimensionality of the PfND object from the position's dimensionality in self.setup(...)
         self.xbin = None
         self.ybin = None 
         self.bin_info = None

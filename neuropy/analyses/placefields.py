@@ -505,9 +505,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         # save the config that was used to perform the computations
         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh)
         self.position_srate = position.sampling_rate
-        # Set the dimensionality of the PfND object from the position's dimensionality
-        self.ndim = position.ndim
-
+        
         self._included_thresh_neurons_indx = None
         self._peak_frate_filter_function = None
         self.ratemap = None
@@ -515,6 +513,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         self.ratemap_spiketrains_pos = None
         self._filtered_pos_df = None
         self._filtered_spikes_df = None
+        self.ndim = None # Set the dimensionality of the PfND object from the position's dimensionality in self.setup(...)
         self.xbin = None
         self.ybin = None
         self.bin_info = None
@@ -534,12 +533,14 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             self.config.grid_bin_bounds
 
         Assigns:
-
+            self.ndim
             self._filtered_pos_df
             self._filtered_spikes_df
 
             self.xbin, self.ybin, self.bin_info
         """
+        # Set the dimensionality of the PfND object from the position's dimensionality
+        self.ndim = position.ndim
 
         pos_df = position.to_dataframe()
         spk_df = spikes_df.copy()
