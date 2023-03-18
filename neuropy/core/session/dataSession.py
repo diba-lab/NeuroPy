@@ -269,7 +269,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             # simple_dict['flattened_spiketrains'] = simple_dict['flattened_spiketrains'].to_dict() ## TODO: implement .to_dict() for FlattenedSpiketrains object to make this work
         return simple_dict
         
-        
     def __sizeof__(self) -> int:
         """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
         return super().__sizeof__() + int(np.sum([sys.getsizeof(self.spikes_df), sys.getsizeof(self.epochs.to_dataframe()), sys.getsizeof(self.position.to_dataframe())]))
@@ -278,6 +277,15 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     def panel_dataframes_overview(self, max_page_items=20):
         return DataSessionPanelMixin.panel_session_dataframes_overview(self, max_page_items=max_page_items)
     
+
+    def get_output_path(self, mkdir_if_needed:bool=True) -> Path:
+        """ Build a folder to store the temporary outputs of this session """
+        output_data_folder = self.basepath.joinpath('output').resolve()
+        if mkdir_if_needed:
+            output_data_folder.mkdir(exist_ok=True)
+        return output_data_folder
+
+
     # ==================================================================================================================== #
     # Static Computation Helper Methods                                                                                    #
     # ==================================================================================================================== #
