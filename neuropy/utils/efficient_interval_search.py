@@ -578,6 +578,8 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
     # Drop empty spikes dfs:
     epoch_split_spike_dfs = [v for v in epoch_split_spike_dfs if len(v)>0]
     assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
+    ## What if they're already empty here? (no spikes at all in any epoch?)
+
 
     # Get the number of unique active units in each epoch:
     epoch_split_n_unique_aclus = np.array([len(np.unique(a_spikes_df.spikes.neuron_ids)) for a_spikes_df in epoch_split_spike_dfs])
@@ -587,6 +589,8 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
     active_epochs = active_epochs.boolean_indicies_slice(is_epoch_num_unique_aclus_above_thresh)
     epoch_split_spike_dfs = [v for v, is_included in zip(epoch_split_spike_dfs, is_epoch_num_unique_aclus_above_thresh) if is_included]
     assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
+    is_output_empty = len(epoch_split_spike_dfs) == 0
+
 
     def _safe_min_max(arr):
         try:
@@ -600,15 +604,23 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
             raise e
         return out_min, out_max
 
-    epoch_first_last_spike_times = np.array([_safe_min_max(a_spikes_df[a_spikes_df.spikes.time_variable_name].to_numpy()) for a_spikes_df in epoch_split_spike_dfs])
+    if not is_output_empty:
+        epoch_first_last_spike_times = np.array([_safe_min_max(a_spikes_df[a_spikes_df.spikes.time_variable_name].to_numpy()) for a_spikes_df in epoch_split_spike_dfs])
 
-    ## Trim active_epochs to the start/end spikes within them. Most easily done by just buiilding a new Epochs object with these times and then copying the info:
-    spike_trimmed_active_epochs_df = pd.DataFrame(epoch_first_last_spike_times, columns=['start', 'stop'])
-    spike_trimmed_active_epochs_df['label'] = active_epochs.labels # add the original label from the active_epochs
-    spike_trimmed_active_epochs = Epoch(epochs=spike_trimmed_active_epochs_df, metadata=active_epochs.metadata)
+        ## Trim active_epochs to the start/end spikes within them. Most easily done by just buiilding a new Epochs object with these times and then copying the info:
+        spike_trimmed_active_epochs_df = pd.DataFrame(epoch_first_last_spike_times, columns=['start', 'stop']) # when epoch_first_last_spike_times is array([], dtype=float64), encountering an error: `*** ValueError: Empty data passed with indices specified.`
+        spike_trimmed_active_epochs_df['label'] = active_epochs.labels # add the original label from the active_epochs
+        spike_trimmed_active_epochs = Epoch(epochs=spike_trimmed_active_epochs_df, metadata=active_epochs.metadata)
+        
+    else:
+        # Output is empty. Initializing the pd.DataFrame this way prevents  `*** ValueError: Empty data passed with indices specified.` See also # Issue: https://github.com/pandas-dev/pandas/pull/47192
+        spike_trimmed_active_epochs = Epoch(epochs=pd.DataFrame(columns=['start', 'stop', 'label']), metadata=active_epochs.metadata)
+        epoch_split_spike_dfs = []
+
     assert spike_trimmed_active_epochs.n_epochs == len(epoch_split_spike_dfs)
-
     return spike_trimmed_active_epochs, epoch_split_spike_dfs
+
+
 
 def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh:float=0.0, min_num_unique_aclu_inclusions=1):
     """ Filter active_epochs by requiring them to have at least `min_num_unique_aclu_inclusions` active units as determined by filtering active_spikes_df.
