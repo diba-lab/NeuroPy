@@ -41,7 +41,6 @@ def _compiled_verify_non_overlapping(start_stop_times_arr): # Function is compil
         stop_t = start_stop_times_arr[:(num_elements-1),1] # get the stop times, neglecting the last element
         return (start_t > stop_t) # check if the (i+1)th start_t is later than the (i)th stop_t
 
-
 def verify_non_overlapping(start_stop_times_arr):
     """Returns True if no members of the start_stop_times_arr overlap each other.
 
@@ -106,8 +105,6 @@ def drop_overlapping(start_stop_times_arr):
     is_good_epoch = get_non_overlapping_epochs(start_stop_times_arr)
     return start_stop_times_arr[is_good_epoch, :].copy()
 
-
-
 def get_overlapping_indicies(start_stop_times_arr):
     """Gets the indicies of any epochs that DO overlap one another.
     
@@ -128,6 +125,21 @@ def get_overlapping_indicies(start_stop_times_arr):
     # print(f'following_overlapping_lap: {following_overlapping_lap}')
     all_overlapping_lap_indicies = np.union1d(ar1=overlapping_lap_indicies, ar2=following_overlapping_lap)
     # print(f'all_overlapping_lap_indicies: {all_overlapping_lap_indicies}')
+    return all_overlapping_lap_indicies
+
+def debug_overlapping_epochs(epochs_df):
+    """
+    from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping, get_overlapping_indicies, OverlappingIntervalsFallbackBehavior
+    curr_epochs_obj = deepcopy(sess.ripple)
+    debug_overlapping_epochs(curr_epochs_obj.to_dataframe())
+    
+    """
+    start_stop_times_arr = np.vstack([epochs_df.epochs.starts, epochs_df.epochs.stops]).T # (80, 2)
+    # start_stop_times_arr.shape
+    all_overlapping_lap_indicies = get_overlapping_indicies(start_stop_times_arr)
+    n_total_epochs = start_stop_times_arr.shape[0]
+    n_overlapping = len(all_overlapping_lap_indicies)
+    print(f'n_overlapping: {n_overlapping} of n_total_epochs: {n_total_epochs}')
     return all_overlapping_lap_indicies
 
 
@@ -197,7 +209,6 @@ def _searchsorted_find_event_interval_indicies(times_arr, start_stop_times_arr):
     found_start_end_indicies = np.vstack((found_start_indicies, found_end_indicies)).T 
     assert np.shape(found_start_end_indicies)[1] == 2
     return found_start_end_indicies
-    
 
 @jit(nopython=True, parallel = True)
 def _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=np.nan): # Function is compiled by numba and runs in machine code
@@ -310,28 +321,9 @@ def _compiled_searchsorted_event_interval_is_included(times_arr, start_stop_time
     # returns the array containing the whether each event is included in any interval
     return event_interval_is_included_arr
 
-
 def determine_event_interval_is_included(times_arr, start_stop_times_arr):
     assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
     return _compiled_searchsorted_event_interval_is_included(times_arr, start_stop_times_arr)
-
-
-
-def debug_overlapping_epochs(epochs_df):
-    """
-    from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping, get_overlapping_indicies, OverlappingIntervalsFallbackBehavior
-    curr_epochs_obj = deepcopy(sess.ripple)
-    debug_overlapping_epochs(curr_epochs_obj.to_dataframe())
-    
-    """
-    start_stop_times_arr = np.vstack([epochs_df.epochs.starts, epochs_df.epochs.stops]).T # (80, 2)
-    # start_stop_times_arr.shape
-    all_overlapping_lap_indicies = get_overlapping_indicies(start_stop_times_arr)
-    n_total_epochs = start_stop_times_arr.shape[0]
-    n_overlapping = len(all_overlapping_lap_indicies)
-    print(f'n_overlapping: {n_overlapping} of n_total_epochs: {n_total_epochs}')
-    return all_overlapping_lap_indicies
-
 
 # ==================================================================================================================== #
 # De-Duplication                                                                                                       #
@@ -478,49 +470,6 @@ def _find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interp
         else:
             intervals.append((start_time, end_time))
     return intervals
-
-
-
-# def find_intervals_above_speed(df: pd.DataFrame, speed_thresh: float, is_interpolated: bool) -> list:
-#     """ Chat GPT version 2023-02-15 """
-#     # Create boolean array indicating where speed is above threshold
-#     speed_above_thresh = df['speed'] > speed_thresh
-    
-#     # Compute difference between each adjacent element of speed_above_thresh
-#     speed_above_thresh_diff = np.diff(speed_above_thresh.astype(int))
-    
-#     # Indices where speed crosses threshold from below to above
-#     start_indices = np.where(speed_above_thresh_diff == 1)[0]
-    
-#     # Indices where speed crosses threshold from above to below
-#     end_indices = np.where(speed_above_thresh_diff == -1)[0]
-    
-#     # If speed is above threshold at end of the dataset, add last index to end_indices
-#     if speed_above_thresh[-1]:
-#         end_indices = np.append(end_indices, len(df) - 1)
-    
-#     # If no intervals are found, return an empty list
-#     if len(start_indices) == 0 or len(end_indices) == 0:
-#         return []
-    
-#     # Check if first interval starts with speed above threshold, and remove if not
-#     if start_indices[0] > end_indices[0]:
-#         end_indices = end_indices[1:]
-    
-#     # Check if last interval ends with speed above threshold, and remove if not
-#     if start_indices[-1] > end_indices[-1]:
-#         start_indices = start_indices[:-1]
-    
-#     # Create list of intervals as tuples of (start_time, end_time)
-#     intervals = list(zip(df.iloc[start_indices]['t'], df.iloc[end_indices]['t']))
-    
-#     # If data is interpolated, filter intervals where start and end speeds are below threshold
-#     if is_interpolated:
-#         start_speed = np.interp(df.iloc[start_indices]['t'], df['t'], df['speed'])
-#         end_speed = np.interp(df.iloc[end_indices]['t'], df['t'], df['speed'])
-#         intervals = [intervals[i] for i in range(len(intervals)) if (start_speed[i] > speed_thresh and end_speed[i] > speed_thresh)]
-    
-#     return intervals
 
 
 
