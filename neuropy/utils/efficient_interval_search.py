@@ -579,6 +579,8 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
         min_num_unique_aclu_inclusions: the minimum number of unique active units that must be present in the epoch for it to be considered active
 
 
+    # Calls `trim_epochs_to_first_last_spikes`
+
     """
     all_aclus = active_spikes_df.spikes.neuron_ids
     spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs)
@@ -599,7 +601,7 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
     # num_cells_included_in_epoch_mat: the num unique cells included in each epoch that mean the min_inclusion_fr_active_thresh criteria. Should have one value per epoch of interest.
     num_cells_active_in_epoch_mat = np.sum(is_cell_active_in_epoch_mat, 1)
     # dense_epoch_split_frs_mat = dense_epoch_split_frs_mat[:, is_active_aclus] # filter out inactive aclus
-
+    
     return spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat # (is_cell_active_in_epoch_mat, num_cells_active_in_epoch_mat)
 
 
