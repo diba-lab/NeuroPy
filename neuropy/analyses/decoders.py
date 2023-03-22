@@ -5,7 +5,11 @@ from scipy import stats
 from tqdm import tqdm
 import scipy.signal as sg
 from typing import Union
-from numpy.typing import NDArray
+
+try:
+    from numpy.typing import NDArray
+except ModuleNotFoundError:
+    print("WARNING: numpy.typing.NDArray can't be imported.")
 from .placefields import Pf1D, Pf2D
 from .. import core
 from .. import plotting
