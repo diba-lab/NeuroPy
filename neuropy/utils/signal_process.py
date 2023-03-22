@@ -32,7 +32,6 @@ except ImportError:
 from .. import core
 
 
-
 class filter_sig:
     @staticmethod
     def bandpass(signal, lf, hf, fs=1250, order=3, ax=-1):
@@ -1214,7 +1213,12 @@ def irasa(
 
 
 def plot_miniscope_noise(
-    signal, ch, block_sec=10, interval_sec=60, remove_disconnects=False
+    signal,
+    ch,
+    block_sec=10,
+    interval_sec=60,
+    remove_disconnects=False,
+    EWLnoise_range=(4835, 4855),
 ):
 
     assert isinstance(signal, core.Signal)
@@ -1239,7 +1243,9 @@ def plot_miniscope_noise(
 
     # Quick and dirty method to remove disconnects - threshold excessive high frequency noise
     if remove_disconnects:
-        freq_bool = np.bitwise_and(f_full[0] > 4354, f_full[0] < 4836)
+        freq_bool = np.bitwise_and(
+            f_full[0] > EWLnoise_range[1], f_full[0] < EWLnoise_range[0]
+        )
         good_epochs = Pxx_full[:, freq_bool].sum(axis=1) < 20000
         f_full = f_full[good_epochs]
         Pxx_full = Pxx_full[good_epochs]
@@ -1251,8 +1257,13 @@ def plot_miniscope_noise(
     ax[0][0].set_xlabel("Freq (Hz)")
     ax[0][0].set_ylabel("PSD")
 
-    noise_limits = [[4835, 4855], [9670, 9700], [14510, 14550], [57, 63]]
-
+    # noise_limits = [[4835, 4855], [9670, 9700], [14510, 14550], [57, 63]]
+    noise_limits = [
+        np.array(EWLnoise_range),
+        np.array(EWLnoise_range) * 2,
+        np.array(EWLnoise_range) * 3,
+        np.array([57, 63]),
+    ]
     for a, lim in zip(ax.reshape(-1)[1:], noise_limits):
         freq_bool = np.bitwise_and(f > lim[0], f < lim[1])
         sns.heatmap(Pxx_full[:, freq_bool].T, ax=a)
