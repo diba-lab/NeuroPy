@@ -18,8 +18,8 @@ _ACCEPTED_ARRAY_DTYPES = (
     # np.int,
     # np.int8,
     # np.int16,
-    np.uint8,
-    np.uint16,
+    # np.uint8,
+    # np.uint16,
     # np.int32,
     # np.int64,
     # np.uint32,
@@ -63,7 +63,7 @@ def _index_of(arr, lookup):
     # values
     lookup = np.asarray(lookup, dtype=np.int32)
     m = (lookup.max() if len(lookup) else 0) + 1
-    tmp = np.zeros(m + 1, dtype=np.int)
+    tmp = np.zeros(m + 1, dtype=int)
     # Ensure that -1 values are kept.
     tmp[-1] = -1
     if len(lookup):
@@ -77,7 +77,7 @@ def _unique(x):
     It is only faster if len(x) >> len(unique(x)).
     """
     if x is None or len(x) == 0:
-        return np.array([], dtype=np.int64)
+        return np.array([], dtype=int)
     # WARNING: only keep positive values.
     # cluster=-1 means "unclustered".
     x = _as_array(x)
@@ -216,7 +216,7 @@ def correlograms(
 
     # At a given shift, the mask precises which spikes have matching spikes
     # within the correlogram time window.
-    mask = np.ones_like(spike_samples, dtype=np.bool)
+    mask = np.ones_like(spike_samples, dtype=bool)
 
     correlograms = _create_correlograms_array(n_clusters, winsize_bins)
 
