@@ -11,19 +11,21 @@ import numpy as np
 # Cross-correlograms
 # ------------------------------------------------------------------------------
 _ACCEPTED_ARRAY_DTYPES = (
-    np.float,
-    np.float32,
-    np.float64,
-    np.int,
-    np.int8,
-    np.int16,
-    np.uint8,
-    np.uint16,
-    np.int32,
-    np.int64,
-    np.uint32,
-    np.uint64,
-    np.bool,
+    float,
+    # np.float32,
+    # np.float64,
+    int,
+    # np.int,
+    # np.int8,
+    # np.int16,
+    # np.uint8,
+    # np.uint16,
+    # np.int32,
+    # np.int64,
+    # np.uint32,
+    # np.uint64,
+    # np.bool,
+    bool,
 )
 
 
@@ -61,7 +63,7 @@ def _index_of(arr, lookup):
     # values
     lookup = np.asarray(lookup, dtype=np.int32)
     m = (lookup.max() if len(lookup) else 0) + 1
-    tmp = np.zeros(m + 1, dtype=np.int)
+    tmp = np.zeros(m + 1, dtype=int)
     # Ensure that -1 values are kept.
     tmp[-1] = -1
     if len(lookup):
@@ -75,7 +77,7 @@ def _unique(x):
     It is only faster if len(x) >> len(unique(x)).
     """
     if x is None or len(x) == 0:
-        return np.array([], dtype=np.int64)
+        return np.array([], dtype=int)
     # WARNING: only keep positive values.
     # cluster=-1 means "unclustered".
     x = _as_array(x)
@@ -179,8 +181,8 @@ def correlograms(
     assert np.all(np.diff(spike_times) >= 0), "The spike times must be " "increasing."
 
     # Get the spike samples.
-    spike_times = np.asarray(spike_times, dtype=np.float64)
-    spike_samples = (spike_times * sample_rate).astype(np.int64)
+    spike_times = np.asarray(spike_times, dtype=float)
+    spike_samples = (spike_times * sample_rate).astype(int)
 
     spike_clusters = _as_array(spike_clusters)
 
@@ -214,7 +216,7 @@ def correlograms(
 
     # At a given shift, the mask precises which spikes have matching spikes
     # within the correlogram time window.
-    mask = np.ones_like(spike_samples, dtype=np.bool)
+    mask = np.ones_like(spike_samples, dtype=bool)
 
     correlograms = _create_correlograms_array(n_clusters, winsize_bins)
 

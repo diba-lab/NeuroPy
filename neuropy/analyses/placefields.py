@@ -41,10 +41,6 @@ class Pf1D(core.Ratemap):
             speed threshold for calculating place field, by default None
         sigma : float
             standard deviation for smoothing occupancy and spikecounts in each position bin, in units of cm, default 1 cm
-<<<<<<< HEAD
-=======
-
->>>>>>> neuropy_orig/main
         NOTE: speed_thresh is ignored if epochs is provided
         """
 
