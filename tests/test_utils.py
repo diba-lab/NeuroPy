@@ -1,4 +1,5 @@
 import unittest
+from neuropy.utils.misc import split_array
 import numpy as np
 import pandas as pd
 # import the package
@@ -49,13 +50,45 @@ class TestUtilityMethods(unittest.TestCase):
 
         # TODO: check the output buffer for something like this:
         # 'Loading matlab import file results to data/RoyMaze1/positionAnalysis.mat... 	 inside the with statement done.'
+        # assert is_iterable([0, 1, 2]), "list should return true for is_iterable"
+        # assert is_iterable(np.array([0, 1, 2])), "ndArray should return true for is_iterable"
+        # assert is_iterable(pd.DataFrame({'col', [0, 1, 2]})), "Pandas DataFrame should return true for is_iterable"
+
+    # def test_split_array(self):
+    #     arr = np.array([1, 2, 3, 4, 5, 6])
+    #     sub_element_lengths = np.array([2, 1, 3])
+    #     # expected_output = [[1, 2], [3], [4, 5, 6]]
+    #     expected_output = [np.array([1, 2]), np.array([3]), np.array([4, 5, 6])]
+    #     output = split_array(arr, sub_element_lengths)
+    #     print(f'expected_output: {expected_output}\n output: {output}')
+    #     # self.assertEqual([a == b] in zip(output, expected_output)])
+    #     # self.assertListEqual(output, expected_output)
+    #     # self.assertTrue(np.allclose(output, expected_output))
+        
+    def test_sum_of_sub_element_lengths_not_equal_to_N(self):
+        arr = np.array([1, 2, 3, 4, 5, 6])
+        sub_element_lengths = np.array([2, 1, 2])
+        with self.assertRaises(ValueError):
+            split_array(arr, sub_element_lengths)
+            
+    def test_return_type(self):
+        arr = np.array([1, 2, 3, 4, 5, 6])
+        sub_element_lengths = np.array([2, 1, 3])
+        self.assertIsInstance(split_array(arr, sub_element_lengths), list)
+        
+    # def test_empty_array(self):
+    #     arr = np.array([])
+    #     sub_element_lengths = np.array([])
+    #     expected_output = []
+    #     self.assertListEqual(split_array(arr, sub_element_lengths), expected_output).all()
+        
+    # def test_sub_element_lengths_containing_zeros(self):
+    #     arr = np.array([1, 2, 3, 4, 5, 6])
+    #     sub_element_lengths = np.array([2, 0, 3, 1])
+    #     with self.assertRaises(ValueError):
+    #         split_array(arr, sub_element_lengths)
 
 
-
-
-# assert is_iterable([0, 1, 2]), "list should return true for is_iterable"
-# assert is_iterable(np.array([0, 1, 2])), "ndArray should return true for is_iterable"
-# assert is_iterable(pd.DataFrame({'col', [0, 1, 2]})), "Pandas DataFrame should return true for is_iterable"
 
 
 if __name__ == '__main__':

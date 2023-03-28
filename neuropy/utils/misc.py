@@ -220,6 +220,37 @@ def safe_item(arr: np.ndarray, *args, default=None):
     except ValueError as e:
         return default
 
+
+def split_array(arr: np.ndarray, sub_element_lengths: np.ndarray) -> list:
+    """ 2023-03-25 - Takes a numpy array `arr` of length N and splits it into len(sub_element_lengths) pieces where piece i has length sub_element_lengths[i].
+    
+    Args:
+        arr (np.ndarray): Input numpy array of length N.
+        sub_element_lengths (np.ndarray): Array of integers indicating the length of each sub-element.
+        
+    Returns:
+        np.ndarray: A numpy array of shape (len(sub_element_lengths), sub_element_lengths[i]) containing the sub-elements.
+        
+    Raises:
+        ValueError: If the sum of sub_element_lengths is not equal to N.
+
+    Usage:
+        from neuropy.utils.misc import split_array
+        
+
+    """
+    if sum(sub_element_lengths) != len(arr):
+        raise ValueError("Sum of sub-element lengths must be equal to the length of input array.")
+    split_arr = []
+    start_index = 0
+    for length in sub_element_lengths:
+        split_arr.append(arr[start_index:start_index+length])
+        start_index += length
+    return split_arr
+
+
+
+
 # ==================================================================================================================== #
 # Pandas Helpers                                                                                                       #
 # ==================================================================================================================== #
