@@ -155,6 +155,25 @@ def copy_if_not_none(val):
     else:
         return None
     
+def shuffle_ids(neuron_ids, seed:int=1337):
+    """ Shuffles the neuron_ids list, and returns the shuffled list and the shuffle indicies. The shuffle indicies can be used to shuffle other lists in the same way. 
+
+    Input:
+
+        neuron_ids: a list of neuron ids to shuffle
+    
+    Usage:
+        from neuropy.utils.misc import shuffle_ids
+        shuffled_aclus, shuffle_IDXs = shuffle_ids(original_1D_decoder.neuron_IDs)
+    """
+    import random
+    if not isinstance(neuron_ids, np.ndarray):
+        neuron_ids = np.array(neuron_ids)
+    shuffle_IDXs = list(range(len(neuron_ids)))
+    random.Random(seed).shuffle(shuffle_IDXs) # shuffle the list of indicies
+    shuffle_IDXs = np.array(shuffle_IDXs)
+    return neuron_ids[shuffle_IDXs], shuffle_IDXs
+
 
 # ==================================================================================================================== #
 # Dictionary Helpers                                                                                                   #

@@ -457,6 +457,69 @@ def scale_title_label(ax, curr_title_obj, curr_im, debug_print=False):
     ## Disable path effects:
     # curr_title_text_obj.set_path_effects([])
 
+
+def add_value_labels(ax, spacing=5, labels=None):
+    """Add labels to the end (top) of each bar in a bar chart.
+
+    Arguments:
+        ax (matplotlib.axes.Axes): The matplotlib object containing the axes of the plot to annotate.
+        spacing (int): The distance between the labels and the bars.
+
+    History:
+        Factored out of `plot_short_v_long_pf1D_scalar_overlap_comparison` on 2023-03-28
+
+    Usage:
+        from neuropy.utils.matplotlib_helpers import add_value_labels
+        # Call the function above. All the magic happens there.
+        add_value_labels(ax, labels=x_labels) # 
+
+    """
+
+    # For each bar: Place a label
+    for i, rect in enumerate(ax.patches):
+        # Get X and Y placement of label from rect.
+        y_value = rect.get_height()
+        x_value = rect.get_x() + rect.get_width() / 2
+
+        # Number of points between bar and label. Change to your liking.
+        space = spacing
+        # Vertical alignment for positive values
+        va = 'bottom'
+
+        # If value of bar is negative: Place label below bar
+        if y_value < 0:
+            # Invert space to place label below
+            space *= -1
+            # Vertically align label at top
+            va = 'top'
+
+        # Use Y value as label and format number with one decimal place
+        if labels is None:
+            label = "{:.1f}".format(y_value)
+            # # Use cell ID (given by x position) as the label
+            label = "{}".format(x_value)
+        else:
+            label = str(labels[i])
+            
+        # Create annotation
+        ax.annotate(
+            label,                      # Use `label` as label
+            (x_value, y_value),         # Place label at end of the bar
+            xytext=(0, space),          # Vertically shift label by `space`
+            textcoords="offset points", # Interpret `xytext` as offset in points
+            ha='center',                # Horizontally center label
+            va=va,                      # Vertically align label differently for positive and negative values.
+            color=rect.get_facecolor(),
+            rotation=90)                      
+                                        # 
+
+
+
+
+
+
+
+
 #     ## Figure computation
 #     fig: plt.Figure = ax.get_figure()
 #     dpi = fig.dpi
@@ -542,6 +605,7 @@ def _subfn_build_epoch_region_label(xy, text, ax, **labels_kwargs):
     y = xy[1] + labels_y_offset  # shift y-value for label so that it's below the artist
     return ax.text(xy[0], y, text, **({'ha': 'center', 'va': 'top', 'family': 'sans-serif', 'size': 14, 'rotation': 0} | labels_kwargs)) # va="top" places it inside the box if it's aligned to the top
 
+# @function_attributes(short_name='draw_epoch_regions', tags=['epoch','matplotlib','helper'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-03-28 14:23')
 def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors=("black",), alpha=0.25, labels_kwargs=None, defer_render=False, debug_print=False):
     """ plots epoch rectangles with customizable color, edgecolor, and labels on an existing matplotlib axis
     2022-12-14
