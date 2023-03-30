@@ -137,7 +137,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositi
         validate_unit_max = [np.nanmax(a_unit_max_tuning_curve) for a_unit_max_tuning_curve in unit_max_tuning_curves]
         # print(f'validate_unit_max: {validate_unit_max}')
         assert np.allclose(validate_unit_max, np.full_like(validate_unit_max, 1.0), equal_nan=True), f"unit_max_tuning_curves doesn't have a max==1.0 after scaling!!! Maximums: {validate_unit_max}"
-        return unit_max_tuning_curves
+        return np.array(unit_max_tuning_curves)
     
     
     @property
