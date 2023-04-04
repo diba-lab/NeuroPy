@@ -166,12 +166,14 @@ class Fig:
         self.gs = gs
 
     def subplot(self, subplot_spec, sharex=None, sharey=None, **kwargs):
-        return plt.subplot(subplot_spec, sharex=sharex, sharey=sharey, **kwargs)
+        return self.fig.add_subplot(subplot_spec, sharex=sharex, sharey=sharey, **kwargs)
 
     def add_subfigure(self, *args, **kwargs) -> mpl.figure.SubFigure:
         return self.fig.add_subfigure(*args, **kwargs)
 
-    def subplot2grid(self, subplot_spec, grid=(1, 3), **kwargs):
+    def subplot2grid(
+        self, subplot_spec, grid=(1, 3), return_axes: bool = False, **kwargs
+    ):
         """Subplots within a subplot
 
         Parameters
@@ -180,15 +182,27 @@ class Fig:
             subplot inside which subplots are created
         grid : tuple, optional
             number of rows and columns for subplots, by default (1, 3)
+        return_axes: returns axes instead of gridspec
 
         Returns
         -------
-        gridspec
+        gridspec (or axes if specified)
         """
         gs = gridspec.GridSpecFromSubplotSpec(
             grid[0], grid[1], subplot_spec=subplot_spec, **kwargs
         )
-        return gs
+
+        if not return_axes:
+            return gs
+        elif return_axes:
+            ax = []
+            for row in range(grid[0]):
+                ax_col = []
+                for col in range(grid[1]):
+                    ax_col.append(self.fig.add_subplot(gs[row, col]))
+                ax.append(ax_col)
+            # [a.axis("off") for a in ax]
+            return np.array(ax).squeeze() if np.array(ax).ndim > 1 else np.array(ax)
 
     def panel_label(self, ax, label, fontsize=12, x=-0.14, y=1.15):
         ax.text(

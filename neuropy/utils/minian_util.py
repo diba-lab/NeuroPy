@@ -5,6 +5,9 @@ from matplotlib.axes import Axes
 
 from pathlib import Path
 import numpy as np
+import zarr
+import xarray as xr
+from pickle import load, dump
 
 
 def get_good_frames(
@@ -55,6 +58,78 @@ def get_good_frames(
     return good_bool
 
 
+def load_subset(minian_path: str, infer_from_zarr=True, save_pkl_if_missing=False):
+    """Grabs subset dictionary which tracks the frames and pixels used in the final videos. If subset.pkl is missing,
+    infers the values from other zarrs located in the file"""
+
+    pkl_file = Path(minian_path) / "subset.pkl"
+    if pkl_file.is_file():
+        with open(pkl_file, "rb") as f:
+            subset_dict = load(f)
+
+    else:
+        if infer_from_zarr:  # Try to load in
+            S_zarr_dir = Path(minian_path) / "S.zarr"
+            A_zarr_dir = Path(minian_path) / "A.zarr"
+            try:
+                Sz = xr.open_zarr(S_zarr_dir)
+                Az = xr.open_zarr(A_zarr_dir)
+                subset_dict = {
+                    "frame": Sz.frame.values,
+                    "height": Az.height.values,
+                    "width": Az.width.values,
+                }
+
+                if save_pkl_if_missing:
+                    with open(str(pkl_file), "wb") as f:
+                        dump(f, subset_dict)
+            except zarr.errors.GroupNotFoundError:
+                print(
+                    "S.zarr or A.zarr not found, could not infer subset from zarr groups"
+                )
+                subset_dict = None
+        else:
+            print(f'No "subset.pkl" file found in {minian_path}')
+            subset_dict = None
+
+    return subset_dict
+
+
+def load_variable(
+    minian_path: str,
+    var_name: str,
+    zarr_ok=True,
+    numpy_ok=True,
+    flag_if_numpy=True,
+    return_zarr=True,
+):
+    """Loads a minian produced variable. Tries a .zarr group first, then
+    looks for .npy file if allowed by user"""
+
+    minian_path = Path(minian_path)
+    zarr_path = minian_path / f"{var_name}.zarr"
+
+    var = None
+    if zarr_path.is_dir() and zarr_ok:
+        var_ds = xr.open_zarr(zarr_path)
+        assert (
+            len(list(var_ds.keys())) == 1
+        ), "More than one variable found in .zarr group, load manually or set zarr_ok=False"
+        var = var_ds[list(var_ds.keys())[0]]
+    else:
+        if numpy_ok:
+            np_path = minian_path / f"{var_name}.npy"
+            if np_path.is_file():
+                var = np.load(np_path)
+                if flag_if_numpy:
+                    print(f"No .zarr group found, {var_name}.npy file loaded")
+
+    if return_zarr:
+        return var
+    else:
+        return var.values
+
+
 class Mask:
     """Class to draw a mask over an imaging FOV for excluding things outside of GRIN lens, schmutz on lens, etc."""
 
@@ -96,3 +171,9 @@ class Mask:
                 self.points_arr, self.points_arr[:, 0, None], axis=1
             )
             self.ax.plot(self.points_arr[0], self.points_arr[1], "r")
+
+
+if __name__ == "__main__":
+    load_subset(
+        "/data2/Trace_FC/Recording_Rats/Rey/2022_05_10_recall1/Miniscope_combined/minian"
+    )
