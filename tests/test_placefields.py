@@ -41,7 +41,7 @@ def _compute_parameter_sweep(spikes_df, active_pos, all_param_sweep_options: dic
 
     for a_sweep_dict in all_param_sweep_options:
         a_sweep_tuple = frozenset(a_sweep_dict.items())
-        output_pfs[a_sweep_tuple] = PfND(deepcopy(spikes_df).spikes.sliced_by_neuron_type('pyramidal'), deepcopy(active_pos.linear_pos_obj), **a_sweep_dict) # grid_bin=, etc
+        output_pfs[a_sweep_tuple] = PfND.from_config_values(deepcopy(spikes_df).spikes.sliced_by_neuron_type('pyramidal'), deepcopy(active_pos.linear_pos_obj), **a_sweep_dict) # grid_bin=, etc
         
     return output_pfs
 
