@@ -529,7 +529,6 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
     assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
     ## What if they're already empty here? (no spikes at all in any epoch?)
 
-
     # Get the number of unique active units in each epoch:
     epoch_split_n_unique_aclus = np.array([len(np.unique(a_spikes_df.spikes.neuron_ids)) for a_spikes_df in epoch_split_spike_dfs])
 
@@ -539,7 +538,6 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
     epoch_split_spike_dfs = [v for v, is_included in zip(epoch_split_spike_dfs, is_epoch_num_unique_aclus_above_thresh) if is_included]
     assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
     is_output_empty = len(epoch_split_spike_dfs) == 0
-
 
     def _safe_min_max(arr):
         try:
