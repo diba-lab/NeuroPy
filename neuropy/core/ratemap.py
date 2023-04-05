@@ -1,3 +1,4 @@
+from copy import deepcopy
 from warnings import warn
 import numpy as np
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
@@ -147,6 +148,24 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositi
         """
         return Ratemap.nanmin_nanmax_scaler(self.tuning_curves)
 
+    # Other ______________________________________________________________________________________________________________ #
+
+    def get_sort_indicies(self, sortby=None):
+        # curr_tuning_curves = self.normalized_tuning_curves
+        # ind = np.unravel_index(np.argsort(curr_tuning_curves, axis=None), curr_tuning_curves.shape)
+        
+        if sortby is None:
+            sort_ind = np.argsort(np.argmax(self.normalized_tuning_curves, axis=1))
+        elif isinstance(sortby, (list, np.ndarray)):
+            sort_ind = sortby
+        else:
+            sort_ind = np.arange(self.n_neurons)
+        return sort_ind
+
+    def to_1D_maximum_projection(self):
+        return Ratemap.build_1D_maximum_projection(self)
+
+
     # ----------------------  Static Methods -------------------------:
     @staticmethod
     def nan_ptp(a, **kwargs):
@@ -217,19 +236,6 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositi
             print(f'tuning_curves_ndim: {tuning_curves_ndim} not implemented!')
             raise NotImplementedError
 
-            
-    
-    def get_sort_indicies(self, sortby=None):
-        # curr_tuning_curves = self.normalized_tuning_curves
-        # ind = np.unravel_index(np.argsort(curr_tuning_curves, axis=None), curr_tuning_curves.shape)
-        
-        if sortby is None:
-            sort_ind = np.argsort(np.argmax(self.normalized_tuning_curves, axis=1))
-        elif isinstance(sortby, (list, np.ndarray)):
-            sort_ind = sortby
-        else:
-            sort_ind = np.arange(self.n_neurons)
-        return sort_ind
  
     @staticmethod           
     def build_never_visited_mask(occupancy):
@@ -242,3 +248,21 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositi
         nan_never_visited_occupancy = occupancy.copy()
         nan_never_visited_occupancy[nan_never_visited_occupancy == 0] = np.nan # all locations with zeros, replace them with NaNs
         return nan_never_visited_occupancy
+
+    @classmethod
+    def build_1D_maximum_projection(cls, ratemap_2D: "Ratemap") -> "Ratemap":
+        """ builds a 1D ratemap from a 2D ratemap
+        creation_date='2023-04-05 14:02'
+
+        Usage:
+            ratemap_1D = build_1D_maximum_projection(ratemap_2D)
+        """
+        assert ratemap_2D.ndim > 1, f"ratemap_2D ndim must be greater than 1 (usually 2) but ndim: {ratemap_2D.ndim}."
+        ratemap_1D_spikes_maps = np.nanmax(ratemap_2D.spikes_maps, axis=-1) #.shape (n_cells, n_xbins)
+        ratemap_1D_tuning_curves = np.nanmax(ratemap_2D.tuning_curves, axis=-1) #.shape (n_cells, n_xbins)
+        ratemap_1D_unsmoothed_tuning_maps = np.nanmax(ratemap_2D.unsmoothed_tuning_maps, axis=-1) #.shape (n_cells, n_xbins)
+        ratemap_1D_occupancy = np.sum(ratemap_2D.occupancy, axis=-1) #.shape (n_xbins,)
+
+        ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=ratemap_2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(ratemap_2D.neuron_ids), neuron_extended_ids=deepcopy(ratemap_2D.neuron_extended_ids), metadata=ratemap_2D.metadata)
+        return ratemap_1D
+
