@@ -590,10 +590,37 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         """ initialize from the explicitly listed arguments instead of a specified config. """
         return cls(spikes_df, position, epochs, config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh), setup_on_init=setup_on_init, compute_on_init=compute_on_init)
 
+    @classmethod
+    def from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True):
+        """ initialize from the explicitly listed arguments instead of a specified config. """
+        return cls(spikes_df, position, epochs, config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh), setup_on_init=setup_on_init, compute_on_init=compute_on_init)
 
-    # @classmethod
-    # def __init_with_config(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, config:PlacefieldComputationParameters=None):
-    #     cls.init(
+    def to_1D_maximum_projection(self) -> "PfND":
+        return PfND.build_1D_maximum_projection(self)
+
+    @classmethod
+    def build_1D_maximum_projection(cls, pf2D: "PfND") -> "PfND":
+        """ builds a 1D ratemap from a 2D ratemap
+        creation_date='2023-04-05 14:02'
+
+        Usage:
+            ratemap_1D = build_1D_maximum_projection(ratemap_2D)
+        """
+        assert pf2D.ndim > 1, f"ratemap_2D ndim must be greater than 1 (usually 2) but ndim: {pf2D.ndim}."
+        # ratemap_1D_spikes_maps = np.nanmax(pf2D.spikes_maps, axis=-1) #.shape (n_cells, n_xbins)
+        # ratemap_1D_tuning_curves = np.nanmax(pf2D.tuning_curves, axis=-1) #.shape (n_cells, n_xbins)
+        # ratemap_1D_unsmoothed_tuning_maps = np.nanmax(pf2D.unsmoothed_tuning_maps, axis=-1) #.shape (n_cells, n_xbins)
+        # ratemap_1D_occupancy = np.sum(pf2D.occupancy, axis=-1) #.shape (n_xbins,)
+        new_pf1D = deepcopy(pf2D)
+        # new_pf1D.ratemap = new_pf1D.ratemap.to_1D_maximum_projection()
+        new_pf1D = PfND(new_pf1D.spikes_df, new_pf1D.position, epochs=new_pf1D.epochs, ratemap=new_pf1D.ratemap.to_1D_maximum_projection(), ndim=1, xbin=new_pf1D.xbin, ybin=None, compute_on_init=False, setup_on_init=False)
+        # TODO: strip 2nd dimension (y-axis) from:
+        # bin_info
+        # position_df
+
+        # ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=pf2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(pf2D.neuron_ids), neuron_extended_ids=deepcopy(pf2D.neuron_extended_ids), metadata=pf2D.metadata)
+        return new_pf1D
+
 
     def setup(self, position: Position, spikes_df, epochs: Epoch, debug_print=False):
         """ do the preliminary setup required to build the placefields
