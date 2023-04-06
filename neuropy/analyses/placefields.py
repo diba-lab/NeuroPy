@@ -1,6 +1,6 @@
 from copy import deepcopy
 from typing import Callable
-from attrs import define, field
+from attrs import define, fields, filters, asdict, astuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -485,7 +485,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing.
 
-@define
+@define(slots=False)
 class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. 
 
@@ -502,16 +502,14 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         speed_thresh : int
             speed threshold for calculating place field
 
+
+        # Excluded from serialization: ['_included_thresh_neurons_indx', '_peak_frate_filter_function']
     """
     spikes_df: pd.DataFrame
     position: Position
     epochs: Epoch = None
     config: PlacefieldComputationParameters = None
-    # frate_thresh: float = 1
-    # speed_thresh: float = 5
-    # grid_bin: tuple = (1, 1)
-    # grid_bin_bounds: tuple = None
-    # smooth: tuple = (1, 1)
+    position_srate: float = None
     
     setup_on_init: bool = True
     compute_on_init: bool = True
@@ -519,9 +517,11 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
 
     _included_thresh_neurons_indx: np.ndarray = None
     _peak_frate_filter_function: Callable = None
+
     ratemap: Ratemap = None
     ratemap_spiketrains: list = None
     ratemap_spiketrains_pos: list = None
+
     _filtered_pos_df: pd.DataFrame = None
     _filtered_spikes_df: pd.DataFrame = None
 
@@ -588,38 +588,10 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     @classmethod
     def from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True):
         """ initialize from the explicitly listed arguments instead of a specified config. """
-        return cls(spikes_df, position, epochs, config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh), setup_on_init=setup_on_init, compute_on_init=compute_on_init)
+        return cls(spikes_df=spikes_df, position=position, epochs=epochs,
+            config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh),
+            setup_on_init=setup_on_init, compute_on_init=compute_on_init, position_srate=position.sampling_rate)
 
-    @classmethod
-    def from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True):
-        """ initialize from the explicitly listed arguments instead of a specified config. """
-        return cls(spikes_df, position, epochs, config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh), setup_on_init=setup_on_init, compute_on_init=compute_on_init)
-
-    def to_1D_maximum_projection(self) -> "PfND":
-        return PfND.build_1D_maximum_projection(self)
-
-    @classmethod
-    def build_1D_maximum_projection(cls, pf2D: "PfND") -> "PfND":
-        """ builds a 1D ratemap from a 2D ratemap
-        creation_date='2023-04-05 14:02'
-
-        Usage:
-            ratemap_1D = build_1D_maximum_projection(ratemap_2D)
-        """
-        assert pf2D.ndim > 1, f"ratemap_2D ndim must be greater than 1 (usually 2) but ndim: {pf2D.ndim}."
-        # ratemap_1D_spikes_maps = np.nanmax(pf2D.spikes_maps, axis=-1) #.shape (n_cells, n_xbins)
-        # ratemap_1D_tuning_curves = np.nanmax(pf2D.tuning_curves, axis=-1) #.shape (n_cells, n_xbins)
-        # ratemap_1D_unsmoothed_tuning_maps = np.nanmax(pf2D.unsmoothed_tuning_maps, axis=-1) #.shape (n_cells, n_xbins)
-        # ratemap_1D_occupancy = np.sum(pf2D.occupancy, axis=-1) #.shape (n_xbins,)
-        new_pf1D = deepcopy(pf2D)
-        # new_pf1D.ratemap = new_pf1D.ratemap.to_1D_maximum_projection()
-        new_pf1D = PfND(new_pf1D.spikes_df, new_pf1D.position, epochs=new_pf1D.epochs, ratemap=new_pf1D.ratemap.to_1D_maximum_projection(), ndim=1, xbin=new_pf1D.xbin, ybin=None, compute_on_init=False, setup_on_init=False)
-        # TODO: strip 2nd dimension (y-axis) from:
-        # bin_info
-        # position_df
-
-        # ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=pf2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(pf2D.neuron_ids), neuron_extended_ids=deepcopy(pf2D.neuron_extended_ids), metadata=pf2D.metadata)
-        return new_pf1D
 
 
     def setup(self, position: Position, spikes_df, epochs: Epoch, debug_print=False):
@@ -909,7 +881,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         copy_pf.compute() # does recompute, updating: copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, and more. TODO EFFICIENCY 2023-03-02 - This is overkill and I could filter the tuning_curves and etc directly, but this is easier for now. 
         return copy_pf
 
-
     def conform_to_position_bins(self, target_pf, force_recompute=False):
         """ Allow overriding PfND's bins:
             # 2022-12-09 - We want to be able to have both long/short track placefields have the same spatial bins.
@@ -935,6 +906,37 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
 
         return self, did_update_bins
 
+    def to_1D_maximum_projection(self) -> "PfND":
+        return PfND.build_1D_maximum_projection(self)
+
+
+    @classmethod
+    def build_1D_maximum_projection(cls, pf2D: "PfND") -> "PfND":
+        """ builds a 1D ratemap from a 2D ratemap
+        creation_date='2023-04-05 14:02'
+
+        Usage:
+            ratemap_1D = build_1D_maximum_projection(ratemap_2D)
+        """
+        assert pf2D.ndim > 1, f"ratemap_2D ndim must be greater than 1 (usually 2) but ndim: {pf2D.ndim}."
+        # ratemap_1D_spikes_maps = np.nanmax(pf2D.spikes_maps, axis=-1) #.shape (n_cells, n_xbins)
+        # ratemap_1D_tuning_curves = np.nanmax(pf2D.tuning_curves, axis=-1) #.shape (n_cells, n_xbins)
+        # ratemap_1D_unsmoothed_tuning_maps = np.nanmax(pf2D.unsmoothed_tuning_maps, axis=-1) #.shape (n_cells, n_xbins)
+        # ratemap_1D_occupancy = np.sum(pf2D.occupancy, axis=-1) #.shape (n_xbins,)
+        new_pf1D = deepcopy(pf2D)
+        new_pf1D_ratemap = new_pf1D.ratemap.to_1D_maximum_projection()
+        new_pf1D = PfND(new_pf1D.spikes_df, new_pf1D.position, epochs=new_pf1D.epochs, ratemap=new_pf1D_ratemap, ndim=1, xbin=new_pf1D.xbin, ybin=None, compute_on_init=False, setup_on_init=True, position_srate=new_pf1D.position.sampling_rate)
+        new_pf1D.ratemap = new_pf1D_ratemap
+        # TODO: strip 2nd dimension (y-axis) from:
+        # bin_info
+        # position_df
+        new_pf1D = cls._drop_extra_position_info(new_pf1D)
+        
+
+
+        # ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=pf2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(pf2D.neuron_ids), neuron_extended_ids=deepcopy(pf2D.neuron_extended_ids), metadata=pf2D.metadata)
+        return new_pf1D
+
 
 
     def str_for_filename(self, prefix_string=''):
@@ -950,19 +952,10 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             return '-'.join(['pf2D', f'{prefix_string}{self.config.str_for_display(True)}', f'cell_{curr_cell_id:02d}'])
 
     def to_dict(self):
-        # print(f'to_dict(...): {list(self.__dict__.keys())}')
-        return {'config': self.config,
-                'position_srate': self.position_srate,
-                'ndim': self.ndim,
-                'xbin': self.xbin,
-                'ybin': self.ybin,
-                'bin_info': self.bin_info,
-                '_filtered_spikes_df': self._filtered_spikes_df,
-                '_filtered_pos_df': self._filtered_pos_df,
-                'ratemap': self.ratemap,
-                'ratemap_spiketrains': self.ratemap_spiketrains,
-                'ratemap_spiketrains_pos': self.ratemap_spiketrains_pos,
-                }
+        # Excluded from serialization: ['_included_thresh_neurons_indx', '_peak_frate_filter_function']
+        # filter_fn = filters.exclude(fields(PfND)._included_thresh_neurons_indx, int)
+        filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function"]
+        return asdict(self, filter=filter_fn) # serialize using attrs.asdict but exclude the listed properties
 
     ## For serialization/pickling:
     def __getstate__(self):
@@ -1071,6 +1064,22 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
 
         return active_pos_df, xbin, ybin, bin_info
 
+    @classmethod
+    def _drop_extra_position_info(cls, pf):
+        """ if pf is 1D (as indicated by `pf.ndim`), drop any 'y' related columns. """
+        if (pf.ndim < 2):
+            # Drop any 'y' related columns if it's a 1D version:
+            # print(f"dropping 'y'-related columns in pf._filtered_spikes_df because pf.ndim: {pf.ndim} (< 2).")
+            pf._filtered_spikes_df.drop(columns=['y','y_loaded'], inplace=True)
+
+        pf._filtered_pos_df.dropna(axis=0, how='any', subset=[*pf._position_variable_names], inplace=True) # dropped NaN values
+        
+        if 'binned_x' in pf._filtered_pos_df:
+            if (pf.position.ndim > 1):
+                pf._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x', 'binned_y'], inplace=True) # dropped NaN values
+            else:
+                pf._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
+        return pf
 
 
 # ==================================================================================================================== #
