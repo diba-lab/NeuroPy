@@ -187,13 +187,7 @@ class PfND_TimeDependent(PfND):
         """ a list of spike positions for each cell. for compatibility with old plotting functions."""
         return self.curr_ratemap_spiketrains_pos(self.last_t)
     
-    @property
-    def _position_variable_names(self):
-        """The _position_variable_names property."""
-        if (self.ndim > 1):
-            return ['x', 'y']
-        else:
-            return ['x']
+    
     
     def curr_ratemap_spiketrains_pos(self, t):
         """ gets the ratemap_spiketrains_pos variable at the time t """

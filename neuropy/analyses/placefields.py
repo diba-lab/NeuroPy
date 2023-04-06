@@ -884,6 +884,15 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         """The frate_filter_fcn property."""
         return self._peak_frate_filter_function
 
+    ## dimensionality (ndim) helpers
+    @property
+    def _position_variable_names(self):
+        """The names of the position variables as determined by self.ndim."""
+        if (self.ndim > 1):
+            return ['x', 'y']
+        else:
+            return ['x']
+
     @property
     def included_neuron_IDXs(self):
         """The neuron INDEXES, NOT IDs (not 'aclu' values) that were included after filtering by frate and etc. """
@@ -893,6 +902,8 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     def included_neuron_IDs(self):
         """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
         return self._filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs] ## TODO: these are basically wrong, we should use self.ratemap.neuron_IDs instead!
+
+
 
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
