@@ -374,6 +374,35 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
         """
         return Position(self._obj, metadata=metadata)
 
+    def drop_dimensions_above(self, desired_ndim:int, inplace:bool=False):
+        """ drops all columns related to dimensions above `desired_ndim`.
+
+        e.g. desired_ndim = 1:
+            would drop 'y' related columns
+
+        if inplace is True, None is returned and the dataframe is modified in place
+
+        """
+        z_related_column_names = [str(c) for c in self._obj.columns if str(c).endswith('z')] # Find z (3D) related columns
+        y_related_column_names = [str(c) for c in self._obj.columns if str(c).endswith('y')] # Find y (2D) related columns
+        if inplace:
+            out_df = None
+        else:
+            out_df = self._obj.copy()
+
+        if desired_ndim < 3:
+            if inplace:
+                self._obj.drop(columns=z_related_column_names, inplace=inplace)
+            else:
+                out_df = out_df.drop(columns=z_related_column_names, inplace=inplace)
+        if desired_ndim < 2:
+            if inplace:
+                self._obj.drop(columns=y_related_column_names, inplace=inplace)
+            else:
+                out_df = out_df.drop(columns=y_related_column_names, inplace=inplace)
+
+        return out_df
+
     
 """ --- """
 class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
@@ -505,6 +534,11 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         return cls(concat_df)
 
         
+    def drop_dimensions_above(self, desired_ndim:int):
+        """ modifies the internal dataframe to drop dimensions above a certain number. Always done in place, and returns None. """
+        return self.df.position.drop_dimensions_above(desired_ndim, inplace=True)
+
+
     def print_debug_str(self):
         print('<core.Position :: np.shape(traces): {}\t time: {}\n duration: {}\n time[-1]: {}\n time[0]: {}\n sampling_rate: {}\n t_start: {}\n t_stop: {}\n>\n'.format(np.shape(self.traces), self.time,
             self.duration,

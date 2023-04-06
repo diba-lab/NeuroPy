@@ -960,16 +960,18 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         # ratemap_1D_unsmoothed_tuning_maps = np.nanmax(pf2D.unsmoothed_tuning_maps, axis=-1) #.shape (n_cells, n_xbins)
         # ratemap_1D_occupancy = np.sum(pf2D.occupancy, axis=-1) #.shape (n_xbins,)
         new_pf1D = deepcopy(pf2D)
+        new_pf1D.position.drop_dimensions_above(1) # drop dimensions above 1
         new_pf1D_ratemap = new_pf1D.ratemap.to_1D_maximum_projection()
-        new_pf1D = PfND(new_pf1D.spikes_df, new_pf1D.position, epochs=new_pf1D.epochs, ratemap=new_pf1D_ratemap, ndim=1, xbin=new_pf1D.xbin, ybin=None, compute_on_init=False, setup_on_init=True, position_srate=new_pf1D.position.sampling_rate)
-        new_pf1D.ratemap = new_pf1D_ratemap
+        new_pf1D = PfND(spikes_df=new_pf1D.spikes_df, position=new_pf1D.position, epochs=new_pf1D.epochs, config=new_pf1D.config, position_srate=new_pf1D.position.sampling_rate,
+            setup_on_init=True, compute_on_init=False,
+            ratemap=new_pf1D_ratemap, ratemap_spiketrains=new_pf1D._ratemap_spiketrains,ratemap_spiketrains_pos=new_pf1D._ratemap_spiketrains_pos, filtered_pos_df=new_pf1D._filtered_pos_df, filtered_spikes_df=new_pf1D._filtered_spikes_df,
+            ndim=1, xbin=new_pf1D.xbin, ybin=None, bin_info=None)
+
+        # new_pf1D.ratemap = new_pf1D_ratemap
         # TODO: strip 2nd dimension (y-axis) from:
         # bin_info
         # position_df
         new_pf1D = cls._drop_extra_position_info(new_pf1D)
-        
-
-
         # ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=pf2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(pf2D.neuron_ids), neuron_extended_ids=deepcopy(pf2D.neuron_extended_ids), metadata=pf2D.metadata)
         return new_pf1D
 
