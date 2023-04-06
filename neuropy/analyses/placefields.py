@@ -519,8 +519,8 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     _peak_frate_filter_function: Callable = None
 
     _ratemap: Ratemap = None
-    ratemap_spiketrains: list = None
-    ratemap_spiketrains_pos: list = None
+    _ratemap_spiketrains: list = None
+    _ratemap_spiketrains_pos: list = None
 
     _filtered_pos_df: pd.DataFrame = None
     _filtered_spikes_df: pd.DataFrame = None
@@ -821,7 +821,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     def filtered_pos_df(self, value):
         self._filtered_pos_df = value
 
-
+    ## ratemap read/write pass-through to private attributes
     @property
     def ratemap(self):
         """The ratemap property."""
@@ -829,6 +829,23 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     @ratemap.setter
     def ratemap(self, value):
         self._ratemap = value
+
+    @property
+    def ratemap_spiketrains(self):
+        """The ratemap_spiketrains property."""
+        return self._ratemap_spiketrains
+    @ratemap_spiketrains.setter
+    def ratemap_spiketrains(self, value):
+        self._ratemap_spiketrains = value
+
+    @property
+    def ratemap_spiketrains_pos(self):
+        """The ratemap_spiketrains_pos property."""
+        return self._ratemap_spiketrains_pos
+    @ratemap_spiketrains_pos.setter
+    def ratemap_spiketrains_pos(self, value):
+        self._ratemap_spiketrains_pos = value
+
 
     ## ratemap convinence accessors
     @property

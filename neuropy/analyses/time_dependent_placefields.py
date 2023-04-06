@@ -480,7 +480,7 @@ class PfND_TimeDependent(PfND):
         # self._setup_time_varying() # reset completely before saving. Throw out everything
         # Excluded from serialization: ['_included_thresh_neurons_indx', '_peak_frate_filter_function']
         # filter_fn = filters.exclude(fields(PfND)._included_thresh_neurons_indx, int)
-        filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function", "ratemap"]
+        filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function", "_ratemap", "_ratemap_spiketrains", "_ratemap_spiketrains_pos"]
         return asdict(self, filter=filter_fn) # serialize using attrs.asdict but exclude the listed properties
         # return {'config': self.config,
         #         'position_srate': self.position_srate,
