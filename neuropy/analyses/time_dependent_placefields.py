@@ -482,22 +482,7 @@ class PfND_TimeDependent(PfND):
         # filter_fn = filters.exclude(fields(PfND)._included_thresh_neurons_indx, int)
         filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function", "_ratemap", "_ratemap_spiketrains", "_ratemap_spiketrains_pos"]
         return asdict(self, filter=filter_fn) # serialize using attrs.asdict but exclude the listed properties
-        # return {'config': self.config,
-        #         'position_srate': self.position_srate,
-        #         'ndim': self.ndim, 
-        #         'xbin': self.xbin,
-        #         'ybin': self.ybin,
-        #         'bin_info': self.bin_info,
-        #         '_filtered_spikes_df': self._filtered_spikes_df,
-        #         '_filtered_pos_df': self._filtered_pos_df,
-        #         'last_t': self.last_t,
-        #         'historical_snapshots': self.historical_snapshots,
-        #         # 'historical_snapshots': {k:v.to_dict() for k, v in self.historical_snapshots.items()}, # Convert to dict first. Better work!
-        #         # 'curr_spikes_maps_matrix': self.curr_spikes_maps_matrix,
-        #         'fragile_linear_neuron_IDXs': self.fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
-        #         'n_fragile_linear_neuron_IDXs': self.n_fragile_linear_neuron_IDXs, # not strictly needed, could be recomputed easily
-        #         '_included_thresh_neurons_indx': self._included_thresh_neurons_indx, # not strictly needed, could be recomputed easily
-        #         }
+        
 
     ## For serialization/pickling:
     def __getstate__(self):
@@ -516,12 +501,6 @@ class PfND_TimeDependent(PfND):
         try:
             self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot.
         except (AttributeError, KeyError) as e:
-            # convert old dict-style snapshots to new PlacefieldSnapshot objects:
-            # print(f'found old dict-style snapshots in self.historical_snapshots: Converting to new PlacefieldSnapshot objects')
-            # self.historical_snapshots = {t:PlacefieldSnapshot.from_dict(v) for t, v in self.historical_snapshots.items()} # if not isinstance(v, PlacefieldSnapshot)
-            # # ['spikes_maps_matrix', 'smoothed_spikes_maps_matrix', 'raw_occupancy_map', 'num_position_samples_smoothed_occupancy', 'seconds_occupancy', 'normalized_occupancy', 'occupancy_weighted_tuning_maps_matrix']
-            # self.restore_from_snapshot(self.last_t) # after restoring the object's __dict__ from state, self.historical_snapshots is populated and the last entry can be used to restore all the last-computed properties. Note this requires at least one snapshot. Now try running again now that self.historical_snapshots are converted.
-            # Just reset:
             print(f'WARNING: failed to unpickle PfND_TimeDependent - just resetting. Snapshots will not be loaded.')
             self.reset()
 
