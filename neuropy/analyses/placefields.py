@@ -518,7 +518,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     _included_thresh_neurons_indx: np.ndarray = None
     _peak_frate_filter_function: Callable = None
 
-    ratemap: Ratemap = None
+    _ratemap: Ratemap = None
     ratemap_spiketrains: list = None
     ratemap_spiketrains_pos: list = None
 
@@ -762,7 +762,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         filtered_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_ids) 
         filtered_tuple_neuron_ids = self._peak_frate_filter_function(self.filtered_spikes_df.spikes.neuron_probe_tuple_ids) # the (shank, probe) tuples corresponding to neuron_ids
 
-        self.ratemap = Ratemap(filtered_tuning_maps, unsmoothed_tuning_maps=filtered_unsmoothed_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
+        self._ratemap = Ratemap(filtered_tuning_maps, unsmoothed_tuning_maps=filtered_unsmoothed_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
 
@@ -821,6 +821,14 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     def filtered_pos_df(self, value):
         self._filtered_pos_df = value
 
+
+    @property
+    def ratemap(self):
+        """The ratemap property."""
+        return self._ratemap
+    @ratemap.setter
+    def ratemap(self, value):
+        self._ratemap = value
 
     ## ratemap convinence accessors
     @property

@@ -246,6 +246,12 @@ class PfND_TimeDependent(PfND):
         else:
             assert (not self.compute_on_init), f"compute_on_init can't be true if setup_on_init isn't true!"
 
+    @classmethod
+    def from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True):
+        """ initialize from the explicitly listed arguments instead of a specified config. """
+        return cls(spikes_df=spikes_df, position=position, epochs=epochs,
+            config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh),
+            setup_on_init=setup_on_init, compute_on_init=compute_on_init, position_srate=position.sampling_rate, historical_snapshots={}, last_t=np.finfo('float').max)
 
     # def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1)):
     #     """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
