@@ -59,7 +59,7 @@ def _subfn_perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df:
     laps_df has two columns added: 'start_spike_index' and 'end_spike_index'
     spikes_df is not modified
         
-    Known Usages: Called only by `compute_laps_spike_indicies(...)`
+    Known Usages: Called only by `_subfn_compute_laps_spike_indicies(...)`
     """
     n_laps = len(laps_df['start'])
     start_spike_index = np.zeros_like(laps_df['start'])
@@ -144,7 +144,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
         a_desc_crossing = desc_crossing_midpoint_idxs[a_desc_crossing_i]
         # print(f'a_desc_crossing: {a_desc_crossing}')
         
-        curr_remainder_pos_df = pos_df.loc[a_desc_crossing:, :]
+        curr_remainder_pos_df = pos_df.loc[a_desc_crossing:, :] # This is causing an error, should it be .iloc?
         curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df['velocity_x_smooth'] > 0.0].index # the first increasing
         curr_next_transition_point = curr_next_transition_points[0] # desc endings
         desc_crossing_ending_idxs[a_desc_crossing_i] = curr_next_transition_point
@@ -182,7 +182,7 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
     Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)
 
-    CAVIAT: Only works for the 1D track (not the 2D track)
+    CAVIAT: Only works for the linear track (not more complex environments/mazes)
     USES: Used in KDibaOldDataSessionFormat as a post-processing step to replace the laps computed from the spikesII.mat data
 
     """
