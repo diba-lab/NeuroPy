@@ -143,7 +143,7 @@ class TestPlacefieldsMethods(unittest.TestCase):
 
     def test_get_by_neuron_id(self):
         # Test excluding certain neurons from the placefield
-        original_pf = PfND(deepcopy(self.spikes_df).spikes.sliced_by_neuron_type('pyramidal'), deepcopy(self.active_pos.linear_pos_obj), frate_thresh=0.0) # all other settings default
+        original_pf = PfND.from_config_values(spikes_df=deepcopy(self.spikes_df).spikes.sliced_by_neuron_type('pyramidal'), position=deepcopy(self.active_pos.linear_pos_obj), frate_thresh=0.0) # all other settings default
         original_pf_neuron_ids = original_pf.included_neuron_IDs.copy()
         subset_included_neuron_IDXs = np.arange(10) # only get the first 10 neuron_ids
         subset_included_neuron_ids = original_pf_neuron_ids[subset_included_neuron_IDXs] # only get the first 10 neuron_ids
