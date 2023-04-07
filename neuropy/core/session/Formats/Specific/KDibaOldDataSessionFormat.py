@@ -175,6 +175,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     def build_lap_only_computation_configs(cls, sess, **kwargs):
         """ sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
+
+        # Build the new laps first:
+        sess = estimation_session_laps(sess)
+
         ## Lap-restricted computation epochs:
         is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
         only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
@@ -184,6 +188,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
         # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
         
+        # build_lap_only_computation_configs
+
         # Lap-restricted computation epochs:
         for i in np.arange(len(active_session_computation_configs)):
             active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
