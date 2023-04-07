@@ -68,16 +68,19 @@ class NeuronType(Enum):
     
     @classmethod
     def from_short_string(cls, string_value):
+        string_value = string_value.lower()
         itemindex = np.where(cls.shortClassNames()==string_value)
         return NeuronType(itemindex[0])
     
     @classmethod
     def from_long_string(cls, string_value):
+        string_value = string_value.lower()
         itemindex = np.where(cls.longClassNames()==string_value)
         return NeuronType(itemindex[0])    
     
     @classmethod
     def from_string(cls, string_value):
+        string_value = string_value.lower()
         itemindex = np.where(cls.longClassNames()==string_value)
         if len(itemindex[0]) < 1:
             # if not found in longClassNames, try shortClassNames
@@ -89,6 +92,7 @@ class NeuronType(Enum):
         
     @classmethod
     def from_bapun_npy_style_string(cls, string_value):
+        string_value = string_value.lower()
         itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
         return NeuronType(itemindex[0])
     
