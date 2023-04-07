@@ -108,6 +108,12 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     Known Usages: Called only by `estimation_session_laps(...)`
     """
     assert set(['x','velocity_x_smooth']).issubset(pos_df.columns), 'pos_df requires the columns "x", and "velocity_x_smooth" at a minimum'
+
+    # Sanity check the midpoint
+    track_min_max_x = (np.nanmin(pos_df['x']), np.nanmax(pos_df['x']))
+    sane_midpoint_x = (np.nanmax(pos_df['x']) - np.nanmin(pos_df['x'])) / 2.0
+    print(f'sane_midpoint_x: {sane_midpoint_x}, hardcoded_track_midpoint_x: {hardcoded_track_midpoint_x}, track_min_max_x: {track_min_max_x}')
+
     zero_centered_x = pos_df['x'] - hardcoded_track_midpoint_x
     zero_crossings_x = np.diff(np.sign(zero_centered_x))
     # Find ascending crossings:
