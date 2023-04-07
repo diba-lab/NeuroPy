@@ -191,6 +191,7 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
     CAVIAT: Only works for the linear track (not more complex environments/mazes)
     USES: Used in KDibaOldDataSessionFormat as a post-processing step to replace the laps computed from the spikesII.mat data
 
+        2023-04-07 - Used in notebook to compute the laps if they aren't there so that we can filter by them.
     """
     if should_plot_laps_2d:
         from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
