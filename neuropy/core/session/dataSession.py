@@ -539,8 +539,8 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         position_df['lap_dir'] = np.full_like(position_df['lap'], -1) # set all 'lap_dir' to -1
 
         for i in np.arange(len(laps_df['lap_id'])):
-            curr_lap_id = laps_df.loc[i, 'lap_id']
-            curr_lap_t_start, curr_lap_t_stop = laps_df.loc[i, 'start'], laps_df.loc[i, 'stop']
+            curr_lap_id = laps_df.loc[laps_df.index[i], 'lap_id'] # The second epoch in a session doesn't start with indicies of the first lap, so instead we need to get laps_df.index[i] to get the correct index
+            curr_lap_t_start, curr_lap_t_stop = laps_df.loc[laps_df.index[i], 'start'], laps_df.loc[laps_df.index[i], 'stop']
             # curr_lap_t_start, curr_lap_t_stop = self.laps.get_lap_times(i)
             # print('lap[{}]: ({}, {}): '.format(curr_lap_id, curr_lap_t_start, curr_lap_t_stop))
             curr_lap_position_df_is_included = position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive='both') # returns a boolean array indicating inclusion in teh current lap

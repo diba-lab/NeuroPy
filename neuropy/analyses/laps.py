@@ -209,9 +209,13 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
     position_obj.compute_higher_order_derivatives()
     pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
     pos_df = position_obj.to_dataframe()
+    if pos_df.index[0] != 0:
+        # If the index doesn't start at zero, it will need to for compatibility with the lap splitting logic because it uses the labels via "df.loc"
+        pos_df['index_backup'] = pos_df.index  # Backup the current index to a new column
+        pos_df.reset_index(drop=True, inplace=True)  # Reset the index to 0
+
     # custom_test_laps = deepcopy(sess.laps)
     spikes_df = deepcopy(sess.spikes_df)
-
     lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df)
     (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies
 
