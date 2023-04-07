@@ -540,51 +540,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         else:
             assert (not self.compute_on_init), f"compute_on_init can't be true if setup_on_init isn't true!"
 
-    # def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), config:PlacefieldComputationParameters=None, setup_on_init:bool=True, compute_on_init:bool=True):
-    #     """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
-    #     without speed thresholds.
-
-    #     Parameters
-    #     ----------
-    #     spikes_df: pd.Dahistorical_snapshotstaFrame
-    #     position : core.Position
-    #     epochs : core.Epoch
-    #         specifies the list of epochs to include.
-    #     grid_bin : int
-    #         bin size of position bining, by default 5
-    #     speed_thresh : int
-    #         speed threshold for calculating place field
-    #     """
-    #     self._save_intermediate_spikes_maps = True # False is not yet implemented
-    #     if config is not None:
-    #         self.config = deepcopy(config)
-    #     else:
-    #         # build the config that will be used to perform the computations
-    #         self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh)
-
-    #     self.position_srate = position.sampling_rate
-        
-    #     self._included_thresh_neurons_indx = None
-    #     self._peak_frate_filter_function = None
-    #     self.ratemap = None
-    #     self.ratemap_spiketrains = None
-    #     self.ratemap_spiketrains_pos = None
-    #     self._filtered_pos_df = None
-    #     self._filtered_spikes_df = None
-    #     self.ndim = None # Set the dimensionality of the PfND object from the position's dimensionality in self.setup(...)
-    #     self.xbin = None
-    #     self.ybin = None
-    #     self.bin_info = None
-
-    #     # Perform the primary setup to build the placefield
-    #     if setup_on_init:
-    #         self.setup(position, spikes_df, epochs)
-    #         if compute_on_init:
-    #             self.compute()
-    #     else:
-    #         assert not compute_on_init, f"compute_on_init can't be true if setup_on_init isn't true!"
-    #     # done!
-
     @classmethod
     def from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True):
         """ initialize from the explicitly listed arguments instead of a specified config. """
@@ -612,6 +567,8 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         """
         # Set the dimensionality of the PfND object from the position's dimensionality
         self.ndim = position.ndim
+        self.position_srate = position.sampling_rate
+
 
         pos_df = position.to_dataframe()
         spk_df = spikes_df.copy()
@@ -656,6 +613,9 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
+
+        # TODO: 2023-04-07 - CORRECTNESS ISSUE HERE. Interpolating the positions/speeds to the spikes and then filtering makes it difficult to determine the occupancy of each bin.
+            # Kourosh and Kamran both process in terms of time bins.
 
         ## Binning with Fixed bin size:
         # 2022-12-09 - We want to be able to have both long/short track placefields have the same bins.
@@ -1133,14 +1093,17 @@ def perform_compute_placefields(active_session_spikes_df, active_pos, computatio
     active_epoch_placefields1D (Pf1D, optional) & active_epoch_placefields2D (Pf2D, optional): allow you to pass already computed Pf1D and Pf2D objects from previous runs and it won't recompute them so long as should_force_recompute_placefields=False, which is useful in interactive Notebooks/scripts
     Usage:
         active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config, should_force_recompute_placefields=True)
+
+
+    NOTE: 2023-04-07 - Uses only the spikes from PYRAMIDAL cells in `active_session_spikes_df` to perform the placefield computations. 
     """
     if progress_logger is None:
         progress_logger = lambda x, end='\n': print(x, end=end)
     ## Linearized (1D) Position Placefields:
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
         progress_logger('Recomputing active_epoch_placefields...', end=' ')
-        # PfND version:
-        active_epoch_placefields1D = PfND.from_config_values(deepcopy(active_session_spikes_df), deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
+        spikes_df = deepcopy(active_session_spikes_df).spikes.sliced_by_neuron_type('PYRAMIDAL') # Only use PYRAMIDAL neurons
+        active_epoch_placefields1D = PfND.from_config_values(spikes_df, deepcopy(active_pos.linear_pos_obj), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                           grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
 
@@ -1151,8 +1114,8 @@ def perform_compute_placefields(active_session_spikes_df, active_pos, computatio
     ## 2D Position Placemaps:
     if ((active_epoch_placefields2D is None) or should_force_recompute_placefields):
         progress_logger('Recomputing active_epoch_placefields2D...', end=' ')
-        # PfND version:
-        active_epoch_placefields2D = PfND.from_config_values(deepcopy(active_session_spikes_df), deepcopy(active_pos), epochs=included_epochs,
+        spikes_df = deepcopy(active_session_spikes_df).spikes.sliced_by_neuron_type('PYRAMIDAL') # Only use PYRAMIDAL neurons
+        active_epoch_placefields2D = PfND.from_config_values(spikes_df, deepcopy(active_pos), epochs=included_epochs,
                                           speed_thresh=computation_config.speed_thresh, frate_thresh=computation_config.frate_thresh,
                                           grid_bin=computation_config.grid_bin, grid_bin_bounds=computation_config.grid_bin_bounds, smooth=computation_config.smooth)
 

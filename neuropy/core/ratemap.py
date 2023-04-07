@@ -259,6 +259,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositi
         """
         assert ratemap_2D.ndim > 1, f"ratemap_2D ndim must be greater than 1 (usually 2) but ndim: {ratemap_2D.ndim}."
         ratemap_1D_spikes_maps = np.nanmax(ratemap_2D.spikes_maps, axis=-1) #.shape (n_cells, n_xbins)
+        ## 2023-04-07 - This isn't good enough, we need to recompute the tuning_curves from the maximum spikes_maps bin. The excessive occupancy at the end-caps is already diminishing the tuning curves here, right?
         ratemap_1D_tuning_curves = np.nanmax(ratemap_2D.tuning_curves, axis=-1) #.shape (n_cells, n_xbins)
         ratemap_1D_unsmoothed_tuning_maps = np.nanmax(ratemap_2D.unsmoothed_tuning_maps, axis=-1) #.shape (n_cells, n_xbins)
         ratemap_1D_occupancy = np.sum(ratemap_2D.occupancy, axis=-1) #.shape (n_xbins,)

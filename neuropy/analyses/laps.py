@@ -180,7 +180,12 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
 
 def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name='t_rel_seconds'):
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
-    Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)"""
+    Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)
+
+    CAVIAT: Only works for the 1D track (not the 2D track)
+    USES: Used in KDibaOldDataSessionFormat as a post-processing step to replace the laps computed from the spikesII.mat data
+
+    """
     if should_plot_laps_2d:
         from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
 
