@@ -13,7 +13,7 @@ from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua,
 from neuropy.utils.load_exported import import_mat_file
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
-from neuropy.analyses.laps import estimation_session_laps # for estimation_session_laps
+from neuropy.analyses.laps import estimate_session_laps # for estimation_session_laps
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
 
 
@@ -123,7 +123,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         else:
             basepath = Path(cls._session_default_basedir)
         return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
-                                basedir=basepath, post_load_functions=[lambda a_loaded_sess: estimation_session_laps(a_loaded_sess)])
+                                basedir=basepath, post_load_functions=[lambda a_loaded_sess: estimate_session_laps(a_loaded_sess)])
 
     
     # Pyramidal and Lap-Only:
@@ -177,7 +177,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
         # Build the new laps first:
-        sess = estimation_session_laps(sess)
+        sess = estimate_session_laps(sess)
 
         ## Lap-restricted computation epochs:
         is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())

@@ -182,9 +182,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     return (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs)
 
 
-
-
-def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name='t_rel_seconds'):
+def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None):
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
     Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)
 
@@ -198,6 +196,7 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
 
     # backup the extant laps object to prepare for the new one:
     if should_backup_extant_laps_obj:
+        assert not hasattr(sess, 'old_laps_obj'), 'sess.old_laps_obj already exists, so we can''t backup the extant laps object.'
         sess.old_laps_obj = deepcopy(sess.laps)
         
     if should_plot_laps_2d:
@@ -217,6 +216,11 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
 
     # custom_test_laps = deepcopy(sess.laps)
     spikes_df = deepcopy(sess.spikes_df)
+    if time_variable_name is None:
+        time_variable_name = 't_rel_seconds'
+    else:
+        time_variable_name = spikes_df.spikes.time_variable_name # get time_variable_name from the spikes_df object
+
     lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df)
     (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies
 
@@ -282,7 +286,7 @@ def estimation_session_laps(sess, N=20, should_backup_extant_laps_obj=False, sho
 from neuropy.utils.mixins.indexing_helpers import interleave_elements # for _build_new_lap_and_intra_lap_intervals
 
 def _build_new_lap_and_intra_lap_intervals(sess):
-    """ 
+    """ TODO - UNUSED
     
     Factored out of Notebook on 2022-12-13
     

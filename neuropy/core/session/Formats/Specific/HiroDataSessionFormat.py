@@ -14,7 +14,7 @@ from neuropy.utils.dynamic_container import DynamicContainer
 from neuropy.utils.load_exported import import_mat_file
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
-from neuropy.analyses.laps import estimation_session_laps # for estimation_session_laps
+from neuropy.analyses.laps import estimate_session_laps # for estimation_session_laps
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
 
 
