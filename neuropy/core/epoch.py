@@ -356,7 +356,7 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         from neuropy.utils.efficient_interval_search import filter_epochs_by_num_active_units
 
         if not isinstance(curr_epochs, pd.DataFrame):
-            curr_epochs = curr_epochs.get_valid_df() # convert to pd.DataFrame to start
+            curr_epochs = curr_epochs.to_dataframe() # .get_valid_df() # convert to pd.DataFrame to start
     
         assert isinstance(curr_epochs, pd.DataFrame), f'curr_replays must be a pd.DataFrame or Epoch object, but is {type(curr_epochs)}'
         # Ensure the dataframe representation has the required columns. TODO: is this needed?
