@@ -254,20 +254,6 @@ class ExplainedVariance(core.DataWriter):
 class NeuronEnsembles(core.DataWriter):
     """[summary]
 
-    Parameters
-    ----------
-    neurons : [type]
-        [description]
-    t_start : float
-        start of the ensemble detection period
-    t_stop : float
-        end of the ensemble detection period
-    bin_size : float
-        bining for calculating spike counts
-    frate_thresh : float
-        exclude neurons with firing rate below or equal to this number
-    ignore_epochs: core.Epoch
-
     References
     ----------
     1) van de Ven, G. M., Trouche, S., McNamara, C. G., Allen, K., & Dupret, D. (2016). Hippocampal offline reactivation consolidates recently formed cell assembly patterns during sharp wave-ripples. Neuron, 92(5), 968-974.Gido M. van de Ven et al. 2016
@@ -278,13 +264,26 @@ class NeuronEnsembles(core.DataWriter):
         neurons: core.Neurons,
         epochs: core.Epoch,
         bin_size=0.250,
-        ignore_epochs: core.Epoch = None,
+        # ignore_epochs: core.Epoch = None,
         verbose=True,
     ):
+        """
+
+        Parameters
+        ----------
+        neurons : core.Neurons
+            neurons to use for ensemble detection
+        epochs : core.Epoch
+            epochs with which ensembles are detected
+        bin_size : float, optional
+            binning size for spike counts, by default 0.250
+        verbose : bool, optional
+            _description_, by default True
+        """
         super().__init__()
 
         self.bin_size = bin_size
-        self.ignore_epochs = ignore_epochs
+        # self.ignore_epochs = ignore_epochs
         self.neurons, self.epochs = self._validate(neurons, epochs)
         self.weights = self._estimate_weights()
         self.verbose = verbose
