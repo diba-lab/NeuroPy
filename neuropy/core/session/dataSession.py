@@ -403,8 +403,8 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     
 
     ## Estimate Replay epochs from PBE and Position data.
-    @staticmethod
-    def perform_compute_estimated_replay_epochs(a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
+    @classmethod
+    def perform_compute_estimated_replay_epochs(cls, a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
@@ -422,8 +422,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             _type_: _description_
         """
         from pyphoplacecellanalysis.General.Pipeline.Stages.ComputationFunctions.DefaultComputationFunctions import KnownFilterEpochs
-        from neuropy.utils.efficient_interval_search import filter_epochs_by_speed
-        from neuropy.utils.efficient_interval_search import filter_epochs_by_num_active_units
 
         print('computing estimated replay epochs for session...\n')
         filter_epochs = a_session.pbe # Epoch object
@@ -439,19 +437,67 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
         # `KnownFilterEpochs.perform_get_filter_epochs_df(...)` returns one of the pre-known types of epochs (e.g. PBE, Ripple, etc.) as an Epoch object.
         curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=None) # returns Epoch object, don't use min_epoch_included_duration here, we'll do it in the next step.
-        
+
+        # Filter by the constraints specified
+        curr_replays = cls.filter_replay_epochs(curr_replays, pos_df=a_session.position.to_dataframe(), spikes_df=a_session.spikes_df.copy(), require_intersecting_epoch=a_session.ripple,
+            min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, debug_print=debug_print)
+
+        return curr_replays
+
+
+    @classmethod
+    def filter_replay_epochs(cls, curr_replays, pos_df, spikes_df, require_intersecting_epoch:Epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False) -> Epoch:
+        """filters the provided replay epochs by specified constraints.
+
+        Args:
+            a_session (_type_): _description_
+            min_epoch_included_duration (float, optional): all epochs shorter than min_epoch_included_duration will be excluded from analysis. Defaults to 0.06.
+            max_epoch_included_duration (float, optional): all epochs longer than max_epoch_included_duration will be excluded from analysis. Defaults to 0.6.
+            maximum_speed_thresh (float, optional): epochs are only included if the animal's interpolated speed (as determined from the session's position dataframe) is below the speed. Defaults to 2.0 [cm/sec].
+            min_inclusion_fr_active_thresh: minimum firing rate (in Hz) for a unit to be considered "active" for inclusion.
+            min_num_unique_aclu_inclusions: minimum number of unique active cells that must be included in an epoch to have it included.
+
+            save_on_compute (bool, optional): _description_. Defaults to False.
+            debug_print (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            _type_: _description_
+        """
+        from neuropy.utils.efficient_interval_search import filter_epochs_by_speed
+        from neuropy.utils.efficient_interval_search import filter_epochs_by_num_active_units
+        from neuropy.core.epoch import Epoch
+
+        if not isinstance(curr_replays, pd.DataFrame):
+            curr_replays = curr_replays.get_valid_df() # convert to pd.DataFrame to start
+    
+        assert isinstance(curr_replays, pd.DataFrame), f'curr_replays must be a pd.DataFrame or Epoch object, but is {type(curr_replays)}'
+        # Ensure the dataframe representation has the required columns. TODO: is this needed?
+        if not 'stop' in curr_replays.columns:
+            # Make sure it has the 'stop' column which is expected as opposed to the 'end' column
+            curr_replays['stop'] = curr_replays['end'].copy()
+        if not 'label' in curr_replays.columns:
+            # Make sure it has the 'stop' column which is expected as opposed to the 'end' column
+            curr_replays['label'] = curr_replays['flat_replay_idx'].copy()
+        # must convert back from pd.DataFrame to Epoch object to use the Epoch methods
+        curr_replays = Epoch(curr_replays)
+
+        ## Use the existing replay epochs from the session but ensure they look valid:
+
         ## Filter based on required overlap with Ripples:
-        curr_replays = Epoch.from_PortionInterval(a_session.ripple.to_PortionInterval().intersection(curr_replays.to_PortionInterval()))
+        if require_intersecting_epoch is not None:
+            curr_replays = Epoch.from_PortionInterval(require_intersecting_epoch.to_PortionInterval().intersection(curr_replays.to_PortionInterval()))
+        else:
+            curr_replays = Epoch.from_PortionInterval(curr_replays.to_PortionInterval()) # just do this to ensure non-overlapping
 
         # Filter by duration bounds:
         curr_replays = curr_replays.filtered_by_duration(min_duration=min_epoch_included_duration, max_duration=max_epoch_included_duration)
         # Filter *_replays_Interval by requiring them to be below the speed:
         if maximum_speed_thresh is not None:
-            curr_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(a_session.position.to_dataframe(), curr_replays, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
+            curr_replays, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(pos_df, curr_replays, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
 
         # 2023-02-10 - Trimming and Filtering Estimated Replay Epochs based on cell activity and pyramidal cell start/end times:
         if (min_inclusion_fr_active_thresh is not None) or (min_num_unique_aclu_inclusions is not None):
-            active_spikes_df = a_session.spikes_df.spikes.sliced_by_neuron_type('pyr') # trim based on pyramidal cell activity only
+            active_spikes_df = spikes_df.spikes.sliced_by_neuron_type('pyr') # trim based on pyramidal cell activity only
             spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat = filter_epochs_by_num_active_units(active_spikes_df, curr_replays, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions) # TODO: seems wasteful considering we compute all these spikes_df metrics and refinements and then don't return them.
             curr_replays = spike_trimmed_active_epochs # use the spike_trimmed_active_epochs as the new curr_replays
 
