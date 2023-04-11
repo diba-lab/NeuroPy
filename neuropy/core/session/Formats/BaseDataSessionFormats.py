@@ -80,7 +80,6 @@ class DataSessionFormatRegistryHolder(type):
         
     Usage:
         from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
-        from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
         from neuropy.core.session.Formats.Specific.BapunDataSessionFormat import BapunDataSessionFormatRegisteredClass
         from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
         from neuropy.core.session.Formats.Specific.RachelDataSessionFormat import RachelDataSessionFormat

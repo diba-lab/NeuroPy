@@ -15,6 +15,8 @@ from neuropy.utils.misc import safe_pandas_get_group, copy_if_not_none
 from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_position_columns # for perform_time_range_computation only
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
 
+## On saving:
+# AttributeError: 'PfND_TimeDependent' object has no attribute '_included_thresh_neurons_indx'
 
 class PlacefieldSnapshot(object):
     """Holds a snapshot in time for `PfND_TimeDependent`
@@ -88,7 +90,7 @@ class PlacefieldSnapshot(object):
 
 
 
-@define(slots=False)
+@define(slots=False, repr=False)
 class PfND_TimeDependent(PfND):
     """ Time Dependent N-dimensional Placefields
         A version PfND that can return the current state of placefields considering only up to a certain period of time.
