@@ -123,6 +123,7 @@ class PfND_TimeDependent(PfND):
     n_fragile_linear_neuron_IDXs: int = None
     # _included_thresh_neurons_indx: np.array
 
+
     # is_additive_mode = True # Default, cannot backtrack to earlier times.
     is_additive_mode = False # allows selecting any times of time range, but recomputes on each update (is not additive). This means later times will take longer to calculate the earlier ones. 
     
@@ -356,6 +357,9 @@ class PfND_TimeDependent(PfND):
         """ Initialize for the 0th timestamp 
         Depends on `self.n_fragile_linear_neuron_IDXs` and other values setup in `self._reset_after_neuron_index_update()`
         """
+        if not hasattr(self, '_included_thresh_neurons_indx'):
+            self._reset_after_neuron_index_update()
+
         dims_coord_tuple = self.dims_coord_tuple
 
         self.curr_spikes_maps_matrix = np.zeros((self.n_fragile_linear_neuron_IDXs, *dims_coord_tuple), dtype=int) # create an initially zero occupancy map
