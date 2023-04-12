@@ -217,6 +217,28 @@ class Fig:
                 ha="left",
             )
 
+    @staticmethod
+    def legend_with_text_only(ax, spacing=0.3, fontsize=None):
+        """Sometimes the legend marker take too much unnecessary space. This function removes the legend markers and changes the color of the corresponding text.
+
+        Parameters
+        ----------
+        ax : _type_
+            Axis for which the legend needs to be modified
+        """
+
+        if fontsize is None:
+            fontsize = mpl.rcParams["axes.titlesize"]
+
+        legend = ax.legend(
+            labelcolor="linecolor",
+            frameon=False,
+            prop=dict(weight="bold", size=fontsize),
+            labelspacing=spacing,  # vertical spacing between legend entries
+        )
+        for item in legend.legendHandles:
+            item.set_visible(False)
+
     def savefig(self, fname: Path, scriptname=None, fig=None, caption=None, dpi=300):
 
         if fig is None:
