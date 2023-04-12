@@ -95,6 +95,15 @@ class Position(DataWriter):
         speed = np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
         return np.hstack(([0], speed))
 
+    def get_smoothed(self, sigma):
+        dt = 1 / self.sampling_rate
+        smooth = lambda x: gaussian_filter1d(x, sigma=sigma / dt, axis=-1)
+        return Position(
+            traces=smooth(self.traces),
+            sampling_rate=self.sampling_rate,
+            t_start=self.t_start,
+        )
+
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "x": self.x})
 

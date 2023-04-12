@@ -104,10 +104,11 @@ class Colormap:
 class Fig:
     def __init__(
         self,
+        nrows,
+        ncols,
         num=None,
-        grid=(2, 2),
         size=(8.5, 11),
-        fontsize=5,
+        fontsize=8,
         axis_color="#545454",
         axis_lw=1.2,
         tick_size=3.5,
@@ -158,7 +159,7 @@ class Fig:
 
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
-        gs = gridspec.GridSpec(grid[0], grid[1], figure=fig, **kwargs)
+        gs = gridspec.GridSpec(nrows, ncols, figure=fig, **kwargs)
 
         # fig.subplots_adjust(**kwargs)
 
@@ -229,6 +230,28 @@ class Fig:
                 va="top",
                 ha="left",
             )
+
+    @staticmethod
+    def legend_with_text_only(ax, spacing=0.3, fontsize=None):
+        """Sometimes the legend marker take too much unnecessary space. This function removes the legend markers and changes the color of the corresponding text.
+
+        Parameters
+        ----------
+        ax : _type_
+            Axis for which the legend needs to be modified
+        """
+
+        if fontsize is None:
+            fontsize = mpl.rcParams["axes.titlesize"]
+
+        legend = ax.legend(
+            labelcolor="linecolor",
+            frameon=False,
+            prop=dict(weight="bold", size=fontsize),
+            labelspacing=spacing,  # vertical spacing between legend entries
+        )
+        for item in legend.legendHandles:
+            item.set_visible(False)
 
     def savefig(self, fname: Path, scriptname=None, fig=None, caption=None, dpi=300):
 

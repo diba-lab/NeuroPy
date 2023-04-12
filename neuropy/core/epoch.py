@@ -15,9 +15,16 @@ class Epoch(DataWriter):
             ), "Must specify file to load if no epochs dataframe entered"
             epochs = np.load(file, allow_pickle=True).item()["epochs"]
 
-        epochs = self._check_epochs(epochs)
+        self._epochs = self._validate(epochs)
+
+    def _validate(self, epochs):
+        assert isinstance(epochs, pd.DataFrame)
+        assert (
+            pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
+        ), "Epoch dataframe should at least have columns with names: start, stop, label"
         epochs.loc[:, "label"] = epochs["label"].astype("str")
-        self._epochs = epochs.sort_values(by=["start"]).reset_index(drop=True)
+        epochs = epochs.sort_values(by=["start"]).reset_index(drop=True)
+        return epochs.copy()
 
     @property
     def starts(self):
@@ -80,13 +87,6 @@ class Epoch(DataWriter):
         data = self.to_dataframe()
         data_new = pd.concat([data, df], axis=1)
         return Epoch(epochs=data_new, metadata=self.metadata)
-
-    def _check_epochs(self, epochs):
-        assert isinstance(epochs, pd.DataFrame)
-        assert (
-            pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
-        ), "Epoch dataframe should at least have columns with names: start, stop, label"
-        return epochs.copy()
 
     def __repr__(self) -> str:
         return f"{len(self.starts)} epochs\nSnippet: \n {self._epochs.head(5)}"
@@ -290,12 +290,8 @@ class Epoch(DataWriter):
 
     def merge_neighbors(self):
 
-        ep_times, ep_stops, ep_labels = (
-            self.starts,
-            self.stops,
-            self.labels
-        )
-        
+        ep_times, ep_stops, ep_labels = (self.starts, self.stops, self.labels)
+
         ep_durations = self.durations
 
         ind_delete = []
@@ -320,12 +316,11 @@ class Epoch(DataWriter):
 
                     ind_delete.append(inds[i])
 
-
         epochs_arr = np.vstack((ep_times, ep_stops)).T
         epochs_arr = np.delete(epochs_arr, ind_delete, axis=0)
-        labels_arr = np.delete(ep_labels,ind_delete)
+        labels_arr = np.delete(ep_labels, ind_delete)
 
-        return Epoch.from_array(epochs_arr[:,0],epochs_arr[:,1],labels_arr)
+        return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1], labels_arr)
 
     def contains(self, t):
         """Check if timepoints lie within epochs, must be non-overlapping epochs
