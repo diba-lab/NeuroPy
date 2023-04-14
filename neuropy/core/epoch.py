@@ -6,7 +6,9 @@ from pathlib import Path
 
 
 class Epoch(DataWriter):
-    def __init__(self, epochs: pd.DataFrame or None, metadata=None, file=None) -> None:
+    def __init__(
+        self, epochs: pd.DataFrame or dict or None, metadata=None, file=None
+    ) -> None:
         super().__init__(metadata=metadata)
 
         if epochs is None:
@@ -18,10 +20,13 @@ class Epoch(DataWriter):
         self._epochs = self._validate(epochs)
 
     def _validate(self, epochs):
+        if isinstance(epochs, dict):
+            epochs = pd.DataFrame(epochs)
+
         assert isinstance(epochs, pd.DataFrame)
         assert (
             pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
-        ), "Epoch dataframe should at least have columns with names: start, stop, label"
+        ), "epochs should at least have columns/keys with names: start, stop, label"
         epochs.loc[:, "label"] = epochs["label"].astype("str")
         epochs = epochs.sort_values(by=["start"]).reset_index(drop=True)
         return epochs.copy()
