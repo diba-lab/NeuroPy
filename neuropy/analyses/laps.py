@@ -113,6 +113,9 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     track_min_max_x = (np.nanmin(pos_df['x']), np.nanmax(pos_df['x']))
     sane_midpoint_x = (np.nanmax(pos_df['x']) - np.nanmin(pos_df['x'])) / 2.0
     print(f'sane_midpoint_x: {sane_midpoint_x}, hardcoded_track_midpoint_x: {hardcoded_track_midpoint_x}, track_min_max_x: {track_min_max_x}')
+    if hardcoded_track_midpoint_x is None:
+        print(f'hardcoded_track_midpoint_x is None, falling back to sane_midpoint_x... {sane_midpoint_x}')
+        hardcoded_track_midpoint_x = sane_midpoint_x
 
     zero_centered_x = pos_df['x'] - hardcoded_track_midpoint_x
     zero_crossings_x = np.diff(np.sign(zero_centered_x))
@@ -221,7 +224,8 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     else:
         time_variable_name = spikes_df.spikes.time_variable_name # get time_variable_name from the spikes_df object
 
-    lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df)
+    lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None) # allow smart midpoint determiniation
+
     (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies
 
     ## Get the timestamps corresponding to the indicies:
