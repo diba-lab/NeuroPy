@@ -287,6 +287,15 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
 
     # ==================================================================================================================== #
+    # Helper Computation Operations                                                                                        #
+    # ==================================================================================================================== #
+
+    def replace_session_replays_with_estimates(self, debug_print=False, **kwargs):
+        """ 2023-04-20 - Backup the loaded replays if they exist for the session to `.replay_backup`, and then estimate them fresh and assign them to the `a_session.replay` """
+        return DataSession.perform_replace_session_replays_with_estimates(self, debug_print=debug_print, **kwargs)
+
+
+    # ==================================================================================================================== #
     # Static Computation Helper Methods                                                                                    #
     # ==================================================================================================================== #
     
@@ -386,7 +395,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
 
     @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
-    def estimate_replay_epochs(self, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
+    def estimate_replay_epochs(self, require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
@@ -399,12 +408,12 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         Returns:
             _type_: _description_
         """
-        return DataSession.perform_compute_estimated_replay_epochs(self, min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, save_on_compute=save_on_compute, debug_print=debug_print)
+        return DataSession.perform_compute_estimated_replay_epochs(self, require_intersecting_epoch=require_intersecting_epoch, min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, save_on_compute=save_on_compute, debug_print=debug_print)
     
 
     ## Estimate Replay epochs from PBE and Position data.
     @classmethod
-    def perform_compute_estimated_replay_epochs(cls, a_session, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
+    def perform_compute_estimated_replay_epochs(cls, a_session, require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
         Args:
@@ -438,8 +447,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # `KnownFilterEpochs.perform_get_filter_epochs_df(...)` returns one of the pre-known types of epochs (e.g. PBE, Ripple, etc.) as an Epoch object.
         curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=None) # returns Epoch object, don't use min_epoch_included_duration here, we'll do it in the next step.
 
+        # require_intersecting_epoch = a_session.ripple # previously was
+
         # Filter by the constraints specified
-        curr_replays = cls.filter_replay_epochs(curr_replays, pos_df=a_session.position.to_dataframe(), spikes_df=a_session.spikes_df.copy(), require_intersecting_epoch=a_session.ripple,
+        curr_replays = cls.filter_replay_epochs(curr_replays, pos_df=a_session.position.to_dataframe(), spikes_df=a_session.spikes_df.copy(), require_intersecting_epoch=require_intersecting_epoch,
             min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, debug_print=debug_print)
 
         return curr_replays
@@ -467,6 +478,36 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         """
         from neuropy.core.epoch import Epoch
         return Epoch.filter_epochs(curr_epochs=curr_replays, pos_df=pos_df, spikes_df=spikes_df, **kwargs)
+
+
+    @classmethod
+    def perform_replace_session_replays_with_estimates(cls, a_session, debug_print=False, **kwargs):
+        """ 2023-04-20 - Backup the loaded replays if they exist for the session to `.replay_backup`, and then estimate them fresh and assign them to the `a_session.replay` 
+        Usage:
+            long_replays, short_replays, global_replays = [replace_session_replays_with_estimates(a_session, debug_print=False) for a_session in [long_session, short_session, global_session]]
+        """
+        def _subfn_backup_loaded_replays_if_needed(a_session, debug_print=False):
+            if not hasattr(a_session, 'replay_backup'):
+                # No existing replay backup, make one
+                a_session.replay_backup = deepcopy(a_session.replay)
+                if debug_print:
+                    print(f'backed up loaded replay object')
+            else:
+                if debug_print:
+                    print(f'backup of loaded replay already exists.')
+
+        ## BEGIN FUNCTION BODY
+        if a_session.has_replays:
+            _subfn_backup_loaded_replays_if_needed(a_session=a_session, debug_print=debug_print)
+            # null-out the replay objects
+            a_session.replay = None #, short_session.replay, global_session.replay = [None, None, None]
+        else:
+            if debug_print:
+                print(f'Replays missing from sessions. Computing replays...')
+
+        # compute estimates and assign them as the session's .replay value
+        a_session.replay = a_session.estimate_replay_epochs(**({'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.01, 'min_num_unique_aclu_inclusions': 3} | kwargs)).to_dataframe()
+        return a_session.replay
 
 
 
