@@ -1,4 +1,6 @@
 from importlib import metadata
+import warnings
+from warnings import warn
 import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
@@ -377,20 +379,30 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         else:
             curr_epochs = cls.from_PortionInterval(curr_epochs.to_PortionInterval()) # just do this to ensure non-overlapping
 
+        if curr_epochs.n_epochs == 0:
+            warn(f'curr_epochs already empty prior to any filtering')
+
         # Filter by duration bounds:
         curr_epochs = curr_epochs.filtered_by_duration(min_duration=min_epoch_included_duration, max_duration=max_epoch_included_duration)
+
         # Filter *_replays_Interval by requiring them to be below the speed:
         if maximum_speed_thresh is not None:
             assert pos_df is not None, "must provide pos_df if filtering by speed"
-            curr_epochs, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(pos_df, curr_epochs, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
+            if curr_epochs.n_epochs > 0:
+                curr_epochs, above_speed_threshold_intervals, below_speed_threshold_intervals = filter_epochs_by_speed(pos_df, curr_epochs, speed_thresh=maximum_speed_thresh, debug_print=debug_print)
+            else:
+                warn(f'curr_epochs already empty prior to filtering by speed')
 
         # 2023-02-10 - Trimming and Filtering Estimated Replay Epochs based on cell activity and pyramidal cell start/end times:
         if (min_inclusion_fr_active_thresh is not None) or (min_num_unique_aclu_inclusions is not None):
             assert spikes_df is not None, "must provide spikes_df if filtering by active units"
             active_spikes_df = spikes_df.spikes.sliced_by_neuron_type('pyr') # trim based on pyramidal cell activity only
-            spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat = filter_epochs_by_num_active_units(active_spikes_df, curr_epochs, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions) # TODO: seems wasteful considering we compute all these spikes_df metrics and refinements and then don't return them.
-            curr_epochs = spike_trimmed_active_epochs # use the spike_trimmed_active_epochs as the new curr_replays
-
+            if curr_epochs.n_epochs > 0:
+                spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat = filter_epochs_by_num_active_units(active_spikes_df, curr_epochs, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions) # TODO: seems wasteful considering we compute all these spikes_df metrics and refinements and then don't return them.
+                curr_epochs = spike_trimmed_active_epochs # use the spike_trimmed_active_epochs as the new curr_replays
+            else:
+                warn(f'curr_epochs already empty prior to filtering by firing rate or minimum active units')
+                
         return curr_epochs
 
 

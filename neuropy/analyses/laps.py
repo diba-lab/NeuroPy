@@ -233,6 +233,9 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     # desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = [pos_times[idxs] for idxs in (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs)]
 
     custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs)
+    assert custom_test_laps_obj.n_laps > 0, f"estimation for {sess} produced no laps!"
+
+
     ## Determine the spikes included with each computed lap:
     custom_test_laps_obj = _subfn_compute_laps_spike_indicies(custom_test_laps_obj, spikes_df, time_variable_name=time_variable_name)
     sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
