@@ -12,6 +12,7 @@ class PfnD_PlotOccupancy_Mixin:
         subtitle_string = ' '.join([f'{self.config.str_for_display(True)}'])
         occupancy_fig, occupancy_ax = plot_placefield_occupancy(self, fig=fig, ax=ax, **kwargs)
         occupancy_fig.suptitle(title_string, fontsize='14')
+        occupancy_fig.canvas.manager.set_window_title(title_string) # sets the window's title
         occupancy_ax.set_title(subtitle_string, fontsize='10')
         return occupancy_fig, occupancy_ax
     

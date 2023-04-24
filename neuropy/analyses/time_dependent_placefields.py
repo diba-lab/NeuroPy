@@ -16,7 +16,8 @@ from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_pos
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
 
 ## On saving:
-# AttributeError: 'PfND_TimeDependent' object has no attribute '_included_thresh_neurons_indx'
+# 2023-04-20 - AttributeError: 'PfND_TimeDependent' object has no attribute '_included_thresh_neurons_indx'
+# I think this relates to `__attrs_post_init__` not being called upon unpickling.
 
 class PlacefieldSnapshot(object):
     """Holds a snapshot in time for `PfND_TimeDependent`
