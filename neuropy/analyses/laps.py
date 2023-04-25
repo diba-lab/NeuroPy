@@ -244,6 +244,7 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         # plot computed:
         fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=False)
         out_axes_list[0].set_title('New Pho Position Thresholding Estimated Laps')
+        fig.canvas.manager.set_window_title('New Pho Position Thresholding Estimated Laps')
 
     return sess
 
