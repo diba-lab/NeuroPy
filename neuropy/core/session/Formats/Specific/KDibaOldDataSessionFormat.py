@@ -491,19 +491,28 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             time_variable_name = 't_seconds'
             sess, laps_df = __default_kdiba_spikeII_load_laps_vars(sess, time_variable_name=time_variable_name)
             laps_df
+
+            2023-04-26 - Added: ('file_version'), Removed: ('replay_epoch_ids', 'epoch_rel_replay_ids', 'replay_start_stop_rel_sec')
+                Translates to removing: ('epoch_id','rel_id') from replay dataframe
         """
         ## Get Replay Events
         session_replay_mat_file_path = Path(session.basepath).joinpath('{}.replay_info.mat'.format(session.name))
         replay_mat_file = import_mat_file(mat_import_file=session_replay_mat_file_path)
-        mat_variables_to_extract = ['nreplayepochs', 'replay_epoch_ids', 'epoch_rel_replay_ids', 'start_t_seconds', 'end_t_seconds', 'replay_r', 'replay_p', 'replay_template_id']
+
+
+        # mat_variables_to_extract = ['nreplayepochs', 'replay_epoch_ids', 'epoch_rel_replay_ids', 'start_t_seconds', 'end_t_seconds', 'replay_r', 'replay_p', 'replay_template_id']
+        mat_variables_to_extract = ['nreplayepochs', 'start_t_seconds', 'end_t_seconds', 'replay_r', 'replay_p', 'replay_template_id']
+        optional_mat_variables_to_extract = ['file_version']
+
         num_mat_variables = len(mat_variables_to_extract)
         flat_var_out_dict = dict()
         for i in np.arange(num_mat_variables):
             curr_var_name = mat_variables_to_extract[i]
             flat_var_out_dict[curr_var_name] = replay_mat_file[curr_var_name].flatten()
 
-        replay_df = pd.DataFrame({'epoch_id': flat_var_out_dict['replay_epoch_ids'],
-                                'rel_id': flat_var_out_dict['epoch_rel_replay_ids'],
+        replay_df = pd.DataFrame({
+                                # 'epoch_id': flat_var_out_dict['replay_epoch_ids'],
+                                # 'rel_id': flat_var_out_dict['epoch_rel_replay_ids'],
                                 'start': flat_var_out_dict['start_t_seconds'],
                                 'end': flat_var_out_dict['end_t_seconds'],
                                 'replay_r': flat_var_out_dict['replay_r'],
@@ -512,7 +521,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                                 })
 
         replay_df['flat_replay_idx'] = np.array(replay_df.index) # Add the flat index column
-        replay_df[['epoch_id', 'rel_id', 'flat_replay_idx', 'template_id']] = replay_df[['epoch_id', 'rel_id', 'flat_replay_idx', 'template_id']].astype('int') # convert integer calumns to correct datatype
+        replay_df[['flat_replay_idx', 'template_id']] = replay_df[['flat_replay_idx', 'template_id']].astype('int') # convert integer calumns to correct datatype
         replay_df['duration'] = replay_df['end'] - replay_df['start']
         session.replay = replay_df # Assign the replay to the session's .replay object
         return session, replay_df
