@@ -21,7 +21,10 @@ class Epoch(DataWriter):
 
     def _validate(self, epochs):
         if isinstance(epochs, dict):
-            epochs = pd.DataFrame(epochs)
+            try:
+                epochs = pd.DataFrame(epochs)
+            except:
+                "If epochs is a dictionary then it should be pandas compatible"
 
         assert isinstance(epochs, pd.DataFrame)
         assert (
