@@ -217,6 +217,12 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
                     raise NotImplementedError
         self._neuron_type = value
 
+    @property
+    def aclu_to_neuron_type_map(self):
+        """ builds a map from the neuron_id to the neuron_type """
+        return dict(zip(self.neuron_ids, self.neuron_type))
+
+
 
     def __getitem__(self, i):    
         # print('Neuron.__getitem__(i: {}): \n\t n_neurons: {}'.format(i, self.n_neurons))
