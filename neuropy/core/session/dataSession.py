@@ -294,6 +294,12 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         """ 2023-04-20 - Backup the loaded replays if they exist for the session to `.replay_backup`, and then estimate them fresh and assign them to the `a_session.replay` """
         return DataSession.perform_replace_session_replays_with_estimates(self, debug_print=debug_print, **kwargs)
 
+    def replace_session_laps_with_estimates(self, **kwargs):
+        """ 2023-05-02 - Estimates the laps and replaces the existing laps object. """
+        from neuropy.analyses.laps import estimate_session_laps
+        self = estimate_session_laps(self, **kwargs)
+        self.compute_position_laps()
+        return self
 
     # ==================================================================================================================== #
     # Static Computation Helper Methods                                                                                    #
@@ -553,7 +559,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         return Laps.build_lap_specific_lists(self, include_empty_lists=True) # when surrounded by deepcopy, this causes memory problems
     
     
-    
     def filtered_by_laps(self, lap_indices=None):
         """ Returns a copy of this session with all of its members filtered by the laps.
         """
@@ -662,3 +667,10 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         return spk_df
 
 
+    # Plotting
+    def plot_laps_2d(self):
+        from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
+        fig, out_axes_list = plot_laps_2d(self, legacy_plotting_mode=False)
+        out_axes_list[0].set_title('New Pho Position Thresholding Estimated Laps')
+        fig.canvas.manager.set_window_title('New Pho Position Thresholding Estimated Laps')
+        return fig, out_axes_list
