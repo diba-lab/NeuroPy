@@ -123,6 +123,9 @@ class PfND_TimeDependent(PfND):
     fragile_linear_neuron_IDXs: np.array = None
     n_fragile_linear_neuron_IDXs: int = None
     # _included_thresh_neurons_indx: np.array
+    # _filtered_spikes_df: np.ndarray = field(init=False)
+    # _included_thresh_neurons_indx: np.ndarray = field(init=False)
+    # _peak_frate_filter_function: list = field(init=False)
 
 
     # is_additive_mode = True # Default, cannot backtrack to earlier times.
@@ -476,13 +479,27 @@ class PfND_TimeDependent(PfND):
         self._apply_snapshot_data(snapshot_t, snapshot_data)
         
     def to_dict(self):
+        # ['spikes_df', 'position', 'epochs', 'config', 'position_srate', 'setup_on_init', 'compute_on_init', '_save_intermediate_spikes_maps', '_included_thresh_neurons_indx', '_peak_frate_filter_function', '_ratemap', '_ratemap_spiketrains', '_ratemap_spiketrains_pos', '_filtered_pos_df', '_filtered_spikes_df', 'ndim', 'xbin', 'ybin', 'bin_info', 'last_t', 'historical_snapshots', 'fragile_linear_neuron_IDXs', 'n_fragile_linear_neuron_IDXs']
+
+        included_key_names = ['spikes_df', 'position', 'epochs', 'config', 'position_srate', 'setup_on_init', 'compute_on_init',
+          '_save_intermediate_spikes_maps', '_filtered_pos_df', '_filtered_spikes_df',
+           'ndim', 'xbin', 'ybin', 'bin_info', 'last_t', 'historical_snapshots', 'fragile_linear_neuron_IDXs', 'n_fragile_linear_neuron_IDXs']
+
         # print(f'to_dict(...): {list(self.__dict__.keys())}')
         curr_snapshot_time, curr_snapshot_data = self.snapshot() # take a snapshot of the current state
         # self._setup_time_varying() # reset completely before saving. Throw out everything
         # Excluded from serialization: ['_included_thresh_neurons_indx', '_peak_frate_filter_function']
         # filter_fn = filters.exclude(fields(PfND)._included_thresh_neurons_indx, int)
-        filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function", "_ratemap", "_ratemap_spiketrains", "_ratemap_spiketrains_pos"]
-        return asdict(self, filter=filter_fn) # serialize using attrs.asdict but exclude the listed properties
+        # [an_attr.name for an_attr in self.__attrs_attrs__]
+        # print(f'{[an_attr.name for an_attr in self.__attrs_attrs__]}')
+
+        # filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function", "_ratemap", "_ratemap_spiketrains", "_ratemap_spiketrains_pos"]
+        # if not hasattr(self, '_included_thresh_neurons_indx'):
+        #     self.reset()
+        # filter_fn = lambda attr, value: attr.name in included_key_names
+        # _out = asdict(self, recurse=False, filter=filter_fn) # serialize using attrs.asdict but exclude the listed properties
+        _out = {k:v for k,v in self.__dict__.items() if k in included_key_names}
+        return _out
         
 
     ## For serialization/pickling:
