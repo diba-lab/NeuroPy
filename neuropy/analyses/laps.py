@@ -23,36 +23,6 @@ from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs #
 # Define Run:
 	# Find all times the animal crosses the midline (the line bisecting the track through its midpoint) of the track.
 
-# def compute_lap_estimation(pos_df):
-#     # estimates the laps from the positions
-# 	# pos_df at least has the columns 't', 'x'
-# 	velocity = np.insert(np.diff(pos_df['x']), 0, 0)
-# 	acceleration = np.insert(np.diff(velocity), 0, 0)
-
-# def _build_laps_object(pos_t_rel_seconds, desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings):
-#     ## Build a custom Laps dataframe from the found points:
-#     ### Note that these crossing_* indicies are for the position dataframe, not the spikes_df (which is what the previous Laps object was computed from).
-#         # This means we don't have 'start_spike_index' or 'end_spike_index', and we'd have to compute them if we want them.
-#     custom_test_laps_df = pd.DataFrame({
-#         'start_position_index': np.concatenate([desc_crossing_beginings, asc_crossing_beginings]),
-#         'end_position_index': np.concatenate([desc_crossing_endings, asc_crossing_endings]),
-#         'lap_dir': np.concatenate([np.zeros_like(desc_crossing_midpoints), np.ones_like(asc_crossing_midpoints)])
-#     })
-#     # Get start/end times from the indicies
-#     custom_test_laps_df['start_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_beginings], pos_t_rel_seconds[asc_crossing_beginings]])
-#     custom_test_laps_df['end_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_endings], pos_t_rel_seconds[asc_crossing_endings]])
-#     custom_test_laps_df['start'] = custom_test_laps_df['start_t_rel_seconds']
-#     custom_test_laps_df['stop'] = custom_test_laps_df['end_t_rel_seconds']
-#     # Sort the laps based on the start time, reset the index, and finally assign lap_id's from the sorted laps
-#     custom_test_laps_df = custom_test_laps_df.sort_values(by=['start']).reset_index(drop=True) # sorts all values in ascending order
-#     custom_test_laps_df['lap_id'] = (custom_test_laps_df.index + 1) # set the lap_id column to the index starting at 1
-#     return Laps(custom_test_laps_df)
-
-# def estimate_laps(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
-#     desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = _perform_estimate_laps(pos_df, hardcoded_track_midpoint_x=hardcoded_track_midpoint_x)
-#     custom_test_laps_obj = _build_laps_object(pos_df['t'].to_numpy(), desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings)
-
-
 
 def _subfn_perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
     """ Adds the 'start_spike_index' and 'end_spike_index' columns to the laps_df
