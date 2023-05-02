@@ -168,4 +168,4 @@ class Laps(DataFrameRepresentable, DataWriter):
         # included_df = laps_obj._data[((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop))]
         return Laps(included_df, metadata=laps_obj.metadata)
         
-        
+ 
