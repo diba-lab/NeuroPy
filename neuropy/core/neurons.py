@@ -1,4 +1,5 @@
 from typing import Sequence, Union
+from functools import total_ordering
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
@@ -10,13 +11,13 @@ from .datawriter import DataWriter
 # from .flattened_spiketrains import FlattenedSpiketrains
 
 from copy import deepcopy
-from enum import Enum, unique, IntEnum
+from enum import Enum, unique
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 
-
+@total_ordering
 @unique
 class NeuronType(Enum):
     PYRAMIDAL = 0
@@ -31,11 +32,17 @@ class NeuronType(Enum):
     def describe(self):
         self.name, self.value
     
-    
     # def __repr__(self) -> str:
     #     return super().__repr__()
     
+    def __eq__(self, other):
+        return self.value == other.value
     
+    def __le__(self, other):
+        return self.value < other.value
+    
+    def __hash__(self):
+        return hash(self.value)
     
     @property
     def shortClassName(self):
