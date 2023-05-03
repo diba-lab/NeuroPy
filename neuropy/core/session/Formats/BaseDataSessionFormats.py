@@ -61,6 +61,7 @@ def find_local_session_paths(local_session_parent_path, blacklist=[], debug_prin
     try:
         found_local_session_paths_list = [x for x in local_session_parent_path.iterdir() if x.is_dir()]
         local_session_names_list = [a_path.name for a_path in found_local_session_paths_list if a_path.name not in blacklist]
+        local_session_names_list = sorted(local_session_names_list)
         if debug_print:
             print(f'local_session_names_list: {local_session_names_list}')
         local_session_paths_list = [local_session_parent_path.joinpath(a_name).resolve() for a_name in local_session_names_list]
