@@ -116,7 +116,6 @@ class Fig:
         fontname="Arial",
         **kwargs,
     ):
-
         # --- plot settings --------
         mpl.rcParams["font.family"] = fontname
         # mpl.rcParams["font.sans-serif"] = "Arial"
@@ -167,7 +166,9 @@ class Fig:
         self.gs = gs
 
     def subplot(self, subplot_spec, sharex=None, sharey=None, **kwargs):
-        return self.fig.add_subplot(subplot_spec, sharex=sharex, sharey=sharey, **kwargs)
+        return self.fig.add_subplot(
+            subplot_spec, sharex=sharex, sharey=sharey, **kwargs
+        )
 
     def add_subfigure(self, *args, **kwargs) -> mpl.figure.SubFigure:
         return self.fig.add_subfigure(*args, **kwargs)
@@ -254,7 +255,6 @@ class Fig:
             item.set_visible(False)
 
     def savefig(self, fname: Path, scriptname=None, fig=None, caption=None, dpi=300):
-
         if fig is None:
             fig = self.fig
 
@@ -276,7 +276,7 @@ class Fig:
                 alpha=0.5,
             )
 
-        fig.savefig(filename, dpi=dpi, backend="pdf")
+        fig.savefig(filename, dpi=dpi)
 
         if caption is not None:
             fig_caption = Fig(grid=(1, 1))
@@ -304,13 +304,11 @@ class Fig:
 
     @staticmethod
     def toggle_spines(ax, sides=("top", "right"), keep=False):
-
         for side in sides:
             ax.spines[side].set_visible(keep)
 
     @staticmethod
     def set_spines_width(ax, lw=2, sides=("bottom", "left")):
-
         for side in sides:
             ax.spines[side].set_linewidth(lw)
 
