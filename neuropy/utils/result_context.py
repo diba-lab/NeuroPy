@@ -93,7 +93,7 @@ class IdentifyingContext(DiffableObject, object):
         return self
 
 
-    def adding_context(self, collision_prefix:str, **additional_context_items):
+    def adding_context(self, collision_prefix:str, **additional_context_items) -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context 
         

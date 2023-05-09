@@ -124,7 +124,18 @@ class NeuronType(Enum):
         return np.array([NeuronType.from_bapun_npy_style_string(_) for _ in np.array(bapun_style_neuron_types)])
         
 
-    
+    ## Extended Properties such as colors
+    @classmethod
+    def classRenderColors(cls):
+        """ colors used to render each type of neuron """
+        return np.array(["#e97373","#22202079","#435bdf"])
+
+    @property
+    def renderColor(self):
+        return NeuronType.classRenderColors()[self.value]
+  
+  
+
 class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, ConcatenationInitializable, DataWriter):
     """Class to hold a group of spiketrains and their labels, ids etc."""
 
