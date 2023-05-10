@@ -690,3 +690,71 @@ def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
     return fig, out_axes_list
 
 
+# ==================================================================================================================== #
+# 2023-05-09 Misc Utility Functions                                                                                    #
+# ==================================================================================================================== #
+
+import matplotlib as mpl
+
+def extract_figure_properties(fig):
+    """ UNTESTED, UNFINISHED
+    Extracts styles, formatting, and set options from a matplotlib Figure object.
+    Returns a dictionary with the following keys:
+        - 'title': the Figure title (if any)
+        - 'xlabel': the label for the x-axis (if any)
+        - 'ylabel': the label for the y-axis (if any)
+        - 'xlim': the limits for the x-axis (if any)
+        - 'ylim': the limits for the y-axis (if any)
+        - 'xscale': the scale for the x-axis (if any)
+        - 'yscale': the scale for the y-axis (if any)
+        - 'legend': the properties of the legend (if any)
+        - 'grid': the properties of the grid (if any)
+        
+        
+        Usage:        
+            curr_fig = plt.gcf()
+            curr_fig = out.figures[0]
+            curr_fig_properties = extract_figure_properties(curr_fig)
+            curr_fig_properties
+
+    """
+    properties = {}
+    
+    # Extract title
+    properties['title'] = fig._suptitle.get_text() if fig._suptitle else None
+    
+    # Extract axis labels and limits
+    for ax in fig.get_axes():
+        if ax.get_label() == 'x':
+            properties['xlabel'] = ax.get_xlabel()
+            properties['xlim'] = ax.get_xlim()
+            properties['xscale'] = ax.get_xscale()
+        elif ax.get_label() == 'y':
+            properties['ylabel'] = ax.get_ylabel()
+            properties['ylim'] = ax.get_ylim()
+            properties['yscale'] = ax.get_yscale()
+    
+    # Extract legend properties
+    if hasattr(fig, 'legend_'):
+        legend = fig.legend_
+        if legend:
+            properties['legend'] = {
+                'title': legend.get_title().get_text(),
+                'labels': [t.get_text() for t in legend.get_texts()],
+                'loc': legend._loc,
+                'frameon': legend.get_frame_on(),
+            }
+    
+    # Extract grid properties
+    first_ax = fig.axes[0]
+    grid = first_ax.get_gridlines()[0] if first_ax.get_gridlines() else None
+    if grid:
+        properties['grid'] = {
+            'color': grid.get_color(),
+            'linestyle': grid.get_linestyle(),
+            'linewidth': grid.get_linewidth(),
+        }
+    
+    return properties
+
+
