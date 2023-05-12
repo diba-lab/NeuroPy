@@ -133,3 +133,7 @@ neuropy/.vscode/settings.json
 .vscode/bookmarks.json
 desktop.ini
 *.sha256
+neuropy/cscope.files
+neuropy/cscope.out
+neuropy/myproject.db
+neuropy/tags
