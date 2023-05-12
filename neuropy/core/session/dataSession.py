@@ -497,7 +497,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
                 # No existing replay backup, make one
                 a_session.replay_backup = deepcopy(a_session.replay)
                 if debug_print:
-                    print(f'backed up loaded replay object')
+                    print(f'backed up loaded replay object to `session.replay_backup`')
             else:
                 if debug_print:
                     print(f'backup of loaded replay already exists.')
