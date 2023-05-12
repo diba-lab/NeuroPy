@@ -1,5 +1,4 @@
-﻿"""GPU implementation of ccg.py. Almost identical code using cupy with a few modifications. Up to 8x speed-ups for
-hippocampal interneuron-pyramidal cell pair from 3 hour Hiro Mirawaki session"""
+﻿"""GPU implementation of ccg.py. Almost identical code using cupy with a few modifications. Up to 8x speed-ups for hippocampal interneuron-pyramidal cell pair from 3 hour Hiro Mirawaki session"""
 
 import cupy as cp
 import numpy as np
