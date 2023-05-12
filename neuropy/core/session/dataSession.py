@@ -4,7 +4,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 # from klepto.safe import lru_cache as memoized
-from neuropy.utils.result_context import context_extraction as memoized
+# from neuropy.utils.result_context import context_extraction as memoized
 
 from pathlib import Path
 from neuropy import core
@@ -400,7 +400,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     #     return active_epoch_placefields1D, active_epoch_placefields2D
 
 
-    @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
+    # @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
     def estimate_replay_epochs(self, require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
 
