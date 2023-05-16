@@ -77,7 +77,7 @@ def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_p
 
 
 class DataSessionFormatRegistryHolder(type):
-    """ a metaclass that automatically registers its conformers as a known loadable data session format.     
+    """ a metaclass that automatically registers its conformers as a known loadable data session format.
         
     Usage:
         from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder
@@ -115,13 +115,12 @@ class DataSessionFormatRegistryHolder(type):
     def get_registry_known_data_session_type_dict(cls, override_data_basepath=None):
         """ returns a dict<str, KnownDataSessionTypeProperties> with keys corresponding to the registered short-names of the data_session_type (like 'kdiba', or 'bapun') and values of KnownDataSessionTypeProperties. """
         return {a_class._session_class_name:a_class.get_known_data_session_type_properties(override_basepath=override_data_basepath) for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
-    
-    
+
 
 
 class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHolder):
     """
-    Any class that will inherits from DataSessionFormatBaseRegisteredClass will be included
+    Any class that will inherit from DataSessionFormatBaseRegisteredClass will be included
     inside the dict RegistryHolder.REGISTRY, the key being the name of the
     class and the associated value, the class itself.
     

@@ -488,7 +488,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
     @classmethod
     def perform_replace_session_replays_with_estimates(cls, a_session, debug_print=False, **kwargs):
-        """ 2023-04-20 - Backup the loaded replays if they exist for the session to `.replay_backup`, and then estimate them fresh and assign them to the `a_session.replay` 
+        """ 2023-04-20 - Backup the loaded replays if they exist for the session to `a_session.replay_backup`, and then estimate them fresh and assign them to the `a_session.replay` 
         Usage:
             long_replays, short_replays, global_replays = [replace_session_replays_with_estimates(a_session, debug_print=False) for a_session in [long_session, short_session, global_session]]
         """
