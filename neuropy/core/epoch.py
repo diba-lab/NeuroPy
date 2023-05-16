@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
-from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin
+from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin, TimeColumnAliasesProtocol
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, deduplicate_epochs # for EpochsAccessor's .get_non_overlapping_df()
 
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
@@ -40,15 +40,16 @@ class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
         
 
 @pd.api.extensions.register_dataframe_accessor("epochs")
-class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectProtocol):
+class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectProtocol):
     """ A Pandas pd.DataFrame representation of [start, stop, label] epoch intervals """
     
-    _column_name_synonyms = {"start":{'begin','start_t'},
+    _time_column_name_synonyms = {"start":{'begin','start_t'},
             "stop":['end','stop_t'],
             "label":['name', 'id', 'flat_replay_idx']
         }
 
     def __init__(self, pandas_obj):
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict=self._time_column_name_synonyms) 
         pandas_obj = self._validate(pandas_obj)
         self._obj = pandas_obj
         self._obj = self._obj.sort_values(by=["start"]) # sorts all values in ascending order
@@ -62,32 +63,6 @@ class EpochsAccessor(TimeSlicedMixin, StartStopTimesMixin, TimeSlicableObjectPro
     @classmethod
     def _validate(cls, obj):
         """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
-        if "start" not in obj.columns:
-            # try to rename based on synonyms
-            for a_synonym in cls._column_name_synonyms["start"]:
-                if a_synonym in obj.columns:
-                    obj = obj.rename({a_synonym: "start"}, axis="columns") # rename the synonym column to "start"
-                    # obj["start"] = obj[a_synonym].copy()
-            ## must be in there by the time that you're done.
-            if "start" not in obj.columns:
-                raise AttributeError("Must have unit id column 'start' column.")
-        if "stop" not in obj.columns:
-            # try to rename based on synonyms
-            for a_synonym in cls._column_name_synonyms["stop"]:
-                if a_synonym in obj.columns:
-                    obj = obj.rename({a_synonym: "stop"}, axis="columns") # rename the synonym column to "stop"
-            ## must be in there by the time that you're done.
-            if "stop" not in obj.columns:
-                raise AttributeError("Must have unit id column 'stop' column.")
-        if "label" not in obj.columns:
-            # try to rename based on synonyms
-            for a_synonym in cls._column_name_synonyms["label"]:
-                if a_synonym in obj.columns:
-                    obj = obj.rename({a_synonym: "label"}, axis="columns") # rename the synonym column to "label"
-            ## must be in there by the time that you're done.
-            if "label" not in obj.columns:
-                raise AttributeError("Must have unit id column 'label' column.")
-        
         return obj # important! Must return the modified obj to be assigned (since its columns were altered by renaming
 
     @property

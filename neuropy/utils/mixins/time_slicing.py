@@ -58,17 +58,48 @@ class TimeSlicedMixin:
         return self._obj.loc[inclusion_mask, :].copy()
 
 
+class TimeColumnAliasesProtocol:
+    """ allows time columns to be access by aliases for interoperatability """
+    _time_column_name_synonyms = {"start":{'begin','start_t'},
+        "stop":['end','stop_t'],
+        "label":['name', 'id', 'flat_replay_idx']
+    }
+
+    @classmethod
+    def renaming_synonym_columns_if_needed(cls, df: pd.DataFrame, required_columns_synonym_dict: dict) -> pd.DataFrame:
+        """ if the required columns (as specified in _time_column_name_synonyms's keys are missing, search for synonyms and replace the synonym columns with the preferred column name.
+
+        Usage:
+            obj = cls.renaming_synonym_columns_if_needed(obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "stop":['end','stop_t']})
+
+        """
+        for preferred_column_name, replacement_set in required_columns_synonym_dict.items():
+            if preferred_column_name not in df.columns:
+                # try to rename based on synonyms
+                for a_synonym in replacement_set:
+                    if a_synonym in df.columns:
+                        df = df.rename({a_synonym: preferred_column_name}, axis="columns") # rename the synonym column to preferred_column_name
+                ## must be in there by the time that you're done.
+                if preferred_column_name not in df.columns:
+                    raise AttributeError(f"Must have '{preferred_column_name}' column.")
+        return df # important! Must return the modified obj to be assigned (since its columns were altered by renaming
+
+
+
+
+
 @pd.api.extensions.register_dataframe_accessor("time_slicer")
-class TimeSliceAccessor(TimeSlicableObjectProtocol):
+class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     """ Allows general epochs represented as Pandas DataFrames to be easily time-sliced and manipulated along with their accompanying data without making a custom class. """
-    
+
     def __init__(self, pandas_obj):
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "end":['stop','stop_t']})
         self._validate(pandas_obj)
         self._obj = pandas_obj
 
-    @staticmethod
-    def _validate(obj):
-        """ verify there are the appropriate time columns to slice on """ 
+    @classmethod
+    def _validate(cls, obj):
+        """ verify there are the appropriate time columns to slice on """
         if "start" not in obj.columns or "end" not in obj.columns:
             raise AttributeError("Must have temporal data columns named 'start' and 'end' that represent the start and ends of the epochs.")
 
