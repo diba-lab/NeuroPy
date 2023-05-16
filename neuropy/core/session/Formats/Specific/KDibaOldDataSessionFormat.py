@@ -2,6 +2,7 @@ import traceback
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from neuropy.analyses.placefields import PlacefieldComputationParameters
 from neuropy.core.epoch import NamedTimerange
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
@@ -199,15 +200,17 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         """ sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
-        # Build the new laps first:
-        sess = estimate_session_laps(sess)
+        # # Build the new laps first:
+        # sess = estimate_session_laps(sess)
 
-        ## Lap-restricted computation epochs:
-        is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
-        only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
-        sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
-        lap_specific_epochs = sess.laps.as_epoch_obj()
-        any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
+        # ## Lap-restricted computation epochs:
+        # is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
+        # only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
+        # sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
+        # lap_specific_epochs = sess.laps.as_epoch_obj()
+        lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
+        any_lap_specific_epochs = lap_specific_epochs
+        # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
         # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
         # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
         
@@ -219,6 +222,34 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         return active_session_computation_configs
     
+
+
+    @classmethod
+    def build_lap_only_short_long_bin_aligned_computation_configs(cls, sess, **kwargs):
+        """ 2023-05-16 - sets the computation intervals to only be performed on the laps """
+        active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
+
+        # Determine the grid_bin_bounds from the long session:
+        grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
+        # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
+
+        ## Lap-restricted computation epochs:
+        # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
+        lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
+        # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
+        any_lap_specific_epochs = lap_specific_epochs
+        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
+        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+
+        # Lap-restricted computation epochs:
+        for i in np.arange(len(active_session_computation_configs)):
+            active_session_computation_configs[i].pf_params.grid_bin = (2, 2) # (2cm x 2cm)
+            active_session_computation_configs[i].pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
+            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
+        
+        return active_session_computation_configs
+
+    
     
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
@@ -228,7 +259,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # (1.874, 0.518) # for (128, 128) bins
         """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
-        
 
         ## Non-restricted computation epochs:
         any_lap_specific_epochs = None
@@ -237,8 +267,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         for i in np.arange(len(active_session_computation_configs)):
             active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
     
-        return active_session_computation_configs        
+        return active_session_computation_configs
         
+
+    @classmethod
+    def build_active_computation_configs(cls, sess, **kwargs):
+        return cls.build_lap_only_short_long_bin_aligned_computation_configs(sess, **kwargs)
 
     # ==================================================================================================================== #
     # Other                                                                                                                #

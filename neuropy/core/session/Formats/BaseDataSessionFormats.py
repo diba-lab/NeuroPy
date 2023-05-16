@@ -251,6 +251,13 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
   
   
     @classmethod
+    def build_active_computation_configs(cls, sess, **kwargs):
+        """ defines the main computation configs for each class. This is provided as an alternative to `build_default_computation_configs` because some classes use cls.build_default_computation_configs(...) to get the plain configs, which they then update with different properties. """
+        return cls.build_default_computation_configs(sess, **kwargs)
+
+
+
+    @classmethod
     def get_session(cls, basedir):
         _test_session = cls.build_session(Path(basedir))
         _test_session, loaded_file_record_list = cls.load_session(_test_session)
