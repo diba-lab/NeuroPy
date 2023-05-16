@@ -123,9 +123,25 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         else:
             basepath = Path(cls._session_default_basedir)
         return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
-                                basedir=basepath, post_load_functions=[lambda a_loaded_sess: estimate_session_laps(a_loaded_sess)])
+                                basedir=basepath, post_load_functions=[lambda a_loaded_sess: cls.POSTLOAD_estimate_laps_and_replays(a_loaded_sess)])  # post_load_functions=[lambda a_loaded_sess: estimate_session_laps(a_loaded_sess)]
 
     
+
+    @classmethod
+    def POSTLOAD_estimate_laps_and_replays(cls, sess):
+        """ a POSTLOAD function: after loading, estimates the laps and replays objects (replacing those loaded). """
+        print(f'POSTLOAD_estimate_laps_and_replays()...')
+        # 2023-05-16 - Laps conformance function (TODO 2023-05-16 - factor out?)
+        sess.replace_session_laps_with_estimates(N=20, should_backup_extant_laps_obj=True, should_plot_laps_2d=False) # , time_variable_name=None
+        # filtered_laps = Epoch.filter_epochs(session.laps.as_epoch_obj(), pos_df=session.position.to_dataframe(), spikes_df=session.spikes_df, min_epoch_included_duration=1.0, max_epoch_included_duration=10.0, maximum_speed_thresh=None, min_num_unique_aclu_inclusions=3)
+
+        # Need to do specific post-loads here because estimating the replays requires the session.PBEs or sometimes the session.ripples which are setup above in `_default_extended_postload(...)` call:
+        # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
+        # num_pre = session.replay.
+        sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
+        return sess
+
+
 
     # ==================================================================================================================== #
     # Filters                                                                                                              #
@@ -321,6 +337,16 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # Common Extended properties:
         session = cls._default_extended_postload(session.filePrefix, session)
         session.is_loaded = True # indicate the session is loaded
+        
+
+        # 2023-05-16 - Laps conformance function (TODO 2023-05-16 - factor out?)
+        # session.replace_session_laps_with_estimates(N=20, should_backup_extant_laps_obj=True, should_plot_laps_2d=False, time_variable_name=active_time_variable_name)
+        # filtered_laps = Epoch.filter_epochs(session.laps.as_epoch_obj(), pos_df=session.position.to_dataframe(), spikes_df=session.spikes_df, min_epoch_included_duration=1.0, max_epoch_included_duration=10.0, maximum_speed_thresh=None, min_num_unique_aclu_inclusions=3)
+
+        # Need to do specific post-loads here because estimating the replays requires the session.PBEs or sometimes the session.ripples which are setup above in `_default_extended_postload(...)` call:
+        # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
+        # num_pre = session.replay.
+        # session.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=session.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
 
         return session, loaded_file_record_list
  

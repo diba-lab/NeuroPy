@@ -4,7 +4,7 @@
 			"path": "utils/mixins/time_slicing.py",
 			"bookmarks": [
 				{
-					"line": 119,
+					"line": 150,
 					"column": 26,
 					"label": "IMPORTANT_HELPER: add_epochs_id_identity"
 				}
@@ -17,6 +17,21 @@
 					"line": 403,
 					"column": 31,
 					"label": "_find_intervals_above_speed"
+				}
+			]
+		},
+		{
+			"path": "core/session/Formats/Specific/KDibaOldDataSessionFormat.py",
+			"bookmarks": [
+				{
+					"line": 125,
+					"column": 57,
+					"label": "post_load_functions"
+				},
+				{
+					"line": 132,
+					"column": 19,
+					"label": "POSTLOAD_estimate_laps_and_replays"
 				}
 			]
 		}
