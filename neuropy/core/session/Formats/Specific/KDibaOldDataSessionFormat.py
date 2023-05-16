@@ -126,6 +126,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                                 basedir=basepath, post_load_functions=[lambda a_loaded_sess: estimate_session_laps(a_loaded_sess)])
 
     
+
+    # ==================================================================================================================== #
+    # Filters                                                                                                              #
+    # ==================================================================================================================== #
+
     # Pyramidal and Lap-Only:
     @classmethod
     def build_filters_pyramidal_epochs(cls, sess, epoch_name_whitelist=None, filter_name_suffix='_PYR'):
@@ -169,7 +174,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
         return DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess, epoch_name_whitelist=epoch_name_whitelist, filter_name_suffix=filter_name_suffix, include_global_epoch=include_global_epoch)
         
-    
+    # ==================================================================================================================== #
+    # Computation Configs                                                                                                  #
+    # ==================================================================================================================== #
     
     @classmethod
     def build_lap_only_computation_configs(cls, sess, **kwargs):
@@ -197,7 +204,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return active_session_computation_configs
     
     
-    
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
         """ _get_computation_configs(curr_kdiba_pipeline.sess) 
@@ -217,6 +223,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
         return active_session_computation_configs        
         
+
+    # ==================================================================================================================== #
+    # Other                                                                                                                #
+    # ==================================================================================================================== #
     
     @classmethod
     def get_session_name(cls, basedir):
@@ -290,6 +300,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             pass
         
         
+
         ## Replays:
         try:
             session, replays_df = cls.__default_kdiba_spikeII_load_replays_vars(session, time_variable_name=active_time_variable_name)
@@ -299,7 +310,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # Successful!
             print('session.replays loaded successfully!')
             pass
-
+        
         ## Neurons (by Cell):
         session = cls.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(session.filePrefix.with_suffix(".probegroup.npy"))

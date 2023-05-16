@@ -459,6 +459,9 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         curr_replays = cls.filter_replay_epochs(curr_replays, pos_df=a_session.position.to_dataframe(), spikes_df=a_session.spikes_df.copy(), require_intersecting_epoch=require_intersecting_epoch,
             min_epoch_included_duration=min_epoch_included_duration, max_epoch_included_duration=max_epoch_included_duration, maximum_speed_thresh=maximum_speed_thresh, min_inclusion_fr_active_thresh=min_inclusion_fr_active_thresh, min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions, debug_print=debug_print)
 
+        ## TODO: 2023-05-16 - Debug print the number of replays before/after
+        print(f'\t curr_replays: {curr_replays.n_epochs}')
+        
         return curr_replays
 
 
