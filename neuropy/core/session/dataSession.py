@@ -449,7 +449,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         # active_context = active_identifying_session_ctx.adding_context(collision_prefix='fn', fn_name='long_short_firing_rate_indicies')
         print(f'\t using {filter_epoch_replacement_type} as surrogate replays...')
         # active_context = active_context.adding_context(collision_prefix='replay_surrogate', replays=filter_epoch_replacement_type.name)
-
+        assert filter_epochs is not None
         # `KnownFilterEpochs.perform_get_filter_epochs_df(...)` returns one of the pre-known types of epochs (e.g. PBE, Ripple, etc.) as an Epoch object.
         curr_replays = KnownFilterEpochs.perform_get_filter_epochs_df(sess=a_session, filter_epochs=filter_epochs, min_epoch_included_duration=None) # returns Epoch object, don't use min_epoch_included_duration here, we'll do it in the next step.
 
