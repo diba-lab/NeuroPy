@@ -90,6 +90,8 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
                     out_list.append(f"{key}_None")
                 elif isinstance(value, float):
                     out_list.append(f"{key}_{value:.2f}")
+                elif isinstance(value, np.ndarray):
+                    out_list.append(f'{key}_ndarray[{np.shape(value)}]')
                 else:
                     try:
                         out_list.append(f"{key}_{value}")
