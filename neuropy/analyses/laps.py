@@ -169,8 +169,8 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
 
     # backup the extant laps object to prepare for the new one:
     if should_backup_extant_laps_obj:
-        assert not hasattr(sess, 'old_laps_obj'), 'sess.old_laps_obj already exists, so we can''t backup the extant laps object.'
-        sess.old_laps_obj = deepcopy(sess.laps)
+        assert not hasattr(sess, 'laps_backup'), 'sess.laps_backup already exists, so we can''t backup the extant laps object.'
+        sess.laps_backup = deepcopy(sess.laps)
         
     if should_plot_laps_2d:
         # plot originals:
@@ -275,9 +275,9 @@ def _build_new_lap_and_intra_lap_intervals(sess):
 
     """
     ## Backup original laps object if it hasn't already been done:
-    if not hasattr(sess, 'old_laps_obj'):
-        print(f'backing up laps object to sess.old_laps_obj.')
-        sess.old_laps_obj = deepcopy(sess.laps)
+    if not hasattr(sess, 'laps_backup'):
+        print(f'backing up laps object to sess.laps_backup.')
+        sess.laps_backup = deepcopy(sess.laps)
 
     ## Get only the non-overlapping laps (dropping the overlapping ones) and replace the old laps object in sess.laps with this new good one:
     is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
