@@ -5,6 +5,7 @@ from collections import namedtuple
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
+from matplotlib.widgets import RectangleSelector # required for `add_rectangular_selector`
 
 import numpy as np
 
@@ -758,3 +759,67 @@ def extract_figure_properties(fig):
     return properties
 
 
+
+def add_rectangular_selector(fig, ax, initial_selection=None) -> RectangleSelector:
+	""" 2023-05-16 - adds an interactive rectangular selector to a matplotlib figure/ax.
+	
+    Usage:
+    
+        from neuropy.utils.matplotlib_helpers import add_rectangular_selector
+
+        fig, ax = curr_active_pipeline.computation_results['maze'].computed_data.pf2D.plot_occupancy()
+        rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+
+	
+	The returned RectangleSelector object can have its selection accessed via:
+		rect_selector.extents # (25.508610487986658, 258.5627661142404, 128.10121504465053, 150.48449186696848)
+	
+	Or updated via:
+		rect_selector.extents = (25, 258, 128, 150)
+
+	"""
+	def select_callback(eclick, erelease):
+		"""
+		Callback for line selection.
+
+		*eclick* and *erelease* are the press and release events.
+		"""
+		x1, y1 = eclick.xdata, eclick.ydata
+		x2, y2 = erelease.xdata, erelease.ydata
+		print(f"({x1:3.2f}, {y1:3.2f}) --> ({x2:3.2f}, {y2:3.2f})")
+		print(f'({x1:3.2f}, {x2:3.2f}), ({y1:3.2f}, {y2:3.2f})')
+		print(f"The buttons you used were: {eclick.button} {erelease.button}")
+
+	# def toggle_selector(event):
+	# 	print('Key pressed.')
+	# 	if event.key == 't':
+	# 		name = type(selector).__name__
+	# 		if selector.active:
+	# 			print(f'{name} deactivated.')
+	# 			selector.set_active(False)
+	# 		else:
+	# 			print(f'{name} activated.')
+	# 			selector.set_active(True)
+
+	def set_extents(selection):
+		if selection is not None:
+			(x0, x1), (y0, y1) = selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+			extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+			rect_selector.extents = extents
+		
+	if initial_selection is not None:
+		# convert to extents:
+		(x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+		extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+	else:
+		extents = None
+		
+	# ax = axs[0]
+	# props = dict(facecolor='blue', alpha=0.5)
+	props=None
+	selector = RectangleSelector(ax, select_callback, useblit=True, button=[1, 3], minspanx=5, minspany=5, spancoords='data', interactive=True, ignore_event_outside=True, props=props) # spancoords='pixels', button=[1, 3]: disable middle button 
+	if extents is not None:
+		selector.extents = extents
+	# fig.canvas.mpl_connect('key_press_event', toggle_selector)
+	
+	return selector, set_extents
