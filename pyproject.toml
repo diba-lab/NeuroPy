@@ -7,7 +7,7 @@ license = "GPL License"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.11" # Note: 3.11 is excluded by mamba. Otherwise it works fine.
+python = ">=3.9,<3.12" # Note: 3.11 is excluded by mamba. Otherwise it works fine.
 hdf5storage = "^0.1.19"
 python-benedict = "^0.28.3"
 h5py = "^3.8.0"
