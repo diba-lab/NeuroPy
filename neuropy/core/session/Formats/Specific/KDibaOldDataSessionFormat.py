@@ -139,7 +139,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # Need to do specific post-loads here because estimating the replays requires the session.PBEs or sometimes the session.ripples which are setup above in `_default_extended_postload(...)` call:
         # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
         # num_pre = session.replay.
-        sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
+        sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
+        # sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
         return sess
 
 
