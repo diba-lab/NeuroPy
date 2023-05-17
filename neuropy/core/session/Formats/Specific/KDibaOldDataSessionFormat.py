@@ -243,6 +243,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         # Lap-restricted computation epochs:
         for i in np.arange(len(active_session_computation_configs)):
+            active_session_computation_configs[i].pf_params.time_bin_size = 0.02
             active_session_computation_configs[i].pf_params.grid_bin = (2, 2) # (2cm x 2cm)
             active_session_computation_configs[i].pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
             active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
