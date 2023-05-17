@@ -231,7 +231,7 @@ class PfND_TimeDependent(PfND):
             self.setup(self.position, self.spikes_df, self.epochs)
             self._reset_after_neuron_index_update()
             ## Interpolate the spikes over positions
-            self._filtered_spikes_df['x'] = np.interp(self._filtered_spikes_df[self.spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.x)
+            self._filtered_spikes_df['x'] = np.interp(self._filtered_spikes_df[self.spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.x) # self._filtered_spikes_df is empty -> ValueError: array of sample points is empty
             if 'binned_x' not in self._filtered_spikes_df:
                 self._filtered_spikes_df['binned_x'] = pd.cut(self._filtered_spikes_df['x'].to_numpy(), bins=self.xbin, include_lowest=True, labels=self.xbin_labels) # same shape as the input data 
         
