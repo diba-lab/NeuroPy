@@ -140,6 +140,11 @@ class IdentifyingContext(DiffableObject, object):
         descriptor_string = separator.join(descriptor_array)
         return descriptor_string
     
+    def get_initialization_code_string(self) -> str:
+        """ returns the string that contains valid code to initialize a matching object. """
+        init_args_list_str = ",".join([f"{k}='{v}'" for k,v in self.to_dict().items()]) # "format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'"
+        return f"IdentifyingContext({init_args_list_str})" #"IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')"
+
     def __str__(self) -> str:
         """ 'kdiba_2006-6-08_14-26-15_maze1_PYR' """
         return self.get_description()
@@ -154,6 +159,9 @@ class IdentifyingContext(DiffableObject, object):
         # return f"IdentifyingContext({self.get_description(include_property_names=False)})"
         return f"IdentifyingContext<{self.as_tuple().__repr__()}>"
         # return f"IdentifyingContext({self.to_dict().__repr__()})"
+        
+
+
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
         dict_rep = self.to_dict()
