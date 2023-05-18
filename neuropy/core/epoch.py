@@ -103,7 +103,6 @@ class Epoch(DataWriter):
         pass
 
     def __getitem__(self, i):
-
         if isinstance(i, str):
             data = self._epochs[self._epochs["label"] == i].copy()
         elif isinstance(i, (int, np.integer)):
@@ -189,7 +188,6 @@ class Epoch(DataWriter):
 
         starts, stops, labels = [], [], []
         for l in unique_labels:
-
             l_transition = np.diff(pad(np.where(arr == l, 1, 0)))
             l_start = np.where(l_transition == 1)[0]
             l_stop = np.where(l_transition == -1)[0]
@@ -233,7 +231,6 @@ class Epoch(DataWriter):
         return self.to_dataframe().itertuples()
 
     def fill_blank(self, method="from_left"):
-
         ep_starts = self.starts
         ep_stops = self.stops
         ep_durations = self.durations
@@ -284,7 +281,6 @@ class Epoch(DataWriter):
         ind_delete = []
         for i in range(n_epochs - 1):
             if (starts[i + 1] - stops[i]) < dt:
-
                 # stretch the second epoch to cover the range of both epochs
                 starts[i + 1] = min(starts[i], starts[i + 1])
                 stops[i + 1] = max(stops[i], stops[i + 1])
@@ -297,7 +293,6 @@ class Epoch(DataWriter):
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1])
 
     def merge_neighbors(self):
-
         ep_times, ep_stops, ep_labels = (self.starts, self.stops, self.labels)
 
         ep_durations = self.durations
@@ -306,11 +301,9 @@ class Epoch(DataWriter):
         for label in ep_labels:
             (inds,) = np.nonzero(ep_labels == label)
             for i in range(len(inds) - 1):
-
                 # if two sequentially adjacent epochs with the same label
                 # overlap or have less than 1 microsecond separation, merge them
                 if ep_times[inds[i + 1]] - ep_stops[inds[i]] < 1e-6:
-
                     # stretch the second epoch to cover the range of both epochs
                     ep_times[inds[i + 1]] = min(
                         ep_times[inds[i]], ep_times[inds[i + 1]]
@@ -357,7 +350,6 @@ class Epoch(DataWriter):
         )
 
     def delete_in_between(self, t1, t2):
-
         epochs_df = self.to_dataframe()[["start", "stop", "label"]]
         # delete epochs if they are within t1, t2
         epochs_df = epochs_df[~((epochs_df["start"] >= t1) & (epochs_df["stop"] <= t2))]
@@ -392,7 +384,6 @@ class Epoch(DataWriter):
         return Epoch(epochs_df)
 
     def get_proportion_by_label(self, t_start=None, t_stop=None):
-
         if t_start is None:
             t_start = self.starts[0]
         if t_stop is None:
@@ -423,7 +414,6 @@ class Epoch(DataWriter):
         return label_proportion
 
     def count(self, t_start=None, t_stop=None, binsize=300):
-
         if t_start is None:
             t_start = 0
 
