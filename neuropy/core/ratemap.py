@@ -105,10 +105,10 @@ class Ratemap(DataWriter):
 
         self._coords = val
 
-    def x(self):
+    def x_coords(self):
         return self.coords[0]
 
-    def y(self):
+    def y_coords(self):
         assert self.ndim == 2, "Can't return y for 1D ratemaps"
         return self.coords[1]
 
@@ -138,12 +138,12 @@ class Ratemap(DataWriter):
 
     @property
     def x_binsize(self):
-        return np.diff(self.xbin)[0]
+        return np.diff(self.x_coords)[0]
 
     @property
     def y_binsize(self):
         if self.y is not None:
-            return np.diff(self.ybin)[0]
+            return np.diff(self.y_coords)[0]
 
     @property
     def n_neurons(self):
@@ -156,7 +156,7 @@ class Ratemap(DataWriter):
     def get_frate_normalized(self):
         pass
 
-    def resample(self, nbins):
+    def resample_1D(self, nbins):
         """Resample the ratemap with nbins
 
         Parameters
@@ -170,13 +170,13 @@ class Ratemap(DataWriter):
             new ratemap
         """
         assert self.ndim == 1, "Only allowed for 1 dimensional ratemaps"
-        f_tc = interpolate.interp1d(self.x, self.tuning_curves)
-        x_new = np.linspace(self.x[0], self.x[-1], nbins)
+        f_tc = interpolate.interp1d(self.x_coords, self.tuning_curves)
+        x_new = np.linspace(self.x_coords[0], self.x_coords[-1], nbins)
         tc_new = f_tc(x_new)  # Interpolated tuning curve
 
         ratemap_new = self.copy()
         ratemap_new.tuning_curves = tc_new
-        ratemap_new.x = x_new
+        ratemap_new.coords = x_new
 
         return ratemap_new
 
