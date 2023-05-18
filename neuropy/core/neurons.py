@@ -135,7 +135,6 @@ class Neurons(DataWriter):
         return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
 
     def time_slice(self, t_start=None, t_stop=None):
-
         t_start, t_stop = super()._time_slice_params(t_start, t_stop)
         neurons = deepcopy(self)
         spiketrains = [t[(t >= t_start) & (t <= t_stop)] for t in neurons.spiketrains]
@@ -245,7 +244,6 @@ class Neurons(DataWriter):
         return similarity
 
     def get_binned_spiketrains(self, bin_size=0.25, ignore_epochs: Epoch = None):
-
         """Get binned spike counts
 
         Parameters
@@ -560,7 +558,6 @@ class Mua(DataWriter):
         t_start: float = 0.0,
         metadata=None,
     ) -> None:
-
         super().__init__()
         self.spike_counts = spike_counts
         self.t_start = t_start
