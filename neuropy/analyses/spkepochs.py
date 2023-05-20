@@ -54,9 +54,7 @@ def detect_local_sleep_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
     return core.Epoch(events)
 
 
-def detect_pbe_epochs(
-    mua: core.Mua, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0
-):
+def detect_pbe_epochs(mua: core.Mua, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0):
     """Detects putative population burst events
 
     Parameters
@@ -76,6 +74,7 @@ def detect_pbe_epochs(
         "min_dur": min_dur,
         "merge_dur": merge_dur,
         "max_dur": max_dur,
+        **(mua.metadata or {}) # add in Mua calculation metadata if it has any
     }
 
     sampling_rate = 1 / mua.bin_size  # sampling rate of mua

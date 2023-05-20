@@ -230,7 +230,20 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         """ 2023-05-16 - sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
-        # Determine the grid_bin_bounds from the long session:
+        ## PBE/Replay/Ripple computation params:
+        """ used for `detect_pbe_epochs` """
+        # computation_result.computation_config['pbe_epoch_detection_params']
+        # old_default_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
+        # old_kamran_parameters = dict(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
+        new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        
+        ## Can be used in computation function like:
+        default_epoch_detection_config = kwargs.pop('default_epoch_detection_config', new_papers_parameters) 
+        # active_epoch_detection_config = computation_result.computation_config.get('pbe_epoch_detection_params', default_epoch_detection_config)
+        # active_epoch_detection_config = (default_epoch_detection_config | active_epoch_detection_config) # augment the actual values of the analysis config with the defaults if they're unavailable. This allows the user to pass only partially complete parameters in .epoch_detection
+
+
+        ## Determine the grid_bin_bounds from the long session:
         grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
         # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
 
@@ -248,7 +261,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             active_session_computation_configs[i].pf_params.grid_bin = (2, 2) # (2cm x 2cm)
             active_session_computation_configs[i].pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
             active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
-        
+
+            ## Epoch Detection Computation Parameters:
+            active_epoch_detection_config = active_session_computation_configs[i].get('pbe_epoch_detection_params', default_epoch_detection_config)
+            active_epoch_detection_config = (default_epoch_detection_config | active_epoch_detection_config) # augment the actual values of the analysis config with the defaults if they're unavailable. This allows the user to pass only partially complete parameters in .epoch_detection
+            active_session_computation_configs[i]['pbe_epoch_detection_params'] = active_epoch_detection_config.copy()
+
         return active_session_computation_configs
 
     

@@ -737,15 +737,9 @@ class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
     
     
 class Mua(DataWriter):
-    """ Mua stands for Multi-unit activity maybe? """
-    def __init__(
-        self,
-        spike_counts: np.ndarray,
-        bin_size: float,
-        t_start: float = 0.0,
-        metadata=None,
-    ) -> None:
-
+    """ Mua stands for Multi-unit activity """
+    
+    def __init__( self, spike_counts: np.ndarray, bin_size: float, t_start: float = 0.0, metadata=None, ) -> None:
         super().__init__()
         self.spike_counts = spike_counts
         self.t_start = t_start
@@ -755,7 +749,6 @@ class Mua(DataWriter):
     @property
     def spike_counts(self):
         return self._spike_counts
-
     @spike_counts.setter
     def spike_counts(self, arr: np.ndarray):
         assert arr.ndim == 1, "only 1 dimensional arrays are allowed"
@@ -764,7 +757,6 @@ class Mua(DataWriter):
     @property
     def bin_size(self):
         return self._bin_size
-
     @bin_size.setter
     def bin_size(self, val):
         self._bin_size = val
@@ -796,7 +788,7 @@ class Mua(DataWriter):
 
         spike_counts = sg.fftconvolve(self._spike_counts, gaussian, mode="same")
         # frate = gaussian_filter1d(self._frate, sigma=sigma, **kwargs)
-        return Mua(spike_counts, t_start=self.t_start, bin_size=self.bin_size)
+        return Mua(spike_counts, bin_size=self.bin_size, t_start=self.t_start, metadata={'sigma':sigma, 'truncate':truncate})
 
     # def _gaussian(self):
     #     # TODO fix gaussian smoothing binsize
@@ -824,12 +816,7 @@ class Mua(DataWriter):
 
     @staticmethod
     def from_dict(d):
-        return Mua(
-            spike_counts=d["spike_counts"],
-            t_start=d["t_start"],
-            bin_size=d["bin_size"],
-            metadata=d["metadata"],
-        )
+        return Mua( spike_counts=d["spike_counts"], t_start=d["t_start"], bin_size=d["bin_size"], metadata=d["metadata"])
 
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "spike_counts": self.spike_counts})

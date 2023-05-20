@@ -328,10 +328,8 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         ripple_epochs = oscillations.detect_ripple_epochs(signal, session.probegroup)
         if save_on_compute:
             ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
-            # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
             with ProgressMessagePrinter(ripple_epochs.filename, 'Saving', 'ripple epochs'):
                 ripple_epochs.save()
-        # print('done.')
         return ripple_epochs
     # sess.ripple = compute_neurons_ripples(sess)
 
@@ -342,26 +340,31 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         mua = session.neurons.get_mua()
         if save_on_compute:
             mua.filename = session.filePrefix.with_suffix(".mua.npy")
-            # print('Saving mua results to {}...'.format(mua.filename), end=' ')
             with ProgressMessagePrinter(mua.filename, 'Saving', 'mua results'):
                 mua.save()
-        # print('done.')
         return mua    
     # sess.mua = compute_neurons_mua(sess) # Set the .mua field on the session object once complete
 
     @staticmethod
-    def compute_pbe_epochs(session, save_on_compute=False):
+    def compute_pbe_epochs(session, active_parameters=None, save_on_compute=False):
+        """ 
+            old_default_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
+            old_kamran_parameters = dict(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
+            new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+            new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=new_papers_parameters)
+
+        """
         from neuropy.analyses import detect_pbe_epochs
         print('computing PBE epochs for session...\n')
-        smth_mua = session.mua.get_smoothed(sigma=0.02) # Get the smoothed mua from the session's mua
-        pbe = detect_pbe_epochs(smth_mua)
+        if active_parameters is None:
+            active_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
+        smth_mua = session.mua.get_smoothed(sigma=active_parameters.pop('sigma', 0.02)) # Get the smoothed mua from the session's mua
+        new_pbe_epochs = detect_pbe_epochs(smth_mua, **active_parameters) # NewPaper's Parameters # , **({'thresh': (0, 1.5), 'min_dur': 0.03, 'merge_dur': 0.1, 'max_dur': 0.3} | kwargs)
         if save_on_compute:
-            pbe.filename = session.filePrefix.with_suffix('.pbe.npy')
-            # print('Saving pbe results to {}...'.format(pbe.filename), end=' ')
-            with ProgressMessagePrinter(pbe.filename, 'Saving', 'pbe results'):
-                pbe.save()
-        # print('done.')
-        return pbe
+            new_pbe_epochs.filename = session.filePrefix.with_suffix('.pbe.npy')
+            with ProgressMessagePrinter(new_pbe_epochs.filename, 'Saving', 'pbe results'):
+                new_pbe_epochs.save()
+        return new_pbe_epochs
     # sess.pbe = compute_pbe_epochs(sess)
     
     @staticmethod
