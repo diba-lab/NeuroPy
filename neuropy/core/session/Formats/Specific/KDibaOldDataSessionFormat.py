@@ -137,6 +137,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # filtered_laps = Epoch.filter_epochs(session.laps.as_epoch_obj(), pos_df=session.position.to_dataframe(), spikes_df=session.spikes_df, min_epoch_included_duration=1.0, max_epoch_included_duration=10.0, maximum_speed_thresh=None, min_num_unique_aclu_inclusions=3)
 
         # Need to do specific post-loads here because estimating the replays requires the session.PBEs or sometimes the session.ripples which are setup above in `_default_extended_postload(...)` call:
+
+        # ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING
+        # ## Get PBEs first:
+        # new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        # new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=new_papers_parameters)
+        # sess.pbe = new_pbe_epochs
+
         # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
         # num_pre = session.replay.
         sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
@@ -387,21 +394,17 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         # add the flat spikes to the session so they don't have to be recomputed:
         session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
-        
+
+        ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING by storing `pbe_epoch_detection_params` somewhere, like a "loading config". Maybe in the session config.
+        ## Set `pbe_epoch_detection_params` prior to calling `_default_extended_postload(..)` so the PBEs are set correctly.
+        new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        pbe_epoch_detection_params = new_papers_parameters
+
         # Common Extended properties:
-        session = cls._default_extended_postload(session.filePrefix, session)
+        session = cls._default_extended_postload(session.filePrefix, session, force_recompute=True, pbe_epoch_detection_params=)
         session.is_loaded = True # indicate the session is loaded
+
         
-
-        # 2023-05-16 - Laps conformance function (TODO 2023-05-16 - factor out?)
-        # session.replace_session_laps_with_estimates(N=20, should_backup_extant_laps_obj=True, should_plot_laps_2d=False, time_variable_name=active_time_variable_name)
-        # filtered_laps = Epoch.filter_epochs(session.laps.as_epoch_obj(), pos_df=session.position.to_dataframe(), spikes_df=session.spikes_df, min_epoch_included_duration=1.0, max_epoch_included_duration=10.0, maximum_speed_thresh=None, min_num_unique_aclu_inclusions=3)
-
-        # Need to do specific post-loads here because estimating the replays requires the session.PBEs or sometimes the session.ripples which are setup above in `_default_extended_postload(...)` call:
-        # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
-        # num_pre = session.replay.
-        # session.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=session.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
-
         return session, loaded_file_record_list
  
     # ---------------------------------------------------------------------------- #

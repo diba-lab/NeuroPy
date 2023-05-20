@@ -235,7 +235,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         kwargs.setdefault('spike_analysis', DynamicContainer(**{'max_num_spikes_per_neuron': 20000,
                                                                  'kleinberg_parameters': DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs),
                                                                  'use_progress_bar': False,
-                                                                 'debug_print': False}).override(kwargs))        
+                                                                 'debug_print': False}).override(kwargs))
+        
         return [DynamicContainer(pf_params=kwargs['pf_params'], spike_analysis=kwargs['spike_analysis'])]
         # return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
         #                   spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
@@ -447,8 +448,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         spikes_df['t'] = spikes_df[cls._time_variable_name] # add the 't' column required for visualization
  
     @classmethod
-    def _default_extended_postload(cls, fp, session):
+    def _default_extended_postload(cls, fp, session, **kwargs):
         # Computes Common Extended properties:
+        force_recompute = kwargs.pop('force_recompute', False)
+
+
         ## Ripples:
         try:
             # Externally Computed Ripples (from 'ripple_df.pkl') file:
@@ -491,7 +495,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         ## MUA:
         active_file_suffix = '.mua.npy'
         found_datafile = Mua.from_file(fp.with_suffix(active_file_suffix))
-        if found_datafile is not None:
+        if (not force_recompute) and (found_datafile is not None):
             print('Loading success: {}.'.format(active_file_suffix))
             session.mua = found_datafile
         else:
@@ -506,14 +510,14 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         ## PBE Epochs:
         active_file_suffix = '.pbe.npy'
         found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
-        if found_datafile is not None:
+        if (not force_recompute) and (found_datafile is not None):
             print('Loading success: {}.'.format(active_file_suffix))
             session.pbe = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
             print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
             try:
-                session.pbe = DataSession.compute_pbe_epochs(session, save_on_compute=True)
+                session.pbe = DataSession.compute_pbe_epochs(session, active_parameters=kwargs.pop('pbe_epoch_detection_params', None), save_on_compute=True)
             except (ValueError, AttributeError) as e:
                 print(f'Computation failed with error {e}. Skipping .pbe')
                 session.pbe = None
