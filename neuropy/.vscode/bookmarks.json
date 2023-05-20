@@ -34,6 +34,16 @@
 					"label": "POSTLOAD_estimate_laps_and_replays"
 				}
 			]
+		},
+		{
+			"path": "core/session/dataSession.py",
+			"bookmarks": [
+				{
+					"line": 180,
+					"column": 0,
+					"label": "time_slice epochs objects"
+				}
+			]
 		}
 	]
 }

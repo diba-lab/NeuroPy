@@ -16,7 +16,7 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePri
 
 from neuropy.analyses.laps import estimate_session_laps # for estimation_session_laps
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
-
+from neuropy.utils.dynamic_container import DynamicContainer
 
 class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
@@ -240,16 +240,15 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## PBE/Replay/Ripple computation params:
         """ used for `detect_pbe_epochs` """
         # computation_result.computation_config['pbe_epoch_detection_params']
-        # old_default_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
-        # old_kamran_parameters = dict(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
-        new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        # old_default_parameters = DynamicContainer(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
+        # old_kamran_parameters = DynamicContainer(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
+        new_papers_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
         
         ## Can be used in computation function like:
         default_epoch_detection_config = kwargs.pop('default_epoch_detection_config', new_papers_parameters) 
         # active_epoch_detection_config = computation_result.computation_config.get('pbe_epoch_detection_params', default_epoch_detection_config)
         # active_epoch_detection_config = (default_epoch_detection_config | active_epoch_detection_config) # augment the actual values of the analysis config with the defaults if they're unavailable. This allows the user to pass only partially complete parameters in .epoch_detection
-
-
+ 
         ## Determine the grid_bin_bounds from the long session:
         grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
         # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
@@ -272,7 +271,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             ## Epoch Detection Computation Parameters:
             active_epoch_detection_config = active_session_computation_configs[i].get('pbe_epoch_detection_params', default_epoch_detection_config)
             active_epoch_detection_config = (default_epoch_detection_config | active_epoch_detection_config) # augment the actual values of the analysis config with the defaults if they're unavailable. This allows the user to pass only partially complete parameters in .epoch_detection
-            active_session_computation_configs[i]['pbe_epoch_detection_params'] = active_epoch_detection_config.copy()
+            active_session_computation_configs[i]['pbe_epoch_detection_params'] = active_epoch_detection_config
 
         return active_session_computation_configs
 
@@ -397,7 +396,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING by storing `pbe_epoch_detection_params` somewhere, like a "loading config". Maybe in the session config.
         ## Set `pbe_epoch_detection_params` prior to calling `_default_extended_postload(..)` so the PBEs are set correctly.
-        new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        new_papers_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
         pbe_epoch_detection_params = new_papers_parameters
         print(f'TODO: pbe_epoch_detection_params: {pbe_epoch_detection_params}')
         
