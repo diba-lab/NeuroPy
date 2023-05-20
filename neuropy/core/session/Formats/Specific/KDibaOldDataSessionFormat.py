@@ -399,9 +399,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## Set `pbe_epoch_detection_params` prior to calling `_default_extended_postload(..)` so the PBEs are set correctly.
         new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
         pbe_epoch_detection_params = new_papers_parameters
-
+        print(f'TODO: pbe_epoch_detection_params: {pbe_epoch_detection_params}')
+        
         # Common Extended properties:
-        session = cls._default_extended_postload(session.filePrefix, session, force_recompute=True, pbe_epoch_detection_params=)
+        session = cls._default_extended_postload(session.filePrefix, session, force_recompute=True, pbe_epoch_detection_params=pbe_epoch_detection_params)
         session.is_loaded = True # indicate the session is loaded
 
         
