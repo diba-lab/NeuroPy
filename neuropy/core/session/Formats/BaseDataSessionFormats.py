@@ -451,7 +451,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     def _default_extended_postload(cls, fp, session, **kwargs):
         # Computes Common Extended properties:
         force_recompute = kwargs.pop('force_recompute', False)
-
+        
 
         ## Ripples:
         try:
@@ -525,6 +525,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # add PBE information to spikes_df from session.pbe
         cls._default_add_spike_PBEs_if_needed(session)
         cls._default_add_spike_scISIs_if_needed(session)
+
+
+        
+
         # return the session with the upadated member variables
         return session
     

@@ -133,7 +133,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         """ a POSTLOAD function: after loading, estimates the laps and replays objects (replacing those loaded). """
         print(f'POSTLOAD_estimate_laps_and_replays()...')
         # 2023-05-16 - Laps conformance function (TODO 2023-05-16 - factor out?)
-        sess.replace_session_laps_with_estimates(N=20, should_backup_extant_laps_obj=True, should_plot_laps_2d=False) # , time_variable_name=None
+        # sess.replace_session_laps_with_estimates(N=20, should_backup_extant_laps_obj=True, should_plot_laps_2d=False) # , time_variable_name=None
         # filtered_laps = Epoch.filter_epochs(session.laps.as_epoch_obj(), pos_df=session.position.to_dataframe(), spikes_df=session.spikes_df, min_epoch_included_duration=1.0, max_epoch_included_duration=10.0, maximum_speed_thresh=None, min_num_unique_aclu_inclusions=3)
 
         # Need to do specific post-loads here because estimating the replays requires the session.PBEs or sometimes the session.ripples which are setup above in `_default_extended_postload(...)` call:
@@ -146,7 +146,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
         # num_pre = session.replay.
-        sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
+        # sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
         # sess.replace_session_replays_with_estimates(**dict(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)) # TODO: set requirements here?
         return sess
 
@@ -238,17 +238,23 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
         ## PBE/Replay/Ripple computation params:
-        """ used for `detect_pbe_epochs` """
-        # computation_result.computation_config['pbe_epoch_detection_params']
-        # old_default_parameters = DynamicContainer(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
-        # old_kamran_parameters = DynamicContainer(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
-        new_papers_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        """ PBE_estimation_parameters: used for `sess.replace_session_laps_with_estimates(...)` """
+        lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+        """ PBE_estimation_parameters: used for `detect_pbe_epochs` """
+        # PBE_estimation_parameters = DynamicContainer(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Old Default Parameters
+        # PBE_estimation_parameters = DynamicContainer(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
+        PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        """ replay_estimation_parameters: used for `sess.replace_session_laps_with_estimates(...)` """
+        replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
+        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
         
-        ## Can be used in computation function like:
-        default_epoch_detection_config = kwargs.pop('default_epoch_detection_config', new_papers_parameters) 
-        # active_epoch_detection_config = computation_result.computation_config.get('pbe_epoch_detection_params', default_epoch_detection_config)
-        # active_epoch_detection_config = (default_epoch_detection_config | active_epoch_detection_config) # augment the actual values of the analysis config with the defaults if they're unavailable. This allows the user to pass only partially complete parameters in .epoch_detection
- 
+        ## Access via: `computation_config['epoch_estimation_parameters']`
+        active_epochs_estimation_parameters = DynamicContainer.init_from_dict({
+            'laps': lap_estimation_parameters,
+            'PBEs': PBE_estimation_parameters,
+            'replays': replay_estimation_parameters
+        })
+
         ## Determine the grid_bin_bounds from the long session:
         grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
         # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
@@ -269,9 +275,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
 
             ## Epoch Detection Computation Parameters:
-            active_epoch_detection_config = active_session_computation_configs[i].get('pbe_epoch_detection_params', default_epoch_detection_config)
-            active_epoch_detection_config = (default_epoch_detection_config | active_epoch_detection_config) # augment the actual values of the analysis config with the defaults if they're unavailable. This allows the user to pass only partially complete parameters in .epoch_detection
-            active_session_computation_configs[i]['pbe_epoch_detection_params'] = active_epoch_detection_config
+            active_session_computation_configs[i]['epoch_estimation_parameters'] = active_epochs_estimation_parameters
+
 
         return active_session_computation_configs
 
@@ -375,7 +380,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             print('session.laps loaded successfully!')
             pass
         
-        
 
         ## Replays:
         try:
@@ -393,15 +397,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         # add the flat spikes to the session so they don't have to be recomputed:
         session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=active_time_variable_name)
-
-        ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING by storing `pbe_epoch_detection_params` somewhere, like a "loading config". Maybe in the session config.
-        ## Set `pbe_epoch_detection_params` prior to calling `_default_extended_postload(..)` so the PBEs are set correctly.
-        new_papers_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
-        pbe_epoch_detection_params = new_papers_parameters
-        print(f'TODO: pbe_epoch_detection_params: {pbe_epoch_detection_params}')
         
         # Common Extended properties:
-        session = cls._default_extended_postload(session.filePrefix, session, force_recompute=True, pbe_epoch_detection_params=pbe_epoch_detection_params)
+        session = cls._default_extended_postload(session.filePrefix, session, force_recompute=True)
         session.is_loaded = True # indicate the session is loaded
 
         

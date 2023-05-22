@@ -517,8 +517,12 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             if debug_print:
                 print(f'Replays missing from sessions. Computing replays...')
 
+
+        replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.01, 'min_num_unique_aclu_inclusions': 3}
+
+
         # compute estimates and assign them as the session's .replay value
-        a_session.replay = a_session.estimate_replay_epochs(**({'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.01, 'min_num_unique_aclu_inclusions': 3} | kwargs)).to_dataframe()
+        a_session.replay = a_session.estimate_replay_epochs(**(replay_estimation_parameters | kwargs)).to_dataframe()
         return a_session.replay
 
 
