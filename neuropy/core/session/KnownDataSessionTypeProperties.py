@@ -5,7 +5,7 @@ from neuropy.utils.mixins.print_helpers import SimplePrintable
 
 
 class KnownDataSessionTypeProperties(SimplePrintable, object):
-    """Docstring for KnownDataSessionTypeProperties."""
+    """ KnownDataSessionTypeProperties describes the specific stages required to load a DataSession for a specific type. """
     load_function: Callable
     basedir: Path
     # Optional members
