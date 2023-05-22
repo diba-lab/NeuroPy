@@ -133,9 +133,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         """ a POSTLOAD function: after loading, estimates the laps and replays objects (replacing those loaded). """
         print(f'POSTLOAD_estimate_laps_and_replays()...')
         lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
-        PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters        
         replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-                
+        
         # TODO 2023-05-22: Write the parameters somewhere:
         # computation_result.computation_config['epoch_estimation_parameters'] = DynamicContainer.init_from_dict({
         #     'laps': lap_estimation_parameters,
@@ -149,16 +149,23 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # computation_config.pf_params.computation_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0)
 
         # ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING
-        # num_pre_epochs = computation_result.sess.pbe
         new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=PBE_estimation_parameters)
         sess.pbe = new_pbe_epochs
         updated_spk_df = sess.compute_spikes_PBEs()
 
         # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
         # num_pre = session.replay.
-        sess.replace_session_replays_with_estimates(**replay_estimation_parameters) # TODO: set requirements here?
-        ## TODO: exclude replays that overlap the laps
+        sess.replace_session_replays_with_estimates(**replay_estimation_parameters)
+        ## exclude replays that overlap the laps
 
+        ### Get both laps and existing replays as PortionIntervals to check for overlaps:
+        replays = sess.replay.epochs.to_PortionInterval()
+        laps = sess.laps.as_epoch_obj().to_PortionInterval() #.epochs.to_PortionInterval()
+        non_lap_replays = Epoch.from_PortionInterval(replays.difference(laps)) ## Exclude anything that occcurs during the laps themselves.
+        sess.replay = non_lap_replays.to_dataframe() # Update the session's replay epochs from those that don't intersect the laps.
+
+        # print(f'len(replays): {len(replays)}, len(laps): {len(laps)}, len(non_lap_replays): {non_lap_replays.n_epochs}')
+        
         return sess
 
 
