@@ -231,7 +231,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
-        kwargs.setdefault('pf_params', PlacefieldComputationParameters(**override_dict({'speed_thresh': 10.0, 'grid_bin': cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), 'grid_bin_bounds': None, 'smooth': (2.0, 2.0), 'frate_thresh': 0.2, 'time_bin_size': 0.025, 'computation_epochs': None}, kwargs)))
+        kwargs.setdefault('pf_params', PlacefieldComputationParameters(**override_dict({'speed_thresh': 10.0, 'grid_bin': cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), 'grid_bin_bounds': None, 'smooth': (2.0, 2.0), 'frate_thresh': 1.0, 'time_bin_size': 0.1, 'computation_epochs': None}, kwargs)))
         kwargs.setdefault('spike_analysis', DynamicContainer(**{'max_num_spikes_per_neuron': 20000,
                                                                  'kleinberg_parameters': DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs),
                                                                  'use_progress_bar': False,
