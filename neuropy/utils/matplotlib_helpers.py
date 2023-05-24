@@ -90,7 +90,8 @@ class enumTuningMap2DPlotMode(AutoNameEnum):
 @unique
 class enumTuningMap2DPlotVariables(AutoNameEnum):
     TUNING_MAPS = auto() # DEFAULT
-    SPIKES_MAPS = auto() 
+    SPIKES_MAPS = auto()
+    OCCUPANCY = auto()
     
     
     
