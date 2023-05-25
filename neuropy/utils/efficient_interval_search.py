@@ -578,10 +578,7 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
 
 
     # Calls `trim_epochs_to_first_last_spikes`
-
-    ## TODO BUG 2023-05-24 - Not working right unfortunately. `min_num_unique_aclu_inclusions` isn't used at all, and `min_inclusion_fr_active_thresh` has seemingly no effect even when set to extremely high values like 100.0
-        Doesn't actually modify the epochs outside of triming them to the first_last spikes. Instead it computes the (n_epochs, n_cells) is_cell_active_in_epoch_mat inclusion matrix.
-        
+    
     Outputs:
         epoch_split_spike_dfs: !!PITFALL: note the number of these is per original epochs, not the post-filtered number. To get the post-filtered number for any of these values, do the following:
             epoch_split_spike_dfs = [df for i, df in enumerate(epoch_split_spike_dfs) if is_epoch_sufficiently_active[i]] # filter the list `epoch_split_spike_dfs` as well, takes some time    
