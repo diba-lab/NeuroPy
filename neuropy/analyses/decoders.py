@@ -13,10 +13,146 @@ from scipy.special import factorial
 from neuropy.analyses.placefields import PfND
 
 from .. import core
-from neuropy.utils import mathutil
 
 from neuropy.utils.mixins.binning_helpers import BinningContainer # for epochs_spkcount getting the correct time bins
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
+
+
+def radon_transform(arr, nlines=10000, dt=1, dx=1, neighbours=1):
+    """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
+
+    from neuropy.analyses.decoders import radon_transform
+    
+    Parameters
+    ----------
+    arr : 2d array
+        time axis is represented by columns, position axis is represented by rows
+    dt : float
+        time binsize in seconds, only used for velocity/intercept calculation
+    dx : float
+        position binsize in cm, only used for velocity/intercept calculation
+    neighbours : int,
+        probability in each bin is replaced by sum of itself and these many 'neighbours' column wise, default 1 neighbour
+
+    NOTE: when returning velcoity the sign is flipped to match with position going from bottom to up
+
+    Returns
+    -------
+    score:
+        sum of values (posterior) under the best fit line
+    velocity:
+        speed of replay in cm/s
+    intercept:
+        intercept of best fit line
+
+    References
+    ----------
+    1) Kloosterman et al. 2012
+    """
+    t = np.arange(arr.shape[1])
+    nt = len(t)
+    tmid = (nt + 1) / 2 - 1
+
+    pos = np.arange(arr.shape[0])
+    npos = len(pos)
+    pmid = (npos + 1) / 2 - 1
+
+    # using convolution to sum neighbours
+    arr = np.apply_along_axis(
+        np.convolve, axis=0, arr=arr, v=np.ones(2 * neighbours + 1), mode="same"
+    )
+
+    # exclude stationary events by choosing phi little below 90 degree
+    # NOTE: angle of line is given by (90-phi), refer Kloosterman 2012
+    phi = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
+    diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
+    rho = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
+
+    rho_mat = np.tile(rho, (nt, 1)).T
+    phi_mat = np.tile(phi, (nt, 1)).T
+    t_mat = np.tile(t, (nlines, 1))
+    posterior = np.zeros((nlines, nt))
+
+    y_line = ((rho_mat - (t_mat - tmid) * np.cos(phi_mat)) / np.sin(phi_mat)) + pmid
+    y_line = np.rint(y_line).astype("int")
+
+    # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
+    t_out = np.where((y_line < 0) | (y_line > npos - 1))
+    t_in = np.where((y_line >= 0) & (y_line <= npos - 1))
+    posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
+    posterior[t_in] = arr[y_line[t_in], t_in[1]]
+
+    old_settings = np.seterr(all="ignore")
+    posterior_mean = np.nanmean(posterior, axis=1)
+
+    best_line = np.argmax(posterior_mean)
+    score = posterior_mean[best_line]
+    best_phi, best_rho = phi[best_line], rho[best_line]
+
+    # converts to real world values
+    time_mid, pos_mid = nt * dt / 2, npos * dx / 2
+
+    velocity = dx / (dt * np.tan(best_phi))
+    intercept = (
+        (dx * time_mid) / (dt * np.tan(best_phi))
+        + (best_rho / np.sin(best_phi)) * dx
+        + pos_mid
+    )
+    np.seterr(**old_settings)
+
+    return score, -velocity, intercept
+
+
+def wcorr(arr):
+    """weighted correlation"""
+    nx, ny = arr.shape[1], arr.shape[0]
+    y_mat = np.tile(np.arange(ny)[:, np.newaxis], (1, nx))
+    x_mat = np.tile(np.arange(nx), (ny, 1))
+    arr_sum = np.nansum(arr)
+    ey = np.nansum(arr * y_mat) / arr_sum
+    ex = np.nansum(arr * x_mat) / arr_sum
+    cov_xy = np.nansum(arr * (y_mat - ey) * (x_mat - ex)) / arr_sum
+    cov_yy = np.nansum(arr * (y_mat - ey) ** 2) / arr_sum
+    cov_xx = np.nansum(arr * (x_mat - ex) ** 2) / arr_sum
+
+    return cov_xy / np.sqrt(cov_xx * cov_yy)
+
+
+def jump_distance(posteriors, jump_stat="mean", norm=True):
+    """Calculate jump distance for posterior matrices"""
+
+    if jump_stat == "mean":
+        f = np.mean
+    elif jump_stat == "median":
+        f = np.median
+    elif jump_stat == "max":
+        f = np.max
+    else:
+        raise ValueError("Invalid jump_stat. Valid values: mean, median, max")
+
+    dx = 1 / posteriors[0].shape[0] if norm else 1
+    jd = np.array([f(np.abs(np.diff(np.argmax(_, axis=0)))) for _ in posteriors])
+
+    return jd * dx
+
+
+def column_shift(arr, shifts=None):
+    """Circular shift columns independently by a given amount"""
+
+    assert arr.ndim == 2, "only 2d arrays accepted"
+
+    if shifts is None:
+        rng = np.random.default_rng()
+        shifts = rng.integers(-arr.shape[0], arr.shape[0], arr.shape[1])
+
+    assert arr.shape[1] == len(shifts)
+
+    shifts = shifts % arr.shape[0]
+    rows_indx, columns_indx = np.ogrid[: arr.shape[0], : arr.shape[1]]
+
+    rows_indx = rows_indx - shifts[np.newaxis, :]
+
+    return arr[rows_indx, columns_indx]
 
 
 def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[core.Epoch, pd.DataFrame], bin_size=0.01, slideby=None, export_time_bins:bool=False, included_neuron_ids=None, debug_print:bool=False):
@@ -268,7 +404,7 @@ class Decode1d:
         1) Kloosterman et al. 2012
         """
         results = Parallel(n_jobs=self.n_jobs)(
-            delayed(mathutil.radon_transform)(epoch) for epoch in p
+            delayed(radon_transform)(epoch) for epoch in p
         )
         score = [res[0] for res in results]
         slope = [res[1] for res in results]
