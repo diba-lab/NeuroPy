@@ -516,6 +516,24 @@ def add_value_labels(ax, spacing=5, labels=None):
                                         # 
 
 
+def fit_both_axes(ax_lhs, ax_rhs):
+    """ 2023-05-25 - Computes the x and y bounds needed to fit all data on both axes, and the actually applies these bounds to each. """
+    def _subfn_compute_fitting_both_axes(ax_lhs, ax_rhs):
+        """ computes the fitting x and y bounds for both axes to fit all the data. 
+        
+        >>> ((0.8970694235737637, 95.79803141394544),
+            (-1.3658343711184302, 32.976028484630994))
+        """
+        fitting_xbounds = (min(*ax_lhs.get_xbound(), *ax_rhs.get_xbound()), max(*ax_lhs.get_xbound(), *ax_rhs.get_xbound())) 
+        fitting_ybounds = (min(*ax_lhs.get_ybound(), *ax_rhs.get_ybound()), max(*ax_lhs.get_ybound(), *ax_rhs.get_ybound())) 
+        return (fitting_xbounds, fitting_ybounds)
+
+    fitting_xbounds, fitting_ybounds = _subfn_compute_fitting_both_axes(ax_lhs, ax_rhs)
+    ax_lhs.set_xbound(*fitting_xbounds)
+    ax_lhs.set_ybound(*fitting_ybounds)
+    ax_rhs.set_xbound(*fitting_xbounds)
+    ax_rhs.set_ybound(*fitting_ybounds)
+    return (fitting_xbounds, fitting_ybounds)
 
 
 
