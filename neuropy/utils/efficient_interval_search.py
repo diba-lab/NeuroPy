@@ -569,7 +569,7 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
 
 
 
-def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh:float=0.0, min_num_unique_aclu_inclusions=1):
+def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh:float=0.0, min_num_unique_aclu_inclusions=1, include_intermediate_computations:bool = False):
     """ Filter active_epochs by requiring them to have at least `min_num_unique_aclu_inclusions` active units as determined by filtering active_spikes_df.
     Inputs:
         active_spikes_df: a spike_df with only active units
@@ -580,6 +580,14 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
     # Calls `trim_epochs_to_first_last_spikes`
 
     ## TODO BUG 2023-05-24 - Not working right unfortunately. `min_num_unique_aclu_inclusions` isn't used at all, and `min_inclusion_fr_active_thresh` has seemingly no effect even when set to extremely high values like 100.0
+        Doesn't actually modify the epochs outside of triming them to the first_last spikes. Instead it computes the (n_epochs, n_cells) is_cell_active_in_epoch_mat inclusion matrix.
+        
+    Outputs:
+        epoch_split_spike_dfs: !!PITFALL: note the number of these is per original epochs, not the post-filtered number. To get the post-filtered number for any of these values, do the following:
+            epoch_split_spike_dfs = [df for i, df in enumerate(epoch_split_spike_dfs) if is_epoch_sufficiently_active[i]] # filter the list `epoch_split_spike_dfs` as well, takes some time    
+        is_cell_active_in_epoch_mat: !!PITFALL: note the number of these is per original epochs, not the post-filtered number
+        is_epoch_sufficiently_active: !!PITFALL: note the number of these is per original epochs, not the post-filtered number
+        
     """
     all_aclus = active_spikes_df.spikes.neuron_ids
     spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs) # TODO 2023-05-24 - should this be: , min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions
@@ -593,14 +601,24 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
     # Loop through each epoch and update the non-zero entries in the dense_epoch_split_frs item's values
     # dense_epoch_split_frs = [(a_dense_fr_dict | _a_test_fr_dict) for _a_test_fr_dict, a_dense_fr_dict in zip(epoch_split_spike_dfs_aclu_firingrates_Hz, dense_epoch_split_frs)] # list of dense dictionaries with keys of aclu and values of firing rate in Hz
     dense_epoch_split_frs = [(IndexedOrderedDict.fromkeys(all_aclus, value=0.0) | _a_test_fr_dict) for _a_test_fr_dict in epoch_split_spike_dfs_aclu_firingrates_Hz] # list of dense dictionaries with keys of aclu and values of firing rate in Hz
-    dense_epoch_split_frs_mat = np.vstack([np.array(a_dense_fr_dict.values()) for a_dense_fr_dict in dense_epoch_split_frs]) # .shape: (60, 70). The columns represent the aclus in `all_aclus` for each row (which represents an epoch)
+    dense_epoch_split_frs_mat = np.vstack([np.array(a_dense_fr_dict.values()) for a_dense_fr_dict in dense_epoch_split_frs]) # .shape: (n_epochs, n_cells). The columns represent the aclus in `all_aclus` for each row (which represents an epoch)
     
     ## Apply any filters:
-    is_cell_active_in_epoch_mat = dense_epoch_split_frs_mat > min_inclusion_fr_active_thresh
+    is_cell_active_in_epoch_mat = dense_epoch_split_frs_mat > min_inclusion_fr_active_thresh # (n_epochs, n_cells)
     # num_cells_included_in_epoch_mat: the num unique cells included in each epoch that mean the min_inclusion_fr_active_thresh criteria. Should have one value per epoch of interest.
     num_cells_active_in_epoch_mat = np.sum(is_cell_active_in_epoch_mat, 1)
-    # dense_epoch_split_frs_mat = dense_epoch_split_frs_mat[:, is_active_aclus] # filter out inactive aclus
     
-    return spike_trimmed_active_epochs, epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat # (is_cell_active_in_epoch_mat, num_cells_active_in_epoch_mat)
+    # is_epoch_contain_sufficient_active_cells_mat: contains a Boolean value reflecting whether each epoch has enough unique active aclus to meet the `min_num_unique_aclu_inclusions` criteria for inclusion
+    is_epoch_contain_sufficient_active_cells_mat = num_cells_active_in_epoch_mat > min_num_unique_aclu_inclusions
+    is_epoch_sufficiently_active = is_epoch_contain_sufficient_active_cells_mat
+    ## Do the final replacement and return the result
+    spike_trimmed_active_epochs = spike_trimmed_active_epochs.boolean_indicies_slice(is_epoch_sufficiently_active)
+    
+    if include_intermediate_computations:
+        extra_outputs = (epoch_split_spike_dfs, all_aclus, dense_epoch_split_frs_mat, is_cell_active_in_epoch_mat, is_epoch_sufficiently_active)
+    else:
+        extra_outputs = None
+        
+    return spike_trimmed_active_epochs, extra_outputs # (is_cell_active_in_epoch_mat, num_cells_active_in_epoch_mat)
 
 
