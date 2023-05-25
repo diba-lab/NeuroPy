@@ -513,7 +513,7 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
 
     Usage:
         from neuropy.utils.efficient_interval_search import trim_epochs_to_first_last_spikes
-        spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs)
+        spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_unique_aclu_inclusions=1)
     """
     # Get the first and last spike times for each epoch:
     # Valid epochs should be pruned to this interval (when the first/last pyramidal spike happened):
@@ -579,9 +579,10 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
 
     # Calls `trim_epochs_to_first_last_spikes`
 
+    ## TODO BUG 2023-05-24 - Not working right unfortunately. `min_num_unique_aclu_inclusions` isn't used at all, and `min_inclusion_fr_active_thresh` has seemingly no effect even when set to extremely high values like 100.0
     """
     all_aclus = active_spikes_df.spikes.neuron_ids
-    spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs)
+    spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs) # TODO 2023-05-24 - should this be: , min_num_unique_aclu_inclusions=min_num_unique_aclu_inclusions
 
     ## Firing Rate and Number of Active Aclus Filtering:
     epoch_split_spike_dfs_aclu_spikecounts = [a_spike_df['aclu'].value_counts().to_dict() for a_spike_df in epoch_split_spike_dfs] # This code takes the column 'aclu' from the Pandas DataFrame df, counts the number of occurrences of each unique value, and converts the resulting Pandas Series object to a dictionary using to_dict(). The keys in the dictionary correspond to each unique aclu value and their count.
