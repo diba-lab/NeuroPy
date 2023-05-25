@@ -151,13 +151,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         # Get the non-lap periods using PortionInterval's complement method:
         non_running_periods = Epoch.from_PortionInterval(sess.laps.as_epoch_obj().to_PortionInterval().complement()) # TODO 2023-05-24- Truncate to session .t_start, .t_stop as currently includes infinity, but it works fine.
-
         # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
         # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=non_running_periods, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.05, min_num_unique_aclu_inclusions=5)
+        replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=non_running_periods, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=1.0, min_num_unique_aclu_inclusions=5)
         
         # num_pre = session.replay.
         sess.replace_session_replays_with_estimates(**replay_estimation_parameters)
+        
         # ### Get both laps and existing replays as PortionIntervals to check for overlaps:
         # replays = sess.replay.epochs.to_PortionInterval()
         # laps = sess.laps.as_epoch_obj().to_PortionInterval() #.epochs.to_PortionInterval()
@@ -265,24 +265,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         """ 2023-05-16 - sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
-        # ## PBE/Replay/Ripple computation params:
-        # """ PBE_estimation_parameters: used for `sess.replace_session_laps_with_estimates(...)` """
-        # lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
-        # """ PBE_estimation_parameters: used for `detect_pbe_epochs` """
-        # # PBE_estimation_parameters = DynamicContainer(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Old Default Parameters
-        # # PBE_estimation_parameters = DynamicContainer(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
-        # PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
-        # """ replay_estimation_parameters: used for `sess.replace_session_laps_with_estimates(...)` """
-        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        # # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        
-        # ## Access via: `computation_config['epoch_estimation_parameters']`
-        # active_epochs_estimation_parameters = DynamicContainer.init_from_dict({
-        #     'laps': lap_estimation_parameters,
-        #     'PBEs': PBE_estimation_parameters,
-        #     'replays': replay_estimation_parameters
-        # })
-
         ## Determine the grid_bin_bounds from the long session:
         grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
         # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
@@ -301,10 +283,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             active_session_computation_configs[i].pf_params.grid_bin = (2, 2) # (2cm x 2cm)
             active_session_computation_configs[i].pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
             active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
-
-            ## Epoch Detection Computation Parameters:
-            # active_session_computation_configs[i]['epoch_estimation_parameters'] = active_epochs_estimation_parameters
-
 
         return active_session_computation_configs
 
