@@ -625,11 +625,15 @@ def _subfn_build_epoch_region_label(xy, text, ax, **labels_kwargs):
     y = xy[1] + labels_y_offset  # shift y-value for label so that it's below the artist
     return ax.text(xy[0], y, text, **({'ha': 'center', 'va': 'top', 'family': 'sans-serif', 'size': 14, 'rotation': 0} | labels_kwargs)) # va="top" places it inside the box if it's aligned to the top
 
-# @function_attributes(short_name='draw_epoch_regions', tags=['epoch','matplotlib','helper'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-03-28 14:23')
+# @function_attributes(short_name='draw_epoch_regions', tags=['epoch','matplotlib','helper'], input_requires=[], output_provides=[], uses=['BrokenBarHCollection'], used_by=[], creation_date='2023-03-28 14:23')
 def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors=("black",), alpha=0.25, labels_kwargs=None, defer_render=False, debug_print=False):
     """ plots epoch rectangles with customizable color, edgecolor, and labels on an existing matplotlib axis
     2022-12-14
 
+    Info:
+    
+    https://matplotlib.org/stable/tutorials/intermediate/autoscale.html
+    
     Usage:
         from neuropy.utils.matplotlib_helpers import draw_epoch_regions
         epochs_collection, epoch_labels = draw_epoch_regions(curr_active_pipeline.sess.epochs, ax, defer_render=False, debug_print=False)
@@ -730,6 +734,14 @@ def extract_figure_properties(fig):
         - 'legend': the properties of the legend (if any)
         - 'grid': the properties of the grid (if any)
         
+    TO ADD:
+        -   fig.get_figwidth()
+            fig.get_figheight()
+            # fig.set_figheight()
+
+            print(f'fig.get_figwidth(): {fig.get_figwidth()}\nfig.get_figheight(): {fig.get_figheight()}')
+
+
         
         Usage:        
             curr_fig = plt.gcf()
