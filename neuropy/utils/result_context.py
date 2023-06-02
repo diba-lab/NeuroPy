@@ -98,6 +98,7 @@ class IdentifyingContext(DiffableObject, object):
         collision_prefix: only used when an attr name in additional_context_items already exists for this context 
         
         """
+        # assert isinstance(collision_prefix, str), f"collision_prefix must be provided as a string! Did you forget to provide it?"
         duplicate_ctxt = copy.deepcopy(self)
         
         for name, value in additional_context_items.items():
@@ -113,7 +114,46 @@ class IdentifyingContext(DiffableObject, object):
             setattr(duplicate_ctxt, final_name, value)
         
         return duplicate_ctxt
-                       
+    
+
+    def merging_context(self, collision_prefix:str, additional_context: "IdentifyingContext") -> "IdentifyingContext":
+        """ returns a new IdentifyingContext that results from adding the items in additional_context to a copy of self 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        
+        """
+        return self.adding_context(collision_prefix, **additional_context.to_dict())
+
+
+    def __or__(self, other):
+        """ Used with vertical bar operator: |
+        
+        Usage:
+            (_test_complete_spike_analysis_config | _test_partial_spike_analysis_config)    
+        """
+        # if isinstance(other, (dict)):
+        #     other_dict = other
+        # elif isinstance(other, "IdentifyingContext"):
+        #     other_dict = other.to_dict()
+        # else:
+        #     # try to convert the other type into a dict using all known available methods: IdentifyingContext
+        #     try:
+        #         other_dict = other.to_dict() # try to convert to dict using the .to_dict() method if possible
+        #     except Exception as e:
+        #         # If that failed, fallback to trying to access the object's .__dict__ property
+        #         try:
+        #             other_dict = dict(other.items())
+        #         except Exception as e:
+        #             # Give up, can't convert!                
+        #             print(f'UNHANDLED TYPE: type(other): {type(other)}, other: {other}')         
+        #             other_dict = None
+        #             raise e
+
+        #         pass # other_dict               
+        
+        # dict_or = self.to_dict().__or__(other_dict)
+        # return IdentifyingContext.init_from_dict(dict_or)
+        return self.merging_context(None, other) # due to passing None as the collision context, this will fail if there are collisions
+              
                        
         
     def get_description(self, subset_whitelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', prefix_items=[], suffix_items=[])->str:
