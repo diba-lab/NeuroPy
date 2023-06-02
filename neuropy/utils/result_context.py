@@ -104,10 +104,17 @@ class IdentifyingContext(DiffableObject, object):
         for name, value in additional_context_items.items():
             # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
             if hasattr(duplicate_ctxt, name):
-                print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
-                ## TODO: rename the current attribute to be set by appending a prefix
-                assert collision_prefix is not None, f"namespace collision in add_context! attr with name {name} already exists but collision_prefix is None!"
-                final_name = f'{collision_prefix}{name}'
+                # Check whether the existing context already has that key:
+                if (getattr(duplicate_ctxt, name) == value):
+                    # Check whether it is the same value or not:
+                    # the existing context has the same value for the overlapping key as the current one. Permit the merge.
+                    final_name = name # this will not change the result
+                else:
+                    # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
+                    print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
+                    ## TODO: rename the current attribute to be set by appending a prefix
+                    assert collision_prefix is not None, f"namespace collision in `add_context(...)`! attr with name {name} already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
+                    final_name = f'{collision_prefix}{name}'
             else:
                 final_name = name
             # Set the new attr
