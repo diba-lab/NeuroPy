@@ -189,9 +189,6 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
 
 
-
-
-
 class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
         """[summary]
@@ -280,9 +277,19 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __str__(self) -> str:
         return f"{len(self.starts)} epochs\n{self.as_array().__repr__()}\n"
     
+    def __len__(self):
+        """ allows using `len(epochs_obj)` and getting the number of epochs. """
+        return len(self.starts)
+
+    def str_for_concise_display(self) -> str:
+        """ returns a minimally descriptive string like: '60 epochs in (17.9, 524.1)' that doesn't print all the array elements only the number of epochs and the first and last. """
+        return f"{len(self.starts)} epochs in ({self.starts[0]:.1f}, {self.stops[-1]:.1f})" # "60 epochs in (17.9, 524.1)"
+
+    def str_for_filename(self) -> str:
+        return f"Epoch[{len(self.starts)}]({self.starts[0]:.1f}-{self.stops[-1]:.1f})" #
+
 
     def __getitem__(self, slice_):
-        
         if isinstance(slice_, str):
             indices = np.where(self.labels == slice_)[0]
             if len(indices) > 1:

@@ -88,41 +88,47 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             if (key is not None) and (key not in PlacefieldComputationParameters.variable_names):
                 if value is None:
                     out_list.append(f"{key}_None")
-                elif isinstance(value, float):
-                    out_list.append(f"{key}_{value:.2f}")
-                elif isinstance(value, np.ndarray):
-                    out_list.append(f'{key}_ndarray[{np.shape(value)}]')
                 else:
-                    try:
-                        out_list.append(f"{key}_{value}")
-                    # except TypeError as e:
-                    #     print(f'TypeError: {e}. type(value): {type(value)}')
-                    #     print(f'self.__dict__: {self.__dict__}')
-                    #     # print(f"{key}_{value}")
-                    #     # raise e
-                    #     out_list.append(f"{key}_{type(value)}")
-                    except Exception as e:
-                        print(f'UNEXPECTED_EXCEPTION: {e}')
-                        print(f'self.__dict__: {self.__dict__}')
-                        raise e
+                    # non-None
+                    if hasattr(value, 'str_for_filename'):
+                        out_list.append(f'{key}_{value.str_for_filename()}')
+                    elif hasattr(value, 'str_for_concise_display'):
+                        out_list.append(f'{key}_{value.str_for_concise_display()}')
+                    else:
+                        # no special handling methods:
+                        if isinstance(value, float):
+                            out_list.append(f"{key}_{value:.2f}")
+                        elif isinstance(value, np.ndarray):
+                            out_list.append(f'{key}_ndarray[{np.shape(value)}]')
+                        else:
+                            # No special handling:
+                            try:
+                                out_list.append(f"{key}_{value}")
+                            except Exception as e:
+                                print(f'UNEXPECTED_EXCEPTION: {e}')
+                                print(f'self.__dict__: {self.__dict__}')
+                                raise e
 
         return out_list
 
 
     def str_for_filename(self, is_2D):
-        extras_strings = self._unlisted_parameter_strings()
-        if is_2D:
-            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
-        else:
-            return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
+        with np.printoptions(precision=2, suppress=True, threshold=5):
+            # score_text = f"score: " + str(np.array([epoch_score])).lstrip("[").rstrip("]") # output is just the number, as initially it is '[0.67]' but then the [ and ] are stripped.            
+            extras_strings = self._unlisted_parameter_strings()
+            if is_2D:
+                return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
+            else:
+                return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
 
     def str_for_display(self, is_2D):
         """ For rendering in a title, etc """
-        extras_string = ', '.join(self._unlisted_parameter_strings())
-        if is_2D:
-            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
-        else:
-            return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+        with np.printoptions(precision=2, suppress=True, threshold=5):
+            extras_string = ', '.join(self._unlisted_parameter_strings())
+            if is_2D:
+                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+            else:
+                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
 
 
     def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t'):

@@ -132,9 +132,12 @@ def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', ke
         properties_key_val_list = []
         for (name, val) in dict_items.items():
             try:
-                curr_string = f'{name}{key_val_sep_char}{np.array(val)}'
+                if hasattr(val, 'str_for_concise_display'):
+                    curr_string = f'{name}{key_val_sep_char}{val.str_for_concise_display()}'
+                else:
+                    curr_string = f'{name}{key_val_sep_char}{np.array(val)}'
             except TypeError:
-                curr_string = f'{name}{key_val_sep_char}err'     
+                curr_string = f'{name}{key_val_sep_char}err'
             properties_key_val_list.append(curr_string)
     
     return param_sep_char.join(properties_key_val_list)
