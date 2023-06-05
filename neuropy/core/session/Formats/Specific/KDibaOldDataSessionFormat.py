@@ -17,6 +17,8 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePri
 from neuropy.analyses.laps import estimate_session_laps # for estimation_session_laps
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
 from neuropy.utils.dynamic_container import DynamicContainer
+from neuropy.utils.result_context import IdentifyingContext
+
 
 class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
@@ -265,9 +267,21 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         """ 2023-05-16 - sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
-        ## Determine the grid_bin_bounds from the long session:
-        grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
-        # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
+
+        ## Create a dictionary of overrides that have been specified manually for a given session:
+        specific_session_override_dict = { 
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((29.16, 261.70), (130.23, 150.99))}
+        }
+
+        override_dict = specific_session_override_dict.get(sess.get_context(), {})
+        if override_dict.get('grid_bin_bounds', None) is not None:
+            grid_bin_bounds = override_dict['grid_bin_bounds']
+        else:
+            # no overrides present
+            ## Determine the grid_bin_bounds from the long session:
+            grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
+            # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
+
 
         ## Lap-restricted computation epochs:
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
@@ -365,7 +379,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             pass
         
         # Load or compute linear positions if needed:
-        session = cls._default_compute_linear_position_if_needed(session)
+        session = cls._default_compute_linear_position_if_needed(session) # ISSUE 2023-06-05: `lin_pos` is messed up. 
         
         ## Testing: Fixing spike positions
         if np.isin(['x','y'], spikes_df.columns).all():
