@@ -45,8 +45,8 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         xlinear = iso_pos[:, 0]
     else:
         print('ERROR: invalid method name: {}'.format(method))
+        
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
-    
     return core.Position.from_separate_arrays(position.time, xlinear, lin_pos=xlinear, metadata=position.metadata)
     # return core.Position(pd.DataFrame({'t':pos_df.time, 'x': xlinear}), metadata=position.metadata)
     
