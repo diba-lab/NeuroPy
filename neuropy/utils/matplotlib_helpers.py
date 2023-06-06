@@ -6,6 +6,8 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
 from matplotlib.widgets import RectangleSelector # required for `add_rectangular_selector`
+from matplotlib.widgets import SpanSelector
+
 
 import numpy as np
 
@@ -789,11 +791,77 @@ def extract_figure_properties(fig):
     
     return properties
 
+def add_range_selector(fig, ax, initial_selection=None, orientation="horizontal", on_selection_changed=None) -> SpanSelector:
+    """ 2023-06-06 - a 1D version of `add_rectangular_selector`
+
+    from neuropy.utils.matplotlib_helpers import add_range_selector
+    curr_pos = deepcopy(curr_active_pipeline.sess.position)
+    curr_pos_df = curr_pos.to_dataframe()
+
+    curr_pos_df.plot(x='t', y=['lin_pos'])
+    fig, ax = plt.gcf(), plt.gca()
+    range_selector, set_extents = add_range_selector(fig, ax, orientation="vertical", initial_selection=None) # (-86.91, 141.02)
+
+    """
+    assert orientation in ["horizontal", "vertical"]
+    use_midline = False
+
+    if use_midline:
+        def update_mid_line(xmin, xmax):
+            xmid = np.mean([xmin, xmax])
+            mid_line.set_ydata(xmid)
+
+        def on_move_callback(xmin, xmax):
+            """ Callback whenever the range is moved. 
+
+            """
+            print(f'on_move_callback(xmin: {xmin}, xmax: {xmax})')
+            update_mid_line(xmin, xmax)
+    else:
+        on_move_callback = None
+
+    def select_callback(xmin, xmax):
+        """
+        Callback for range selection.
+        """
+        # indmin, indmax = np.searchsorted(x, (xmin, xmax))
+        # indmax = min(len(x) - 1, indmax)
+        print(f"({xmin:3.2f}, {xmax:3.2f})")
+        if on_selection_changed is not None:
+            """ call the user-provided callback """
+            on_selection_changed(xmin, xmax)
+
+    def set_extents(selection):
+        if selection is not None:
+            (x0, x1) = selection # initial_selection should be `(xmin, xmax)`
+            extents = (min(x0, x1), max(x0, x1))
+            rect_selector.extents = extents
+        
+    if initial_selection is not None:
+        # convert to extents:
+        (x0, x1) = initial_selection # initial_selection should be `(xmin, xmax)`
+        extents = (min(x0, x1), max(x0, x1))
+    else:
+        extents = None
+        
+    props=dict(alpha=0.5, facecolor="tab:red")
+    # 
+    selector = SpanSelector(ax, select_callback, orientation, useblit=True, props=props, interactive=True, drag_from_anywhere=True, onmove_callback=on_move_callback) # Set useblit=True on most backends for enhanced performance.
+    if extents is not None:
+        selector.extents = extents
+    
+    ## Add midpoint line:
+    if use_midline:
+        mid_line = ax.axhline(linewidth=1, alpha=0.6, color='r', label='midline', linestyle="--")
+        update_mid_line(*selector.extents)
+
+    return selector, set_extents
 
 
-def add_rectangular_selector(fig, ax, initial_selection=None) -> RectangleSelector:
-	""" 2023-05-16 - adds an interactive rectangular selector to a matplotlib figure/ax.
-	
+
+def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_changed=None) -> RectangleSelector:
+    """ 2023-05-16 - adds an interactive rectangular selector to a matplotlib figure/ax.
+    
     Usage:
     
         from neuropy.utils.matplotlib_helpers import add_rectangular_selector
@@ -801,56 +869,50 @@ def add_rectangular_selector(fig, ax, initial_selection=None) -> RectangleSelect
         fig, ax = curr_active_pipeline.computation_results['maze'].computed_data.pf2D.plot_occupancy()
         rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
 
-	
-	The returned RectangleSelector object can have its selection accessed via:
-		rect_selector.extents # (25.508610487986658, 258.5627661142404, 128.10121504465053, 150.48449186696848)
-	
-	Or updated via:
-		rect_selector.extents = (25, 258, 128, 150)
+    
+    The returned RectangleSelector object can have its selection accessed via:
+        rect_selector.extents # (25.508610487986658, 258.5627661142404, 128.10121504465053, 150.48449186696848)
+    
+    Or updated via:
+        rect_selector.extents = (25, 258, 128, 150)
 
-	"""
-	def select_callback(eclick, erelease):
-		"""
-		Callback for line selection.
+    """
+    def select_callback(eclick, erelease):
+        """
+        Callback for line selection.
 
-		*eclick* and *erelease* are the press and release events.
-		"""
-		x1, y1 = eclick.xdata, eclick.ydata
-		x2, y2 = erelease.xdata, erelease.ydata
-		print(f"({x1:3.2f}, {y1:3.2f}) --> ({x2:3.2f}, {y2:3.2f})")
-		print(f'({x1:3.2f}, {x2:3.2f}), ({y1:3.2f}, {y2:3.2f})')
-		print(f"The buttons you used were: {eclick.button} {erelease.button}")
+        *eclick* and *erelease* are the press and release events.
+        """
+        x1, y1 = eclick.xdata, eclick.ydata
+        x2, y2 = erelease.xdata, erelease.ydata
+        print(f"({x1:3.2f}, {y1:3.2f}) --> ({x2:3.2f}, {y2:3.2f})")
+        print(f'({x1:3.2f}, {x2:3.2f}), ({y1:3.2f}, {y2:3.2f})')
+        print(f"The buttons you used were: {eclick.button} {erelease.button}")
+        if on_selection_changed is not None:
+            """ call the user-provided callback """
+            extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+            on_selection_changed(extents)
 
-	# def toggle_selector(event):
-	# 	print('Key pressed.')
-	# 	if event.key == 't':
-	# 		name = type(selector).__name__
-	# 		if selector.active:
-	# 			print(f'{name} deactivated.')
-	# 			selector.set_active(False)
-	# 		else:
-	# 			print(f'{name} activated.')
-	# 			selector.set_active(True)
 
-	def set_extents(selection):
-		if selection is not None:
-			(x0, x1), (y0, y1) = selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
-			extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
-			rect_selector.extents = extents
-		
-	if initial_selection is not None:
-		# convert to extents:
-		(x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
-		extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
-	else:
-		extents = None
-		
-	# ax = axs[0]
-	# props = dict(facecolor='blue', alpha=0.5)
-	props=None
-	selector = RectangleSelector(ax, select_callback, useblit=True, button=[1, 3], minspanx=5, minspany=5, spancoords='data', interactive=True, ignore_event_outside=True, props=props) # spancoords='pixels', button=[1, 3]: disable middle button 
-	if extents is not None:
-		selector.extents = extents
-	# fig.canvas.mpl_connect('key_press_event', toggle_selector)
-	
-	return selector, set_extents
+    def set_extents(selection):
+        if selection is not None:
+            (x0, x1), (y0, y1) = selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+            extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+            rect_selector.extents = extents
+        
+    if initial_selection is not None:
+        # convert to extents:
+        (x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+        extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+    else:
+        extents = None
+        
+    # ax = axs[0]
+    # props = dict(facecolor='blue', alpha=0.5)
+    props=None
+    selector = RectangleSelector(ax, select_callback, useblit=True, button=[1, 3], minspanx=5, minspany=5, spancoords='data', interactive=True, ignore_event_outside=True, props=props) # spancoords='pixels', button=[1, 3]: disable middle button 
+    if extents is not None:
+        selector.extents = extents
+    # fig.canvas.mpl_connect('key_press_event', toggle_selector)
+    
+    return selector, set_extents
