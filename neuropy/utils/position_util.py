@@ -15,7 +15,7 @@ class RegularizationApproach(Enum):
     """Docstring for RegularizationApproach."""
     RAW_VALUES = "raw_values"
     SUBTRACT_MIN = "subtract_min"
-    RESTORE_X_RANGE = "restore_x_range"
+    RESTORE_X_RANGE = "restore_x_range" # restores the original range of the x values after performing the linearization.
     
 
 def linearize_position_df(pos_df: pd.DataFrame, sample_sec=3, method="isomap", sigma=2, override_position_sampling_rate_Hz=None, regularization_approach:RegularizationApproach=RegularizationApproach.RAW_VALUES):
@@ -61,14 +61,16 @@ def linearize_position_df(pos_df: pd.DataFrame, sample_sec=3, method="isomap", s
     else:
         print('ERROR: invalid method name: {}'.format(method))
         
-    xlinear = gaussian_filter1d(xlinear, sigma=sigma)
+    if (sigma is not None) and (sigma > 0.0):
+        xlinear = gaussian_filter1d(xlinear, sigma=sigma) # smooth
+        
     if regularization_approach.name == RegularizationApproach.SUBTRACT_MIN.name:
         xlinear -= np.min(xlinear) # required to prevent mapping to negative values
     elif regularization_approach.name == RegularizationApproach.RESTORE_X_RANGE.name:
         xlinear = -1.0 * xlinear # flip over the y-axis first
         lin_pos_bounds = compute_grid_bin_bounds(xlinear)[0]
         x_bounds = compute_grid_bin_bounds(pos_df['x'].to_numpy())[0]
-        print(f'lin_pos_bounds: {lin_pos_bounds}, x_bounds: {x_bounds}')
+        # print(f'lin_pos_bounds: {lin_pos_bounds}, x_bounds: {x_bounds}')
         xlinear = map_value(xlinear, lin_pos_bounds, x_bounds) # map xlinear from its current bounds range to the xbounds range
     else:
         assert regularization_approach.name == RegularizationApproach.RAW_VALUES.name, f"Invalid regularization approach!"
