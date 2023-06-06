@@ -31,6 +31,29 @@ def min_max_scaler(x, axis=-1):
         x, axis=axis, keepdims=True
     )
 
+def map_to_fixed_range(lin_pos, x_min:float=0.0, x_max:float=1.0):
+    # Normalize lin_pos to the range [0, 1]
+    lin_pos_normalized = (lin_pos - np.nanmin(lin_pos)) / (np.nanmax(lin_pos) - np.nanmin(lin_pos))
+    # Scale the normalized lin_pos to the range [x_min, x_max]
+    mapped_pos = lin_pos_normalized * (x_max - x_min) + x_min
+    return mapped_pos
+
+
+def compute_grid_bin_bounds(*args):
+    """ computes the (min, max) bound for each passed array and returns a tuple of these (min, max) tuples. 
+    from neuropy.utils.mathutil import compute_grid_bin_bounds
+    
+    """
+    grid_bin_bounds = []
+    for data in args:
+        if data is not None:
+            bounds = (np.nanmin(data), np.nanmax(data))
+        else:
+            bounds = None # append None to the array
+        grid_bin_bounds.append(bounds)
+    return tuple(grid_bin_bounds)
+
+
 
 def cdf(x, bins):
     """Returns cummulative distribution for x at bins"""

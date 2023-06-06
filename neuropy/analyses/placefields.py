@@ -17,6 +17,7 @@ from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
 from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_nD, build_df_discretized_binned_position_columns
 
+from neuropy.utils.mathutil import compute_grid_bin_bounds
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
@@ -154,16 +155,11 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
     def to_dict(self):
         return self.__dict__
 
-
+    
+    
     @classmethod
     def compute_grid_bin_bounds(cls, x, y):
-        # grid_bin_bounds = [[np.nanmin(x), np.nanmax(x)], None] # x_range
-        # if (y is not None):
-        #     grid_bin_bounds[1] = [np.nanmin(y), np.nanmax(y)] # y_range
-        grid_bin_bounds = [(np.nanmin(x), np.nanmax(x)), None] # x_range
-        if (y is not None):
-            grid_bin_bounds[1] = (np.nanmin(y), np.nanmax(y)) # y_range
-        return tuple(grid_bin_bounds)
+        return compute_grid_bin_bounds(x, y)
 
 
 
@@ -577,7 +573,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         self.ndim = position.ndim
         self.position_srate = position.sampling_rate
 
-
         pos_df = position.to_dataframe()
         spk_df = spikes_df.copy()
 
@@ -631,6 +626,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             if self.config.grid_bin_bounds is None:
                 grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
             else:
+                # Use grid_bin_bounds:
                 if ((self.config.grid_bin_bounds[0] is None) or (self.config.grid_bin_bounds[1] is None)):
                     grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
                 else:

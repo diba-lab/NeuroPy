@@ -539,6 +539,15 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         return self.df.position.drop_dimensions_above(desired_ndim, inplace=True)
 
 
+    def compute_linearized_position(self, method='isomap', **kwargs):
+        """ computes and adds the linear position to this Position object """
+        from neuropy.utils import position_util
+        out_linear_position_obj = position_util.linearize_position(self, method=method, **kwargs)
+        self._data['lin_pos'] = out_linear_position_obj.to_dataframe()['lin_pos'] # add the `lin_pos` column to the pos_df
+        return self
+
+
+
     def print_debug_str(self):
         print('<core.Position :: np.shape(traces): {}\t time: {}\n duration: {}\n time[-1]: {}\n time[0]: {}\n sampling_rate: {}\n t_start: {}\n t_stop: {}\n>\n'.format(np.shape(self.traces), self.time,
             self.duration,

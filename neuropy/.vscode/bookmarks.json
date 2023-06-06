@@ -44,9 +44,24 @@
 					"label": "time_slice epochs objects"
 				},
 				{
-					"line": 369,
+					"line": 299,
+					"column": 30,
+					"label": "laps"
+				},
+				{
+					"line": 370,
 					"column": 15,
 					"label": "linearization"
+				}
+			]
+		},
+		{
+			"path": "analyses/laps.py",
+			"bookmarks": [
+				{
+					"line": 80,
+					"column": 0,
+					"label": "laps"
 				}
 			]
 		}
