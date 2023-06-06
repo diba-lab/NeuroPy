@@ -2,17 +2,17 @@ from __future__ import annotations # otherwise have to do type like 'Ratemap'
 
 from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
+import numpy as np
 
+
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
 from matplotlib.widgets import RectangleSelector # required for `add_rectangular_selector`
 from matplotlib.widgets import SpanSelector
 
 
-import numpy as np
-
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple
-
 from neuropy.plotting.figure import compute_figure_size_pixels, compute_figure_size_inches # needed for _determine_best_placefield_2D_layout(...)'s internal _perform_compute_required_figure_sizes(...) function
 
 from typing import TYPE_CHECKING
@@ -116,7 +116,6 @@ def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentityTuple
         final_title = '\n'.join(final_string_components) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
     return final_title
     
-    
 def _build_variable_max_value_label(plot_variable: enumTuningMap2DPlotVariables):
     """  Builds a label that displays the max value with the appropriate unit suffix for the title
     if brev_mode.should_show_firing_rate_label:
@@ -129,7 +128,6 @@ def _build_variable_max_value_label(plot_variable: enumTuningMap2DPlotVariables)
         return lambda value: f'{round(value,2)} Spikes'
     else:
         raise NotImplementedError
-
 
 def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), last_figure_subplots_same_layout=True, debug_print:bool=False):
     """ Computes the optimal sizes, number of rows and columns, and layout of the individual 2D placefield subplots in terms of the overarching pf_2D figure
@@ -262,7 +260,6 @@ def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_t
             image[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
         return image # return the modified and masked image
 
-    
 def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
     """ builds a background checkerboard image used to indicate opacity
     Usage:
@@ -720,7 +717,7 @@ def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
 # 2023-05-09 Misc Utility Functions                                                                                    #
 # ==================================================================================================================== #
 
-import matplotlib as mpl
+
 
 def extract_figure_properties(fig):
     """ UNTESTED, UNFINISHED
