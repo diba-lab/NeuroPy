@@ -177,7 +177,9 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=True)
         out_axes_list[0].set_title('Old SpikeII computed Laps')
     
-    position_obj = sess.position
+    # position_obj = sess.position
+    position_obj = sess.position.linear_position_obj
+
     # position_obj.dt
     position_obj.compute_higher_order_derivatives()
     pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
