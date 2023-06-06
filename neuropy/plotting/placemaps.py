@@ -95,7 +95,11 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 
 
 def plot_placefield_occupancy(active_epoch_placefields2D, fig=None, ax=None, **kwargs):
-    return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs))
+    if active_epoch_placefields2D.ndim > 1:
+        return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs))
+    else:
+        return plot_occupancy_1D(active_epoch_placefields2D, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs)) # handle 1D case
+                                 
 
 def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
     """ Plots a 2D Heatmap of the animal's occupancy (the amount of time the animal spent in each posiution bin)
