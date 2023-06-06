@@ -159,7 +159,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
 
             for an_epoch_label in session.epochs.labels:
                 if an_epoch_label in only_included_pos_computation_labels:
-                    an_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_curr_epoch = DataSession.compute_linearized_position(session, an_epoch_label)
+                    an_epoch_timeslice_indicies, active_positions_maze1, linearized_positions_curr_epoch = DataSession._perform_compute_session_linearized_position(session, an_epoch_label)
                     session.position.linear_pos[an_epoch_timeslice_indicies] = linearized_positions_curr_epoch.traces
                 
             ## Previous 'manual' maze1 and maze2 way that fails for any sessions without these epochs:    

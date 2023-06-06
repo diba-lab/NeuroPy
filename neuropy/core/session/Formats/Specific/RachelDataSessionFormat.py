@@ -135,7 +135,7 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
             print('computing linear positions for all active epochs for session...')
             # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
             session.position.linear_pos = np.full_like(session.position.time, np.nan)
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession.compute_linearized_position(session, 'maze')
+            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession._perform_compute_session_linearized_position(session, 'maze')
             session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
             # print('Saving updated position results to {}...'.format(session.position.filename))
