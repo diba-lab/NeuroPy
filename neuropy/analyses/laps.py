@@ -178,7 +178,7 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         out_axes_list[0].set_title('Old SpikeII computed Laps')
     
     # position_obj = sess.position
-    position_obj = sess.position.linear_position_obj
+    position_obj = sess.position.linear_pos_obj
 
     # position_obj.dt
     position_obj.compute_higher_order_derivatives()

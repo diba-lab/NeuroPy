@@ -5,12 +5,20 @@ from sklearn.manifold import Isomap
 from scipy.ndimage import gaussian_filter1d
 
 from .. import core
-from neuropy.utils.mathutil import contiguous_regions, threshPeriods
+from neuropy.utils.mathutil import contiguous_regions, threshPeriods, compute_grid_bin_bounds, map_value
 from neuropy.utils.mixins.binning_helpers import compute_spanning_bins
 
+from enum import Enum
 
 
-def linearize_position_df(pos_df: pd.DataFrame, sample_sec=3, method="isomap", sigma=2, override_position_sampling_rate_Hz=None):
+class RegularizationApproach(Enum):
+    """Docstring for RegularizationApproach."""
+    RAW_VALUES = "raw_values"
+    SUBTRACT_MIN = "subtract_min"
+    RESTORE_X_RANGE = "restore_x_range"
+    
+
+def linearize_position_df(pos_df: pd.DataFrame, sample_sec=3, method="isomap", sigma=2, override_position_sampling_rate_Hz=None, regularization_approach:RegularizationApproach=RegularizationApproach.RAW_VALUES):
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
 
@@ -29,7 +37,6 @@ def linearize_position_df(pos_df: pd.DataFrame, sample_sec=3, method="isomap", s
     """    
     xy_pos = pos_df[['x','y']].to_numpy()
     
-        
     xlinear = None
     if method.lower() == "pca":
         pca = PCA(n_components=1)
@@ -55,12 +62,21 @@ def linearize_position_df(pos_df: pd.DataFrame, sample_sec=3, method="isomap", s
         print('ERROR: invalid method name: {}'.format(method))
         
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
-    xlinear -= np.min(xlinear) # required to prevent mapping to negative values
+    if regularization_approach.name == RegularizationApproach.SUBTRACT_MIN.name:
+        xlinear -= np.min(xlinear) # required to prevent mapping to negative values
+    elif regularization_approach.name == RegularizationApproach.RESTORE_X_RANGE.name:
+        xlinear = -1.0 * xlinear # flip over the y-axis first
+        lin_pos_bounds = compute_grid_bin_bounds(xlinear)[0]
+        x_bounds = compute_grid_bin_bounds(pos_df['x'].to_numpy())[0]
+        print(f'lin_pos_bounds: {lin_pos_bounds}, x_bounds: {x_bounds}')
+        xlinear = map_value(xlinear, lin_pos_bounds, x_bounds) # map xlinear from its current bounds range to the xbounds range
+    else:
+        assert regularization_approach.name == RegularizationApproach.RAW_VALUES.name, f"Invalid regularization approach!"
     pos_df['lin_pos'] = xlinear # add the linearized position to the dataframe as the 'lin_pos' column
     return pos_df
 
 
-def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2) -> core.Position:
+def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2, **kwargs) -> core.Position:
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
 
@@ -75,12 +91,12 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
 
     """
     if isinstance(position, pd.DataFrame):
-        pos_df = linearize_position_df(position, sample_sec=sample_sec, method=method, sigma=sigma)
+        pos_df = linearize_position_df(position, sample_sec=sample_sec, method=method, sigma=sigma, override_position_sampling_rate_Hz=None, **kwargs)
         xlinear = pos_df['lin_pos'].to_numpy()
         return core.Position.from_separate_arrays(pos_df['t'].to_numpy(), xlinear, lin_pos=xlinear, metadata=None)
     else:
         pos_df = position.to_dataframe() # convert from a Position object
-        pos_df = linearize_position_df(pos_df, sample_sec=sample_sec, method=method, sigma=sigma, override_position_sampling_rate_Hz=position.sampling_rate)
+        pos_df = linearize_position_df(pos_df, sample_sec=sample_sec, method=method, sigma=sigma, override_position_sampling_rate_Hz=position.sampling_rate, **kwargs)
         xlinear = pos_df['lin_pos'].to_numpy()
         return core.Position.from_separate_arrays(position.time, xlinear, lin_pos=xlinear, metadata=position.metadata)
 
