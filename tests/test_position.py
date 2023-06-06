@@ -105,6 +105,16 @@ class TestPositionMethods(unittest.TestCase):
         self.assertEqual(np.shape(pos_df[['x','y']].to_numpy()), np.shape(np.vstack((xpos, ypos)).T))
         # self.assertEquals(pos_df[['x','y']].to_numpy(), np.vstack((xpos, ypos)).T)
      
+
+    def test_grid_bin_bounds(self):
+        from neuropy.utils.mathutil import compute_grid_bin_bounds
+        bounds = compute_grid_bin_bounds(self.x, None)
+        print(f'bounds: {bounds}')
+        self.assertEqual(len(bounds), 2)
+        self.assertEqual(len(bounds[0]), 2)
+        self.assertIsNone(bounds[1])
+        
+
     # def test_isupper(self):
     # 	self.assertTrue('FOO'.isupper())
     # 	self.assertFalse('Foo'.isupper())
