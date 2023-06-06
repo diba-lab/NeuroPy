@@ -436,6 +436,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     @staticmethod
     def _default_compute_linear_position_if_needed(session, force_recompute=True):
         # this is not general, this is only used for this particular flat kind of file:
+        from neuropy.utils.position_util import RegularizationApproach # for `_default_compute_linear_position_if_needed`
+
         # Load or compute linear positions if needed:
         if (not session.position.has_linear_pos):
             ## compute linear positions: 
@@ -451,7 +453,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             else:
                 # Otherwise load failed, perform the fallback computation
                 print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-                session.position = DataSession.compute_linear_position(session)
+                session.position.compute_linearized_position(regularization_approach=RegularizationApproach.RESTORE_X_RANGE, method="isomap", sigma=0)
+
                 # Only re-save after re-computation
                 session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
                 # print('Saving updated position results to {}...'.format(session.position.filename), end='')
