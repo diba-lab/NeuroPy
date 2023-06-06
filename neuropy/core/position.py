@@ -257,12 +257,18 @@ class PositionComputedDataMixin:
     
     ## Linear Position Properties:
     @property
-    def linear_pos_obj(self):
-        # returns a Position object containing only the linear_pos as its trace. This is used for compatibility with Bapun's Pf1D function 
-        lin_pos_df = self.df[[self.time_variable_name,'lin_pos']].copy()
+    def linear_pos_obj(self) -> "Position":
+        """ returns a Position object containing only the linear_pos as its trace. This is used for compatibility with Bapun's Pf1D function """ 
+        if not self.has_linear_pos:
+            self.compute_linearized_position()
+            assert self.has_linear_pos, "Doesn't have linear position even after `self.compute_linearized_position()` was called!"
+            
+        lin_pos_df = deepcopy(self.df[[self.time_variable_name, 'lin_pos']])
         # lin_pos_df.rename({'lin_pos':'x'}, axis='columns', errors='raise', inplace=True)
         lin_pos_df['x'] = lin_pos_df['lin_pos'].copy() # duplicate the lin_pos column to the 'x' column
-        out_obj = Position(lin_pos_df, metadata=None)
+        out_obj = Position(lin_pos_df, metadata=None) ## build position object out of the dataframe
+        out_obj.compute_higher_order_derivatives()
+        out_obj.compute_smoothed_position_info()
         out_obj.speed; # ensure speed is calculated for the new object
         return out_obj
     @property
@@ -281,7 +287,13 @@ class PositionComputedDataMixin:
             return False
 
 
-
+    def compute_linearized_position(self, method='isomap', **kwargs) -> "Position":
+        """ computes and adds the linear position to this Position object """
+        from neuropy.utils import position_util
+        # out_linear_position_obj = position_util.linearize_position(self, method=method, **kwargs)
+        # self._data['lin_pos'] = out_linear_position_obj.to_dataframe()['lin_pos'] # add the `lin_pos` column to the pos_df
+        self.df = position_util.linearize_position_df(self.df, method=method, **kwargs) # adds 'lin_pos' column to `self.df`
+        return self
     
     ## Computed Variable Properties:
     @property
@@ -537,15 +549,6 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
     def drop_dimensions_above(self, desired_ndim:int):
         """ modifies the internal dataframe to drop dimensions above a certain number. Always done in place, and returns None. """
         return self.df.position.drop_dimensions_above(desired_ndim, inplace=True)
-
-
-    def compute_linearized_position(self, method='isomap', **kwargs):
-        """ computes and adds the linear position to this Position object """
-        from neuropy.utils import position_util
-        out_linear_position_obj = position_util.linearize_position(self, method=method, **kwargs)
-        self._data['lin_pos'] = out_linear_position_obj.to_dataframe()['lin_pos'] # add the `lin_pos` column to the pos_df
-        return self
-
 
 
     def print_debug_str(self):
