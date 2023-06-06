@@ -42,6 +42,11 @@
 					"line": 180,
 					"column": 0,
 					"label": "time_slice epochs objects"
+				},
+				{
+					"line": 369,
+					"column": 15,
+					"label": "linearization"
 				}
 			]
 		}
