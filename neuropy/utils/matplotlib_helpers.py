@@ -788,8 +788,12 @@ def extract_figure_properties(fig):
     
     return properties
 
+
+# ==================================================================================================================== #
+# 2023-06-05 Interactive Selection Helpers                                                                             #
+# ==================================================================================================================== #
 def add_range_selector(fig, ax, initial_selection=None, orientation="horizontal", on_selection_changed=None) -> SpanSelector:
-    """ 2023-06-06 - a 1D version of `add_rectangular_selector`
+    """ 2023-06-06 - a 1D version of `add_rectangular_selector` which adds a selection band to an existing axis
 
     from neuropy.utils.matplotlib_helpers import add_range_selector
     curr_pos = deepcopy(curr_active_pipeline.sess.position)
@@ -827,12 +831,6 @@ def add_range_selector(fig, ax, initial_selection=None, orientation="horizontal"
         if on_selection_changed is not None:
             """ call the user-provided callback """
             on_selection_changed(xmin, xmax)
-
-    def set_extents(selection):
-        if selection is not None:
-            (x0, x1) = selection # initial_selection should be `(xmin, xmax)`
-            extents = (min(x0, x1), max(x0, x1))
-            rect_selector.extents = extents
         
     if initial_selection is not None:
         # convert to extents:
@@ -842,7 +840,6 @@ def add_range_selector(fig, ax, initial_selection=None, orientation="horizontal"
         extents = None
         
     props=dict(alpha=0.5, facecolor="tab:red")
-    # 
     selector = SpanSelector(ax, select_callback, orientation, useblit=True, props=props, interactive=True, drag_from_anywhere=True, onmove_callback=on_move_callback) # Set useblit=True on most backends for enhanced performance.
     if extents is not None:
         selector.extents = extents
@@ -852,12 +849,17 @@ def add_range_selector(fig, ax, initial_selection=None, orientation="horizontal"
         mid_line = ax.axhline(linewidth=1, alpha=0.6, color='r', label='midline', linestyle="--")
         update_mid_line(*selector.extents)
 
+    def set_extents(selection):
+        """ can be called to set the extents on the selector object. Captures `selector` """
+        if selection is not None:
+            (x0, x1) = selection # initial_selection should be `(xmin, xmax)`
+            extents = (min(x0, x1), max(x0, x1))
+            selector.extents = extents
+            
     return selector, set_extents
 
-
-
 def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_changed=None) -> RectangleSelector:
-    """ 2023-05-16 - adds an interactive rectangular selector to a matplotlib figure/ax.
+    """ 2023-05-16 - adds an interactive rectangular selector to an existing matplotlib figure/ax.
     
     Usage:
     
@@ -890,12 +892,6 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
             extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
             on_selection_changed(extents)
 
-
-    def set_extents(selection):
-        if selection is not None:
-            (x0, x1), (y0, y1) = selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
-            extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
-            rect_selector.extents = extents
         
     if initial_selection is not None:
         # convert to extents:
@@ -911,5 +907,60 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
     if extents is not None:
         selector.extents = extents
     # fig.canvas.mpl_connect('key_press_event', toggle_selector)
-    
+    def set_extents(selection):
+        """ can be called to set the extents on the selector object. Captures `selector` """
+        if selection is not None:
+            (x0, x1), (y0, y1) = selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+            extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+            selector.extents = extents
+            
     return selector, set_extents
+
+
+
+# grid_bin_bounds updating versions __________________________________________________________________________________ #
+
+def interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze'):
+	""" allows the user to interactively select the grid_bin_bounds for the pf1D
+	
+	Usage:
+        from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_1D
+		fig, ax, range_selector, set_extents = interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze')
+	"""
+	# from neuropy.utils.matplotlib_helpers import add_range_selector
+	computation_result = curr_active_pipeline.computation_results[epoch_name]
+	grid_bin_bounds_1D = computation_result.computation_config['pf_params'].grid_bin_bounds_1D
+	fig, ax = computation_result.computed_data.pf1D.plot_occupancy() #plot_occupancy()
+	# curr_pos = deepcopy(curr_active_pipeline.sess.position)
+	# curr_pos_df = curr_pos.to_dataframe()
+	# curr_pos_df.plot(x='t', y=['lin_pos'])
+	# fig, ax = plt.gcf(), plt.gca()
+
+	def _on_range_changed(xmin, xmax):
+		# print(f'xmin: {xmin}, xmax: {xmax}')
+		# xmid = np.mean([xmin, xmax])
+		# print(f'xmid: {xmid}')
+		print(f'new_grid_bin_bounds_1D: ({xmin}, {xmax})')
+
+	# range_selector, set_extents = add_range_selector(fig, ax, orientation="vertical", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed) # (-86.91, 141.02)
+	range_selector, set_extents = add_range_selector(fig, ax, orientation="horizontal", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed)
+	return fig, ax, range_selector, set_extents
+
+def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze'):
+	""" allows the user to interactively select the grid_bin_bounds for the pf2D
+	
+	Usage:
+        from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_2D
+		fig, ax, rect_selector, set_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
+	"""
+	# from neuropy.utils.matplotlib_helpers import add_rectangular_selector # interactive_select_grid_bin_bounds_2D
+	computation_result = curr_active_pipeline.computation_results[epoch_name]
+	grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
+	fig, ax = computation_result.computed_data.pf2D.plot_occupancy()
+	rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+	return fig, ax, rect_selector, set_extents
+
+
+
+
+
