@@ -274,7 +274,11 @@ def split_array(arr: np.ndarray, sub_element_lengths: np.ndarray) -> list:
 # Pandas Helpers                                                                                                       #
 # ==================================================================================================================== #
 def safe_pandas_get_group(dataframe_group, key):
-    """ returns an empty dataframe if the key isn't found in the group."""
+    """ returns an empty dataframe if the key isn't found in the group.
+    Usage:
+        from neuropy.utils.misc import safe_pandas_get_group
+        safe_pandas_get_group(grouped_rdf, False)
+    """
     if key in dataframe_group.groups.keys():
         return dataframe_group.get_group(key)
     else:
