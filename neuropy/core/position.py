@@ -3,7 +3,6 @@ from ..utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
-from .signal import Signal
 from .datawriter import DataWriter
 
 
@@ -15,7 +14,6 @@ class Position(DataWriter):
         sampling_rate=120,
         metadata=None,
     ) -> None:
-
         if traces.ndim == 1:
             traces = traces.reshape(1, -1)
 
