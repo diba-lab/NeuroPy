@@ -32,6 +32,7 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 """
 
 import copy
+from typing import Any
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from neuropy.utils.mixins.diffable import DiffableObject
 
@@ -76,17 +77,12 @@ class IdentifyingContext(DiffableObject, object):
         
     def add_context(self, collision_prefix:str, **additional_context_items):
         """ adds the additional_context_items to self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         for name, value in additional_context_items.items():
-            # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            if hasattr(self, name):
-                print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
-                ## TODO: rename the current attribute to be set by appending a prefix
-                final_name = f'{collision_prefix}{name}'
-            else:
-                final_name = name
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            final_name = self.resolve_key(self, name, value, collision_prefix)
             # Set the new attr
             setattr(self, final_name, value)
         
@@ -95,37 +91,42 @@ class IdentifyingContext(DiffableObject, object):
 
     def adding_context(self, collision_prefix:str, **additional_context_items) -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         # assert isinstance(collision_prefix, str), f"collision_prefix must be provided as a string! Did you forget to provide it?"
         duplicate_ctxt = copy.deepcopy(self)
         
         for name, value in additional_context_items.items():
-            # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            if hasattr(duplicate_ctxt, name):
-                # Check whether the existing context already has that key:
-                if (getattr(duplicate_ctxt, name) == value):
-                    # Check whether it is the same value or not:
-                    # the existing context has the same value for the overlapping key as the current one. Permit the merge.
-                    final_name = name # this will not change the result
-                else:
-                    # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
-                    print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
-                    ## TODO: rename the current attribute to be set by appending a prefix
-                    assert collision_prefix is not None, f"namespace collision in `add_context(...)`! attr with name {name} already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
-                    final_name = f'{collision_prefix}{name}'
-            else:
-                final_name = name
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix)
             # Set the new attr
             setattr(duplicate_ctxt, final_name, value)
         
         return duplicate_ctxt
     
+    @classmethod
+    def resolve_key(cls, duplicate_ctxt: "IdentifyingContext", name:str, value, collision_prefix:str):
+        # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+        if hasattr(duplicate_ctxt, name):
+            # Check whether the existing context already has that key:
+            if (getattr(duplicate_ctxt, name) == value):
+                # Check whether it is the same value or not:
+                # the existing context has the same value for the overlapping key as the current one. Permit the merge.
+                final_name = name # this will not change the result
+            else:
+                # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
+                print(f'WARNING: namespace collision in resolve_key! attr with name {name} already exists!')
+                ## rename the current attribute to be set by appending a prefix
+                assert collision_prefix is not None, f"namespace collision in `adding_context(...)`! attr with name {name} already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
+                final_name = f'{collision_prefix}{name}'
+        else:
+            final_name = name
+        return final_name
 
     def merging_context(self, collision_prefix:str, additional_context: "IdentifyingContext") -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding the items in additional_context to a copy of self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         return self.adding_context(collision_prefix, **additional_context.to_dict())
