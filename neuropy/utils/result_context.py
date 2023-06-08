@@ -107,7 +107,7 @@ class IdentifyingContext(DiffableObject, object):
     
     @classmethod
     def resolve_key(cls, duplicate_ctxt: "IdentifyingContext", name:str, value, collision_prefix:str):
-        # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+        """ensures no collision between attributes occur, and if they do rename them with an identifying prefix"""
         if hasattr(duplicate_ctxt, name):
             # Check whether the existing context already has that key:
             if (getattr(duplicate_ctxt, name) == value):
@@ -116,10 +116,11 @@ class IdentifyingContext(DiffableObject, object):
                 final_name = name # this will not change the result
             else:
                 # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
-                print(f'WARNING: namespace collision in resolve_key! attr with name {name} already exists!')
+                
                 ## rename the current attribute to be set by appending a prefix
-                assert collision_prefix is not None, f"namespace collision in `adding_context(...)`! attr with name {name} already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
+                assert collision_prefix is not None, f"namespace collision in `adding_context(...)`! attr with name '{name}' already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
                 final_name = f'{collision_prefix}{name}'
+                print(f'WARNING: namespace collision in resolve_key! attr with name "{name}" already exists and the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}. Using collision_prefix to add new name: "{final_name}"!')
         else:
             final_name = name
         return final_name
