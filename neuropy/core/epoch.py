@@ -64,9 +64,15 @@ class Epoch(DataWriter):
 
     def __add__(self, epochs):
         assert isinstance(epochs, Epoch), "Can only add two core.Epoch objects"
-        df1 = self._epochs[["start", "stop", "label"]]
-        df2 = epochs._epochs[["start", "stop", "label"]]
-        df_new = pd.concat([df1, df2]).reset_index(drop=True)
+        my_columns = self._epochs.columns
+        other_columns = epochs._epochs.columns
+        if np.array_equal(my_columns, other_columns):
+            df_new = pd.concat([self._epochs, epochs._epochs], ignore_index=True)
+        else:
+            my_df = self._epochs[["start", "stop", "label"]]
+            other_df = epochs._epochs[["start", "stop", "label"]]
+            df_new = pd.concat([my_df, other_df]).reset_index(drop=True)
+
         return Epoch(epochs=df_new)
 
     def shift(self, dt):
@@ -116,6 +122,22 @@ class Epoch(DataWriter):
         return self.n_epochs
 
     def time_slice(self, t_start, t_stop, strict=True):
+        """Return epochs which are within the provided time limits
+
+        Parameters
+        ----------
+        t_start : float, seconds
+            start time
+        t_stop : float, seconds
+            stop time
+        strict : bool, optional
+            whether to return epochs that strictly begin and end within the time limits, if False --> trim epochs which span partially or completely outside of time limits, by default True
+
+        Returns
+        -------
+        Epoch
+            _description_
+        """
         t_start, t_stop = super()._time_slice_params(t_start, t_stop)
         starts = self.starts
         stops = self.stops
@@ -412,6 +434,16 @@ class Epoch(DataWriter):
             label_proportion[state] = ep_group[state]
 
         return label_proportion
+
+    def durations_by_label(self):
+        labels = self.labels
+        durations = self.durations
+        unique_labels = self.get_unique_labels()
+        label_durations = {}
+        for label in unique_labels:
+            label_durations[label] = durations[labels == label].sum()
+
+        return label_durations
 
     def count(self, t_start=None, t_stop=None, binsize=300):
         if t_start is None:
