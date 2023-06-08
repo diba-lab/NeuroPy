@@ -1,6 +1,8 @@
 import numpy as np
+from ..core import DataWriter
 
-class Signal:
+
+class Signal(DataWriter):
     def __init__(
         self,
         traces,
@@ -8,7 +10,9 @@ class Signal:
         t_start=0.0,
         channel_id=None,
         source_file=None,
+        metadata=None,
     ) -> None:
+        super().__init__(metadata=metadata)
         assert traces.ndim <= 2
         self.traces = traces if traces.ndim == 2 else traces[None, :]
         self.t_start = t_start
@@ -69,7 +73,8 @@ class Signal:
         if channel_id is None:
             traces = self.traces[:, frame_start:frame_stop]
         else:
-            traces = self.traces[channel_id, frame_start:frame_stop]
+            channel_indx = [list(self.channel_id).index(_) for _ in channel_id]
+            traces = self.traces[channel_indx, frame_start:frame_stop]
 
         return Signal(traces, self.sampling_rate, t_start, channel_id)
 
@@ -133,7 +138,6 @@ class Spectrogram(Signal):
         return np.mean(self.traces, axis=0)
 
     def get_band_power(self, f1=None, f2=None):
-
         if f1 is None:
             f1 = self.freqs[0]
 
