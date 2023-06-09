@@ -165,19 +165,28 @@ class IdentifyingContext(DiffableObject, object):
               
                        
         
-    def get_description(self, subset_whitelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', prefix_items=[], suffix_items=[])->str:
+    def get_description(self, subset_whitelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
         include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
         replace_separator_in_property_names: str = replaces occurances of the separator with the str specified for the included property names. has no effect if include_property_names=False
+        key_value_separator: Optional[str] = if None, uses the same separator between key{}value as used between items.
         
         Outputs:
             a str like 'sess_kdiba_2006-6-07_11-26-53'
         """
         ## Build a session descriptor string:
         if include_property_names:
-            descriptor_array = [[name.replace(separator, replace_separator_in_property_names), str(val)]  for name, val in self.to_dict(subset_whitelist=subset_whitelist).items()] # creates a list of [name, val] list items
-            descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
+            if key_value_separator is None:
+                key_value_separator = separator # use same separator between key{}value as pairs of items.
+            # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_whitelist=subset_whitelist).items()] # creates a list of [name, val] list items
+            if key_value_separator != separator:
+                # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
+                descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
+            else:
+                # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
+                descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
         else:
             descriptor_array = [str(val) for val in list(self.to_dict(subset_whitelist=subset_whitelist).values())] # ensures each value is a string
             
