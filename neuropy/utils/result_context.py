@@ -316,6 +316,19 @@ class IdentifyingContext(DiffableObject, object):
         return all_keys_found, found_keys, missing_keys
 
 
+    # Differencing and Set Operations ____________________________________________________________________________________ #
+    def subtracting(self, rhs) -> "IdentifyingContext":
+        return self.subtract(self, rhs)
+
+    @classmethod
+    def subtract(cls, lhs, rhs):
+        """ Returns the lhs less the keys that are in the rhs.
+        Example:
+            non_primary_desired_files = FileList.subtract(found_any_pickle_files, (found_default_session_pickle_files + found_global_computation_results_files))        
+        """
+        return cls.init_from_dict(lhs.to_dict(subset_blacklist=rhs.keys()))
+
+
     ## For serialization/pickling:
     def __getstate__(self):
         # Copy the object's state from self.__dict__ which contains
