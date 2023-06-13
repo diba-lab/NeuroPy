@@ -150,15 +150,23 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
         """
         return build_formatted_str_from_properties_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist), param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self.float_precision), array_items_threshold=(override_array_items_threshold or self.array_items_threshold))
 
+
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
-        # return hash((self.age, self.name))
-        member_names_tuple = list(self.__dict__.keys())
-        values_tuple = list(self.__dict__.values())
+        dict_rep = self.to_dict()
+        member_names_tuple = list(dict_rep.keys())
+        values_tuple = list(dict_rep.values())
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
+    
 
-
+    def __eq__(self, other):
+        """Overrides the default implementation to allow comparing by value. """
+        if isinstance(other, PlacefieldComputationParameters):
+            return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
+        else:
+            raise NotImplementedError
+        return NotImplemented # this part looks like a bug, yeah?
 
     
     @classmethod
