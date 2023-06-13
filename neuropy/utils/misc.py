@@ -274,14 +274,18 @@ def split_array(arr: np.ndarray, sub_element_lengths: np.ndarray) -> list:
 # Pandas Helpers                                                                                                       #
 # ==================================================================================================================== #
 def safe_pandas_get_group(dataframe_group, key):
-    """ returns an empty dataframe if the key isn't found in the group."""
+    """ returns an empty dataframe if the key isn't found in the group.
+    Usage:
+        from neuropy.utils.misc import safe_pandas_get_group
+        safe_pandas_get_group(grouped_rdf, False)
+    """
     if key in dataframe_group.groups.keys():
         return dataframe_group.get_group(key)
     else:
         original_df = dataframe_group.obj
         return original_df.drop(original_df.index)
     
-def convert_dataframe_columns_to_datatype_if_possible(df, datatype_str_column_names_list_dict, debug_print=False):
+def convert_dataframe_columns_to_datatype_if_possible(df: pd.DataFrame, datatype_str_column_names_list_dict, debug_print=False):
     """ If the columns specified in datatype_str_column_names_list_dict exist in the dataframe df, their type is changed to the key of the dict. See usage example below:
     
     Inputs:

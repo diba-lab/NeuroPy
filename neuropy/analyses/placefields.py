@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Callable
+from typing import Callable, Optional
 from attrs import define, fields, filters, asdict, astuple
 
 import matplotlib.pyplot as plt
@@ -17,7 +17,10 @@ from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.misc import is_iterable
 from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_nD, build_df_discretized_binned_position_columns
 
+from neuropy.utils.mathutil import compute_grid_bin_bounds
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
+from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
+
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
@@ -29,7 +32,7 @@ from .. import plotting
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta, build_formatted_str_from_properties_dict
 
 
-class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass=OrderedMeta):
+class PlacefieldComputationParameters(SimplePrintable, DiffableObject, SubsettableDictRepresentable, metaclass=OrderedMeta):
     """A simple wrapper object for parameters used in placefield calcuations"""
     decimal_point_character=","
     param_sep_char='-'
@@ -37,6 +40,10 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
     # Note that I think it's okay to exclude `self.grid_bin_bounds` from these lists
+    # print precision options:
+    float_precision:int = 3
+    array_items_threshold:int = 5
+    
 
     def __init__(self, speed_thresh=3, grid_bin=2, grid_bin_bounds=None, smooth=2, frate_thresh=1, **kwargs):
         self.speed_thresh = speed_thresh
@@ -113,7 +120,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
 
 
     def str_for_filename(self, is_2D):
-        with np.printoptions(precision=2, suppress=True, threshold=5):
+        with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
             # score_text = f"score: " + str(np.array([epoch_score])).lstrip("[").rstrip("]") # output is just the number, as initially it is '[0.67]' but then the [ and ] are stripped.            
             extras_strings = self._unlisted_parameter_strings()
             if is_2D:
@@ -123,7 +130,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
 
     def str_for_display(self, is_2D):
         """ For rendering in a title, etc """
-        with np.printoptions(precision=2, suppress=True, threshold=5):
+        with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
             extras_string = ', '.join(self._unlisted_parameter_strings())
             if is_2D:
                 return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
@@ -131,7 +138,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
                 return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
 
 
-    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t'):
+    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', subset_includelist:Optional[list]=None, subset_excludelist:Optional[list]=None, override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None):
         """ For rendering in attributes list like outputs
         # Default for attributes lists outputs:
         Example Output:
@@ -141,7 +148,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             frate_thresh	0.1
             time_bin_size	0.5
         """
-        return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char)
+        return build_formatted_str_from_properties_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist), param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self.float_precision), array_items_threshold=(override_array_items_threshold or self.array_items_threshold))
 
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
@@ -151,19 +158,12 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
 
-    def to_dict(self):
-        return self.__dict__
 
 
+    
     @classmethod
     def compute_grid_bin_bounds(cls, x, y):
-        # grid_bin_bounds = [[np.nanmin(x), np.nanmax(x)], None] # x_range
-        # if (y is not None):
-        #     grid_bin_bounds[1] = [np.nanmin(y), np.nanmax(y)] # y_range
-        grid_bin_bounds = [(np.nanmin(x), np.nanmax(x)), None] # x_range
-        if (y is not None):
-            grid_bin_bounds[1] = (np.nanmin(y), np.nanmax(y)) # y_range
-        return tuple(grid_bin_bounds)
+        return compute_grid_bin_bounds(x, y)
 
 
 
@@ -577,7 +577,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         self.ndim = position.ndim
         self.position_srate = position.sampling_rate
 
-
         pos_df = position.to_dataframe()
         spk_df = spikes_df.copy()
 
@@ -631,6 +630,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             if self.config.grid_bin_bounds is None:
                 grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
             else:
+                # Use grid_bin_bounds:
                 if ((self.config.grid_bin_bounds[0] is None) or (self.config.grid_bin_bounds[1] is None)):
                     grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
                 else:

@@ -309,11 +309,11 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
     @staticmethod
     def _perform_compute_session_linearized_position(session, epochLabelName='maze1', method='isomap'):
         # returns Position objects for active_epoch_pos and linear_pos
-        from neuropy.utils import position_util
         active_epoch_times = session.epochs[epochLabelName] # array([11070, 13970], dtype=int64)
         acitve_epoch_timeslice_indicies = session.position.time_slice_indicies(active_epoch_times[0], active_epoch_times[1])
         active_epoch_pos = session.position.time_slice(active_epoch_times[0], active_epoch_times[1])
-        linear_pos = position_util.linearize_position(active_epoch_pos, method=method)
+        # linear_pos = position_util.linearize_position(active_epoch_pos, method=method)
+        linear_pos = active_epoch_pos.compute_linearized_position(method=method)
         return acitve_epoch_timeslice_indicies, active_epoch_pos, linear_pos
     
 
@@ -378,11 +378,11 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         session.position.linear_pos = np.full_like(session.position.time, np.nan)
         for anEpochLabelName in session.epochs.labels:
             try:
-                curr_active_epoch_timeslice_indicies, active_positions_curr_maze, linearized_positions_curr_maze = DataSession._perform_compute_session_linearized_position(session, epochLabelName=anEpochLabelName, method='pca')
+                curr_active_epoch_timeslice_indicies, active_positions_curr_maze, linearized_positions_curr_maze = DataSession._perform_compute_session_linearized_position(session, epochLabelName=anEpochLabelName, method='isomap')
                 if debug_print:
                     print('\t curr_active_epoch_timeslice_indicies: {}\n \t np.shape(curr_active_epoch_timeslice_indicies): {}'.format(curr_active_epoch_timeslice_indicies, np.shape(curr_active_epoch_timeslice_indicies)))
+                session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_curr_maze.linear_pos # TODO: should just be able to replace with `active_positions_curr_maze`
                 
-                session.position._data.loc[curr_active_epoch_timeslice_indicies, 'lin_pos'] = linearized_positions_curr_maze.x
             except ValueError as e:
                 # A ValueError occurs when the positions are empty during a given epoch (which occurs during any non-maze Epoch, such as 'pre' or 'post'.
                 if debug_print:

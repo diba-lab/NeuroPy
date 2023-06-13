@@ -2,15 +2,17 @@ from __future__ import annotations # otherwise have to do type like 'Ratemap'
 
 from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
+import numpy as np
 
+
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
 from matplotlib.widgets import RectangleSelector # required for `add_rectangular_selector`
+from matplotlib.widgets import SpanSelector
 
-import numpy as np
 
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple
-
 from neuropy.plotting.figure import compute_figure_size_pixels, compute_figure_size_inches # needed for _determine_best_placefield_2D_layout(...)'s internal _perform_compute_required_figure_sizes(...) function
 
 from typing import TYPE_CHECKING
@@ -114,7 +116,6 @@ def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentityTuple
         final_title = '\n'.join(final_string_components) # f"Cell {ratemap.neuron_ids[cell]} - {ratemap.get_extended_neuron_id_string(neuron_i=cell)} \n{round(np.nanmax(pfmap),2)} Hz"
     return final_title
     
-    
 def _build_variable_max_value_label(plot_variable: enumTuningMap2DPlotVariables):
     """  Builds a label that displays the max value with the appropriate unit suffix for the title
     if brev_mode.should_show_firing_rate_label:
@@ -127,7 +128,6 @@ def _build_variable_max_value_label(plot_variable: enumTuningMap2DPlotVariables)
         return lambda value: f'{round(value,2)} Spikes'
     else:
         raise NotImplementedError
-
 
 def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), fig_column_width:float=8.0, fig_row_height:float=1.0, resolution_multiplier:float=1.0, max_screen_figure_size=(None, None), last_figure_subplots_same_layout=True, debug_print:bool=False):
     """ Computes the optimal sizes, number of rows and columns, and layout of the individual 2D placefield subplots in terms of the overarching pf_2D figure
@@ -260,7 +260,6 @@ def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_t
             image[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
         return image # return the modified and masked image
 
-    
 def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
     """ builds a background checkerboard image used to indicate opacity
     Usage:
@@ -718,7 +717,7 @@ def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
 # 2023-05-09 Misc Utility Functions                                                                                    #
 # ==================================================================================================================== #
 
-import matplotlib as mpl
+
 
 def extract_figure_properties(fig):
     """ UNTESTED, UNFINISHED
@@ -790,10 +789,78 @@ def extract_figure_properties(fig):
     return properties
 
 
+# ==================================================================================================================== #
+# 2023-06-05 Interactive Selection Helpers                                                                             #
+# ==================================================================================================================== #
+def add_range_selector(fig, ax, initial_selection=None, orientation="horizontal", on_selection_changed=None) -> SpanSelector:
+    """ 2023-06-06 - a 1D version of `add_rectangular_selector` which adds a selection band to an existing axis
 
-def add_rectangular_selector(fig, ax, initial_selection=None) -> RectangleSelector:
-	""" 2023-05-16 - adds an interactive rectangular selector to a matplotlib figure/ax.
-	
+    from neuropy.utils.matplotlib_helpers import add_range_selector
+    curr_pos = deepcopy(curr_active_pipeline.sess.position)
+    curr_pos_df = curr_pos.to_dataframe()
+
+    curr_pos_df.plot(x='t', y=['lin_pos'])
+    fig, ax = plt.gcf(), plt.gca()
+    range_selector, set_extents = add_range_selector(fig, ax, orientation="vertical", initial_selection=None) # (-86.91, 141.02)
+
+    """
+    assert orientation in ["horizontal", "vertical"]
+    use_midline = False
+
+    if use_midline:
+        def update_mid_line(xmin, xmax):
+            xmid = np.mean([xmin, xmax])
+            mid_line.set_ydata(xmid)
+
+        def on_move_callback(xmin, xmax):
+            """ Callback whenever the range is moved. 
+
+            """
+            print(f'on_move_callback(xmin: {xmin}, xmax: {xmax})')
+            update_mid_line(xmin, xmax)
+    else:
+        on_move_callback = None
+
+    def select_callback(xmin, xmax):
+        """
+        Callback for range selection.
+        """
+        # indmin, indmax = np.searchsorted(x, (xmin, xmax))
+        # indmax = min(len(x) - 1, indmax)
+        print(f"({xmin:3.2f}, {xmax:3.2f})")
+        if on_selection_changed is not None:
+            """ call the user-provided callback """
+            on_selection_changed(xmin, xmax)
+        
+    if initial_selection is not None:
+        # convert to extents:
+        (x0, x1) = initial_selection # initial_selection should be `(xmin, xmax)`
+        extents = (min(x0, x1), max(x0, x1))
+    else:
+        extents = None
+        
+    props=dict(alpha=0.5, facecolor="tab:red")
+    selector = SpanSelector(ax, select_callback, orientation, useblit=True, props=props, interactive=True, drag_from_anywhere=True, onmove_callback=on_move_callback) # Set useblit=True on most backends for enhanced performance.
+    if extents is not None:
+        selector.extents = extents
+    
+    ## Add midpoint line:
+    if use_midline:
+        mid_line = ax.axhline(linewidth=1, alpha=0.6, color='r', label='midline', linestyle="--")
+        update_mid_line(*selector.extents)
+
+    def set_extents(selection):
+        """ can be called to set the extents on the selector object. Captures `selector` """
+        if selection is not None:
+            (x0, x1) = selection # initial_selection should be `(xmin, xmax)`
+            extents = (min(x0, x1), max(x0, x1))
+            selector.extents = extents
+            
+    return selector, set_extents
+
+def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_changed=None) -> RectangleSelector:
+    """ 2023-05-16 - adds an interactive rectangular selector to an existing matplotlib figure/ax.
+    
     Usage:
     
         from neuropy.utils.matplotlib_helpers import add_rectangular_selector
@@ -801,56 +868,99 @@ def add_rectangular_selector(fig, ax, initial_selection=None) -> RectangleSelect
         fig, ax = curr_active_pipeline.computation_results['maze'].computed_data.pf2D.plot_occupancy()
         rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
 
-	
-	The returned RectangleSelector object can have its selection accessed via:
-		rect_selector.extents # (25.508610487986658, 258.5627661142404, 128.10121504465053, 150.48449186696848)
-	
-	Or updated via:
-		rect_selector.extents = (25, 258, 128, 150)
+    
+    The returned RectangleSelector object can have its selection accessed via:
+        rect_selector.extents # (25.508610487986658, 258.5627661142404, 128.10121504465053, 150.48449186696848)
+    
+    Or updated via:
+        rect_selector.extents = (25, 258, 128, 150)
 
+    """
+    def select_callback(eclick, erelease):
+        """
+        Callback for line selection.
+
+        *eclick* and *erelease* are the press and release events.
+        """
+        x1, y1 = eclick.xdata, eclick.ydata
+        x2, y2 = erelease.xdata, erelease.ydata
+        print(f"({x1:3.2f}, {y1:3.2f}) --> ({x2:3.2f}, {y2:3.2f})")
+        print(f'({x1:3.2f}, {x2:3.2f}), ({y1:3.2f}, {y2:3.2f})')
+        print(f"The buttons you used were: {eclick.button} {erelease.button}")
+        if on_selection_changed is not None:
+            """ call the user-provided callback """
+            extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+            on_selection_changed(extents)
+
+        
+    if initial_selection is not None:
+        # convert to extents:
+        (x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+        extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+    else:
+        extents = None
+        
+    # ax = axs[0]
+    # props = dict(facecolor='blue', alpha=0.5)
+    props=None
+    selector = RectangleSelector(ax, select_callback, useblit=True, button=[1, 3], minspanx=5, minspany=5, spancoords='data', interactive=True, ignore_event_outside=True, props=props) # spancoords='pixels', button=[1, 3]: disable middle button 
+    if extents is not None:
+        selector.extents = extents
+    # fig.canvas.mpl_connect('key_press_event', toggle_selector)
+    def set_extents(selection):
+        """ can be called to set the extents on the selector object. Captures `selector` """
+        if selection is not None:
+            (x0, x1), (y0, y1) = selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+            extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
+            selector.extents = extents
+            
+    return selector, set_extents
+
+
+
+# grid_bin_bounds updating versions __________________________________________________________________________________ #
+
+def interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze'):
+	""" allows the user to interactively select the grid_bin_bounds for the pf1D
+	
+	Usage:
+        from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_1D
+		fig, ax, range_selector, set_extents = interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze')
 	"""
-	def select_callback(eclick, erelease):
-		"""
-		Callback for line selection.
+	# from neuropy.utils.matplotlib_helpers import add_range_selector
+	computation_result = curr_active_pipeline.computation_results[epoch_name]
+	grid_bin_bounds_1D = computation_result.computation_config['pf_params'].grid_bin_bounds_1D
+	fig, ax = computation_result.computed_data.pf1D.plot_occupancy() #plot_occupancy()
+	# curr_pos = deepcopy(curr_active_pipeline.sess.position)
+	# curr_pos_df = curr_pos.to_dataframe()
+	# curr_pos_df.plot(x='t', y=['lin_pos'])
+	# fig, ax = plt.gcf(), plt.gca()
 
-		*eclick* and *erelease* are the press and release events.
-		"""
-		x1, y1 = eclick.xdata, eclick.ydata
-		x2, y2 = erelease.xdata, erelease.ydata
-		print(f"({x1:3.2f}, {y1:3.2f}) --> ({x2:3.2f}, {y2:3.2f})")
-		print(f'({x1:3.2f}, {x2:3.2f}), ({y1:3.2f}, {y2:3.2f})')
-		print(f"The buttons you used were: {eclick.button} {erelease.button}")
+	def _on_range_changed(xmin, xmax):
+		# print(f'xmin: {xmin}, xmax: {xmax}')
+		# xmid = np.mean([xmin, xmax])
+		# print(f'xmid: {xmid}')
+		print(f'new_grid_bin_bounds_1D: ({xmin}, {xmax})')
 
-	# def toggle_selector(event):
-	# 	print('Key pressed.')
-	# 	if event.key == 't':
-	# 		name = type(selector).__name__
-	# 		if selector.active:
-	# 			print(f'{name} deactivated.')
-	# 			selector.set_active(False)
-	# 		else:
-	# 			print(f'{name} activated.')
-	# 			selector.set_active(True)
+	# range_selector, set_extents = add_range_selector(fig, ax, orientation="vertical", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed) # (-86.91, 141.02)
+	range_selector, set_extents = add_range_selector(fig, ax, orientation="horizontal", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed)
+	return fig, ax, range_selector, set_extents
 
-	def set_extents(selection):
-		if selection is not None:
-			(x0, x1), (y0, y1) = selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
-			extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
-			rect_selector.extents = extents
-		
-	if initial_selection is not None:
-		# convert to extents:
-		(x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
-		extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
-	else:
-		extents = None
-		
-	# ax = axs[0]
-	# props = dict(facecolor='blue', alpha=0.5)
-	props=None
-	selector = RectangleSelector(ax, select_callback, useblit=True, button=[1, 3], minspanx=5, minspany=5, spancoords='data', interactive=True, ignore_event_outside=True, props=props) # spancoords='pixels', button=[1, 3]: disable middle button 
-	if extents is not None:
-		selector.extents = extents
-	# fig.canvas.mpl_connect('key_press_event', toggle_selector)
+def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze'):
+	""" allows the user to interactively select the grid_bin_bounds for the pf2D
 	
-	return selector, set_extents
+	Usage:
+        from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_2D
+		fig, ax, rect_selector, set_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
+	"""
+	# from neuropy.utils.matplotlib_helpers import add_rectangular_selector # interactive_select_grid_bin_bounds_2D
+	computation_result = curr_active_pipeline.computation_results[epoch_name]
+	grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
+	fig, ax = computation_result.computed_data.pf2D.plot_occupancy()
+	rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+	return fig, ax, rect_selector, set_extents
+
+
+
+
+

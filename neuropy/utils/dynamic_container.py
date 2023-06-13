@@ -194,8 +194,8 @@ class DynamicContainer(DiffableObject, MutableMapping):
             
             # if DynamicParameters.outcome_on_item_not_found:
             # return super(DynamicParameters, self).__setattr__(item, 'orphan')
-            
-            raise AttributeError(item) # Suggested to work around a deepcopy issue
+            # Suggested to work around a deepcopy issue
+            raise AttributeError(item)      #@IgnoreException 
             # raise
             
             

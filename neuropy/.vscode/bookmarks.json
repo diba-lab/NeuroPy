@@ -44,9 +44,34 @@
 					"label": "time_slice epochs objects"
 				},
 				{
+					"line": 299,
+					"column": 30,
+					"label": "laps"
+				},
+				{
 					"line": 369,
 					"column": 15,
 					"label": "linearization"
+				}
+			]
+		},
+		{
+			"path": "analyses/laps.py",
+			"bookmarks": [
+				{
+					"line": 80,
+					"column": 0,
+					"label": "laps"
+				}
+			]
+		},
+		{
+			"path": "utils/mixins/print_helpers.py",
+			"bookmarks": [
+				{
+					"line": 117,
+					"column": 44,
+					"label": "build_formatted_str_from_properties_dict"
 				}
 			]
 		}

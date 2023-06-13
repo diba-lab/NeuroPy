@@ -110,13 +110,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         _test_session
 
     """
-    _session_class_name = 'kdiba'
-    _session_default_relative_basedir = r'data/KDIBA/gor01/one/2006-6-07_11-26-53'
-    _session_default_basedir = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53' # WINDOWS
+    _session_class_name: str = 'kdiba'
+    _session_default_relative_basedir: str = r'data/KDIBA/gor01/one/2006-6-07_11-26-53'
+    _session_default_basedir: str = r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53' # WINDOWS
     # _session_default_basedir = r'/run/media/halechr/MoverNew/data/KDIBA/gor01/one/2006-6-07_11-26-53'
-    _session_basepath_to_context_parsing_keys = ['format_name','animal','exper_name', 'session_name']
+    _session_basepath_to_context_parsing_keys: list[str] = ['format_name','animal','exper_name', 'session_name']
 
-    _time_variable_name = 't_rel_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
+    _time_variable_name: str = 't_rel_seconds' # It's 't_rel_seconds' for kdiba-format data for example or 't_seconds' for Bapun-format data
     
     @classmethod
     def get_known_data_session_type_properties(cls, override_basepath=None):
@@ -188,16 +188,16 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
     # Pyramidal and Lap-Only:
     @classmethod
-    def build_filters_pyramidal_epochs(cls, sess, epoch_name_whitelist=None, filter_name_suffix='_PYR'):
+    def build_filters_pyramidal_epochs(cls, sess, epoch_name_includelist=None, filter_name_suffix='_PYR'):
         sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
         active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1'), sess.get_context().adding_context('filter', filter_name=f'{"maze1"}{filter_name_suffix or ""}')),
                         'maze2': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2'), sess.get_context().adding_context('filter', filter_name=f'{"maze2"}{filter_name_suffix or ""}')),
                         'maze': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]), sess.get_context().adding_context('filter', filter_name=f'{"maze"}{filter_name_suffix or ""}'))
                                         }
         
-        if epoch_name_whitelist is not None:
-            # if the whitelist is specified, get only the specified epochs
-            active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_whitelist}
+        if epoch_name_includelist is not None:
+            # if the includelist is specified, get only the specified epochs
+            active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_includelist}
             
         if filter_name_suffix is not None:
             # if a filter_name_suffix is specified, change the keys of the returned dict to include the suffix
@@ -221,13 +221,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
 
     @classmethod
-    def build_default_filter_functions(cls, sess, epoch_name_whitelist=None, filter_name_suffix=None, include_global_epoch=True):
+    def build_default_filter_functions(cls, sess, epoch_name_includelist=None, filter_name_suffix=None, include_global_epoch=True):
         # all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
         # default_filter_functions = DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess)
         ## TODO: currently hard-coded
         # active_session_filter_configurations = cls.build_pyramidal_epochs_filters(sess)
         # active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
-        return DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess, epoch_name_whitelist=epoch_name_whitelist, filter_name_suffix=filter_name_suffix, include_global_epoch=include_global_epoch)
+        return DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess, epoch_name_includelist=epoch_name_includelist, filter_name_suffix=filter_name_suffix, include_global_epoch=include_global_epoch)
         
     # ==================================================================================================================== #
     # Computation Configs                                                                                                  #
@@ -335,12 +335,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return Path(basedir).parts[-1] # session_name = '2006-6-07_11-26-53'
 
     @classmethod
-    def get_session_spec(cls, session_name):
+    def get_session_spec(cls, session_name) -> SessionFolderSpec:
         return SessionFolderSpec(required=[SessionFileSpec('{}.xml', session_name, 'The primary .xml configuration file', cls._load_xml_file),
                                            SessionFileSpec('{}.spikeII.mat', session_name, 'The MATLAB data file containing information about neural spiking activity.', None),
                                            SessionFileSpec('{}.position_info.mat', session_name, 'The MATLAB data file containing the recorded animal positions (as generated by optitrack) over time.', None),
                                            SessionFileSpec('{}.epochs_info.mat', session_name, 'The MATLAB data file containing the recording epochs. Each epoch is defined as a: (label:str, t_start: float (in seconds), t_end: float (in seconds))', None)]
-                                )        
+                                )
         
     @classmethod
     def load_session(cls, session, debug_print=False):
@@ -436,6 +436,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     @staticmethod
     def _default_compute_linear_position_if_needed(session, force_recompute=True):
         # this is not general, this is only used for this particular flat kind of file:
+        from neuropy.utils.position_util import RegularizationApproach # for `_default_compute_linear_position_if_needed`
+
         # Load or compute linear positions if needed:
         if (not session.position.has_linear_pos):
             ## compute linear positions: 
@@ -451,7 +453,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             else:
                 # Otherwise load failed, perform the fallback computation
                 print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
-                session.position = DataSession.compute_linear_position(session)
+                session.position.compute_linearized_position(regularization_approach=RegularizationApproach.RESTORE_X_RANGE, method="isomap", sigma=0)
+
                 # Only re-save after re-computation
                 session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
                 # print('Saving updated position results to {}...'.format(session.position.filename), end='')

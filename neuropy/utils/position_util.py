@@ -5,11 +5,80 @@ from sklearn.manifold import Isomap
 from scipy.ndimage import gaussian_filter1d
 
 from .. import core
-from neuropy.utils.mathutil import contiguous_regions, threshPeriods
+from neuropy.utils.mathutil import contiguous_regions, threshPeriods, compute_grid_bin_bounds, map_value
 from neuropy.utils.mixins.binning_helpers import compute_spanning_bins
 
+from enum import Enum
 
-def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):
+
+class RegularizationApproach(Enum):
+    """Docstring for RegularizationApproach."""
+    RAW_VALUES = "raw_values"
+    SUBTRACT_MIN = "subtract_min"
+    RESTORE_X_RANGE = "restore_x_range" # restores the original range of the x values after performing the linearization.
+    
+
+def linearize_position_df(pos_df: pd.DataFrame, sample_sec=3, method="isomap", sigma=2, override_position_sampling_rate_Hz=None, regularization_approach:RegularizationApproach=RegularizationApproach.RAW_VALUES):
+    """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
+    ISOMAP is more versatile but also more computationally expensive.
+
+    Parameters
+    ----------
+    track_names: list of track names, each must match an epoch in epochs class.
+    sample_sec : int, optional
+        sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results
+    method : str, optional
+        by default 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020) or
+        'PCA' (for straight tracks)
+    override_position_sampling_rate_Hz: float, optional - ignored except for method="isomap". If provided, used for downsampling dataframe prior to computation. Otherwise sampling rate is approximated from pos_df['t'] column.
+    
+    Modifies:
+        Adds the 'lin_pos' column to the provided position dataframe.
+    """    
+    xy_pos = pos_df[['x','y']].to_numpy()
+    
+    xlinear = None
+    if method.lower() == "pca":
+        pca = PCA(n_components=1)
+        xlinear = pca.fit_transform(xy_pos).squeeze()
+    elif method.lower() == "isomap":
+        imap = Isomap(n_neighbors=5, n_components=2)
+        # downsample points to reduce memory load and time
+        if override_position_sampling_rate_Hz is not None:
+            position_sampling_rate_Hz = override_position_sampling_rate_Hz
+        else:
+            # compute sampling rate from the 't' column:
+            assert 't' in pos_df.columns
+            position_sampling_rate_Hz = 1.0 / np.nanmean(np.diff(pos_df['t'].to_numpy())) # In Hz, returns 29.969777
+        num_end_samples = np.round(int(position_sampling_rate_Hz) * sample_sec)
+        pos_ds = xy_pos[0:-1:num_end_samples]
+        imap.fit(pos_ds)
+        iso_pos = imap.transform(xy_pos)
+        # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
+        if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
+            iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
+        xlinear = iso_pos[:, 0]
+    else:
+        print('ERROR: invalid method name: {}'.format(method))
+        
+    if (sigma is not None) and (sigma > 0.0):
+        xlinear = gaussian_filter1d(xlinear, sigma=sigma) # smooth
+        
+    if regularization_approach.name == RegularizationApproach.SUBTRACT_MIN.name:
+        xlinear -= np.min(xlinear) # required to prevent mapping to negative values
+    elif regularization_approach.name == RegularizationApproach.RESTORE_X_RANGE.name:
+        xlinear = -1.0 * xlinear # flip over the y-axis first
+        lin_pos_bounds = compute_grid_bin_bounds(xlinear)[0]
+        x_bounds = compute_grid_bin_bounds(pos_df['x'].to_numpy())[0]
+        # print(f'lin_pos_bounds: {lin_pos_bounds}, x_bounds: {x_bounds}')
+        xlinear = map_value(xlinear, lin_pos_bounds, x_bounds) # map xlinear from its current bounds range to the xbounds range
+    else:
+        assert regularization_approach.name == RegularizationApproach.RAW_VALUES.name, f"Invalid regularization approach!"
+    pos_df['lin_pos'] = xlinear # add the linearized position to the dataframe as the 'lin_pos' column
+    return pos_df
+
+
+def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2, **kwargs) -> core.Position:
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
 
@@ -23,36 +92,18 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         'PCA' (for straight tracks)
 
     """
-    ## OLD:
-    # xpos = position.x
-    # ypos = position.y
-    # xy_pos = np.vstack((xpos, ypos)).T
-    pos_df = position.to_dataframe()
-    xy_pos = pos_df[['x','y']].to_numpy()
-    xlinear = None
-    if method.lower() == "pca":
-        pca = PCA(n_components=1)
-        xlinear = pca.fit_transform(xy_pos).squeeze()
-    elif method.lower() == "isomap":
-        imap = Isomap(n_neighbors=5, n_components=2)
-        # downsample points to reduce memory load and time
-        pos_ds = xy_pos[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
-        imap.fit(pos_ds)
-        iso_pos = imap.transform(xy_pos)
-        # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
-        if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
-            iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
-        xlinear = iso_pos[:, 0]
+    if isinstance(position, pd.DataFrame):
+        pos_df = linearize_position_df(position, sample_sec=sample_sec, method=method, sigma=sigma, override_position_sampling_rate_Hz=None, **kwargs)
+        xlinear = pos_df['lin_pos'].to_numpy()
+        return core.Position.from_separate_arrays(pos_df['t'].to_numpy(), xlinear, lin_pos=xlinear, metadata=None)
     else:
-        print('ERROR: invalid method name: {}'.format(method))
-        
-    xlinear = gaussian_filter1d(xlinear, sigma=sigma)
-    return core.Position.from_separate_arrays(position.time, xlinear, lin_pos=xlinear, metadata=position.metadata)
-    # return core.Position(pd.DataFrame({'t':pos_df.time, 'x': xlinear}), metadata=position.metadata)
+        pos_df = position.to_dataframe() # convert from a Position object
+        pos_df = linearize_position_df(pos_df, sample_sec=sample_sec, method=method, sigma=sigma, override_position_sampling_rate_Hz=position.sampling_rate, **kwargs)
+        xlinear = pos_df['lin_pos'].to_numpy()
+        return core.Position.from_separate_arrays(position.time, xlinear, lin_pos=xlinear, metadata=position.metadata)
+
     
-    # return core.Position.init(
-    #     traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
-    # )
+    
 
 
 def calculate_run_direction(

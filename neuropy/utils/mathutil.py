@@ -31,6 +31,51 @@ def min_max_scaler(x, axis=-1):
         x, axis=axis, keepdims=True
     )
 
+def map_to_fixed_range(lin_pos, x_min:float=0.0, x_max:float=1.0):
+    # Normalize lin_pos to the range [0, 1]
+    lin_pos_normalized = (lin_pos - np.nanmin(lin_pos)) / (np.nanmax(lin_pos) - np.nanmin(lin_pos))
+    # Scale the normalized lin_pos to the range [x_min, x_max]
+    mapped_pos = lin_pos_normalized * (x_max - x_min) + x_min
+    return mapped_pos
+
+# @function_attributes(short_name=None, tags=['map','values','transform'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-05-31 16:53', related_items=[])
+def map_value(value, from_range: tuple[float, float], to_range: tuple[float, float]):
+    """ Maps values from a range `from_low_high_tuple`: (a, b) to a new range `to_low_high_tuple`: (A, B). Similar to arduino's `map(value, fromLow, fromHigh, toLow, toHigh)` function
+    
+    Usage:
+        from neuropy.utils.mathutil import map_value
+        track_change_mapped_idx = map_value(track_change_time, (Flat_epoch_time_bins_mean[0], Flat_epoch_time_bins_mean[-1]), (0, (num_epochs-1)))
+        track_change_mapped_idx
+        
+    Example 2: Defining Shortcut mapping
+        map_value_time_to_epoch_idx_space = lambda v: map_value(v, (Flat_epoch_time_bins_mean[0], Flat_epoch_time_bins_mean[-1]), (0, (num_epochs-1))) # same map
+
+    """
+    # Calculate the ratio of the input value relative to the input range
+    from_low, from_high = from_range
+    to_low, to_high = to_range
+    ratio = (value - from_low) / (from_high - from_low)
+    # Map the ratio to the output range
+    mapped_value = to_low + (to_high - to_low) * ratio
+    # Return the mapped value
+    return mapped_value
+
+
+def compute_grid_bin_bounds(*args):
+    """ computes the (min, max) bound for each passed array and returns a tuple of these (min, max) tuples. 
+    from neuropy.utils.mathutil import compute_grid_bin_bounds
+    
+    """
+    grid_bin_bounds = []
+    for data in args:
+        if data is not None:
+            bounds = (np.nanmin(data), np.nanmax(data))
+        else:
+            bounds = None # append None to the array
+        grid_bin_bounds.append(bounds)
+    return tuple(grid_bin_bounds)
+
+
 
 def cdf(x, bins):
     """Returns cummulative distribution for x at bins"""

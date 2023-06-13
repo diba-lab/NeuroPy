@@ -47,3 +47,40 @@ def interleave_elements(start_points, end_points, debug_print:bool=False):
     all_points[np.arange(1, all_points_shape[0], 2), :] = end_points # fill the odd elements
     assert np.shape(all_points)[0] == (np.shape(start_points)[0] * 2), f"newly created all_points is not of corrrect size! np.shape(all_points): {np.shape(all_points)}"
     return np.squeeze(all_points)
+
+
+
+def get_dict_subset(a_dict: dict, subset_includelist=None, subset_excludelist=None) -> dict:
+    """
+    Returns a subset of the input dictionary based on the specified inclusion or exclusion lists.
+
+    Inputs:
+        a_dict: dict - The dictionary to subset.
+        subset_includelist: list, optional - A list of keys to include in the subset. If None, all keys are included.
+        subset_excludelist: list, optional - A list of keys to exclude from the subset. If None, no keys are excluded.
+
+    Returns:
+        dict: The subset of the input dictionary.
+        
+    Usage:
+        from neuropy.utils.mixins.indexing_helpers import get_dict_subset
+        
+    """
+    if subset_excludelist is not None:
+        assert subset_includelist is None, "subset_includelist must be None when a subset_excludelist is provided!"
+        subset_includelist = [key for key in a_dict.keys() if key not in subset_excludelist]
+
+    if subset_includelist is None:
+        return dict(a_dict)
+    else:
+        # benedict version:
+        # return benedict(a_dict).subset(subset_includelist)
+        # no benedict required version:
+        subset_dict = {}
+        for key in subset_includelist:
+            if key in a_dict:
+                subset_dict[key] = a_dict[key]
+
+        return subset_dict
+
+

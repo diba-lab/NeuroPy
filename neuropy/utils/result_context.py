@@ -32,9 +32,10 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 """
 
 import copy
+from typing import Any
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from neuropy.utils.mixins.diffable import DiffableObject
-
+from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
 from functools import update_wrapper, partial # for context_extraction
 from klepto.archives import cache as archive_dict
@@ -62,11 +63,12 @@ keymap: a tool for converting a function's input signature to an unique key
 
 """
 
-class IdentifyingContext(DiffableObject, object):
+class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     """ a general extnsible base context that allows additive member creation
     
         Should not hold any state or progress-related variables. 
     
+        # SubsettableDict: provides `to_dict`, `keys`, `keypaths`
     """
     def __init__(self, **kwargs):
         super(IdentifyingContext, self).__init__()
@@ -76,17 +78,12 @@ class IdentifyingContext(DiffableObject, object):
         
     def add_context(self, collision_prefix:str, **additional_context_items):
         """ adds the additional_context_items to self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         for name, value in additional_context_items.items():
-            # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            if hasattr(self, name):
-                print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
-                ## TODO: rename the current attribute to be set by appending a prefix
-                final_name = f'{collision_prefix}{name}'
-            else:
-                final_name = name
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            final_name = self.resolve_key(self, name, value, collision_prefix)
             # Set the new attr
             setattr(self, final_name, value)
         
@@ -95,37 +92,43 @@ class IdentifyingContext(DiffableObject, object):
 
     def adding_context(self, collision_prefix:str, **additional_context_items) -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         # assert isinstance(collision_prefix, str), f"collision_prefix must be provided as a string! Did you forget to provide it?"
         duplicate_ctxt = copy.deepcopy(self)
         
         for name, value in additional_context_items.items():
-            # TODO: ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            if hasattr(duplicate_ctxt, name):
-                # Check whether the existing context already has that key:
-                if (getattr(duplicate_ctxt, name) == value):
-                    # Check whether it is the same value or not:
-                    # the existing context has the same value for the overlapping key as the current one. Permit the merge.
-                    final_name = name # this will not change the result
-                else:
-                    # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
-                    print(f'WARNING: namespace collision in add_context! attr with name {name} already exists!')
-                    ## TODO: rename the current attribute to be set by appending a prefix
-                    assert collision_prefix is not None, f"namespace collision in `add_context(...)`! attr with name {name} already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
-                    final_name = f'{collision_prefix}{name}'
-            else:
-                final_name = name
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix)
             # Set the new attr
             setattr(duplicate_ctxt, final_name, value)
         
         return duplicate_ctxt
     
+    @classmethod
+    def resolve_key(cls, duplicate_ctxt: "IdentifyingContext", name:str, value, collision_prefix:str):
+        """ensures no collision between attributes occur, and if they do rename them with an identifying prefix"""
+        if hasattr(duplicate_ctxt, name):
+            # Check whether the existing context already has that key:
+            if (getattr(duplicate_ctxt, name) == value):
+                # Check whether it is the same value or not:
+                # the existing context has the same value for the overlapping key as the current one. Permit the merge.
+                final_name = name # this will not change the result
+            else:
+                # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
+                
+                ## rename the current attribute to be set by appending a prefix
+                assert collision_prefix is not None, f"namespace collision in `adding_context(...)`! attr with name '{name}' already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
+                final_name = f'{collision_prefix}{name}'
+                print(f'WARNING: namespace collision in resolve_key! attr with name "{name}" already exists and the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}. Using collision_prefix to add new name: "{final_name}"!')
+        else:
+            final_name = name
+        return final_name
 
     def merging_context(self, collision_prefix:str, additional_context: "IdentifyingContext") -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding the items in additional_context to a copy of self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         return self.adding_context(collision_prefix, **additional_context.to_dict())
@@ -162,22 +165,30 @@ class IdentifyingContext(DiffableObject, object):
         return self.merging_context(None, other) # due to passing None as the collision context, this will fail if there are collisions
               
                        
-        
-    def get_description(self, subset_whitelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', prefix_items=[], suffix_items=[])->str:
+    def get_description(self, subset_includelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
         include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
         replace_separator_in_property_names: str = replaces occurances of the separator with the str specified for the included property names. has no effect if include_property_names=False
+        key_value_separator: Optional[str] = if None, uses the same separator between key{}value as used between items.
         
         Outputs:
             a str like 'sess_kdiba_2006-6-07_11-26-53'
         """
         ## Build a session descriptor string:
         if include_property_names:
-            descriptor_array = [[name.replace(separator, replace_separator_in_property_names), str(val)]  for name, val in self.to_dict(subset_whitelist=subset_whitelist).items()] # creates a list of [name, val] list items
-            descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
+            if key_value_separator is None:
+                key_value_separator = separator # use same separator between key{}value as pairs of items.
+            # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist).items()] # creates a list of [name, val] list items
+            if key_value_separator != separator:
+                # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
+                descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
+            else:
+                # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
+                descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
         else:
-            descriptor_array = [str(val) for val in list(self.to_dict(subset_whitelist=subset_whitelist).values())] # ensures each value is a string
+            descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist).values())] # ensures each value is a string
             
         if prefix_items is not None:
             descriptor_array.extend(prefix_items)
@@ -217,46 +228,17 @@ class IdentifyingContext(DiffableObject, object):
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
     
+
     def __eq__(self, other):
         """Overrides the default implementation"""
         if isinstance(other, IdentifyingContext):
             return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
-        return NotImplemented
+        else:
+            raise NotImplementedError
+        return NotImplemented # this part looks like a bug, yeah?
     
     
-    def to_dict(self, subset_whitelist=None, subset_blacklist=None):
-        """ 
-        Inputs:
-            subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
-        """
-        if subset_blacklist is not None:
-            # if we have a blacklist, assert that we don't have a whitelist
-            assert subset_whitelist is None, f"subset_whitelist MUST be None when a subset_blacklist is provided, but instead it's {subset_whitelist}!"
-            subset_whitelist = self.keys(subset_blacklist=subset_blacklist) # get all but the excluded keys
-
-        if subset_whitelist is None:
-            return benedict(self.__dict__)
-        else:
-            return benedict(self.__dict__).subset(subset_whitelist)
-
-    def keys(self, subset_whitelist=None, subset_blacklist=None):
-        # return benedict(self.__dict__).keys()
-        if subset_whitelist is None:
-            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_blacklist or [])]
-        else:
-            assert subset_blacklist is None, f"subset_blacklist MUST be None when a subset_whitelist is provided, but instead it's {subset_blacklist}!"
-            return [a_key for a_key in benedict(self.__dict__).subset(subset_whitelist).keys() if a_key not in (subset_blacklist or [])]
-
-    def keypaths(self, subset_whitelist=None, subset_blacklist=None): 
-        if subset_whitelist is None:
-            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_blacklist or [])]
-        else:
-            assert subset_blacklist is None, f"subset_blacklist MUST be None when a subset_whitelist is provided, but instead it's {subset_blacklist}!"
-            return [a_key for a_key in benedict(self.__dict__).subset(subset_whitelist).keys() if a_key not in (subset_blacklist or [])]
-
-
-
-        return benedict(self.__dict__).keypaths()
+    
 
 
     @classmethod
@@ -264,45 +246,17 @@ class IdentifyingContext(DiffableObject, object):
         return cls(**a_dict) # expand the dict as input args.
         
 
-    def as_tuple(self, subset_whitelist=None, subset_blacklist=None, drop_missing:bool=False):
-        """ returns a tuple of just its values 
-        Inputs:
-            subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
+    # Differencing and Set Operations ____________________________________________________________________________________ #
+    def subtracting(self, rhs) -> "IdentifyingContext":
+        return self.subtract(self, rhs)
 
-        Usage:
-        curr_sess_ctx_tuple = curr_sess_ctx.as_tuple(subset_whitelist=['format_name','animal','exper_name', 'session_name'])
-        curr_sess_ctx_tuple # ('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')
-
+    @classmethod
+    def subtract(cls, lhs, rhs):
+        """ Returns the lhs less the keys that are in the rhs.
+        Example:
+            non_primary_desired_files = FileList.subtract(found_any_pickle_files, (found_default_session_pickle_files + found_global_computation_results_files))        
         """
-        if drop_missing:
-            return tuple([v for v in tuple(self.to_dict(subset_whitelist=subset_whitelist, subset_blacklist=subset_blacklist).values()) if v is not None]) # Drops all 'None' values in the tuple
-        else:
-            return tuple(self.to_dict(subset_whitelist=subset_whitelist, subset_blacklist=subset_blacklist).values())
-
-
-    def has_keys(self, keys_list):
-        """ returns a boolean array with each entry indicating whether that element in keys_list was found in the context """
-        is_key_found = [(v is not None) for v in self.as_tuple(subset_whitelist=keys_list)]
-        return is_key_found
-
-    def check_keys(self, keys_list, debug_print=False):
-        """ checks whether it has the keys or not
-        Usage:
-            all_keys_found, found_keys, missing_keys = curr_sess_ctx.check_keys(['format_name','animal','exper_name', 'session_name'], debug_print=False)
-        """
-        is_key_found = self.has_keys(keys_list)
-
-        found_keys = [k for k, is_found in zip(keys_list, is_key_found) if is_found]
-        missing_keys = [k for k, is_found in zip(keys_list, is_key_found) if not is_found]
-
-        all_keys_found = (len(missing_keys) == 0)
-        if not all_keys_found:
-            if debug_print:
-                print(f'missing {len(missing_keys)} keys: {missing_keys}')
-        else:
-            if debug_print:
-                print(f'found all {len(found_keys)} keys: {found_keys}')
-        return all_keys_found, found_keys, missing_keys
+        return cls.init_from_dict(lhs.to_dict(subset_excludelist=rhs.keys()))
 
 
     ## For serialization/pickling:

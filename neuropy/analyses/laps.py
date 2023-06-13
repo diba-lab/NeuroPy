@@ -81,7 +81,9 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
 
     # Sanity check the midpoint
     track_min_max_x = (np.nanmin(pos_df['x']), np.nanmax(pos_df['x']))
-    sane_midpoint_x = (np.nanmax(pos_df['x']) - np.nanmin(pos_df['x'])) / 2.0
+    # sane_midpoint_x = (np.nanmax(pos_df['x']) - np.nanmin(pos_df['x'])) / 2.0 # fails when track_min_max_x = (-112.6571782148526, 127.8636830487316) because of negative x value.
+    sane_midpoint_x = np.mean(track_min_max_x)
+    # Doesn't work when x permits negative values seemingly. 
     print(f'sane_midpoint_x: {sane_midpoint_x}, hardcoded_track_midpoint_x: {hardcoded_track_midpoint_x}, track_min_max_x: {track_min_max_x}')
     if hardcoded_track_midpoint_x is None:
         print(f'hardcoded_track_midpoint_x is None, falling back to sane_midpoint_x... {sane_midpoint_x}')
@@ -177,7 +179,9 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=True)
         out_axes_list[0].set_title('Old SpikeII computed Laps')
     
-    position_obj = sess.position
+    # position_obj = sess.position
+    position_obj = sess.position.linear_pos_obj
+
     # position_obj.dt
     position_obj.compute_higher_order_derivatives()
     pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it

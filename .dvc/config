@@ -1,4 +1,5 @@
 [core]
     remote = diba_shared_gdrive
+    autostage = true
 ['remote "diba_shared_gdrive"']
     url = gdrive://1DyUM5aOhE5kIKzc7OOkVyBltYjUbJ7tX/dvcstore
