@@ -129,7 +129,7 @@ class TestPlacefieldsMethods(unittest.TestCase):
         if self.enable_debug_printing:
             print(f'{coarse_binned_pf.bin_info = }\n{fine_binned_pf.bin_info = }')
         rebinned_fine_binned_pf = deepcopy(fine_binned_pf)
-        rebinned_fine_binned_pf.conform_to_position_bins(target_pf1D=coarse_binned_pf, force_recompute=True)
+        rebinned_fine_binned_pf.conform_to_position_bins(coarse_binned_pf, force_recompute=True)
         self.assertTrue(rebinned_fine_binned_pf.bin_info == coarse_binned_pf.bin_info) # the bins must be equal after conforming
 
         num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(dict(zip(['coarse', 'original', 'rebinned'],[coarse_binned_pf, fine_binned_pf, rebinned_fine_binned_pf])))
