@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Callable
+from typing import Callable, Optional
 from attrs import define, fields, filters, asdict, astuple
 
 import matplotlib.pyplot as plt
@@ -38,6 +38,10 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
     variable_inline_names=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
     # Note that I think it's okay to exclude `self.grid_bin_bounds` from these lists
+    # print precision options:
+    float_precision:int = 3
+    array_items_threshold:int = 5
+    
 
     def __init__(self, speed_thresh=3, grid_bin=2, grid_bin_bounds=None, smooth=2, frate_thresh=1, **kwargs):
         self.speed_thresh = speed_thresh
@@ -114,7 +118,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
 
 
     def str_for_filename(self, is_2D):
-        with np.printoptions(precision=2, suppress=True, threshold=5):
+        with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
             # score_text = f"score: " + str(np.array([epoch_score])).lstrip("[").rstrip("]") # output is just the number, as initially it is '[0.67]' but then the [ and ] are stripped.            
             extras_strings = self._unlisted_parameter_strings()
             if is_2D:
@@ -124,7 +128,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
 
     def str_for_display(self, is_2D):
         """ For rendering in a title, etc """
-        with np.printoptions(precision=2, suppress=True, threshold=5):
+        with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
             extras_string = ', '.join(self._unlisted_parameter_strings())
             if is_2D:
                 return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
@@ -132,7 +136,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
                 return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
 
 
-    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t'):
+    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None):
         """ For rendering in attributes list like outputs
         # Default for attributes lists outputs:
         Example Output:
@@ -142,7 +146,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             frate_thresh	0.1
             time_bin_size	0.5
         """
-        return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char)
+        return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self.float_precision), array_items_threshold=(override_array_items_threshold or self.array_items_threshold))
 
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """

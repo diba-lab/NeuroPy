@@ -64,6 +64,16 @@
 					"label": "laps"
 				}
 			]
+		},
+		{
+			"path": "utils/mixins/print_helpers.py",
+			"bookmarks": [
+				{
+					"line": 114,
+					"column": 44,
+					"label": "build_formatted_str_from_properties_dict"
+				}
+			]
 		}
 	]
 }

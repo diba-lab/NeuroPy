@@ -112,7 +112,7 @@ class ProgressMessagePrinter(object):
             
             
 
-def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', key_val_sep_char=':') -> str:
+def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', key_val_sep_char=':', float_precision:int=3, array_items_threshold:int=5) -> str:
     """ Builds a formatted output string from a dictionary of key:value pairs
 
     Args:
@@ -128,7 +128,7 @@ def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', ke
         
         
     """
-    with np.printoptions(precision=3, suppress=True, threshold=5):
+    with np.printoptions(precision=float_precision, suppress=True, threshold=array_items_threshold):
         properties_key_val_list = []
         for (name, val) in dict_items.items():
             try:
