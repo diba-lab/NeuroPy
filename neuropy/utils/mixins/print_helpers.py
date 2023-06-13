@@ -147,3 +147,97 @@ def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', ke
     
     return param_sep_char.join(properties_key_val_list)
 
+
+
+
+
+#TODO 2023-06-13 13:03: - [ ] Not yet complete. Not sure how to generalize.
+class MultiItemStringRepresentationMixin:
+    """ enables producing various customizable string representations from a dict-like item. 
+    Initially from `neuropy.analyses.placefields.PlacefieldComputationParameters`
+    
+    Usage:
+        from neuropy.utils.mixins.print_helpers import MultiItemStringRepresentationMixin
+        
+    """
+
+    # print character options:
+    _decimal_point_character: str=","
+    _param_sep_char: str='-'
+
+    # print precision options:
+    _float_precision:int = 3
+    _array_items_threshold:int = 5
+    
+    # variable names that must be provided by the specific class:
+    _variable_names: list[str]=['speed_thresh', 'grid_bin', 'smooth', 'frate_thresh']
+    _variable_inline_names: list[str]=['speedThresh', 'gridBin', 'smooth', 'frateThresh']
+    # Note that I think it's okay to exclude `self.grid_bin_bounds` from these lists
+
+
+    def _unlisted_parameter_strings(self) -> list[str]:
+        """ returns the string representations of all key/value pairs that aren't normally defined. """
+        # Dump all arguments into parameters.
+        out_list: list[str] = []
+        for key, value in self.__dict__.items():
+            if (key is not None) and (key not in self._variable_names):
+                if value is None:
+                    out_list.append(f"{key}_None")
+                else:
+                    # non-None
+                    if hasattr(value, 'str_for_filename'):
+                        out_list.append(f'{key}_{value.str_for_filename()}')
+                    elif hasattr(value, 'str_for_concise_display'):
+                        out_list.append(f'{key}_{value.str_for_concise_display()}')
+                    else:
+                        # no special handling methods:
+                        if isinstance(value, float):
+                            out_list.append(f"{key}_{value:.2f}")
+                        elif isinstance(value, np.ndarray):
+                            out_list.append(f'{key}_ndarray[{np.shape(value)}]')
+                        else:
+                            # No special handling:
+                            try:
+                                out_list.append(f"{key}_{value}")
+                            except Exception as e:
+                                print(f'UNEXPECTED_EXCEPTION: {e}')
+                                print(f'self.__dict__: {self.__dict__}')
+                                raise e
+
+        return out_list
+
+    def str_for_filename(self, is_2D) -> str:
+        """ returns a string that would be compatible for use in a filename across platforms. 
+        This means it can't include any forbidden characters such as: ":", backslash, etc.
+        """
+        with np.printoptions(precision=self._float_precision, suppress=True, threshold=self._array_items_threshold):
+            # score_text = f"score: " + str(np.array([epoch_score])).lstrip("[").rstrip("]") # output is just the number, as initially it is '[0.67]' but then the [ and ] are stripped.            
+            extras_strings = self._unlisted_parameter_strings()
+            if is_2D:
+                return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
+            else:
+                return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
+
+    def str_for_display(self, is_2D) -> str:
+        """ For rendering in a title, etc """
+        with np.printoptions(precision=self._float_precision, suppress=True, threshold=self._array_items_threshold):
+            extras_string = ', '.join(self._unlisted_parameter_strings())
+            if is_2D:
+                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+            else:
+                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+
+
+    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None) -> str:
+        """ For rendering in attributes list like outputs
+        # Default for attributes lists outputs:
+        Example Output:
+            speed_thresh	2.0
+            grid_bin	[3.777 1.043]
+            smooth	[1.5 1.5]
+            frate_thresh	0.1
+            time_bin_size	0.5
+        """
+        return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self._float_precision), array_items_threshold=(override_array_items_threshold or self._array_items_threshold))
+
+
