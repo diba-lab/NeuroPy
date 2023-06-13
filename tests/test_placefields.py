@@ -184,7 +184,10 @@ class TestPlacefieldsMethods(unittest.TestCase):
         obj1 = PlacefieldComputationParameters(speed_thresh=15.0, grid_bin=None, smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5)
         obj2 = PlacefieldComputationParameters(speed_thresh=15.0, grid_bin=None, smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5)
         self.assertEqual(obj1, obj2, f'The hashes of two objects with the same values should be equal, but: hash(obj1): {hash(obj1)}, hash(obj2): {hash(obj2)}!')
-    
+        # self.assertEqual(hash(obj1), hash(obj2), f'The hashes of two objects with the same values should be equal, but: hash(obj1): {hash(obj1)}, hash(obj2): {hash(obj2)}!')
+        # self.assertTrue(hash(obj1) == hash(obj2), f'Two objects with the same values should be equal, but they are not!')
+        # self.assertTrue(obj1 == obj2, f'Two objects with the same values should be equal, but they are not!')
+        # hash(obj1): 2090320457320539818, hash(obj2): 2090320457320539818!
 
 if __name__ == '__main__':
     unittest.main()
