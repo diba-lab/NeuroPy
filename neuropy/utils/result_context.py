@@ -35,7 +35,7 @@ import copy
 from typing import Any
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from neuropy.utils.mixins.diffable import DiffableObject
-
+from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
 from functools import update_wrapper, partial # for context_extraction
 from klepto.archives import cache as archive_dict
@@ -63,11 +63,12 @@ keymap: a tool for converting a function's input signature to an unique key
 
 """
 
-class IdentifyingContext(DiffableObject, object):
+class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     """ a general extnsible base context that allows additive member creation
     
         Should not hold any state or progress-related variables. 
     
+        # SubsettableDict: provides `to_dict`, `keys`, `keypaths`
     """
     def __init__(self, **kwargs):
         super(IdentifyingContext, self).__init__()
@@ -164,7 +165,6 @@ class IdentifyingContext(DiffableObject, object):
         return self.merging_context(None, other) # due to passing None as the collision context, this will fail if there are collisions
               
                        
-        
     def get_description(self, subset_includelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
@@ -228,6 +228,7 @@ class IdentifyingContext(DiffableObject, object):
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
     
+
     def __eq__(self, other):
         """Overrides the default implementation"""
         if isinstance(other, IdentifyingContext):
@@ -238,86 +239,12 @@ class IdentifyingContext(DiffableObject, object):
     
     
     
-    def to_dict(self, subset_includelist=None, subset_excludelist=None):
-        """ 
-        Inputs:
-            subset_includelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
-        """
-        if subset_excludelist is not None:
-            # if we have a excludelist, assert that we don't have a includelist
-            assert subset_includelist is None, f"subset_includelist MUST be None when a subset_excludelist is provided, but instead it's {subset_includelist}!"
-            subset_includelist = self.keys(subset_excludelist=subset_excludelist) # get all but the excluded keys
-
-        if subset_includelist is None:
-            return benedict(self.__dict__)
-        else:
-            return benedict(self.__dict__).subset(subset_includelist)
-
-    def keys(self, subset_includelist=None, subset_excludelist=None):
-        # return benedict(self.__dict__).keys()
-        if subset_includelist is None:
-            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_excludelist or [])]
-        else:
-            assert subset_excludelist is None, f"subset_excludelist MUST be None when a subset_includelist is provided, but instead it's {subset_excludelist}!"
-            return [a_key for a_key in benedict(self.__dict__).subset(subset_includelist).keys() if a_key not in (subset_excludelist or [])]
-
-    def keypaths(self, subset_includelist=None, subset_excludelist=None): 
-        if subset_includelist is None:
-            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_excludelist or [])]
-        else:
-            assert subset_excludelist is None, f"subset_excludelist MUST be None when a subset_includelist is provided, but instead it's {subset_excludelist}!"
-            return [a_key for a_key in benedict(self.__dict__).subset(subset_includelist).keys() if a_key not in (subset_excludelist or [])]
-
-
-
-        return benedict(self.__dict__).keypaths()
 
 
     @classmethod
     def init_from_dict(cls, a_dict):
         return cls(**a_dict) # expand the dict as input args.
         
-
-    def as_tuple(self, subset_includelist=None, subset_excludelist=None, drop_missing:bool=False):
-        """ returns a tuple of just its values 
-        Inputs:
-            subset_includelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
-
-        Usage:
-        curr_sess_ctx_tuple = curr_sess_ctx.as_tuple(subset_includelist=['format_name','animal','exper_name', 'session_name'])
-        curr_sess_ctx_tuple # ('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')
-
-        """
-        if drop_missing:
-            return tuple([v for v in tuple(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values()) if v is not None]) # Drops all 'None' values in the tuple
-        else:
-            return tuple(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())
-
-
-    def has_keys(self, keys_list):
-        """ returns a boolean array with each entry indicating whether that element in keys_list was found in the context """
-        is_key_found = [(v is not None) for v in self.as_tuple(subset_includelist=keys_list)]
-        return is_key_found
-
-    def check_keys(self, keys_list, debug_print=False):
-        """ checks whether it has the keys or not
-        Usage:
-            all_keys_found, found_keys, missing_keys = curr_sess_ctx.check_keys(['format_name','animal','exper_name', 'session_name'], debug_print=False)
-        """
-        is_key_found = self.has_keys(keys_list)
-
-        found_keys = [k for k, is_found in zip(keys_list, is_key_found) if is_found]
-        missing_keys = [k for k, is_found in zip(keys_list, is_key_found) if not is_found]
-
-        all_keys_found = (len(missing_keys) == 0)
-        if not all_keys_found:
-            if debug_print:
-                print(f'missing {len(missing_keys)} keys: {missing_keys}')
-        else:
-            if debug_print:
-                print(f'found all {len(found_keys)} keys: {found_keys}')
-        return all_keys_found, found_keys, missing_keys
-
 
     # Differencing and Set Operations ____________________________________________________________________________________ #
     def subtracting(self, rhs) -> "IdentifyingContext":

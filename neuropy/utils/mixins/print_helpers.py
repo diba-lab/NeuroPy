@@ -1,6 +1,9 @@
 # print_helpers.py
-from typing import OrderedDict # for OrderedMeta
+from typing import Optional, OrderedDict # for OrderedMeta
 import numpy as np # for build_formatted_str_from_properties_dict
+from neuropy.utils.misc import is_iterable
+from neuropy.utils.mixins.indexing_helpers import get_dict_subset # for `build_formatted_str_from_properties_dict`
+
 
 class SimplePrintable:
     """ Adds the default print method for classes that displays the class name and its dictionary. """
@@ -112,7 +115,7 @@ class ProgressMessagePrinter(object):
             
             
 
-def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', key_val_sep_char=':', float_precision:int=3, array_items_threshold:int=5) -> str:
+def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', key_val_sep_char=':', subset_includelist:Optional[list]=None, subset_excludelist:Optional[list]=None, float_precision:int=3, array_items_threshold:int=5) -> str:
     """ Builds a formatted output string from a dictionary of key:value pairs
 
     Args:
@@ -128,6 +131,8 @@ def build_formatted_str_from_properties_dict(dict_items, param_sep_char=', ', ke
         
         
     """
+    # if subset include/exclude list are specified, use them to get the relevant dictionary subset before generating the output string.
+    dict_items = get_dict_subset(dict_items, subset_includelist=subset_includelist, subset_excludelist=subset_excludelist)
     with np.printoptions(precision=float_precision, suppress=True, threshold=array_items_threshold):
         properties_key_val_list = []
         for (name, val) in dict_items.items():

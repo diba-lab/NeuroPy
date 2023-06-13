@@ -19,6 +19,8 @@ from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_n
 
 from neuropy.utils.mathutil import compute_grid_bin_bounds
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
+from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
+
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
@@ -30,7 +32,7 @@ from .. import plotting
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta, build_formatted_str_from_properties_dict
 
 
-class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass=OrderedMeta):
+class PlacefieldComputationParameters(SimplePrintable, DiffableObject, SubsettableDictRepresentable, metaclass=OrderedMeta):
     """A simple wrapper object for parameters used in placefield calcuations"""
     decimal_point_character=","
     param_sep_char='-'
@@ -136,7 +138,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
                 return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
 
 
-    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None):
+    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', subset_includelist:Optional[list]=None, subset_excludelist:Optional[list]=None, override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None):
         """ For rendering in attributes list like outputs
         # Default for attributes lists outputs:
         Example Output:
@@ -146,7 +148,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
             frate_thresh	0.1
             time_bin_size	0.5
         """
-        return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self.float_precision), array_items_threshold=(override_array_items_threshold or self.array_items_threshold))
+        return build_formatted_str_from_properties_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist), param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self.float_precision), array_items_threshold=(override_array_items_threshold or self.array_items_threshold))
 
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
@@ -156,10 +158,8 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, metaclass
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
 
-    def to_dict(self):
-        return self.__dict__
 
-    
+
     
     @classmethod
     def compute_grid_bin_bounds(cls, x, y):
