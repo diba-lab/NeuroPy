@@ -188,16 +188,16 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
     # Pyramidal and Lap-Only:
     @classmethod
-    def build_filters_pyramidal_epochs(cls, sess, epoch_name_whitelist=None, filter_name_suffix='_PYR'):
+    def build_filters_pyramidal_epochs(cls, sess, epoch_name_includelist=None, filter_name_suffix='_PYR'):
         sess.epochs.t_start = 22.26 # exclude the first short period where the animal isn't on the maze yet
         active_session_filter_configurations = {'maze1': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze1')), x.epochs.get_named_timerange('maze1'), sess.get_context().adding_context('filter', filter_name=f'{"maze1"}{filter_name_suffix or ""}')),
                         'maze2': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(x.epochs.get_named_timerange('maze2')), x.epochs.get_named_timerange('maze2'), sess.get_context().adding_context('filter', filter_name=f'{"maze2"}{filter_name_suffix or ""}')),
                         'maze': lambda x: (x.filtered_by_neuron_type('pyramidal').filtered_by_epoch(NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]])), NamedTimerange(name='maze', start_end_times=[x.epochs['maze1'][0], x.epochs['maze2'][1]]), sess.get_context().adding_context('filter', filter_name=f'{"maze"}{filter_name_suffix or ""}'))
                                         }
         
-        if epoch_name_whitelist is not None:
-            # if the whitelist is specified, get only the specified epochs
-            active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_whitelist}
+        if epoch_name_includelist is not None:
+            # if the includelist is specified, get only the specified epochs
+            active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_includelist}
             
         if filter_name_suffix is not None:
             # if a filter_name_suffix is specified, change the keys of the returned dict to include the suffix
@@ -221,13 +221,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
 
     @classmethod
-    def build_default_filter_functions(cls, sess, epoch_name_whitelist=None, filter_name_suffix=None, include_global_epoch=True):
+    def build_default_filter_functions(cls, sess, epoch_name_includelist=None, filter_name_suffix=None, include_global_epoch=True):
         # all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
         # default_filter_functions = DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess)
         ## TODO: currently hard-coded
         # active_session_filter_configurations = cls.build_pyramidal_epochs_filters(sess)
         # active_session_filter_configurations = cls.build_filters_any_maze_epochs(sess)
-        return DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess, epoch_name_whitelist=epoch_name_whitelist, filter_name_suffix=filter_name_suffix, include_global_epoch=include_global_epoch)
+        return DataSessionFormatBaseRegisteredClass.build_default_filter_functions(sess, epoch_name_includelist=epoch_name_includelist, filter_name_suffix=filter_name_suffix, include_global_epoch=include_global_epoch)
         
     # ==================================================================================================================== #
     # Computation Configs                                                                                                  #

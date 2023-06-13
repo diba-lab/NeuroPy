@@ -29,7 +29,7 @@ def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_p
 
     Args:
         local_session_parent_path (_type_): _description_
-        blacklist (list, optional): _description_. Defaults to [].
+        exclude_list (list, optional): _description_. Defaults to [].
         debug_print (bool, optional): _description_. Defaults to True.
 
     Returns:
@@ -48,7 +48,7 @@ def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_p
         ## Animal `gor01`:
         local_session_parent_context = local_session_root_parent_context.adding_context(collision_prefix='animal', animal='gor01', exper_name='one')
         local_session_parent_path = local_session_root_parent_path.joinpath(local_session_parent_context.animal, local_session_parent_context.exper_name)
-        local_session_paths_list, local_session_names_list =  find_local_session_paths(local_session_parent_path, blacklist=['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused'])
+        local_session_paths_list, local_session_names_list =  find_local_session_paths(local_session_parent_path, exclude_list=['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused'])
 
     >>> local_session_names_list: ['2006-6-07_11-26-53', '2006-6-08_14-26-15', '2006-6-09_1-22-43', '2006-6-09_3-23-37', '2006-6-12_15-55-31', '2006-6-13_14-42-6']
         local_session_paths_list: {WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-07_11-26-53'): <SessionBatchProgress.NOT_STARTED: 'NOT_STARTED'>,
@@ -205,16 +205,16 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         return {global_epoch_name: global_epoch_filter_fn}, global_named_timerange
     
     @classmethod
-    def build_default_filter_functions(cls, sess, epoch_name_whitelist=None, filter_name_suffix=None, include_global_epoch=True):
+    def build_default_filter_functions(cls, sess, epoch_name_includelist=None, filter_name_suffix=None, include_global_epoch=True):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions
         Inputs:
-            epoch_name_whitelist: an optional list of names to restrict to, must already be valid epochs to filter by. e.g. ['maze1']
+            epoch_name_includelist: an optional list of names to restrict to, must already be valid epochs to filter by. e.g. ['maze1']
             filter_name_suffix: an optional string suffix to be added to the end of each filter_name. An example would be '_PYR'
             include_global_epoch: bool - If True, uses cls.build_global_epoch_filter_config_dict(...) to generate a global epoch that will be included in the filters
         """
-        if epoch_name_whitelist is None:
+        if epoch_name_includelist is None:
             all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
-            epoch_name_whitelist = all_epoch_names
+            epoch_name_includelist = all_epoch_names
             
         if filter_name_suffix is None:
             filter_name_suffix = ''
@@ -224,7 +224,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         else:
             global_epoch_filter_fn_dict = {} # empty dict
 
-        epoch_filter_configs_dict = {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name), a_sess.get_context().adding_context('filter', filter_name=f'{an_epoch_name}{filter_name_suffix}')) for an_epoch_name in epoch_name_whitelist}
+        epoch_filter_configs_dict = {f'{an_epoch_name}{filter_name_suffix}':lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name), a_sess.get_context().adding_context('filter', filter_name=f'{an_epoch_name}{filter_name_suffix}')) for an_epoch_name in epoch_name_includelist}
         final_configs_dict = dict(epoch_filter_configs_dict, **global_epoch_filter_fn_dict)
         return  final_configs_dict
 

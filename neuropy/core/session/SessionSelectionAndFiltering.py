@@ -62,7 +62,7 @@ def _filter_function_factory(epoch_label, filter_name_suffix=None):
 
 
 
-def build_custom_epochs_filters(sess, epoch_name_whitelist=None, filter_name_suffix=None):
+def build_custom_epochs_filters(sess, epoch_name_includelist=None, filter_name_suffix=None):
     """ Called by build_filters_any_epochs and build_filters_any_maze_epochs
     
         # Usage Example:
@@ -70,21 +70,21 @@ def build_custom_epochs_filters(sess, epoch_name_whitelist=None, filter_name_suf
             curr_active_pipeline.filter_sessions(active_session_filter_configurations)
         
         # include only specific epoch labels:
-            maze_only_filters = build_custom_epochs_filters(sess, epoch_name_whitelist=['maze1','maze2'])
+            maze_only_filters = build_custom_epochs_filters(sess, epoch_name_includelist=['maze1','maze2'])
             curr_active_pipeline.filter_sessions(maze_only_filters)
     
     
     """
     curr_epoch_labels = np.array(list(sess.epochs.labels)) # ['pre', 'maze1', 'post1', 'maze2', 'post2']
     
-    if epoch_name_whitelist is not None:
-        # filter the epoch_name_whitelist
-        if callable(epoch_name_whitelist):
-            curr_epoch_labels = epoch_name_whitelist(curr_epoch_labels)
+    if epoch_name_includelist is not None:
+        # filter the epoch_name_includelist
+        if callable(epoch_name_includelist):
+            curr_epoch_labels = epoch_name_includelist(curr_epoch_labels)
         else:
             curr_epoch_labels = np.array(curr_epoch_labels)
-            epoch_name_whitelist = np.array(epoch_name_whitelist)
-            is_included = np.isin(curr_epoch_labels, epoch_name_whitelist)
+            epoch_name_includelist = np.array(epoch_name_includelist)
+            is_included = np.isin(curr_epoch_labels, epoch_name_includelist)
             curr_epoch_labels = curr_epoch_labels[is_included]
     
     # curr_named_timeranges = [sess.epochs.get_named_timerange(a_label) for a_label in curr_epoch_labels]

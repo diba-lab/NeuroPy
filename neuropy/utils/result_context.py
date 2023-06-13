@@ -165,7 +165,7 @@ class IdentifyingContext(DiffableObject, object):
               
                        
         
-    def get_description(self, subset_whitelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
+    def get_description(self, subset_includelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
         include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
@@ -180,7 +180,7 @@ class IdentifyingContext(DiffableObject, object):
             if key_value_separator is None:
                 key_value_separator = separator # use same separator between key{}value as pairs of items.
             # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
-            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_whitelist=subset_whitelist).items()] # creates a list of [name, val] list items
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist).items()] # creates a list of [name, val] list items
             if key_value_separator != separator:
                 # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
                 descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
@@ -188,7 +188,7 @@ class IdentifyingContext(DiffableObject, object):
                 # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
                 descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
         else:
-            descriptor_array = [str(val) for val in list(self.to_dict(subset_whitelist=subset_whitelist).values())] # ensures each value is a string
+            descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist).values())] # ensures each value is a string
             
         if prefix_items is not None:
             descriptor_array.extend(prefix_items)
@@ -238,35 +238,35 @@ class IdentifyingContext(DiffableObject, object):
     
     
     
-    def to_dict(self, subset_whitelist=None, subset_blacklist=None):
+    def to_dict(self, subset_includelist=None, subset_excludelist=None):
         """ 
         Inputs:
-            subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
+            subset_includelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
         """
-        if subset_blacklist is not None:
-            # if we have a blacklist, assert that we don't have a whitelist
-            assert subset_whitelist is None, f"subset_whitelist MUST be None when a subset_blacklist is provided, but instead it's {subset_whitelist}!"
-            subset_whitelist = self.keys(subset_blacklist=subset_blacklist) # get all but the excluded keys
+        if subset_excludelist is not None:
+            # if we have a excludelist, assert that we don't have a includelist
+            assert subset_includelist is None, f"subset_includelist MUST be None when a subset_excludelist is provided, but instead it's {subset_includelist}!"
+            subset_includelist = self.keys(subset_excludelist=subset_excludelist) # get all but the excluded keys
 
-        if subset_whitelist is None:
+        if subset_includelist is None:
             return benedict(self.__dict__)
         else:
-            return benedict(self.__dict__).subset(subset_whitelist)
+            return benedict(self.__dict__).subset(subset_includelist)
 
-    def keys(self, subset_whitelist=None, subset_blacklist=None):
+    def keys(self, subset_includelist=None, subset_excludelist=None):
         # return benedict(self.__dict__).keys()
-        if subset_whitelist is None:
-            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_blacklist or [])]
+        if subset_includelist is None:
+            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_excludelist or [])]
         else:
-            assert subset_blacklist is None, f"subset_blacklist MUST be None when a subset_whitelist is provided, but instead it's {subset_blacklist}!"
-            return [a_key for a_key in benedict(self.__dict__).subset(subset_whitelist).keys() if a_key not in (subset_blacklist or [])]
+            assert subset_excludelist is None, f"subset_excludelist MUST be None when a subset_includelist is provided, but instead it's {subset_excludelist}!"
+            return [a_key for a_key in benedict(self.__dict__).subset(subset_includelist).keys() if a_key not in (subset_excludelist or [])]
 
-    def keypaths(self, subset_whitelist=None, subset_blacklist=None): 
-        if subset_whitelist is None:
-            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_blacklist or [])]
+    def keypaths(self, subset_includelist=None, subset_excludelist=None): 
+        if subset_includelist is None:
+            return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_excludelist or [])]
         else:
-            assert subset_blacklist is None, f"subset_blacklist MUST be None when a subset_whitelist is provided, but instead it's {subset_blacklist}!"
-            return [a_key for a_key in benedict(self.__dict__).subset(subset_whitelist).keys() if a_key not in (subset_blacklist or [])]
+            assert subset_excludelist is None, f"subset_excludelist MUST be None when a subset_includelist is provided, but instead it's {subset_excludelist}!"
+            return [a_key for a_key in benedict(self.__dict__).subset(subset_includelist).keys() if a_key not in (subset_excludelist or [])]
 
 
 
@@ -278,25 +278,25 @@ class IdentifyingContext(DiffableObject, object):
         return cls(**a_dict) # expand the dict as input args.
         
 
-    def as_tuple(self, subset_whitelist=None, subset_blacklist=None, drop_missing:bool=False):
+    def as_tuple(self, subset_includelist=None, subset_excludelist=None, drop_missing:bool=False):
         """ returns a tuple of just its values 
         Inputs:
-            subset_whitelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
+            subset_includelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
 
         Usage:
-        curr_sess_ctx_tuple = curr_sess_ctx.as_tuple(subset_whitelist=['format_name','animal','exper_name', 'session_name'])
+        curr_sess_ctx_tuple = curr_sess_ctx.as_tuple(subset_includelist=['format_name','animal','exper_name', 'session_name'])
         curr_sess_ctx_tuple # ('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')
 
         """
         if drop_missing:
-            return tuple([v for v in tuple(self.to_dict(subset_whitelist=subset_whitelist, subset_blacklist=subset_blacklist).values()) if v is not None]) # Drops all 'None' values in the tuple
+            return tuple([v for v in tuple(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values()) if v is not None]) # Drops all 'None' values in the tuple
         else:
-            return tuple(self.to_dict(subset_whitelist=subset_whitelist, subset_blacklist=subset_blacklist).values())
+            return tuple(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())
 
 
     def has_keys(self, keys_list):
         """ returns a boolean array with each entry indicating whether that element in keys_list was found in the context """
-        is_key_found = [(v is not None) for v in self.as_tuple(subset_whitelist=keys_list)]
+        is_key_found = [(v is not None) for v in self.as_tuple(subset_includelist=keys_list)]
         return is_key_found
 
     def check_keys(self, keys_list, debug_print=False):
@@ -329,7 +329,7 @@ class IdentifyingContext(DiffableObject, object):
         Example:
             non_primary_desired_files = FileList.subtract(found_any_pickle_files, (found_default_session_pickle_files + found_global_computation_results_files))        
         """
-        return cls.init_from_dict(lhs.to_dict(subset_blacklist=rhs.keys()))
+        return cls.init_from_dict(lhs.to_dict(subset_excludelist=rhs.keys()))
 
 
     ## For serialization/pickling:

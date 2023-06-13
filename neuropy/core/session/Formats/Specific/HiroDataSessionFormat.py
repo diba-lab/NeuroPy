@@ -84,13 +84,13 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
 
      # Pyramidal and Lap-Only:
     @classmethod
-    def build_filters_track_only_pyramidal(cls, sess, epoch_name_whitelist=None):
+    def build_filters_track_only_pyramidal(cls, sess, epoch_name_includelist=None):
         """ TODO: these filter functions are stupid and redundant """
         all_epoch_names = ['track'] # all_epoch_names # ['maze1', 'maze2']
         active_session_filter_configurations = {an_epoch_name:lambda a_sess, epoch_name=an_epoch_name: (a_sess.filtered_by_neuron_type('pyramidal').filtered_by_epoch(a_sess.epochs.get_named_timerange(epoch_name)), a_sess.epochs.get_named_timerange(epoch_name)) for an_epoch_name in all_epoch_names}
-        if epoch_name_whitelist is not None:
-            # if the whitelist is specified, get only the specified epochs
-            active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_whitelist}
+        if epoch_name_includelist is not None:
+            # if the includelist is specified, get only the specified epochs
+            active_session_filter_configurations = {name:filter_fn for name, filter_fn in active_session_filter_configurations.items() if name in epoch_name_includelist}
         return active_session_filter_configurations
 
     
