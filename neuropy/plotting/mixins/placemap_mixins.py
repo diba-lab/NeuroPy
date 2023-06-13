@@ -6,14 +6,24 @@ from neuropy.utils.debug_helpers import safely_accepts_kwargs
 class PfnD_PlotOccupancy_Mixin:
     @safely_accepts_kwargs
     def plot_occupancy(self, identifier_details_list=[], fig=None, ax=None, **kwargs):
-        active_pf_occupancy_2D_identifier_string = '2D Occupancy'
-        active_pf_occupancy_2D_identifier_string = ' - '.join([active_pf_occupancy_2D_identifier_string] + identifier_details_list)
-        title_string = ' '.join([active_pf_occupancy_2D_identifier_string])
-        subtitle_string = ' '.join([f'{self.config.str_for_display(True)}'])
+        """ the actually used plotting function. 
+        Calls `plot_placefield_occupancy` to do the real plotting. Mostly just sets the title, subtitle, etc.
+        #TODO 2023-06-13 19:25: - [ ] Fix `self.config.str_for_display(is_2D)` to enable excluding irrelevant items by includelist
+        """
+        if self.ndim > 1:
+            active_pf_occupancy_identifier_string = '2D Occupancy'
+            is_2D = True
+        else:
+            active_pf_occupancy_identifier_string = '1D Occupancy'
+            is_2D = False
+            
+        active_pf_occupancy_identifier_string = ' - '.join([active_pf_occupancy_identifier_string] + identifier_details_list)
+        title_string = ' '.join([active_pf_occupancy_identifier_string])
+        subtitle_string = ' '.join([f'{self.config.str_for_display(is_2D)}'])
         occupancy_fig, occupancy_ax = plot_placefield_occupancy(self, fig=fig, ax=ax, **kwargs)
-        occupancy_fig.suptitle(title_string, fontsize='14')
+        occupancy_fig.suptitle(title_string, fontsize='14', wrap=True)
         occupancy_fig.canvas.manager.set_window_title(title_string) # sets the window's title
-        occupancy_ax.set_title(subtitle_string, fontsize='10')
+        occupancy_ax.set_title(subtitle_string, fontsize='10', wrap=True)
         return occupancy_fig, occupancy_ax
     
     

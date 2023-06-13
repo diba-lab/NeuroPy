@@ -224,7 +224,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
     
-
     def __eq__(self, other):
         """Overrides the default implementation"""
         if isinstance(other, IdentifyingContext):
@@ -248,7 +247,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             non_primary_desired_files = FileList.subtract(found_any_pickle_files, (found_default_session_pickle_files + found_global_computation_results_files))        
         """
         return cls.init_from_dict(lhs.to_dict(subset_excludelist=rhs.keys()))
-
 
     ## For serialization/pickling:
     def __getstate__(self):
