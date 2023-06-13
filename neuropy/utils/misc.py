@@ -285,7 +285,7 @@ def safe_pandas_get_group(dataframe_group, key):
         original_df = dataframe_group.obj
         return original_df.drop(original_df.index)
     
-def convert_dataframe_columns_to_datatype_if_possible(df, datatype_str_column_names_list_dict, debug_print=False):
+def convert_dataframe_columns_to_datatype_if_possible(df: pd.DataFrame, datatype_str_column_names_list_dict, debug_print=False):
     """ If the columns specified in datatype_str_column_names_list_dict exist in the dataframe df, their type is changed to the key of the dict. See usage example below:
     
     Inputs:
