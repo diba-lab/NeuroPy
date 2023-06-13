@@ -232,7 +232,10 @@ class IdentifyingContext(DiffableObject, object):
         """Overrides the default implementation"""
         if isinstance(other, IdentifyingContext):
             return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
-        return NotImplemented
+        else:
+            raise NotImplementedError
+        return NotImplemented # this part looks like a bug, yeah?
+    
     
     
     def to_dict(self, subset_whitelist=None, subset_blacklist=None):
