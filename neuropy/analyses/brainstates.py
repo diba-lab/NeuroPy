@@ -214,7 +214,7 @@ def detect_brainstates_epochs(
     plot=False,
     fp_bokeh_plot=None,
 ):
-    """detects sleep states for the recording
+    """detects sleep states using LFP.
 
     Parameters
     ----------
@@ -240,7 +240,7 @@ def detect_brainstates_epochs(
         if given then .html file is saved detailing some of scoring parameters and classification, by None
     """
 
-    freqs = np.geomspace(1, 100)
+    freqs = np.geomspace(1, 100, 100)
     spect_kw = dict(window=window, overlap=overlap, freqs=freqs, norm_sig=True)
 
     smooth_ = lambda arr: gaussian_filter1d(arr, sigma=sigma / (window - overlap))
@@ -250,13 +250,16 @@ def detect_brainstates_epochs(
     if theta_channel is not None:
         theta_signal = signal.time_slice(channel_id=[theta_channel])
         theta_chan_sg = signal_process.FourierSg(theta_signal, **spect_kw)
+        theta_chan_zscored_spect = stats.zscore(np.log10(theta_chan_sg.traces), axis=1)
+
     if delta_channel is not None:
         if delta_channel == theta_channel:
-            zscored_spect = stats.zscore(theta_chan_sg.traces, axis=1)
+            delta_chan_sg = theta_chan_sg
         else:
             delta_signal = signal.time_slice(channel_id=[delta_channel])
             delta_chan_sg = signal_process.FourierSg(delta_signal, **spect_kw)
-            zscored_spect = stats.zscore(delta_chan_sg.traces, axis=1)
+
+        delta_chan_zscored_spect = stats.zscore(np.log10(delta_chan_sg.traces), axis=1)
 
     time = theta_chan_sg.time
 
@@ -282,7 +285,7 @@ def detect_brainstates_epochs(
         # TODO: if one of the channels provides emg, use that
         # emg = signal.time_slice(emg_channel)
 
-    # ----- note indices from ignore_epochs ------
+    # ----- note indices from ignore_epochs and include spectogram noisy timepoints ------
     noisy_bool = np.zeros_like(time).astype("bool")
     if ignore_epochs is not None:
         noisy_arr = ignore_epochs.as_array()
@@ -293,21 +296,36 @@ def detect_brainstates_epochs(
                 np.where((time >= st - window) & (time <= en + window))[0]
             ] = True
 
+    noisy_spect_bool = np.logical_or(
+        stats.zscore(np.abs(theta_chan_zscored_spect.sum(axis=0))) >= 5,
+        stats.zscore(np.abs(delta_chan_zscored_spect.sum(axis=0))) >= 5,
+    )
+    noisy_bool = np.logical_or(noisy_bool, noisy_spect_bool)
+
     # ------ features to be used for scoring ---------
     theta = theta_chan_sg.get_band_power(5, 10)
     theta[~noisy_bool] = smooth_(theta[~noisy_bool])
     bp_2to16 = theta_chan_sg.get_band_power(2, 16)
     bp_2to16[~noisy_bool] = smooth_(bp_2to16[~noisy_bool])
-    theta_ratio = theta / bp_2to16
+
+    delta = delta_chan_sg.get_band_power(1, 4)
+    delta[~noisy_bool] = smooth_(delta[~noisy_bool])
+
+    theta_delta_ratio = theta / delta  # used for REM vs NREM
+    theta_dominance = theta / bp_2to16  # buzsaki lab, used for AW vs QW
+
     # Usually the first principal component has highiest weights in lower frequency band (1-32 Hz)
     broadband_sw = np.zeros_like(theta)
     broadband_sw[~noisy_bool] = smooth_(
-        PCA(n_components=1).fit_transform(zscored_spect[:, ~noisy_bool].T).squeeze()
+        PCA(n_components=1)
+        .fit_transform(delta_chan_zscored_spect[:, ~noisy_bool].T)
+        .squeeze()
     )
 
     # ----transform (if any) parameters such zscoring, minmax scaling etc. ----
     emg = np.log10(emg)
-    thratio_sw_arr = np.vstack((theta_ratio, broadband_sw)).T
+    emg[np.isnan(emg)] = np.nanmax(emg)
+    thdom_bsw_arr = np.vstack((theta_dominance, broadband_sw)).T
 
     # ---- Clustering---------
 
@@ -316,20 +334,21 @@ def detect_brainstates_epochs(
     emg_bool[~noisy_bool] = emg_labels.astype("bool")
 
     nrem_rem_bool = np.zeros_like(emg).astype("bool")
-    nrem_rem_bool[~noisy_bool & ~emg_bool] = gaussian_classify(
-        thratio_sw_arr[~noisy_bool & ~emg_bool]
-    ).astype("bool")
+    nrem_rem_labels, nrem_rem_fit_params = gaussian_classify(
+        theta_delta_ratio[~noisy_bool & ~emg_bool], ret_params=True
+    )
+    nrem_rem_bool[~noisy_bool & ~emg_bool] = nrem_rem_labels.astype("bool")
 
     # Using only theta ratio column to separate active and quiet awake
     aw_qw_bool = np.zeros_like(emg).astype("bool")
     aw_qw_label, aw_qw_fit_params = gaussian_classify(
-        thratio_sw_arr[~noisy_bool & emg_bool][:, 0], ret_params=True
+        theta_dominance[~noisy_bool & emg_bool], ret_params=True
     )
     aw_qw_bool[~noisy_bool & emg_bool] = aw_qw_label.astype("bool")
 
     # --- states: Active wake (AW), Quiet Wake (QW), REM, NREM
-    # initialize all states to Quiet wake
-    states = np.array([""] * len(theta_ratio), dtype="U4")
+    # initialize empty label states
+    states = np.array([""] * len(time), dtype="U4")
     states[~noisy_bool & emg_bool & aw_qw_bool] = "AW"
     states[~noisy_bool & emg_bool & ~aw_qw_bool] = "QW"
     states[~noisy_bool & ~emg_bool & nrem_rem_bool] = "REM"
@@ -359,7 +378,7 @@ def detect_brainstates_epochs(
 
     if plot:
         _, axs = plt.subplots(4, 1, sharex=True, constrained_layout=True)
-        params = [broadband_sw, theta_ratio, emg]
+        params = [broadband_sw, theta_delta_ratio, emg]
         params_names = ["Delta", "Theta ratio", "EMG"]
 
         for i, (param, name) in enumerate(zip(params, params_names)):
@@ -384,7 +403,7 @@ def detect_brainstates_epochs(
         tools = "pan,box_zoom,reset"
         dimensions = dict(tools=tools, width=1000, height=200)
 
-        def plot_feature(x, y, label, x_range=None):
+        def plot_feature(x, y, label):
             feature_kw = dict(
                 color="black", line_width=2, alpha=0.7, legend_label=label
             )
@@ -393,121 +412,78 @@ def detect_brainstates_epochs(
             return p
 
         p_sw = plot_feature(time, broadband_sw, "Broadband slow wave")
-        p_theta = plot_feature(time, theta_ratio, "Theta ratio")
+        p_theta = plot_feature(time, theta_delta_ratio, "Theta ratio")
         p_theta.x_range = p_sw.x_range
         p_emg = plot_feature(time, emg, "EMG")
         p_emg.x_range = p_sw.x_range
 
-        classify_kw = dict(width=330, height=330)
-        p_rem_nrem = bplot.figure(
-            title="NREM vs REM (low EMG)",
-            x_axis_label="Theta ratio",
-            y_axis_label="Broadband slow wave",
-            **classify_kw,
-        )
-        p_rem_nrem.circle(
-            theta_ratio[~noisy_bool & ~emg_bool & nrem_rem_bool],
-            broadband_sw[~noisy_bool & ~emg_bool & nrem_rem_bool],
-            color="tomato",
-            alpha=0.5,
-            size=2,
-            legend_label="REM",
-        )
-        p_rem_nrem.circle(
-            theta_ratio[~noisy_bool & ~emg_bool & ~nrem_rem_bool],
-            broadband_sw[~noisy_bool & ~emg_bool & ~nrem_rem_bool],
-            color="blue",
-            alpha=0.5,
-            size=2,
-            legend_label="NREM",
-        )
-
-        p_aw_qw = bplot.figure(
-            title="Active vs Quiet wake (high EMG)",
-            x_axis_label="Theta ratio",
-            y_axis_label="Density",
-            **classify_kw,
-        )
-        thratio_aw_qw = theta_ratio[~noisy_bool & emg_bool]
-        bins_aw_qw = np.linspace(thratio_aw_qw.min(), thratio_aw_qw.max(), 200)
-        hist_aw_qw = np.histogram(thratio_aw_qw, bins_aw_qw, density=True)[0]
-        means = aw_qw_fit_params["means"]
-        covs = aw_qw_fit_params["covariances"]
-        weights = aw_qw_fit_params["weights"]
-        qw_fit = (
-            stats.norm.pdf(
-                bins_aw_qw[:-1], float(means[0][0]), np.sqrt(float(covs[0][0][0]))
+        def plot_thresh(x, fit_params, x_label, low_label, high_label, title):
+            p = bplot.figure(
+                title=title,
+                x_axis_label=x_label,
+                y_axis_label="Density",
+                width=330,
+                height=330,
             )
-            * weights[0]
-        )
-        aw_fit = (
-            stats.norm.pdf(
-                bins_aw_qw[:-1], float(means[1][0]), np.sqrt(float(covs[1][0][0]))
+            bins = np.linspace(x.min(), x.max(), 200)
+            hist = np.histogram(x, bins, density=True)[0]
+            means = fit_params["means"]
+            covs = fit_params["covariances"]
+            weights = fit_params["weights"]
+            lowfit = (
+                stats.norm.pdf(
+                    bins[:-1], float(means[0][0]), np.sqrt(float(covs[0][0][0]))
+                )
+                * weights[0]
             )
-            * weights[1]
-        )
+            highfit = (
+                stats.norm.pdf(
+                    bins[:-1], float(means[1][0]), np.sqrt(float(covs[1][0][0]))
+                )
+                * weights[1]
+            )
 
-        p_aw_qw.vbar(
-            bins_aw_qw[:-1],
-            bottom=0,
-            width=np.diff(bins_aw_qw)[0] / 2,
-            top=hist_aw_qw,
-            color="#e5d02e",
-            legend_label="Overall",
-        )
-        p_aw_qw.line(
-            bins_aw_qw[:-1], qw_fit, color="gray", legend_label="Quiet", line_width=2
-        )
-        p_aw_qw.line(
-            bins_aw_qw[:-1], aw_fit, color="black", legend_label="Active", line_width=2
-        )
+            p.vbar(
+                bins[:-1],
+                bottom=0,
+                width=np.diff(bins)[0] / 2,
+                top=hist,
+                color="#e5d02e",
+                legend_label="Overall",
+            )
+            p.line(
+                bins[:-1], lowfit, color="gray", legend_label=low_label, line_width=2
+            )
+            p.line(
+                bins[:-1], highfit, color="black", legend_label=high_label, line_width=2
+            )
+            return p
 
-        p_emg_dist = bplot.figure(
+        p_emg_dist = plot_thresh(
+            emg[~noisy_bool],
+            fit_params=emg_fit_params,
+            x_label="log EMG",
+            low_label="Sleep",
+            high_label="Wake",
             title="Sleep vs Wake",
-            x_axis_label="log EMG",
-            y_axis_label="Density",
-            **classify_kw,
-        )
-        emg_vals = emg[~noisy_bool]
-        bins_emg = np.linspace(emg_vals.min(), emg_vals.max(), 200)
-        hist_emg = np.histogram(emg_vals, bins_emg, density=True)[0]
-        means_emg = emg_fit_params["means"]
-        covs_emg = emg_fit_params["covariances"]
-        weights_emg = emg_fit_params["weights"]
-        low_emg_fit = (
-            stats.norm.pdf(
-                bins_emg[:-1], float(means_emg[0][0]), np.sqrt(float(covs_emg[0][0][0]))
-            )
-            * weights_emg[0]
-        )
-        high_emg_fit = (
-            stats.norm.pdf(
-                bins_emg[:-1], float(means_emg[1][0]), np.sqrt(float(covs_emg[1][0][0]))
-            )
-            * weights_emg[1]
         )
 
-        p_emg_dist.vbar(
-            bins_emg[:-1],
-            bottom=0,
-            width=np.diff(bins_emg)[0] / 2,
-            top=hist_emg,
-            color="#e5d02e",
-            legend_label="Overall",
+        p_nrem_rem_dist = plot_thresh(
+            theta_delta_ratio[~noisy_bool & ~emg_bool],
+            fit_params=nrem_rem_fit_params,
+            x_label="log EMG",
+            low_label="NREM",
+            high_label="REM",
+            title="NREM vs REM (low EMG)",
         )
-        p_emg_dist.line(
-            bins_emg[:-1],
-            low_emg_fit,
-            color="gray",
-            legend_label="Sleep",
-            line_width=2,
-        )
-        p_emg_dist.line(
-            bins_emg[:-1],
-            high_emg_fit,
-            color="black",
-            legend_label="Wake",
-            line_width=2,
+
+        p_aw_qw_dist = plot_thresh(
+            theta_dominance[~noisy_bool & emg_bool],
+            fit_params=aw_qw_fit_params,
+            x_label="Theta dominance",
+            low_label="Quiet",
+            high_label="Active",
+            title="Active vs Quiet wake (high EMG)",
         )
 
         p_states = bplot.figure(x_range=p_sw.x_range, **dimensions)
@@ -527,7 +503,13 @@ def detect_brainstates_epochs(
             y += 1
 
         bplot.save(
-            column(p_states, p_sw, p_theta, p_emg, row(p_emg_dist, p_rem_nrem, p_aw_qw))
+            column(
+                p_states,
+                p_sw,
+                p_theta,
+                p_emg,
+                row(p_emg_dist, p_nrem_rem_dist, p_aw_qw_dist),
+            )
         )
 
     return epochs
