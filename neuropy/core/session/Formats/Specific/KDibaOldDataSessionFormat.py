@@ -274,7 +274,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):{'grid_bin_bounds':((22.397021260868584, 245.6584673739576), (133.66465594522782, 155.97244934208123))},
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):{'grid_bin_bounds':((28.36, 244.82), (138.74, 156.39))},
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):dict(grid_bin_bounds=(((29.088604852961407, 251.70402561515647), (138.496638485457, 154.30675703402517)))),
-            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):dict(grid_bin_bounds=((28.54313873072426, 255.54313873072425), (-56.2405385510412, -12.237798967230454))),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):dict(grid_bin_bounds=((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):dict(grid_bin_bounds=(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))),
             # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))),
         }
         
