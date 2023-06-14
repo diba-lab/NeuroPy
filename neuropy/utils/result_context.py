@@ -33,6 +33,7 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 
 import copy
 from typing import Any
+from attrs import define, field, Factory
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from neuropy.utils.mixins.diffable import DiffableObject
 from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
@@ -63,6 +64,7 @@ keymap: a tool for converting a function's input signature to an unique key
 
 """
 
+@define(slots=False, eq=False) # eq=False makes hashing and equality by identity, which is appropriate for this type of object
 class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     """ a general extnsible base context that allows additive member creation
     
@@ -88,7 +90,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             setattr(self, final_name, value)
         
         return self
-
 
     def adding_context(self, collision_prefix:str, **additional_context_items) -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
@@ -133,7 +134,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         """
         return self.adding_context(collision_prefix, **additional_context.to_dict())
 
-
     def __or__(self, other):
         """ Used with vertical bar operator: |
         
@@ -163,8 +163,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         # dict_or = self.to_dict().__or__(other_dict)
         # return IdentifyingContext.init_from_dict(dict_or)
         return self.merging_context(None, other) # due to passing None as the collision context, this will fail if there are collisions
-              
-                       
+
     def get_description(self, subset_includelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
@@ -207,7 +206,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         """ 'kdiba_2006-6-08_14-26-15_maze1_PYR' """
         return self.get_description()
 
-
     def __repr__(self) -> str:
         """ 
             "IdentifyingContext({'format_name': 'kdiba', 'session_name': '2006-6-08_14-26-15', 'filter_name': 'maze1_PYR'})" 
@@ -218,8 +216,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         return f"IdentifyingContext<{self.as_tuple().__repr__()}>"
         # return f"IdentifyingContext({self.to_dict().__repr__()})"
         
-
-
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
         dict_rep = self.to_dict()
@@ -228,7 +224,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
     
-
     def __eq__(self, other):
         """Overrides the default implementation"""
         if isinstance(other, IdentifyingContext):
@@ -237,15 +232,10 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             raise NotImplementedError
         return NotImplemented # this part looks like a bug, yeah?
     
-    
-    
-
-
     @classmethod
     def init_from_dict(cls, a_dict):
         return cls(**a_dict) # expand the dict as input args.
         
-
     # Differencing and Set Operations ____________________________________________________________________________________ #
     def subtracting(self, rhs) -> "IdentifyingContext":
         return self.subtract(self, rhs)
@@ -258,12 +248,9 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         """
         return cls.init_from_dict(lhs.to_dict(subset_excludelist=rhs.keys()))
 
-
     ## For serialization/pickling:
     def __getstate__(self):
-        # Copy the object's state from self.__dict__ which contains
-        # all our instance attributes. Always use the dict.copy()
-        # method to avoid modifying the original state.
+        # Copy the object's state from self.__dict__ which contains all our instance attributes. Always use the dict.copy() method to avoid modifying the original state.
         state = self.__dict__.copy()
         # Remove the unpicklable entries.
         # del state['file']
