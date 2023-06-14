@@ -55,7 +55,6 @@ class BinarysignalIO:
         return start_time
 
     def get_signal(self, channel_indx=None, t_start=None, t_stop=None):
-
         # if isinstance(channel_indx, list):
         #     channel_indx = [channel_indx]
 
@@ -84,7 +83,6 @@ class BinarysignalIO:
         )
 
     def frame_slice(self, channel_indx=None, frame_start=None, frame_stop=None):
-
         if isinstance(channel_indx, int):
             channel_indx = [channel_indx]
 
@@ -137,9 +135,7 @@ class BinarysignalIO:
         else:
             return self._raw_traces[np.ix_(channel_indx, frames)]
 
-
     def write_time_slice(self, write_filename, t_start, t_stop):
-
         duration = t_stop - t_start
 
         # read required chunk from the source file

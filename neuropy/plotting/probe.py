@@ -9,7 +9,6 @@ def plot_probe(
     disconnected=True,
     ax=None,
 ):
-
     if ax is None:
         _, ax = plt.subplots()
 
