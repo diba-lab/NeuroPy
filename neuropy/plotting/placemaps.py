@@ -94,82 +94,86 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 
 
 
-def plot_placefield_occupancy(active_epoch_placefields2D, fig=None, ax=None, **kwargs):
-    if active_epoch_placefields2D.ndim > 1:
-        return plot_occupancy_custom(active_epoch_placefields2D.occupancy, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs))
-    else:
-        return plot_occupancy_1D(active_epoch_placefields2D, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs)) # handle 1D case
-                                 
-
-def plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
-    """ Plots a 2D Heatmap of the animal's occupancy (the amount of time the animal spent in each posiution bin)
-
-    Args:
-        occupancy ([type]): [description]
-        xbin ([type]): [description]
-        ybin ([type]): [description]
-        max_normalized (bool): [description]
-        drop_below_threshold (float, optional): [description]. Defaults to None.
-        fig ([type], optional): [description]. Defaults to None.
-        ax ([type], optional): [description]. Defaults to None.
+def plot_placefield_occupancy(active_epoch_placefields, fig=None, ax=None, **kwargs):
+    """ plots the placefield occupancy in a matplotlib figure. 
+    Works for both 1D and 2D.
+    
+    from neuropy.plotting.placemaps import plot_placefield_occupancy
+    
     """
-    if fig is None:
-        occupancy_fig = plt.figure()
-    else:
-        print(f'using specified fig')
-        occupancy_fig = fig
-    
-    if ax is None:
-        occupancy_ax = occupancy_fig.gca()
-    else:
-        print(f'using specified ax')
-        occupancy_ax = ax
+    def _subfn_plot_occupancy_1D(active_epoch_placefields1D, max_normalized, drop_below_threshold=None, fig=None, ax=None):
+        """ Draws an occupancy curve showing the relative proprotion of the recorded positions that occured in a given position bin. """
+        should_fill = False
         
-    only_visited_occupancy = occupancy.copy()
-    # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
-    if drop_below_threshold is not None:
-        only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
-    if max_normalized:
-        only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
-    im = occupancy_ax.pcolorfast(xbin, ybin, np.rot90(np.fliplr(only_visited_occupancy)), cmap="jet", vmin=0.0)  # rot90(flipud... is necessary to match plotRaw configuration.
-    occupancy_ax.set_title('Custom Occupancy')
-    occupancy_cbar = occupancy_fig.colorbar(im, ax=occupancy_ax, location='right')
-    occupancy_cbar.minorticks_on()
-    return occupancy_fig, occupancy_ax
-
-def plot_occupancy_1D(active_epoch_placefields1D, max_normalized, drop_below_threshold=None, fig=None, ax=None):
-    """ Draws an occupancy curve showing the relative proprotion of the recorded positions that occured in a given position bin. """
-    should_fill = False
-    
-    if fig is None:
-        occupancy_fig = plt.figure()
-    else:
-        occupancy_fig = fig
-    
-    if ax is None:
-        occupancy_ax = occupancy_fig.gca()
-    else:
-        occupancy_ax = ax
-
-    only_visited_occupancy = active_epoch_placefields1D.occupancy.copy()
-    # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
-    if drop_below_threshold is not None:
-        only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
-    
-    if max_normalized:
-        only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
+        if fig is None:
+            occupancy_fig = plt.figure()
+        else:
+            occupancy_fig = fig
         
-    if should_fill:
-        occupancy_ax.plot(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy)
-        occupancy_ax.scatter(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy, color='r')
-    
-    occupancy_ax.stairs(only_visited_occupancy, active_epoch_placefields1D.ratemap.xbin, fill=False, label='1D Placefield Occupancy', hatch='//') # can also use: , orientation='horizontal'
-    
-    occupancy_ax.set_ylim([0, np.nanmax(only_visited_occupancy)])
-    
-    # specify bin_size, etc
-    
-    occupancy_ax.set_title('Occupancy 1D')
-    
-    
-    return occupancy_fig, occupancy_ax
+        if ax is None:
+            occupancy_ax = occupancy_fig.gca()
+        else:
+            occupancy_ax = ax
+
+        only_visited_occupancy = active_epoch_placefields1D.occupancy.copy()
+        # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
+        if drop_below_threshold is not None:
+            only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
+        
+        if max_normalized:
+            only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
+            
+        if should_fill:
+            occupancy_ax.plot(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy)
+            occupancy_ax.scatter(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy, color='r')
+        
+        occupancy_ax.stairs(only_visited_occupancy, active_epoch_placefields1D.ratemap.xbin, fill=False, label='1D Placefield Occupancy', hatch='//') # can also use: , orientation='horizontal'
+        occupancy_ax.set_ylim([0, np.nanmax(only_visited_occupancy)])
+        
+        # specify bin_size, etc
+        occupancy_ax.set_title('Occupancy 1D')
+        return occupancy_fig, occupancy_ax
+
+    def _subfn_plot_occupancy_custom(occupancy, xbin, ybin, max_normalized: bool, drop_below_threshold: float=None, fig=None, ax=None):
+        """ Plots a 2D Heatmap of the animal's occupancy (the amount of time the animal spent in each posiution bin)
+
+        Args:
+            occupancy ([type]): [description]
+            xbin ([type]): [description]
+            ybin ([type]): [description]
+            max_normalized (bool): [description]
+            drop_below_threshold (float, optional): [description]. Defaults to None.
+            fig ([type], optional): [description]. Defaults to None.
+            ax ([type], optional): [description]. Defaults to None.
+        """
+        if fig is None:
+            occupancy_fig = plt.figure()
+        else:
+            print(f'using specified fig')
+            occupancy_fig = fig
+        
+        if ax is None:
+            occupancy_ax = occupancy_fig.gca()
+        else:
+            print(f'using specified ax')
+            occupancy_ax = ax
+            
+        only_visited_occupancy = occupancy.copy()
+        # print('only_visited_occupancy: {}'.format(only_visited_occupancy))
+        if drop_below_threshold is not None:
+            only_visited_occupancy[np.where(only_visited_occupancy < drop_below_threshold)] = np.nan
+        if max_normalized:
+            only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
+        im = occupancy_ax.pcolorfast(xbin, ybin, np.rot90(np.fliplr(only_visited_occupancy)), cmap="jet", vmin=0.0)  # rot90(flipud... is necessary to match plotRaw configuration.
+        occupancy_ax.set_title('Custom Occupancy')
+        occupancy_cbar = occupancy_fig.colorbar(im, ax=occupancy_ax, location='right')
+        occupancy_cbar.minorticks_on()
+        return occupancy_fig, occupancy_ax
+
+
+    # BEGIN MAIN FUNCTION ________________________________________________________________________________________________ #
+    if active_epoch_placefields.ndim > 1:
+        return _subfn_plot_occupancy_custom(active_epoch_placefields.occupancy, active_epoch_placefields.ratemap.xbin_centers, active_epoch_placefields.ratemap.ybin_centers, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs))
+    else:
+        return _subfn_plot_occupancy_1D(active_epoch_placefields, fig=fig, ax=ax, **overriding_dict_with(lhs_dict={'max_normalized':True, 'drop_below_threshold':1E-16}, **kwargs)) # handle 1D case
+                                 

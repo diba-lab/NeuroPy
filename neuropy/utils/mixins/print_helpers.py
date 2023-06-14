@@ -228,7 +228,7 @@ class MultiItemStringRepresentationMixin:
                 return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
 
 
-    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None) -> str:
+    def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', subset_includelist:Optional[list]=None, subset_excludelist:Optional[list]=None, override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None):
         """ For rendering in attributes list like outputs
         # Default for attributes lists outputs:
         Example Output:
@@ -238,6 +238,5 @@ class MultiItemStringRepresentationMixin:
             frate_thresh	0.1
             time_bin_size	0.5
         """
-        return build_formatted_str_from_properties_dict(self.__dict__, param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self._float_precision), array_items_threshold=(override_array_items_threshold or self._array_items_threshold))
-
+        return build_formatted_str_from_properties_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist), param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self.float_precision), array_items_threshold=(override_array_items_threshold or self.array_items_threshold))
 

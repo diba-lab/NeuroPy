@@ -129,7 +129,7 @@ class TestPlacefieldsMethods(unittest.TestCase):
         if self.enable_debug_printing:
             print(f'{coarse_binned_pf.bin_info = }\n{fine_binned_pf.bin_info = }')
         rebinned_fine_binned_pf = deepcopy(fine_binned_pf)
-        rebinned_fine_binned_pf.conform_to_position_bins(target_pf1D=coarse_binned_pf, force_recompute=True)
+        rebinned_fine_binned_pf.conform_to_position_bins(coarse_binned_pf, force_recompute=True)
         self.assertTrue(rebinned_fine_binned_pf.bin_info == coarse_binned_pf.bin_info) # the bins must be equal after conforming
 
         num_good_placefield_neurons_list, num_total_spikes_list, num_spikes_per_spiketrain_list = compare_placefields_info(dict(zip(['coarse', 'original', 'rebinned'],[coarse_binned_pf, fine_binned_pf, rebinned_fine_binned_pf])))
@@ -184,7 +184,10 @@ class TestPlacefieldsMethods(unittest.TestCase):
         obj1 = PlacefieldComputationParameters(speed_thresh=15.0, grid_bin=None, smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5)
         obj2 = PlacefieldComputationParameters(speed_thresh=15.0, grid_bin=None, smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5)
         self.assertEqual(obj1, obj2, f'The hashes of two objects with the same values should be equal, but: hash(obj1): {hash(obj1)}, hash(obj2): {hash(obj2)}!')
-    
+        # self.assertEqual(hash(obj1), hash(obj2), f'The hashes of two objects with the same values should be equal, but: hash(obj1): {hash(obj1)}, hash(obj2): {hash(obj2)}!')
+        # self.assertTrue(hash(obj1) == hash(obj2), f'Two objects with the same values should be equal, but they are not!')
+        # self.assertTrue(obj1 == obj2, f'Two objects with the same values should be equal, but they are not!')
+        # hash(obj1): 2090320457320539818, hash(obj2): 2090320457320539818!
 
 if __name__ == '__main__':
     unittest.main()

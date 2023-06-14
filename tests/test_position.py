@@ -1,9 +1,13 @@
 import unittest
 import numpy as np
+# from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_allclose
 import pandas as pd
 # import the package
 import sys, os
 from pathlib import Path
+
+# testing extensions
+from tests.unittesting_extensions.numpy_helpers import NumpyTestCase
 
 # Add Neuropy to the path as needed
 tests_folder = Path(os.path.dirname(__file__))
@@ -22,7 +26,7 @@ finally:
 
 
 
-class TestPositionMethods(unittest.TestCase):
+class TestPositionMethods(NumpyTestCase):
 
     def setUp(self):
         # Hardcoded:
@@ -88,13 +92,16 @@ class TestPositionMethods(unittest.TestCase):
         print('self.position.speed: {}'.format(self.position.speed))
         print('self.position_old.speed: {}'.format(self.position_old.speed))
         self.assertListEqual(list(self.position.speed), list(self.position_old.speed))
-        
+        # self.assert_array_almost_equal(self.position.speed, self.position_old.speed)
+        # self.assertAllClose(self.position.speed, self.position_old.speed)
             
     def test_comparison_speed(self):
         print('self.position1D.speed: {}'.format(self.position1D.speed))
         print('self.position1D_old.speed: {}'.format(self.position1D_old.speed))
         self.assertListEqual(list(self.position1D.speed), list(self.position1D_old.speed))
+        # self.assert_array_almost_equal(self.position1D.speed, self.position1D_old.speed)
         
+
     def test_df_extraction(self):
         xpos = self.position.x
         ypos = self.position.y
