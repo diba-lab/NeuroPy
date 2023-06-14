@@ -965,8 +965,7 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
         print(f'_on_update_grid_bin_bounds(new_grid_bin_bounds: {new_grid_bin_bounds})')
         for epoch_name, computation_result in curr_active_pipeline.computation_results.items():
             computation_result.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
-
-    
+                
     if should_block_for_input:
         print(f'blocking and waiting for user input. Press [enter] to confirm selection change or [esc] to revert with no change.')
         # hold plot until a keyboard key is pressed
@@ -975,13 +974,14 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
             keyboardClick = plt.waitforbuttonpress() # plt.waitforbuttonpress() exits the inactive state as soon as either a key is pressed or the Mouse is clicked. However, the function returns True if a keyboard key was pressed and False if a Mouse was clicked
             if keyboardClick:
                 # Button was pressed
-                if plt.get_current_fig_manager().toolbar.mode == '':
-                    # [Enter] was pressed
-                    confirmed_extents = rect_selector.extents
-                    print(f'user confirmed extents: {confirmed_extents}')
-                    _on_update_grid_bin_bounds(confirmed_extents)
-                    plt.close()
-                    return confirmed_extents
+                # if plt.get_current_fig_manager().toolbar.mode == '':
+                # [Enter] was pressed
+                confirmed_extents = rect_selector.extents
+                print(f'user confirmed extents: {confirmed_extents}')
+                _on_update_grid_bin_bounds(confirmed_extents) # update the grid_bin_bounds.
+                print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
+                plt.close() # close the figure
+                return confirmed_extents
                 # elif plt.get_current_fig_manager().toolbar.mode == '':
                 #     # [Esc] was pressed
                 #     print(f'user canceled selection with [Esc].')

@@ -272,19 +272,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         specific_session_override_dict = { 
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((29.16, 261.70), (130.23, 150.99))},
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):{'grid_bin_bounds':((22.397021260868584, 245.6584673739576), (133.66465594522782, 155.97244934208123))},
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):{'grid_bin_bounds':((28.36, 244.82), (138.74, 156.39))},
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):dict(grid_bin_bounds=(((29.088604852961407, 251.70402561515647), (138.496638485457, 154.30675703402517)))),
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))),
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))),
         }
         
-
-
-        override_dict = specific_session_override_dict.get(sess.get_context(), {})
-        if override_dict.get('grid_bin_bounds', None) is not None:
-            grid_bin_bounds = override_dict['grid_bin_bounds']
-        else:
-            # no overrides present
-            ## Determine the grid_bin_bounds from the long session:
-            grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
-            # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
-
 
         ## Lap-restricted computation epochs:
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
@@ -293,6 +286,26 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         any_lap_specific_epochs = lap_specific_epochs
         # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
         # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+
+        override_dict = specific_session_override_dict.get(sess.get_context(), {})
+        if override_dict.get('grid_bin_bounds', None) is not None:
+            grid_bin_bounds = override_dict['grid_bin_bounds']
+        else:
+            # no overrides present
+            pos_df = sess.position.to_dataframe().copy()
+            if not 'lap' in pos_df.columns:
+                pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
+            laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
+            laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
+            print(f'laps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
+            grid_bin_bounds = laps_only_grid_bin_bounds
+            # ## Determine the grid_bin_bounds from the long session:
+            # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
+            # # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
+            # DO INTERACTIVE MODE:
+            # grid_bin_bounds = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input=True)
+            # print(f'grid_bin_bounds: {grid_bin_bounds}')
+            # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
 
         # Lap-restricted computation epochs:
         for i in np.arange(len(active_session_computation_configs)):
