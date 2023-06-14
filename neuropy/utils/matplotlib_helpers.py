@@ -978,8 +978,11 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
                 # [Enter] was pressed
                 confirmed_extents = rect_selector.extents
                 print(f'user confirmed extents: {confirmed_extents}')
-                _on_update_grid_bin_bounds(confirmed_extents) # update the grid_bin_bounds.
-                print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
+                if confirmed_extents is not None:
+                    _on_update_grid_bin_bounds(confirmed_extents) # update the grid_bin_bounds.
+                    x0, x1, y0, y1 = confirmed_extents
+                    print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(x0, x1), (y0, y1)})),\n")
+                    
                 plt.close() # close the figure
                 return confirmed_extents
                 # elif plt.get_current_fig_manager().toolbar.mode == '':
