@@ -113,7 +113,9 @@ class Pf1D(core.Ratemap):
         spk_t = [spk_t[_] for _ in frate_thresh_indx]
         spk_pos = [spk_pos[_] for _ in frate_thresh_indx]
 
-        super().__init__(tuning_curves=tuning_curve, x=xbin[:-1], neuron_ids=neuron_ids)
+        super().__init__(
+            tuning_curves=tuning_curve, coords=xbin[:-1], neuron_ids=neuron_ids
+        )
         self.ratemap_spiketrains = spk_t
         self.ratemap_spiketrains_pos = spk_pos
         self.occupancy = occupancy

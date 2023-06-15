@@ -9,8 +9,7 @@ class Ratemap(DataWriter):
     def __init__(
         self,
         tuning_curves: np.ndarray,
-        x=None,
-        y=None,
+        coords: np.ndarray,
         occupancy=None,
         neuron_ids=None,
         metadata=None,
@@ -19,12 +18,19 @@ class Ratemap(DataWriter):
 
         Parameters
         ----------
-        tuning_curves : np.ndarray, (neurons x nx) or (neurons x nx x ny)
+        tuning_curves : np.ndarray, (neurons, nx) or (neurons, nx, ny)
             numpy array for firing rates
-        x : np.array or float/int,
-            values defining the x coordinates in cms, if a scalar value is provided it is assumed as the x spacing, by default None which creates x with spacing 1
-        y : np.array or float/int, optional
-            bins defining the ygrid in cms, if a scalar value is provided it is assumed as the y spacing, by default None which creates y with spacing 1
+        coords : float, array, [float,float] or [array,array]
+            values defining the coordinates in cms,
+                * If float, the spacing for all dimensions.
+                * If array, the coordinates for all dimensions.
+                    (x_bins=y_bins=coords).
+                * If [float, float], the spacing in each dimension
+                    (x_binsize, y_binsize = bins).
+                * If [array, array], the bin edges in each dimension
+                    (x_edges, y_edges = bins).
+                * A combination [int, array] or [array, int], where int
+                    is the number of bins and array is the bin edges.
         occupancy : np.array, optional
             occupancy map for the tuning curves, by default None
         neuron_ids : np.array, optional
@@ -35,8 +41,7 @@ class Ratemap(DataWriter):
         super().__init__(metadata=metadata)
 
         self.tuning_curves = tuning_curves
-        self.x = x
-        self.y = y
+        self.coords = coords
         self.occupancy = occupancy
         self.neuron_ids = neuron_ids
 
@@ -65,34 +70,47 @@ class Ratemap(DataWriter):
         self._occupancy = arr
 
     @property
-    def x(self):
-        return self._x
+    def coords(self):
+        return self._coords
 
-    @x.setter
-    def x(self, val):
-        if isinstance(val, (int, float)):
-            val = np.arange(0, val * self.tuning_curves.shape[1], val)
-        assert (
-            len(val) == self.tuning_curves.shape[1]
-        ), "length of x should be equal to tuning_curve.shape[1]"
-        assert np.allclose(m := np.diff(val), m[0]), "x should be equally spaced"
-        self._x = val
-
-    @property
-    def y(self):
-        return self._y
-
-    @y.setter
-    def y(self, val):
-        if val is not None:
-            assert self.ndim == 3, "Cannot set ybin for 1D ratemap"
+    @coords.setter
+    def coords(self, val):
+        if self.ndim == 1:
             if isinstance(val, (int, float)):
-                val = np.arange(0, val * self.tuning_curves.shape[2], val)
+                val = np.arange(0, val * self.tuning_curves.shape[1], val)
+
             assert (
-                len(val) == self.tuning_curves.shape[2]
-            ), "length of ybin should be equal to tuning_curves.shape[2]"
-            assert np.allclose(m := np.diff(val), m[0]), "y should be equally spaced"
-        self._y = val
+                len(val) == self.tuning_curves.shape[1]
+            ), "length of coords should be equal to tuning_curve.shape[1]"
+            assert np.allclose(m := np.diff(val), m[0]), "x should be equally spaced"
+            val = val.reshape(1, -1)
+
+        if self.ndim == 2:
+            if isinstance(val, (int, float)):
+                x = np.arange(0, val * self.tuning_curves.shape[1], val)
+                val = np.vstack([x, x])
+
+            if len(val) == 2:
+                x, y = val
+                if isinstance(x, (int, float)):
+                    x = np.arange(0, x * self.tuning_curves.shape[1], x)
+                if isinstance(y, (int, float)):
+                    y = np.arange(0, y * self.tuning_curves.shape[1], y)
+
+                assert len(x) == self.tuning_curves.shape[1], "improper coords"
+                assert len(y) == self.tuning_curves.shape[2], "improper coords"
+                val = np.vstack([x, y])
+
+        assert val.ndim == 2, "Improper coords"
+
+        self._coords = val
+
+    def x_coords(self):
+        return self.coords[0]
+
+    def y_coords(self):
+        assert self.ndim == 2, "Can't return y for 1D ratemaps"
+        return self.coords[1]
 
     @property
     def neuron_ids(self):
@@ -120,12 +138,12 @@ class Ratemap(DataWriter):
 
     @property
     def x_binsize(self):
-        return np.diff(self.xbin)[0]
+        return np.diff(self.x_coords)[0]
 
     @property
     def y_binsize(self):
         if self.y is not None:
-            return np.diff(self.ybin)[0]
+            return np.diff(self.y_coords)[0]
 
     @property
     def n_neurons(self):
@@ -138,7 +156,7 @@ class Ratemap(DataWriter):
     def get_frate_normalized(self):
         pass
 
-    def resample(self, nbins):
+    def resample_1D(self, nbins):
         """Resample the ratemap with nbins
 
         Parameters
@@ -152,13 +170,13 @@ class Ratemap(DataWriter):
             new ratemap
         """
         assert self.ndim == 1, "Only allowed for 1 dimensional ratemaps"
-        f_tc = interpolate.interp1d(self.x, self.tuning_curves)
-        x_new = np.linspace(self.x[0], self.x[-1], nbins)
+        f_tc = interpolate.interp1d(self.x_coords, self.tuning_curves)
+        x_new = np.linspace(self.x_coords[0], self.x_coords[-1], nbins)
         tc_new = f_tc(x_new)  # Interpolated tuning curve
 
         ratemap_new = self.copy()
         ratemap_new.tuning_curves = tc_new
-        ratemap_new.x = x_new
+        ratemap_new.coords = x_new
 
         return ratemap_new
 
