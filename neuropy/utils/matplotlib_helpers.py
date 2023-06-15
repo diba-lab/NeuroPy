@@ -894,8 +894,15 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
 
         
     if initial_selection is not None:
-        # convert to extents:
-        (x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+        if len(initial_selection) == 4:
+            # extents format `(xmin, xmax, ymin, ymax)`
+            x0, x1, y0, y1 = initial_selection
+        elif len(initial_selection) == 2:
+            # pairs format: `((xmin, xmax), (ymin, ymax))`
+            assert len(initial_selection[0]) == 2, f"initial_selection should be `((xmin, xmax), (ymin, ymax))` but it is: {initial_selection}"
+            assert len(initial_selection[1]) == 2, f"initial_selection should be `((xmin, xmax), (ymin, ymax))` but it is: {initial_selection}"
+            # convert to extents:
+            (x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
         extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
     else:
         extents = None
@@ -945,7 +952,7 @@ def interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze
     range_selector, set_extents = add_range_selector(fig, ax, orientation="horizontal", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed)
     return fig, ax, range_selector, set_extents
 
-def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input:bool=True):
+def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input:bool=True, should_apply_updates_to_pipeline=True):
     """ allows the user to interactively select the grid_bin_bounds for the pf2D
     
     Usage:
@@ -955,7 +962,10 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
     # from neuropy.utils.matplotlib_helpers import add_rectangular_selector # interactive_select_grid_bin_bounds_2D
     computation_result = curr_active_pipeline.computation_results[epoch_name]
     grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
-    fig, ax = computation_result.computed_data.pf2D.plot_occupancy()
+    epoch_context = curr_active_pipeline.filtered_contexts[epoch_name]
+                     
+    fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name]) 
+
     rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
     
     def _on_update_grid_bin_bounds(new_grid_bin_bounds):
@@ -979,7 +989,8 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
                 confirmed_extents = rect_selector.extents
                 print(f'user confirmed extents: {confirmed_extents}')
                 if confirmed_extents is not None:
-                    _on_update_grid_bin_bounds(confirmed_extents) # update the grid_bin_bounds.
+                    if should_apply_updates_to_pipeline:
+                        _on_update_grid_bin_bounds(confirmed_extents) # update the grid_bin_bounds.
                     x0, x1, y0, y1 = confirmed_extents
                     print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(x0, x1), (y0, y1)})),\n")
                     
