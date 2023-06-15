@@ -68,6 +68,24 @@ def hmmfit1d(Data, ret_means=False, **kwargs):
 
 
 def gaussian_classify(feat, ret_params=False, plot=False, ax=None):
+    """Gaussian classification of features into two components.
+
+    Parameters
+    ----------
+    feat : 1D or 2D array
+        features to be classified.
+    ret_params : bool, optional
+        Gaussian fit parameters are retured if true , by default False
+    plot : bool, optional
+        _description_, by default False
+    ax : _type_, optional
+        _description_, by default None
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     if feat.ndim < 2:
         feat = feat[:, None]
     clus = GaussianMixture(
@@ -194,6 +212,22 @@ def get_artifact_indices(arr, thresh=3):
     )
 
 
+def get_noisy_spect_bool(sxx: core.Spectrogram):
+    """Identifies indices which are noisy in a spectrogram. Time points are considered noisy if sum of the power across all frequencies exceeds 5 std or is zero.
+
+    Parameters
+    ----------
+    sxx : core.Spectrogram
+        spectrogram
+
+    Returns
+    -------
+    Boolean array
+    """
+    spect_sum = sxx.traces.sum(axis=0)
+    return (stats.zscore(spect_sum) >= 5) | (spect_sum <= 0)
+
+
 def interpolate_indices(arr, indices):
     new_arr = arr.copy()
     new_arr[indices] = np.nan
@@ -250,7 +284,6 @@ def detect_brainstates_epochs(
     if theta_channel is not None:
         theta_signal = signal.time_slice(channel_id=[theta_channel])
         theta_chan_sg = signal_process.FourierSg(theta_signal, **spect_kw)
-        theta_chan_zscored_spect = stats.zscore(np.log10(theta_chan_sg.traces), axis=1)
 
     if delta_channel is not None:
         if delta_channel == theta_channel:
@@ -258,8 +291,6 @@ def detect_brainstates_epochs(
         else:
             delta_signal = signal.time_slice(channel_id=[delta_channel])
             delta_chan_sg = signal_process.FourierSg(delta_signal, **spect_kw)
-
-        delta_chan_zscored_spect = stats.zscore(np.log10(delta_chan_sg.traces), axis=1)
 
     time = theta_chan_sg.time
 
@@ -297,8 +328,7 @@ def detect_brainstates_epochs(
             ] = True
 
     noisy_spect_bool = np.logical_or(
-        stats.zscore(np.abs(theta_chan_zscored_spect.sum(axis=0))) >= 5,
-        stats.zscore(np.abs(delta_chan_zscored_spect.sum(axis=0))) >= 5,
+        get_noisy_spect_bool(theta_chan_sg), get_noisy_spect_bool(delta_chan_sg)
     )
     noisy_bool = np.logical_or(noisy_bool, noisy_spect_bool)
 
@@ -311,21 +341,21 @@ def detect_brainstates_epochs(
     delta = delta_chan_sg.get_band_power(1, 4)
     delta[~noisy_bool] = smooth_(delta[~noisy_bool])
 
+    theta_dominance = theta / bp_2to16  # buzsaki lab, better for high and low theta
     theta_delta_ratio = theta / delta  # used for REM vs NREM
-    theta_dominance = theta / bp_2to16  # buzsaki lab, used for AW vs QW
 
     # Usually the first principal component has highiest weights in lower frequency band (1-32 Hz)
-    broadband_sw = np.zeros_like(theta)
-    broadband_sw[~noisy_bool] = smooth_(
-        PCA(n_components=1)
-        .fit_transform(delta_chan_zscored_spect[:, ~noisy_bool].T)
-        .squeeze()
-    )
+    # broadband_sw = np.zeros_like(theta)
+    # broadband_sw[~noisy_bool] = smooth_(
+    #     PCA(n_components=1)
+    #     .fit_transform(delta_chan_zscored_spect[:, ~noisy_bool].T)
+    #     .squeeze()
+    # )
 
     # ----transform (if any) parameters such zscoring, minmax scaling etc. ----
     emg = np.log10(emg)
     emg[np.isnan(emg)] = np.nanmax(emg)
-    thdom_bsw_arr = np.vstack((theta_dominance, broadband_sw)).T
+    # thdom_bsw_arr = np.vstack((theta_dominance, broadband_sw)).T
 
     # ---- Clustering---------
 
@@ -376,45 +406,51 @@ def detect_brainstates_epochs(
 
     epochs.metadata = metadata
 
-    if plot:
-        _, axs = plt.subplots(4, 1, sharex=True, constrained_layout=True)
-        params = [broadband_sw, theta_delta_ratio, emg]
-        params_names = ["Delta", "Theta ratio", "EMG"]
+    # if plot:
+    #     _, axs = plt.subplots(4, 1, sharex=True, constrained_layout=True)
+    #     params = [broadband_sw, theta_delta_ratio, emg]
+    #     params_names = ["Delta", "Theta ratio", "EMG"]
 
-        for i, (param, name) in enumerate(zip(params, params_names)):
-            axs[i].plot(time, param, "k.", markersize=1)
-            # axs[0].set_ylim([-1, 4])
-            axs[i].set_title(name, loc="left")
+    #     for i, (param, name) in enumerate(zip(params, params_names)):
+    #         axs[i].plot(time, param, "k.", markersize=1)
+    #         # axs[0].set_ylim([-1, 4])
+    #         axs[i].set_title(name, loc="left")
 
-        states_colors = dict(NREM="#e920e2", REM="#f7abf4", QW="#fbc77e", AW="#e28708")
-        plot_epochs(
-            epochs=epochs,
-            ax=axs[3],
-            # labels_order=["NREM", "REM", "QW", "AW"],
-            # colors=states_colors,
-        )
+    #     states_colors = dict(NREM="#e920e2", REM="#f7abf4", QW="#fbc77e", AW="#e28708")
+    #     plot_epochs(
+    #         epochs=epochs,
+    #         ax=axs[3],
+    #         # labels_order=["NREM", "REM", "QW", "AW"],
+    #         # colors=states_colors,
+    #     )
 
     if fp_bokeh_plot is not None:
-        import bokeh.plotting as bplot
-        import bokeh.models as bmodels
-        from bokeh.layouts import column, row
+        try:
+            import bokeh.plotting as bplot
+            from bokeh.models import Range1d
+            from bokeh.layouts import column, row
+        except:
+            raise ImportError("Bokeh is not installed")
 
         bplot.output_file(fp_bokeh_plot, title="Sleep scoring results")
         tools = "pan,box_zoom,reset"
-        dimensions = dict(tools=tools, width=1000, height=200)
+        dimensions = dict(tools=tools, width=1000, height=180)
 
-        def plot_feature(x, y, label):
-            feature_kw = dict(
-                color="black", line_width=2, alpha=0.7, legend_label=label
-            )
-            p = bplot.figure(**dimensions, y_axis_label="Arb. units")
+        def plot_feature(x, y, title=None):
+            feature_kw = dict(color="black", line_width=2, alpha=0.7)
+            p = bplot.figure(**dimensions, y_axis_label="Amplitude", title=title)
             p.line(x[~noisy_bool], y[~noisy_bool], **feature_kw)
             return p
 
-        p_sw = plot_feature(time, broadband_sw, "Broadband slow wave")
-        p_theta = plot_feature(time, theta_delta_ratio, "Theta ratio")
+        p_sw = plot_feature(time, delta, f"Delta activity (Channel:{delta_channel})")
+        p_sw.y_range = Range1d(delta.min(), stats.scoreatpercentile(delta, 99.9))
+        p_theta = plot_feature(
+            time, theta_dominance, f"Theta activity (Channel:{theta_channel})"
+        )
+        p_theta_delta_ratio = plot_feature(time, theta_delta_ratio, "Theta delta ratio")
         p_theta.x_range = p_sw.x_range
-        p_emg = plot_feature(time, emg, "EMG")
+        p_theta_delta_ratio.x_range = p_sw.x_range
+        p_emg = plot_feature(time, emg, "EMG activity")
         p_emg.x_range = p_sw.x_range
 
         def plot_thresh(x, fit_params, x_label, low_label, high_label, title):
@@ -462,7 +498,7 @@ def detect_brainstates_epochs(
         p_emg_dist = plot_thresh(
             emg[~noisy_bool],
             fit_params=emg_fit_params,
-            x_label="log EMG",
+            x_label="EMG activity",
             low_label="Sleep",
             high_label="Wake",
             title="Sleep vs Wake",
@@ -471,7 +507,7 @@ def detect_brainstates_epochs(
         p_nrem_rem_dist = plot_thresh(
             theta_delta_ratio[~noisy_bool & ~emg_bool],
             fit_params=nrem_rem_fit_params,
-            x_label="log EMG",
+            x_label="Theta delta ratio",
             low_label="NREM",
             high_label="REM",
             title="NREM vs REM (low EMG)",
@@ -480,13 +516,13 @@ def detect_brainstates_epochs(
         p_aw_qw_dist = plot_thresh(
             theta_dominance[~noisy_bool & emg_bool],
             fit_params=aw_qw_fit_params,
-            x_label="Theta dominance",
+            x_label="Theta activity",
             low_label="Quiet",
             high_label="Active",
             title="Active vs Quiet wake (high EMG)",
         )
 
-        p_states = bplot.figure(x_range=p_sw.x_range, **dimensions)
+        p_states = bplot.figure(x_range=p_sw.x_range, title="Brainstates", **dimensions)
         p_states.yaxis.visible = False
         y = 0
         colors = ["blue", "tomato", "#64d39c", "#267e52"]
@@ -507,6 +543,7 @@ def detect_brainstates_epochs(
                 p_states,
                 p_sw,
                 p_theta,
+                p_theta_delta_ratio,
                 p_emg,
                 row(p_emg_dist, p_nrem_rem_dist, p_aw_qw_dist),
             )
