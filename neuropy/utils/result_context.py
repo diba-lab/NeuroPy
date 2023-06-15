@@ -33,6 +33,7 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 
 import copy
 from typing import Any
+from enum import Enum
 from attrs import define, field, Factory
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from neuropy.utils.mixins.diffable import DiffableObject
@@ -64,6 +65,15 @@ keymap: a tool for converting a function's input signature to an unique key
 
 """
 
+class CollisionOutcome(Enum):
+    """Describes how to update the context when a key that already exists is present."""
+    IGNORE_UPDATED = "ignore_updated" # do nothing, ignoring the new value and keeping the existing one
+    FAIL_IF_DIFFERENT = "fail" # throws an exception if the two values are not equal
+    REPLACE_EXISTING = "replace_existing" # replaces the existing value for that key with the new one provided
+    APPEND_USING_KEY_PREFIX = "append_using_key_prefix" # uses the collision_prefix provided to generate a new unique key and assigns that key the new value
+    
+
+
 @define(slots=False, eq=False) # eq=False makes hashing and equality by identity, which is appropriate for this type of object
 class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     """ a general extnsible base context that allows additive member creation
@@ -78,20 +88,21 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         for name, value in kwargs.items():
             setattr(self, name, value)
         
-    def add_context(self, collision_prefix:str, **additional_context_items):
+    def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items):
         """ adds the additional_context_items to self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         for name, value in additional_context_items.items():
             # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            final_name = self.resolve_key(self, name, value, collision_prefix)
-            # Set the new attr
-            setattr(self, final_name, value)
+            final_name = self.resolve_key(self, name, value, collision_prefix, strategy=strategy)
+            if final_name is not None:
+                # Set the new attr
+                setattr(self, final_name, value)
         
         return self
 
-    def adding_context(self, collision_prefix:str, **additional_context_items) -> "IdentifyingContext":
+    def adding_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items) -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
@@ -101,15 +112,19 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         
         for name, value in additional_context_items.items():
             # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix)
-            # Set the new attr
-            setattr(duplicate_ctxt, final_name, value)
+            final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix, strategy=strategy)
+            if final_name is not None:
+                # Set the new attr
+                setattr(duplicate_ctxt, final_name, value)
         
         return duplicate_ctxt
     
+
     @classmethod
-    def resolve_key(cls, duplicate_ctxt: "IdentifyingContext", name:str, value, collision_prefix:str):
-        """ensures no collision between attributes occur, and if they do rename them with an identifying prefix"""
+    def resolve_key(cls, duplicate_ctxt: "IdentifyingContext", name:str, value, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX):
+        """ensures no collision between attributes occur, and if they do resolve them according to strategy. e.g. rename them with an identifying prefix
+        Returns the resolved key (str) or None.
+        """
         if hasattr(duplicate_ctxt, name):
             # Check whether the existing context already has that key:
             if (getattr(duplicate_ctxt, name) == value):
@@ -118,21 +133,35 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
                 final_name = name # this will not change the result
             else:
                 # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
-                
-                ## rename the current attribute to be set by appending a prefix
-                assert collision_prefix is not None, f"namespace collision in `adding_context(...)`! attr with name '{name}' already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
-                final_name = f'{collision_prefix}{name}'
-                print(f'WARNING: namespace collision in resolve_key! attr with name "{name}" already exists and the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}. Using collision_prefix to add new name: "{final_name}"!')
+                if strategy.name == CollisionOutcome.IGNORE_UPDATED.name:
+                    final_name = None # by returning None the caller will know the keep the existing.
+                elif strategy.name == CollisionOutcome.FAIL_IF_DIFFERENT.name:
+                    print(f'ERROR: namespace collision in resolve_key! attr with name "{name}" already exists and the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}. Using collision_prefix to add new name: "{final_name}"!')
+                    raise KeyError
+                elif strategy.name == CollisionOutcome.REPLACE_EXISTING.name:
+                    final_name = name # this will overwrite the old value because the returned key is the same.
+                elif strategy.name == CollisionOutcome.APPEND_USING_KEY_PREFIX.name:
+                    ## rename the current attribute to be set by appending a prefix
+                    assert collision_prefix is not None, f"namespace collision in `adding_context(...)`! attr with name '{name}' already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
+                    final_name = f'{collision_prefix}{name}'
+                    print(f'WARNING: namespace collision in resolve_key! attr with name "{name}" already exists and the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}. Using collision_prefix to add new name: "{final_name}"!')
         else:
             final_name = name
         return final_name
 
+
+    # Helper methods that don't require a collision_prefix and employ a fixed strategy. All call self.adding_context(...) with the appropriate arguments:
+    def adding_context_if_missing(self, **additional_context_items) -> "IdentifyingContext":
+        return self.adding_context(None, strategy=CollisionOutcome.IGNORE_UPDATED, **additional_context_items)
+    def overwriting_context(self, **additional_context_items) -> "IdentifyingContext":
+        return self.adding_context(None, strategy=CollisionOutcome.REPLACE_EXISTING, **additional_context_items)
+
     def merging_context(self, collision_prefix:str, additional_context: "IdentifyingContext") -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding the items in additional_context to a copy of self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
-        
+            collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different    
         """
         return self.adding_context(collision_prefix, **additional_context.to_dict())
+    
 
     def __or__(self, other):
         """ Used with vertical bar operator: |
