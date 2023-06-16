@@ -520,6 +520,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             # use the provided sort indicies
             sort_ind = sortby
         else:
+            # THIS IS WHERE THE 'id' string comes from, and it's just chance that it sorts them by ID pretty much.
             sort_ind = np.arange(n_neurons)
 
         if debug_print:
