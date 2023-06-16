@@ -59,7 +59,7 @@ class DynamicContainer(DiffableObject, MutableMapping):
         self.update(kwargs)
        
     def __getitem__(self, key):
-        return self._mapping[key]
+        return self._mapping[key] #@IgnoreException
 
     def __delitem__(self, key):
         del self._mapping[key]

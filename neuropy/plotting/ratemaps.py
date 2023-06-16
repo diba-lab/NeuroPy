@@ -457,13 +457,14 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     Notes:
     Unlike the plot_ratemap_2D(...), this version seems to plot all the cells on a single axis: using `ax.set_yticklabels(list(sorted_neuron_id_labels))` to label each cell's tuning curve and offsets to plot them.
 
-
     ALTERNATIVES: when there are no neurons, we might want to do the procedure outlined in `# invalid neuron ID, generate blank entry` instead of returning a blank figure.
 
     """
+    
+    #TODO 2023-06-16 04:27: - [ ] Ordering doesn't work at all. Even when 'sortby' is the correct order the labels and maps aren't changed.
+
     if ratemap.n_neurons == 0:
         module_logger.warning(f'WARNING: Cannot plot ratemap with no neurons.')
-
 
     use_special_overlayed_title = False
     # missing_aclu_string_formatter: a lambda function that takes the current aclu string and returns a modified string that reflects that this aclu value is missing from the current result (e.g. missing_aclu_string_formatter('3') -> '3 <shared>')
@@ -476,7 +477,6 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
 
     # single_cell_pfmap_processing_fn = lambda i, aclu, pfmap: -1.0 * pfmap # flip over the y-axis
 
-    
     ## Feature: Hatching
     # if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves
     # hatch_styles = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**']
@@ -485,7 +485,11 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # TODO: FEATURE: could easily allow passing a list of curve_hatch_styles to individually specify hatching for each curve (might be useful to emphasize some curves, etc)
 
     active_maps, title_substring, included_unit_indicies = _help_plot_ratemap_neuronIDs(ratemap, included_unit_indicies=included_unit_indicies, included_unit_neuron_IDs=included_unit_neuron_IDs, plot_variable=plot_variable, debug_print=debug_print)
-    n_neurons = len(included_unit_indicies)
+    n_neurons = len(included_unit_indicies) # n_neurons includes Non-active neurons without a placefield if they're provided in included_unit_indicies.
+    
+    if not isinstance(included_unit_indicies, np.ndarray):
+        included_unit_indicies = np.array(included_unit_indicies)
+        
     # ==================================================================================================================== #
 
     # Build the formatter for rendering the max values such as the peak firing rate or max spike counts:
@@ -511,19 +515,21 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     else:
         if (sortby is None):
             # sort by the location of the placefield's maximum
-            sort_ind = np.argsort(np.argmax(active_maps, axis=1))
+            sort_ind = np.argsort(np.argmax(active_maps, axis=1)) # this doesn't account for how we need to sort the inactive neurons (we only get active_maps for the active ones, but we also have extras).
         elif isinstance(sortby, (list, np.ndarray)):
             # use the provided sort indicies
             sort_ind = sortby
         else:
+            # THIS IS WHERE THE 'id' string comes from, and it's just chance that it sorts them by ID pretty much.
             sort_ind = np.arange(n_neurons)
 
         if debug_print:
             print(f'sort_ind: {sort_ind}.\tnp.shape: {np.shape(sort_ind)}')
 
+    if not isinstance(sort_ind, np.ndarray):
+        sort_ind = np.array(sort_ind)
     # Use the get_neuron_colors function to generate colors for these neurons
     neurons_colors_array = get_neuron_colors(sort_ind, cmap=cmap)
-
 
     ## New way:
     sorted_neuron_id_labels = []
@@ -576,11 +582,9 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         # Apply the function:
         pfmap = single_cell_pfmap_processing_fn(i, curr_neuron_ID, pfmap)
 
-
         # bin_cntr # contains the x-positions of each point. Same for all cells
         y_baseline = (i * pad) # y_baseline (y1): the y-position for each cell 
         y2 = (y_baseline + pfmap) # (y2): the top of each point is determined by adding the specific pfmap values to the baseline
-
 
         # Old way:
         # color = neurons_colors_array[:, i]
@@ -603,7 +607,6 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
 
         ax.plot(bin_cntr, y2, color=color, alpha=0.7) # This is essential for drawing the outer bold border line that makes each cell's curve easily distinguishable.
 
-
     # Set up cell labels (on each y-tick):
     if n_neurons > 0:
         ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5)) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
@@ -611,22 +614,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         # Set the neuron id labels on the y-axis to the color of their cell:
         for i, a_tick_label in enumerate(ax.get_yticklabels()):
             color = neurons_colors_array[:, i]
-            ## Cell color is text-color mode:
-            # a_tick_label.set_color(color)
-            # # stroke_foreground = 'black'
-            # stroke_foreground = 'gray'
-            # stroke_foreground = 'white'
-            # # stroke_foreground = 'orange'
-            # strokewidth = 0.1
-            # background_stroke = withStroke(foreground='black', linewidth=min(strokewidth+1, strokewidth*0.5))
-            # fg_stroke = withStroke(foreground=stroke_foreground, linewidth=strokewidth)
-            # a_tick_label.set_path_effects([background_stroke, fg_stroke])
-
             ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
             a_tick_label.set_color('black')
             strokewidth = 0.5
             a_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
-
 
     ax.set_xlabel("Position")
     ax.spines["left"].set_visible(False)
@@ -639,8 +630,6 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         
     title_string = f'1D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
     ax.set_title(title_string) # this doesn't appear to be visible, so what is it used for?
-    # if self.run_dir is not None:
-    #     ax.set_title(self.run_dir.capitalize() + " Runs only")
 
     return ax, sort_ind, neurons_colors_array
 

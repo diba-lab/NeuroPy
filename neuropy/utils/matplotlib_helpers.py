@@ -894,8 +894,15 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
 
         
     if initial_selection is not None:
-        # convert to extents:
-        (x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
+        if len(initial_selection) == 4:
+            # extents format `(xmin, xmax, ymin, ymax)`
+            x0, x1, y0, y1 = initial_selection
+        elif len(initial_selection) == 2:
+            # pairs format: `((xmin, xmax), (ymin, ymax))`
+            assert len(initial_selection[0]) == 2, f"initial_selection should be `((xmin, xmax), (ymin, ymax))` but it is: {initial_selection}"
+            assert len(initial_selection[1]) == 2, f"initial_selection should be `((xmin, xmax), (ymin, ymax))` but it is: {initial_selection}"
+            # convert to extents:
+            (x0, x1), (y0, y1) = initial_selection # initial_selection should be `((xmin, xmax), (ymin, ymax))`
         extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
     else:
         extents = None
@@ -917,48 +924,85 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
     return selector, set_extents
 
 
-
 # grid_bin_bounds updating versions __________________________________________________________________________________ #
 
 def interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze'):
-	""" allows the user to interactively select the grid_bin_bounds for the pf1D
-	
-	Usage:
+    """ allows the user to interactively select the grid_bin_bounds for the pf1D
+    
+    Usage:
         from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_1D
-		fig, ax, range_selector, set_extents = interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze')
-	"""
-	# from neuropy.utils.matplotlib_helpers import add_range_selector
-	computation_result = curr_active_pipeline.computation_results[epoch_name]
-	grid_bin_bounds_1D = computation_result.computation_config['pf_params'].grid_bin_bounds_1D
-	fig, ax = computation_result.computed_data.pf1D.plot_occupancy() #plot_occupancy()
-	# curr_pos = deepcopy(curr_active_pipeline.sess.position)
-	# curr_pos_df = curr_pos.to_dataframe()
-	# curr_pos_df.plot(x='t', y=['lin_pos'])
-	# fig, ax = plt.gcf(), plt.gca()
+        fig, ax, range_selector, set_extents = interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze')
+    """
+    # from neuropy.utils.matplotlib_helpers import add_range_selector
+    computation_result = curr_active_pipeline.computation_results[epoch_name]
+    grid_bin_bounds_1D = computation_result.computation_config['pf_params'].grid_bin_bounds_1D
+    fig, ax = computation_result.computed_data.pf1D.plot_occupancy() #plot_occupancy()
+    # curr_pos = deepcopy(curr_active_pipeline.sess.position)
+    # curr_pos_df = curr_pos.to_dataframe()
+    # curr_pos_df.plot(x='t', y=['lin_pos'])
+    # fig, ax = plt.gcf(), plt.gca()
 
-	def _on_range_changed(xmin, xmax):
-		# print(f'xmin: {xmin}, xmax: {xmax}')
-		# xmid = np.mean([xmin, xmax])
-		# print(f'xmid: {xmid}')
-		print(f'new_grid_bin_bounds_1D: ({xmin}, {xmax})')
+    def _on_range_changed(xmin, xmax):
+        # print(f'xmin: {xmin}, xmax: {xmax}')
+        # xmid = np.mean([xmin, xmax])
+        # print(f'xmid: {xmid}')
+        print(f'new_grid_bin_bounds_1D: ({xmin}, {xmax})')
 
-	# range_selector, set_extents = add_range_selector(fig, ax, orientation="vertical", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed) # (-86.91, 141.02)
-	range_selector, set_extents = add_range_selector(fig, ax, orientation="horizontal", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed)
-	return fig, ax, range_selector, set_extents
+    # range_selector, set_extents = add_range_selector(fig, ax, orientation="vertical", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed) # (-86.91, 141.02)
+    range_selector, set_extents = add_range_selector(fig, ax, orientation="horizontal", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed)
+    return fig, ax, range_selector, set_extents
 
-def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze'):
-	""" allows the user to interactively select the grid_bin_bounds for the pf2D
-	
-	Usage:
+def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input:bool=True, should_apply_updates_to_pipeline=True):
+    """ allows the user to interactively select the grid_bin_bounds for the pf2D
+    
+    Usage:
         from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_2D
-		fig, ax, rect_selector, set_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
-	"""
-	# from neuropy.utils.matplotlib_helpers import add_rectangular_selector # interactive_select_grid_bin_bounds_2D
-	computation_result = curr_active_pipeline.computation_results[epoch_name]
-	grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
-	fig, ax = computation_result.computed_data.pf2D.plot_occupancy()
-	rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
-	return fig, ax, rect_selector, set_extents
+        fig, ax, rect_selector, set_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
+    """
+    # from neuropy.utils.matplotlib_helpers import add_rectangular_selector # interactive_select_grid_bin_bounds_2D
+    computation_result = curr_active_pipeline.computation_results[epoch_name]
+    grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
+    epoch_context = curr_active_pipeline.filtered_contexts[epoch_name]
+                     
+    fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name]) 
+
+    rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+    
+    def _on_update_grid_bin_bounds(new_grid_bin_bounds):
+        """ called to update the grid_bin_bounds for all filtered_epochs with the new values (new_grid_bin_bounds) 
+        Captures: `curr_active_pipeline`
+        """
+        print(f'_on_update_grid_bin_bounds(new_grid_bin_bounds: {new_grid_bin_bounds})')
+        for epoch_name, computation_result in curr_active_pipeline.computation_results.items():
+            computation_result.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
+                
+    if should_block_for_input:
+        print(f'blocking and waiting for user input. Press [enter] to confirm selection change or [esc] to revert with no change.')
+        # hold plot until a keyboard key is pressed
+        keyboardClick = False
+        while keyboardClick != True:
+            keyboardClick = plt.waitforbuttonpress() # plt.waitforbuttonpress() exits the inactive state as soon as either a key is pressed or the Mouse is clicked. However, the function returns True if a keyboard key was pressed and False if a Mouse was clicked
+            if keyboardClick:
+                # Button was pressed
+                # if plt.get_current_fig_manager().toolbar.mode == '':
+                # [Enter] was pressed
+                confirmed_extents = rect_selector.extents
+                print(f'user confirmed extents: {confirmed_extents}')
+                if confirmed_extents is not None:
+                    if should_apply_updates_to_pipeline:
+                        _on_update_grid_bin_bounds(confirmed_extents) # update the grid_bin_bounds.
+                    x0, x1, y0, y1 = confirmed_extents
+                    print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(x0, x1), (y0, y1)})),\n")
+                    
+                plt.close() # close the figure
+                return confirmed_extents
+                # elif plt.get_current_fig_manager().toolbar.mode == '':
+                #     # [Esc] was pressed
+                #     print(f'user canceled selection with [Esc].')
+                #     plt.close()
+                #     return grid_bin_bounds
+    else:
+        return fig, ax, rect_selector, set_extents
 
 
 
