@@ -59,6 +59,9 @@ def _help_plot_ratemap_neuronIDs(ratemap: Ratemap, included_unit_indicies=None, 
     """
     ## Brought in from display_all_pf_2D_pyqtgraph_binned_image_rendering:
     if included_unit_neuron_IDs is not None:
+        ### included_unit_neuron_IDs is used to specify a list of aclu values to display the ratemap for, and aclu values can be provided in `included_unit_neuron_IDs` THAT DO NOT EXIST for this ratemap.
+            # this is so that a shared list of aclus can be provided to two different plot calls (like long and short plots) and the rows and order will be standardized between the two.
+        assert included_unit_indicies is None, f"When included_unit_neuron_IDs is specified (for shared mode) `included_unit_indicies` is unused and overwritten so should not be provided!"
         if debug_print:
             print(f'included_unit_neuron_IDs: {included_unit_neuron_IDs}')
         if not isinstance(included_unit_neuron_IDs, np.ndarray):
@@ -105,6 +108,8 @@ def _help_plot_ratemap_neuronIDs(ratemap: Ratemap, included_unit_indicies=None, 
         print(f'active_maps.shape: {np.shape(active_maps)}, type: {type(active_maps)}') # _local_active_maps.shape: (70, 63, 16), type: <class 'numpy.ndarray'>
             
     return active_maps, title_substring, included_unit_indicies #, shared_IDXs_map
+
+
 
 def _plot_single_tuning_map_2D(xbin, ybin, pfmap, occupancy, final_title_str=None, drop_below_threshold: float=0.0000001,
                               plot_mode: enumTuningMap2DPlotMode=None, ax=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, max_value_formatter=None, use_special_overlayed_title:bool=True, bg_rendering_mode=BackgroundRenderingOptions.PATTERN_CHECKERBOARD):
@@ -521,6 +526,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             sort_ind = sortby
         else:
             # THIS IS WHERE THE 'id' string comes from, and it's just chance that it sorts them by ID pretty much.
+            raise NotImplementedError
             sort_ind = np.arange(n_neurons)
 
         if debug_print:
@@ -529,7 +535,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     if not isinstance(sort_ind, np.ndarray):
         sort_ind = np.array(sort_ind)
     # Use the get_neuron_colors function to generate colors for these neurons
-    neurons_colors_array = get_neuron_colors(sort_ind, cmap=cmap)
+    neurons_colors_array = get_neuron_colors(sort_ind, cmap=cmap) # TODO 2023-06-16 11:56: - [ ] Not sure if these colors are correct
+
+    # TODO 2023-06-16 11:57: - [ ] SORT!
+    sorted_included_unit_indicies = included_unit_indicies[sort_ind]
 
     ## New way:
     sorted_neuron_id_labels = []
@@ -550,8 +559,9 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
     # for i, neuron_ind in enumerate(sort_ind):
-    for i, curr_included_unit_index in enumerate(included_unit_indicies):
-
+    for i, curr_included_unit_index in enumerate(sorted_included_unit_indicies):
+        # `curr_included_unit_index` is either an index into the `included_unit_neuron_IDs` array or None
+        ### Three things must be considered for each "row" of the plot: 1. the pfmap curve values, 2. the cell id label displayed to the left of the row, 3. the color which is used for the row.
         if curr_included_unit_index is not None:
             # valid neuron ID, access like normal
             pfmap = active_maps[curr_included_unit_index]
@@ -572,7 +582,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             # invalid neuron ID, generate blank entry
             curr_ratemap_relative_neuron_IDX = None # This neuron_ID doesn't correspond to a neuron_IDX in the current ratemap, so we'll mark this value as None
             assert included_unit_neuron_IDs is not None
-            curr_neuron_ID = included_unit_neuron_IDs[i]
+            curr_neuron_ID = included_unit_neuron_IDs[i] # TODO 2023-06-16 12:03: - [ ] is this correct? I'm nearly certain that it should be `sort_ind[i]` Will see duplicate labels if I'm right.
 
             pfmap = np.zeros((np.shape(active_maps)[1],)) # fully allocated new array of zeros
             curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
@@ -594,7 +604,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         
         # New way:
         sorted_neuron_id_labels.append(final_title_str)
-        color = neurons_colors_array[:, i]
+        color = neurons_colors_array[:, i] # TODO 2023-06-16 12:01: - [ ] the `i` here means that color will always be assigned with the same row position (unless `neurons_colors_array` is pre-sorted)
         # TODO: PERFORMANCE: can the hatching and the fill be drawn at the same time?
         
         ax.fill_between(bin_cntr, y_baseline, y2, zorder=(i + 1), color=color, ec=None, alpha=0.5)

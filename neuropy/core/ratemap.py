@@ -159,6 +159,7 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositi
         elif isinstance(sortby, (list, np.ndarray)):
             sort_ind = sortby
         else:
+            print(f'WARNING: get_sort_indicies(sortby={sortby}) is not a known value type. using np.arange(self.n_neurons)...')
             sort_ind = np.arange(self.n_neurons)
         return sort_ind
 
