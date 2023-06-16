@@ -582,7 +582,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             # invalid neuron ID, generate blank entry
             curr_ratemap_relative_neuron_IDX = None # This neuron_ID doesn't correspond to a neuron_IDX in the current ratemap, so we'll mark this value as None
             assert included_unit_neuron_IDs is not None
-            curr_neuron_ID = included_unit_neuron_IDs[i] # TODO 2023-06-16 12:03: - [ ] is this correct? I'm nearly certain that it should be `sort_ind[i]` Will see duplicate labels if I'm right.
+            curr_neuron_ID = included_unit_neuron_IDs[sort_ind[i]] # TODO 2023-06-16 12:03: - [X] is this correct? I'm nearly certain that it should be `sort_ind[i]` Will see duplicate labels if I'm right.
 
             pfmap = np.zeros((np.shape(active_maps)[1],)) # fully allocated new array of zeros
             curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
