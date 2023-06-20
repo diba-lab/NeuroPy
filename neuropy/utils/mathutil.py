@@ -4,8 +4,10 @@ import pandas as pd
 from sklearn.decomposition import FastICA, PCA
 from scipy import stats
 from hmmlearn.hmm import GaussianHMM
+from sklearn.mixture import GaussianMixture
 from .ccg import correlograms
 import scipy.signal as sg
+import typing
 
 
 def choose_elementwise(x, y, condition):
@@ -162,7 +164,6 @@ def getICA_Assembly(x):
 
 
 def threshPeriods(arr, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
-
     ThreshSignal = np.diff(np.where(arr > lowthresh, 1, 0))
     start = np.where(ThreshSignal == 1)[0]
     stop = np.where(ThreshSignal == -1)[0]
@@ -226,7 +227,6 @@ def _unpack_args(values, fs=1):
 
 
 def thresh_epochs(arr: np.ndarray, thresh, length, sep=0, boundary=0, fs=1):
-
     hmin, hmax = _unpack_args(thresh)  # does not need fs
     lmin, lmax = _unpack_args(length, fs=fs)
     sep = sep * fs + 1e-6
@@ -244,7 +244,6 @@ def thresh_epochs(arr: np.ndarray, thresh, length, sep=0, boundary=0, fs=1):
     ind_delete = []
     for i in range(n_epochs - 1):
         if (starts[i + 1] - stops[i]) < sep:
-
             # stretch the second epoch to cover the range of both epochs
             starts[i + 1] = min(starts[i], starts[i + 1])
             stops[i + 1] = max(stops[i], stops[i + 1])
@@ -297,6 +296,106 @@ def contiguous_regions(condition):
     return idx
 
 
+def schmitt_threshold(arr: np.array, low_thresh: float, high_thresh: float):
+    """Detect high and low states in an array using two thresholds (Schmitt trigger). Works best for bimodal data.
+
+    Parameters
+    ----------
+    arr : np.array
+        array for threshold detection
+    low_thresh : float
+        low threshold
+    high_thresh : float
+        high threshold
+
+    Returns
+    -------
+    logical array
+        array of 0(low state) and 1(high state)
+    """
+    states = np.zeros_like(arr)
+    first_low = np.where(arr <= low_thresh)[0][0]
+    first_high = np.where(arr >= high_thresh)[0][0]
+    first_ind = np.min([first_low, first_high])
+    states[:first_ind] = np.argmin([first_low, first_high])
+    current_state = states[first_ind - 1]
+
+    for i in range(first_ind, len(arr)):
+        if arr[i] >= high_thresh:
+            current_state = 1
+        if arr[i] <= low_thresh:
+            current_state = 0
+
+        states[i] = current_state
+
+    return states
+
+
+def bimodal_classify(
+    arr,
+    ret_params=False,
+    threshold_type: typing.Literal["default", "schmitt"] = "default",
+):
+    """Gaussian classification of features into two components.
+
+    Parameters
+    ----------
+    arr : 1D or 2D array
+        features to be classified.
+    ret_params : bool, optional
+        Gaussian fit parameters are retured if true , by default False
+    plot : bool, optional
+        _description_, by default False
+    ax : _type_, optional
+        _description_, by default None
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    assert arr.ndim < 2, "Only 1D data accepted"
+
+    clus = GaussianMixture(
+        n_components=2, init_params="k-means++", max_iter=200, n_init=10
+    ).fit(arr[:, None])
+    labels = clus.predict(arr[:, None])
+    clus_means = clus.means_[:, 0]
+
+    # --- order cluster labels by increasing mean (low=0, high=1) ------
+    sort_idx = np.argsort(clus_means)
+    label_map = np.zeros_like(sort_idx)
+    label_map[sort_idx] = np.arange(len(sort_idx))
+    fixed_labels = label_map[labels.astype("int")]
+    means = clus_means[sort_idx].squeeze()
+    covs = clus.covariances_[sort_idx, :, :].squeeze()
+    weights = clus.weights_[sort_idx]
+
+    if threshold_type == "schmitt":
+        bins = np.linspace(arr.min(), arr.max(), 200)
+        full_fit = np.zeros_like(bins)
+        for i in range(2):
+            full_fit += stats.norm.pdf(bins, means[i], np.sqrt(covs[i])) * weights[i]
+
+        bins_between_peaks = (bins > means[0]) & (bins < means[1])
+        thresh_ind = np.argmin(full_fit[bins_between_peaks])
+        thresh_val = bins[bins_between_peaks][thresh_ind]
+        low_thresh = (means[0] + thresh_val) / 2
+        high_thresh = (means[1] + thresh_val) / 2
+
+        fixed_labels = schmitt_threshold(arr, low_thresh, high_thresh)
+
+    if ret_params:
+        params_dict = dict(
+            weights=weights,
+            means=means,
+            covariances=covs,
+        )
+        return fixed_labels, params_dict
+    else:
+        return fixed_labels
+
+
 def hmmfit1d(Data, n_comp=2, n_iter=50):
     # hmm states on 1d data and returns labels with highest mean = highest label
     flag = None
@@ -331,7 +430,6 @@ def hmmfit1d(Data, n_comp=2, n_iter=50):
 
     hmmlabels = None
     if flag:
-
         hmmlabels[non_nan_indices] = relabeled_states
 
     else:
