@@ -77,6 +77,11 @@
 					"line": 117,
 					"column": 44,
 					"label": "build_formatted_str_from_properties_dict"
+				},
+				{
+					"line": 154,
+					"column": 40,
+					"label": "MultiItemStringRepresentationMixin"
 				}
 			]
 		},
