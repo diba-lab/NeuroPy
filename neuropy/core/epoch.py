@@ -3,6 +3,20 @@ import numpy as np
 import pandas as pd
 from .datawriter import DataWriter
 from pathlib import Path
+import scipy.signal as sg
+
+
+def _unpack_args(values, fs=1):
+    """Parsing argument for thresh_epochs"""
+    try:
+        val_min, val_max = values
+    except (TypeError, ValueError):
+        val_min, val_max = (values, None)
+
+    val_min = val_min * fs
+    val_max = val_max * fs if val_max is not None else None
+
+    return val_min, val_max
 
 
 class Epoch(DataWriter):
@@ -190,10 +204,6 @@ class Epoch(DataWriter):
         return Epoch(epochs=df)
 
     @staticmethod
-    def from_logical_array(arr):
-        pass
-
-    @staticmethod
     def from_string_array(arr, dt: float = 1.0, t: np.array = None):
         """Convert a string array of type ['A','A','B','C','C'] to epochs
         Parameters
@@ -244,10 +254,12 @@ class Epoch(DataWriter):
 
     @property
     def is_overlapping(self):
-        starts = self.starts
-        stops = self.stops
-
-        return np.all((starts[1:] - stops[:-1]) < 0)
+        if self.n_epochs > 1:
+            starts = self.starts
+            stops = self.stops
+            return np.all((starts[1:] - stops[:-1]) < 0)
+        else:
+            return False
 
     def itertuples(self):
         return self.to_dataframe().itertuples()
@@ -465,3 +477,62 @@ class Epoch(DataWriter):
         NOTE: returned array is monotonically increasing only if epochs are non-overlapping
         """
         return self.as_array().flatten("C")
+
+    @staticmethod
+    def from_peaks(arr: np.ndarray, thresh, length, sep=0, boundary=0, fs=1):
+        hmin, hmax = _unpack_args(thresh)  # does not need fs
+        lmin, lmax = _unpack_args(length, fs=fs)
+        sep = sep * fs + 1e-6
+
+        assert hmin >= boundary, "boundary must be smaller than min thresh"
+
+        arr_thresh = np.where(arr >= boundary, arr, 0)
+        peaks, props = sg.find_peaks(arr_thresh, height=[hmin, hmax], prominence=0)
+
+        starts, stops = props["left_bases"], props["right_bases"]
+        peaks_values = arr_thresh[peaks]
+
+        # ----- merge overlapping epochs ------
+        n_epochs = len(starts)
+        ind_delete = []
+        for i in range(n_epochs - 1):
+            if (starts[i + 1] - stops[i]) < sep:
+                # stretch the second epoch to cover the range of both epochs
+                starts[i + 1] = min(starts[i], starts[i + 1])
+                stops[i + 1] = max(stops[i], stops[i + 1])
+
+                peaks_values[i + 1] = max(peaks_values[i], peaks_values[i + 1])
+                peaks[i + 1] = [peaks[i], peaks[i + 1]][
+                    np.argmax([peaks_values[i], peaks_values[i + 1]])
+                ]
+                ind_delete.append(i)
+
+        epochs_arr = np.vstack((starts, stops, peaks, peaks_values)).T
+        epochs_arr = np.delete(epochs_arr, ind_delete, axis=0)
+
+        # ----- duration thresholds ------
+        epochs_length = epochs_arr[:, 1] - epochs_arr[:, 0]
+        if lmax is None:
+            lmax = epochs_length.max()
+        ind_keep = (epochs_length >= lmin) & (epochs_length <= lmax)
+
+        starts, stops, peaks, peaks_values = epochs_arr[ind_keep, :].T
+
+        # return starts / fs, stops / fs, peaks / fs, peaks_values
+
+        return Epoch.from_array(starts / fs, stops / fs), peaks / fs, peaks_values
+
+    @staticmethod
+    def from_boolean_array(arr, t=None):
+        assert np.array_equal(arr, arr.astype(bool)), "Only boolean array accepted"
+        int_arr = arr.astype("int")
+        pad_arr = np.pad(int_arr, 1)
+        diff_arr = np.diff(pad_arr)
+        starts, stops = np.where(diff_arr == 1)[0], np.where(diff_arr == -1)[0]
+        stops[stops == len(arr)] = len(arr) - 1
+
+        if t is not None:
+            assert len(t) == len(arr), "time length should be same as input array"
+            starts, stops = t[starts], t[stops]
+
+        return Epoch.from_array(starts, stops, "high")
