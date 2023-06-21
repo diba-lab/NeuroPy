@@ -83,15 +83,20 @@ class StringLiteralComparableEnum(Enum):
         if isinstance(other, str):
              # if the other is a string, return true if either name or value match
             return (other.casefold() == self.value.casefold()) or (other.casefold() == self.name.casefold())
-        elif isinstance(other, type(self)):
-            # return super().__eq__(other) # Use the standard equality if it's of the same type
-            return super(StringLiteralComparableEnum, self).__eq__(other)
+        elif hasattr(other, 'value'):
+            assert isinstance(other.value, str)
+            return (other.value.casefold() == self.value.casefold())
+        elif hasattr(other, 'name'):
+            assert isinstance(other.name, str)
+            return (other.name.casefold() == self.name.casefold())
         else:
             return super(StringLiteralComparableEnum, self).__eq__(other)
+            # return super().__eq__(other)
             # raise TypeError
         
-
-        
+        # elif isinstance(other, type(self)):
+        #     # return super().__eq__(other) # Use the standard equality if it's of the same type
+        #     return Enum.__eq__(self, other)
 
 
 class ExtendedEnum(Enum):
