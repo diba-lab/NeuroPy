@@ -18,18 +18,6 @@ try:
 except ImportError:
     from neuropy.plotting import Fig
     from neuropy import core
-from .. import core
-
-import seaborn as sns
-from scipy.interpolate import interp2d
-
-try:
-    from ..plotting import Fig
-    from .. import core
-except ImportError:
-    from neuropy.plotting import Fig
-    from neuropy import core
-from .. import core
 
 
 class Spectrogram(core.Signal):
@@ -94,42 +82,20 @@ class Spectrogram(core.Signal):
 
         return self.get_band_power(*band1) / self.get_band_power(*band2)
 
-    @property
-    def delta(self):
-        return self.get_band_power(f1=0.5, f2=4)
+    def get_noisy_spect_bool(self, thresh=5):
+        """Identifies indices which are noisy in a spectrogram. Time points are considered noisy if sum of the power across all frequencies exceeds threshold std or is zero.
 
-    @property
-    def deltaplus(self):
-        deltaplus_ind = np.where(
-            ((self.freqs > 0.5) & (self.freqs < 4))
-            | ((self.freqs > 12) & (self.freqs < 15))
-        )[0]
-        deltaplus_sxx = np.mean(self.traces[deltaplus_ind, :], axis=0)
-        return deltaplus_sxx
+        Parameters
+        ----------
+        thresh: float
+            indices exceeding this are considered noisy
 
-    @property
-    def theta(self):
-        return self.get_band_power(f1=5, f2=10)
-
-    @property
-    def spindle(self):
-        return self.get_band_power(f1=10, f2=20)
-
-    @property
-    def gamma(self):
-        return self.get_band_power(f1=30, f2=90)
-
-    @property
-    def ripple(self):
-        return self.get_band_power(f1=140, f2=250)
-
-    @property
-    def theta_delta_ratio(self):
-        return self.theta / self.delta
-
-    @property
-    def theta_deltaplus_ratio(self):
-        return self.theta / self.deltaplus
+        Returns
+        -------
+        Boolean array
+        """
+        spect_sum = self.traces.sum(axis=0)
+        return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
 
 
 class filter_sig:
@@ -212,34 +178,6 @@ class filter_sig:
             yf = np.asarray(yf, dtype="int16")
 
         return yf
-
-    @staticmethod
-    def delta(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=0.5, hf=4, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def theta(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=4, hf=10, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def spindle(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=8, hf=16, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def slowgamma(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=25, hf=50, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def mediumgamma(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=60, hf=90, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def fastgamma(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=100, hf=140, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def ripple(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=150, hf=240, fs=fs, order=order, ax=ax)
 
 
 def whiten(strain, interp_psd, dt):
