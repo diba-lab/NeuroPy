@@ -360,15 +360,15 @@ def bimodal_classify(
         n_components=2, init_params="k-means++", max_iter=200, n_init=10
     ).fit(arr[:, None])
     labels = clus.predict(arr[:, None])
-    clus_means = clus.means_[:, 0]
+    clus_means = clus.means_.squeeze()
 
     # --- order cluster labels by increasing mean (low=0, high=1) ------
     sort_idx = np.argsort(clus_means)
     label_map = np.zeros_like(sort_idx)
     label_map[sort_idx] = np.arange(len(sort_idx))
     fixed_labels = label_map[labels.astype("int")]
-    means = clus_means[sort_idx].squeeze()
-    covs = clus.covariances_[sort_idx, :, :].squeeze()
+    means = clus_means[sort_idx]
+    covs = clus.covariances_.squeeze()[sort_idx]
     weights = clus.weights_[sort_idx]
 
     if threshold_type == "schmitt":
@@ -396,7 +396,7 @@ def bimodal_classify(
         return fixed_labels
 
 
-def hmmfit1d(Data, n_comp=2, n_iter=50):
+def hmmfit1d(Data, ret_means=False, **kwargs):
     # hmm states on 1d data and returns labels with highest mean = highest label
     flag = None
     if np.isnan(Data).any():
@@ -408,7 +408,15 @@ def hmmfit1d(Data, n_comp=2, n_iter=50):
         flag = 1
 
     Data = (np.asarray(Data)).reshape(-1, 1)
-    model = GaussianHMM(n_components=n_comp, n_iter=n_iter).fit(Data)
+    models = []
+    scores = []
+    for i in range(10):
+        model = GaussianHMM(n_components=2, n_iter=10, random_state=i, **kwargs)
+        model.fit(Data)
+        models.append(model)
+        scores.append(model.score(Data))
+    model = models[np.argmax(scores)]
+
     hidden_states = model.predict(Data)
     mus = np.squeeze(model.means_)
     sigmas = np.squeeze(np.sqrt(model.covars_))
@@ -420,7 +428,7 @@ def hmmfit1d(Data, n_comp=2, n_iter=50):
     transmat = transmat[idx, :][:, idx]
 
     state_dict = {}
-    states = [i for i in range(5)]
+    states = [i for i in range(4)]
     for i in idx:
         state_dict[idx[i]] = states[i]
 
@@ -428,14 +436,16 @@ def hmmfit1d(Data, n_comp=2, n_iter=50):
     relabeled_states[:2] = [0, 0]
     relabeled_states[-2:] = [0, 0]
 
-    hmmlabels = None
     if flag:
         hmmlabels[non_nan_indices] = relabeled_states
 
     else:
         hmmlabels = relabeled_states
 
-    return hmmlabels
+    if ret_means:
+        return hmmlabels, mus
+    else:
+        return hmmlabels
 
 
 def eventpsth(ref, event, fs, quantparam=None, binsize=0.01, window=1, nQuantiles=1):
