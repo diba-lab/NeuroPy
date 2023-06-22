@@ -97,6 +97,14 @@ class SpikesAccessor(TimeSlicedMixin):
             included_neuron_ids = self.neuron_ids
         return [safe_pandas_get_group(self._obj.groupby('aclu'), neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
     
+
+    def sliced_by_neuron_id(self, included_neuron_ids):
+        """ gets the slice of spikes with the specified `included_neuron_ids` """
+        if included_neuron_ids is None:
+            included_neuron_ids = self.neuron_ids
+        return self._obj[self._obj['aclu'].isin(included_neuron_ids)] ## restrict to only the shared aclus for both short and long
+        
+
     def get_unit_spiketrains(self, included_neuron_ids=None):
         """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
         return np.asarray([a_unit_spikes_df[self.time_variable_name].to_numpy() for a_unit_spikes_df in self.get_split_by_unit(included_neuron_ids=included_neuron_ids)])
