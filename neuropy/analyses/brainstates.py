@@ -2,12 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from neuropy.core.epoch import Epoch
 from scipy.ndimage import gaussian_filter1d
 from sklearn.decomposition import PCA
-import scipy.signal as sg
+from pathlib import Path
 import typing
 
 from .. import core
@@ -15,28 +13,42 @@ from ..plotting import plot_epochs
 from ..utils import mathutil, signal_process
 
 
-def correlation_emg(
+def emg_from_LFP(
     signal: core.Signal,
     window,
-    overlap,
+    overlap=0.0,
     probe: core.ProbeGroup = None,
     min_dist=0,
-    n_jobs=8,
+    as_signal=False,
+    n_jobs=1,
 ):
-    """Calculating emg
+    """Estimates muscle activity using power in high frequency band (300,600 Hz).
+
+    Method:
+    LFP --> bandpass filtered (300-600 Hz) --> Pearson correlation across pairs of channels --> Mean of pearson correlations --> EMG activity
+
+    Note: Prior to estimation, it is advised to visualize LFP power spectrum and confirm they don't have sharp peaks from artifacts in 300-600 Hz band. They can drastically affect the EMG estimation.
 
     Parameters
     ----------
-    window : int
-        window size in seconds
-    overlap : float
-        overlap between windows in seconds
+    signal : core.Signal object
+        signal containing LFP traces
+    window : float
+        window size in seconds in which correlations are computed
+    overlap : float,
+        overlap between adjacent window in seconds, by default 0
+    probe : core.Probegroup
+        channel mapping of the signal object
+    min_dist:
+        if probe is provided, use only channels that are separated by at least this much distance, in um
+    as_signal: bool
+        whether to return emg as a signal object
     n_jobs: int,
         number of cpu/processes to use
 
     Returns
     -------
-    array
+    array or core.Signal
         emg calculated at each time window
     """
     print("starting emg calculation")
@@ -78,6 +90,13 @@ def correlation_emg(
         yf = signal_process.filter_sig.bandpass(
             lfp_req, lf=lowfreq, hf=highfreq, fs=sRate
         )
+
+        # yf1 = signal_process.filter_sig.bandpass(lfp_req, lf=315, hf=485, fs=sRate)
+        # yf2 = signal_process.filter_sig.bandpass(lfp_req, lf=520, hf=600, fs=sRate)
+        # yf = yf1 + yf2
+
+        # yf = signal_process.filter_sig.highpass(lfp_req, cutoff=300, fs=sRate)
+
         # ltriang = np.tril_indices(n_emg_chans, k=-1)
         ltriang = np.tril(pairs_bool, k=-1)
         return np.corrcoef(yf)[ltriang].mean()
@@ -88,23 +107,29 @@ def correlation_emg(
     emg_lfp = np.asarray(corr_per_window)
 
     print("emg calculation done")
-    return emg_lfp
+
+    if as_signal:
+        fs = 1 / (window - overlap)
+        return core.Signal(
+            traces=emg_lfp[np.newaxis, :], sampling_rate=fs, t_start=window / 2
+        )
+    else:
+        return emg_lfp
 
 
 def detect_brainstates_epochs(
     signal: core.Signal,
+    theta_channel: int,
+    delta_channel: int,
     probe: core.ProbeGroup,
-    window=1,
-    overlap=0.2,
-    sigma=3,
+    window=2,
+    overlap=1,
+    sigma=4,
     emg_signal=None,
-    theta_channel=None,
-    delta_channel=None,
-    # min_dur=6,
     ignore_epochs: core.Epoch = None,
     threshold_type: typing.Literal["default", "schmitt"] = "default",
     # plot=False,
-    fp_bokeh_plot=None,
+    fp_bokeh_plot: typing.Union[Path, str] = None,
 ):
     """detects sleep states using LFP.
 
@@ -112,24 +137,26 @@ def detect_brainstates_epochs(
     ----------
     signal : core.Signal object
         Signal object containing LFP traces across all good channels preferrable
-    probe: core.Probe object
-        probemap containing channel coordinates and ids of good and bad channels
-    window : float, optional
-        window size for spectrogram calculation, by default 1 seconds
-    overlap : float, optional
-        by how much the adjacent windows overlap, by default 0.2 seconds
-    emg_signal : bool, optional
-        if emg has already been calculated pass that as a signal object, by None
     theta_channel: bool, optional
         specify channel_id that can be used for theta power calculation, by None
     delta_channel: bool, optional
         specify channel that can be used for slow wave calculation, by None
+    probe: core.Probe object
+        probemap containing channel coordinates and ids of good and bad channels
+    window : float, optional
+        window size for spectrogram calculation, by default 2 seconds
+    overlap : float, optional
+        by how much the adjacent windows overlap, by default 1 seconds
+    sigma : float, optional
+        smoothing window in seconds, by default 4 seconds
+    emg_signal : bool, optional
+        if emg has already been calculated pass that as a signal object, by default None, then emg is estimated using correlation EMG
     min_dur: bool, optional
         minimum duration of each state, by None
     ignore_epochs: bool, optional
         epochs which are ignored during scoring, could be noise epochs, by None
     fp_bokeh_plot: Path to file, optional
-        if given then .html file is saved detailing some of scoring parameters and classification, by None
+        if given then .html file is saved detailing some of scoring parameters and classification, by default None
     """
 
     # freqs = np.geomspace(1, 100, 100)
@@ -159,7 +186,7 @@ def detect_brainstates_epochs(
     if emg_signal is None:
         # emg_kw = dict(window=window, overlap=overlap)
         emg_kw = dict(window=1, overlap=0.0)
-        emg = correlation_emg(signal=signal, probe=probe, **emg_kw)
+        emg = emg_from_LFP(signal=signal, probe=probe, **emg_kw)
         emg = gaussian_filter1d(emg, sigma=20)
         emg_t = np.linspace(signal.t_start, signal.t_stop, len(emg))
         emg = np.interp(theta_chan_sg.time, emg_t, emg)
@@ -258,24 +285,23 @@ def detect_brainstates_epochs(
     # ma_bool = emg_bool & delta_bool
     # states[ma_indices] = "MA"
 
-    # ---- removing very short epochs -----
-    epochs = Epoch.from_string_array(states, t=time)
+    # ---- make epochs -----
+    epochs = core.Epoch.from_string_array(states, t=time)
     metadata = {
         "window": window,
         "overlap": overlap,
         "theta_channel": theta_channel,
         "delta_channel": delta_channel,
     }
+    epochs.metadata = metadata
 
     # epochs = epochs.duration_slice(min_dur=min_dur)
     # epochs = epochs.fill_blank("from_right")  # this will also fill ignore_epochs
 
     # clearing out ignore_epochs
-    if ignore_epochs is not None:
-        for e in ignore_epochs.as_array():
-            epochs = epochs.delete_in_between(e[0], e[1])
-
-    epochs.metadata = metadata
+    # if ignore_epochs is not None:
+    #     for e in ignore_epochs.as_array():
+    #         epochs = epochs.delete_in_between(e[0], e[1])
 
     # if plot:
     #     _, axs = plt.subplots(4, 1, sharex=True, constrained_layout=True)
