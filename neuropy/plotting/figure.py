@@ -254,48 +254,36 @@ class Fig:
         for item in legend.legendHandles:
             item.set_visible(False)
 
-    def savefig(self, fname: Path, scriptname=None, fig=None, caption=None, dpi=300):
-        if fig is None:
-            fig = self.fig
-
+    def savefig(self, fname: Path, dpi=None):
+        """Note: Illustrator takes a very long time to open pdf when dpi=300"""
+        fig = self.fig
         # fig.set_dpi(300)
         filename = fname.with_suffix(".pdf")
+        # today = date.today().strftime("%m/%d/%y")
 
-        today = date.today().strftime("%m/%d/%y")
+        if dpi is not None:
+            fig.savefig(filename, dpi=dpi)
+        else:
+            fig.savefig(filename)
 
-        if scriptname is not None:
-            scriptname = Path(scriptname).name
-            fig.text(
-                0.95,
-                0.01,
-                f"{scriptname}\n Date: {today}",
-                fontsize=6,
-                color="gray",
-                ha="right",
-                va="bottom",
-                alpha=0.5,
-            )
+        # if caption is not None:
+        #     fig_caption = Fig(grid=(1, 1))
+        #     ax_caption = fig_caption.subplot(fig_caption.gs[0])
+        #     ax_caption.text(0, 0.5, caption, wrap=True)
+        #     ax_caption.axis("off")
+        #     fig_caption.savefig(filename.with_suffix(".caption.pdf"))
 
-        fig.savefig(filename, dpi=dpi)
+        #     """ Previously caption was combined to create a multi-page pdf with main figure. But this created dpi issue where we can't increase dpi to only saved pdf (pdfpages does not have that functionality yet) without affecting the plot in matplotlib widget which becomes bigger because of dpi-pixels relationsip)
+        #     """
+        #     # with PdfPages(filename) as pdf:
+        #     pdf.savefig(self.fig)
 
-        if caption is not None:
-            fig_caption = Fig(grid=(1, 1))
-            ax_caption = fig_caption.subplot(fig_caption.gs[0])
-            ax_caption.text(0, 0.5, caption, wrap=True)
-            ax_caption.axis("off")
-            fig_caption.savefig(filename.with_suffix(".caption.pdf"))
+        #     fig_caption = Fig(grid=(1, 1))
+        #     ax_caption = fig_caption.subplot(fig_caption.gs[0])
 
-            """ Previously caption was combined to create a multi-page pdf with main figure. But this created dpi issue where we can't increase dpi to only saved pdf (pdfpages does not have that functionality yet) without affecting the plot in matplotlib widget which becomes bigger because of dpi-pixels relationsip)
-            """
-            # with PdfPages(filename) as pdf:
-            #     pdf.savefig(self.fig)
-
-            #     fig_caption = Fig(grid=(1, 1))
-            #     ax_caption = fig_caption.subplot(fig_caption.gs[0])
-
-            #     ax_caption.text(0, 0.5, caption, wrap=True)
-            #     ax_caption.axis("off")
-            #     pdf.savefig(fig_caption.fig)
+        #     ax_caption.text(0, 0.5, caption, wrap=True)
+        #     ax_caption.axis("off")
+        #     pdf.savefig(fig_caption.fig)
 
     @staticmethod
     def pf_1D(ax):
