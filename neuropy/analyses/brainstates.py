@@ -2,143 +2,53 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from hmmlearn.hmm import GaussianHMM
 from joblib import Parallel, delayed
-from neuropy.core.epoch import Epoch
 from scipy.ndimage import gaussian_filter1d
-from sklearn.mixture import GaussianMixture, BayesianGaussianMixture
 from sklearn.decomposition import PCA
-import scipy.signal as sg
+from pathlib import Path
+import typing
 
 from .. import core
 from ..plotting import plot_epochs
 from ..utils import mathutil, signal_process
 
 
-def hmmfit1d(Data, ret_means=False, **kwargs):
-    # hmm states on 1d data and returns labels with highest mean = highest label
-    flag = None
-    if np.isnan(Data).any():
-        nan_indices = np.where(np.isnan(Data) == 1)[0]
-        non_nan_indices = np.where(np.isnan(Data) == 0)[0]
-        Data_og = Data
-        Data = np.delete(Data, nan_indices)
-        hmmlabels = np.nan * np.ones(len(Data_og))
-        flag = 1
-
-    Data = (np.asarray(Data)).reshape(-1, 1)
-    models = []
-    scores = []
-    for i in range(10):
-        model = GaussianHMM(n_components=2, n_iter=10, random_state=i, **kwargs)
-        model.fit(Data)
-        models.append(model)
-        scores.append(model.score(Data))
-    model = models[np.argmax(scores)]
-
-    hidden_states = model.predict(Data)
-    mus = np.squeeze(model.means_)
-    sigmas = np.squeeze(np.sqrt(model.covars_))
-    transmat = np.array(model.transmat_)
-
-    idx = np.argsort(mus)
-    mus = mus[idx]
-    sigmas = sigmas[idx]
-    transmat = transmat[idx, :][:, idx]
-
-    state_dict = {}
-    states = [i for i in range(4)]
-    for i in idx:
-        state_dict[idx[i]] = states[i]
-
-    relabeled_states = np.asarray([state_dict[h] for h in hidden_states])
-    relabeled_states[:2] = [0, 0]
-    relabeled_states[-2:] = [0, 0]
-
-    if flag:
-        hmmlabels[non_nan_indices] = relabeled_states
-
-    else:
-        hmmlabels = relabeled_states
-
-    if ret_means:
-        return hmmlabels, mus
-    else:
-        return hmmlabels
-
-
-def gaussian_classify(feat, ret_params=False, plot=False, ax=None):
-    """Gaussian classification of features into two components.
-
-    Parameters
-    ----------
-    feat : 1D or 2D array
-        features to be classified.
-    ret_params : bool, optional
-        Gaussian fit parameters are retured if true , by default False
-    plot : bool, optional
-        _description_, by default False
-    ax : _type_, optional
-        _description_, by default None
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-    if feat.ndim < 2:
-        feat = feat[:, None]
-    clus = GaussianMixture(
-        n_components=2, init_params="k-means++", max_iter=200, n_init=10
-    ).fit(feat)
-    labels = clus.predict(feat)
-    clus_means = clus.means_[:, 0]
-
-    # --- order cluster labels by increasing mean (low=0, high=1) ------
-    sort_idx = np.argsort(clus_means)
-    label_map = np.zeros_like(sort_idx)
-    label_map[sort_idx] = np.arange(len(sort_idx))
-    fixed_labels = label_map[labels.astype("int")]
-
-    if plot:
-        if feat.ndim == 2:
-            label_bool = fixed_labels.astype("bool")
-            ax.scatter(feat[label_bool, 0], feat[label_bool, 1], s=1)
-            ax.scatter(feat[~label_bool, 0], feat[~label_bool, 1], s=1)
-
-    if ret_params:
-        params_dict = dict(
-            weights=clus.weights_[sort_idx],
-            means=clus.means_[sort_idx],
-            covariances=clus.covariances_[sort_idx, :, :],
-        )
-        return fixed_labels, params_dict
-    else:
-        return fixed_labels
-
-
-def correlation_emg(
+def emg_from_LFP(
     signal: core.Signal,
     window,
-    overlap,
+    overlap=0.0,
     probe: core.ProbeGroup = None,
     min_dist=0,
-    n_jobs=8,
+    as_signal=False,
+    n_jobs=1,
 ):
-    """Calculating emg
+    """Estimates muscle activity using power in high frequency band (300,600 Hz).
+
+    Method:
+    LFP --> bandpass filtered (300-600 Hz) --> Pearson correlation across pairs of channels --> Mean of pearson correlations --> EMG activity
+
+    Note: Prior to estimation, it is advised to visualize LFP power spectrum and confirm they don't have sharp peaks from artifacts in 300-600 Hz band. They can drastically affect the EMG estimation.
 
     Parameters
     ----------
-    window : int
-        window size in seconds
-    overlap : float
-        overlap between windows in seconds
+    signal : core.Signal object
+        signal containing LFP traces
+    window : float
+        window size in seconds in which correlations are computed
+    overlap : float,
+        overlap between adjacent window in seconds, by default 0
+    probe : core.Probegroup
+        channel mapping of the signal object
+    min_dist:
+        if probe is provided, use only channels that are separated by at least this much distance, in um
+    as_signal: bool
+        whether to return emg as a signal object
     n_jobs: int,
         number of cpu/processes to use
 
     Returns
     -------
-    array
+    array or core.Signal
         emg calculated at each time window
     """
     print("starting emg calculation")
@@ -180,6 +90,13 @@ def correlation_emg(
         yf = signal_process.filter_sig.bandpass(
             lfp_req, lf=lowfreq, hf=highfreq, fs=sRate
         )
+
+        # yf1 = signal_process.filter_sig.bandpass(lfp_req, lf=315, hf=485, fs=sRate)
+        # yf2 = signal_process.filter_sig.bandpass(lfp_req, lf=520, hf=600, fs=sRate)
+        # yf = yf1 + yf2
+
+        # yf = signal_process.filter_sig.highpass(lfp_req, cutoff=300, fs=sRate)
+
         # ltriang = np.tril_indices(n_emg_chans, k=-1)
         ltriang = np.tril(pairs_bool, k=-1)
         return np.corrcoef(yf)[ltriang].mean()
@@ -190,63 +107,29 @@ def correlation_emg(
     emg_lfp = np.asarray(corr_per_window)
 
     print("emg calculation done")
-    return emg_lfp
 
-
-def get_artifact_indices(arr, thresh=3):
-    zsc_arr = stats.zscore(arr)
-    # if thresh is None:
-    #     thresh = stats.scoreatpercentile()
-    zsc_arr = np.where(zsc_arr > 0, zsc_arr, 0)
-    _, peaks_prop = sg.find_peaks(
-        zsc_arr,
-        height=thresh,
-        prominence=0,
-        plateau_size=1,
-    )
-    left_base = peaks_prop["left_bases"]
-    right_base = peaks_prop["right_bases"]
-
-    return np.unique(
-        np.concatenate([np.arange(a, b + 1) for a, b in zip(left_base, right_base)])
-    )
-
-
-def get_noisy_spect_bool(sxx: core.Spectrogram):
-    """Identifies indices which are noisy in a spectrogram. Time points are considered noisy if sum of the power across all frequencies exceeds 5 std or is zero.
-
-    Parameters
-    ----------
-    sxx : core.Spectrogram
-        spectrogram
-
-    Returns
-    -------
-    Boolean array
-    """
-    spect_sum = sxx.traces.sum(axis=0)
-    return (stats.zscore(spect_sum) >= 5) | (spect_sum <= 0)
-
-
-def interpolate_indices(arr, indices):
-    new_arr = arr.copy()
-    new_arr[indices] = np.nan
-    return pd.DataFrame(new_arr).interpolate(method="linear")[0].to_numpy()
+    if as_signal:
+        fs = 1 / (window - overlap)
+        return core.Signal(
+            traces=emg_lfp[np.newaxis, :], sampling_rate=fs, t_start=window / 2
+        )
+    else:
+        return emg_lfp
 
 
 def detect_brainstates_epochs(
     signal: core.Signal,
+    theta_channel: int,
+    delta_channel: int,
     probe: core.ProbeGroup,
-    window=1,
-    overlap=0.2,
-    sigma=3,
+    window=2,
+    overlap=1,
+    sigma=4,
     emg_signal=None,
-    theta_channel=None,
-    delta_channel=None,
-    min_dur=6,
     ignore_epochs: core.Epoch = None,
-    plot=False,
-    fp_bokeh_plot=None,
+    threshold_type: typing.Literal["default", "schmitt"] = "default",
+    # plot=False,
+    fp_bokeh_plot: typing.Union[Path, str] = None,
 ):
     """detects sleep states using LFP.
 
@@ -254,28 +137,30 @@ def detect_brainstates_epochs(
     ----------
     signal : core.Signal object
         Signal object containing LFP traces across all good channels preferrable
-    probe: core.Probe object
-        probemap containing channel coordinates and ids of good and bad channels
-    window : float, optional
-        window size for spectrogram calculation, by default 1 seconds
-    overlap : float, optional
-        by how much the adjacent windows overlap, by default 0.2 seconds
-    emg_signal : bool, optional
-        if emg has already been calculated pass that as a signal object, by None
     theta_channel: bool, optional
         specify channel_id that can be used for theta power calculation, by None
     delta_channel: bool, optional
         specify channel that can be used for slow wave calculation, by None
+    probe: core.Probe object
+        probemap containing channel coordinates and ids of good and bad channels
+    window : float, optional
+        window size for spectrogram calculation, by default 2 seconds
+    overlap : float, optional
+        by how much the adjacent windows overlap, by default 1 seconds
+    sigma : float, optional
+        smoothing window in seconds, by default 4 seconds
+    emg_signal : bool, optional
+        if emg has already been calculated pass that as a signal object, by default None, then emg is estimated using correlation EMG
     min_dur: bool, optional
         minimum duration of each state, by None
     ignore_epochs: bool, optional
         epochs which are ignored during scoring, could be noise epochs, by None
     fp_bokeh_plot: Path to file, optional
-        if given then .html file is saved detailing some of scoring parameters and classification, by None
+        if given then .html file is saved detailing some of scoring parameters and classification, by default None
     """
 
-    freqs = np.geomspace(1, 100, 100)
-    spect_kw = dict(window=window, overlap=overlap, freqs=freqs, norm_sig=True)
+    # freqs = np.geomspace(1, 100, 100)
+    spect_kw = dict(window=window, overlap=overlap, norm_sig=True)
 
     smooth_ = lambda arr: gaussian_filter1d(arr, sigma=sigma / (window - overlap))
     print(f"channel for sleep detection: {theta_channel,delta_channel}")
@@ -293,15 +178,16 @@ def detect_brainstates_epochs(
             delta_chan_sg = signal_process.FourierSg(delta_signal, **spect_kw)
 
     time = theta_chan_sg.time
+    dt = window - overlap
 
     print(f"spectral properties calculated")
 
     # ---- emg processing ----
     if emg_signal is None:
         # emg_kw = dict(window=window, overlap=overlap)
-        emg_kw = dict(window=1, overlap=0)
-        emg = correlation_emg(signal=signal, probe=probe, **emg_kw)
-        emg = gaussian_filter1d(emg, sigma=10)
+        emg_kw = dict(window=1, overlap=0.0)
+        emg = emg_from_LFP(signal=signal, probe=probe, **emg_kw)
+        emg = gaussian_filter1d(emg, sigma=20)
         emg_t = np.linspace(signal.t_start, signal.t_stop, len(emg))
         emg = np.interp(theta_chan_sg.time, emg_t, emg)
     elif isinstance(emg_signal, core.Signal):
@@ -328,7 +214,8 @@ def detect_brainstates_epochs(
             ] = True
 
     noisy_spect_bool = np.logical_or(
-        get_noisy_spect_bool(theta_chan_sg), get_noisy_spect_bool(delta_chan_sg)
+        theta_chan_sg.get_noisy_spect_bool(thresh=5),
+        delta_chan_sg.get_noisy_spect_bool(thresh=5),
     )
     noisy_bool = np.logical_or(noisy_bool, noisy_spect_bool)
 
@@ -353,58 +240,68 @@ def detect_brainstates_epochs(
     # )
 
     # ----transform (if any) parameters such zscoring, minmax scaling etc. ----
-    emg = np.log10(emg)
     emg[np.isnan(emg)] = np.nanmax(emg)
+    emg = np.log10(emg)
     # thdom_bsw_arr = np.vstack((theta_dominance, broadband_sw)).T
 
     # ---- Clustering---------
-
+    classify = lambda x: mathutil.bimodal_classify(
+        x, ret_params=True, threshold_type=threshold_type
+    )
     emg_bool = np.zeros_like(emg).astype("bool")
-    emg_labels, emg_fit_params = gaussian_classify(emg[~noisy_bool], ret_params=True)
+    emg_labels, emg_fit_params = classify(emg[~noisy_bool])
     emg_bool[~noisy_bool] = emg_labels.astype("bool")
 
     nrem_rem_bool = np.zeros_like(emg).astype("bool")
-    nrem_rem_labels, nrem_rem_fit_params = gaussian_classify(
-        theta_delta_ratio[~noisy_bool & ~emg_bool], ret_params=True
+    nrem_rem_labels, nrem_rem_fit_params = classify(
+        theta_delta_ratio[~noisy_bool & ~emg_bool]
     )
     nrem_rem_bool[~noisy_bool & ~emg_bool] = nrem_rem_labels.astype("bool")
 
-    # Using only theta ratio column to separate active and quiet awake
+    # Using only theta dominance to separate active and quiet awake
     aw_qw_bool = np.zeros_like(emg).astype("bool")
-    aw_qw_label, aw_qw_fit_params = gaussian_classify(
-        theta_dominance[~noisy_bool & emg_bool], ret_params=True
-    )
+    aw_qw_label, aw_qw_fit_params = classify(theta_dominance[~noisy_bool & emg_bool])
     aw_qw_bool[~noisy_bool & emg_bool] = aw_qw_label.astype("bool")
 
     # --- states: Active wake (AW), Quiet Wake (QW), REM, NREM
     # initialize empty label states
-    states = np.array([""] * len(time), dtype="U4")
+    states = np.array([""] * len(time), dtype="U5")
+    states[noisy_bool] = "NOISE"
     states[~noisy_bool & emg_bool & aw_qw_bool] = "AW"
     states[~noisy_bool & emg_bool & ~aw_qw_bool] = "QW"
     states[~noisy_bool & ~emg_bool & nrem_rem_bool] = "REM"
     states[~noisy_bool & ~emg_bool & ~nrem_rem_bool] = "NREM"
 
+    # ---- Refining states --------
+    # removing REM which happens within long WAKE. If REM follows after 200s of WAKE, then change them to Quiet waking.
+    for rem_indx in np.where(states == "REM")[0]:
+        n_indx_before = 200 // dt  # 200 seconds window
+        start_indx = np.max([0, rem_indx - n_indx_before])
+        wk_bool = np.isin(states[start_indx:rem_indx], ["AW", "QW", "NOISE"])
+        if wk_bool.sum() >= n_indx_before:
+            states[rem_indx] = "QW"
+
     # --- TODO micro-arousals ---------
     # ma_bool = emg_bool & delta_bool
     # states[ma_indices] = "MA"
 
-    # ---- removing very short epochs -----
-    epochs = Epoch.from_string_array(states, t=time)
+    # ---- make epochs -----
+    epochs = core.Epoch.from_string_array(states, t=time)
     metadata = {
         "window": window,
         "overlap": overlap,
         "theta_channel": theta_channel,
         "delta_channel": delta_channel,
     }
-    epochs = epochs.duration_slice(min_dur=min_dur)
-    epochs = epochs.fill_blank("from_left")  # this will also fill ignore_epochs
+    epochs.metadata = metadata
+
+    # epochs = epochs.duration_slice(min_dur=min_dur)
+    # epochs = epochs.fill_blank("from_right")  # this will also fill ignore_epochs
 
     # clearing out ignore_epochs
-    if ignore_epochs is not None:
-        for e in ignore_epochs.as_array():
-            epochs = epochs.delete_in_between(e[0], e[1])
-
-    epochs.metadata = metadata
+    # if ignore_epochs is not None:
+    #     for e in ignore_epochs.as_array():
+    #         epochs = epochs.delete_in_between(e[0], e[1])
 
     # if plot:
     #     _, axs = plt.subplots(4, 1, sharex=True, constrained_layout=True)
@@ -443,7 +340,9 @@ def detect_brainstates_epochs(
             return p
 
         p_sw = plot_feature(time, delta, f"Delta activity (Channel:{delta_channel})")
-        p_sw.y_range = Range1d(delta.min(), stats.scoreatpercentile(delta, 99.9))
+        p_sw.y_range = Range1d(
+            delta[~noisy_bool].min(), stats.scoreatpercentile(delta[~noisy_bool], 99.9)
+        )
         p_theta = plot_feature(
             time, theta_dominance, f"Theta activity (Channel:{theta_channel})"
         )
@@ -461,23 +360,13 @@ def detect_brainstates_epochs(
                 width=330,
                 height=330,
             )
-            bins = np.linspace(x.min(), x.max(), 200)
-            hist = np.histogram(x, bins, density=True)[0]
+            hist, bins = np.histogram(x, 200, density=True)
             means = fit_params["means"]
             covs = fit_params["covariances"]
             weights = fit_params["weights"]
-            lowfit = (
-                stats.norm.pdf(
-                    bins[:-1], float(means[0][0]), np.sqrt(float(covs[0][0][0]))
-                )
-                * weights[0]
-            )
-            highfit = (
-                stats.norm.pdf(
-                    bins[:-1], float(means[1][0]), np.sqrt(float(covs[1][0][0]))
-                )
-                * weights[1]
-            )
+            get_fit = lambda x, mu, v, w: stats.norm.pdf(x, mu, np.sqrt(v)) * w
+            lowfit = get_fit(bins[:-1], means[0], covs[0], weights[0])
+            highfit = get_fit(bins[:-1], means[1], covs[1], weights[1])
 
             p.vbar(
                 bins[:-1],
@@ -548,5 +437,6 @@ def detect_brainstates_epochs(
                 row(p_emg_dist, p_nrem_rem_dist, p_aw_qw_dist),
             )
         )
+        print(f"{fp_bokeh_plot} saved")
 
     return epochs
