@@ -4,6 +4,7 @@ import pandas as pd
 from .datawriter import DataWriter
 from pathlib import Path
 import scipy.signal as sg
+import typing
 
 
 def _unpack_args(values, fs=1):
@@ -125,6 +126,8 @@ class Epoch(DataWriter):
     def __getitem__(self, i):
         if isinstance(i, str):
             data = self._epochs[self._epochs["label"] == i].copy()
+        # elif all(isinstance(_, str) for _ in i):
+        #     data = self._epochs[self._epochs["label"].isin(i)].copy()
         elif isinstance(i, (int, np.integer)):
             data = self._epochs.iloc[[i]].copy()
         else:
@@ -193,9 +196,24 @@ class Epoch(DataWriter):
 
         return self[(durations >= min_dur) & (durations <= max_dur)]
 
-    def label_slice(self, label):
-        assert isinstance(label, str), "label must be string"
-        df = self._epochs[self._epochs["label"] == label].reset_index(drop=True)
+    def label_slice(self, labels: typing.Union[list[str], str]):
+        """Returns Epoch for input labels
+
+        Parameters
+        ----------
+        labels : _type_
+            _description_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        if isinstance(labels, str):
+            labels = [labels]
+
+        assert np.all([isinstance(_, str) for _ in labels])
+        df = self._epochs[np.isin(self.labels, labels)].reset_index(drop=True)
         return Epoch(epochs=df)
 
     @staticmethod
