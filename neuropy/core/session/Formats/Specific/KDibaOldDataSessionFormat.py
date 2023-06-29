@@ -344,7 +344,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, (num_laps-2), 2)])
             
         assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs == any_lap_specific_epochs.n_epochs
-        desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
+        # desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
+        desired_computation_epochs = [odd_lap_specific_epochs]
 
         override_dict = cls._specific_session_override_dict.get(sess.get_context(), {})
         if override_dict.get('grid_bin_bounds', None) is not None:
