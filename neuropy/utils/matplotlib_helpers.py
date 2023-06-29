@@ -717,76 +717,104 @@ def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
 # 2023-05-09 Misc Utility Functions                                                                                    #
 # ==================================================================================================================== #
 
+from matplotlib.figure import Figure # used in `MatplotlibFigureExtractors`
 
-
-def extract_figure_properties(fig):
-    """ UNTESTED, UNFINISHED
-    Extracts styles, formatting, and set options from a matplotlib Figure object.
-    Returns a dictionary with the following keys:
-        - 'title': the Figure title (if any)
-        - 'xlabel': the label for the x-axis (if any)
-        - 'ylabel': the label for the y-axis (if any)
-        - 'xlim': the limits for the x-axis (if any)
-        - 'ylim': the limits for the y-axis (if any)
-        - 'xscale': the scale for the x-axis (if any)
-        - 'yscale': the scale for the y-axis (if any)
-        - 'legend': the properties of the legend (if any)
-        - 'grid': the properties of the grid (if any)
-        
-    TO ADD:
-        -   fig.get_figwidth()
-            fig.get_figheight()
-            # fig.set_figheight()
-
-            print(f'fig.get_figwidth(): {fig.get_figwidth()}\nfig.get_figheight(): {fig.get_figheight()}')
-
-
-        
-        Usage:        
-            curr_fig = plt.gcf()
-            curr_fig = out.figures[0]
-            curr_fig_properties = extract_figure_properties(curr_fig)
-            curr_fig_properties
-
+class MatplotlibFigureExtractors:
+    """ 2023-06-26 - Unfinished class that aims to extract matplotlib.figure properties and settings.
+    Usage:
+        from neuropy.utils.matplotlib_helpers import MatplotlibFigureExtractors
+    
     """
-    properties = {}
-    
-    # Extract title
-    properties['title'] = fig._suptitle.get_text() if fig._suptitle else None
-    
-    # Extract axis labels and limits
-    for ax in fig.get_axes():
-        if ax.get_label() == 'x':
-            properties['xlabel'] = ax.get_xlabel()
-            properties['xlim'] = ax.get_xlim()
-            properties['xscale'] = ax.get_xscale()
-        elif ax.get_label() == 'y':
-            properties['ylabel'] = ax.get_ylabel()
-            properties['ylim'] = ax.get_ylim()
-            properties['yscale'] = ax.get_yscale()
-    
-    # Extract legend properties
-    if hasattr(fig, 'legend_'):
-        legend = fig.legend_
-        if legend:
-            properties['legend'] = {
-                'title': legend.get_title().get_text(),
-                'labels': [t.get_text() for t in legend.get_texts()],
-                'loc': legend._loc,
-                'frameon': legend.get_frame_on(),
+    @staticmethod
+    def extract_figure_properties(fig):
+        """ UNTESTED, UNFINISHED
+        Extracts styles, formatting, and set options from a matplotlib Figure object.
+        Returns a dictionary with the following keys:
+            - 'title': the Figure title (if any)
+            - 'xlabel': the label for the x-axis (if any)
+            - 'ylabel': the label for the y-axis (if any)
+            - 'xlim': the limits for the x-axis (if any)
+            - 'ylim': the limits for the y-axis (if any)
+            - 'xscale': the scale for the x-axis (if any)
+            - 'yscale': the scale for the y-axis (if any)
+            - 'legend': the properties of the legend (if any)
+            - 'grid': the properties of the grid (if any)
+            
+        TO ADD:
+            -   fig.get_figwidth()
+                fig.get_figheight()
+                # fig.set_figheight()
+
+                print(f'fig.get_figwidth(): {fig.get_figwidth()}\nfig.get_figheight(): {fig.get_figheight()}')
+
+
+            
+            Usage:        
+                curr_fig = plt.gcf()
+                curr_fig = out.figures[0]
+                curr_fig_properties = extract_figure_properties(curr_fig)
+                curr_fig_properties
+
+        """
+        properties = {}
+        
+        # Extract title
+        properties['title'] = fig._suptitle.get_text() if fig._suptitle else None
+        
+        # Extract axis labels and limits
+        for ax in fig.get_axes():
+            if ax.get_label() == 'x':
+                properties['xlabel'] = ax.get_xlabel()
+                properties['xlim'] = ax.get_xlim()
+                properties['xscale'] = ax.get_xscale()
+            elif ax.get_label() == 'y':
+                properties['ylabel'] = ax.get_ylabel()
+                properties['ylim'] = ax.get_ylim()
+                properties['yscale'] = ax.get_yscale()
+        
+        # Extract legend properties
+        if hasattr(fig, 'legend_'):
+            legend = fig.legend_
+            if legend:
+                properties['legend'] = {
+                    'title': legend.get_title().get_text(),
+                    'labels': [t.get_text() for t in legend.get_texts()],
+                    'loc': legend._loc,
+                    'frameon': legend.get_frame_on(),
+                }
+        
+        # Extract grid properties
+        first_ax = fig.axes[0]
+        grid = first_ax.get_gridlines()[0] if first_ax.get_gridlines() else None
+        if grid:
+            properties['grid'] = {
+                'color': grid.get_color(),
+                'linestyle': grid.get_linestyle(),
+                'linewidth': grid.get_linewidth(),
             }
-    
-    # Extract grid properties
-    first_ax = fig.axes[0]
-    grid = first_ax.get_gridlines()[0] if first_ax.get_gridlines() else None
-    if grid:
-        properties['grid'] = {
-            'color': grid.get_color(),
-            'linestyle': grid.get_linestyle(),
-            'linewidth': grid.get_linewidth(),
-        }
-    
-    return properties
+        
+        return properties
+
+    @classmethod
+    def extract_fig_suptitle(cls, fig: Figure):
+        """To get the figure's suptitle Text object: https://stackoverflow.com/questions/48917631/matplotlib-how-to-return-figure-suptitle
+
+        Usage:
+            from matplotlib.figure import Figure
+            from neuropy.utils.matplotlib_helpers import MatplotlibFigureExtractors
+
+            sup, suptitle_string = MatplotlibFigureExtractors.extract_fig_suptitle(fig)
+            suptitle_string
+
+        """
+        sup = fig._suptitle # Text(0.5, 0.98, 'kdiba/gor01/one/2006-6-08_14-26-15/long_short_firing_rate_indicies/display_long_short_laps')
+        if sup is not None:
+            suptitle_string: str = sup._text # 'kdiba/gor01/one/2006-6-08_14-26-15/long_short_firing_rate_indicies/display_long_short_laps'
+        else: 
+            suptitle_string = None
+            
+        return sup, suptitle_string
+
 
 
 # ==================================================================================================================== #
