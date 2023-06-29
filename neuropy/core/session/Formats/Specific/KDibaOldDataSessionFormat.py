@@ -1,4 +1,5 @@
 import traceback
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -313,24 +314,37 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         return active_session_computation_configs
     
-
-
     @classmethod
     def build_lap_only_short_long_bin_aligned_computation_configs(cls, sess, **kwargs):
         """ 2023-05-16 - sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
-
-
-        
-        
-
+        # Need one computation config for each lap (even/odd)
+        print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
         ## Lap-restricted computation epochs:
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
         # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
         any_lap_specific_epochs = lap_specific_epochs
+        # desired_computation_epochs = [any_lap_specific_epochs] # all laps version
+        # lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
+
         # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
         # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+        
+        num_laps = len(sess.laps.lap_id)
+        # The interval does not include this value
+        if num_laps % 2 == 0:
+            # if num_laps is even, that means the last label (num_laps-1) is ODD (because of zero indexing) so the last even index is the one before that. (num_laps-2)
+            # max_index = num_laps - 1
+            even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, (num_laps-2), 2)])
+            odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, (num_laps-1), 2)])
+        else:
+            # Conversely if num_laps is ODD then the last label (num_laps-1) is even!
+            even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, (num_laps-1), 2)])
+            odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, (num_laps-2), 2)])
+            
+        assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs == any_lap_specific_epochs.n_epochs
+        desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
 
         override_dict = cls._specific_session_override_dict.get(sess.get_context(), {})
         if override_dict.get('grid_bin_bounds', None) is not None:
@@ -342,7 +356,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
             laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
             laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
-            print(f'laps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
+            print(f'\tlaps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
             grid_bin_bounds = laps_only_grid_bin_bounds
             # ## Determine the grid_bin_bounds from the long session:
             # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
@@ -353,13 +367,23 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
 
         # Lap-restricted computation epochs:
-        for i in np.arange(len(active_session_computation_configs)):
-            # active_session_computation_configs[i].pf_params.time_bin_size = 0.025
-            active_session_computation_configs[i].pf_params.grid_bin = (2, 2) # (2cm x 2cm)
-            active_session_computation_configs[i].pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
-            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
-
-        return active_session_computation_configs
+        print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
+        final_active_session_computation_configs = []
+        
+        # if len(active_session_computation_configs) < len(desired_computation_epochs):
+        # Clone the configs for each epoch
+        for a_restricted_lap_epoch in desired_computation_epochs:
+            # for each lap to be used as a computation epoch:        
+            for i in np.arange(len(active_session_computation_configs)):
+                curr_config = deepcopy(active_session_computation_configs[i])
+                # curr_config.pf_params.time_bin_size = 0.025
+                curr_config.pf_params.grid_bin = (2, 2) # (2cm x 2cm)
+                curr_config.pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
+                curr_config.pf_params.computation_epochs = a_restricted_lap_epoch # add the laps epochs to all of the computation configs.
+                final_active_session_computation_configs.append(curr_config)
+        
+        print(f'\tlen(final_active_session_computation_configs): {len(final_active_session_computation_configs)}')
+        return final_active_session_computation_configs
 
     
     
