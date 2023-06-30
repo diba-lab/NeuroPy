@@ -320,40 +320,30 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
         # Need one computation config for each lap (even/odd)
         print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
+
         ## Lap-restricted computation epochs:
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
         # Recover the lap information for the included epochs:
-        is_epoch_included_after_filtering = np.logical_and(np.isin(sess.laps.starts, lap_specific_epochs.starts), np.isin(sess.laps.stops, lap_specific_epochs.stops)) # recover whether an original lap is included based on the returned [start, stop] times of the epochs.
+        is_epoch_included_after_filtering = np.isin(sess.laps.starts, lap_specific_epochs.starts)
         included_only_laps_dataframe = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
-
-
-
-        # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
+        # Set the extended data properties:
+        included_column_names = ['lap_id', 'lap_dir']
+        lap_specific_epochs._df[included_column_names] = included_only_laps_dataframe[included_column_names].astype(int)
+        ## Get the actual epochs that will be used:
         any_lap_specific_epochs = lap_specific_epochs
-        # desired_computation_epochs = [any_lap_specific_epochs] # all laps version
+        is_even_lap = (included_only_laps_dataframe['lap_dir'] == 0)
+        is_odd_lap = (included_only_laps_dataframe['lap_dir'] == 1)
+        even_lap_specific_epochs = lap_specific_epochs[is_even_lap]
+        odd_lap_specific_epochs = lap_specific_epochs[is_odd_lap]
         # lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
-
-        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
-        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
-        
-        # num_laps = len(sess.laps.lap_id) # this is the stupid unfiltered one
-        num_laps = lap_specific_epochs.n_epochs # this is the filtered one
-        # The interval does not include this value
-        if num_laps % 2 == 0:
-            # if num_laps is even, that means the last label (num_laps-1) is ODD (because of zero indexing) so the last even index is the one before that. (num_laps-2)
-            # max_index = num_laps - 1
-            even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, (num_laps-2), 2)])
-            odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, (num_laps-1), 2)])
-        else:
-            # Conversely if num_laps is ODD then the last label (num_laps-1) is even!
-            even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, (num_laps-1), 2)])
-            odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, (num_laps-2), 2)])
-            
-        assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs # less than or equal to because of the filtering?
+        assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs == any_lap_specific_epochs.n_epochs
+        # desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
         desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
         # desired_computation_epochs = [odd_lap_specific_epochs]
 
+
+        ## Get specific grid_bin_bounds overrides from the `cls._specific_session_override_dict`
         override_dict = cls._specific_session_override_dict.get(sess.get_context(), {})
         if override_dict.get('grid_bin_bounds', None) is not None:
             grid_bin_bounds = override_dict['grid_bin_bounds']
