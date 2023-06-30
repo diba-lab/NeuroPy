@@ -47,6 +47,9 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             "stop":['end','stop_t'],
             "label":['name', 'id', 'flat_replay_idx']
         }
+    
+
+    _required_column_names = ['start', 'stop', 'label', 'duration']
 
     def __init__(self, pandas_obj):
         pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict=self._time_column_name_synonyms) 
@@ -117,11 +120,29 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     def labels(self):
         return self._obj.label.values
 
+
+    @property
+    def extra_data_column_names(self):
+        """Any additional columns in the dataframe beyond those that exist by default. """
+        return list(set(self._obj.columns) - set(self._required_column_names))
+        
+    @property
+    def extra_data_datframe(self) -> pd.DataFrame:
+        """The subset of the dataframe containing additional information in its columns beyond that what is required. """
+        return self._obj[self.extra_data_column_names]
+
+
+
     def as_array(self):
         return self._obj[["start", "stop"]].to_numpy()
 
     def get_unique_labels(self):
         return np.unique(self.labels)
+
+
+    def get_start_stop_tuples_list(self):
+        """ returns a list of (start, stop) tuples. """
+        return list(zip(self.starts, self.stops))
 
     def get_valid_df(self):
         """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
@@ -132,8 +153,16 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """ Returns a dataframe with overlapping epochs removed. """
         ## 2023-02-23 - PortionInterval approach to ensuring uniqueness:
         from neuropy.utils.efficient_interval_search import convert_PortionInterval_to_epochs_df, _convert_start_end_tuples_list_to_PortionInterval
+        ## Capture dataframe properties beyond just the start/stop times:
+        
+        # d = P.IntervalDict()
+        self.extra_data_datframe
+
+
+        _intermediate_portions_interval = _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
+        
         if debug_print:
-            before_num_rows = self.n_epochs        
+            before_num_rows = self.n_epochs
             filtered_epochs = convert_PortionInterval_to_epochs_df(_convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops)))
             after_num_rows = np.shape(filtered_epochs)[0]
             changed_num_rows = after_num_rows - before_num_rows

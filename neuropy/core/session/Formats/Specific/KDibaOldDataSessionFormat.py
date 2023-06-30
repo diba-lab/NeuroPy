@@ -323,6 +323,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## Lap-restricted computation epochs:
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
+        # Recover the lap information for the included epochs:
+        is_epoch_included_after_filtering = np.logical_and(np.isin(sess.laps.starts, lap_specific_epochs.starts), np.isin(sess.laps.stops, lap_specific_epochs.stops)) # recover whether an original lap is included based on the returned [start, stop] times of the epochs.
+        included_only_laps_dataframe = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
+
+
+
         # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
         any_lap_specific_epochs = lap_specific_epochs
         # desired_computation_epochs = [any_lap_specific_epochs] # all laps version
@@ -345,8 +351,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, (num_laps-2), 2)])
             
         assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs # less than or equal to because of the filtering?
-        # desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
-        desired_computation_epochs = [odd_lap_specific_epochs]
+        desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
+        # desired_computation_epochs = [odd_lap_specific_epochs]
 
         override_dict = cls._specific_session_override_dict.get(sess.get_context(), {})
         if override_dict.get('grid_bin_bounds', None) is not None:
