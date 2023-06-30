@@ -331,7 +331,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
         # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
         
-        num_laps = len(sess.laps.lap_id)
+        # num_laps = len(sess.laps.lap_id) # this is the stupid unfiltered one
+        num_laps = lap_specific_epochs.n_epochs # this is the filtered one
         # The interval does not include this value
         if num_laps % 2 == 0:
             # if num_laps is even, that means the last label (num_laps-1) is ODD (because of zero indexing) so the last even index is the one before that. (num_laps-2)
@@ -343,7 +344,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, (num_laps-1), 2)])
             odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, (num_laps-2), 2)])
             
-        assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs == any_lap_specific_epochs.n_epochs
+        assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs # less than or equal to because of the filtering?
         # desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
         desired_computation_epochs = [odd_lap_specific_epochs]
 
