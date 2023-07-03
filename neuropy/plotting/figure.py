@@ -121,6 +121,7 @@ class Fig:
         # mpl.rcParams["font.sans-serif"] = "Arial"
         mpl.rcParams["pdf.fonttype"] = 42
         mpl.rcParams["ps.fonttype"] = 42
+        mpl.rcParams["svg.fonttype"] = "none"
         mpl.rcParams["axes.linewidth"] = axis_lw
         mpl.rcParams["axes.labelsize"] = fontsize
         mpl.rcParams["axes.titlesize"] = fontsize
@@ -254,17 +255,14 @@ class Fig:
         for item in legend.legendHandles:
             item.set_visible(False)
 
-    def savefig(self, fname: Path, dpi=None):
+    def savefig(self, fname: Path, dpi="figure", format="pdf"):
         """Note: Illustrator takes a very long time to open pdf when dpi=300"""
         fig = self.fig
         # fig.set_dpi(300)
-        filename = fname.with_suffix(".pdf")
+        filename = fname.with_suffix(f".{format}")
         # today = date.today().strftime("%m/%d/%y")
 
-        if dpi is not None:
-            fig.savefig(filename, dpi=dpi)
-        else:
-            fig.savefig(filename)
+        fig.savefig(filename, format=format, dpi=dpi)
 
         # if caption is not None:
         #     fig_caption = Fig(grid=(1, 1))
@@ -304,6 +302,28 @@ class Fig:
     def center_spines(ax):
         ax.spines["left"].set_position("zero")
         ax.spines["bottom"].set_position("zero")
+
+    @staticmethod
+    def trim_spines(ax):
+        xticks = np.asarray(ax.get_xticks())
+        if xticks.size:
+            firsttick = np.compress(xticks >= min(ax.get_xlim()), xticks)[0]
+            lasttick = np.compress(xticks <= max(ax.get_xlim()), xticks)[-1]
+            ax.spines["bottom"].set_bounds(firsttick, lasttick)
+            ax.spines["top"].set_bounds(firsttick, lasttick)
+            newticks = xticks.compress(xticks <= lasttick)
+            newticks = newticks.compress(newticks >= firsttick)
+            ax.set_xticks(newticks)
+
+        yticks = np.asarray(ax.get_yticks())
+        if yticks.size:
+            firsttick = np.compress(yticks >= min(ax.get_ylim()), yticks)[0]
+            lasttick = np.compress(yticks <= max(ax.get_ylim()), yticks)[-1]
+            ax.spines["left"].set_bounds(firsttick, lasttick)
+            ax.spines["right"].set_bounds(firsttick, lasttick)
+            newticks = yticks.compress(yticks <= lasttick)
+            newticks = newticks.compress(newticks >= firsttick)
+            ax.set_yticks(newticks)
 
 
 def pretty_plot(ax, round_ylim=False):
