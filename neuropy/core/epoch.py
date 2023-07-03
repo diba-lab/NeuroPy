@@ -282,7 +282,30 @@ class Epoch(DataWriter):
     def itertuples(self):
         return self.to_dataframe().itertuples()
 
-    def fill_blank(self, method="from_left"):
+    def fill_blank(
+        self,
+        method: typing.Literal["from_left", "from_right", "from_nearest"] = "from_left",
+    ):
+        """Gaps in the epochs will be filled based on given criteria.
+        Visualization:
+
+        from_left:    |epoch1| gap |epoch2| --> |epoch1  ->|epoch2|
+        from_right:   |epoch1| gap |epoch2| --> |epoch1|<-  epoch2|
+        from_nearest: |epoch1| gap |epoch2| --> |epoch1->|<-epoch2|
+
+        Parameters
+        ----------
+        method : str, optional
+            how will the gaps be filled, by default "from_left"
+            from_left = epoch preceding the gap is extended to fill
+            from_right = epoch succeeding the gap is extended to fill
+            from_nearest = first half of gap filled by extending preceding epoch and    second half is filled by extending succeeding epoch
+
+        Returns
+        -------
+        core.Epoch
+            epochs after filling the blank timepoints
+        """
         ep_starts = self.starts
         ep_stops = self.stops
         ep_durations = self.durations
@@ -345,6 +368,14 @@ class Epoch(DataWriter):
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1])
 
     def merge_neighbors(self):
+        """Epochs of same label and common boundary will be merged. For example,
+        [1,2] and [2,3] --> [1,3]
+
+        Returns
+        -------
+        core.Epoch
+            epochs after merging neigbours sharing same label and boundary
+        """
         ep_times, ep_stops, ep_labels = (self.starts, self.stops, self.labels)
 
         ep_durations = self.durations
@@ -435,7 +466,21 @@ class Epoch(DataWriter):
         epochs_df = pd.concat([epochs_df, flank_start, flank_stop], ignore_index=True)
         return Epoch(epochs_df)
 
-    def get_proportion_by_label(self, t_start=None, t_stop=None):
+    def proportion_by_label(self, t_start=None, t_stop=None):
+        """Get porportion of time for each label type
+
+        Parameters
+        ----------
+        t_start : float, optional
+            start time in seconds, by default None
+        t_stop : float, optional
+            stop time in seconds, by default None
+
+        Returns
+        -------
+        dict
+            dictionary containing proportion for each unique label between t_start and t_stop
+        """
         if t_start is None:
             t_start = self.starts[0]
         if t_stop is None:
@@ -466,6 +511,13 @@ class Epoch(DataWriter):
         return label_proportion
 
     def durations_by_label(self):
+        """Return total duration for each unique label
+
+        Returns
+        -------
+        dict
+            dictionary contating duration of each unique label
+        """
         labels = self.labels
         durations = self.durations
         unique_labels = self.get_unique_labels()
@@ -542,6 +594,20 @@ class Epoch(DataWriter):
 
     @staticmethod
     def from_boolean_array(arr, t=None):
+        """Create epochs from a boolean array
+
+        Parameters
+        ----------
+        arr : np.array
+            timeseries of boolean values
+        t : np.array, optional
+            corresponding time in seconds, by default None
+
+        Returns
+        -------
+        core.Epoch
+            epochs where the arr is high
+        """
         assert np.array_equal(arr, arr.astype(bool)), "Only boolean array accepted"
         int_arr = arr.astype("int")
         pad_arr = np.pad(int_arr, 1)
