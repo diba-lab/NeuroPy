@@ -293,6 +293,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
         ## Lap-restricted computation epochs:
+        use_direction_dependent_laps = False # whether to split the laps into left and right directions
+        
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
         # Recover the lap information for the included epochs:
@@ -310,9 +312,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         odd_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_odd_lap)
         # lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
         assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs
-        # desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
-        desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
-
+        if use_direction_dependent_laps:
+            desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
+        else:
+            desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
+        
         # Lap-restricted computation epochs:
         print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
         final_active_session_computation_configs = []
@@ -333,10 +337,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     def build_lap_only_short_long_bin_aligned_computation_configs(cls, sess, **kwargs):
         """ 2023-05-16 - sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
+        
         # Need one computation config for each lap (even/odd)
         print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
 
         ## Lap-restricted computation epochs:
+        use_direction_dependent_laps = False # whether to split the laps into left and right directions
+
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
         # Recover the lap information for the included epochs:
@@ -355,9 +362,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         # lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
         assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs
-        # desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
-        desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
-        # desired_computation_epochs = [odd_lap_specific_epochs]
+        if use_direction_dependent_laps:
+            desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
+        else:
+            desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
 
 
         ## Get specific grid_bin_bounds overrides from the `cls._specific_session_override_dict`
