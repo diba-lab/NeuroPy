@@ -5,6 +5,7 @@ import scipy.signal as sg
 from .datawriter import DataWriter
 from . import Epoch
 from copy import deepcopy
+from joblib import Parallel, delayed
 
 
 class Neurons(DataWriter):
@@ -296,13 +297,48 @@ class Neurons(DataWriter):
         spike_counts = np.histogram(all_spikes, bins=bins)[0]
         return Mua(spike_counts.astype("int"), t_start=self.t_start, bin_size=bin_size)
 
+    def get_psth(self, t: np.array, bin_size: float, n_bins: int, n_jobs=1):
+        """Get peristimulus time histograms with respect to timepoints
+
+        Parameters
+        ----------
+        t : np.array
+            timepoints around which psths are computed, in seconds
+        bin_size : float
+            binsize in seconds
+        n_bins : int
+            number of bins before/after the timepoints, total number of bins= 2*n_bins
+        n_jobs : int, optional
+            number of cpus to speed up calculations, by default 1
+
+        Returns
+        -------
+        psths: shape(n_neurons, 2*n_bins, len(t))
+            number of spikes for each neuron around each timepoint
+        """
+        n_bins_around = 2 * n_bins
+        n_t = len(t)
+        bins = np.linspace(-n_bins, n_bins, n_bins_around + 1) * bin_size
+        t_bins = np.tile(bins, len(t)) + np.repeat(t, n_bins_around + 1)
+
+        def get_counts(spiketimes):
+            indx_right = np.searchsorted(spiketimes, t_bins[:-1], side="right")
+            indx_left = np.searchsorted(spiketimes, t_bins[1:], side="left")
+            # count the number of spikes and skip time bins that represent bins between adjacent time points
+            counts_in_bins = np.delete(
+                indx_left - indx_right,
+                np.arange(n_bins_around, indx_left.size, n_bins_around + 1),
+            )
+            return counts_in_bins.reshape(1, n_bins_around, n_t)
+
+        psths = Parallel(n_jobs=n_jobs)(
+            delayed(get_counts)(_) for _ in self.spiketrains
+        )
+
+        return np.vstack(psths)
+
     def add_jitter(self):
         pass
-
-    # def get_psth(self, t, bin_size, window=0.25):
-    #     """Get peri-stimulus time histograms w.r.t time points in t"""
-
-    #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
 
     def get_neurons_in_epochs(self, epochs: Epoch):
         """Remove spikes that lie outside of given epochs and return a new Neurons object with t_start and t_stop changed to start of first epoch and stop of last epoch.
