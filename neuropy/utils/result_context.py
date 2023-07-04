@@ -317,7 +317,9 @@ def print_args(func):
     return wrapper
 
 
-def overwriting_display_context(func, **additional_context_kwargs):
+
+
+def overwriting_display_context(**additional_context_kwargs):
     """Adds to the context of the function or class
 
     Usage:
@@ -330,25 +332,37 @@ def overwriting_display_context(func, **additional_context_kwargs):
             my_function.active_context
 
     """
-    # @wraps(func)
-    # def decorator(func):
-    #     func.active_context = active_context
-    #     return func
-    # return decorator
-    # @wraps(func)
-    def wrapper(*args, **kwargs):
-        # print(f"Arguments: {args}")
-        # print(f"Keyword arguments: {kwargs}")
-        incomming_context = kwargs.get('active_context', IdentifyingContext())
-        updated_context = incomming_context.overwriting_context(**additional_context_kwargs)
-        kwargs['active_context'] = updated_context ## set the updated context
-        ## Also set the context as an attribute of the function in addition to passing it in the kwargs to the function.
-        func.active_context = updated_context
-        result = func(*args, **kwargs)
-        ## TODO: update the returned context poentially?
+    def decorator(func):
+        """ I didn't realize that decorators are limited to having only one argument (the function being decorated), so if we want to pass multiple arguments we have to do this triple-nested function thing. """
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            incomming_context = kwargs.get('active_context', IdentifyingContext())
+            updated_context = incomming_context.overwriting_context(**additional_context_kwargs)
+            kwargs['active_context'] = updated_context ## set the updated context
+            ## Also set the context as an attribute of the function in addition to passing it in the kwargs to the function.
+            func.active_context = updated_context
+            result = func(*args, **kwargs)
+            ## TODO: update the returned context poentially?
+            return result
+        return wrapper
+    return decorator
 
-        return result
-    return wrapper
+
+
+
+### EXAMPLE of `overwriting_display_context` decorator usage:
+# # def my_function(**kwargs):
+# # 	print(f'test: {kwargs}')
+	
+# # my_function = overwriting_display_context(my_function, tag1='value1', tag2='value2')
+# # my_function(active_context=IdentifyingContext(coolest_value='NEATO!'))
+
+# @overwriting_display_context(tag1='value1', tag2='value2')
+# def my_function(**kwargs):
+# 	print(f'test: {kwargs}')
+	
+# # my_function = overwriting_display_context(my_function, tag1='value1', tag2='value2')
+# my_function(active_context=IdentifyingContext(coolest_value='NEATO!'))
 
 
 
