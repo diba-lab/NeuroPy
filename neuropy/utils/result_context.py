@@ -361,12 +361,20 @@ def overwriting_display_context(**additional_context_kwargs):
         """ I didn't realize that decorators are limited to having only one argument (the function being decorated), so if we want to pass multiple arguments we have to do this triple-nested function thing. """
         @wraps(func)
         def wrapper(*args, **kwargs):
-            incomming_context = kwargs.get('active_context', IdentifyingContext())
+            incomming_context = kwargs.get('active_context', IdentifyingContext()) or IdentifyingContext()
             updated_context = incomming_context.overwriting_context(**additional_context_kwargs)
             kwargs['active_context'] = updated_context ## set the updated context
             ## Also set the context as an attribute of the function in addition to passing it in the kwargs to the function.
             func.active_context = updated_context
-            result = func(*args, **kwargs)
+            try:
+                result = func(*args, **kwargs)
+            except TypeError as e:
+                # TypeError: __init__() got an unexpected keyword argument 'active_context'
+                del kwargs['active_context'] # remove from the **kwargs, it can't handle it
+                result = func(*args, **kwargs)
+            except Exception as e:
+                raise e
+
             ## TODO: update the returned context poentially?
             return result
         return wrapper
@@ -390,12 +398,19 @@ def providing_context(**additional_context_kwargs):
         """ I didn't realize that decorators are limited to having only one argument (the function being decorated), so if we want to pass multiple arguments we have to do this triple-nested function thing. """
         @wraps(func)
         def wrapper(*args, **kwargs):
-            incomming_context = kwargs.get('active_context', IdentifyingContext())
+            incomming_context = kwargs.get('active_context', IdentifyingContext()) or IdentifyingContext()
             updated_context = incomming_context.adding_context_if_missing(**additional_context_kwargs)
             kwargs['active_context'] = updated_context ## set the updated context
             ## Also set the context as an attribute of the function in addition to passing it in the kwargs to the function.
             func.active_context = updated_context
-            result = func(*args, **kwargs)
+            try:
+                result = func(*args, **kwargs)
+            except TypeError as e:
+                # TypeError: __init__() got an unexpected keyword argument 'active_context'
+                del kwargs['active_context'] # remove from the **kwargs, it can't handle it
+                result = func(*args, **kwargs)
+            except Exception as e:
+                raise e
             ## TODO: update the returned context poentially?
             return result
         return wrapper
