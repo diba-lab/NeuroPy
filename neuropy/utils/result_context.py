@@ -348,6 +348,34 @@ def overwriting_display_context(**additional_context_kwargs):
     return decorator
 
 
+def providing_context(**additional_context_kwargs):
+    """Specifies additional (narrowing) context for use in the function or class
+    
+    Usage:
+        from neuropy.utils.result_context import overwriting_display_context
+        @overwriting_display_context('tag1', 'tag2')
+        def my_function():
+            ...
+
+        Access via:
+            my_function.active_context
+
+    """
+    def decorator(func):
+        """ I didn't realize that decorators are limited to having only one argument (the function being decorated), so if we want to pass multiple arguments we have to do this triple-nested function thing. """
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            incomming_context = kwargs.get('active_context', IdentifyingContext())
+            updated_context = incomming_context.adding_context_if_missing(**additional_context_kwargs)
+            kwargs['active_context'] = updated_context ## set the updated context
+            ## Also set the context as an attribute of the function in addition to passing it in the kwargs to the function.
+            func.active_context = updated_context
+            result = func(*args, **kwargs)
+            ## TODO: update the returned context poentially?
+            return result
+        return wrapper
+    return decorator
+
 
 
 ### EXAMPLE of `overwriting_display_context` decorator usage:
