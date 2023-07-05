@@ -246,6 +246,31 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         return f"IdentifyingContext<{self.as_tuple().__repr__()}>"
         # return f"IdentifyingContext({self.to_dict().__repr__()})"
         
+    # _ipython_key_completions_
+    def _repr_pretty_(self, p, cycle):
+        """  just adds non breaking text to the output, p.breakable() either adds a whitespace or breaks here. If you pass it an argument it’s used instead of the default space. 
+        https://ipython.readthedocs.io/en/stable/api/generated/IPython.lib.pretty.html#module-IPython.lib.pretty
+
+        Can test with:
+            from IPython.lib.pretty import pprint
+            pprint(active_context)
+
+        """
+        if cycle:
+            p.text('Context(...)')
+        else:
+            with p.group(8, 'Context(', ')'):
+                dict_rep = self.to_dict()
+                for name, val in dict_rep.items():
+                    # name = name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names)
+                    # val = p.pretty(val)
+                    p.text(f"{name}")
+                    p.text(': ')
+                    # p.text(f"{val}")
+                    p.pretty(val)
+                    if name != list(dict_rep.keys())[-1]:
+                        p.breakable(sep=", ") # Add a breakable separator to the output. This does not mean that it will automatically break here. If no breaking on this position takes place the sep is inserted which default to one space.
+
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
         dict_rep = self.to_dict()
