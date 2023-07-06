@@ -94,6 +94,16 @@
 					"label": "ACTIVE: interactive_select_grid_bin_bounds_2D"
 				}
 			]
+		},
+		{
+			"path": "core/session/Formats/BaseDataSessionFormats.py",
+			"bookmarks": [
+				{
+					"line": 493,
+					"column": 41,
+					"label": "ExternallyComputedRipplesLoading"
+				}
+			]
 		}
 	]
 }

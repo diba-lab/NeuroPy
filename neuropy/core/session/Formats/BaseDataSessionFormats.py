@@ -457,8 +457,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         try:
             # Externally Computed Ripples (from 'ripple_df.pkl') file:
             # Load `ripple_df.pkl` previously saved:
-            external_computed_ripple_df_filepath = session.basepath.joinpath('ripple_df.pkl')
-            external_computed_ripple_df = pd.read_pickle(external_computed_ripple_df_filepath)
+            external_computed_ripple_filepath = session.basepath.joinpath('ripple_df.pkl')
+            external_computed_ripple_df = pd.read_pickle(external_computed_ripple_filepath)
             # Add the required columns for Epoch(...):
             external_computed_ripple_df['label'] = [str(an_idx) for an_idx in external_computed_ripple_df.index]
             external_computed_ripple_df = external_computed_ripple_df.reset_index(drop=True)
@@ -468,13 +468,14 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             found_datafile = None
 
         if found_datafile is not None:
-            print('Loading success: {}.'.format(external_computed_ripple_df_filepath))
+            print('Loading success: {}.'.format(external_computed_ripple_filepath))
             session.ripple = found_datafile
-            found_datafile.filename = external_computed_ripple_df_filepath
+            found_datafile.filename = external_computed_ripple_filepath
         else:
             ## try the '.ripple.npy' ripples:
             active_file_suffix = '.ripple.npy'
-            found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
+            external_computed_ripple_filepath = fp.with_suffix(active_file_suffix)
+            found_datafile = Epoch.from_file(external_computed_ripple_filepath)
             if found_datafile is not None:
                 print('Loading success: {}.'.format(active_file_suffix))
                 session.ripple = found_datafile
