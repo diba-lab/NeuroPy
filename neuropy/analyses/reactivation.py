@@ -9,7 +9,7 @@ import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 from typing import Union
-from ..utils.mathutil import getICA_Assembly, parcorr_mult
+from ..utils.mathutil import getICA_Assembly
 from .. import core
 from ..plotting import Fig
 
@@ -193,7 +193,6 @@ class ExplainedVariance(core.DataWriter):
         color_rev="#05d69e",
         show_ignore_epochs=True,
     ):
-
         if ax is None:
             fig, ax = plt.subplots()
         # ---- plot rev first ---------
@@ -390,7 +389,6 @@ class NeuronEnsembles(core.DataWriter):
         return np.asarray(activation), time
 
     def plot_activation(self, time, activation, nrows=None, ncols=None):
-
         if nrows is None:
             nrows, ncols = self.n_ensembles // 2, 2
 
