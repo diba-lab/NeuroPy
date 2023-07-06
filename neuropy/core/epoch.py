@@ -620,3 +620,23 @@ class Epoch(DataWriter):
             starts, stops = t[starts], t[stops]
 
         return Epoch.from_array(starts, stops, "high")
+
+    def get_indices_for_time(self, t: np.array):
+        """Mark indices of a time array that lie within the epochs.
+
+        Parameters
+        ----------
+        t : np.array
+            array of time points in seconds
+
+        Returns
+        -------
+        Boolean array
+
+        """
+        time_bool = np.zeros_like(t)
+
+        for e in self.epochs.as_array():
+            time_bool[np.where((t >= e[0]) & (t <= e[1]))[0]] = 1
+
+        return time_bool.astype("bool")
