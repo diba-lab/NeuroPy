@@ -3,8 +3,9 @@ from __future__ import annotations # otherwise have to do type like 'Ratemap'
 from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
 import numpy as np
+import contextlib
 
-
+import matplotlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
@@ -1033,6 +1034,174 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
         return fig, ax, rect_selector, set_extents
 
 
+
+# ==================================================================================================================== #
+# Context Managers for Switching Interactivity and Backend                                                             #
+# ==================================================================================================================== #
+
+
+
+@contextlib.contextmanager
+def matplotlib_backend(backend:str):
+    """Context manager for switching Matplotlib backend and safely restoring it to its previous value when done.
+        # Example usage:
+        with matplotlib_backend('AGG'):
+            # Perform non-interactive Matplotlib operations
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+
+        with matplotlib_backend('Qt5Agg'):
+            # Perform interactive Matplotlib operations
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Interactive Mode')
+            plt.show()  # Display the plot interactively (interactive mode)
+    """
+    # Backup the current backend
+    prev_backend = matplotlib.get_backend()
+    try:
+        # Switch to the desired backend
+        matplotlib.use(backend, force=True)
+
+        # Initialize the new backend (if needed)
+        plt.switch_backend(backend)
+
+        # Yield control back to the caller
+        yield
+
+    finally:
+        # Restore the previous backend
+        matplotlib.use(prev_backend, force=True)
+        plt.switch_backend(prev_backend)
+
+
+@contextlib.contextmanager
+def matplotlib_interactivity(is_interactive:bool):
+    """Context manager for switching Matplotlib interactivity mode and safely restoring it to its previous value when done.
+
+    # Example usage:
+    with matplotlib_interactivity(is_interactive=False):
+        # Perform non-interactive Matplotlib operations
+        plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Non-interactive Mode')
+        plt.show()  # Display the plot (if desired)
+
+
+    with matplotlib_interactivity(is_interactive=True):
+        # Perform interactive Matplotlib operations
+        plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Interactive Mode')
+        plt.show()  # Display the plot immediately (if desired)
+    """
+    # Backup the current interactive mode
+    prev_interactivity = plt.isinteractive()
+    try:
+        # Switch to the desired interactivity mode
+        plt.interactive(is_interactive)
+
+        # Yield control back to the caller
+        yield
+
+    finally:
+        # Restore the previous interactive mode
+        plt.interactive(prev_interactivity)
+
+
+@contextlib.contextmanager
+def disable_function_context(obj, fn_name: str):
+    """ Disables a function within a context manager
+
+    https://stackoverflow.com/questions/10388411/possible-to-globally-replace-a-function-with-a-context-manager-in-python
+
+    Could be used for plt.show().
+    ```python
+    
+    from neuropy.utils.matplotlib_helpers import disable_function_context
+    import matplotlib.pyplot as plt
+    with disable_function_context(plt, "show"):
+        run_me(x)
+    
+    """
+    temp = getattr(obj, fn_name)
+    setattr(obj, fn_name, lambda: None)
+    yield
+    setattr(obj, fn_name, temp)
+
+
+
+@contextlib.contextmanager
+def matplotlib_configuration(is_interactive:bool, backend:str):
+    """Context manager for configuring Matplotlib interactivity, backend, and toolbar.
+    # Example usage:
+
+        from neuropy.utils.matplotlib_helpers import matplotlib_configuration
+        with matplotlib_configuration(is_interactive=False, backend='AGG'):
+            # Perform non-interactive Matplotlib operations with 'AGG' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode with AGG Backend')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+
+        with matplotlib_configuration(is_interactive=True, backend='Qt5Agg'):
+            # Perform interactive Matplotlib operations with 'Qt5Agg' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Interactive Mode with Qt5Agg Backend')
+            plt.show()  # Display the plot interactively (interactive mode)
+    """
+    # Backup the current rcParams
+    prev_rcParams = matplotlib.rcParams.copy()
+    try:
+        # Configure toolbar based on interactivity mode
+        if is_interactive:
+            matplotlib.rcParams['toolbar'] = 'toolbar2'
+        else:
+            matplotlib.rcParams['toolbar'] = 'None'
+
+        # Enter the backend and interactivity context managers
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(matplotlib_interactivity(is_interactive))
+            stack.enter_context(matplotlib_backend(backend))
+            ## Non-blocking in non-interactive mode:
+            if not is_interactive:
+                stack.enter_context(disable_function_context(plt, "show")) # Non-blocking
+
+            yield
+
+    finally:
+        # Restore the previous rcParams
+        matplotlib.rcParams.clear()
+        matplotlib.rcParams.update(prev_rcParams)
+
+
+
+@contextlib.contextmanager
+def matplotlib_file_only():
+    """Context manager for configuring Matplotlib to only render to file, using the 'AGG' backend, no interactivity, and no plt.show()
+    # Example usage:
+        from neuropy.utils.matplotlib_helpers import matplotlib_file_only
+        with matplotlib_file_only():
+            # Perform non-interactive Matplotlib operations with 'AGG' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode with AGG Backend')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+    """
+    # Enter the backend and interactivity context managers
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(matplotlib_configuration(is_interactive=False, backend='AGG'))
+        yield
 
 
 
