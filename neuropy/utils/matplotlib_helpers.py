@@ -16,7 +16,7 @@ from matplotlib.widgets import SpanSelector
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple
 from neuropy.plotting.figure import compute_figure_size_pixels, compute_figure_size_inches # needed for _determine_best_placefield_2D_layout(...)'s internal _perform_compute_required_figure_sizes(...) function
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from neuropy.core.neuron_identities import PlotStringBrevityModeEnum # needed for _build_neuron_identity_label
 if TYPE_CHECKING:
     from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple # needed for _build_neuron_identity_label
@@ -816,7 +816,48 @@ class MatplotlibFigureExtractors:
             
         return sup, suptitle_string
 
+    @classmethod
+    def extract_titles(cls, fig: Optional[Figure]=None):
+        """ 
+        # Call the function to extract titles
+            captured_titles = extract_titles()
+            print(captured_titles)
+        """
+        fig = fig or (plt.gcf())
+        titles = {}
+        
+        # Get the window title
+        # fig.canvas.manager # .set_window_title(title_string) # sets the window's title
+        
 
+        # titles['window_title'] = fig.canvas.manager.window.title()
+
+        
+        # titles['window_title'] = plt.gcf().canvas.get_window_title()
+        try:
+            titles['window_title'] = fig.canvas.manager.window.windowTitle()
+        except AttributeError as e:
+            try:
+                titles['window_title'] = fig.canvas.get_window_title() # try this one
+            except Exception as e:
+                try:
+                    titles['window_title'] = f"{fig.number or ''}"
+                except Exception as e:
+                    raise e # unhandled exception
+        except Exception as e:
+            raise e
+        
+        # Get the suptitle
+        suptitle = fig._suptitle.get_text() if fig._suptitle else None
+        titles['suptitle'] = suptitle
+        
+        # Get the titles of each axis
+        axes = fig.get_axes()
+        for i, ax in enumerate(axes):
+            title = ax.get_title()
+            titles[f'axis_title_{i+1}'] = title
+        
+        return titles
 
 # ==================================================================================================================== #
 # 2023-06-05 Interactive Selection Helpers                                                                             #
@@ -1138,7 +1179,7 @@ def disable_function_context(obj, fn_name: str):
 
 
 @contextlib.contextmanager
-def matplotlib_configuration(is_interactive:bool, backend:str):
+def matplotlib_configuration(is_interactive:bool, backend:Optional[str]=None):
     """Context manager for configuring Matplotlib interactivity, backend, and toolbar.
     # Example usage:
 
@@ -1159,6 +1200,11 @@ def matplotlib_configuration(is_interactive:bool, backend:str):
             plt.title('Interactive Mode with Qt5Agg Backend')
             plt.show()  # Display the plot interactively (interactive mode)
     """
+    if backend is None:
+        if is_interactive:
+            backend='Qt5Agg'
+        else:
+            backend='AGG'
     # Backup the current rcParams
     prev_rcParams = matplotlib.rcParams.copy()
     try:
