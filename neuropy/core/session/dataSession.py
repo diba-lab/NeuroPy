@@ -549,21 +549,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
                  neurons = new_neurons, probegroup = objList[0].probegroup, position = new_position, paradigm = objList[0].paradigm,
                  ripple = None, mua = None, pbe = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
     
-    
-    # def filtered_by_laps(self, lap_indices=None):
-    #     """ Returns a copy of this session with all of its members filtered by the laps.
-    #     """
-    #     lap_specific_subsessions, lap_specific_dataframes, lap_spike_indicies, lap_spike_t_seconds = Laps.build_lap_specific_lists(self, include_empty_lists=True)
-
-    #     if lap_indices is None:
-    #         lap_indices = np.arange(1, len(lap_specific_subsessions)) # all laps by default, but exclude the 0 element since that's the -1 value
-            
-    #     print('filtering by laps: {}'.format(lap_indices))
-    #     lap_specific_subsessions = [lap_specific_subsessions[i] for i in lap_indices] # filter by the desired number of laps 
-    #     ## Effectively build the new session using only the lap-specific spiketimes:
-    #     return DataSession.concat(lap_specific_subsessions)
-    #     # raise NotImplementedError
-    
+        
     def split_by_laps(self):
         """ Returns a list containing separate copies of this session with all of its members filtered by the laps, for each lap
         """
