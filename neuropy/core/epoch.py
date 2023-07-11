@@ -420,7 +420,7 @@ class Epoch(DataWriter):
             _description_
         """
 
-        assert ~self.is_overlapping, "Epochs must be non overlapping"
+        assert self.is_overlapping == False, "Epochs must be non overlapping"
 
         labels = self.labels
         bin_loc = np.digitize(t, self.flatten())
