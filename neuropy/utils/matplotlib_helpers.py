@@ -1113,7 +1113,13 @@ def matplotlib_backend(backend:str):
 
         # Yield control back to the caller
         yield
-
+        
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}")
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
     finally:
         # Restore the previous backend
         matplotlib.use(prev_backend, force=True)
@@ -1150,7 +1156,13 @@ def matplotlib_interactivity(is_interactive:bool):
 
         # Yield control back to the caller
         yield
-
+        
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}")
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
     finally:
         # Restore the previous interactive mode
         plt.interactive(prev_interactivity)
@@ -1223,7 +1235,14 @@ def matplotlib_configuration(is_interactive:bool, backend:Optional[str]=None):
                 stack.enter_context(disable_function_context(plt, "show")) # Non-blocking
 
             yield
-
+            
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}")
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
+    
     finally:
         # Restore the previous rcParams
         matplotlib.rcParams.clear()
