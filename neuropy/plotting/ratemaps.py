@@ -595,12 +595,6 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         # bin_cntr # contains the x-positions of each point. Same for all cells
         y_baseline = (i * pad) # y_baseline (y1): the y-position for each cell 
         y2 = (y_baseline + pfmap) # (y2): the top of each point is determined by adding the specific pfmap values to the baseline
-
-        # Old way:
-        # color = neurons_colors_array[:, i]
-        # curr_neuron_id = sorted_neuron_ids[i]
-        # ax.fill_between(bin_cntr, i * pad, i * pad + tuning_curves[neuron_ind], color=color, ec=None, alpha=0.5, zorder=i + 1)
-        # ax.plot(bin_cntr, i * pad + tuning_curves[neuron_ind], color=color, alpha=0.7)
         
         # New way:
         sorted_neuron_id_labels.append(final_title_str)
