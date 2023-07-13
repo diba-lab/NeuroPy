@@ -1076,6 +1076,95 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
 
 
 
+def matplotlib_configuration_update(is_interactive:bool, backend:Optional[str]=None):
+    """Non-Context manager version for configuring Matplotlib interactivity, backend, and toolbar.
+    
+    The context-manager version notabily doesn't work for making the figures visible, I think because when it leaves the context handler the variables assigned within go away and thus the references to the Figures are lost.
+    
+    # Example usage:
+
+        from neuropy.utils.matplotlib_helpers import matplotlib_configuration
+        with matplotlib_configuration(is_interactive=False, backend='AGG'):
+            # Perform non-interactive Matplotlib operations with 'AGG' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode with AGG Backend')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+
+        with matplotlib_configuration(is_interactive=True, backend='Qt5Agg'):
+            # Perform interactive Matplotlib operations with 'Qt5Agg' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Interactive Mode with Qt5Agg Backend')
+            plt.show()  # Display the plot interactively (interactive mode)
+    """
+    if backend is None:
+        if is_interactive:
+            backend='Qt5Agg'
+        else:
+            backend='AGG'
+    # Backup the current rcParams
+    prev_rcParams = matplotlib.rcParams.copy()
+    # Backup the current backend
+    prev_backend = matplotlib.get_backend()
+    # Backup the current interactive mode
+    prev_interactivity = plt.isinteractive()
+    # Backup the current plt.show command:
+    prev_plt_show_command = getattr(plt, "show")
+
+    def _restore_previous_settings_callback():
+        """ restore previous settings when done.
+        
+        Captures: 
+            prev_backend, prev_interactivity, prev_rcParams, prev_plt_show_command
+        """
+        # Restore the previous backend
+        matplotlib.use(prev_backend, force=True)
+        plt.switch_backend(prev_backend)
+        plt.interactive(prev_interactivity)     # Restore the previous interactive mode
+        # Restore the previous rcParams
+        matplotlib.rcParams.clear()
+        matplotlib.rcParams.update(prev_rcParams)
+        setattr(plt, "show", prev_plt_show_command) # restore plt.show()
+
+    try:
+        # Configure toolbar based on interactivity mode
+        if is_interactive:
+            matplotlib.rcParams['toolbar'] = 'toolbar2'
+        else:
+            matplotlib.rcParams['toolbar'] = 'None'
+
+        # Switch to the desired backend
+        matplotlib.use(backend, force=True)
+
+        # Initialize the new backend (if needed)
+        plt.switch_backend(backend)
+
+        # Switch to the desired interactivity mode
+        plt.interactive(is_interactive)
+
+        if not is_interactive:
+            # Non-blocking
+            # setattr(plt, "show", lambda: None)
+            setattr(plt, "show", lambda: print(f'plt.show() was overriden by a call to `matplotlib_configuration_update(...)`'))
+
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}\n Trying to revert settings using `_restore_previous_settings_callback()`...`")
+        _restore_previous_settings_callback()
+        print(f'revert complete.')
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
+
+
+    return _restore_previous_settings_callback
+
+
+
+
 # ==================================================================================================================== #
 # Context Managers for Switching Interactivity and Backend                                                             #
 # ==================================================================================================================== #
@@ -1187,6 +1276,8 @@ def disable_function_context(obj, fn_name: str):
     setattr(obj, fn_name, lambda: None)
     yield
     setattr(obj, fn_name, temp)
+
+
 
 
 
