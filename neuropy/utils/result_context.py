@@ -32,7 +32,7 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 """
 
 import copy
-from typing import Any
+from typing import Any, List, Dict, Optional
 from enum import Enum
 from functools import wraps # used for decorators
 from attrs import define, field, Factory
@@ -121,6 +121,10 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         return duplicate_ctxt
     
 
+    @staticmethod
+    def _get_session_context_keys() -> List[str]:
+        return ['format_name','animal','exper_name', 'session_name']
+
     @classmethod
     def resolve_key(cls, duplicate_ctxt: "IdentifyingContext", name:str, value, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX):
         """ensures no collision between attributes occur, and if they do resolve them according to strategy. e.g. rename them with an identifying prefix
@@ -194,7 +198,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         # return IdentifyingContext.init_from_dict(dict_or)
         return self.merging_context(None, other) # due to passing None as the collision context, this will fail if there are collisions
 
-    def get_description(self, subset_includelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
+    def get_description(self, subset_includelist=None, subset_excludelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
         include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
@@ -209,7 +213,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             if key_value_separator is None:
                 key_value_separator = separator # use same separator between key{}value as pairs of items.
             # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
-            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist).items()] # creates a list of [name, val] list items
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # creates a list of [name, val] list items
             if key_value_separator != separator:
                 # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
                 descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
@@ -217,7 +221,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
                 # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
                 descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
         else:
-            descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist).values())] # ensures each value is a string
+            descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())] # ensures each value is a string
             
         if prefix_items is not None:
             descriptor_array.extend(prefix_items)
@@ -227,9 +231,9 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         descriptor_string = separator.join(descriptor_array)
         return descriptor_string
     
-    def get_initialization_code_string(self) -> str:
+    def get_initialization_code_string(self, subset_includelist=None, subset_excludelist=None) -> str:
         """ returns the string that contains valid code to initialize a matching object. """
-        init_args_list_str = ",".join([f"{k}='{v}'" for k,v in self.to_dict().items()]) # "format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'"
+        init_args_list_str = ",".join([f"{k}='{v}'" for k,v in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()]) # "format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'"
         return f"IdentifyingContext({init_args_list_str})" #"IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')"
 
     def __str__(self) -> str:
@@ -290,7 +294,14 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     @classmethod
     def init_from_dict(cls, a_dict):
         return cls(**a_dict) # expand the dict as input args.
-        
+    
+
+    def get_subset(self, subset_includelist=None, subset_excludelist=None) -> "IdentifyingContext":
+        """ returns a proper subset of self given the incldued/exclude lists. """
+        return IdentifyingContext.init_from_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist))
+
+
+
     # Differencing and Set Operations ____________________________________________________________________________________ #
     def subtracting(self, rhs) -> "IdentifyingContext":
         return self.subtract(self, rhs)
