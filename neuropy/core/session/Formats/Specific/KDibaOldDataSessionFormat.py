@@ -339,7 +339,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
         
         # Need one computation config for each lap (even/odd)
-        print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
+        debug_print = kwargs.get('debug_print', False)
+        if debug_print:
+            print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
 
         ## Lap-restricted computation epochs:
         use_direction_dependent_laps = False # whether to split the laps into left and right directions
@@ -390,7 +392,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
 
         # Lap-restricted computation epochs:
-        print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
+        if debug_print:
+            print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
         final_active_session_computation_configs = []
         
         # if len(active_session_computation_configs) < len(desired_computation_epochs):
@@ -404,8 +407,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 curr_config.pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
                 curr_config.pf_params.computation_epochs = a_restricted_lap_epoch # add the laps epochs to all of the computation configs.
                 final_active_session_computation_configs.append(curr_config)
-        
-        print(f'\tlen(final_active_session_computation_configs): {len(final_active_session_computation_configs)}')
+
+        if debug_print:    
+            print(f'\tlen(final_active_session_computation_configs): {len(final_active_session_computation_configs)}')
         return final_active_session_computation_configs
 
     
