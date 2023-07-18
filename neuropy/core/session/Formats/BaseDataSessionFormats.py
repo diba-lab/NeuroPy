@@ -76,7 +76,7 @@ def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_p
 
 
 
-class DataSessionFormatRegistryHolder(type):
+class DataSessionFormatRegistryHolder(type): # inheriting from type? Is this right?
     """ a metaclass that automatically registers its conformers as a known loadable data session format.
         
     Usage:
