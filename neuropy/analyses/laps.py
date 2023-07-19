@@ -62,7 +62,7 @@ def _subfn_compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame, 
     return laps_obj
 
  
-def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0):
+def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0, debug_print=False):
     """ Pho 2021-12-20 - Custom lap computation based on position/velocity thresholding to detect laps
     pos_df
     hardcoded_track_midpoint_x: Take 150.0 as the x midpoint line to be crossed for each trajectory
@@ -84,9 +84,11 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     # sane_midpoint_x = (np.nanmax(pos_df['x']) - np.nanmin(pos_df['x'])) / 2.0 # fails when track_min_max_x = (-112.6571782148526, 127.8636830487316) because of negative x value.
     sane_midpoint_x = np.mean(track_min_max_x)
     # Doesn't work when x permits negative values seemingly. 
-    print(f'sane_midpoint_x: {sane_midpoint_x}, hardcoded_track_midpoint_x: {hardcoded_track_midpoint_x}, track_min_max_x: {track_min_max_x}')
+    if debug_print:
+        print(f'sane_midpoint_x: {sane_midpoint_x}, hardcoded_track_midpoint_x: {hardcoded_track_midpoint_x}, track_min_max_x: {track_min_max_x}')
     if hardcoded_track_midpoint_x is None:
-        print(f'hardcoded_track_midpoint_x is None, falling back to sane_midpoint_x... {sane_midpoint_x}')
+        if debug_print:
+            print(f'hardcoded_track_midpoint_x is None, falling back to sane_midpoint_x... {sane_midpoint_x}')
         hardcoded_track_midpoint_x = sane_midpoint_x
 
     zero_centered_x = pos_df['x'] - hardcoded_track_midpoint_x
@@ -95,7 +97,8 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     asc_crossing_midpoint_idxs = np.where(zero_crossings_x > 0)[0] # (24,), corresponding to increasing positions
     # find descending crossings:
     desc_crossing_midpoint_idxs = np.where(zero_crossings_x < 0)[0] # (24,)
-    print(f'desc_crossings_x: {np.shape(desc_crossing_midpoint_idxs)}, asc_crossings_x: {np.shape(asc_crossing_midpoint_idxs)}') # desc_crossings_x: (24,), asc_crossings_x: (24,)
+    if debug_print:
+        print(f'desc_crossings_x: {np.shape(desc_crossing_midpoint_idxs)}, asc_crossings_x: {np.shape(asc_crossing_midpoint_idxs)}') # desc_crossings_x: (24,), asc_crossings_x: (24,)
 
     ## Build output arrays:
     desc_crossing_begining_idxs = np.zeros_like(desc_crossing_midpoint_idxs)
@@ -106,12 +109,14 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
 
     ## Ensure that there are the same number of desc/asc crossings (meaning full laps). Drop the last one of the set that has the extra if they aren't equal.
     if len(desc_crossing_midpoint_idxs) > len(asc_crossing_midpoint_idxs):
-        print(f'WARNING: must drop last desc_crossing_midpoint.')
+        if debug_print:
+            print(f'WARNING: must drop last desc_crossing_midpoint.')
         assert len(desc_crossing_midpoint_idxs) > 1
         desc_crossing_midpoint_idxs = desc_crossing_midpoint_idxs[:-1] # all but the very last which is dropped
         
     elif len(asc_crossing_midpoint_idxs) > len(desc_crossing_midpoint_idxs):
-        print(f'WARNING: must drop last asc_crossing_midpoints.')
+        if debug_print:
+            print(f'WARNING: must drop last asc_crossing_midpoints.')
         assert len(asc_crossing_midpoint_idxs) > 1
         asc_crossing_midpoint_idxs = asc_crossing_midpoint_idxs[:-1] # all but the very last which is dropped
         
@@ -157,7 +162,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     return (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs)
 
 
-def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None):
+def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None, debug_print=False):
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
     Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)
 
@@ -198,7 +203,7 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     else:
         time_variable_name = spikes_df.spikes.time_variable_name # get time_variable_name from the spikes_df object
 
-    lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None) # allow smart midpoint determiniation
+    lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None, debug_print=debug_print) # allow smart midpoint determiniation
 
     (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies
 
