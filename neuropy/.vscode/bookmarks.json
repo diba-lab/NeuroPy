@@ -64,7 +64,7 @@
 					"label": "linearization"
 				},
 				{
-					"line": 522,
+					"line": 507,
 					"column": 275,
 					"label": "scattered parameters: default_replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.05, 'min_num_unique_aclu_inclusions': 5}"
 				}
@@ -109,7 +109,7 @@
 			"path": "core/session/Formats/BaseDataSessionFormats.py",
 			"bookmarks": [
 				{
-					"line": 496,
+					"line": 505,
 					"column": 41,
 					"label": "ExternallyComputedRipplesLoading"
 				}

@@ -391,21 +391,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
         return session.position
         
-
-    # ## TODO: needs neuropy! Specifically: from neuropy.analyses import Pf1D, Pf2D, perform_compute_placefields, plot_all_placefields
-    # @staticmethod
-    # def compute_placefields_as_needed(active_session, computation_config=None, active_epoch_placefields1D = None, active_epoch_placefields2D = None, should_force_recompute_placefields=False, should_display_2D_plots=False):
-    #     if computation_config is None:
-    #         computation_config = PlacefieldComputationParameters(speed_thresh=9, grid_bin=2, smooth=0.5)
-    #     active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_session.neurons, active_session.position, computation_config, active_epoch_placefields1D, active_epoch_placefields2D, should_force_recompute_placefields=True)
-    #     # Plot the placefields computed and save them out to files:
-    #     if should_display_2D_plots:
-    #         ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config)
-    #     else:
-    #         print('skipping 2D placefield plots')
-    #     return active_epoch_placefields1D, active_epoch_placefields2D
-
-
     # @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
     def estimate_replay_epochs(self, require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
