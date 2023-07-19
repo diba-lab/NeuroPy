@@ -231,7 +231,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
 
     @classmethod
     def build_default_preprocessing_parameters(cls, **kwargs) -> ParametersContainer:
-        """ builds the pre-processing parameters. Could get session_spec, basedir, or other info from the caller but usually not a session itself because this is used to build the config prior to the session loading. """
+        """ builds the pre-processing parameters. Could get session_spec, basedir, or other info from the caller but usually not a session itself because this is used to build the config prior to the session loading. 
+        
+        Used in: ['cls.build_session']
+        """
         default_lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
         default_PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters        
         default_replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
@@ -542,7 +545,9 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             else:
                 print(f'force_recompute is True, recomputing...')
             try:
-                session.pbe = DataSession.compute_pbe_epochs(session, active_parameters=kwargs.pop('pbe_epoch_detection_params', None), save_on_compute=True)
+                # active_pbe_parameters = kwargs.pop('pbe_epoch_detection_params', session.config.preprocessing_parameters.epoch_estimation_parameters.PBEs)
+                active_pbe_parameters = session.config.preprocessing_parameters.epoch_estimation_parameters.PBEs
+                session.pbe = DataSession.compute_pbe_epochs(session, active_parameters=active_pbe_parameters, save_on_compute=True)
             except (ValueError, AttributeError) as e:
                 print(f'Computation failed with error {e}. Skipping .pbe')
                 session.pbe = None

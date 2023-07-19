@@ -29,12 +29,12 @@
 					"label": "post_load_functions"
 				},
 				{
-					"line": 134,
+					"line": 135,
 					"column": 19,
 					"label": "POSTLOAD_estimate_laps_and_replays"
 				},
 				{
-					"line": 282,
+					"line": 310,
 					"column": 38,
 					"label": "ACTIVE: session_specific_override_dict"
 				}
@@ -109,7 +109,7 @@
 			"path": "core/session/Formats/BaseDataSessionFormats.py",
 			"bookmarks": [
 				{
-					"line": 512,
+					"line": 515,
 					"column": 41,
 					"label": "ExternallyComputedRipplesLoading"
 				}

@@ -7,7 +7,7 @@ from neuropy.core.epoch import NamedTimerange
 from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
+from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, ParametersContainer
 
 # For specific load functions:
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
@@ -189,15 +189,19 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         print(f'POSTLOAD_estimate_laps_and_replays()...')
         
         # 2023-05-16 - Laps conformance function (TODO 2023-05-16 - factor out?)
-        lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+        # lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+
+        lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
+        assert lap_estimation_parameters is not None
         sess.replace_session_laps_with_estimates(**lap_estimation_parameters, should_plot_laps_2d=False) # , time_variable_name=None
         ## Apply the laps as the limiting computation epochs:
         # computation_config.pf_params.computation_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0)
 
 
         # ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING
-        PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters        
-        
+        # PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
+        PBE_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.PBEs
+        assert PBE_estimation_parameters is not None
         new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=PBE_estimation_parameters)
         sess.pbe = new_pbe_epochs
         updated_spk_df = sess.compute_spikes_PBEs()
@@ -208,9 +212,15 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         non_running_periods = Epoch.from_PortionInterval(sess.laps.as_epoch_obj().to_PortionInterval().complement()) # TODO 2023-05-24- Truncate to session .t_start, .t_stop as currently includes infinity, but it works fine.
         # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
         # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=non_running_periods, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=1.0, min_num_unique_aclu_inclusions=5)
+        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=non_running_periods, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=1.0, min_num_unique_aclu_inclusions=5)
         
         # num_pre = session.replay.
+        replay_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.replays
+        assert replay_estimation_parameters is not None
+        ## Update the parameters with the session-specific values that couldn't be determined until after the session was loaded:
+        replay_estimation_parameters.require_intersecting_epoch = non_running_periods
+        replay_estimation_parameters.min_inclusion_fr_active_thresh = 1.0
+        replay_estimation_parameters.min_num_unique_aclu_inclusions = 5
         sess.replace_session_replays_with_estimates(**replay_estimation_parameters)
         
         # ### Get both laps and existing replays as PortionIntervals to check for overlaps:
@@ -224,12 +234,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         # TODO 2023-05-22: Write the parameters somewhere:
         replays = sess.replay.epochs.to_PortionInterval()
-        sess.config.preprocessing_parameters = DynamicContainer(epoch_estimation_parameters=DynamicContainer.init_from_dict({
-            'laps': lap_estimation_parameters,
-            'PBEs': PBE_estimation_parameters,
-            'replays': replay_estimation_parameters
-        }))
 
+        ## This is the inverse approach of the new method, which loads the parameters from `sess.config.preprocessing_parameters`
+        # sess.config.preprocessing_parameters = DynamicContainer(epoch_estimation_parameters=DynamicContainer.init_from_dict({
+        #     'laps': lap_estimation_parameters,
+        #     'PBEs': PBE_estimation_parameters,
+        #     'replays': replay_estimation_parameters
+        # }))
 
         return sess
 
