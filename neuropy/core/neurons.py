@@ -20,6 +20,18 @@ from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 @total_ordering
 @unique
 class NeuronType(Enum):
+    """ 
+    Kamran 2023-07-18:
+        cluq=[1,2,4,9] all passed.
+        3 were noisy
+        [6,7]: double fields. 
+        5: interneurons
+
+    Pho-Pre-2023-07-18:
+        pyramidal: [-inf, 4)
+        contaminated: [4, 7)
+        interneurons: [7, +inf)
+    """
     PYRAMIDAL = 0
     CONTAMINATED = 1
     INTERNEURONS = 2
@@ -28,6 +40,8 @@ class NeuronType(Enum):
     # longClassNames = ['pyramidal','contaminated','interneurons']
     # shortClassNames = ['pyr','cont','intr']
     # classCutoffValues = [0, 4, 7, 9]
+
+
     
     def describe(self):
         self.name, self.value
@@ -71,8 +85,30 @@ class NeuronType(Enum):
     
     @classmethod
     def classCutoffValues(cls):
-        return np.array([0, 4, 7, 9])
+        raise NotImplementedError(f"this method has been depricated in favor of cls.classCutoffMap after it was revealed by Kamran that the qclu values are non-sequential on 2023-07-18.")
+        # return np.array([0, 4, 7, 9])
     
+
+    @classmethod
+    def classCutoffMap(cls) -> dict:
+        """ For each qclu value in 0-10, return a str in ['pyr','cont','intr']
+            Kamran 2023-07-18:
+                cluq=[1,2,4,9] all passed.
+                3 were noisy
+                [6,7]: double fields. 
+                5: interneurons
+
+        """
+        _out_map = dict() # start with an empty dict
+        for i in np.arange(10): 
+            _out_map[i] = "cont" # initialize all to 'contaminated'/noisy
+        for i in [1,2,4,6,7,9]:
+            _out_map[i] = 'pyr' # pyramidal
+        _out_map[5] = "intr" # interneurons
+        return _out_map
+
+
+
     @classmethod
     def from_short_string(cls, string_value):
         string_value = string_value.lower()
@@ -108,7 +144,9 @@ class NeuronType(Enum):
     def from_qclu_series(cls, qclu_Series):
         # qclu_Series: a Pandas Series object, such as qclu_Series=spikes_df['qclu']
         # example: spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
-        temp_neuronTypeStrings = pd.cut(x=qclu_Series, bins=cls.classCutoffValues(), labels=cls.shortClassNames())
+        # temp_neuronTypeStrings = pd.cut(x=qclu_Series, bins=cls.classCutoffValues(), labels=cls.shortClassNames())
+        temp_cutoff_map:dict = cls.classCutoffMap()
+        temp_neuronTypeStrings = [temp_cutoff_map[int(qclu)] for qclu in qclu_Series]
         temp_neuronTypes = np.array([NeuronType.from_short_string(_) for _ in np.array(temp_neuronTypeStrings)])
         return temp_neuronTypes
         
