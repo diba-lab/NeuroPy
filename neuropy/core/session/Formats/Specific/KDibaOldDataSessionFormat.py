@@ -1,4 +1,3 @@
-import traceback
 from copy import deepcopy
 import numpy as np
 import pandas as pd
@@ -483,6 +482,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             spikes_df, flat_spikes_out_dict = cls.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
             
         except Exception as e:
+            import traceback
             # print('e: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
             track = traceback.format_exc()
             print(track)
