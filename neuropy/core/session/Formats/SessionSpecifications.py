@@ -1,24 +1,10 @@
 from dataclasses import dataclass
-from typing import Callable
+from attrs import define, field, Factory
+from typing import Callable, List, Dict, Optional
 import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
-
-
-# Local imports:
-## Core:
-# from .datawriter import DataWriter
-# from .neurons import NeuronType, Neurons, BinnedSpiketrain, Mua
-# from .probe import ProbeGroup
-# from .position import Position
-# from .epoch import Epoch #, NamedTimerange
-# from .signal import Signal
-# from .laps import Laps
-# from .flattened_spiketrains import FlattenedSpiketrains
-
-# from .. import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
 
 from neuropy.core.session.dataSession import DataSession
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
@@ -51,9 +37,7 @@ class SessionFileSpec:
         if overrideBasename is not None:
             self.suggestedBaseName = overrideBasename
         return parent_path.joinpath(self.filename)
-   
- 
- 
+
 
 class SessionFolderSpecError(Exception):
     """ An exception raised when a session folder spec requirement fails """
@@ -63,8 +47,6 @@ class SessionFolderSpecError(Exception):
     def __str__(self):
         return self.message
 
- 
- 
 class RequiredFileError(SessionFolderSpecError):
     """ An exception raised when a required file is missing """
     def __init__(self, message, missing_file_spec):
@@ -81,7 +63,7 @@ class RequiredValidationFailedError(SessionFolderSpecError):
     def __str__(self):
         return self.message
     
-    
+
 class SessionFolderSpec():
     """ Documents the required and optional files for a given session format """
     def __init__(self, required = [], optional = [], additional_validation_requirements=[]) -> None:
@@ -152,6 +134,12 @@ class SessionFolderSpec():
 # ])
 
 
+@define(slots=False)
+class ParametersContainer:
+    epoch_estimation_parameters: dict
+
+
+
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     """A simple data structure that holds the information specifying a data session, such as the basepath, session_spec, and session_name
     
@@ -169,7 +157,7 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_optional_filespecs_dict.items()}
     
     
-    def __init__(self, basepath, session_spec, session_name, session_context, format_name):
+    def __init__(self, basepath, session_spec, session_name, session_context, format_name, preprocessing_parameters):
         """[summary]
         Args:
             basepath (pathlib.Path): [description].
@@ -183,6 +171,8 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         # Session spec:
         self.session_spec=session_spec
         self.session_context = session_context
+        self.preprocessing_parameters = preprocessing_parameters
+        
         self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
         
 

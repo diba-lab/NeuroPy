@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
 from neuropy.core.position import Position
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, SessionConfig
+from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, SessionConfig, ParametersContainer
 
 # For specific load functions:
 from neuropy.core import Mua, Epoch
@@ -228,6 +228,21 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         final_configs_dict = dict(epoch_filter_configs_dict, **global_epoch_filter_fn_dict)
         return  final_configs_dict
 
+
+    @classmethod
+    def build_default_preprocessing_parameters(cls, **kwargs) -> ParametersContainer:
+        """ builds the pre-processing parameters. Could get session_spec, basedir, or other info from the caller but usually not a session itself because this is used to build the config prior to the session loading. """
+        default_lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+        default_PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters        
+        default_replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
+
+        preprocessing_parameters = ParametersContainer(epoch_estimation_parameters=DynamicContainer.init_from_dict({
+                    'laps': default_lap_estimation_parameters,
+                    'PBEs': default_PBE_estimation_parameters,
+                    'replays': default_replay_estimation_parameters
+                }))
+        return preprocessing_parameters
+
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
@@ -236,7 +251,6 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
                                                                  'kleinberg_parameters': DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs),
                                                                  'use_progress_bar': False,
                                                                  'debug_print': False}).override(kwargs))
-        
         return [DynamicContainer(pf_params=kwargs['pf_params'], spike_analysis=kwargs['spike_analysis'])]
         # return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
         #                   spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
@@ -249,8 +263,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
         #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(128, 128)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
         #        ]
-  
-  
+    
     @classmethod
     def build_active_computation_configs(cls, sess, **kwargs):
         """ defines the main computation configs for each class. This is provided as an alternative to `build_default_computation_configs` because some classes use cls.build_default_computation_configs(...) to get the plain configs, which they then update with different properties. """
@@ -339,7 +352,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         session_context = cls.parse_session_basepath_to_context(basedir) 
         session_spec = cls.get_session_spec(session_name)
         format_name = cls.get_session_format_name()
-        session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name, session_context=session_context)
+            
+        # get the default preprocessing parameters:
+        preprocessing_parameters = cls.build_default_preprocessing_parameters()                                                    
+        session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name, session_context=session_context, preprocessing_parameters=preprocessing_parameters)
         assert session_config.is_resolved, "active_sess_config could not be resolved!"
         session_obj = DataSession(session_config)
         return session_obj
