@@ -262,15 +262,6 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         self.t_start = t_start
         self.metadata = metadata
         
-    # @staticmethod
-    # def from_separate_flattened_variables(flattened_sort_indicies: np.ndarray, flattened_spike_identities: np.ndarray,
-    #     flattened_spike_times: np.ndarray, t_start=0.0, metadata=None):
-    #     self.flattened_sort_indicies = flattened_sort_indicies
-    #     self.flattened_spike_identities = flattened_spike_identities
-    #     self.flattened_spike_times = flattened_spike_times
-        
-    #     'qclu'
-
     @property
     def spikes_df(self):
         """The spikes_df property."""
