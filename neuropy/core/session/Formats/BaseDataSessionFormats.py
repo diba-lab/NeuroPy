@@ -452,7 +452,6 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # Computes Common Extended properties:
         force_recompute = kwargs.pop('force_recompute', False)
         
-
         ## Ripples:
         try:
             # Externally Computed Ripples (from 'ripple_df.pkl') file:
@@ -486,7 +485,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
                 #     session.ripple.save()
             else:
                 # Otherwise both loads failed, perform the fallback computation:
-                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+                if not force_recompute:
+                    print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+                else:
+                    print(f'force_recompute is True, recomputing...')
                 try:
                     session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
                 except (ValueError, AttributeError) as e:
@@ -501,7 +503,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             session.mua = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            if not force_recompute:
+                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            else:
+                print(f'force_recompute is True, recomputing...')
             try:
                 session.mua = DataSession.compute_neurons_mua(session, save_on_compute=True)
             except (ValueError, AttributeError) as e:
@@ -516,7 +521,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             session.pbe = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            if not force_recompute:
+                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            else:
+                print(f'force_recompute is True, recomputing...')
             try:
                 session.pbe = DataSession.compute_pbe_epochs(session, active_parameters=kwargs.pop('pbe_epoch_detection_params', None), save_on_compute=True)
             except (ValueError, AttributeError) as e:
@@ -526,10 +534,6 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # add PBE information to spikes_df from session.pbe
         cls._default_add_spike_PBEs_if_needed(session)
         cls._default_add_spike_scISIs_if_needed(session)
-
-
-        
-
         # return the session with the upadated member variables
         return session
     
