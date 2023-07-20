@@ -536,6 +536,137 @@ def fit_both_axes(ax_lhs, ax_rhs):
     return (fitting_xbounds, fitting_ybounds)
 
 
+# ==================================================================================================================== #
+# Advanced Text Helpers via `flexitext` library                                                                        #
+# ==================================================================================================================== #
+from attrs import define, field
+from flexitext import flexitext ## flexitext is an advanced text library used in `FormattedFigureText`
+
+@define(slots=False)
+class FigureMargins:
+    top_margin: float = 0.8
+    left_margin: float = 0.15
+    right_margin: float = 0.85 # (1.0-0.15)
+    bottom_margin: float = 0.150
+
+
+# left_margin: float = 0.090
+# right_margin: float = 0.91 # (1.0-0.090)
+
+
+# left_margin: float = 0.090
+# right_margin: float = 0.91 # (1.0-0.090)
+
+@define(slots=False)
+class FormattedFigureText:
+    """ builds flexitext matplotlib figure title and footers 
+
+    Consistent color scheme:
+        Long: Red
+        Short: Blue
+
+        Context footer is along the bottom of the figure in gray.
+
+
+    Usage:
+        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+        # `flexitext` version:
+        text_formatter = FormattedFigureText()
+        plt.title('')
+        plt.suptitle('')
+        text_formatter.setup_margins(fig)
+
+        ## Need to extract the track name ('maze1') for the title in this plot. 
+        track_name = active_context.get_description(subset_includelist=['filter_name'], separator=' | ') # 'maze1'
+        # TODO: do we want to convert this into "long" or "short"?
+        header_text_obj = flexitext(text_formatter.left_margin, text_formatter.top_margin, f'<size:22><weight:bold>{track_name}</> replay|laps <weight:bold>firing rate</></>', va="bottom", xycoords="figure fraction")
+        footer_text_obj = flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
+
+
+    """
+    # fig.subplots_adjust(top=top_margin, left=left_margin, bottom=bottom_margin)
+
+    margins: FigureMargins = field(factory=FigureMargins)
+
+    @property
+    def top_margin(self):
+        return self.margins.top_margin
+    @top_margin.setter
+    def top_margin(self, value):
+        self.margins.top_margin = value
+
+    @property
+    def left_margin(self):
+        return self.margins.left_margin
+    @left_margin.setter
+    def left_margin(self, value):
+        self.margins.left_margin = value
+
+    @property
+    def right_margin(self):
+        return self.margins.right_margin
+    @right_margin.setter
+    def right_margin(self, value):
+        self.margins.right_margin = value
+
+    @property
+    def bottom_margin(self):
+        return self.margins.bottom_margin
+    @bottom_margin.setter
+    def bottom_margin(self, value):
+        self.margins.bottom_margin = value
+
+    @classmethod
+    def _build_formatted_title_string(cls, epochs_name) -> str:
+        """ buidls the two line colored string figure's footer that is passed into `flexitext`.
+        """
+        return (f"<size:22><weight:bold>{epochs_name}</> Firing Rates\n"
+                "<size:14>for the "
+                "<color:crimson, weight:bold>Long</>/<color:royalblue, weight:bold>Short</> eXclusive Cells on each track</></>"
+                )
+
+    @classmethod
+    def _build_footer_string(cls, active_context) -> str:
+        """ buidls the dim, grey string for the figure's footer that is passed into `flexitext`.
+        Usage:
+            footer_text_obj = flexitext((left_margin*0.1), (bottom_margin*0.25), cls._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+        """
+        first_portion_sess_ctxt_str = active_context.get_description(subset_includelist=['format_name', 'animal', 'exper_name'], separator=' | ')
+        session_name_sess_ctxt_str = active_context.get_description(subset_includelist=['session_name'], separator=' | ') # 2006-6-08_14-26-15
+        return (f"<color:silver, size:10>{first_portion_sess_ctxt_str} | <weight:bold>{session_name_sess_ctxt_str}</></>")
+
+    def setup_margins(self, fig, **kwargs):
+        top_margin, left_margin, right_margin, bottom_margin = kwargs.get('top_margin', self.top_margin), kwargs.get('left_margin', self.left_margin), kwargs.get('right_margin', self.right_margin), kwargs.get('bottom_margin', self.bottom_margin)
+        fig.subplots_adjust(top=top_margin, left=left_margin, right=right_margin, bottom=bottom_margin) # perform the adjustment on the figure
+
+    def add_flexitext_context_footer(self, active_context):
+        """ adds the default footer  """
+        return flexitext((self.left_margin*0.1), (self.bottom_margin*0.25), self._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
+
+
+    def add_flexitext(self, fig, active_context, **kwargs):
+        self.setup_margins(fig, **kwargs)
+        # Add flexitext
+        top_margin, left_margin, bottom_margin = kwargs.get('top_margin', self.top_margin), kwargs.get('left_margin', self.left_margin), kwargs.get('bottom_margin', self.bottom_margin)
+        title_text_obj = flexitext(left_margin, top_margin, 'long ($L$)|short($S$) firing rate indicies', va="bottom", xycoords="figure fraction")
+        footer_text_obj = flexitext((self.left_margin*0.1), (self.bottom_margin*0.25), self._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+        return title_text_obj, footer_text_obj
+
+
+    @classmethod
+    def clear_basic_titles(self, fig):
+        """ clears the basic title and suptitle in preparation for the flexitext version. """
+        plt.figure(fig)
+        plt.title('')
+        plt.suptitle('')
+        
+
+
 
 
 
@@ -1043,7 +1174,7 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
     grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
     epoch_context = curr_active_pipeline.filtered_contexts[epoch_name]
                     
-    fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name]) 
+    fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name], active_context=epoch_context) 
 
     rect_selector, set_extents, reset_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
     

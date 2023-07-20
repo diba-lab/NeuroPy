@@ -2,10 +2,11 @@ from neuropy.core.neuron_identities import PlotStringBrevityModeEnum
 from neuropy.plotting.placemaps import plot_placefield_occupancy
 from neuropy.plotting.ratemaps import enumTuningMap2DPlotVariables, plot_ratemap_1D, plot_ratemap_2D, plot_ratemap_2D
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
+from neuropy.utils.matplotlib_helpers import FormattedFigureText, FigureMargins
 
 class PfnD_PlotOccupancy_Mixin:
     @safely_accepts_kwargs
-    def plot_occupancy(self, identifier_details_list=[], fig=None, ax=None, **kwargs):
+    def plot_occupancy(self, identifier_details_list=[], fig=None, ax=None, active_context=None, **kwargs):
         """ the actually used plotting function. 
         Calls `plot_placefield_occupancy` to do the real plotting. Mostly just sets the title, subtitle, etc.
         #TODO 2023-06-13 19:25: - [ ] Fix `self.config.str_for_display(is_2D)` to enable excluding irrelevant items by includelist
@@ -17,13 +18,31 @@ class PfnD_PlotOccupancy_Mixin:
             active_pf_occupancy_identifier_string = '1D Occupancy'
             is_2D = False
             
+
+        use_flexitext_titles = kwargs.get('use_flexitext_titles', True) # use fancy flexitext titles if this is true
+        
         active_pf_occupancy_identifier_string = ' - '.join([active_pf_occupancy_identifier_string] + identifier_details_list)
         title_string = ' '.join([active_pf_occupancy_identifier_string])
-        subtitle_string = ' '.join([f'{self.config.str_for_display(is_2D)}'])
+        subtitle_string = ' '.join([f'{self.config.str_for_display(is_2D)}'])    
+        
         occupancy_fig, occupancy_ax = plot_placefield_occupancy(self, fig=fig, ax=ax, **kwargs)
-        occupancy_fig.suptitle(title_string, fontsize='14', wrap=True)
+
         occupancy_fig.canvas.manager.set_window_title(title_string) # sets the window's title
-        occupancy_ax.set_title(subtitle_string, fontsize='10', wrap=True)
+        
+        if not use_flexitext_titles:
+            occupancy_fig.suptitle(title_string, fontsize='14', wrap=True)
+            occupancy_ax.set_title(subtitle_string, fontsize='10', wrap=True)
+        else:
+            from flexitext import flexitext ## flexitext version
+            # Clear the normal text:
+            occupancy_fig.suptitle('')
+            occupancy_ax.set_title('')
+            text_formatter = FormattedFigureText()
+            text_formatter.setup_margins(occupancy_fig)
+            subtitle_string = '\n'.join([f'{self.config.str_for_display(is_2D)}'])
+            header_text_obj = flexitext(text_formatter.left_margin, text_formatter.top_margin, f'<size:22><weight:bold>{title_string}</></>\n<size:12>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+            footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
         return occupancy_fig, occupancy_ax
     
     

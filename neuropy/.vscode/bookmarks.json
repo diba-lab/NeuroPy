@@ -34,7 +34,7 @@
 					"label": "POSTLOAD_estimate_laps_and_replays"
 				},
 				{
-					"line": 310,
+					"line": 350,
 					"column": 38,
 					"label": "ACTIVE: session_specific_override_dict"
 				}
@@ -99,7 +99,7 @@
 			"path": "utils/matplotlib_helpers.py",
 			"bookmarks": [
 				{
-					"line": 1021,
+					"line": 1152,
 					"column": 41,
 					"label": "ACTIVE: interactive_select_grid_bin_bounds_2D"
 				}
