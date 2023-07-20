@@ -559,6 +559,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     @staticmethod
     def _default_compute_linear_position_if_needed(session, force_recompute=True):
+        """
+        # -[ ] TODO ISSUE 2023-06-05: `lin_pos` is apparently messed up when loaded from old files. 
+        """
+        
+
         # this is not general, this is only used for this particular flat kind of file:
         from neuropy.utils.position_util import RegularizationApproach # for `_default_compute_linear_position_if_needed`
 
