@@ -977,6 +977,7 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
     else:
         extents = None
         
+    initial_extents = extents  # Store the initial extents
     # ax = axs[0]
     # props = dict(facecolor='blue', alpha=0.5)
     props=None
@@ -991,7 +992,11 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
             extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
             selector.extents = extents
             
-    return selector, set_extents
+    def reset_extents():
+        """Reset the selector to the initial extents. Captures `initial_extents`."""
+        selector.extents = initial_extents
+        
+    return selector, set_extents, reset_extents
 
 
 # grid_bin_bounds updating versions __________________________________________________________________________________ #
@@ -1022,27 +1027,46 @@ def interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze
     range_selector, set_extents = add_range_selector(fig, ax, orientation="horizontal", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed)
     return fig, ax, range_selector, set_extents
 
+
 def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input:bool=True, should_apply_updates_to_pipeline=True):
     """ allows the user to interactively select the grid_bin_bounds for the pf2D
-    
+    Uses:
+        plot_occupancy, add_rectangular_selector
+
+
     Usage:
         from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_2D
-        fig, ax, rect_selector, set_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
+        fig, ax, rect_selector, set_extents, reset_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
     """
     # from neuropy.utils.matplotlib_helpers import add_rectangular_selector # interactive_select_grid_bin_bounds_2D
     computation_result = curr_active_pipeline.computation_results[epoch_name]
     grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
     epoch_context = curr_active_pipeline.filtered_contexts[epoch_name]
-                     
+                    
     fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name]) 
 
-    rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+    rect_selector, set_extents, reset_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+    
+    # Add a close event handler to break the while loop when the figure is manually closed
+    was_closed = False
+    def on_close(event):
+        nonlocal was_closed
+        was_closed = True
+    fig.canvas.mpl_connect('close_event', on_close)
+    
+    # Add a key press event handler to reset the selector when 'r' is pressed
+    def on_key_press(event):
+        if event.key == 'r':
+            print(f'resetting extents.')
+            reset_extents()
+    fig.canvas.mpl_connect('key_press_event', on_key_press)
     
     def _on_update_grid_bin_bounds(new_grid_bin_bounds):
         """ called to update the grid_bin_bounds for all filtered_epochs with the new values (new_grid_bin_bounds) 
         Captures: `curr_active_pipeline`
         """
         print(f'_on_update_grid_bin_bounds(new_grid_bin_bounds: {new_grid_bin_bounds})')
+        # does it also need to update session or anything?
         for epoch_name, computation_result in curr_active_pipeline.computation_results.items():
             computation_result.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
                 
@@ -1051,6 +1075,10 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
         # hold plot until a keyboard key is pressed
         keyboardClick = False
         while keyboardClick != True:
+            if was_closed:
+                # Figure was manually closed, break the loop
+                print(f'Figure was manually closed, break the loop.')
+                break
             keyboardClick = plt.waitforbuttonpress() # plt.waitforbuttonpress() exits the inactive state as soon as either a key is pressed or the Mouse is clicked. However, the function returns True if a keyboard key was pressed and False if a Mouse was clicked
             if keyboardClick:
                 # Button was pressed
@@ -1072,7 +1100,7 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
                 #     plt.close()
                 #     return grid_bin_bounds
     else:
-        return fig, ax, rect_selector, set_extents
+        return fig, ax, rect_selector, set_extents, reset_extents
 
 
 
