@@ -7,7 +7,8 @@ import sys, os
 from pathlib import Path
 
 # testing extensions
-from tests.unittesting_extensions.numpy_helpers import NumpyTestCase
+# from tests.unittesting_extensions.numpy_helpers import NumpyTestCase
+from unittesting_extensions.numpy_helpers import NumpyTestCase
 
 # Add Neuropy to the path as needed
 tests_folder = Path(os.path.dirname(__file__))

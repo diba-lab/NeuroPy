@@ -40,16 +40,6 @@ from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#
 from neuropy.utils.mixins.diffable import DiffableObject
 from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
-from functools import update_wrapper, partial # for context_extraction
-from klepto.archives import cache as archive_dict
-from klepto.archives import file_archive, sql_archive, dict_archive
-from klepto.keymaps import keymap, hashmap, stringmap
-from klepto.tools import CacheInfo
-from klepto.rounding import deep_round, simple_round
-from klepto._inspect import _keygen
-
-# _keymap = stringmap(flat=False)
-# _keymap = keymap(flat=False)
 
 """ 
 user_args, user_kwds = _keygen(func, ignored, *args, **kwds)
@@ -63,8 +53,10 @@ key = keymap(*_args, **_kwds)
 
 keymap: a tool for converting a function's input signature to an unique key
 
-
 """
+
+
+
 
 class CollisionOutcome(Enum):
     """Describes how to update the context when a key that already exists is present."""
@@ -72,8 +64,6 @@ class CollisionOutcome(Enum):
     FAIL_IF_DIFFERENT = "fail" # throws an exception if the two values are not equal
     REPLACE_EXISTING = "replace_existing" # replaces the existing value for that key with the new one provided
     APPEND_USING_KEY_PREFIX = "append_using_key_prefix" # uses the collision_prefix provided to generate a new unique key and assigns that key the new value
-    
-
 
 @define(slots=False, eq=False) # eq=False makes hashing and equality by identity, which is appropriate for this type of object
 class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
@@ -82,6 +72,36 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         Should not hold any state or progress-related variables. 
     
         # SubsettableDict: provides `to_dict`, `keys`, `keypaths`
+        
+        
+        Usage:
+            from neuropy.utils.result_context import IdentifyingContext, CollisionOutcome
+            
+        The user should be able to query a list of IdentifyingContext items and find all that match a certain criteria.
+        For an example dictionary containing dictionaries with values for each of the IdentifyingContexts:
+            _specific_session_override_dict = { 
+                IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((29.16, 261.70), (130.23, 150.99))},
+                IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):{'grid_bin_bounds':((22.397021260868584, 245.6584673739576), (133.66465594522782, 155.97244934208123))},
+                IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((17.01858788173554, 250.2171441367766), (135.66814125966783, 154.75073313142283)))),
+                IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):{'grid_bin_bounds':(((29.088604852961407, 251.70402561515647), (138.496638485457, 154.30675703402517)))},
+                IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
+                IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
+                IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):{'grid_bin_bounds':(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))},
+                IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
+                IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):{'grid_bin_bounds':(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))},
+            }
+            # Example Query 1: To find any relevent entries for the 'exper_name'=='one':
+                    IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((29.16, 261.70), (130.23, 150.99))},
+                    IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
+                    IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
+                    IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
+                    IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):{'grid_bin_bounds':(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))},
+                    
+            # Example Query 2: To find any relevent entries for the 'animal'=='vvp01':
+                IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
+                IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
+                IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):{'grid_bin_bounds':(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))},
+        
     """
     def __init__(self, **kwargs):
         super(IdentifyingContext, self).__init__()
@@ -89,6 +109,29 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         for name, value in kwargs.items():
             setattr(self, name, value)
         
+
+    def query(self, criteria: Dict[str, Any]) -> bool:
+        """
+        Checks if the IdentifyingContext instance matches the given criteria.
+
+        Parameters
+        ----------
+        criteria : Dict[str, Any]
+            A dictionary where keys are attribute names and values are attribute values that an
+            IdentifyingContext instance should have to match the criteria.
+
+        Returns
+        -------
+        bool
+            True if the IdentifyingContext instance matches the criteria, False otherwise.
+        """
+        for key, value in criteria.items():
+            if not hasattr(self, key) or getattr(self, key) != value:
+                return False
+        return True
+
+
+
     def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items):
         """ adds the additional_context_items to self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
@@ -120,7 +163,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         
         return duplicate_ctxt
     
-
     @staticmethod
     def _get_session_context_keys() -> List[str]:
         return ['format_name','animal','exper_name', 'session_name']
@@ -154,7 +196,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             final_name = name
         return final_name
 
-
     # Helper methods that don't require a collision_prefix and employ a fixed strategy. All call self.adding_context(...) with the appropriate arguments:
     def adding_context_if_missing(self, **additional_context_items) -> "IdentifyingContext":
         return self.adding_context(None, strategy=CollisionOutcome.IGNORE_UPDATED, **additional_context_items)
@@ -167,35 +208,11 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         """
         return self.adding_context(collision_prefix, **additional_context.to_dict())
     
-
     def __or__(self, other):
         """ Used with vertical bar operator: |
-        
         Usage:
             (_test_complete_spike_analysis_config | _test_partial_spike_analysis_config)    
         """
-        # if isinstance(other, (dict)):
-        #     other_dict = other
-        # elif isinstance(other, "IdentifyingContext"):
-        #     other_dict = other.to_dict()
-        # else:
-        #     # try to convert the other type into a dict using all known available methods: IdentifyingContext
-        #     try:
-        #         other_dict = other.to_dict() # try to convert to dict using the .to_dict() method if possible
-        #     except Exception as e:
-        #         # If that failed, fallback to trying to access the object's .__dict__ property
-        #         try:
-        #             other_dict = dict(other.items())
-        #         except Exception as e:
-        #             # Give up, can't convert!                
-        #             print(f'UNHANDLED TYPE: type(other): {type(other)}, other: {other}')         
-        #             other_dict = None
-        #             raise e
-
-        #         pass # other_dict               
-        
-        # dict_or = self.to_dict().__or__(other_dict)
-        # return IdentifyingContext.init_from_dict(dict_or)
         return self.merging_context(None, other) # due to passing None as the collision context, this will fail if there are collisions
 
     def get_description(self, subset_includelist=None, subset_excludelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
@@ -245,10 +262,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             "IdentifyingContext({'format_name': 'kdiba', 'session_name': '2006-6-08_14-26-15', 'filter_name': 'maze1_PYR'})" 
             "IdentifyingContext<('kdiba', '2006-6-08_14-26-15', 'maze1_PYR')>"
         """
-        # return f"IdentifyingContext({self.get_description(include_property_names=True)})"
-        # return f"IdentifyingContext({self.get_description(include_property_names=False)})"
         return f"IdentifyingContext<{self.as_tuple().__repr__()}>"
-        # return f"IdentifyingContext({self.to_dict().__repr__()})"
         
     # _ipython_key_completions_
     def _repr_pretty_(self, p, cycle):
@@ -301,7 +315,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         return IdentifyingContext.init_from_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist))
 
 
-
     # Differencing and Set Operations ____________________________________________________________________________________ #
     def subtracting(self, rhs) -> "IdentifyingContext":
         return self.subtract(self, rhs)
@@ -318,8 +331,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     def __getstate__(self):
         # Copy the object's state from self.__dict__ which contains all our instance attributes. Always use the dict.copy() method to avoid modifying the original state.
         state = self.__dict__.copy()
-        # Remove the unpicklable entries.
-        # del state['file']
+        # Remove the unpicklable entries. del state['file']
         return state
 
     def __setstate__(self, state):
