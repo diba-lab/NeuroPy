@@ -212,7 +212,7 @@ class UserAnnotationsManager:
 
     @classmethod
     def get_hardcoded_specific_session_override_dict(cls) -> dict:
-        """ Extracted from `NeuroPy.neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat` 
+        """ Extracted from `neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat` 
             ## Create a dictionary of overrides that have been specified manually for a given session:
             # Used in `build_lap_only_short_long_bin_aligned_computation_configs`
 
