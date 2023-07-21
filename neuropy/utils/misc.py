@@ -10,6 +10,8 @@ import collections
 import _collections_abc as cabc
 import abc
 
+from datetime import datetime
+from enum import unique, Enum
 
 
 
@@ -337,3 +339,45 @@ def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, 
     # df = pd.merge(subset_neurons_properties_df, df, on=join_column_name, how='outer', suffixes=('_neurons_properties', '_spikes_df'))
     return pd.merge(df, subset_neurons_properties_df, on=join_column_name, how='left', suffixes=('_neurons_properties', '_spikes_df'), copy=False) # avoids copying if possible
 
+
+# ==================================================================================================================== #
+# Date/Time Helpers                                                                                                    #
+# ==================================================================================================================== #
+
+@unique
+class DateTimeFormat(Enum):
+    """Converts between datetime and string
+    
+    Usage:
+    
+        from neuropy.utils.misc import DateTimeFormat
+        
+        now = datetime.now()
+
+        # Convert datetime to string
+        s = DateTimeFormat.WHOLE_SECONDS.datetime_to_string(now)
+        print(s)
+
+        # Convert string back to datetime
+        dt = DateTimeFormat.WHOLE_SECONDS.string_to_datetime(s)
+        print(dt)
+
+    """
+    WHOLE_SECONDS = "%Y-%m-%dT%H-%M-%S" # Format the date and time in ISO 8601 format, without fractional seconds
+    FRACTIONAL_SECONDS = "%Y-%m-%dT%H-%M-%S.%f" # Format the date and time in ISO 8601 format, but replace the ':' (which is illegal in filenames) with '-'
+
+    def datetime_to_string(self, dt: datetime) -> str:
+        return dt.strftime(self.value)
+
+    def string_to_datetime(self, s: str) -> datetime:
+        return datetime.strptime(s, self.value)
+
+    @property
+    def now_string(self) -> str:
+        """Get the current date and time as an appropriately formatted string
+        Usage:
+            from neuropy.utils.misc import DateTimeFormat
+            DateTimeFormat.WHOLE_SECONDS.now_string
+        """
+        return self.datetime_to_string(datetime.now())
+        
