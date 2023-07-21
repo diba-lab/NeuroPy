@@ -20,7 +20,7 @@ from neuropy.utils.dynamic_container import DynamicContainer
 from neuropy.utils.result_context import IdentifyingContext
 
 ## TODO: move UserAnnotationsManager out into neuropy
-# from pyphoplacecellanalysis.General.Model.user_annotations import UserAnnotationsManager
+# from neuropy.core.user_annotations import UserAnnotationsManager
 
 class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
