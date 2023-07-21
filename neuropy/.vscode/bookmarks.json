@@ -24,17 +24,7 @@
 			"path": "core/session/Formats/Specific/KDibaOldDataSessionFormat.py",
 			"bookmarks": [
 				{
-					"line": 127,
-					"column": 57,
-					"label": "post_load_functions"
-				},
-				{
-					"line": 135,
-					"column": 19,
-					"label": "POSTLOAD_estimate_laps_and_replays"
-				},
-				{
-					"line": 350,
+					"line": 258,
 					"column": 38,
 					"label": "ACTIVE: session_specific_override_dict"
 				}
