@@ -129,7 +129,13 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
                 return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
 
     def str_for_display(self, is_2D):
-        """ For rendering in a title, etc """
+        """ For rendering in a title, etc
+        
+        #TODO 2023-07-21 16:35: - [ ] The np.printoptions doesn't affect the values that are returned from `extras_string = ', '.join(self._unlisted_parameter_strings())`
+        We end up with '(speedThresh_10.00, gridBin_2.00, smooth_2.00, frateThresh_1.00)grid_bin_bounds_((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))' (too many sig-figs on the output grid_bin_bounds)
+        
+        """
+        
         with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
             extras_string = ', '.join(self._unlisted_parameter_strings())
             if is_2D:

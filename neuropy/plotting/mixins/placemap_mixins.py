@@ -1,3 +1,4 @@
+from copy import deepcopy
 from neuropy.core.neuron_identities import PlotStringBrevityModeEnum
 from neuropy.plotting.placemaps import plot_placefield_occupancy
 from neuropy.plotting.ratemaps import enumTuningMap2DPlotVariables, plot_ratemap_1D, plot_ratemap_2D, plot_ratemap_2D
@@ -29,7 +30,7 @@ class PfnD_PlotOccupancy_Mixin:
 
         occupancy_fig.canvas.manager.set_window_title(title_string) # sets the window's title
         
-        if not use_flexitext_titles:
+        if (active_context is None) or (not use_flexitext_titles):
             occupancy_fig.suptitle(title_string, fontsize='14', wrap=True)
             occupancy_ax.set_title(subtitle_string, fontsize='10', wrap=True)
         else:
@@ -39,8 +40,11 @@ class PfnD_PlotOccupancy_Mixin:
             occupancy_ax.set_title('')
             text_formatter = FormattedFigureText()
             text_formatter.setup_margins(occupancy_fig)
-            subtitle_string = '\n'.join([f'{self.config.str_for_display(is_2D)}'])
-            header_text_obj = flexitext(text_formatter.left_margin, text_formatter.top_margin, f'<size:22><weight:bold>{title_string}</></>\n<size:12>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+            active_config = deepcopy(self.config)
+            # active_config.float_precision = 1
+            
+            subtitle_string = '\n'.join([f'{active_config.str_for_display(is_2D)}'])
+            header_text_obj = flexitext(text_formatter.left_margin, 0.95, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
             footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
 
         return occupancy_fig, occupancy_ax
