@@ -32,7 +32,7 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 """
 
 import copy
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict, Optional, Union
 from enum import Enum
 from functools import wraps # used for decorators
 from attrs import define, field, Factory
@@ -96,12 +96,27 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
                     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
                     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
                     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):{'grid_bin_bounds':(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))},
-                    
+
+                    # Test 1: To find any relevant entries for the 'exper_name' == 'one'
+                    relevant_entries = [ic for ic, _ in identifying_context_list if ic.query({'exper_name': 'one'})]
+
+            
             # Example Query 2: To find any relevent entries for the 'animal'=='vvp01':
                 IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
                 IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
                 IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):{'grid_bin_bounds':(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))},
         
+                # Test 2: To find any relevant entries for the 'animal' == 'vvp01'
+                relevant_entries = [ctxt for ctxt, _ in self.identifying_context_list if ctxt.query({'animal': 'vvp01'})]
+        
+                
+        Query Usage:
+            # Test 2: To find any relevant entries for the 'animal' == 'vvp01'
+            relevant_entries = [ctxt for ctxt, _ in self.identifying_context_list if ctxt.query({'animal': 'vvp01'})]
+
+            # Test 2: To find any relevant entries for the 'animal' == 'vvp01'
+            relevant_entries = {ctxt:v for ctxt,v in identifying_context_dict.items() if ctxt.query({'animal': 'vvp01'})]    
+                
     """
     def __init__(self, **kwargs):
         super(IdentifyingContext, self).__init__()
@@ -110,7 +125,32 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             setattr(self, name, value)
         
 
-    def query(self, criteria: Dict[str, Any]) -> bool:
+    @classmethod
+    def matching(cls, context_iterable: Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]], criteria: Union[Dict[str, Any], "IdentifyingContext"]) -> Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]]:
+        """ 
+        Queries the iterable (either list of dict with IdentifyingContext as keys) and returns the values matching the criteria
+        criteria={'animal': 'vvp01'}
+        
+        Usage:
+        
+        annotations_man = UserAnnotationsManager()
+        identifying_context_dict = annotations_man.get_hardcoded_specific_session_override_dict()
+
+        relevant_entries = IdentifyingContext.matching(identifying_context_dict, criteria={'animal': 'vvp01'})
+        
+        """
+        if isinstance(context_iterable, (list, tuple)):
+            relevant_entries = [ctxt for ctxt, _ in context_iterable if ctxt.query(criteria)]
+
+        elif hasattr(context_iterable, 'items'):
+            relevant_entries = {ctxt:v for ctxt,v in context_iterable.items() if ctxt.query(criteria)}
+        else:
+            raise ValueError
+
+        return relevant_entries
+
+
+    def query(self, criteria: Union[Dict[str, Any], "IdentifyingContext"]) -> bool:
         """
         Checks if the IdentifyingContext instance matches the given criteria.
 
