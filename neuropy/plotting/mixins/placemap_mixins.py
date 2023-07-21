@@ -44,7 +44,7 @@ class PfnD_PlotOccupancy_Mixin:
             # active_config.float_precision = 1
             
             subtitle_string = '\n'.join([f'{active_config.str_for_display(is_2D)}'])
-            header_text_obj = flexitext(text_formatter.left_margin, 0.95, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+            header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
             footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
 
         return occupancy_fig, occupancy_ax
