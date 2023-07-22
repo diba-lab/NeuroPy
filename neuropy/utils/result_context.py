@@ -37,6 +37,8 @@ from enum import Enum
 from functools import wraps # used for decorators
 from attrs import define, field, Factory
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
+from collections import defaultdict # used for find_unique_values
+
 from neuropy.utils.mixins.diffable import DiffableObject
 from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
@@ -170,6 +172,43 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
                 return False
         return True
 
+
+    @classmethod
+    def find_unique_values(cls, context_iterable: List["IdentifyingContext"]) -> dict:
+        """
+        Takes a list of IdentifyingContext objects and finds all of the unique values
+        for each of their shared keys.
+
+        Parameters
+        ----------
+        ic_list : list
+            A list of IdentifyingContext objects.
+
+        Returns
+        -------
+        dict
+            A dictionary where keys are attribute names shared by all IdentifyingContext objects in the list,
+            and values are sets of unique attribute values.
+            
+        Example:
+        
+        {'format_name': {'kdiba'},
+        'animal': {'gor01', 'pin01', 'vvp01'},
+        'exper_name': {'one', 'two'},
+        'session_name': {'11-02_17-46-44','2006-4-09_16-40-54', '2006-4-09_17-29-30', '2006-4-10_12-25-50', '2006-6-07_16-40-19', '2006-6-08_14-26-15', '2006-6-08_21-16-25', '2006-6-09_1-22-43', '2006-6-09_22-24-40', '2006-6-12_15-55-31', '2006-6-12_16-53-46', 'fet11-01_12-58-54'}
+        }
+        """
+        unique_values = defaultdict(set)
+
+        for ic in context_iterable:
+            for key, value in ic.to_dict().items():
+                unique_values[key].add(value)
+
+        # Remove keys that are not shared by all IdentifyingContext objects
+        shared_keys = set.intersection(*(set(ic.to_dict().keys()) for ic in context_iterable))
+        unique_values = {key: values for key, values in unique_values.items() if key in shared_keys}
+
+        return unique_values
 
 
     def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items):
