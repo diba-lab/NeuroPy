@@ -8,7 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import numpy as np
 from cycler import cycler
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 
 class Colormap:
@@ -121,6 +121,7 @@ class Fig:
         # mpl.rcParams["font.sans-serif"] = "Arial"
         mpl.rcParams["pdf.fonttype"] = 42
         mpl.rcParams["ps.fonttype"] = 42
+        mpl.rcParams["svg.fonttype"] = "none"
         mpl.rcParams["axes.linewidth"] = axis_lw
         mpl.rcParams["axes.labelsize"] = fontsize
         mpl.rcParams["axes.titlesize"] = fontsize
@@ -131,6 +132,8 @@ class Fig:
         mpl.rcParams["axes.spines.top"] = False
         mpl.rcParams["axes.spines.right"] = False
         mpl.rcParams["xtick.major.width"] = axis_lw
+        # mpl.rcParams["axes.autolimit_mode"] = "round_numbers"
+        # mpl.rcParams["axes.ymargin"] = 0
         mpl.rcParams["xtick.major.size"] = tick_size
         mpl.rcParams["ytick.major.size"] = tick_size
         mpl.rcParams["xtick.color"] = axis_color
@@ -254,17 +257,14 @@ class Fig:
         for item in legend.legendHandles:
             item.set_visible(False)
 
-    def savefig(self, fname: Path, dpi=None):
+    def savefig(self, fname: Path, dpi="figure", format="pdf"):
         """Note: Illustrator takes a very long time to open pdf when dpi=300"""
         fig = self.fig
         # fig.set_dpi(300)
-        filename = fname.with_suffix(".pdf")
+        filename = fname.with_suffix(f".{format}")
         # today = date.today().strftime("%m/%d/%y")
 
-        if dpi is not None:
-            fig.savefig(filename, dpi=dpi)
-        else:
-            fig.savefig(filename)
+        fig.savefig(filename, format=format, dpi=dpi)
 
         # if caption is not None:
         #     fig_caption = Fig(grid=(1, 1))
@@ -286,6 +286,11 @@ class Fig:
         #     pdf.savefig(fig_caption.fig)
 
     @staticmethod
+    def good_yticks(ax):
+        yticks = ax.get_yticks()
+        ax.set_yticks(yticks)
+
+    @staticmethod
     def pf_1D(ax):
         ax.spines["left"].set_visible(False)
         ax.tick_params("y", length=0)
@@ -304,6 +309,51 @@ class Fig:
     def center_spines(ax):
         ax.spines["left"].set_position("zero")
         ax.spines["bottom"].set_position("zero")
+
+    @staticmethod
+    def trim_spines(ax):
+        xticks = np.asarray(ax.get_xticks())
+        if xticks.size:
+            firsttick = np.compress(xticks >= min(ax.get_xlim()), xticks)[0]
+            lasttick = np.compress(xticks <= max(ax.get_xlim()), xticks)[-1]
+            ax.spines["bottom"].set_bounds(firsttick, lasttick)
+            ax.spines["top"].set_bounds(firsttick, lasttick)
+            newticks = xticks.compress(xticks <= lasttick)
+            newticks = newticks.compress(newticks >= firsttick)
+            ax.set_xticks(newticks)
+
+        yticks = np.asarray(ax.get_yticks())
+        if yticks.size:
+            firsttick = np.compress(yticks >= min(ax.get_ylim()), yticks)[0]
+            lasttick = np.compress(yticks <= max(ax.get_ylim()), yticks)[-1]
+            ax.spines["left"].set_bounds(firsttick, lasttick)
+            ax.spines["right"].set_bounds(firsttick, lasttick)
+            newticks = yticks.compress(yticks <= lasttick)
+            newticks = newticks.compress(newticks >= firsttick)
+            ax.set_yticks(newticks)
+
+    @staticmethod
+    def get_colormap(low, high, n=20):
+        """_summary_
+
+        Parameters
+        ----------
+        low : color
+            color for low values
+        high : _type_
+            color for high values
+        n : int, optional
+            number of colors in the colormap, by default 20
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        colors = [low, high]  # first color is low, last is high
+        cm = LinearSegmentedColormap.from_list("Custom", colors, N=n)
+
+        return cm
 
 
 def pretty_plot(ax, round_ylim=False):

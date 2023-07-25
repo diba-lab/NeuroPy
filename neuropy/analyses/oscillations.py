@@ -78,7 +78,6 @@ def _detect_freq_band_epochs(
     ind_delete = []
     for i in range(n_epochs - 1):
         if starts[i + 1] - stops[i] < 1e-6:
-
             # stretch the second epoch to cover the range of both epochs
             starts[i + 1] = min(starts[i], starts[i + 1])
             stops[i + 1] = max(stops[i], stops[i + 1])
@@ -119,12 +118,27 @@ def _detect_freq_band_epochs(
     return epochs
 
 
-def detect_hpc_slow_wave_epochs(
-    signal: Signal, freq_band=(0.5, 4), nrem_epochs: Epoch = None
+def detect_hpc_delta_wave_epochs(
+    signal: Signal,
+    freq_band=(0.5, 4),
+    min_dur=0.15,
+    max_dur=0.5,
+    ignore_epochs: Epoch = None,
 ):
-    """Caculate delta events only
+    """Detect delta waves epochs.
 
-    chan --> filter delta --> identify peaks and troughs within sws epochs only --> identifies a slow wave as trough to peak --> thresholds for 100ms minimum duration
+    Method
+    -------
+    Maingret, Nicolas, Gabrielle Girardeau, Ralitsa Todorova, Marie Goutierre, and Michaël Zugaro. “Hippocampo-Cortical Coupling Mediates Memory Consolidation during Sleep.” Nature Neuroscience 19, no. 7 (July 2016): 959–64. https://doi.org/10.1038/nn.4304.
+
+    -> filtered singal in 0.5-4 Hz (Note: Maingret et al. used 0-6 Hz for cortical LFP)
+    -> remove noisy epochs if provided
+    -> z-scored the filtered signal, D(t)
+    -> flip the sign of signal to be consistent with cortical LFP
+    -> calculate derivative, D'(t)
+    -> extract upward-downward-upward zero-crossings which correspond to start,peak,stop of delta waves, t_start, t_peak, t_stop
+    -> discard sequences below 150ms and above 500ms
+    -> Delta waves corresponded to epochs where D(t_peak) > 2, or D(t_peak) > 1 and D(t_stop) < -1.5.
 
     Parameters
     ----------
@@ -132,61 +146,75 @@ def detect_hpc_slow_wave_epochs(
         signal trace to be used for detection
     freq_band : tuple, optional
         frequency band in Hz, by default (0.5, 4)
+    min_dur: float, optional
+        minimum duration for delta waves, by default 0.15 seconds
+    max_dur: float, optional
+        maximum duration for delta waves, by default 0.5 seconds
+    ignore_epochs: core.Epoch, optional
+        ignore timepoints within these epochs, primarily used for noisy time periods if known already, by default None
+
+    Returns
+    -------
+    Epoch
+        delta wave epochs. In addition, peak_time, peak_amp_zsc, stop_amp_zsc are also returned as columns
     """
 
+    assert freq_band[1] <= 6, "Upper limit of freq_band can not be above 6 Hz"
     assert signal.n_channels == 1, "Signal should have only 1 channel"
 
-    def _get_sw(sig_):
-        # ---- filtering in delta band -----
-        trace = sig_.traces[0]
-        t = sig_.time
-        lf, hf = freq_band
-        delta = signal_process.filter_sig.bandpass(trace, lf=lf, hf=hf)
+    delta_signal = signal_process.filter_sig.bandpass(
+        signal, lf=freq_band[0], hf=freq_band[1]
+    ).traces[0]
+    time = signal.time
 
-        # ---- normalize and flip the sign to be consistent with cortical lfp ----
-        delta = 1 * stats.zscore(delta)
+    # ----- remove timepoints provided in ignore_epochs ------
+    if ignore_epochs is not None:
+        noisy_bool = ignore_epochs.get_indices_for_time(time)
+        time = time[~noisy_bool]
+        delta_signal = delta_signal[~noisy_bool]
 
-        # ---- finding peaks and trough for delta oscillations
+    # ---- normalize and flip the sign to be consistent with cortical lfp ----
+    delta_zsc = -1 * stats.zscore(delta_signal)
 
-        up = sg.find_peaks(delta)[0]
-        down = sg.find_peaks(-delta)[0]
+    # ---- finding peaks and trough for delta oscillations
+    delta_zsc_diff = np.diff(delta_zsc).squeeze()
+    zero_crossings = np.diff(np.sign(delta_zsc_diff))
+    troughs_indx = np.where(zero_crossings > 0)[0]
+    peaks_indx = np.where(zero_crossings < 0)[0]
 
-        if up[0] < down[0]:
-            up = up[1:]
-        if up[-1] > down[-1]:
-            up = up[:-1]
+    if peaks_indx[0] < troughs_indx[0]:
+        peaks_indx = peaks_indx[1:]
 
-        sigdelta = []
-        for i in range(len(down) - 1):
-            tbeg = t[down[i]]
-            tpeak = t[up[i]]
-            tend = t[down[i + 1]]
-            peakamp = delta[up[i]]
-            endamp = delta[down[i + 1]]
-            # ------ thresholds for selecting delta --------
-            # if (peakamp > 2 and endamp < 0) or (peakamp > 1 and endamp < -1.5):
-            sigdelta.append([peakamp, endamp, tpeak, tbeg, tend])
+    if peaks_indx[-1] > troughs_indx[-1]:
+        peaks_indx = peaks_indx[:-1]
 
-        return np.asarray(sigdelta)
+    n_peaks_in_troughs = np.histogram(peaks_indx, troughs_indx)[0]
+    assert n_peaks_in_troughs.max() == 1, "Found multiple peaks within troughs"
 
-    if nrem_epochs is not None:
-        sw = []
-        for e in nrem_epochs.as_array():
-            sw.append(_get_sw(signal.time_slice(t_start=e[0], t_stop=e[1])))
-        sw = np.vstack(sw)
-    else:
-        sw = _get_sw(signal)
+    troughs_time, peaks_time = time[troughs_indx], time[peaks_indx]
+    trough_pairs = np.vstack((troughs_time[:-1], troughs_time[1:])).T
+    trough_peak_trough = np.insert(trough_pairs, 1, peaks_time, axis=1)
+    duration = np.diff(trough_pairs, axis=1).squeeze()
+    peak_amp = delta_zsc[peaks_indx]
+    stop_amp = delta_zsc[troughs_indx[1:]]
 
-    print(f"{len(sw)} delta waves detected")
+    # ---- filtering based on duration and z-scored amplitude -------
+    good_duration_bool = (duration >= min_dur) & (duration <= max_dur)
+    good_amp_bool = (peak_amp > 2) | ((peak_amp > 1.5) & (stop_amp < -1.5))
+    good_bool = good_amp_bool & good_duration_bool
+
+    delta_waves_time = trough_peak_trough[good_bool]
+
+    print(f"{delta_waves_time.shape[0]} delta waves detected")
 
     epochs = pd.DataFrame(
         {
-            "start": sw[:, 3],
-            "stop": sw[:, 4],
-            "peaktime": sw[:, 2],
-            "peakamp": sw[:, 0],
-            "endamp": sw[:, 1],
-            "label": "sw",
+            "start": delta_waves_time[:, 0],
+            "stop": delta_waves_time[:, 2],
+            "peak_time": delta_waves_time[:, 1],
+            "peak_amp_zsc": peak_amp[good_bool],
+            "stop_amp_zsc": stop_amp[good_bool],
+            "label": "delta_wave",
         }
     )
     params = {"freq_band": freq_band, "channel": signal.channel_id}
@@ -350,7 +378,6 @@ def detect_theta_epochs(
     edge_cutoff=-0.25,
     ignore_epochs: Epoch = None,
 ):
-
     if probegroup is None:
         selected_chan = signal.channel_id
         traces = signal.traces
@@ -408,7 +435,6 @@ def detect_spindle_epochs(
     ignore_epochs: Epoch = None,
     method="hilbert",
 ):
-
     if probegroup is None:
         selected_chans = signal.channel_id
         traces = signal.traces
