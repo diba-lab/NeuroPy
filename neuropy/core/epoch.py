@@ -636,7 +636,7 @@ class Epoch(DataWriter):
         """
         time_bool = np.zeros_like(t)
 
-        for e in self.epochs.as_array():
+        for e in self.as_array():
             time_bool[np.where((t >= e[0]) & (t <= e[1]))[0]] = 1
 
         return time_bool.astype("bool")

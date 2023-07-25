@@ -6,6 +6,8 @@ from .datawriter import DataWriter
 from . import Epoch
 from copy import deepcopy
 from joblib import Parallel, delayed
+from scipy import stats
+from scipy.ndimage import gaussian_filter1d
 
 
 class Neurons(DataWriter):
@@ -294,7 +296,10 @@ class Neurons(DataWriter):
 
         all_spikes = self.get_all_spikes()
         bins = np.arange(self.t_start, self.t_stop, bin_size)
-        spike_counts = np.histogram(all_spikes, bins=bins)[0]
+        # spike_counts = np.histogram(all_spikes, bins=bins)[0]
+        spike_counts = stats.binned_statistic(
+            all_spikes, all_spikes, bins=bins, statistic="count"
+        )[0]
         return Mua(spike_counts.astype("int"), t_start=self.t_start, bin_size=bin_size)
 
     def get_psth(self, t: np.array, bin_size: float, n_bins: int, n_jobs=1):
@@ -637,31 +642,27 @@ class Mua(DataWriter):
     def firing_rate(self):
         return self.spike_counts / self.bin_size
 
-    def get_smoothed(self, sigma=0.02, truncate=4.0):
-        t_gauss = np.arange(-truncate * sigma, truncate * sigma, self.bin_size)
-        gaussian = np.exp(-(t_gauss**2) / (2 * sigma**2))
-        gaussian /= np.sum(gaussian)
+    def get_smoothed(self, sigma=0.02, **kwargs):
+        """Smoothing of mua spike counts
 
-        # numpy convolve is much faster than scipy
-        spike_counts = np.convolve(self._spike_counts, gaussian, mode="same")
-        # frate = gaussian_filter1d(self._frate, sigma=sigma, **kwargs)
+        Parameters
+        ----------
+        sigma : float, optional
+            gaussian kernel in seconds, by default 0.02 s (20 milliseconds)
+        kwargs : float, optional
+            keyword arguments for scipy.ndimage.gaussian_filter1d, by default 4.0
+
+        Returns
+        -------
+        core.MUA object
+            containing smoothed spike counts
+        """
+
+        dt = self.bin_size
+        spike_counts = gaussian_filter1d(
+            self.spike_counts, sigma=sigma / dt, output="float", **kwargs
+        )
         return Mua(spike_counts, t_start=self.t_start, bin_size=self.bin_size)
-
-    # def _gaussian(self):
-    #     # TODO fix gaussian smoothing binsize
-    #     """Gaussian function for generating instantenous firing rate
-
-    #     Returns:
-    #         [array] -- [gaussian kernel centered at zero and spans from -1 to 1 seconds]
-    #     """
-
-    #     sigma = 0.020  # 20 ms
-    #     binSize = 0.001  # 1 ms
-    #     t_gauss = np.arange(-1, 1, binSize)
-    #     gaussian = np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
-    #     gaussian /= np.sum(gaussian)
-
-    #     return gaussian
 
     def time_slice(self, t_start, t_stop):
         indices = (self.time >= t_start) & (self.time <= t_stop)
