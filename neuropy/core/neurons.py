@@ -187,7 +187,7 @@ class Neurons(DataWriter):
         pass
 
     def get_all_spikes(self):
-        return np.concatenate(self.spiketrains)
+        return np.concatenate(self.spiketrains).astype("float")
 
     @property
     def n_spikes(self):
@@ -294,13 +294,11 @@ class Neurons(DataWriter):
             [description]
         """
 
-        all_spikes = self.get_all_spikes()
+        spks = self.get_all_spikes()
         bins = np.arange(self.t_start, self.t_stop, bin_size)
-        # spike_counts = np.histogram(all_spikes, bins=bins)[0]
-        spike_counts = stats.binned_statistic(
-            all_spikes, all_spikes, bins=bins, statistic="count"
-        )[0]
-        return Mua(spike_counts.astype("int"), t_start=self.t_start, bin_size=bin_size)
+        # spike_counts = np.histogram(all_spikes, bins=bins)[0] # super slow
+        counts = stats.binned_statistic(spks, spks, bins=bins, statistic="count")[0]
+        return Mua(counts.astype("int"), t_start=self.t_start, bin_size=bin_size)
 
     def get_psth(self, t: np.array, bin_size: float, n_bins: int, n_jobs=1):
         """Get peristimulus time histograms with respect to timepoints
