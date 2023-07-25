@@ -8,7 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import numpy as np
 from cycler import cycler
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 
 class Colormap:
@@ -132,6 +132,8 @@ class Fig:
         mpl.rcParams["axes.spines.top"] = False
         mpl.rcParams["axes.spines.right"] = False
         mpl.rcParams["xtick.major.width"] = axis_lw
+        # mpl.rcParams["axes.autolimit_mode"] = "round_numbers"
+        # mpl.rcParams["axes.ymargin"] = 0
         mpl.rcParams["xtick.major.size"] = tick_size
         mpl.rcParams["ytick.major.size"] = tick_size
         mpl.rcParams["xtick.color"] = axis_color
@@ -284,6 +286,11 @@ class Fig:
         #     pdf.savefig(fig_caption.fig)
 
     @staticmethod
+    def good_yticks(ax):
+        yticks = ax.get_yticks()
+        ax.set_yticks(yticks)
+
+    @staticmethod
     def pf_1D(ax):
         ax.spines["left"].set_visible(False)
         ax.tick_params("y", length=0)
@@ -324,6 +331,29 @@ class Fig:
             newticks = yticks.compress(yticks <= lasttick)
             newticks = newticks.compress(newticks >= firsttick)
             ax.set_yticks(newticks)
+
+    @staticmethod
+    def get_colormap(low, high, n=20):
+        """_summary_
+
+        Parameters
+        ----------
+        low : color
+            color for low values
+        high : _type_
+            color for high values
+        n : int, optional
+            number of colors in the colormap, by default 20
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        colors = [low, high]  # first color is low, last is high
+        cm = LinearSegmentedColormap.from_list("Custom", colors, N=n)
+
+        return cm
 
 
 def pretty_plot(ax, round_ylim=False):
