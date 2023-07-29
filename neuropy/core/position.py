@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Sequence, Union
 import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
+import h5py # for to_hdf and read_hdf definitions
 from pandas.core.indexing import IndexingError
 
 import pandas as pd
@@ -562,6 +563,29 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         )
          
          
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pos_obj: Position = long_one_step_decoder_1D.pf.position
+            _pos_obj.to_hdf(hdf5_output_path, key='pos')
+        """
+        _df = self.to_dataframe()
+        _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
+        
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
+        """  Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
+            _reread_pos_obj
+        """
+        _df = pd.read_hdf(file_path, key=key, **kwargs)
+        return cls(_df, metadata=None) # TODO: recover metadata
+
+
+
 
 
 

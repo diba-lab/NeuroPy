@@ -2,6 +2,8 @@ from typing import Sequence, Union
 from functools import total_ordering
 import numpy as np
 import pandas as pd
+from pandas.api.types import CategoricalDtype
+
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 
@@ -172,6 +174,10 @@ class NeuronType(Enum):
     def renderColor(self):
         return NeuronType.classRenderColors()[self.value]
   
+    @classmethod
+    def get_pandas_categories_type(cls) -> CategoricalDtype:
+        return CategoricalDtype(categories=list(cls.bapunNpyFileStyleShortClassNames()), ordered=True)
+        
   
 
 class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, ConcatenationInitializable, DataWriter):

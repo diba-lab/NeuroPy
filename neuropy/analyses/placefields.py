@@ -570,7 +570,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             setup_on_init=setup_on_init, compute_on_init=compute_on_init, position_srate=position.sampling_rate)
 
 
-
     def setup(self, position: Position, spikes_df, epochs: Epoch, debug_print=False):
         """ do the preliminary setup required to build the placefields
 
@@ -748,7 +747,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
 
-
     @property
     def t(self):
         """The position timestamps property."""
@@ -774,9 +772,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         else:
             return self.filtered_pos_df.speed.to_numpy()
 
-
-
-
     @property
     def xbin_centers(self):
         return self.xbin[:-1] + np.diff(self.xbin) / 2
@@ -784,8 +779,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     @property
     def ybin_centers(self):
         return self.ybin[:-1] + np.diff(self.ybin) / 2
-
-
 
     @property
     def filtered_spikes_df(self):
@@ -927,7 +920,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     def to_1D_maximum_projection(self) -> "PfND":
         return PfND.build_1D_maximum_projection(self)
 
-
     @classmethod
     def build_1D_maximum_projection(cls, pf2D: "PfND") -> "PfND":
         """ builds a 1D ratemap from a 2D ratemap
@@ -956,8 +948,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         new_pf1D = cls._drop_extra_position_info(new_pf1D)
         # ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=pf2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(pf2D.neuron_ids), neuron_extended_ids=deepcopy(pf2D.neuron_extended_ids), metadata=pf2D.metadata)
         return new_pf1D
-
-
 
     def str_for_filename(self, prefix_string=''):
         if self.ndim <= 1:
@@ -1100,6 +1090,28 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             else:
                 pf._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
         return pf
+
+
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pos_obj: Position = long_one_step_decoder_1D.pf.position
+            _pos_obj.to_hdf(hdf5_output_path, key='pos')
+        """
+        _df = self.to_dataframe()
+        _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
+        
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
+        """  Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
+            _reread_pos_obj
+        """
+        _df = pd.read_hdf(file_path, key=key, **kwargs)
+        return cls(_df, metadata=None) # TODO: recover metadata
 
 
 # ==================================================================================================================== #
