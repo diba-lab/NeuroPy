@@ -1099,9 +1099,10 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             _pos_obj: Position = long_one_step_decoder_1D.pf.position
             _pos_obj.to_hdf(hdf5_output_path, key='pos')
         """
-        _df = self.to_dataframe()
-        _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
-        
+        self.position.to_hdf(file_path=file_path, key='f{key}/pos')
+        self.epochs.to_hdf(file_path=file_path, key='f{key}/epochs')
+        self.spikes_df.spikes.to_hdf(file_path, key='f{key}/spikes')
+
 
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":

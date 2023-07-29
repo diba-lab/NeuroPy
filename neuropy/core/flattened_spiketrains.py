@@ -248,7 +248,25 @@ class SpikesAccessor(TimeSlicedMixin):
         self._obj['binned_time'] = pd.cut(self._obj[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
         return self._obj
 
-    
+
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path 
+        Usage:
+
+        .spikes.to_hdf(
+        """
+        _spikes_df = deepcopy(self._obj)
+        cat_type = NeuronType.get_pandas_categories_type()
+        _spikes_df["cell_type"] = _spikes_df["cell_type"].astype(cat_type) #.astype("category")
+        _spikes_df.to_hdf(file_path, key=key, format='table', **kwargs)
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
+        """  Reads the data from the key in the hdf5 file at file_path """
+        return pd.read_hdf(file_path, key=key, **kwargs)
+
+
 
 
 
@@ -410,3 +428,15 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         return spikes_df
 
         
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path """
+        self.to_dataframe().to_hdf(file_path, key=key, **kwargs)
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
+        """  Reads the data from the key in the hdf5 file at file_path """
+        return cls(spikes_df=pd.read_hdf(file_path, key=key, **kwargs)) # TODO: should recover: `, time_variable_name = 't_rel_seconds', t_start=0.0, metadata=None`
+
+
+    

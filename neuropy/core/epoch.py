@@ -131,14 +131,11 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """The subset of the dataframe containing additional information in its columns beyond that what is required. """
         return self._obj[self.extra_data_column_names]
 
-
-
     def as_array(self):
         return self._obj[["start", "stop"]].to_numpy()
 
     def get_unique_labels(self):
         return np.unique(self.labels)
-
 
     def get_start_stop_tuples_list(self):
         """ returns a list of (start, stop) tuples. """
@@ -269,9 +266,6 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def get_named_timerange(self, epoch_name):
         return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
 
-    def to_dict(self, recurrsively=False):
-        d = {"epochs": self._df, "metadata": self.metadata}
-        return d
 
     def to_dataframe(self):
         df = self._df.copy()
@@ -284,7 +278,6 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     @metadata.setter
     def metadata(self, metadata):
         """metadata compatibility"""
-
         self._metadata = metadata
 
     def _check_epochs(self, epochs):
@@ -415,14 +408,10 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
                 
         return curr_epochs
 
-
-
     def to_dict(self, recurrsively=False):
-        return {
-            "epochs": self._df,
-            "metadata": self._metadata,
-        }
-
+        d = {"epochs": self._df, "metadata": self._metadata}
+        return d
+    
     @staticmethod
     def from_dict(d: dict):
         return Epoch(d["epochs"], metadata=d["metadata"])
@@ -558,3 +547,29 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def get_non_overlapping(self, debug_print=False):
         """ Returns a copy with overlapping epochs removed. """
         return Epoch(epochs=self._df.epochs.get_non_overlapping_df(debug_print=debug_print), metadata=self.metadata)
+    
+
+    # HDF5 Serialization _________________________________________________________________________________________________ #
+
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pos_obj: Position = long_one_step_decoder_1D.pf.position
+            _pos_obj.to_hdf(hdf5_output_path, key='pos')
+        """
+        _df = self.to_dataframe()
+        _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
+        
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "Epoch":
+        """  Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pos_obj = Epoch.read_hdf(hdf5_output_path, key='pos')
+            _reread_pos_obj
+        """
+        _df = pd.read_hdf(file_path, key=key, **kwargs)
+        return cls(_df, metadata=None) # TODO: recover metadata
+
+
