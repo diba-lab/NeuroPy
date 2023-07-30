@@ -98,6 +98,25 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
         """ returns whether the class is completely hdf serializable. """
         return True
 
+    @classmethod
+    def _try_default_to_hdf_conversion_fn(cls, file_path, key: str, value):
+        """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. """
+        with h5py.File(file_path, 'w') as f:
+            # if isinstance(a_value, dict):
+                # for attribute, value in a_value.items():
+            # Only flat (non-recurrsive) types allowed.
+            if isinstance(value, pd.DataFrame):
+                value.to_hdf(file_path, key=key)
+            elif isinstance(value, np.ndarray):
+                f.create_dataset(key, data=value)
+            elif isinstance(value, (list, tuple)):
+                # convert to np.array before saving
+                value = np.array(value)
+                f.create_dataset(key, data=value)
+            else:
+                # ... handle other attribute types as needed ...
+                raise NotImplementedError
+
 
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
@@ -118,24 +137,72 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             print(f'WARNING: experimental automatic `to_hdf` implementation for object of type {type(self)} to file_path: {file_path}, with key: {key}:')
         # get serializable fields
         hdf_fields, hdf_fields_filter_fn = self.get_serialized_fields('hdf')
-        
+        active_hdf_fields_dict = {a_field.name:a_field for a_field in hdf_fields} # a dict that allows accessing the actual attr by its name
         # use `asdict` to get a dictionary-representation of self only for the `hdf` serializable fields
-        _temp_obj_dict = asdict(self, filter=hdf_fields_filter_fn, recurse=False)
+        _active_obj_values_dict = asdict(self, filter=hdf_fields_filter_fn, recurse=False)
         # _temp_obj_dict = {k:v.take(indices=aclu_is_included, axis=neuron_shape_index_for_attribute_name_dict[k]) for k, v in _temp_obj_dict.items()} # filter the n_neurons axis containing items to get a reduced dictionary
-        print(f'_temp_obj_dict: {_temp_obj_dict}')
+        # print(f'_temp_obj_dict: {_active_obj_values_dict}')
         # for a_field in hdf_fields:
-        for a_field_attr, a_value in _temp_obj_dict.items():
-            print(f'a_field: {a_field_attr.name}')
+        for a_field_name, a_value in _active_obj_values_dict.items():
+            a_field_attr = active_hdf_fields_dict[a_field_name]
+            if debug_print:
+                print(f'a_field: {a_field_attr.name}')
             a_field_key:str = f'{key}/{a_field_attr.name}'
-            print(f'\ta_field_key: {a_field_key}')
+            if debug_print:
+                print(f'\ta_field_key: {a_field_key}')
             if a_field_attr.type.is_hdf_serializable():
+                ## Known `hdf_serializable` field, meaning it properly implements its own `to_hdf(...)` function! We can just call that! 
                 ## use that fields' to_hdf function
                 if debug_print:
                     print(f'\t field is serializable! Calling a_value.to_hdf(...)...')
                 a_value.to_hdf(file_path=file_path, key=a_field_key)
             else:
+                ## field is not known to be hdf_serializable! It might not serialize correctly even if this method doesn't throw an error.
                 if debug_print:
-                    print(f'\t field not serializable! a_field_attr.type: {a_field_attr.type}.\n\tSkipping.')
+                    print(f'\t field not serializable! a_field_attr.type: {a_field_attr.type}.')
+                print(f'WARNING: {a_field_key} is not serializable, but we will try self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value.')
+                self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
+                
+                # Currently only allows flat fields, but could allow default nested fields like this: `a_value.__dict__`
+                # if hasattr(a_value, 'to_dict'):
+                #     a_value = a_value.to_dict() # convert to dict using the to_dict() method.
+                # elif hasattr(a_value, '__dict__'):
+                #     a_value = a_value.__dict__ #TODO 2023-07-30 19:31: - [ ] save the type as metadata
+                #TODO 2023-07-30 19:34: - [ ] More general way (that works for DynamicProperties, etc) I think `dir()` or __dir__() or something?`
+                # if isinstance(a_value, dict):
+                #     with h5py.File(file_path, 'w') as f:
+                #         for attribute, value in a_value.items():
+                #             sub_field_key:str = f"{a_field_key}/{attribute}"
+                #             self._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
+                # else:
+                #     raise NotImplementedError
+
+
+
+""" Example to_hdf/read_hdf based only on the type of the values:
+
+def to_hdf(self, file_path):
+    with h5py.File(file_path, 'w') as f:
+        for attribute, value in self.__dict__.items():
+            if isinstance(value, pd.DataFrame):
+                value.to_hdf(file_path, key=attribute)
+            elif isinstance(value, np.ndarray):
+                f.create_dataset(attribute, data=value)
+            # ... handle other attribute types as needed ...
+
+@classmethod
+def read_hdf(cls, file_path):
+    with h5py.File(file_path, 'r') as f:
+        attrs_dict = {}
+        for attribute in cls.__annotations__:
+            if attribute in f:
+                if pd.api.types.is_categorical_dtype(f[attribute]):
+                    attrs_dict[attribute] = pd.read_hdf(file_path, key=attribute)
+                else:
+                    attrs_dict[attribute] = np.array(f[attribute])
+            # ... handle other attribute types as needed ...
+    return cls(**attrs_dict)
+"""    
 
 
         # self.position.to_hdf(file_path=file_path, key=f'{key}/pos')
