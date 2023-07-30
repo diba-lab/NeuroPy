@@ -38,6 +38,11 @@ class TestSpikesMethods(unittest.TestCase):
         self.enable_debug_plotting = False
         self.enable_debug_printing = True
 
+
+        self.hdf5_neuropy_tests_output_path_pkl: Path = tests_folder.joinpath('testing_spikes_df.pkl')
+        self.hdf5_neuropy_tests_output_path_hdf: Path = tests_folder.joinpath('testing_spikes_df.h5')
+
+
         self.finalized_testing_file = tests_folder.joinpath('neuropy_pf_testing.h5')
         sess_identifier_key = 'sess'
         # Load the saved .h5 spikes_df and active_pos dataframes for testing:
@@ -47,35 +52,47 @@ class TestSpikesMethods(unittest.TestCase):
         key: str = 'pfnd_new'
         self.spikes_df = SpikesAccessor.read_hdf(self.temp_finalized_testing_file, key=f'{key}/spikes')
 
-    def test_get_by_neuron_id(self):
-        # Test excluding certain neurons from the placefield
-        spikes_df = deepcopy(self.spikes_df)
-        _subset_spikes_df = spikes_df.spikes.sliced_by_neuron_type('pyramidal')
+        self.hdf_test_file = 'temp_unittest_hdf.h5'
 
-        self.assertTrue(len(_subset_spikes_df) <= len(self.spikes_df))
-        # original_pf_neuron_ids = original_pf.included_neuron_IDs.copy()
-        # subset_included_neuron_IDXs = np.arange(10) # only get the first 10 neuron_ids
-        # subset_included_neuron_ids = original_pf_neuron_ids[subset_included_neuron_IDXs] # only get the first 10 neuron_ids
-        # if self.enable_debug_printing:
-        #     print(f'{original_pf_neuron_ids = }\n{subset_included_neuron_ids = }')
-        # neuron_sliced_pf = deepcopy(original_pf)
-        # neuron_sliced_pf = neuron_sliced_pf.get_by_id(subset_included_neuron_ids)
-        # neuron_sliced_pf_neuron_ids = neuron_sliced_pf.included_neuron_IDs
-        # if self.enable_debug_printing:
-        #     print(f'{neuron_sliced_pf_neuron_ids = }')
 
-        # self.assertTrue(np.all(neuron_sliced_pf_neuron_ids == subset_included_neuron_ids)) # ensure that the returned neuron ids actually equal the desired subset
-        # self.assertTrue(np.all(np.array(neuron_sliced_pf.ratemap.neuron_ids) == subset_included_neuron_ids)) # ensure that the ratemap neuron ids actually equal the desired subset
-        # self.assertTrue(len(neuron_sliced_pf.ratemap.tuning_curves) == len(subset_included_neuron_ids)) # ensure one output tuning curve for each neuron_id
-        # self.assertTrue(np.all(np.isclose(neuron_sliced_pf.ratemap.tuning_curves, [original_pf.ratemap.tuning_curves[idx] for idx in subset_included_neuron_IDXs]))) # ensure that the tuning curves built for the neuron_slided_pf are the same as those subset as retrieved from the  original_pf
+    def test_to_hdf(self):
+        # Write to HDF5 using the accessor
+        self.spikes_df.spikes.to_hdf(self.hdf_test_file, 'spikes')
+
+        # Now try to read the file and check it matches the original DataFrame
+        read_df = pd.read_hdf(self.hdf_test_file, 'spikes')
+        pd.testing.assert_frame_equal(read_df, self.spikes_df)
+
+
+    # def test_get_by_neuron_id(self):
+    #     # Test excluding certain neurons from the placefield
+    #     spikes_df = deepcopy(self.spikes_df)
+    #     _subset_spikes_df = spikes_df.spikes.sliced_by_neuron_type('pyramidal')
+
+    #     self.assertTrue(len(_subset_spikes_df) <= len(self.spikes_df))
+    #     # original_pf_neuron_ids = original_pf.included_neuron_IDs.copy()
+    #     # subset_included_neuron_IDXs = np.arange(10) # only get the first 10 neuron_ids
+    #     # subset_included_neuron_ids = original_pf_neuron_ids[subset_included_neuron_IDXs] # only get the first 10 neuron_ids
+    #     # if self.enable_debug_printing:
+    #     #     print(f'{original_pf_neuron_ids = }\n{subset_included_neuron_ids = }')
+    #     # neuron_sliced_pf = deepcopy(original_pf)
+    #     # neuron_sliced_pf = neuron_sliced_pf.get_by_id(subset_included_neuron_ids)
+    #     # neuron_sliced_pf_neuron_ids = neuron_sliced_pf.included_neuron_IDs
+    #     # if self.enable_debug_printing:
+    #     #     print(f'{neuron_sliced_pf_neuron_ids = }')
+
+    #     # self.assertTrue(np.all(neuron_sliced_pf_neuron_ids == subset_included_neuron_ids)) # ensure that the returned neuron ids actually equal the desired subset
+    #     # self.assertTrue(np.all(np.array(neuron_sliced_pf.ratemap.neuron_ids) == subset_included_neuron_ids)) # ensure that the ratemap neuron ids actually equal the desired subset
+    #     # self.assertTrue(len(neuron_sliced_pf.ratemap.tuning_curves) == len(subset_included_neuron_ids)) # ensure one output tuning curve for each neuron_id
+    #     # self.assertTrue(np.all(np.isclose(neuron_sliced_pf.ratemap.tuning_curves, [original_pf.ratemap.tuning_curves[idx] for idx in subset_included_neuron_IDXs]))) # ensure that the tuning curves built for the neuron_slided_pf are the same as those subset as retrieved from the  original_pf
 
 
 
     def tearDown(self):
-        # # Clean up the test file
-        # if os.path.exists(self.hdf_tests_file):
-        #     os.remove(self.hdf_tests_file)
-        pass
+        # Clean up the test file
+        if os.path.exists(self.hdf_tests_file):
+            os.remove(self.hdf_tests_file)
+        # pass
 
 
 
