@@ -1,7 +1,7 @@
 from functools import wraps, partial
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union, Dict
+from typing import Any, Callable, List, Optional, Union, Dict, Tuple
 import pandas as pd
 import numpy as np
 
@@ -25,27 +25,35 @@ class AttrsBasedClassHelperMixin:
 
     """
     @classmethod
-    def get_fields_with_tag(cls, tag:str='hdf', invert:bool=False) -> List:
+    def get_fields_with_tag(cls, tag:str='hdf', invert:bool=False) -> Tuple[List, Callable]:
+        def _fields_matching_query_filter_fn(an_attr, attr_value):
+            """ return attributes only if they have serialization.{serialization_format} in their shape metadata. Captures `tag`. """
+            return (tag in an_attr.metadata.get('tags', []))
+            
         found_fields = []
         for attr_field in fields(cls):
-            tags_metadata = attr_field.metadata.get('tags', [])
+            # attrs.Attribute
+            query_condition: bool = _fields_matching_query_filter_fn(attr_field, None)            
             if invert:
-                query_condition = (tag not in tags_metadata)
-            else:
-                query_condition = (tag in tags_metadata)
+                query_condition = (not query_condition)
             if query_condition:
-                found_fields.append(attr_field.name)
-        return found_fields
+                found_fields.append(attr_field) # .name
+        return found_fields, _fields_matching_query_filter_fn
 
 
     @classmethod
-    def get_serialized_fields(cls, serialization_format:str='hdf') -> List:
+    def get_serialized_fields(cls, serialization_format:str='hdf') -> Tuple[List, Callable]:
+        def _serialized_fields_filter_fn(an_attr, attr_value):
+            """ return attributes only if they have serialization.{serialization_format} in their shape metadata. Captures `serialization_format`. """
+            return (an_attr.metadata.get('serialization', {}).get(serialization_format, False) is True)
+        
         hdf_fields = []
         for attr_field in fields(cls):
-            serialization_metadata = attr_field.metadata.get('serialization', {})
-            if serialization_metadata.get(serialization_format, False) is True:
-                hdf_fields.append(attr_field.name)
-        return hdf_fields
+            # serialization_metadata = attr_field.metadata.get('serialization', {})
+            # if serialization_metadata.get(serialization_format, False) is True:
+            if _serialized_fields_filter_fn(attr_field, None): # pass None for value because it doesn't matter
+                hdf_fields.append(attr_field) # attr_field.name
+        return hdf_fields, _serialized_fields_filter_fn
 
 
 

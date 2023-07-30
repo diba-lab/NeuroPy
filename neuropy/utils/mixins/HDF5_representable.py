@@ -1,4 +1,13 @@
+from functools import wraps, partial
 from pathlib import Path
+from copy import deepcopy
+from typing import Sequence, Union
+import numpy as np
+import pandas as pd
+import h5py # for to_hdf and read_hdf definitions
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define
+import attrs
+from attrs import field, asdict, fields
 
 # ==================================================================================================================== #
 # 2023-07-30 HDF5 General Object Serialization Classes                                                                 #
@@ -83,6 +92,11 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     """
     Inherits `get_serialized_fields` from AttrsBasedClassHelperMixin
     """
+    
+    @classmethod
+    def is_hdf_serializable(cls):
+        """ returns whether the class is completely hdf serializable. """
+        return True
 
 
     def to_hdf(self, file_path, key: str, **kwargs):
@@ -92,7 +106,38 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             _pfnd_obj: PfND = long_one_step_decoder_1D.pf
             _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
         """
-        raise NotImplementedError # implementor must override!
+        debug_print = True
+        if not attrs.has(type(self)):
+            raise NotImplementedError # implementor must override!
+    
+        if not isinstance(self, AttrsBasedClassHelperMixin):
+            raise NotImplementedError # automatic `to_hdf` only supported on `AttrsBasedClassHelperMixin`-derived objects.
+        
+        ## Automatic implementation if class is `AttrsBasedClassHelperMixin`
+        if debug_print:
+            print(f'WARNING: experimental automatic `to_hdf` implementation for object of type {type(self)} to file_path: {file_path}, with key: {key}:')
+        # get serializable fields
+        hdf_fields, hdf_fields_filter_fn = self.get_serialized_fields('hdf')
+        
+        # use `asdict` to get a dictionary-representation of self only for the `hdf` serializable fields
+        _temp_obj_dict = asdict(self, filter=hdf_fields_filter_fn, recurse=False)
+        # _temp_obj_dict = {k:v.take(indices=aclu_is_included, axis=neuron_shape_index_for_attribute_name_dict[k]) for k, v in _temp_obj_dict.items()} # filter the n_neurons axis containing items to get a reduced dictionary
+        print(f'_temp_obj_dict: {_temp_obj_dict}')
+        # for a_field in hdf_fields:
+        for a_field_attr, a_value in _temp_obj_dict.items():
+            print(f'a_field: {a_field_attr.name}')
+            a_field_key:str = f'{key}/{a_field_attr.name}'
+            print(f'\ta_field_key: {a_field_key}')
+            if a_field_attr.type.is_hdf_serializable():
+                ## use that fields' to_hdf function
+                if debug_print:
+                    print(f'\t field is serializable! Calling a_value.to_hdf(...)...')
+                a_value.to_hdf(file_path=file_path, key=a_field_key)
+            else:
+                if debug_print:
+                    print(f'\t field not serializable! a_field_attr.type: {a_field_attr.type}.\n\tSkipping.')
+
+
         # self.position.to_hdf(file_path=file_path, key=f'{key}/pos')
         # if self.epochs is not None:
         #     self.epochs.to_hdf(file_path=file_path, key=f'{key}/epochs') #TODO 2023-07-30 11:13: - [ ] What if self.epochs is None?
