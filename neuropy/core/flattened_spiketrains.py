@@ -256,9 +256,11 @@ class SpikesAccessor(TimeSlicedMixin):
         .spikes.to_hdf(
         """
         _spikes_df = deepcopy(self._obj)
-        # Convert the 'cell_type' column of the dataframe to the categorical type
+        # Convert the 'cell_type' column of the dataframe to the categorical type if needed
         cat_type = NeuronType.get_pandas_categories_type()
-        _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
+        if _spikes_df["cell_type"].dtype != cat_type:
+            # If this type check ever becomes a problem and we want a more liberal constraint, All instances of CategoricalDtype compare equal to the string 'category'.
+            _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
 
         # Store DataFrame using pandas
         with pd.HDFStore(file_path) as store:
@@ -273,15 +275,19 @@ class SpikesAccessor(TimeSlicedMixin):
             # _ds.attrs['neuron_ids'] = self.neuron_ids
             # _ds.attrs['neuron_probe_tuple_ids'] = self.neuron_probe_tuple_ids
 
-            
+
+       
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
-        """  Reads the data from the key in the hdf5 file at file_path """
+        """  Reads the data from the key in the hdf5 file at file_path         
+        # TODO 2023-07-30 13:05: - [ ] interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+            - UPDATE: I think adding `.astype(str)` to the end of the conversion resolves it and makes the type the same as it started. Still not sure if it would be better to leave it a categorical because I think it's more space efficient and better than it started anyway.
+        """
         _spikes_df = pd.read_hdf(file_path, key=key, **kwargs)
-        # cat_type = NeuronType.get_pandas_categories_type()
-        # _spikes_df["cell_type"] = _spikes_df["cell_type"].astype(cat_type) #.astype("category")
-        # assert _cell_type.values.categories # _cell_type.values.categories
-        # _spikes_df["cell_type"] = NeuronType.from_any_string_series(_spikes_df["cell_type"])
+        # Convert the 'cell_type' column back to its original type (e.g., a custom class NeuronType)
+        # .astype(object)
+
+        _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
         
         return _spikes_df
 
@@ -451,9 +457,14 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
 
 
     @classmethod
-    def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "FlattenedSpiketrains":
         """  Reads the data from the key in the hdf5 file at file_path """
-        return cls(spikes_df=pd.read_hdf(file_path, key=key, **kwargs)) # TODO: should recover: `, time_variable_name = 't_rel_seconds', t_start=0.0, metadata=None`
+        with h5py.File(file_path, 'r+') as f:
+            _ds = f[key]
+            time_variable_name = _ds.attrs['time_variable_name']
+            n_neurons = _ds.attrs['n_neurons']
+            
+        return cls(spikes_df=SpikesAccessor.read_hdf(file_path, key=key, **kwargs), time_variable_name=time_variable_name) # TODO: should recover: `, t_start=0.0, metadata=None`
 
 
     
