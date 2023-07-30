@@ -23,11 +23,12 @@ finally:
     from neuropy.core import Position, Neurons
     from neuropy.analyses.placefields import PlacefieldComputationParameters
     from neuropy.analyses.placefields import PfND
+    from neuropy.core.neurons import NeuronType
+    from neuropy.core.flattened_spiketrains import SpikesAccessor, FlattenedSpiketrains
     from neuropy.utils.debug_helpers import debug_print_placefield, debug_print_subsession_neuron_differences
     from neuropy.utils.debug_helpers import debug_print_ratemap, debug_print_spike_counts, debug_plot_2d_binning, compare_placefields_info
     from neuropy.utils.debug_helpers import parameter_sweeps, _plot_parameter_sweep
     from neuropy.utils.debug_helpers import print_aligned_columns
-    from neuropy.core.neurons import NeuronType
     
 def _compute_parameter_sweep(spikes_df, active_pos, all_param_sweep_options: dict) -> dict:
     """ Computes the PfNDs for all the swept parameters (combinations of grid_bin, smooth, etc)
@@ -220,11 +221,10 @@ class TestPlacefieldsMethods(unittest.TestCase):
             print(f'Unhandled exception {e}')
             raise e
 
-        read_spikes = pd.read_hdf(self.hdf_tests_file, 'test_pfnd/spikes')
-        
+        read_spikes = SpikesAccessor.read_hdf(self.hdf_tests_file, 'test_pfnd/spikes')
         # Check that the data matches the original
         pd.testing.assert_frame_equal(read_position.df, self.active_pos.df)
-        # pd.testing.assert_frame_equal(read_spikes, self.spikes_df) # AssertionError: Attributes of DataFrame.iloc[:, 14] (column name="cell_type") are different
+        pd.testing.assert_frame_equal(read_spikes, self.spikes_df) # AssertionError: Attributes of DataFrame.iloc[:, 14] (column name="cell_type") are different
         if read_epochs is None:
             self.assertIsNone(self.epochs)
         else:
@@ -240,9 +240,14 @@ class TestPlacefieldsMethods(unittest.TestCase):
 
         # Check that the data matches the original
         pd.testing.assert_frame_equal(read_pfnd.position.df, self.active_pos.df) # almost equal but datatype of column different
-        # pd.testing.assert_frame_equal(read_pfnd.spikes_df, self.spikes_df) # AssertionError: Attributes of DataFrame.iloc[:, 14] (column name="cell_type") are different
+        pd.testing.assert_frame_equal(read_pfnd.spikes_df, self.spikes_df) # AssertionError: Attributes of DataFrame.iloc[:, 14] (column name="cell_type") are different
+        if read_pfnd.epochs is None:
+            self.assertIsNone(self.epochs)
+        else:
+            pd.testing.assert_frame_equal(read_pfnd.epochs, self.epochs)
+            
         # Add checks for epochs and config as needed
-        #TODO 2023-07-30 11:34: - [ ] Partially tested. 
+        #TODO 2023-07-30 11:34: - [ ] Partially tested, need to test `read_pfnd.config``
 
 
 

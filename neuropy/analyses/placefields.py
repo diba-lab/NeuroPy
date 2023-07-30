@@ -1147,7 +1147,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             print(f'Unhandled exception {e}')
             raise e
         
-        spikes_df = pd.read_hdf(file_path, key=f'{key}/spikes')
+        spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
 
         # Open the file with h5py to read attributes
         with h5py.File(file_path, 'r') as f:
