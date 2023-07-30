@@ -1103,7 +1103,11 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         """
     
         self.position.to_hdf(file_path=file_path, key=f'{key}/pos')
-        self.epochs.to_hdf(file_path=file_path, key=f'{key}/epochs')
+        if self.epochs is not None:
+            self.epochs.to_hdf(file_path=file_path, key=f'{key}/epochs') #TODO 2023-07-30 11:13: - [ ] What if self.epochs is None?
+        else:
+            # if self.epochs is None
+            pass
         self.spikes_df.spikes.to_hdf(file_path, key=f'{key}/spikes')
 
         # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
@@ -1133,7 +1137,16 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         """
         # Read DataFrames using pandas
         position = Position.read_hdf(file_path, key=f'{key}/pos')
-        epochs = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        try:
+            epochs = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        except KeyError as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key.  'No object named test_pfnd/epochs in the file'
+            epochs = None
+        except Exception as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key
+            print(f'Unhandled exception {e}')
+            raise e
+        
         spikes_df = pd.read_hdf(file_path, key=f'{key}/spikes')
 
         # Open the file with h5py to read attributes
@@ -1155,7 +1168,9 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         config = PlacefieldComputationParameters(**config_dict)
 
         # Reconstruct the object using the from_config_values class method
-        return cls.from_config_values(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
+        return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
+    
+
 
 
 

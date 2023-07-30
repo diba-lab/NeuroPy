@@ -68,6 +68,10 @@ class NeuronType(Enum):
     def longClassName(self):
         return NeuronType.longClassNames()[self.value]
 
+    @property
+    def hdfcodingClassName(self) -> str:
+        return NeuronType.hdf_coding_ClassNames()[self.value]
+
     # def equals(self, string):
     #     # return self.name == string
     #     return ((self.shortClassName == string) or (self.longClassName == string))
@@ -84,6 +88,10 @@ class NeuronType(Enum):
     @classmethod
     def bapunNpyFileStyleShortClassNames(cls):
         return np.array(['pyr','mua','inter'])
+
+    @classmethod
+    def hdf_coding_ClassNames(cls):
+        return np.array(['pyr','bad','intr'])
     
     @classmethod
     def classCutoffValues(cls):
@@ -112,19 +120,19 @@ class NeuronType(Enum):
 
 
     @classmethod
-    def from_short_string(cls, string_value):
+    def from_short_string(cls, string_value) -> "NeuronType":
         string_value = string_value.lower()
         itemindex = np.where(cls.shortClassNames()==string_value)
         return NeuronType(itemindex[0])
     
     @classmethod
-    def from_long_string(cls, string_value):
+    def from_long_string(cls, string_value) -> "NeuronType":
         string_value = string_value.lower()
         itemindex = np.where(cls.longClassNames()==string_value)
         return NeuronType(itemindex[0])    
     
     @classmethod
-    def from_string(cls, string_value):
+    def from_string(cls, string_value) -> "NeuronType":
         string_value = string_value.lower()
         itemindex = np.where(cls.longClassNames()==string_value)
         if len(itemindex[0]) < 1:
@@ -133,13 +141,25 @@ class NeuronType(Enum):
             if len(itemindex[0]) < 1:
                 # if not found in shortClassNames, try bapunNpyFileStyleShortClassNames
                 itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
+                if len(itemindex[0]) < 1:
+                    # if not found in bapunNpyFileStyleShortClassNames, try hdf_coding_ClassNames
+                    itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
+
         return NeuronType(itemindex[0])
         
     @classmethod
-    def from_bapun_npy_style_string(cls, string_value):
+    def from_bapun_npy_style_string(cls, string_value) -> "NeuronType":
         string_value = string_value.lower()
         itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
         return NeuronType(itemindex[0])
+
+
+    @classmethod
+    def from_hdf_coding_string(cls, string_value: str) -> "NeuronType":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
+        return NeuronType(itemindex[0])
+
     
     
     @classmethod
@@ -162,7 +182,12 @@ class NeuronType(Enum):
     def from_bapun_npy_style_series(cls, bapun_style_neuron_types):
         # bapun_style_neuron_types: a np.ndarray containing Bapun-style strings, such as: ['mua', 'mua', 'inter', 'pyr', ...]
         return np.array([NeuronType.from_bapun_npy_style_string(_) for _ in np.array(bapun_style_neuron_types)])
-        
+
+    @classmethod
+    def from_hdf_coding_style_series(cls, hdf_coding_neuron_types):
+        # hdf_coding_neuron_types: a np.ndarray containing hdf-coding strings, such as: ['pyr','bad','intr']
+        return np.array([NeuronType.from_hdf_coding_string(_) for _ in np.array(hdf_coding_neuron_types)])
+
 
     ## Extended Properties such as colors
     @classmethod
@@ -176,7 +201,7 @@ class NeuronType(Enum):
   
     @classmethod
     def get_pandas_categories_type(cls) -> CategoricalDtype:
-        return CategoricalDtype(categories=list(cls.bapunNpyFileStyleShortClassNames()), ordered=True)
+        return CategoricalDtype(categories=list(cls.hdf_coding_ClassNames()), ordered=True)
         
   
 

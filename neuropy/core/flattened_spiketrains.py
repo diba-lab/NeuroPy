@@ -257,8 +257,9 @@ class SpikesAccessor(TimeSlicedMixin):
         """
         _spikes_df = deepcopy(self._obj)
         cat_type = NeuronType.get_pandas_categories_type()
-        _spikes_df["cell_type"] = _spikes_df["cell_type"].astype(cat_type) #.astype("category")
+        _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
         
+
         # Store DataFrame using pandas
         with pd.HDFStore(file_path) as store:
             _spikes_df.to_hdf(store, key=key, format='table', **kwargs)
@@ -276,9 +277,13 @@ class SpikesAccessor(TimeSlicedMixin):
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
         """  Reads the data from the key in the hdf5 file at file_path """
-        return pd.read_hdf(file_path, key=key, **kwargs)
-
-
+        _spikes_df = pd.read_hdf(file_path, key=key, **kwargs)
+        # cat_type = NeuronType.get_pandas_categories_type()
+        # _spikes_df["cell_type"] = _spikes_df["cell_type"].astype(cat_type) #.astype("category")
+        # assert _cell_type.values.categories # _cell_type.values.categories
+        # _spikes_df["cell_type"] = NeuronType.from_any_string_series(_spikes_df["cell_type"])
+        
+        return _spikes_df
 
 
 
