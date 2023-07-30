@@ -169,8 +169,15 @@ class TestPositionMethods(NumpyTestCase):
         # Check that the data matches the original
         pd.testing.assert_frame_equal(read_position._data, self.pos_df)
 
+        metadata = {
+            'time_variable_name': self.hdf_tests_position.time_variable_name,
+            'sampling_rate': self.hdf_tests_position.sampling_rate,
+            't_start': self.hdf_tests_position.t_start,
+            't_stop': self.hdf_tests_position.t_stop,
+        }
+
         # Check metadata, modify as needed
-        self.assertEqual(read_position.metadata, self.hdf_tests_position.metadata)
+        self.assertEqual(read_position.metadata, metadata)
 
 
 
