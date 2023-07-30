@@ -26,6 +26,32 @@ finally:
     from neuropy.utils.debug_helpers import print_aligned_columns
     
 class TestSpikesMethods(unittest.TestCase):
+    """ 
+    Testing files created with:
+
+    TESTING:
+        from neuropy.analyses.placefields import PfND
+        from neuropy.core.epoch import Epoch
+        from pandas.api.types import CategoricalDtype
+        from neuropy.core.position import Position
+        from neuropy.core.flattened_spiketrains import SpikesAccessor
+        from pyphoplacecellanalysis.General.Pipeline.Stages.Loading import saveData
+
+        # Write out files to neuropy tests:
+        neuropy_testing_path = Path('./NeuroPy/tests')
+        assert neuropy_testing_path.exists()
+        hdf5_neuropy_tests_output_path_pkl: Path = neuropy_testing_path.joinpath('testing_spikes_df.pkl')
+        hdf5_neuropy_tests_output_path_hdf: Path = neuropy_testing_path.joinpath('testing_spikes_df.h5')
+        print(f'hdf5_neuropy_tests_output_path_pkl: {hdf5_neuropy_tests_output_path_pkl}')
+        print(f'hdf5_neuropy_tests_output_path_hdf: {hdf5_neuropy_tests_output_path_hdf}')
+
+        # Copy the objects that will be serialized (INCOMPLETE, objects computed in notebook):
+        _pfnd_obj: PfND = long_one_step_decoder_1D.pf # self.position, self.spikes_df, self.epochs
+        _spikes_df = deepcopy(_pfnd_obj.spikes_df)
+        saveData(hdf5_neuropy_tests_output_path_pkl, _spikes_df) # Save out .pkl format
+        _spikes_df.spikes.to_hdf(hdf5_neuropy_tests_output_path_hdf, key=f'/spikes_df') # note the .spikes accessor
+
+    """
 
     def setUp(self):
         """ Corresponding load for Neuropy Testing file 'NeuroPy/tests/neuropy_pf_testing.h5': 
