@@ -10,7 +10,6 @@ from attrs import field, Factory, fields, fields_dict, asdict
 
 """ 
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, computed_field
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin
 """
 
 # ==================================================================================================================== #
