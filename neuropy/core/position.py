@@ -608,8 +608,9 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
             }
 
         # Reconstruct the object using the class constructor
-        return cls(pos_df=pos_df, metadata=metadata)
-
+        _out = cls(pos_df=pos_df, metadata=metadata)
+        _out.filename = file_path # set the filename it was loaded from
+        return _out
 
 
 
