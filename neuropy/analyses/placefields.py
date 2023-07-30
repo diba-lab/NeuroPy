@@ -11,6 +11,8 @@ from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
+from neuropy.core.flattened_spiketrains import SpikesAccessor # allows placefields to be sliced by neuron ids
+
 
 from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
@@ -23,8 +25,7 @@ from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
-from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
-
+from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
 # from .. import core
 # import neuropy.core as core
@@ -1099,9 +1100,20 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             _pos_obj: Position = long_one_step_decoder_1D.pf.position
             _pos_obj.to_hdf(hdf5_output_path, key='pos')
         """
-        self.position.to_hdf(file_path=file_path, key='f{key}/pos')
-        self.epochs.to_hdf(file_path=file_path, key='f{key}/epochs')
-        self.spikes_df.spikes.to_hdf(file_path, key='f{key}/spikes')
+    
+        with pd.HDFStore(file_path) as store:
+            self.position.to_hdf(file_path=store, key=f'{key}/pos')
+            self.epochs.to_hdf(file_path=store, key=f'{key}/epochs')
+            self.spikes_df.spikes.to_hdf(store, key=f'{key}/spikes')
+
+            # store[key] = [store[f'{key}/pos'], store[f'{key}/epochs'], store[f'{key}/spikes']]
+            # _ds = store[key]
+            # _ds.attrs = {'config': self.config.to_dict(),
+            #     'position_srate': self.position_srate,
+            #     'ndim': self.ndim,
+            # }
+
+
 
 
     @classmethod
@@ -1111,7 +1123,26 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
             _reread_pos_obj
         """
-        _df = pd.read_hdf(file_path, key=key, **kwargs)
+        _reread_pos_obj = Position.read_hdf(file_path, key=f'{key}/pos')
+        _reread_epochs_obj = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        _reread_spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
+
+        # _out_obj = cls
+        # self._save_intermediate_spikes_maps = True # False is not yet implemented
+        # # Set the particulars if needed
+        # self.config = state.get('config', None)
+        # self.position_srate = state.get('position_srate', None)
+        # self.ndim = state.get('ndim', None)
+        # self.xbin = state.get('xbin', None)
+        # self.ybin = state.get('ybin', None)
+        # self.bin_info = state.get('bin_info', None)
+        # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
+        
+        # cls.from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True)
+
+        # self._included_thresh_neurons_indx = None
+        # self._peak_frate_filter_function = None
+        raise NotImplementedError
         return cls(_df, metadata=None) # TODO: recover metadata
 
 

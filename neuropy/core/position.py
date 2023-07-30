@@ -571,7 +571,16 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
             _pos_obj.to_hdf(hdf5_output_path, key='pos')
         """
         _df = self.to_dataframe()
-        _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
+        
+        ## Need Dataset:
+        with pd.HDFStore(file_path) as store:
+            _df.to_hdf(path_or_buf=store, key=key, format='table', **kwargs)
+            _ds = store[key]
+            _ds.attrs = {'time_variable_name': self.time_variable_name,
+                'sampling_rate': self.sampling_rate,
+                't_start': self.t_start,
+                't_stop': self.t_stop,
+            }
         
 
     @classmethod
