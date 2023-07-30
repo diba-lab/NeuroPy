@@ -7,6 +7,9 @@ from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin, TimeColumnAliasesProtocol
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, deduplicate_epochs # for EpochsAccessor's .get_non_overlapping_df()
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, computed_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
 
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
     """ A simple named period of time with a known start and end time """
@@ -215,7 +218,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
 
 
-class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
+class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
@@ -550,6 +553,7 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     
 
     # HDF5 Serialization _________________________________________________________________________________________________ #
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
 
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path

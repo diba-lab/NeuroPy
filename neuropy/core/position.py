@@ -11,6 +11,8 @@ from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
 
 """ --- Helper FUNCTIONS """
 def build_position_df_time_window_idx(active_pos_df, curr_active_time_windows, debug_print=False):
@@ -418,7 +420,7 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
 
     
 """ --- """
-class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
+class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
     def __init__(self, pos_df: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
@@ -561,7 +563,7 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
             self.t_stop)
         )
          
-         
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
         Usage:

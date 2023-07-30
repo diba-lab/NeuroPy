@@ -13,7 +13,8 @@ from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
 from neuropy.core.flattened_spiketrains import SpikesAccessor # allows placefields to be sliced by neuron ids
-
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, computed_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
@@ -34,8 +35,13 @@ from .. import plotting
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta, build_formatted_str_from_properties_dict
 
 
+
 class PlacefieldComputationParameters(SimplePrintable, DiffableObject, SubsettableDictRepresentable, metaclass=OrderedMeta):
-    """A simple wrapper object for parameters used in placefield calcuations"""
+    """A simple wrapper object for parameters used in placefield calcuations
+    
+    #TODO 2023-07-30 18:18: - [ ] HDFMixin conformance for PlacefieldComputationParameters
+    
+    """
     decimal_point_character=","
     param_sep_char='-'
     variable_names=['speed_thresh', 'grid_bin', 'smooth', 'frate_thresh']
@@ -510,7 +516,7 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing.
 
 @define(slots=False)
-class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(HDFMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. 
 
         It always computes two place maps with and without speed thresholds.
@@ -1093,7 +1099,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
                 pf._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
         return pf
 
-
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
         Usage:
