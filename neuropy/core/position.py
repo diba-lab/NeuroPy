@@ -427,7 +427,6 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         """
         super().__init__(metadata=metadata)
         self._data = pos_df # set to the laps dataframe
-        # self._data = Position._update_dataframe_computed_vars(self._data) # maybe initialize equivalent for laps
         self._data = self._data.sort_values(by=[self.time_variable_name]) # sorts all values in ascending order
         
     def time_slice_indicies(self, t_start, t_stop):
@@ -588,17 +587,28 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
             for k, v in metadata.items():
                 dataset.attrs[k] = v
 
-
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
-        """  Reads the data from the key in the hdf5 file at file_path
+        """ Reads the data from the key in the hdf5 file at file_path
         Usage:
             _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
             _reread_pos_obj
         """
-        _df = pd.read_hdf(file_path, key=key, **kwargs)
-        return cls(_df, metadata=None) # TODO: recover metadata
+        # Read the DataFrame using pandas
+        pos_df = pd.read_hdf(file_path, key=key)
 
+        # Open the file with h5py to read attributes
+        with h5py.File(file_path, 'r') as f:
+            dataset = f[key]
+            metadata = {
+                'time_variable_name': dataset.attrs['time_variable_name'],
+                'sampling_rate': dataset.attrs['sampling_rate'],
+                't_start': dataset.attrs['t_start'],
+                't_stop': dataset.attrs['t_stop'],
+            }
+
+        # Reconstruct the object using the class constructor
+        return cls(pos_df=pos_df, metadata=metadata)
 
 
 

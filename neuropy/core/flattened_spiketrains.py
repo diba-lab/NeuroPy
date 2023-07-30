@@ -7,6 +7,7 @@ from neuropy.utils.misc import safe_pandas_get_group
 module_logger = logging.getLogger('com.PhoHale.neuropy') # create logger
 import numpy as np
 import pandas as pd
+import h5py
 from copy import deepcopy
 
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple

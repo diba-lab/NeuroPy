@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Callable, Optional
 from attrs import define, fields, filters, asdict, astuple
 import h5py
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
@@ -1101,10 +1102,9 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
         """
     
-        with pd.HDFStore(file_path) as store:
-            self.position.to_hdf(file_path=store, key=f'{key}/pos')
-            self.epochs.to_hdf(file_path=store, key=f'{key}/epochs')
-            self.spikes_df.spikes.to_hdf(store, key=f'{key}/spikes')
+        self.position.to_hdf(file_path=file_path, key=f'{key}/pos')
+        self.epochs.to_hdf(file_path=file_path, key=f'{key}/epochs')
+        self.spikes_df.spikes.to_hdf(file_path, key=f'{key}/spikes')
 
         # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
         with h5py.File(file_path, 'r+') as f:
@@ -1125,33 +1125,68 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
 
 
     @classmethod
-    def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
-        """  Reads the data from the key in the hdf5 file at file_path
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "PfND":
+        """ Reads the data from the key in the hdf5 file at file_path
         Usage:
-            _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
-            _reread_pos_obj
+            _reread_pfnd_obj = PfND.read_hdf(hdf5_output_path, key='test_pfnd')
+            _reread_pfnd_obj
         """
-        _reread_pos_obj = Position.read_hdf(file_path, key=f'{key}/pos')
-        _reread_epochs_obj = Epoch.read_hdf(file_path, key=f'{key}/epochs')
-        _reread_spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
+        # Read DataFrames using pandas
+        position = Position.read_hdf(file_path, key=f'{key}/pos')
+        epochs = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        spikes_df = pd.read_hdf(file_path, key=f'{key}/spikes')
 
-        # _out_obj = cls
-        # self._save_intermediate_spikes_maps = True # False is not yet implemented
-        # # Set the particulars if needed
-        # self.config = state.get('config', None)
-        # self.position_srate = state.get('position_srate', None)
-        # self.ndim = state.get('ndim', None)
-        # self.xbin = state.get('xbin', None)
-        # self.ybin = state.get('ybin', None)
-        # self.bin_info = state.get('bin_info', None)
-        # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
+        # Open the file with h5py to read attributes
+        with h5py.File(file_path, 'r') as f:
+            group = f[key]
+            position_srate = group.attrs['position_srate']
+            ndim = group.attrs['ndim'] # Assuming you'll use it somewhere else if needed
+
+            # Read the config attributes
+            config_dict = {
+                'speed_thresh': group.attrs['config/speed_thresh'],
+                'grid_bin': tuple(group.attrs['config/grid_bin']),
+                'grid_bin_bounds': tuple(group.attrs['config/grid_bin_bounds']),
+                'smooth': tuple(group.attrs['config/smooth']),
+                'frate_thresh': group.attrs['config/frate_thresh']
+            }
+
+        # Create a PlacefieldComputationParameters object from the config_dict
+        config = PlacefieldComputationParameters(**config_dict)
+
+        # Reconstruct the object using the from_config_values class method
+        return cls.from_config_values(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
+
+
+
+    # @classmethod
+    # def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
+    #     """  Reads the data from the key in the hdf5 file at file_path
+    #     Usage:
+    #         _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
+    #         _reread_pos_obj
+    #     """
+    #     _reread_pos_obj = Position.read_hdf(file_path, key=f'{key}/pos')
+    #     _reread_epochs_obj = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+    #     _reread_spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
+
+    #     # _out_obj = cls
+    #     # self._save_intermediate_spikes_maps = True # False is not yet implemented
+    #     # # Set the particulars if needed
+    #     # self.config = state.get('config', None)
+    #     # self.position_srate = state.get('position_srate', None)
+    #     # self.ndim = state.get('ndim', None)
+    #     # self.xbin = state.get('xbin', None)
+    #     # self.ybin = state.get('ybin', None)
+    #     # self.bin_info = state.get('bin_info', None)
+    #     # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
         
-        # cls.from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True)
+    #     # cls.from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True)
 
-        # self._included_thresh_neurons_indx = None
-        # self._peak_frate_filter_function = None
-        raise NotImplementedError
-        return cls(_df, metadata=None) # TODO: recover metadata
+    #     # self._included_thresh_neurons_indx = None
+    #     # self._peak_frate_filter_function = None
+    #     raise NotImplementedError
+    #     return cls(_df, metadata=None) # TODO: recover metadata
 
 
 # ==================================================================================================================== #

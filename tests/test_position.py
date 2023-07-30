@@ -1,3 +1,4 @@
+import os
 import unittest
 import numpy as np
 # from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_allclose
@@ -58,12 +59,23 @@ class TestPositionMethods(NumpyTestCase):
         ## Old Position Objects:
         self.position_old = PositionOld(np.vstack((self.x, self.y)))
         self.position1D_old = PositionOld(self.x)
-
-
-    def tearDown(self):
-        self.position=None
         
 
+        self.hdf_test_file = 'temp_unittest_hdf.h5'
+        # Create a sample DataFrame for testing
+        self.pos_df = pd.DataFrame({
+            't': np.arange(10),
+            'x': np.random.rand(10),
+            'y': np.random.rand(10)
+        })
+
+        # Create a Position object
+        self.hdf_tests_position = Position(self.pos_df)
+        
+    def tearDown(self):
+        self.position=None
+        # Clean up the test file
+        os.remove(self.hdf_test_file)
 
     def test_traces(self):
         # print('np.size(self.position.traces): {}'.format(np.size(self.position.traces)))
@@ -137,6 +149,30 @@ class TestPositionMethods(NumpyTestCase):
     # 	# check that s.split fails when the separator is not a string
     # 	with self.assertRaises(TypeError):
     # 		s.split(2)
+
+
+    def test_to_hdf(self):
+        # Write to HDF5
+        self.hdf_tests_position.to_hdf(self.hdf_test_file, 'pos')
+
+        # Now try to read the file and check it matches the original DataFrame
+        read_df = pd.read_hdf(self.hdf_test_file, 'pos')
+        pd.testing.assert_frame_equal(read_df, self.pos_df)
+
+    def test_read_hdf(self):
+        # Write to HDF5
+        self.hdf_tests_position.to_hdf(self.hdf_test_file, 'pos')
+
+        # Now try to read back the Position object
+        read_position = Position.read_hdf(self.hdf_test_file, 'pos')
+
+        # Check that the data matches the original
+        pd.testing.assert_frame_equal(read_position._data, self.pos_df)
+
+        # Check metadata, modify as needed
+        self.assertEqual(read_position.metadata, self.hdf_tests_position.metadata)
+
+
 
 if __name__ == '__main__':
     unittest.main()
