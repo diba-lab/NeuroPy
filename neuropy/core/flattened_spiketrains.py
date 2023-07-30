@@ -258,15 +258,19 @@ class SpikesAccessor(TimeSlicedMixin):
         cat_type = NeuronType.get_pandas_categories_type()
         _spikes_df["cell_type"] = _spikes_df["cell_type"].astype(cat_type) #.astype("category")
         
-        ## Need Dataset:
+        # Store DataFrame using pandas
         with pd.HDFStore(file_path) as store:
             _spikes_df.to_hdf(store, key=key, format='table', **kwargs)
-            _ds = store[key]
-            _ds.attrs = {'time_variable_name': self.time_variable_name,
-                'n_neurons': self.n_neurons,
-                # 'neuron_ids': self.neuron_ids,
-                # 'neuron_probe_tuple_ids': self.neuron_probe_tuple_ids,                
-            }
+
+        # Open the file with h5py to add attributes
+        with h5py.File(file_path, 'r+') as f:
+            _ds = f[key]
+            _ds.attrs['time_variable_name'] = self.time_variable_name
+            _ds.attrs['n_neurons'] = self.n_neurons
+            # You can add more attributes here as needed
+            # _ds.attrs['neuron_ids'] = self.neuron_ids
+            # _ds.attrs['neuron_probe_tuple_ids'] = self.neuron_probe_tuple_ids
+
             
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:

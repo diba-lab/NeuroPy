@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Callable, Optional
 from attrs import define, fields, filters, asdict, astuple
-
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
@@ -1097,8 +1097,8 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         """ Saves the object to key in the hdf5 file specified by file_path
         Usage:
             hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
-            _pos_obj: Position = long_one_step_decoder_1D.pf.position
-            _pos_obj.to_hdf(hdf5_output_path, key='pos')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
         """
     
         with pd.HDFStore(file_path) as store:
@@ -1106,14 +1106,22 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             self.epochs.to_hdf(file_path=store, key=f'{key}/epochs')
             self.spikes_df.spikes.to_hdf(store, key=f'{key}/spikes')
 
-            # store[key] = [store[f'{key}/pos'], store[f'{key}/epochs'], store[f'{key}/spikes']]
-            # _ds = store[key]
-            # _ds.attrs = {'config': self.config.to_dict(),
-            #     'position_srate': self.position_srate,
-            #     'ndim': self.ndim,
-            # }
+        # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+        with h5py.File(file_path, 'r+') as f:
+            ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
+            group = f[key]
+            group.attrs['position_srate'] = self.position_srate
+            group.attrs['ndim'] = self.ndim
 
-
+            # can't just set the dict directly
+            # group.attrs['config'] = str(self.config.to_dict())  # Store as string if it's a complex object
+            # Manually set the config attributes
+            config_dict = self.config.to_dict()
+            group.attrs['config/speed_thresh'] = config_dict['speed_thresh']
+            group.attrs['config/grid_bin'] = config_dict['grid_bin']
+            group.attrs['config/grid_bin_bounds'] = config_dict['grid_bin_bounds']
+            group.attrs['config/smooth'] = config_dict['smooth']
+            group.attrs['config/frate_thresh'] = config_dict['frate_thresh']
 
 
     @classmethod

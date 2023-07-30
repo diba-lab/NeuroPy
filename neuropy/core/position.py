@@ -572,16 +572,22 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         """
         _df = self.to_dataframe()
         
-        ## Need Dataset:
+        # Save the DataFrame using pandas
         with pd.HDFStore(file_path) as store:
             _df.to_hdf(path_or_buf=store, key=key, format='table', **kwargs)
-            _ds = store[key]
-            _ds.attrs = {'time_variable_name': self.time_variable_name,
+
+        # Open the file with h5py to add attributes to the dataset
+        with h5py.File(file_path, 'r+') as f:
+            dataset = f[key]
+            metadata = {
+                'time_variable_name': self.time_variable_name,
                 'sampling_rate': self.sampling_rate,
                 't_start': self.t_start,
                 't_stop': self.t_stop,
             }
-        
+            for k, v in metadata.items():
+                dataset.attrs[k] = v
+
 
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
