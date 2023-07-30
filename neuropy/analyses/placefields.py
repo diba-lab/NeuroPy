@@ -1171,39 +1171,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
     
 
-
-
-
-    # @classmethod
-    # def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
-    #     """  Reads the data from the key in the hdf5 file at file_path
-    #     Usage:
-    #         _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
-    #         _reread_pos_obj
-    #     """
-    #     _reread_pos_obj = Position.read_hdf(file_path, key=f'{key}/pos')
-    #     _reread_epochs_obj = Epoch.read_hdf(file_path, key=f'{key}/epochs')
-    #     _reread_spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
-
-    #     # _out_obj = cls
-    #     # self._save_intermediate_spikes_maps = True # False is not yet implemented
-    #     # # Set the particulars if needed
-    #     # self.config = state.get('config', None)
-    #     # self.position_srate = state.get('position_srate', None)
-    #     # self.ndim = state.get('ndim', None)
-    #     # self.xbin = state.get('xbin', None)
-    #     # self.ybin = state.get('ybin', None)
-    #     # self.bin_info = state.get('bin_info', None)
-    #     # ## The _included_thresh_neurons_indx and _peak_frate_filter_function are None:
-        
-    #     # cls.from_config_values(cls, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1), setup_on_init:bool=True, compute_on_init:bool=True)
-
-    #     # self._included_thresh_neurons_indx = None
-    #     # self._peak_frate_filter_function = None
-    #     raise NotImplementedError
-    #     return cls(_df, metadata=None) # TODO: recover metadata
-
-
 # ==================================================================================================================== #
 # Global Placefield Computation Functions                                                                              #
 # ==================================================================================================================== #
