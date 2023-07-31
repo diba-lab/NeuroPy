@@ -56,7 +56,6 @@ class BinningContainer(object):
         else:
             self.centers = get_bin_centers(edges)
             
-            
         if edge_info is not None:
             self.edge_info = edge_info
         else:

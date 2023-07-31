@@ -83,9 +83,6 @@ class MyClass(DeserializationMixin):
 """
 
 
-
-
-
 class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     """
     Inherits `get_serialized_dataset_fields` from AttrsBasedClassHelperMixin
@@ -95,6 +92,14 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     def is_hdf_serializable(cls):
         """ returns whether the class is completely hdf serializable. """
         return True
+
+    # Static Conversion Functions ________________________________________________________________________________________ #
+    @staticmethod
+    def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
+        """ value: dict-like """
+        for sub_k, sub_v in value.items():
+            f[f'{key}/{sub_k}'] = sub_v
+
 
     @classmethod
     def _try_default_to_hdf_conversion_fn(cls, file_path, key: str, value):
@@ -128,7 +133,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                 # ... handle other attribute types as needed ...
                 raise NotImplementedError
 
-
+    # Main Methods _______________________________________________________________________________________________________ #
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
         Usage:
@@ -147,7 +152,9 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
         if debug_print:
             print(f'WARNING: experimental automatic `to_hdf` implementation for object of type {type(self)} to file_path: {file_path}, with key: {key}:')
             
-        # Serializable Dataset HDF5 Fields: 
+        # ==================================================================================================================== #
+        # Serializable Dataset HDF5 Fields:                                                                                    #
+        # ==================================================================================================================== #
         hdf_dataset_fields, hdf_dataset_fields_filter_fn = self.get_serialized_dataset_fields('hdf')
         active_hdf_dataset_fields_dict = {a_field.name:a_field for a_field in hdf_dataset_fields} # a dict that allows accessing the actual attr by its name
         # use `asdict` to get a dictionary-representation of self only for the `hdf` serializable fields
@@ -172,35 +179,53 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             except Exception as e:
                 raise e # unhandled exception!!
         
-            if is_custom_serializable:
-                ## Known `hdf_serializable` field, meaning it properly implements its own `to_hdf(...)` function! We can just call that! 
-                ## use that fields' to_hdf function
-                if debug_print:
-                    print(f'\t field is serializable! Calling a_value.to_hdf(...)...')
-                a_value.to_hdf(file_path=file_path, key=a_field_key)
+
+            custom_serialization_fn = a_field_attr.metadata.get('custom_serialization_fn', None) # (lambda f, k, v: a_value)
+            if custom_serialization_fn is not None:
+                # use the custom serialization function:
+                custom_serialization_fn(file_path, a_field_key, a_value)
             else:
-                ## field is not known to be hdf_serializable! It might not serialize correctly even if this method doesn't throw an error.
-                if debug_print:
-                    print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')
-                print(f'WARNING: {a_field_key} is not custom serializable, but we will try self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
-                self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
-                
-                # Currently only allows flat fields, but could allow default nested fields like this: `a_value.__dict__`
-                # if hasattr(a_value, 'to_dict'):
-                #     a_value = a_value.to_dict() # convert to dict using the to_dict() method.
-                # elif hasattr(a_value, '__dict__'):
-                #     a_value = a_value.__dict__ #TODO 2023-07-30 19:31: - [ ] save the type as metadata
-                #TODO 2023-07-30 19:34: - [ ] More general way (that works for DynamicProperties, etc) I think `dir()` or __dir__() or something?`
-                # if isinstance(a_value, dict):
-                #     with h5py.File(file_path, 'w') as f:
-                #         for attribute, value in a_value.items():
-                #             sub_field_key:str = f"{a_field_key}/{attribute}"
-                #             self._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
-                # else:
-                #     raise NotImplementedError
+                # No custom serialization function.
+                if is_custom_serializable:
+                    ## Known `hdf_serializable` field, meaning it properly implements its own `to_hdf(...)` function! We can just call that! 
+                    ## use that fields' to_hdf function
+                    if debug_print:
+                        print(f'\t field is serializable! Calling a_value.to_hdf(...)...')
+                    a_value.to_hdf(file_path=file_path, key=a_field_key)
+                else:
+                    ## field is not known to be hdf_serializable! It might not serialize correctly even if this method doesn't throw an error.
+                    if debug_print:
+                        print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')
+                    print(f'WARNING: {a_field_key} is not custom serializable, but we will try self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
+                    self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
+                    
+                    # Currently only allows flat fields, but could allow default nested fields like this: `a_value.__dict__`
+                    # if hasattr(a_value, 'to_dict'):
+                    #     a_value = a_value.to_dict() # convert to dict using the to_dict() method.
+                    # elif hasattr(a_value, '__dict__'):
+                    #     a_value = a_value.__dict__ #TODO 2023-07-30 19:31: - [ ] save the type as metadata
+                    #TODO 2023-07-30 19:34: - [ ] More general way (that works for DynamicProperties, etc) I think `dir()` or __dir__() or something?`
+                    # if isinstance(a_value, dict):
+                    #     with h5py.File(file_path, 'w') as f:
+                    #         for attribute, value in a_value.items():
+                    #             sub_field_key:str = f"{a_field_key}/{attribute}"
+                    #             self._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
+                    # else:
+                    #     raise NotImplementedError
+
+            # Post serializing the dataset, set any hdf_metadata properties it might have:
+            ## NOTE: this is still within the datasets loop and just sets the metadata for the specific dataset assigned a value above!
+            custom_dataset_field_hdf_metadata = a_field_attr.metadata.get('hdf_metadata', {})
+            if len(custom_dataset_field_hdf_metadata) > 0: # don't open the file for no reason
+                with h5py.File(file_path, 'r+') as f:
+                    group = f[key]
+                    for an_hdf_attr_name, a_value in custom_dataset_field_hdf_metadata.items():
+                        group.attrs[an_hdf_attr_name] = a_value
 
 
-        ## Attributes Fields (metadata set on the HDF5 Group corresponding to this object):
+        # ==================================================================================================================== #
+        # Serializable HDF5 Attributes Fields (metadata set on the HDF5 Group corresponding to this object):                   #
+        # ==================================================================================================================== #
         ## Get attributes fields as well
         hdf_attr_fields, hdf_attr_fields_filter_fn = self.get_serialized_attribute_fields('hdf')
         active_hdf_attributes_fields_dict = {a_field.name:a_field for a_field in hdf_attr_fields} # a dict that allows accessing the actual attr by its name
@@ -215,8 +240,14 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                     a_field_attr = active_hdf_attributes_fields_dict[a_field_name]
                     if debug_print:
                         print(f'an_attribute_field: {a_field_attr.name}')
-                    # set that group attribute to a_value
-                    group.attrs[a_field_attr.name] = a_value #TODO 2023-07-31 05:50: - [ ] Assumes that the value is valid to be used as an HDF5 attribute without conversion.
+
+                    custom_serialization_fn = a_field_attr.metadata.get('custom_serialization_fn', None) # (lambda f, k, v: a_value)
+                    if custom_serialization_fn is not None:
+                        # use the custom serialization function:
+                        custom_serialization_fn(group.attrs, a_field_attr.name, a_value)
+                    else:
+                        # set that group attribute to a_value
+                        group.attrs[a_field_attr.name] = a_value #TODO 2023-07-31 05:50: - [ ] Assumes that the value is valid to be used as an HDF5 attribute without conversion.
 
 
 
@@ -282,7 +313,7 @@ class HDFMixin(HDF_DeserializationMixin, HDF_SerializationMixin):
 
 """
 from neuropy.utils.mixins.HDF5_representable import HDFMixin
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.AttrsClassHelpers import custom_define, AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 class SpecialClassHDFMixin(HDFMixin):

@@ -144,15 +144,6 @@ def _mark_field_metadata_computable(metadata: Optional[Dict[str, Any]] = None):
 
 # For HDF serializable fields, they can either be serialized as a dataset or an attribute on the group or dataset.
 
-def computed_field(default: Optional[Any] = None, is_hdf_serialized:bool=False, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
-    """ indicates that the field can be computed from the other fields given complete information. """
-    default_metadata = {
-        'tags': ['computed'],
-        'serialization': {'hdf': is_hdf_serialized, 'csv': False, 'pkl': True}
-    }
-    return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
-
-
 def non_serialized_field(default: Optional[Any] = None, is_computable:bool=True, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
     default_metadata = {
         'serialization': {'hdf': False, 'csv': False, 'pkl': True}
@@ -160,25 +151,32 @@ def non_serialized_field(default: Optional[Any] = None, is_computable:bool=True,
     if is_computable:
         default_metadata['tags'] = ['computed']
     else:
-        assert ('computed' not in metadata.get('tags', [])), f"'computed' is in the user-provided metadata but the user set is_computable=False!"
+        if metadata is not None:
+            assert ('computed' not in metadata.get('tags', [])), f"'computed' is in the user-provided metadata but the user set is_computable=False!"
     return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
 
-def serialized_field(default: Optional[Any] = None, is_computable:bool=False, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+def serialized_field(default: Optional[Any] = None, is_computable:bool=False, serialization_fn: Optional[Callable]=None, hdf_metadata: Optional[Dict]=None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
     default_metadata = {
         'tags': ['dataset'],
-        'serialization': {'hdf': True}
+        'serialization': {'hdf': True},
+        'custom_serialization_fn': serialization_fn,
+        'hdf_metadata': (hdf_metadata or {}),
     }
     if is_computable:
         default_metadata = _mark_field_metadata_computable(metadata=default_metadata)
     return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
 
 
-def serialized_attribute_field(default: Optional[Any] = None, is_computable:bool=False, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+def serialized_attribute_field(default: Optional[Any] = None, is_computable:bool=False, serialization_fn: Optional[Callable]=None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
     """ marks a specific field to be serialized as an HDF5 attribute on the group for this object """
     default_metadata = {
         'tags': ['attribute'],
-        'serialization': {'hdf': True}
+        'serialization': {'hdf': True},
+        'custom_serialization_fn': serialization_fn,
     }
+    # if serialization_fn is not None:
+    #     default_metadata['custom_serialization_fn'] = serialization_fn
+        
     if is_computable:
         default_metadata = _mark_field_metadata_computable(metadata=default_metadata)
     return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
