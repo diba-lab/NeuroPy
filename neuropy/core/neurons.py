@@ -110,6 +110,16 @@ class NeuronType(Enum):
                 3 were noisy
                 [6,7]: double fields. 
                 5: interneurons
+                
+        ## Post 2023-07-18: 
+            for i in np.arange(10): 
+                _out_map[i] = "cont" # initialize all to 'contaminated'/noisy
+            for i in [1,2,4,6,7,9]:
+                _out_map[i] = 'pyr' # pyramidal
+            _out_map[5] = "intr" # interneurons
+        
+        ## Post 2023-07-31 - Excluding "double fields" qclues on Kamran's request
+            
 
         """
         _out_map = dict() # start with an empty dict
