@@ -9,7 +9,7 @@ from attrs import define as original_define
 from attrs import field, Factory, fields, fields_dict, asdict
 
 """ 
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, computed_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field
 """
 
 # ==================================================================================================================== #
@@ -104,21 +104,56 @@ def merge_metadata(default_metadata: Dict[str, Any], additional_metadata: Option
 # Custom `field`s                                                                                                      #
 # ==================================================================================================================== #
 
-def computed_field(default: Optional[Any] = None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+# currently I'm indicating whether a field must be provided or whether it can be computed by setting the metadata['tags'] += ['computed']
+def _mark_field_metadata_computable(metadata: Optional[Dict[str, Any]] = None):
+    """ merely adds the `metadata['tags'] += ['computed']` to indicate that a field can be computed or whether it must be provided for a complete object. """
+    return merge_metadata({'tags': ['computed']}, metadata)
+
+# For HDF serializable fields, they can either be serialized as a dataset or an attribute on the group or dataset.
+
+def computed_field(default: Optional[Any] = None, is_hdf_serialized:bool=False, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+    """ indicates that the field can be computed from the other fields given complete information. """
     default_metadata = {
         'tags': ['computed'],
+        'serialization': {'hdf': is_hdf_serialized, 'csv': False, 'pkl': True}
+    }
+    return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
+
+
+def non_serialized_field(default: Optional[Any] = None, is_computable:bool=True, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+    default_metadata = {
         'serialization': {'hdf': False, 'csv': False, 'pkl': True}
     }
+    if is_computable:
+        default_metadata['tags'] = ['computed']
+    else:
+        assert ('computed' not in metadata.get('tags', [])), f"'computed' is in the user-provided metadata but the user set is_computable=False!"
     return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
 
-def serialized_field(default: Optional[Any] = None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+def serialized_field(default: Optional[Any] = None, is_computable:bool=False, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
     default_metadata = {
+        'tags': ['dataset'],
         'serialization': {'hdf': True}
     }
+    if is_computable:
+        default_metadata = _mark_field_metadata_computable(metadata=default_metadata)
     return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
 
+
+def serialized_attribute_field(default: Optional[Any] = None, is_computable:bool=False, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+    """ marks a specific field to be serialized as an HDF5 attribute on the group for this object """
+    default_metadata = {
+        'tags': ['attribute'],
+        'serialization': {'hdf': True}
+    }
+    if is_computable:
+        default_metadata = _mark_field_metadata_computable(metadata=default_metadata)
+    return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
+
+
+
 """
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, computed_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 
 """
 

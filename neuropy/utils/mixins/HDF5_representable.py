@@ -67,7 +67,7 @@ class HDF_DeserializationMixin(AttrsBasedClassHelperMixin):
 
 """ Usage of DeserializationMixin
 
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, computed_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 
@@ -99,7 +99,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     @classmethod
     def _try_default_to_hdf_conversion_fn(cls, file_path, key: str, value):
         """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. """
-        with h5py.File(file_path, 'w') as f:
+        with h5py.File(file_path, 'r+') as f:
             # if isinstance(a_value, dict):
                 # for attribute, value in a_value.items():
             # Only flat (non-recurrsive) types allowed.
@@ -148,7 +148,17 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             a_field_key:str = f'{key}/{a_field_attr.name}'
             if debug_print:
                 print(f'\ta_field_key: {a_field_key}')
-            if a_field_attr.type.is_hdf_serializable():
+                
+            is_custom_serializable:bool = False
+            try:
+                is_custom_serializable = a_field_attr.type.is_hdf_serializable()
+            except AttributeError as e:
+                # AttributeError: type object 'numpy.ndarray' has no attribute 'is_hdf_serializable' is expected when not native serializing type
+                is_custom_serializable = False
+            except Exception as e:
+                raise e # unhandled exception!!
+        
+            if is_custom_serializable:
                 ## Known `hdf_serializable` field, meaning it properly implements its own `to_hdf(...)` function! We can just call that! 
                 ## use that fields' to_hdf function
                 if debug_print:
@@ -157,8 +167,8 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             else:
                 ## field is not known to be hdf_serializable! It might not serialize correctly even if this method doesn't throw an error.
                 if debug_print:
-                    print(f'\t field not serializable! a_field_attr.type: {a_field_attr.type}.')
-                print(f'WARNING: {a_field_key} is not serializable, but we will try self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value.')
+                    print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')
+                print(f'WARNING: {a_field_key} is not custom serializable, but we will try self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
                 self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
                 
                 # Currently only allows flat fields, but could allow default nested fields like this: `a_value.__dict__`
@@ -238,7 +248,7 @@ class HDFMixin(HDF_DeserializationMixin, HDF_SerializationMixin):
 
 """
 from neuropy.utils.mixins.HDF5_representable import HDFMixin
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, computed_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 class SpecialClassHDFMixin(HDFMixin):

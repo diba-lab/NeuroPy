@@ -15,7 +15,7 @@ from neuropy.utils.misc import safe_pandas_get_group, copy_if_not_none
 from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_position_columns # for perform_time_range_computation only
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
 
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, computed_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 ## On saving:

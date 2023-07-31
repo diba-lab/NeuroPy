@@ -13,7 +13,7 @@ from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
 from neuropy.core.flattened_spiketrains import SpikesAccessor # allows placefields to be sliced by neuron ids
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, computed_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 from neuropy.plotting.figure import pretty_plot
