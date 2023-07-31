@@ -25,8 +25,6 @@ def post_deserialize(func):
     return wrapper
 
 
-
-
 class HDF_DeserializationMixin(AttrsBasedClassHelperMixin):
     def deserialize(self, *args, **kwargs):
         # Your deserialization logic here
