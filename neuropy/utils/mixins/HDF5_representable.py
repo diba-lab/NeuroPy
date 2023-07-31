@@ -88,7 +88,7 @@ class MyClass(DeserializationMixin):
 
 class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     """
-    Inherits `get_serialized_fields` from AttrsBasedClassHelperMixin
+    Inherits `get_serialized_dataset_fields` from AttrsBasedClassHelperMixin
     """
     
     @classmethod
@@ -98,13 +98,26 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
 
     @classmethod
     def _try_default_to_hdf_conversion_fn(cls, file_path, key: str, value):
-        """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. """
+        """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. 
+
+        #TODO 2023-07-31 06:10: - [ ] This currently clobbers any existing dataset due to HDF5 limitations on overwriting/replacing Datasets with ones of different type or size. Make sure this is what I want.
+            # using `require_dataset` instead of `create_dataset` allows overwriting the existing dataset. Otherwise if it exists it throws: `ValueError: Unable to create dataset (name already exists)`
+        
+        """
         with h5py.File(file_path, 'r+') as f:
             # if isinstance(a_value, dict):
                 # for attribute, value in a_value.items():
             # Only flat (non-recurrsive) types allowed.
+
+            # Remove old, differently sized dataset if it exists because HDF5 doesn't allow overwriting datasets with one of a different type or size:
+            if key in f:
+                print(f'WARNING: clobbering existing dataset in {file_path} at {key}! Will be replaced by new value.')
+                # could at least backup metadata first to restore later:
+                # attrs_backup = deepcopy(f[key].attrs)
+                del f[key]
+
             if isinstance(value, pd.DataFrame):
-                value.to_hdf(file_path, key=key)
+                value.to_hdf(file_path, key=key) #TODO 2023-07-31 06:07: - [ ] Is using pandas built-in .to_hdf an instance of double saving (h5py.File and pandas accessing same file concurrently?). In that cause I'd need to bring it out of the loop.
             elif isinstance(value, np.ndarray):
                 f.create_dataset(key, data=value)
             elif isinstance(value, (list, tuple)):
@@ -133,16 +146,17 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
         ## Automatic implementation if class is `AttrsBasedClassHelperMixin`
         if debug_print:
             print(f'WARNING: experimental automatic `to_hdf` implementation for object of type {type(self)} to file_path: {file_path}, with key: {key}:')
-        # get serializable fields
-        hdf_fields, hdf_fields_filter_fn = self.get_serialized_fields('hdf')
-        active_hdf_fields_dict = {a_field.name:a_field for a_field in hdf_fields} # a dict that allows accessing the actual attr by its name
+            
+        # Serializable Dataset HDF5 Fields: 
+        hdf_dataset_fields, hdf_dataset_fields_filter_fn = self.get_serialized_dataset_fields('hdf')
+        active_hdf_dataset_fields_dict = {a_field.name:a_field for a_field in hdf_dataset_fields} # a dict that allows accessing the actual attr by its name
         # use `asdict` to get a dictionary-representation of self only for the `hdf` serializable fields
-        _active_obj_values_dict = asdict(self, filter=hdf_fields_filter_fn, recurse=False)
-        # _temp_obj_dict = {k:v.take(indices=aclu_is_included, axis=neuron_shape_index_for_attribute_name_dict[k]) for k, v in _temp_obj_dict.items()} # filter the n_neurons axis containing items to get a reduced dictionary
+        _active_obj_dataset_values_dict = asdict(self, filter=hdf_dataset_fields_filter_fn, recurse=False)
+        
         # print(f'_temp_obj_dict: {_active_obj_values_dict}')
         # for a_field in hdf_fields:
-        for a_field_name, a_value in _active_obj_values_dict.items():
-            a_field_attr = active_hdf_fields_dict[a_field_name]
+        for a_field_name, a_value in _active_obj_dataset_values_dict.items():
+            a_field_attr = active_hdf_dataset_fields_dict[a_field_name]
             if debug_print:
                 print(f'a_field: {a_field_attr.name}')
             a_field_key:str = f'{key}/{a_field_attr.name}'
@@ -184,6 +198,26 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                 #             self._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
                 # else:
                 #     raise NotImplementedError
+
+
+        ## Attributes Fields (metadata set on the HDF5 Group corresponding to this object):
+        ## Get attributes fields as well
+        hdf_attr_fields, hdf_attr_fields_filter_fn = self.get_serialized_attribute_fields('hdf')
+        active_hdf_attributes_fields_dict = {a_field.name:a_field for a_field in hdf_attr_fields} # a dict that allows accessing the actual attr by its name
+        _active_obj_attributes_values_dict = asdict(self, filter=hdf_attr_fields_filter_fn, recurse=False) # want recurse=True for this one?
+        
+        # Actually assign the attributes to the group:
+        if len(_active_obj_attributes_values_dict) > 0: # don't open the file for no reason
+            # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+            with h5py.File(file_path, 'r+') as f:
+                group = f[key]
+                for a_field_name, a_value in _active_obj_attributes_values_dict.items():
+                    a_field_attr = active_hdf_attributes_fields_dict[a_field_name]
+                    if debug_print:
+                        print(f'an_attribute_field: {a_field_attr.name}')
+                    # set that group attribute to a_value
+                    group.attrs[a_field_attr.name] = a_value #TODO 2023-07-31 05:50: - [ ] Assumes that the value is valid to be used as an HDF5 attribute without conversion.
+
 
 
 

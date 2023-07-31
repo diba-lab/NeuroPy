@@ -1,4 +1,5 @@
-from functools import wraps, partial
+from functools import wraps, partial, total_ordering
+from enum import Enum, unique
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union, Dict, Tuple
@@ -12,6 +13,22 @@ from attrs import field, Factory, fields, fields_dict, asdict
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field
 """
 
+@unique
+class HDF_SerializationType(Enum):
+    """ Specifies how a serialized field is stored, as an HDF5 Dataset or Attribute """
+    DATASET = 0
+    ATTRIBUTE = 1
+
+    @property
+    def required_tag(self):
+        return HDF_SerializationType.requiredClassTags()[self.value]
+        
+
+    # Static properties
+    @classmethod
+    def requiredClassTags(cls):
+        return np.array(['dataset','attribute'])
+
 # ==================================================================================================================== #
 # 2023-07-30 `attrs`-based classes Helper Mixin                                                                        #
 # ==================================================================================================================== #
@@ -21,7 +38,7 @@ class AttrsBasedClassHelperMixin:
     from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define
 
 
-    hdf_fields = BasePositionDecoder.get_serialized_fields('hdf')
+    hdf_fields = BasePositionDecoder.get_serialized_dataset_fields('hdf')
 
     """
     @classmethod
@@ -41,20 +58,36 @@ class AttrsBasedClassHelperMixin:
         return found_fields, _fields_matching_query_filter_fn
 
 
+
+
+
     @classmethod
-    def get_serialized_fields(cls, serialization_format:str='hdf') -> Tuple[List, Callable]:
-        def _serialized_fields_filter_fn(an_attr, attr_value):
-            """ return attributes only if they have serialization.{serialization_format} in their shape metadata. Captures `serialization_format`. """
-            return (an_attr.metadata.get('serialization', {}).get(serialization_format, False) is True)
-        
+    def get_serialized_fields(cls, serializationType: HDF_SerializationType, serialization_format:str='hdf') -> Tuple[List, Callable]:
+        """ general function for getting the list of fields with a certain serializationType as a list of attrs attributes and a filter to select them useful for attrs.asdict(...) filtering. """
+        def _serialized_attribute_fields_filter_fn(an_attr, attr_value):
+            """ return attributes only if they have serialization.{serialization_format} in their shape metadata. Captures `serialization_format` and `serializationType`. """
+            return (an_attr.metadata.get('serialization', {}).get(serialization_format, False) and (serializationType.required_tag in an_attr.metadata.get('tags', [])))
+
         hdf_fields = []
         for attr_field in fields(cls):
-            # serialization_metadata = attr_field.metadata.get('serialization', {})
-            # if serialization_metadata.get(serialization_format, False) is True:
-            if _serialized_fields_filter_fn(attr_field, None): # pass None for value because it doesn't matter
+            if _serialized_attribute_fields_filter_fn(attr_field, None): # pass None for value because it doesn't matter
                 hdf_fields.append(attr_field) # attr_field.name
-        return hdf_fields, _serialized_fields_filter_fn
+        # hdf_fields = [attr_field for attr_field in fields(cls) if _serialized_attribute_fields_filter_fn(attr_field, None)] # list comprehension is more concise
+        return hdf_fields, _serialized_attribute_fields_filter_fn
+    
 
+    @classmethod
+    def get_serialized_dataset_fields(cls, serialization_format:str='hdf') -> Tuple[List, Callable]:
+        return cls.get_serialized_fields(serialization_format=serialization_format, serializationType=HDF_SerializationType.DATASET)
+
+    @classmethod
+    def get_serialized_attribute_fields(cls, serialization_format:str='hdf') -> Tuple[List, Callable]:
+        return cls.get_serialized_fields(serialization_format=serialization_format, serializationType=HDF_SerializationType.ATTRIBUTE)
+    
+
+
+
+'tags'
 
 
 # ==================================================================================================================== #
