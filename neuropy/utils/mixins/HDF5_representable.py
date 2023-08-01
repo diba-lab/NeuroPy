@@ -311,6 +311,7 @@ class HDFMixin(HDF_DeserializationMixin, HDF_SerializationMixin):
     # Common methods for serialization and deserialization
     pass
 
+
 """
 from neuropy.utils.mixins.HDF5_representable import HDFMixin
 from neuropy.utils.mixins.AttrsClassHelpers import custom_define, AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
@@ -345,3 +346,39 @@ class MyClass(SpecialClassHDFMixin):
  
 # 	def save(self):
 # 		raise NotImplementedError
+
+
+
+# ==================================================================================================================== #
+# 2023-08-01 Item Conversions for HDF5 Representations                                                                 #
+# ==================================================================================================================== #
+""" The above Mixins regard objects that should independently load/save themselves out to an HDF5 file.
+
+In addition, some class (like enums) might need a way to specify how their value should be converted to an HDF5 datatype and how it can be recognized to be deserialized.
+
+`as_hdf_representable` - returns an HDF representation of itself along with metadata to indicate how it can be reconstructed.
+
+
+value: the object represented as an HDF5 datatype, potentially a compound type but not something advanced enough to warrent its own `to_hdf` and `from_hdf` methods
+
+metadata: to be attached to the property
+    - class_name
+    - serialization_version - constrains what deserialization version should/can be used to reconstruct the object
+    - serialization_datetime
+    - 
+
+
+`Class.init_from_hdf_representation` - the inverse deserialization method
+
+
+
+How should a List[NeuronType] or a Dict[int:NeuronType] be written out to HDF5? Probably as a np.array of simpler representations, right? Otherwise we get stupid with the hierarchy keys
+
+
+
+
+
+
+"""
+
+
