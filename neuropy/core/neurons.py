@@ -684,13 +684,13 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         df_representation = self.to_dataframe()
         df_representation.spikes.to_hdf(file_path, key=f'{key}/spikes')
         neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in self.neuron_type]) # convert NeuronTypes to neuronTypesEnum
-        selected_columns = ['shank', 'cluster', 'aclu', 'qclu']
+        selected_columns = ['aclu', 'shank', 'cluster', 'qclu','neuron_type']
         unique_rows_df = df_representation[selected_columns].drop_duplicates()
         
         aclu_array = unique_rows_df['aclu'].values
         assert len(unique_rows_df) == len(aclu_array), f"if this were false that would suggest that there are multiple entries for aclus. {len(aclu_array) =}, {len(unique_rows_df) =}"
         # Extract the selected columns as NumPy arrays
-        # shank_array = unique_rows_df['shank'].values
+        shank_array = unique_rows_df['shank'].values
         cluster_array = unique_rows_df['cluster'].values
         qclu_array = unique_rows_df['qclu'].values
 

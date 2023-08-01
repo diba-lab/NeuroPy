@@ -439,7 +439,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # IIdata.mat file Position and Epoch:
         session = cls.__default_kdiba_exported_load_mats(session.basepath, session.name, session, time_variable_name=active_time_variable_name)
         
-        ## .spikeII.mat file:
+        ## .spikeII.mat file: 
+        # provides spikes `spikes_df`, `flat_spikes_out_dict`
         try:
             spikes_df, flat_spikes_out_dict = cls.__default_kdiba_pho_exported_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
         except FileNotFoundError as e:
@@ -489,6 +490,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             pass
         
         ## Neurons (by Cell):
+        # the `session.neurons` Neurons object which it builds from the `spikes_df` and `flat_spikes_out_dict` 
         session = cls.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(session.filePrefix.with_suffix(".probegroup.npy"))
         
@@ -853,6 +855,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 
     @classmethod
     def __default_kdiba_spikeII_compute_neurons(cls, session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
+        """ adds the `session.neurons` Neurons object which it builds from the `spikes_df` and `flat_spikes_out_dict` """
         ## Get unique cell ids to enable grouping flattened results by cell:
         unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
         flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids]

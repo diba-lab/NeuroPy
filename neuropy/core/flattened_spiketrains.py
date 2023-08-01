@@ -59,7 +59,6 @@ class SpikesAccessor(TimeSlicedMixin):
             module_logger.warning(f"\t time variable changed from '{original_time_variable_name}' to '{new_time_variable_name}'.")
             print('\t time variable changed!')
         
-
     @property
     def times(self):
         """ convenience property to access the times of the spikes in the dataframe 
@@ -99,19 +98,16 @@ class SpikesAccessor(TimeSlicedMixin):
             included_neuron_ids = self.neuron_ids
         return [safe_pandas_get_group(self._obj.groupby('aclu'), neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
     
-
     def sliced_by_neuron_id(self, included_neuron_ids):
         """ gets the slice of spikes with the specified `included_neuron_ids` """
         if included_neuron_ids is None:
             included_neuron_ids = self.neuron_ids
         return self._obj[self._obj['aclu'].isin(included_neuron_ids)] ## restrict to only the shared aclus for both short and long
         
-
     def get_unit_spiketrains(self, included_neuron_ids=None):
         """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
         return np.asarray([a_unit_spikes_df[self.time_variable_name].to_numpy() for a_unit_spikes_df in self.get_split_by_unit(included_neuron_ids=included_neuron_ids)])
         
-
     def sliced_by_neuron_type(self, query_neuron_type):
         """ returns a copy of self._obj filtered by the specified query_neuron_type, only returning neurons that match.
             e.g. query_neuron_type = NeuronType.PYRAMIDAL 
@@ -132,6 +128,22 @@ class SpikesAccessor(TimeSlicedMixin):
         return self._obj.loc[inclusion_mask, :].copy()
         # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.cell_type]), [query_neuron_type.shortClassName])]
         
+    def extract_unique_neuron_identities(self):
+        """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
+        selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'cell_type']
+        unique_rows_df = self._obj[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu. 
+        assert len(unique_rows_df) == self.n_neurons, f"if this were false that would suggest that there are multiple entries for aclus. n_neurons: {self.n_neurons}, {len(unique_rows_df) =}"
+        return unique_rows_df
+
+        # # Extract the selected columns as NumPy arrays
+        # aclu_array = unique_rows_df['aclu'].values
+        # shank_array = unique_rows_df['shank'].values
+        # cluster_array = unique_rows_df['cluster'].values
+        # qclu_array = unique_rows_df['qclu'].values
+        # neuron_type_array = unique_rows_df['cell_type'].values
+        # neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in neuron_type_array]) # convert NeuronTypes to neuronTypesEnum
+        
+
 
     # ==================================================================================================================== #
     # Additive Mutating Functions: Adds or Update Columns in the Dataframe                                                 #
@@ -339,13 +351,10 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
     def from_dict(d: dict):
         return FlattenedSpiketrains(d["spikes_df"], t_start=d.get('t_start',0.0), time_variable_name=d.get('time_variable_name','t_rel_seconds'), metadata=d.get('metadata',None))
     
-    
-    
     def to_dataframe(self):
         df = self._spikes_df.copy()
         # df['t_start'] = self.t_start
         return df
-
 
     def time_slice(self, t_start=None, t_stop=None):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
@@ -388,8 +397,6 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
         new_df = pd.concat([obj.to_dataframe() for obj in objList])
         return FlattenedSpiketrains(new_df, t_start=new_t_start, metadata=objList[0].metadata)
         
-        
-        
     @staticmethod
     def interpolate_spike_positions(spikes_df, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None, spike_timestamp_column_name='t_rel_seconds'):
         spikes_df['x'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_x)
@@ -399,8 +406,6 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
         if position_speeds is not None:
             spikes_df['speed'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_speeds)
         return spikes_df
-    
-    
 
     @staticmethod
     def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4), spike_timestamp_column_name='t_rel_seconds', progress_tracing=True):

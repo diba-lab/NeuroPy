@@ -20,7 +20,14 @@ NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank c
 neuronTypesList: List[str] = ['pyr', 'bad', 'intr']
 neuronTypesEnum = tb.Enum(neuronTypesList)
 
-# ['shank', 'cluster', 'aclu', 'qclu', 'cell_type', 'fragile_linear_neuron_IDX']
+
+
+
+"""
+from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple, neuronTypesEnum, NeuronIdentityTable
+['shank', 'cluster', 'aclu', 'qclu', 'cell_type', 'fragile_linear_neuron_IDX']
+"""
+
 
 class NeuronIdentityTable(tb.IsDescription):
     """ represents a single neuron in the scope of multiple sessions for use in a PyTables table or HDF5 output file """
