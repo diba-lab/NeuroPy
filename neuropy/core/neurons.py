@@ -2,6 +2,8 @@ from typing import Sequence, Union
 from functools import total_ordering
 import numpy as np
 import pandas as pd
+import h5py
+import tables as tb
 from pandas.api.types import CategoricalDtype
 
 from scipy.ndimage import gaussian_filter1d
@@ -20,6 +22,7 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+from neuropy.core.neuron_identities import NeuronIdentityTable, neuronTypesList, neuronTypesEnum
 
 
 @total_ordering
@@ -46,8 +49,6 @@ class NeuronType(Enum):
     # shortClassNames = ['pyr','cont','intr']
     # classCutoffValues = [0, 4, 7, 9]
 
-
-    
     def describe(self):
         self.name, self.value
     
@@ -216,9 +217,9 @@ class NeuronType(Enum):
     def get_pandas_categories_type(cls) -> CategoricalDtype:
         return CategoricalDtype(categories=list(cls.hdf_coding_ClassNames()), ordered=True)
         
-  
 
-class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, ConcatenationInitializable, DataWriter):
+
+class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, ConcatenationInitializable, DataWriter):
     """Class to hold a group of spiketrains and their labels, ids etc."""
 
     def __init__(
@@ -570,12 +571,12 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
         if ('qclu' not in spikes_df.columns):
             if debug_print:
                 print('dataframe qclu column does not exist. Initializing it to the same as aclu')
-            spikes_df['qclu'] = spikes_df['aclu']
+            spikes_df['qclu'] = 111 # spikes_df['aclu']
             
         if ('cluster' not in spikes_df.columns):
             if debug_print:
                 print('dataframe cluster column does not exist. Initializing it to the same as aclu')
-            spikes_df['cluster'] = spikes_df['aclu']
+            spikes_df['cluster'] = 111 # spikes_df['aclu']
 
     @classmethod
     def from_dataframe(cls, spikes_df, dat_sampling_rate, time_variable_name='t_rel_seconds'):
@@ -670,6 +671,123 @@ class Neurons(NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicabl
             metadata=objList[0].metadata
         )
 
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+    def to_hdf(self, file_path, key: str, session_uid:str="test_session_uid", **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
+        """
+        
+        ## Serialize the dataframe:
+        df_representation = self.to_dataframe()
+        df_representation.spikes.to_hdf(file_path, key=f'{key}/spikes')
+        neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in self.neuron_type]) # convert NeuronTypes to neuronTypesEnum
+        selected_columns = ['shank', 'cluster', 'aclu', 'qclu']
+        unique_rows_df = df_representation[selected_columns].drop_duplicates()
+        
+        aclu_array = unique_rows_df['aclu'].values
+        assert len(unique_rows_df) == len(aclu_array), f"if this were false that would suggest that there are multiple entries for aclus. {len(aclu_array) =}, {len(unique_rows_df) =}"
+        # Extract the selected columns as NumPy arrays
+        # shank_array = unique_rows_df['shank'].values
+        cluster_array = unique_rows_df['cluster'].values
+        qclu_array = unique_rows_df['qclu'].values
+
+
+        # self.spiketrains = np.array(spiketrains, dtype="object")
+
+        # self._extended_neuron_properties_df = extended_neuron_properties_df
+        
+        # h5f = tables.open_file('enum.h5', 'w')
+
+        assert self.waveforms is None, f"waveforms are not HDF serialized and will be LOST"
+        assert self._extended_neuron_properties_df is None, f"self._extended_neuron_properties_df are not yet serializable!"
+
+        # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+        # with h5py.File(file_path, 'r+') as f:
+        with tb.open_file(file_path, mode='r+') as f:
+            
+            # f.create_dataset(f'{key}/neuron_ids', data=self.neuron_ids)
+            # f.create_dataset(f'{key}/shank_ids', data=self.shank_ids)
+            if self.peak_channels is not None:
+                f.create_dataset(f'{key}/peak_channels', data=self.peak_channels)
+
+            ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
+            group = f[key]
+
+            table = f.create_table(group, 'table', NeuronIdentityTable, "Neuron identities")
+
+            # Serialization
+            row = table.row
+            for i in np.arange(self.n_neurons):
+                ## Build the row here from self.neuron_ids, etc
+                row['global_uid'] = f"{session_uid}-{self.neuron_ids[i]}"
+                row['session_uid'] = session_uid  # Provide an appropriate session identifier here
+                row['neuron_id'] = self.neuron_ids[i]
+                row['neuron_type'] = neuron_types_enum_array[i]
+                row['shank_index'] = self.shank_ids[i]
+                row['cluster_index'] = cluster_array[i] # self.peak_channels[i]
+                row['qclu'] = qclu_array[i]  # Replace with appropriate value if available                
+                row.append()
+                
+            table.flush()
+            
+            # Metadata:
+            group.attrs['dat_sampling_rate'] = self.sampling_rate
+            group.attrs['t_start'] = self.t_start
+            group.attrs['t_start'] = self.t_start
+            group.attrs['t_stop'] = self.t_stop
+            group.attrs['n_neurons'] = self.n_neurons
+
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "Neurons":
+        """ Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pfnd_obj = PfND.read_hdf(hdf5_output_path, key='test_pfnd')
+            _reread_pfnd_obj
+
+
+        # Neurons.__init__( self, spiketrains: np.ndarray, t_stop, t_start=0.0, sampling_rate=1, neuron_ids=None, neuron_type=None, waveforms=None, peak_channels=None, shank_ids=None, extended_neuron_properties_df=None, metadata=None, )
+        """
+        # Read DataFrames using pandas
+        raise NotImplementedError
+        position = Position.read_hdf(file_path, key=f'{key}/pos')
+        try:
+            epochs = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        except KeyError as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key.  'No object named test_pfnd/epochs in the file'
+            epochs = None
+        except Exception as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key
+            print(f'Unhandled exception {e}')
+            raise e
+        
+        spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
+
+        # Open the file with h5py to read attributes
+        with h5py.File(file_path, 'r') as f:
+            group = f[key]
+            position_srate = group.attrs['position_srate']
+            ndim = group.attrs['ndim'] # Assuming you'll use it somewhere else if needed
+
+            # Read the config attributes
+            config_dict = {
+                'speed_thresh': group.attrs['config/speed_thresh'],
+                'grid_bin': tuple(group.attrs['config/grid_bin']),
+                'grid_bin_bounds': tuple(group.attrs['config/grid_bin_bounds']),
+                'smooth': tuple(group.attrs['config/smooth']),
+                'frate_thresh': group.attrs['config/frate_thresh']
+            }
+
+        # Create a PlacefieldComputationParameters object from the config_dict
+        config = PlacefieldComputationParameters(**config_dict)
+
+        # Reconstruct the object using the from_config_values class method
+        return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
+    
 
 
 class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):

@@ -1,113 +1,41 @@
 # neuron_identities
 from collections import namedtuple
+from enum import Enum
+from typing import List
 import numpy as np
+import tables as tb
+from tables import (
+    Int8Col, Int16Col, Int32Col, Int64Col,
+    UInt8Col, UInt16Col, UInt32Col, UInt64Col,
+    Float32Col, Float64Col,
+    TimeCol, ComplexCol, StringCol, BoolCol, EnumCol
+)
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 from neuropy.utils.colors_util import get_neuron_colors
 from matplotlib.colors import ListedColormap
 
 NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank cluster id')
 
-## Plotting Colors:
-def build_units_colormap(neuron_ids):
-    """ 
-    Usage:
-        pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap = build_units_colormap(good_placefield_neuronIDs)
-    """
-    pf_sort_ind = np.array([int(i) for i in np.arange(len(neuron_ids))]) # convert to integer scalar array
-    pf_colors = get_neuron_colors(pf_sort_ind, cmap=None) # [4 x n_neurons]: colors are by ascending index ID
-    pf_colormap = pf_colors.T # [n_neurons x 4] Make the colormap from the listed colors, used seemingly only by 'runAnalysis_PCAandICA(...)'
-    pf_listed_colormap = ListedColormap(pf_colormap)
-    return pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap
 
+neuronTypesList: List[str] = ['pyr', 'bad', 'intr']
+neuronTypesEnum = tb.Enum(neuronTypesList)
 
-from enum import Enum
+# ['shank', 'cluster', 'aclu', 'qclu', 'cell_type', 'fragile_linear_neuron_IDX']
 
-
-class PlotStringBrevityModeEnum(Enum):
-    """An enum of different modes that specify how verbose/brief the rendered strings should be on a given plot.
-    More verbose means longer ouptuts with fewer abbreviations. For very brief modes, less important elements may be omitted entirely
-    """
-    VERBOSE = "VERBOSE"
-    DEFAULT = "DEFAULT"
-    CONCISE = "CONCISE"
-    MINIMAL = "MINIMAL"
-    NONE = "NONE"
+class NeuronIdentityTable(tb.IsDescription):
+    """ represents a single neuron in the scope of multiple sessions for use in a PyTables table or HDF5 output file """
+    global_uid = StringCol(16)   # 16-character String, globally unique neuron identifier (across all sessions) composed of a session_uid and the neuron's (session-specific) aclu
+    session_uid = StringCol(16)
+    ## Session-Local Identifiers
+    neuron_id = UInt16Col() # 65535 max neurons
+    neuron_type = EnumCol(neuronTypesEnum, 'bad', base='uint8') # 
+    shank_index  = UInt16Col() # specific to session
+    cluster_index  = UInt16Col() # specific to session
+    qclu = UInt8Col() # specific to session
     
-    @property
-    def extended_identity_labels(self):
-        """The extended_identity_labels property."""
-        if self == PlotStringBrevityModeEnum.VERBOSE:
-            return {'cell_uid':'cell_uid', 'shank_index':'shank_index', 'cluster_index':'cluster_index'}
-        elif self == PlotStringBrevityModeEnum.DEFAULT:
-            return {'cell_uid':'id', 'shank_index':'shank', 'cluster_index':'cluster'}
-        elif self == PlotStringBrevityModeEnum.CONCISE:
-            return {'cell_uid':'', 'shank_index':'shk', 'cluster_index':'clu'}
-        elif self == PlotStringBrevityModeEnum.MINIMAL:
-            return {'cell_uid':'', 'shank_index':'s', 'cluster_index':'c'}
-        elif self == PlotStringBrevityModeEnum.NONE:
-            return {'cell_uid':'', 'shank_index':'', 'cluster_index':''}
-        else:
-            raise NameError
-
-    def _basic_identity_formatting_string(self, neuron_extended_id):
-        """Builds the string output for just the id (aclu) component of the neuron_extended_id """
-        if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
-            return f'Cell cell_uid: {neuron_extended_id.id}'
-        elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
-            return f'Cell {neuron_extended_id.id}'
-        elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return f'Cell {neuron_extended_id.id}'
-        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return f'{neuron_extended_id.id}'
-        elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return f'{neuron_extended_id.id}'
-        else:
-            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
-            raise NameError
-
-    def _extra_info_identity_formatting_string(self, neuron_extended_id):
-        """Builds the string output for just the shank and cluster components of the neuron_extended_id."""
-        if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
-            return f'(shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
-        elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
-            return f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
-        elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return f'(shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
-        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return f's{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
-        elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return f'{neuron_extended_id.shank},{neuron_extended_id.cluster}'
-        else:
-            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
-            raise NameError
-
-    def extended_identity_formatting_string(self, neuron_extended_id):
-        """The extended_identity_labels property."""
-        if (self.name == PlotStringBrevityModeEnum.VERBOSE.name) or (self.name == PlotStringBrevityModeEnum.DEFAULT.name):
-            return ' - '.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
-        elif (self.name == PlotStringBrevityModeEnum.CONCISE.name) or (self.name == PlotStringBrevityModeEnum.MINIMAL.name):
-            return '-'.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
-        elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            # Show only the id label:
-            return self._basic_identity_formatting_string(neuron_extended_id)
-        else:
-            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
-            raise NameError
-        
-    @property
-    def should_show_firing_rate_label(self):
-        """ Whether the firing rate in Hz should be showed on the plot """
-        if self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return True # was False
-        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return True # was False
-        elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return False # was False
-        else:
-            return True
-        
 
 
+# NOTE: this is like visual identity also
 class NeuronIdentity(SimplePrintable):
     """NeuronIdentity: A multi-facited identifier for a specific neuron/putative cell 
         Used to retain a the identity associated with a value or set of values even after filtering and such.
@@ -116,6 +44,7 @@ class NeuronIdentity(SimplePrintable):
         shank_index: [1:12]
         cluster_index: [2:28]
         
+        NOTE: also store 'color'
         ['shank','cluster']
     
     """
@@ -219,8 +148,108 @@ class NeuronIdentityAccessingMixin:
         return found_cell_INDEXES
     
     
+
+# ==================================================================================================================== #
+# Display and Render Helpers                                                                                           #
+# ==================================================================================================================== #
+
+class PlotStringBrevityModeEnum(Enum):
+    """An enum of different modes that specify how verbose/brief the rendered strings should be on a given plot.
+    More verbose means longer ouptuts with fewer abbreviations. For very brief modes, less important elements may be omitted entirely
+    """
+    VERBOSE = "VERBOSE"
+    DEFAULT = "DEFAULT"
+    CONCISE = "CONCISE"
+    MINIMAL = "MINIMAL"
+    NONE = "NONE"
     
-    
+    @property
+    def extended_identity_labels(self):
+        """The extended_identity_labels property."""
+        if self == PlotStringBrevityModeEnum.VERBOSE:
+            return {'cell_uid':'cell_uid', 'shank_index':'shank_index', 'cluster_index':'cluster_index'}
+        elif self == PlotStringBrevityModeEnum.DEFAULT:
+            return {'cell_uid':'id', 'shank_index':'shank', 'cluster_index':'cluster'}
+        elif self == PlotStringBrevityModeEnum.CONCISE:
+            return {'cell_uid':'', 'shank_index':'shk', 'cluster_index':'clu'}
+        elif self == PlotStringBrevityModeEnum.MINIMAL:
+            return {'cell_uid':'', 'shank_index':'s', 'cluster_index':'c'}
+        elif self == PlotStringBrevityModeEnum.NONE:
+            return {'cell_uid':'', 'shank_index':'', 'cluster_index':''}
+        else:
+            raise NameError
+
+    def _basic_identity_formatting_string(self, neuron_extended_id):
+        """Builds the string output for just the id (aclu) component of the neuron_extended_id """
+        if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
+            return f'Cell cell_uid: {neuron_extended_id.id}'
+        elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
+            return f'Cell {neuron_extended_id.id}'
+        elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
+            return f'Cell {neuron_extended_id.id}'
+        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
+            return f'{neuron_extended_id.id}'
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            return f'{neuron_extended_id.id}'
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
+
+    def _extra_info_identity_formatting_string(self, neuron_extended_id):
+        """Builds the string output for just the shank and cluster components of the neuron_extended_id."""
+        if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
+            return f'(shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
+            return f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
+            return f'(shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
+            return f's{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            return f'{neuron_extended_id.shank},{neuron_extended_id.cluster}'
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
+
+    def extended_identity_formatting_string(self, neuron_extended_id):
+        """The extended_identity_labels property."""
+        if (self.name == PlotStringBrevityModeEnum.VERBOSE.name) or (self.name == PlotStringBrevityModeEnum.DEFAULT.name):
+            return ' - '.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
+        elif (self.name == PlotStringBrevityModeEnum.CONCISE.name) or (self.name == PlotStringBrevityModeEnum.MINIMAL.name):
+            return '-'.join([self._basic_identity_formatting_string(neuron_extended_id), self._extra_info_identity_formatting_string(neuron_extended_id)])
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            # Show only the id label:
+            return self._basic_identity_formatting_string(neuron_extended_id)
+        else:
+            print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
+            raise NameError
+        
+    @property
+    def should_show_firing_rate_label(self):
+        """ Whether the firing rate in Hz should be showed on the plot """
+        if self.name == PlotStringBrevityModeEnum.CONCISE.name:
+            return True # was False
+        elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
+            return True # was False
+        elif self.name == PlotStringBrevityModeEnum.NONE.name:
+            return False # was False
+        else:
+            return True
+        
+
+## Plotting Colors:
+def build_units_colormap(neuron_ids):
+    """ 
+    Usage:
+        pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap = build_units_colormap(good_placefield_neuronIDs)
+    """
+    pf_sort_ind = np.array([int(i) for i in np.arange(len(neuron_ids))]) # convert to integer scalar array
+    pf_colors = get_neuron_colors(pf_sort_ind, cmap=None) # [4 x n_neurons]: colors are by ascending index ID
+    pf_colormap = pf_colors.T # [n_neurons x 4] Make the colormap from the listed colors, used seemingly only by 'runAnalysis_PCAandICA(...)'
+    pf_listed_colormap = ListedColormap(pf_colormap)
+    return pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap
+
+
         
 class NeuronIdentitiesDisplayerMixin:
     @property
