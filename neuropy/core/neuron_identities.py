@@ -17,17 +17,13 @@ from matplotlib.colors import ListedColormap
 NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank cluster id')
 
 
-neuronTypesList: List[str] = ['pyr', 'bad', 'intr']
-neuronTypesEnum = tb.Enum(neuronTypesList)
-
-
-
-
 """
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple, neuronTypesEnum, NeuronIdentityTable
 ['shank', 'cluster', 'aclu', 'qclu', 'cell_type', 'fragile_linear_neuron_IDX']
 """
 
+neuronTypesList: List[str] = ['pyr', 'bad', 'intr']
+neuronTypesEnum = tb.Enum(neuronTypesList)
 
 class NeuronIdentityTable(tb.IsDescription):
     """ represents a single neuron in the scope of multiple sessions for use in a PyTables table or HDF5 output file """
