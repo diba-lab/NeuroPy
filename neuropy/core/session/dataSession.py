@@ -3,6 +3,8 @@ from typing import Sequence, Union
 from warnings import warn
 import numpy as np
 import pandas as pd
+import h5py
+import tables as tb
 # from klepto.safe import lru_cache as memoized
 # from neuropy.utils.result_context import context_extraction as memoized
 
@@ -29,20 +31,24 @@ from neuropy.utils.efficient_interval_search import determine_event_interval_ide
 
 # Klepto caching/memoization
 # from klepto.archives import sqltable_archive as sql_archive
-from klepto.archives import file_archive, sql_archive, dict_archive
-from klepto.keymaps import keymap, hashmap, stringmap
+# from klepto.archives import file_archive, sql_archive, dict_archive
+# from klepto.keymaps import keymap, hashmap, stringmap
 
-_context_keymap = stringmap(flat=False, sentinel='||')
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
+# _context_keymap = stringmap(flat=False, sentinel='||')
 # _context_keymap = keymap(flat=False, sentinel='||')
 # _context_keymap = hashmap(sentinel='||') # signature not recoverable
 
 #d = sql_archive('postgresql://user:pass@localhost/defaultdb', cached=False)
 #d = sql_archive('mysql://user:pass@localhost/defaultdb', cached=False)
 # _context_cache = sql_archive(cached=False)
-_context_cache = dict_archive('_test_context_cache')
+# _context_cache = dict_archive('_test_context_cache')
 # _context_cache = dict_archive(cached=False)
 
-class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
+
+class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
     """ holds the collection of all data, both loaded and computed, related to an experimental recording session. Can contain multiple discontiguous time periods ('epochs') meaning it can represent the data collected over the course of an experiment for a single animal (across days), on a single day, etc.
     
     Provides methods for loading, accessing, and manipulating data such as neural spike trains, behavioral laps, etc.
@@ -511,10 +517,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         a_session.replay = a_session.estimate_replay_epochs(**(default_replay_estimation_parameters | kwargs)).to_dataframe()
         return a_session.replay
 
-
-
-
-
     # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Union[Sequence, np.array]):
@@ -656,3 +658,138 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         out_axes_list[0].set_title('New Pho Position Thresholding Estimated Laps')
         fig.canvas.manager.set_window_title('New Pho Position Thresholding Estimated Laps')
         return fig, out_axes_list
+
+
+   # HDFMixin Conformances ______________________________________________________________________________________________ #
+    
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            file_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(file_path, key='test_pfnd')
+        """
+        
+        ## Serialize the dataframe:
+        # raise NotImplementedError # 2023-08-02 - This is complete except for the fact that for Diba sessions it doesn't have a spikes_df because it is computed from one unlike the other sessions where it is loaded from one.
+
+        session_context = self.get_context()
+        session_group_key: str = key + session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
+        session_uid: str = session_context.get_description(separator="|", include_property_names=False)
+
+        self.position.to_hdf(file_path=file_path, key=f'{session_group_key}/pos')
+        if self.paradigm is not None:
+            self.paradigm.to_hdf(file_path=file_path, key=f'{session_group_key}/epochs')
+
+        # Save flattened_spiketrains if available
+        if self.flattened_spiketrains is not None:
+            # flattened_spiketrains_group = data_session_group.create_group("flattened_spiketrains")
+            # Serialize flattened_spiketrains data here (assuming flattened_spiketrains is an HDF_SerializationMixin)
+            self.flattened_spiketrains.to_hdf(file_path=file_path, key=f"{session_group_key}/flattened_spiketrains")
+
+        # Open the file with h5py to add attributes to the dataset
+        with h5py.File(file_path, 'r+') as f:
+            dataset = f[key]
+            metadata = {
+                'is_loaded': self.is_loaded,
+                'filePrefix': str(self.filePrefix),
+                'format_name': self.config.format_name,
+                'session_name': self.config.session_name,
+            }
+            for k, v in metadata.items():
+                dataset.attrs[k] = v
+
+            # Save config using attrs
+            # config_group = dataset.require_group("config")
+
+
+        # with tb.open_file(file_path, mode='a') as f: # this mode='w' is correct because it should overwrite the previous file and not append to it.
+        #     # a_global_computations_group = f.create_group(session_group_key, 'global_computations', title='the result of computations that operate over many or all of the filters in the session.', createparents=True)
+
+        #     data_session_group = f.create_group(session_group_key)
+
+        #     # Save basic attributes
+        #     data_session_group.attrs["is_loaded"] = self.is_loaded
+        #     data_session_group.attrs["filePrefix"] = str(self.filePrefix)
+        #     # data_session_group.attrs["recinfo"] = self.recinfo
+        #     # data_session_group.attrs["eegfile"] = self.eegfile
+        #     # data_session_group.attrs["datfile"] = self.datfile
+
+        #     # Save config using attrs
+        #     config_group = data_session_group.create_group("config")
+        #     for key, value in self.config.__dict__.items():
+        #         config_group.attrs[key] = value
+
+        #     # Save other attributes
+        #     # data_session_group.attrs["neurons"] = self.neurons
+        #     # data_session_group.attrs["probegroup"] = self.probegroup
+        #     # data_session_group.attrs["ripple"] = self.ripple
+        #     # data_session_group.attrs["mua"] = self.mua
+
+        #     # # Save laps if available
+        #     # if self.laps is not None:
+        #     #     laps_group = data_session_group.create_group("laps")
+        #     #     # Serialize laps data here (assuming laps is an HDF_SerializationMixin)
+
+            
+
+        #     # # Save additional attributes if any
+        #     # for key, value in self.__dict__.items():
+        #     #     if key not in ["config", "is_loaded", "filePrefix", "recinfo", "eegfile", "datfile", "neurons", "probegroup", "position", "paradigm", "ripple", "mua", "laps", "flattened_spiketrains"]:
+        #     #         data_session_group.attrs[key] = value
+                    
+
+        
+  
+        
+
+
+
+
+        # df_representation = self.to_dataframe()
+        # df_representation.spikes.to_hdf(file_path, key=f'{key}/spikes')
+        
+        # # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+        # # with h5py.File(file_path, 'r+') as f:
+        # with tb.open_file(file_path, mode='r+') as f:
+            
+        #     # f.create_dataset(f'{key}/neuron_ids', data=self.neuron_ids)
+        #     # f.create_dataset(f'{key}/shank_ids', data=self.shank_ids)
+        #     if self.peak_channels is not None:
+        #         f.create_dataset(f'{key}/peak_channels', data=self.peak_channels)
+
+        #     ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
+        #     group = f[key]
+
+        #     table = f.create_table(group, 'table', NeuronIdentityTable, "Neuron identities")
+
+        #     # Serialization
+        #     row = table.row
+        #     for i in np.arange(self.n_neurons):
+        #         ## Build the row here from aclu_array, etc
+        #         row['global_uid'] = f"{session_uid}-{aclu_array[i]}"
+        #         row['session_uid'] = session_uid  # Provide an appropriate session identifier here
+        #         row['neuron_id'] = aclu_array[i]
+        #         row['neuron_type'] = neuron_types_enum_array[i]
+        #         row['shank_index'] = shank_array[i]
+        #         row['cluster_index'] = cluster_array[i] # self.peak_channels[i]
+        #         row['qclu'] = qclu_array[i]  # Replace with appropriate value if available                
+        #         row.append()
+                
+        #     table.flush()
+            
+        #     # Metadata:
+        #     group.attrs['dat_sampling_rate'] = self.sampling_rate
+        #     group.attrs['t_start'] = self.t_start
+        #     group.attrs['t_start'] = self.t_start
+        #     group.attrs['t_stop'] = self.t_stop
+        #     group.attrs['n_neurons'] = self.n_neurons
+
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "DataSession":
+        """ Reads the data from the key in the hdf5 file at file_path
+        """
+        raise NotImplementedError
+    
