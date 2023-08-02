@@ -681,6 +681,8 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         """
         
         ## Serialize the dataframe:
+        raise NotImplementedError # 2023-08-02 - This is complete except for the fact that for Diba sessions it doesn't have a spikes_df because it is computed from one unlike the other sessions where it is loaded from one.
+    
         df_representation = self.to_dataframe()
         df_representation.spikes.to_hdf(file_path, key=f'{key}/spikes')
         
