@@ -668,6 +668,9 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             file_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
             _pfnd_obj: PfND = long_one_step_decoder_1D.pf
             _pfnd_obj.to_hdf(file_path, key='test_pfnd')
+            
+            
+        `key` passed in should be the path to the session_root: '/kdiba/gor01/one/2006-6-08_14-26-15'
         """
         
         ## Serialize the dataframe:
@@ -739,51 +742,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         #     #         data_session_group.attrs[key] = value
                     
 
-        
-  
-        
 
-
-
-
-        # df_representation = self.to_dataframe()
-        # df_representation.spikes.to_hdf(file_path, key=f'{key}/spikes')
-        
-        # # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
-        # # with h5py.File(file_path, 'r+') as f:
-        # with tb.open_file(file_path, mode='r+') as f:
-            
-        #     # f.create_dataset(f'{key}/neuron_ids', data=self.neuron_ids)
-        #     # f.create_dataset(f'{key}/shank_ids', data=self.shank_ids)
-        #     if self.peak_channels is not None:
-        #         f.create_dataset(f'{key}/peak_channels', data=self.peak_channels)
-
-        #     ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
-        #     group = f[key]
-
-        #     table = f.create_table(group, 'table', NeuronIdentityTable, "Neuron identities")
-
-        #     # Serialization
-        #     row = table.row
-        #     for i in np.arange(self.n_neurons):
-        #         ## Build the row here from aclu_array, etc
-        #         row['global_uid'] = f"{session_uid}-{aclu_array[i]}"
-        #         row['session_uid'] = session_uid  # Provide an appropriate session identifier here
-        #         row['neuron_id'] = aclu_array[i]
-        #         row['neuron_type'] = neuron_types_enum_array[i]
-        #         row['shank_index'] = shank_array[i]
-        #         row['cluster_index'] = cluster_array[i] # self.peak_channels[i]
-        #         row['qclu'] = qclu_array[i]  # Replace with appropriate value if available                
-        #         row.append()
-                
-        #     table.flush()
-            
-        #     # Metadata:
-        #     group.attrs['dat_sampling_rate'] = self.sampling_rate
-        #     group.attrs['t_start'] = self.t_start
-        #     group.attrs['t_start'] = self.t_start
-        #     group.attrs['t_stop'] = self.t_stop
-        #     group.attrs['n_neurons'] = self.n_neurons
 
 
 
