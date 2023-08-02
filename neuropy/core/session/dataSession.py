@@ -677,7 +677,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         # raise NotImplementedError # 2023-08-02 - This is complete except for the fact that for Diba sessions it doesn't have a spikes_df because it is computed from one unlike the other sessions where it is loaded from one.
 
         session_context = self.get_context()
-        session_group_key: str = key + session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
+        session_group_key: str = key + '/sess' # session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
         session_uid: str = session_context.get_description(separator="|", include_property_names=False)
 
         self.position.to_hdf(file_path=file_path, key=f'{session_group_key}/pos')
