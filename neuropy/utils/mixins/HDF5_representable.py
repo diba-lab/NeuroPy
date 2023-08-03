@@ -140,7 +140,7 @@ class HDF_Converter:
 
 
 
-class HDF_SerializationMixin(HDF_Converter, AttrsBasedClassHelperMixin):
+class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     """
     Inherits `get_serialized_dataset_fields` from AttrsBasedClassHelperMixin
     """
@@ -216,8 +216,8 @@ class HDF_SerializationMixin(HDF_Converter, AttrsBasedClassHelperMixin):
                     ## field is not known to be hdf_serializable! It might not serialize correctly even if this method doesn't throw an error.
                     if debug_print:
                         print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')
-                    print(f'WARNING: {a_field_key} is not custom serializable, but we will try self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
-                    self._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
+                    print(f'WARNING: {a_field_key} is not custom serializable, but we will try HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
+                    HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
                     
                     # Currently only allows flat fields, but could allow default nested fields like this: `a_value.__dict__`
                     # if hasattr(a_value, 'to_dict'):
@@ -229,7 +229,7 @@ class HDF_SerializationMixin(HDF_Converter, AttrsBasedClassHelperMixin):
                     #     with h5py.File(file_path, 'w') as f:
                     #         for attribute, value in a_value.items():
                     #             sub_field_key:str = f"{a_field_key}/{attribute}"
-                    #             self._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
+                    #             HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
                     # else:
                     #     raise NotImplementedError
 
