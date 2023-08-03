@@ -12,7 +12,13 @@ from attrs import field, asdict, fields
 # ==================================================================================================================== #
 # 2023-07-30 HDF5 General Object Serialization Classes                                                                 #
 # ==================================================================================================================== #
+""" Imports:
 
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
+        
+"""
 
 # Deserialization ____________________________________________________________________________________________________ #
 
@@ -67,8 +73,8 @@ class HDF_DeserializationMixin(AttrsBasedClassHelperMixin):
 
 """ Usage of DeserializationMixin
 
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
-from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDF_Converter, HDFMixin
 
 
 class MyClass(DeserializationMixin):
@@ -82,27 +88,26 @@ class MyClass(DeserializationMixin):
         
 """
 
+class HDF_Converter:
+    """ holds static functions that convert specific types to an HDF compatible datatype. 
 
-class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
-    """
-    Inherits `get_serialized_dataset_fields` from AttrsBasedClassHelperMixin
+    Created custom `HDF_Converter` to hold static attribute conversions. Might be a little more elogant to register convertable types but they might need to be converted in different ways in different circumstances
+
+    Ideally can have a bunch of types like:
+        Path = str(v)
+
     """
     
-    @classmethod
-    def is_hdf_serializable(cls):
-        """ returns whether the class is completely hdf serializable. """
-        return True
-
     # Static Conversion Functions ________________________________________________________________________________________ #
+    
     @staticmethod
     def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
         """ value: dict-like """
         for sub_k, sub_v in value.items():
             f[f'{key}/{sub_k}'] = sub_v
 
-
-    @classmethod
-    def _try_default_to_hdf_conversion_fn(cls, file_path, key: str, value):
+    @staticmethod
+    def _try_default_to_hdf_conversion_fn(file_path, key: str, value):
         """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. 
 
         #TODO 2023-07-31 06:10: - [ ] This currently clobbers any existing dataset due to HDF5 limitations on overwriting/replacing Datasets with ones of different type or size. Make sure this is what I want.
@@ -133,6 +138,21 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                 # ... handle other attribute types as needed ...
                 raise NotImplementedError
 
+
+
+class HDF_SerializationMixin(HDF_Converter, AttrsBasedClassHelperMixin):
+    """
+    Inherits `get_serialized_dataset_fields` from AttrsBasedClassHelperMixin
+    """
+    
+    @classmethod
+    def is_hdf_serializable(cls):
+        """ returns whether the class is completely hdf serializable. """
+        return True
+
+    # Static Conversion Functions ________________________________________________________________________________________ #
+
+   
     # Main Methods _______________________________________________________________________________________________________ #
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
