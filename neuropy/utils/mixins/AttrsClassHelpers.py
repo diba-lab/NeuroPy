@@ -142,6 +142,12 @@ def _mark_field_metadata_computable(metadata: Optional[Dict[str, Any]] = None):
     """ merely adds the `metadata['tags'] += ['computed']` to indicate that a field can be computed or whether it must be provided for a complete object. """
     return merge_metadata({'tags': ['computed']}, metadata)
 
+def _mark_field_metadata_is_handled_custom(metadata: Optional[Dict[str, Any]] = None):
+    """ merely adds the `metadata['tags'] += ['custom_hdf_implementation']` to indicate that a field will be handled in an overriden to_hdf implementation. """
+    return merge_metadata({'tags': ['custom_hdf_implementation']}, metadata)
+
+
+
 # For HDF serializable fields, they can either be serialized as a dataset or an attribute on the group or dataset.
 
 def non_serialized_field(default: Optional[Any] = None, is_computable:bool=True, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
@@ -155,13 +161,15 @@ def non_serialized_field(default: Optional[Any] = None, is_computable:bool=True,
             assert ('computed' not in metadata.get('tags', [])), f"'computed' is in the user-provided metadata but the user set is_computable=False!"
     return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)
 
-def serialized_field(default: Optional[Any] = None, is_computable:bool=False, serialization_fn: Optional[Callable]=None, hdf_metadata: Optional[Dict]=None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
+def serialized_field(default: Optional[Any] = None, is_computable:bool=False, serialization_fn: Optional[Callable]=None, is_hdf_handled_custom:bool=False, hdf_metadata: Optional[Dict]=None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> field:
     default_metadata = {
         'tags': ['dataset'],
         'serialization': {'hdf': True},
         'custom_serialization_fn': serialization_fn,
         'hdf_metadata': (hdf_metadata or {}),
     }
+    if is_hdf_handled_custom:
+        default_metadata = _mark_field_metadata_is_handled_custom(metadata=default_metadata)
     if is_computable:
         default_metadata = _mark_field_metadata_computable(metadata=default_metadata)
     return field(default=default, metadata=merge_metadata(default_metadata, metadata), **kwargs)

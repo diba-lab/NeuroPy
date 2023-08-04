@@ -5,6 +5,7 @@ from typing import Sequence, Union
 import numpy as np
 import pandas as pd
 import h5py # for to_hdf and read_hdf definitions
+from datetime import datetime, timedelta
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define
 import attrs
 from attrs import field, asdict, fields
@@ -106,6 +107,42 @@ class HDF_Converter:
         for sub_k, sub_v in value.items():
             f[f'{key}/{sub_k}'] = sub_v
 
+
+
+
+
+    # @staticmethod
+    # def _convert_Path_dict_to_hdf_attrs_fn(f, key: str, value):
+    #     for sub_k, sub_v in value.items():
+    #         f[f'{key}/{sub_k}'] = str(sub_v)
+
+    #     # (lambda f, k, v: f[f'{key}/{sub_k}'] = str(sub_v) for sub_k, sub_v in value.items())
+    #     assert isinstance(value, Path)
+    #     return str(value)
+
+
+
+
+    # Value Type Conversion functions: `_prepare_{A_TYPE}_value_to_for_hdf_fn`
+    ## Do not write to f themselves, simply convert values of a specific type to a HDF or PyTables compatable type:
+    @staticmethod
+    def _prepare_datetime_timedelta_value_to_for_hdf_fn(f, key: str, value) -> np.int64:
+        # Convert timedelta to seconds and then to nanoseconds
+        assert isinstance(value, timedelta)
+        time_in_seconds = value.total_seconds()
+        time_in_nanoseconds = int(time_in_seconds * 1e9)
+        # Convert to np.int64 (64-bit integer) for tb.Time64Col()
+        time_as_np_int64 = np.int64(time_in_nanoseconds)
+        return time_as_np_int64
+
+    @staticmethod
+    def _prepare_pathlib_Path_for_hdf_fn(f, key: str, value):
+        assert isinstance(value, Path)
+        return str(value)
+    
+
+
+
     @staticmethod
     def _try_default_to_hdf_conversion_fn(file_path, key: str, value):
         """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. 
@@ -130,12 +167,14 @@ class HDF_Converter:
                 value.to_hdf(file_path, key=key) #TODO 2023-07-31 06:07: - [ ] Is using pandas built-in .to_hdf an instance of double saving (h5py.File and pandas accessing same file concurrently?). In that cause I'd need to bring it out of the loop.
             elif isinstance(value, np.ndarray):
                 f.create_dataset(key, data=value)
+                
+            ## TODO: LOL THESE DO NOTHING BELOW HERE, no writes
             elif isinstance(value, (list, tuple)):
                 # convert to np.array before saving
                 value = np.array(value)
                 f.create_dataset(key, data=value)
             else:
-                # ... handle other attribute types as needed ...
+                # ... handle other attribute types as needed
                 raise NotImplementedError
 
 
@@ -217,8 +256,15 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                     if debug_print:
                         print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')
                     print(f'WARNING: {a_field_key} is not custom serializable, but we will try HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
-                    HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
-                    
+
+
+                    # if the user set the "is_hdf_handled_custom" field, it will be handled in the overriden .to_hdf(...)
+                    is_handled_in_overriden_to_hdf = a_field_attr.metadata.get('is_hdf_handled_custom', None) or False
+                    if not is_handled_in_overriden_to_hdf:
+                        HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
+                    else:
+                        print(f'field "{a_field_name}" with key "{a_field_key}" has "is_hdf_handled_custom" set, meaning the inheritor from this class must handle it in the overriden method.')
+
                     # Currently only allows flat fields, but could allow default nested fields like this: `a_value.__dict__`
                     # if hasattr(a_value, 'to_dict'):
                     #     a_value = a_value.to_dict() # convert to dict using the to_dict() method.
