@@ -35,7 +35,10 @@ from neuropy.utils.efficient_interval_search import determine_event_interval_ide
 # from klepto.keymaps import keymap, hashmap, stringmap
 
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
-from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+from neuropy.utils.mixins.HDF5_representable import HDF_Converter, HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+from attrs import asdict
+
+
 
 # _context_keymap = stringmap(flat=False, sentinel='||')
 # _context_keymap = keymap(flat=False, sentinel='||')
@@ -675,6 +678,8 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         
         ## Serialize the dataframe:
         # raise NotImplementedError # 2023-08-02 - This is complete except for the fact that for Diba sessions it doesn't have a spikes_df because it is computed from one unlike the other sessions where it is loaded from one.
+        from neuropy.core.session.Formats.SessionSpecifications import ParametersContainer
+        from neuropy.utils.dynamic_container import DynamicContainer
 
         session_context = self.get_context()
         session_group_key: str = key #  + '/sess' # session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
@@ -689,6 +694,30 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             # flattened_spiketrains_group = data_session_group.create_group("flattened_spiketrains")
             # Serialize flattened_spiketrains data here (assuming flattened_spiketrains is an HDF_SerializationMixin)
             self.flattened_spiketrains.to_hdf(file_path=file_path, key=f"{session_group_key}/flattened_spiketrains")
+
+        def value_serializer(obj, field, value):
+            """ called for each key. Takes a value, and returns an updated value """
+            if value is None:
+                return None
+            else:
+                ## Non-None value
+                if isinstance(value, DynamicContainer):
+                    return value.to_dict()
+                else:
+
+                    return value # return value unchanged
+
+        # Save config using attrs
+        with tb.open_file(file_path, mode='a') as f:
+            config_group = f.create_group(session_group_key, 'config', title='the configuration of the session.', createparents=True)
+            # a_filter_group
+            preprocessing_parameters_group = f.create_group(config_group, 'preprocessing_parameters', title="the parameters used during pre-processing")
+            
+            a_sess_config = self.config
+            preprocessing_parameters_dict: dict = asdict(a_sess_config.preprocessing_parameters, recurse=True, value_serializer=value_serializer)
+            HDF_Converter._convert_dict_to_hdf_attrs_fn(f, f"{session_group_key}/config/preprocessing_parameters", preprocessing_parameters_dict)
+
+
 
         # Open the file with h5py to add attributes to the dataset
         with h5py.File(file_path, 'r+') as f:
