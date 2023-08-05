@@ -708,15 +708,49 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
                     return value # return value unchanged
 
         # Save config using attrs
-        with tb.open_file(file_path, mode='a') as f:
-            config_group = f.create_group(session_group_key, 'config', title='the configuration of the session.', createparents=True)
-            # a_filter_group
-            preprocessing_parameters_group = f.create_group(config_group, 'preprocessing_parameters', title="the parameters used during pre-processing")
-            
-            a_sess_config = self.config
-            preprocessing_parameters_dict: dict = asdict(a_sess_config.preprocessing_parameters, recurse=True, value_serializer=value_serializer)
-            HDF_Converter._convert_dict_to_hdf_attrs_fn(f, f"{session_group_key}/config/preprocessing_parameters", preprocessing_parameters_dict)
+        a_sess_config = self.config
+        preprocessing_parameters_dict: dict = asdict(a_sess_config.preprocessing_parameters, recurse=True, value_serializer=value_serializer)
+        # HDF_Converter._convert_dict_to_hdf_attrs_fn(f, f"{session_group_key}/config/preprocessing_parameters", preprocessing_parameters_dict)
 
+        # with tb.open_file(file_path, mode='a') as f:
+        #     config_group = f.create_group(session_group_key, 'config', title='the configuration of the session.', createparents=True)
+        #     # a_filter_group
+        #     preprocessing_parameters_group = f.create_group(config_group, 'preprocessing_parameters', title="the parameters used during pre-processing")
+            
+
+        with h5py.File(file_path, "r+") as f:
+            preprocessing_group = f.create_group("preprocessing_parameters")
+
+            # Serialize epoch_estimation_parameters
+            epoch_estimation_group = preprocessing_group.create_group("epoch_estimation_parameters")
+
+            laps_group = epoch_estimation_group.create_group("laps")
+            laps_group.attrs["N"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["laps"]["N"]
+            laps_group.attrs["should_backup_extant_laps_obj"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["laps"]["should_backup_extant_laps_obj"]
+
+            PBEs_group = epoch_estimation_group.create_group("PBEs")
+            PBEs_group.attrs["thresh"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["thresh"]
+            PBEs_group.attrs["min_dur"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["min_dur"]
+            PBEs_group.attrs["merge_dur"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["merge_dur"]
+            PBEs_group.attrs["max_dur"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["max_dur"]
+
+            replays_group = epoch_estimation_group.create_group("replays")
+            replay_data = preprocessing_parameters_dict["epoch_estimation_parameters"]["replays"]
+            # replay_dataframe = pd.DataFrame(replay_data)
+            # replay_data.to_hdf(f, "/preprocessing_parameters/epoch_estimation_parameters/replays")
+            ## TODO: add the data here using Epoch's .to_hdf
+            
+            # Check for "None" values before setting attributes
+            def check_and_set(key, value):
+                if value is not None:
+                    replays_group.attrs[key] = value
+
+            # Set attributes if not "None", otherwise skip writing
+            check_and_set("min_epoch_included_duration", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("min_epoch_included_duration"))
+            check_and_set("max_epoch_included_duration", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("max_epoch_included_duration"))
+            check_and_set("maximum_speed_thresh", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("maximum_speed_thresh"))
+            check_and_set("min_inclusion_fr_active_thresh", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("min_inclusion_fr_active_thresh"))
+            check_and_set("min_num_unique_aclu_inclusions", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("min_num_unique_aclu_inclusions"))
 
 
         # Open the file with h5py to add attributes to the dataset
