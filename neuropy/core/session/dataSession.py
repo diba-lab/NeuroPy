@@ -682,7 +682,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         from neuropy.utils.dynamic_container import DynamicContainer
 
         session_context = self.get_context()
-        session_group_key: str = key #  + '/sess' # session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
+        session_group_key: str = key # '/kdiba/gor01/one/2006-6-09_1-22-43/maze2/sess'  + '/sess' # session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
         session_uid: str = session_context.get_description(separator="|", include_property_names=False)
 
         self.position.to_hdf(file_path=file_path, key=f'{session_group_key}/pos')
@@ -719,7 +719,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             
 
         with h5py.File(file_path, "r+") as f:
-            preprocessing_group = f.create_group("preprocessing_parameters")
+            preprocessing_group = f.create_group(f'{session_group_key}/preprocessing_parameters')
 
             # Serialize epoch_estimation_parameters
             epoch_estimation_group = preprocessing_group.create_group("epoch_estimation_parameters")
@@ -768,7 +768,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             # Save config using attrs
             # config_group = dataset.require_group("config")
 
-
+        
         # with tb.open_file(file_path, mode='a') as f: # this mode='w' is correct because it should overwrite the previous file and not append to it.
         #     # a_global_computations_group = f.create_group(session_group_key, 'global_computations', title='the result of computations that operate over many or all of the filters in the session.', createparents=True)
 
