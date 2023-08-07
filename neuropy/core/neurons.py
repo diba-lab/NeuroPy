@@ -739,7 +739,6 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
             # Metadata:
             group.attrs['dat_sampling_rate'] = self.sampling_rate
             group.attrs['t_start'] = self.t_start
-            group.attrs['t_start'] = self.t_start
             group.attrs['t_stop'] = self.t_stop
             group.attrs['n_neurons'] = self.n_neurons
 
