@@ -578,9 +578,27 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWrite
             _pos_obj: Position = long_one_step_decoder_1D.pf.position
             _pos_obj.to_hdf(hdf5_output_path, key='pos')
         """
-        _df = self.to_dataframe()
-        _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
-        
+        # _df = self.to_dataframe()
+        # _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
+        with tb.open_file(file_path, mode='r+') as f:
+            group = f[key]
+            table = f.create_table(group, 'table', EpochTable, "Epochs")
+            # Serialization
+            for i, t_start, t_stop, a_label in zip(np.arange(self.n_epochs), self.starts, self.stops, self.labels):
+                row = table.row
+                row['t_start'] = t_start
+                row['t_end'] = t_stop  # Provide an appropriate session identifier here
+                row['label'] = str(a_label)
+                row.append()
+                
+            table.flush()
+            # Metadata:
+            group.attrs['t_start'] = self.t_start
+            group.attrs['t_stop'] = self.t_stop
+            group.attrs['n_epochs'] = self.n_epochs
+
+
+
 
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> "Epoch":
