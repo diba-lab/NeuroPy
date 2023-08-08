@@ -35,10 +35,7 @@ from neuropy.utils.efficient_interval_search import determine_event_interval_ide
 # from klepto.keymaps import keymap, hashmap, stringmap
 
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
-from neuropy.utils.mixins.HDF5_representable import HDF_Converter, HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
-from attrs import asdict
-
-
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 # _context_keymap = stringmap(flat=False, sentinel='||')
 # _context_keymap = keymap(flat=False, sentinel='||')
@@ -678,11 +675,9 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         
         ## Serialize the dataframe:
         # raise NotImplementedError # 2023-08-02 - This is complete except for the fact that for Diba sessions it doesn't have a spikes_df because it is computed from one unlike the other sessions where it is loaded from one.
-        from neuropy.core.session.Formats.SessionSpecifications import ParametersContainer
-        from neuropy.utils.dynamic_container import DynamicContainer
 
         session_context = self.get_context()
-        session_group_key: str = key # '/kdiba/gor01/one/2006-6-09_1-22-43/maze2/sess'  + '/sess' # session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
+        session_group_key: str = key #  + '/sess' # session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
         session_uid: str = session_context.get_description(separator="|", include_property_names=False)
 
         self.position.to_hdf(file_path=file_path, key=f'{session_group_key}/pos')
@@ -694,64 +689,6 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             # flattened_spiketrains_group = data_session_group.create_group("flattened_spiketrains")
             # Serialize flattened_spiketrains data here (assuming flattened_spiketrains is an HDF_SerializationMixin)
             self.flattened_spiketrains.to_hdf(file_path=file_path, key=f"{session_group_key}/flattened_spiketrains")
-
-        def value_serializer(obj, field, value):
-            """ called for each key. Takes a value, and returns an updated value """
-            if value is None:
-                return None
-            else:
-                ## Non-None value
-                if isinstance(value, DynamicContainer):
-                    return value.to_dict()
-                else:
-
-                    return value # return value unchanged
-
-        # Save config using attrs
-        a_sess_config = self.config
-        preprocessing_parameters_dict: dict = asdict(a_sess_config.preprocessing_parameters, recurse=True, value_serializer=value_serializer)
-        # HDF_Converter._convert_dict_to_hdf_attrs_fn(f, f"{session_group_key}/config/preprocessing_parameters", preprocessing_parameters_dict)
-
-        # with tb.open_file(file_path, mode='a') as f:
-        #     config_group = f.create_group(session_group_key, 'config', title='the configuration of the session.', createparents=True)
-        #     # a_filter_group
-        #     preprocessing_parameters_group = f.create_group(config_group, 'preprocessing_parameters', title="the parameters used during pre-processing")
-            
-
-        with h5py.File(file_path, "r+") as f:
-            preprocessing_group = f.create_group(f'{session_group_key}/preprocessing_parameters')
-
-            # Serialize epoch_estimation_parameters
-            epoch_estimation_group = preprocessing_group.create_group("epoch_estimation_parameters")
-
-            laps_group = epoch_estimation_group.create_group("laps")
-            laps_group.attrs["N"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["laps"]["N"]
-            laps_group.attrs["should_backup_extant_laps_obj"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["laps"]["should_backup_extant_laps_obj"]
-
-            PBEs_group = epoch_estimation_group.create_group("PBEs")
-            PBEs_group.attrs["thresh"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["thresh"]
-            PBEs_group.attrs["min_dur"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["min_dur"]
-            PBEs_group.attrs["merge_dur"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["merge_dur"]
-            PBEs_group.attrs["max_dur"] = preprocessing_parameters_dict["epoch_estimation_parameters"]["PBEs"]["max_dur"]
-
-            replays_group = epoch_estimation_group.create_group("replays")
-            replay_data = preprocessing_parameters_dict["epoch_estimation_parameters"]["replays"]
-            # replay_dataframe = pd.DataFrame(replay_data)
-            # replay_data.to_hdf(f, "/preprocessing_parameters/epoch_estimation_parameters/replays")
-            ## TODO: add the data here using Epoch's .to_hdf
-            
-            # Check for "None" values before setting attributes
-            def check_and_set(key, value):
-                if value is not None:
-                    replays_group.attrs[key] = value
-
-            # Set attributes if not "None", otherwise skip writing
-            check_and_set("min_epoch_included_duration", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("min_epoch_included_duration"))
-            check_and_set("max_epoch_included_duration", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("max_epoch_included_duration"))
-            check_and_set("maximum_speed_thresh", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("maximum_speed_thresh"))
-            check_and_set("min_inclusion_fr_active_thresh", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("min_inclusion_fr_active_thresh"))
-            check_and_set("min_num_unique_aclu_inclusions", preprocessing_parameters_dict["epoch_estimation_parameters"].get('replays', {}).get("min_num_unique_aclu_inclusions"))
-
 
         # Open the file with h5py to add attributes to the dataset
         with h5py.File(file_path, 'r+') as f:
@@ -768,7 +705,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             # Save config using attrs
             # config_group = dataset.require_group("config")
 
-        
+
         # with tb.open_file(file_path, mode='a') as f: # this mode='w' is correct because it should overwrite the previous file and not append to it.
         #     # a_global_computations_group = f.create_group(session_group_key, 'global_computations', title='the result of computations that operate over many or all of the filters in the session.', createparents=True)
 

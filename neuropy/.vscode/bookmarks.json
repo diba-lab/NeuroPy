@@ -34,27 +34,27 @@
 			"path": "core/session/dataSession.py",
 			"bookmarks": [
 				{
-					"line": 189,
+					"line": 186,
 					"column": 0,
 					"label": "time_slice epochs objects"
 				},
 				{
-					"line": 308,
+					"line": 305,
 					"column": 30,
 					"label": "laps"
 				},
 				{
-					"line": 367,
+					"line": 364,
 					"column": 115,
 					"label": "scattered_parameters - default_replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.05, 'min_num_unique_aclu_inclusions': 5}"
 				},
 				{
-					"line": 378,
+					"line": 375,
 					"column": 15,
 					"label": "linearization"
 				},
 				{
-					"line": 516,
+					"line": 513,
 					"column": 275,
 					"label": "scattered parameters: default_replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.05, 'min_num_unique_aclu_inclusions': 5}"
 				}
