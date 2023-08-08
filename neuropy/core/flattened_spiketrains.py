@@ -460,7 +460,7 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
     # HDFMixin Conformances ______________________________________________________________________________________________ #
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path """
-        self.to_dataframe().to_hdf(file_path, key=key, **kwargs)
+        self.to_dataframe().to_hdf(file_path, key=key, format=kwargs.pop('format','table'), **kwargs)
 
 
     @classmethod
