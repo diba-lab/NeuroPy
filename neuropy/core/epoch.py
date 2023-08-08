@@ -580,10 +580,8 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWrite
         """
         _df = self.to_dataframe()
         _df.to_hdf(path_or_buf=file_path, key=key, **kwargs)
-
-
+        return
         # # create_group
-
         # a_key = Path(key)
         # with tb.open_file(file_path, mode='r+') as f:
         #     # group = f.create_group(str(a_key.parent), a_key.name, title='epochs.', createparents=True)
