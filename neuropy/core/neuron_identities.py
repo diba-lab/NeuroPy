@@ -1,8 +1,9 @@
 # neuron_identities
 from collections import namedtuple
 from enum import Enum
-from typing import List
+from typing import List, Dict, Optional
 import numpy as np
+from attrs import define, field
 import tables as tb
 from tables import (
     Int8Col, Int16Col, Int32Col, Int64Col,
@@ -14,8 +15,9 @@ from neuropy.utils.mixins.print_helpers import SimplePrintable
 from neuropy.utils.colors_util import get_neuron_colors
 from matplotlib.colors import ListedColormap
 
-NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank cluster id')
+# NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank cluster id')
 
+NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'cell_type shank cluster quality id')
 
 """
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple, neuronTypesEnum, NeuronIdentityTable
@@ -27,8 +29,8 @@ neuronTypesEnum = tb.Enum(neuronTypesList)
 
 class NeuronIdentityTable(tb.IsDescription):
     """ represents a single neuron in the scope of multiple sessions for use in a PyTables table or HDF5 output file """
-    global_uid = StringCol(16)   # 16-character String, globally unique neuron identifier (across all sessions) composed of a session_uid and the neuron's (session-specific) aclu
-    session_uid = StringCol(16)
+    global_uid = StringCol(64) # 64-character String, globally unique neuron identifier (across all sessions) composed of a session_uid and the neuron's (session-specific) aclu
+    session_uid = StringCol(64)
     ## Session-Local Identifiers
     neuron_id = UInt16Col() # 65535 max neurons
     neuron_type = EnumCol(neuronTypesEnum, 'bad', base='uint8') # 
@@ -39,52 +41,55 @@ class NeuronIdentityTable(tb.IsDescription):
 
 
 # NOTE: this is like visual identity also
+
+@define(slots=False)
 class NeuronIdentity(SimplePrintable):
-    """NeuronIdentity: A multi-facited identifier for a specific neuron/putative cell 
-        Used to retain a the identity associated with a value or set of values even after filtering and such.
+    """NeuronIdentity: A multi-faceted identifier for a specific neuron/putative cell 
+        Used to retain the identity associated with a value or set of values even after filtering and such.
 
         cell_uid: (aclu) [2:65]
+        cell_type: str
         shank_index: [1:12]
         cluster_index: [2:28]
-        
+        quality_index (qclu): [1:9]
         NOTE: also store 'color'
         ['shank','cluster']
-    
     """
+    cell_uid: int = field()
+    cell_type: str = field()
+    shank_index: int = field()
+    cluster_index: int = field()
+    quality_index: int = field()
+    color: Optional[object] = field(default=None)
+
     @property
     def extended_identity_tuple(self):
         """The extended_identity_tuple property."""
-        return NeuronExtendedIdentityTuple(self.shank_index, self.cluster_index, self.cell_uid) # returns self as a NeuronExtendedIdentityTuple 
+        return NeuronExtendedIdentityTuple(self.cell_type, self.shank_index, self.cluster_index, self.quality_index, self.cell_uid)
     @extended_identity_tuple.setter
     def extended_identity_tuple(self, value):
         assert isinstance(value, NeuronExtendedIdentityTuple), "value should be a NeuronExtendedIdentityTuple"
         self.cell_uid = value.id
+        self.cell_type = value.cell_type
         self.shank_index = value.shank
         self.cluster_index = value.cluster
-        
+        self.quality_index = value.quality
+
     @property
     def extended_id_string(self):
         """The extended_id_string property."""
-        return self._extended_id_string
-    
-    
-    
-    def __init__(self, cell_uid, shank_index, cluster_index, color=None):
-        self.cell_uid = cell_uid
-        self.shank_index = shank_index
-        self.cluster_index = cluster_index
-        self.color = color
+        return f"{self.cell_type}-{self.shank_index}-{self.cluster_index}-{self.quality_index}-{self.cell_uid}"
 
     @classmethod
     def init_from_NeuronExtendedIdentityTuple(cls, a_tuple: NeuronExtendedIdentityTuple, a_color=None):
-        """Iniitalizes from a NeuronExtendedIdentityTuple and optionally a color
+        """Initializes from a NeuronExtendedIdentityTuple and optionally a color
         Args:
             a_tuple (NeuronExtendedIdentityTuple): [description]
             a_color ([type], optional): [description]. Defaults to None.
         """
-        return cls(a_tuple.id, a_tuple.shank, a_tuple.cluster, color=a_color)
+        return cls(a_tuple.id, a_tuple.cell_type, a_tuple.shank, a_tuple.cluster, a_tuple.quality, color=a_color)
         
-        
+
         
 class NeuronIdentityAccessingMixin:
     """ 
