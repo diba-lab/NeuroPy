@@ -237,7 +237,7 @@ def safe_item(arr: np.ndarray, *args, default=None):
         safe_item(np.array([]), default=-1) # -1
     """
     try:
-        return arr.item(*args)
+        return arr.item(*args)  #@IgnoreException 
     except ValueError as e:
         return default
 
