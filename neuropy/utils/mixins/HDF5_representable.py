@@ -178,6 +178,8 @@ class HDF_Converter:
                 raise NotImplementedError
 
 
+_ALLOW_GLOBAL_NESTED_EXPANSION:bool = False
+# _ALLOW_GLOBAL_NESTED_EXPANSION:bool = True
 
 class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     """
@@ -193,6 +195,8 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
 
    
     # Main Methods _______________________________________________________________________________________________________ #
+
+    
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
         Usage:
@@ -261,23 +265,37 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                     # if the user set the "is_hdf_handled_custom" field, it will be handled in the overriden .to_hdf(...)
                     is_handled_in_overriden_to_hdf = a_field_attr.metadata.get('is_hdf_handled_custom', None) or False
                     if not is_handled_in_overriden_to_hdf:
-                        HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
+                        try:
+                            HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
+                        except NotImplementedError as e:
+                            ## If not handled in the default method, try global expansion if that is alowed. Otherwise we're out of options.
+                            if _ALLOW_GLOBAL_NESTED_EXPANSION:
+                                if hasattr(a_value, 'to_dict'):
+                                    a_value = a_value.to_dict() # convert to dict using the to_dict() method.
+                                elif hasattr(a_value, '__dict__'):
+                                    a_value = a_value.__dict__ #TODO 2023-07-30 19:31: - [ ] save the type as metadata
+                                else:
+                                    # Last resort is to try dir(a_value)
+                                    a_value = {attr: getattr(a_value, attr) for attr in dir(a_value) if not callable(getattr(a_value, attr)) and not attr.startswith('__')} # More general way (that works for DynamicProperties, etc) I think `dir()` or __dir__() or something?`
+
+                                if isinstance(a_value, dict):
+                                    with h5py.File(file_path, 'w') as f:
+                                        for attribute, value in a_value.items():
+                                            sub_field_key:str = f"{a_field_key}/{attribute}"
+                                            HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
+                                else:
+                                    raise NotImplementedError # really not implemented
+                            else:
+                                # _ALLOW_GLOBAL_NESTED_EXPANSION is not allowed.
+                                raise NotImplementedError
+
+                        except Exception as e:
+                            # Unhandled exception
+                            raise e
+
                     else:
                         print(f'field "{a_field_name}" with key "{a_field_key}" has "is_hdf_handled_custom" set, meaning the inheritor from this class must handle it in the overriden method.')
 
-                    # Currently only allows flat fields, but could allow default nested fields like this: `a_value.__dict__`
-                    # if hasattr(a_value, 'to_dict'):
-                    #     a_value = a_value.to_dict() # convert to dict using the to_dict() method.
-                    # elif hasattr(a_value, '__dict__'):
-                    #     a_value = a_value.__dict__ #TODO 2023-07-30 19:31: - [ ] save the type as metadata
-                    #TODO 2023-07-30 19:34: - [ ] More general way (that works for DynamicProperties, etc) I think `dir()` or __dir__() or something?`
-                    # if isinstance(a_value, dict):
-                    #     with h5py.File(file_path, 'w') as f:
-                    #         for attribute, value in a_value.items():
-                    #             sub_field_key:str = f"{a_field_key}/{attribute}"
-                    #             HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
-                    # else:
-                    #     raise NotImplementedError
 
             # Post serializing the dataset, set any hdf_metadata properties it might have:
             ## NOTE: this is still within the datasets loop and just sets the metadata for the specific dataset assigned a value above!
