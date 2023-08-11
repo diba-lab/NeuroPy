@@ -27,8 +27,8 @@ neuronTypesEnum = tb.Enum(neuronTypesList)
 
 class NeuronIdentityTable(tb.IsDescription):
     """ represents a single neuron in the scope of multiple sessions for use in a PyTables table or HDF5 output file """
-    global_uid = StringCol(16)   # 16-character String, globally unique neuron identifier (across all sessions) composed of a session_uid and the neuron's (session-specific) aclu
-    session_uid = StringCol(16)
+    global_uid = StringCol(68)  # TO REMOVE   # 68-character String, globally unique neuron identifier (across all sessions) composed of a session_uid and the neuron's (session-specific) aclu
+    session_uid = StringCol(64)
     ## Session-Local Identifiers
     neuron_id = UInt16Col() # 65535 max neurons
     neuron_type = EnumCol(neuronTypesEnum, 'bad', base='uint8') # 
