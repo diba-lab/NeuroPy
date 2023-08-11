@@ -575,7 +575,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
         
         # Save the DataFrame using pandas
         with pd.HDFStore(file_path) as store:
-            _df.to_hdf(path_or_buf=store, key=key, format='table', **kwargs)
+            _df.to_hdf(path_or_buf=store, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
 
         # Open the file with h5py to add attributes to the dataset
         with h5py.File(file_path, 'r+') as f:

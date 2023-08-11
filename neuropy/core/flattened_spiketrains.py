@@ -278,7 +278,7 @@ class SpikesAccessor(TimeSlicedMixin):
 
         # Store DataFrame using pandas
         with pd.HDFStore(file_path) as store:
-            _spikes_df.to_hdf(store, key=key, format='table', **kwargs)
+            _spikes_df.to_hdf(store, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
 
         # Open the file with h5py to add attributes
         with h5py.File(file_path, 'r+') as f:

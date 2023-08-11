@@ -563,7 +563,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWrite
             _pos_obj.to_hdf(hdf5_output_path, key='pos')
         """
         _df = self.to_dataframe()
-        _df.to_hdf(path_or_buf=file_path, key=key, format='table', **kwargs)
+        _df.to_hdf(path_or_buf=file_path, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
         return
     
         # # create_group
