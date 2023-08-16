@@ -144,14 +144,14 @@ class HDF_Converter:
 
 
     @staticmethod
-    def _try_default_to_hdf_conversion_fn(file_path, key: str, value):
+    def _try_default_to_hdf_conversion_fn(file_path, key: str, value, file_mode:str='a'):
         """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. 
 
         #TODO 2023-07-31 06:10: - [ ] This currently clobbers any existing dataset due to HDF5 limitations on overwriting/replacing Datasets with ones of different type or size. Make sure this is what I want.
             # using `require_dataset` instead of `create_dataset` allows overwriting the existing dataset. Otherwise if it exists it throws: `ValueError: Unable to create dataset (name already exists)`
         
         """
-        with h5py.File(file_path, 'r+') as f:
+        with h5py.File(file_path, file_mode) as f:
             # if isinstance(a_value, dict):
                 # for attribute, value in a_value.items():
             # Only flat (non-recurrsive) types allowed.
@@ -163,19 +163,21 @@ class HDF_Converter:
                 # attrs_backup = deepcopy(f[key].attrs)
                 del f[key]
 
-            if isinstance(value, pd.DataFrame):
-                value.to_hdf(file_path, key=key) #TODO 2023-07-31 06:07: - [ ] Is using pandas built-in .to_hdf an instance of double saving (h5py.File and pandas accessing same file concurrently?). In that cause I'd need to bring it out of the loop.
-            elif isinstance(value, np.ndarray):
+        if isinstance(value, pd.DataFrame):
+            value.to_hdf(file_path, key=key) #TODO 2023-07-31 06:07: - [ ] Is using pandas built-in .to_hdf an instance of double saving (h5py.File and pandas accessing same file concurrently?). In that cause I'd need to bring it out of the loop.
+        elif isinstance(value, np.ndarray):
+            with h5py.File(file_path, file_mode) as f:
                 f.create_dataset(key, data=value)
-                
-            ## TODO: LOL THESE DO NOTHING BELOW HERE, no writes
-            elif isinstance(value, (list, tuple)):
-                # convert to np.array before saving
-                value = np.array(value)
+            
+        ## TODO: LOL THESE DO NOTHING BELOW HERE, no writes
+        elif isinstance(value, (list, tuple)):
+            # convert to np.array before saving
+            value = np.array(value)
+            with h5py.File(file_path, file_mode) as f:
                 f.create_dataset(key, data=value)
-            else:
-                # ... handle other attribute types as needed
-                raise NotImplementedError
+        else:
+            # ... handle other attribute types as needed
+            raise NotImplementedError
 
 
 _ALLOW_GLOBAL_NESTED_EXPANSION:bool = False
@@ -204,6 +206,10 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             _pfnd_obj: PfND = long_one_step_decoder_1D.pf
             _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
         """
+        
+        # file_mode:str = kwargs.get('file_mode', 'w') # default to overwrite
+        file_mode:str = kwargs.get('file_mode', 'a') # default to append
+        
         debug_print = True
         if not attrs.has(type(self)):
             raise NotImplementedError # implementor must override!
@@ -266,7 +272,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                     is_handled_in_overriden_to_hdf = a_field_attr.metadata.get('is_hdf_handled_custom', None) or False
                     if not is_handled_in_overriden_to_hdf:
                         try:
-                            HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value)
+                            HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value, file_mode=file_mode)
                         except NotImplementedError as e:
                             ## If not handled in the default method, try global expansion if that is alowed. Otherwise we're out of options.
                             if _ALLOW_GLOBAL_NESTED_EXPANSION:
@@ -279,10 +285,10 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                                     a_value = {attr: getattr(a_value, attr) for attr in dir(a_value) if not callable(getattr(a_value, attr)) and not attr.startswith('__')} # More general way (that works for DynamicProperties, etc) I think `dir()` or __dir__() or something?`
 
                                 if isinstance(a_value, dict):
-                                    with h5py.File(file_path, 'w') as f:
+                                    with h5py.File(file_path, file_mode) as f:
                                         for attribute, value in a_value.items():
                                             sub_field_key:str = f"{a_field_key}/{attribute}"
-                                            HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value)
+                                            HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value, file_mode=file_mode)
                                 else:
                                     raise NotImplementedError # really not implemented
                             else:
@@ -301,7 +307,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             ## NOTE: this is still within the datasets loop and just sets the metadata for the specific dataset assigned a value above!
             custom_dataset_field_hdf_metadata = a_field_attr.metadata.get('hdf_metadata', {})
             if len(custom_dataset_field_hdf_metadata) > 0: # don't open the file for no reason
-                with h5py.File(file_path, 'r+') as f:
+                with h5py.File(file_path, file_mode) as f:
                     group = f[key]
                     for an_hdf_attr_name, a_value in custom_dataset_field_hdf_metadata.items():
                         group.attrs[an_hdf_attr_name] = a_value

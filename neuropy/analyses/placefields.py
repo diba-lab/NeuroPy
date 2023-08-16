@@ -1115,6 +1115,7 @@ class PfND(HDFMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, Pfn
             # if self.epochs is None
             pass
         self.spikes_df.spikes.to_hdf(file_path, key=f'{key}/spikes')
+        self.ratemap.to_hdf(file_path, key=f'{key}/ratemap')
 
         # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
         with h5py.File(file_path, 'r+') as f:

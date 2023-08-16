@@ -1,20 +1,21 @@
 from copy import deepcopy
 from warnings import warn
 import numpy as np
+import h5py
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
 from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin
 from neuropy.plotting.mixins.ratemap_mixins import RatemapPlottingMixin
 from neuropy.utils import mathutil
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin, HDF_Converter
 from . import DataWriter
 
-class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositionsMixin, DataWriter):
+class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositionsMixin, DataWriter):
     """A Ratemap holds information about each unit's firing rate across binned positions. 
         In addition, it also holds (tuning curves).
         
         
     Internal:
-
-
         # Map Properties:
         self.occupancy 
         self.spikes_maps
@@ -267,4 +268,64 @@ class Ratemap(NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositi
 
         ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=ratemap_2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(ratemap_2D.neuron_ids), neuron_extended_ids=deepcopy(ratemap_2D.neuron_extended_ids), metadata=ratemap_2D.metadata)
         return ratemap_1D
+
+    # ----------------------  HDF5 Serialization -------------------------:
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
+        """
+        # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+        with h5py.File(file_path, kwargs.pop('file_mode', 'a')) as f:
+            ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
+            group = f.require_group(key)
+            # group = f[key]
+            group.attrs['n_neurons'] = self.n_neurons
+            group.attrs['ndim'] = self.ndim
+
+            group['occupancy'] = self.occupancy
+            group['tuning_curves'] = self.tuning_curves
+            group['spikes_maps'] = self.spikes_maps
+            if self.unsmoothed_tuning_maps is not None:
+                group['unsmoothed_tuning_maps'] = self.unsmoothed_tuning_maps
+            
+            group['neuron_ids'] = self._neuron_ids
+            group['neuron_ids'].make_scale('neuron_ids name')
+            group['xbin'] = self.xbin
+            group['xbin'].make_scale('xbin name')
+
+            group['xbin_centers'] = self.xbin_centers
+            group['xbin_centers'].make_scale('xbin_centers name')
+
+            if self.ybin is not None:
+                group['ybin'] = self.ybin
+                group['ybin'].make_scale('ybin name')
+
+                group['ybin_centers'] = self.ybin_centers
+                group['ybin_centers'].make_scale('ybin_centers name')
+
+            # Attach scales:
+            group['tuning_curves'].dims[0].label = 'neuron_id'
+            group['spikes_maps'].dims[0].label = 'neuron_id'
+            if self.unsmoothed_tuning_maps is not None:
+                group['unsmoothed_tuning_maps'].dims[0].label = 'neuron_id'
+
+            # group['tuning_curves'].dims[0].attach_scale(group['neuron_ids'])
+            # group['occupancy'].dims[0].attach_scale(group['xbin_centers'])
+            group['occupancy'].dims[0].label = 'x'
+            group['tuning_curves'].dims[1].label = 'x'
+            group['spikes_maps'].dims[1].label = 'x'
+            if self.unsmoothed_tuning_maps is not None:
+                group['unsmoothed_tuning_maps'].dims[1].label = 'x'
+
+            if self.ybin is not None:
+                # group['occupancy'].dims[1].attach_scale(group['ybin_centers'])
+                group['occupancy'].dims[1].label = 'y'
+                group['tuning_curves'].dims[2].label = 'y'
+                group['spikes_maps'].dims[2].label = 'y'
+                if self.unsmoothed_tuning_maps is not None:
+                    group['unsmoothed_tuning_maps'].dims[2].label = 'y'
 
