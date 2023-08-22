@@ -3,6 +3,7 @@ from collections import namedtuple
 from enum import Enum
 from typing import List
 import numpy as np
+import pandas as pd
 import tables as tb
 from tables import (
     Int8Col, Int16Col, Int32Col, Int64Col,
@@ -10,6 +11,7 @@ from tables import (
     Float32Col, Float64Col,
     TimeCol, ComplexCol, StringCol, BoolCol, EnumCol
 )
+import h5py
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 from neuropy.utils.colors_util import get_neuron_colors
 from matplotlib.colors import ListedColormap
@@ -36,6 +38,115 @@ class NeuronIdentityTable(tb.IsDescription):
     cluster_index  = UInt16Col() # specific to session
     qclu = UInt8Col() # specific to session
     
+
+
+@pd.api.extensions.register_dataframe_accessor("neuron_identity")
+class NeuronIdentityDataframeAccessor:
+    """ Describes a dataframe with at least a neuron_id (aclu) column. Provides functionality regarding building globally (across-sessions) unique neuron identifiers.
+    
+    #TODO 2023-08-22 15:34: - [ ] Finish implementation. Purpose is to easily add across-session-unique neuron identifiers to a result dataframe (as many result dataframes have an 'aclu' column).
+        - [ ] find already implemented 'aclu' conversions, like for the JonathanFiringRateResult (I think)
+        
+    """
+   
+    def __init__(self, pandas_obj):
+        self._validate(pandas_obj)
+        self._obj = pandas_obj
+
+    @staticmethod
+    def _validate(obj):
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
+        if "aclu" not in obj.columns or "cell_type" not in obj.columns:
+            raise AttributeError("Must have unit id column 'aclu' and 'cell_type' column.")
+        
+    @property
+    def neuron_ids(self):
+        """ return the unique cell identifiers (given by the unique values of the 'aclu' column) for this DataFrame """
+        unique_aclus = np.unique(self._obj['aclu'].values)
+        return unique_aclus
+    
+    @property
+    def neuron_probe_tuple_ids(self):
+        """ returns a list of NeuronExtendedIdentityTuple tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
+        # groupby the multi-index [shank, cluster]:
+        # shank_cluster_grouped_spikes_df = self._obj.groupby(['shank','cluster'])
+        aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
+        shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
+        output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
+        return output_tuples_list
+        
+    @property
+    def n_neurons(self):
+        return len(self.neuron_ids)
+    
+    def extract_unique_neuron_identities(self):
+        """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
+        selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'cell_type']
+        unique_rows_df = self._obj[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu. 
+        assert len(unique_rows_df) == self.n_neurons, f"if this were false that would suggest that there are multiple entries for aclus. n_neurons: {self.n_neurons}, {len(unique_rows_df) =}"
+        return unique_rows_df
+
+        # # Extract the selected columns as NumPy arrays
+        # aclu_array = unique_rows_df['aclu'].values
+        # shank_array = unique_rows_df['shank'].values
+        # cluster_array = unique_rows_df['cluster'].values
+        # qclu_array = unique_rows_df['qclu'].values
+        # neuron_type_array = unique_rows_df['cell_type'].values
+        # neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in neuron_type_array]) # convert NeuronTypes to neuronTypesEnum
+        
+
+
+    # ==================================================================================================================== #
+    # Additive Mutating Functions: Adds or Update Columns in the Dataframe                                                 #
+    # ==================================================================================================================== #
+    
+    # def to_hdf(self, file_path, key: str, **kwargs):
+    #     """ Saves the object to key in the hdf5 file specified by file_path 
+    #     Usage:
+
+    #     .spikes.to_hdf(
+    #     """
+    #     _spikes_df = deepcopy(self._obj)
+    #     # Convert the 'cell_type' column of the dataframe to the categorical type if needed
+    #     cat_type = NeuronType.get_pandas_categories_type()
+    #     if _spikes_df["cell_type"].dtype != cat_type:
+    #         # If this type check ever becomes a problem and we want a more liberal constraint, All instances of CategoricalDtype compare equal to the string 'category'.
+    #         _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
+
+    #     # Store DataFrame using pandas
+    #     with pd.HDFStore(file_path) as store:
+    #         _spikes_df.to_hdf(store, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
+
+    #     # Open the file with h5py to add attributes
+    #     with h5py.File(file_path, 'r+') as f:
+    #         _ds = f[key]
+    #         _ds.attrs['time_variable_name'] = self.time_variable_name
+    #         _ds.attrs['n_neurons'] = self.n_neurons
+    #         # You can add more attributes here as needed
+    #         # _ds.attrs['neuron_ids'] = self.neuron_ids
+    #         # _ds.attrs['neuron_probe_tuple_ids'] = self.neuron_probe_tuple_ids
+
+
+       
+    # @classmethod
+    # def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
+    #     """  Reads the data from the key in the hdf5 file at file_path         
+    #     # TODO 2023-07-30 13:05: - [ ] interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+    #         - UPDATE: I think adding `.astype(str)` to the end of the conversion resolves it and makes the type the same as it started. Still not sure if it would be better to leave it a categorical because I think it's more space efficient and better than it started anyway.
+    #     """
+    #     _spikes_df = pd.read_hdf(file_path, key=key, **kwargs)
+    #     # Convert the 'cell_type' column back to its original type (e.g., a custom class NeuronType)
+    #     # .astype(object)
+
+    #     _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+        
+    #     return _spikes_df
+
+
+
+
+
+
 
 
 # NOTE: this is like visual identity also
