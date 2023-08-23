@@ -21,7 +21,7 @@ except ModuleNotFoundError as e:
     sys.path.insert(0, str(root_project_folder))
 finally:
     from neuropy.core import Position, Neurons
-    from neuropy.core.neurons import NeuronType
+    from neuropy.core.neuron_identities import NeuronType
     from neuropy.core.flattened_spiketrains import SpikesAccessor, FlattenedSpiketrains
     from neuropy.utils.debug_helpers import print_aligned_columns
     

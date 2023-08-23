@@ -1,10 +1,12 @@
 # neuron_identities
 from collections import namedtuple
-from enum import Enum
+from enum import Enum, unique
+from functools import total_ordering
 from typing import List
 import numpy as np
 import pandas as pd
 import tables as tb
+from pandas import CategoricalDtype
 from tables import (
     Int8Col, Int16Col, Int32Col, Int64Col,
     UInt8Col, UInt16Col, UInt32Col, UInt64Col,
@@ -12,6 +14,8 @@ from tables import (
     TimeCol, ComplexCol, StringCol, BoolCol, EnumCol
 )
 import h5py
+
+from neuropy.utils.mixins.HDF5_representable import HDF_Converter
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 from neuropy.utils.colors_util import get_neuron_colors
 from matplotlib.colors import ListedColormap
@@ -402,3 +406,203 @@ class NeuronIdentitiesDisplayerMixin:
         raise NotImplementedError
         # # sorted_neuron_id_labels = [f'Cell[{a_neuron_id}]' for a_neuron_id in sorted_neuron_ids]
         # sorted_neuron_id_labels = [f'C[{sorted_neuron_ids[i]}]({sorted_alt_tuple_neuron_ids[i][0]}|{sorted_alt_tuple_neuron_ids[i][1]})' for i in np.arange(len(sorted_neuron_ids))]
+
+
+@total_ordering
+@unique
+class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
+    """
+    Kamran 2023-07-18:
+        cluq=[1,2,4,9] all passed.
+        3 were noisy
+        [6,7]: double fields.
+        5: interneurons
+
+    Pho-Pre-2023-07-18:
+        pyramidal: [-inf, 4)
+        contaminated: [4, 7)
+        interneurons: [7, +inf)
+    """
+    PYRAMIDAL = 0
+    CONTAMINATED = 1
+    INTERNEURONS = 2
+
+    # [name for name, member in NeuronType.__members__.items() if member.name != name]
+    # longClassNames = ['pyramidal','contaminated','interneurons']
+    # shortClassNames = ['pyr','cont','intr']
+    # classCutoffValues = [0, 4, 7, 9]
+
+    def describe(self):
+        self.name, self.value
+
+    # def __repr__(self) -> str:
+    #     return super().__repr__()
+
+    def __eq__(self, other):
+        return self.value == other.value
+
+    def __le__(self, other):
+        return self.value < other.value
+
+    def __hash__(self):
+        return hash(self.value)
+
+    @property
+    def shortClassName(self):
+        return NeuronType.shortClassNames()[self.value]
+
+    @property
+    def longClassName(self):
+        return NeuronType.longClassNames()[self.value]
+
+    @property
+    def hdfcodingClassName(self) -> str:
+        return NeuronType.hdf_coding_ClassNames()[self.value]
+
+    # def equals(self, string):
+    #     # return self.name == string
+    #     return ((self.shortClassName == string) or (self.longClassName == string))
+
+    # Static properties
+    @classmethod
+    def longClassNames(cls):
+        return np.array(['pyramidal','contaminated','interneurons'])
+
+    @classmethod
+    def shortClassNames(cls):
+        return np.array(['pyr','cont','intr'])
+
+    @classmethod
+    def bapunNpyFileStyleShortClassNames(cls):
+        return np.array(['pyr','mua','inter'])
+
+    @classmethod
+    def hdf_coding_ClassNames(cls):
+        return np.array(['pyr','bad','intr'])
+
+    @classmethod
+    def classCutoffValues(cls):
+        raise NotImplementedError(f"this method has been depricated in favor of cls.classCutoffMap after it was revealed by Kamran that the qclu values are non-sequential on 2023-07-18.")
+        # return np.array([0, 4, 7, 9])
+
+
+    @classmethod
+    def classCutoffMap(cls) -> dict:
+        """ For each qclu value in 0-10, return a str in ['pyr','cont','intr']
+            Kamran 2023-07-18:
+                cluq=[1,2,4,9] all passed.
+                3 were noisy
+                [6,7]: double fields.
+                5: interneurons
+
+        ## Post 2023-07-18:
+            for i in np.arange(10):
+                _out_map[i] = "cont" # initialize all to 'contaminated'/noisy
+            for i in [1,2,4,6,7,9]:
+                _out_map[i] = 'pyr' # pyramidal
+            _out_map[5] = "intr" # interneurons
+
+        ## Post 2023-07-31 - Excluding "double fields" qclues on Kamran's request
+
+
+        """
+        _out_map = dict() # start with an empty dict
+        for i in np.arange(10):
+            _out_map[i] = "cont" # initialize all to 'contaminated'/noisy
+        for i in [1,2,4,6,7,9]:
+            _out_map[i] = 'pyr' # pyramidal
+        _out_map[5] = "intr" # interneurons
+        return _out_map
+
+
+
+    @classmethod
+    def from_short_string(cls, string_value) -> "NeuronType":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.shortClassNames()==string_value)
+        return NeuronType(itemindex[0])
+
+    @classmethod
+    def from_long_string(cls, string_value) -> "NeuronType":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.longClassNames()==string_value)
+        return NeuronType(itemindex[0])
+
+    @classmethod
+    def from_string(cls, string_value) -> "NeuronType":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.longClassNames()==string_value)
+        if len(itemindex[0]) < 1:
+            # if not found in longClassNames, try shortClassNames
+            itemindex = np.where(cls.shortClassNames()==string_value)
+            if len(itemindex[0]) < 1:
+                # if not found in shortClassNames, try bapunNpyFileStyleShortClassNames
+                itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
+                if len(itemindex[0]) < 1:
+                    # if not found in bapunNpyFileStyleShortClassNames, try hdf_coding_ClassNames
+                    itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
+
+        return NeuronType(itemindex[0])
+
+    @classmethod
+    def from_bapun_npy_style_string(cls, string_value) -> "NeuronType":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
+        return NeuronType(itemindex[0])
+
+
+
+
+
+    @classmethod
+    def from_qclu_series(cls, qclu_Series):
+        # qclu_Series: a Pandas Series object, such as qclu_Series=spikes_df['qclu']
+        # example: spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
+        # temp_neuronTypeStrings = pd.cut(x=qclu_Series, bins=cls.classCutoffValues(), labels=cls.shortClassNames())
+        temp_cutoff_map:dict = cls.classCutoffMap()
+        temp_neuronTypeStrings = [temp_cutoff_map[int(qclu)] for qclu in qclu_Series]
+        temp_neuronTypes = np.array([NeuronType.from_short_string(_) for _ in np.array(temp_neuronTypeStrings)])
+        return temp_neuronTypes
+
+    @classmethod
+    def from_any_string_series(cls, neuron_types_strings):
+        # neuron_types_strings: a np.ndarray containing any acceptable style strings, such as: ['mua', 'mua', 'inter', 'pyr', ...]
+        return np.array([NeuronType.from_string(_) for _ in np.array(neuron_types_strings)])
+
+
+    @classmethod
+    def from_bapun_npy_style_series(cls, bapun_style_neuron_types):
+        # bapun_style_neuron_types: a np.ndarray containing Bapun-style strings, such as: ['mua', 'mua', 'inter', 'pyr', ...]
+        return np.array([NeuronType.from_bapun_npy_style_string(_) for _ in np.array(bapun_style_neuron_types)])
+
+    @classmethod
+    def from_hdf_coding_style_series(cls, hdf_coding_neuron_types):
+        # hdf_coding_neuron_types: a np.ndarray containing hdf-coding strings, such as: ['pyr','bad','intr']
+        return np.array([NeuronType.from_hdf_coding_string(_) for _ in np.array(hdf_coding_neuron_types)])
+
+
+    ## Extended Properties such as colors
+    @classmethod
+    def classRenderColors(cls):
+        """ colors used to render each type of neuron """
+        return np.array(["#e97373","#22202079","#435bdf"])
+
+    @property
+    def renderColor(self):
+        return NeuronType.classRenderColors()[self.value]
+
+
+    # HDFConvertableEnum Conformances ____________________________________________________________________________________ #
+    @classmethod
+    def get_pandas_categories_type(cls) -> CategoricalDtype:
+        return CategoricalDtype(categories=list(cls.hdf_coding_ClassNames()), ordered=True)
+
+    @classmethod
+    def convert_to_hdf(cls, value) -> str:
+        return value.hdfcodingClassName
+
+    @classmethod
+    def from_hdf_coding_string(cls, string_value: str) -> "NeuronType":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
+        return NeuronType(itemindex[0])

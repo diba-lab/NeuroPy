@@ -23,7 +23,7 @@ finally:
     from neuropy.core import Position, Neurons
     from neuropy.analyses.placefields import PlacefieldComputationParameters
     from neuropy.analyses.placefields import PfND
-    from neuropy.core.neurons import NeuronType
+    from neuropy.core.neuron_identities import NeuronType
     from neuropy.core.flattened_spiketrains import SpikesAccessor, FlattenedSpiketrains
     from neuropy.utils.debug_helpers import debug_print_placefield, debug_print_subsession_neuron_differences
     from neuropy.utils.debug_helpers import debug_print_ratemap, debug_print_spike_counts, debug_plot_2d_binning, compare_placefields_info

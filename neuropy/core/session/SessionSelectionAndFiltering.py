@@ -12,7 +12,8 @@ import numpy as np
 
 from neuropy import core
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
-from neuropy.core.neurons import Neurons, NeuronType
+from neuropy.core.neurons import Neurons
+from neuropy.core.neuron_identities import NeuronType
 from neuropy.core.position import Position  # , PositionAccessor
 from neuropy.core.session.dataSession import DataSession
 

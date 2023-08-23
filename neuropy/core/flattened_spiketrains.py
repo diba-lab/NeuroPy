@@ -10,7 +10,7 @@ import pandas as pd
 import h5py
 from copy import deepcopy
 
-from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple, NeuronType
 from neuropy.utils.mixins.binning_helpers import BinningInfo # for add_binned_time_column
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from .datawriter import DataWriter
@@ -19,7 +19,6 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
-from .neurons import NeuronType
 
 
 @pd.api.extensions.register_dataframe_accessor("spikes")
