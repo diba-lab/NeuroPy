@@ -119,7 +119,7 @@ class HDF_Converter:
             raise NotImplementedError("Subclasses must implement this method")
 
         @classmethod
-        def from_hdf_coding_string(cls, string_value: str) -> Type:
+        def from_hdf_coding_string(cls, string_value: str) -> "HDF_Converter.HDFConvertableEnum":
             raise NotImplementedError("Subclasses must implement this method")
 
         @classmethod

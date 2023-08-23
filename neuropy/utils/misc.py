@@ -326,6 +326,7 @@ def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, 
     
     
     Usage:
+        from neuropy.utils.misc import add_explicit_dataframe_columns_from_lookup_df
         curr_active_pipeline.sess.flattened_spiketrains._spikes_df = add_explicit_dataframe_columns_from_lookup_df(curr_active_pipeline.sess.spikes_df, curr_active_pipeline.sess.neurons._extended_neuron_properties_df)
         curr_active_pipeline.sess.spikes_df.sort_values(by=['t_seconds'], inplace=True) # Need to re-sort by timestamps once done
         curr_active_pipeline.sess.spikes_df
