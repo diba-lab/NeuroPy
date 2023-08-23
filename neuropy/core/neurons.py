@@ -21,13 +21,13 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
-from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin, HDF_Converter
 from neuropy.core.neuron_identities import NeuronIdentityTable, neuronTypesList, neuronTypesEnum
 
 
 @total_ordering
 @unique
-class NeuronType(Enum):
+class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
     """ 
     Kamran 2023-07-18:
         cluq=[1,2,4,9] all passed.
@@ -213,9 +213,17 @@ class NeuronType(Enum):
     def renderColor(self):
         return NeuronType.classRenderColors()[self.value]
   
+
+    # HDFConvertableEnum Conformances ____________________________________________________________________________________ #
     @classmethod
     def get_pandas_categories_type(cls) -> CategoricalDtype:
         return CategoricalDtype(categories=list(cls.hdf_coding_ClassNames()), ordered=True)
+
+    @classmethod
+    def convert_to_hdf(cls, value) -> str:
+        return value.hdfcodingClassName
+    
+    
         
 
 

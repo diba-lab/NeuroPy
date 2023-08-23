@@ -1,7 +1,7 @@
 from functools import wraps, partial
 from pathlib import Path
 from copy import deepcopy
-from typing import Sequence, Union
+from typing import Sequence, Union, Type, Optional, List, Dict
 import numpy as np
 import pandas as pd
 import h5py # for to_hdf and read_hdf definitions
@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define
 import attrs
 from attrs import field, asdict, fields
+from neuropy.utils.result_context import IdentifyingContext
 
 # ==================================================================================================================== #
 # 2023-07-30 HDF5 General Object Serialization Classes                                                                 #
@@ -99,6 +100,45 @@ class HDF_Converter:
 
     """
     
+    
+
+    class HDFConvertableEnum:
+        """ indicates conformers should be converted to an HDF-enumeration if they are used as a dataframe column. """
+        @classmethod
+        def get_pandas_categories_type(cls) -> Type:
+            raise NotImplementedError("Subclasses must implement this method")
+        
+        @classmethod
+        def convert_to_hdf(cls, value) -> str:
+            raise NotImplementedError("Subclasses must implement this method")
+
+        # Could Also do:
+        """
+        @property
+        def hdfcodingClassName(self) -> str:
+            return NeuronType.hdf_coding_ClassNames()[self.value]
+
+
+        @classmethod
+        def from_hdf_coding_string(cls, string_value: str) -> "NeuronType":
+            string_value = string_value.lower()
+            itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
+            return NeuronType(itemindex[0])
+
+        """
+        @classmethod
+        def convert_dataframe_columns_for_hdf(cls, df: pd.DataFrame) -> pd.DataFrame:
+            for col in df.columns:
+                col_type = type(df[col].iloc[0])
+                if issubclass(col_type, HDF_Converter.HDFConvertableEnum): # could use cls
+                    # could check for attributes ('get_pandas_categories_type', 'convert_to_hdf') instead of using issubclass 
+                    cat_type = col_type.get_pandas_categories_type()
+                    if df[col].dtype != cat_type:
+                        df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
+            return df
+
+
+
     # Static Conversion Functions ________________________________________________________________________________________ #
     
     @staticmethod
@@ -134,6 +174,57 @@ class HDF_Converter:
         # Convert to np.int64 (64-bit integer) for tb.Time64Col()
         time_as_np_int64 = np.int64(time_in_nanoseconds)
         return time_as_np_int64
+
+
+    @classmethod
+    def prepare_neuron_indexed_dataframe_for_hdf(cls, neuron_indexed_df: pd.DataFrame, active_context: IdentifyingContext, aclu_column_name: Optional[str]='aclu') -> pd.DataFrame:
+        """ prepares a neuron-indexed dataframe (one with an entry for each neuron and an aclu column) for export to hdf5 by converting specific columns to the categorical type if needed """
+
+        if aclu_column_name is None:
+            # if aclu_column_name is None, use the index:
+            sess_specific_aclus = list(neuron_indexed_df.index.to_numpy())
+        else:
+            sess_specific_aclus = list(neuron_indexed_df[aclu_column_name].to_numpy())
+
+        session_ctxt_key:str = active_context.get_description(separator='|', subset_includelist=IdentifyingContext._get_session_context_keys())
+
+        # Adds column columns=['neuron_uid', 'session_uid', 'aclu']
+        neuron_indexed_df['aclu'] = sess_specific_aclus # _neuron_replay_stats_df.index.to_numpy() # add explicit 'aclu' column from index
+        neuron_indexed_df['session_uid'] = session_ctxt_key # add fixed 'session_uid' column 
+        neuron_indexed_df['neuron_uid'] = [f"{session_ctxt_key}|{aclu}" for aclu in sess_specific_aclus]
+
+
+        # Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed
+
+        # # Define the category types
+        # neuron_cat_type = NeuronType.get_pandas_categories_type()
+        # partition_cat_type = SplitPartitionMembership.get_pandas_categories_type()
+
+        # # Convert columns to the categorical type if needed
+        # for col in neuron_indexed_df.columns:
+        #     if neuron_indexed_df[col].dtype != neuron_cat_type and neuron_indexed_df[col].dtype != partition_cat_type:
+        #         continue
+        #     if neuron_indexed_df[col].dtype != neuron_cat_type:
+        #         # Convert the column to the NeuronType category type
+        #         neuron_indexed_df[col] = neuron_indexed_df[col].apply(lambda x: x.hdfcodingClassName).astype(neuron_cat_type)
+        #     elif neuron_indexed_df[col].dtype != partition_cat_type:
+        #         # Convert the column to the SplitPartitionMembership category type
+        #         neuron_indexed_df[col] = neuron_indexed_df[col].apply(lambda x: x.name).astype(partition_cat_type)
+
+        # Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed
+        for col in neuron_indexed_df.columns:
+            col_type = type(neuron_indexed_df[col].iloc[0])
+            if issubclass(col_type, HDF_Converter.HDFConvertableEnum):
+                cat_type = col_type.get_pandas_categories_type()
+                if neuron_indexed_df[col].dtype != cat_type:
+                    neuron_indexed_df[col] = neuron_indexed_df[col].apply(col_type.convert_to_hdf).astype(cat_type)
+
+        neuron_indexed_df = HDF_Converter.HDFConvertableEnum.convert_dataframe_columns_for_hdf(neuron_indexed_df)
+
+        return neuron_indexed_df
+
+
+
 
     @staticmethod
     def _prepare_pathlib_Path_for_hdf_fn(f, key: str, value):
