@@ -168,11 +168,6 @@ class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
         return NeuronType(itemindex[0])
 
 
-    @classmethod
-    def from_hdf_coding_string(cls, string_value: str) -> "NeuronType":
-        string_value = string_value.lower()
-        itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
-        return NeuronType(itemindex[0])
 
     
     
@@ -223,7 +218,12 @@ class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
     def convert_to_hdf(cls, value) -> str:
         return value.hdfcodingClassName
     
-    
+    @classmethod
+    def from_hdf_coding_string(cls, string_value: str) -> "NeuronType":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
+        return NeuronType(itemindex[0])
+
         
 
 

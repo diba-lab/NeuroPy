@@ -112,22 +112,13 @@ class HDF_Converter:
         def convert_to_hdf(cls, value) -> str:
             raise NotImplementedError("Subclasses must implement this method")
 
-        # Could Also do:
-        """
-        @property
-        def hdfcodingClassName(self) -> str:
-            return NeuronType.hdf_coding_ClassNames()[self.value]
-
-
         @classmethod
-        def from_hdf_coding_string(cls, string_value: str) -> "NeuronType":
-            string_value = string_value.lower()
-            itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
-            return NeuronType(itemindex[0])
+        def from_hdf_coding_string(cls, string_value: str) -> Type:
+            raise NotImplementedError("Subclasses must implement this method")
 
-        """
         @classmethod
         def convert_dataframe_columns_for_hdf(cls, df: pd.DataFrame) -> pd.DataFrame:
+            """ Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed """
             for col in df.columns:
                 col_type = type(df[col].iloc[0])
                 if issubclass(col_type, HDF_Converter.HDFConvertableEnum): # could use cls
@@ -136,6 +127,27 @@ class HDF_Converter:
                     if df[col].dtype != cat_type:
                         df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
             return df
+        
+        @classmethod
+        def restore_hdf_dataframe_column_original_type(cls, df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+            """ Restores the original type to the specified column (column_name) in the dataframe after loading from an HDF5 file.
+            
+            Usage:
+                
+            """
+            assert column_name in df.columns
+            df[column_name] = df[column_name].apply(cls.from_hdf_coding_string)
+            return df
+
+
+        # @classmethod
+        # def convert_from_hdf_dataframe_to_original_types(cls, df: pd.DataFrame) -> pd.DataFrame:
+        #     """ Convert any HDF5-compatible categorical dataframe columns back to their original Enum types after loading from an HDF5 file. """
+        #     for col in df.columns:
+        #         col_type = type(df[col].cat.categories[0]) # Retrieve the type of the first category
+        #         if issubclass(col_type, HDF_Converter.HDFConvertableEnum):
+        #             df[col] = df[col].apply(col_type.from_hdf_coding_string)
+        #     return df
 
 
 
@@ -195,30 +207,6 @@ class HDF_Converter:
 
 
         # Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed
-
-        # # Define the category types
-        # neuron_cat_type = NeuronType.get_pandas_categories_type()
-        # partition_cat_type = SplitPartitionMembership.get_pandas_categories_type()
-
-        # # Convert columns to the categorical type if needed
-        # for col in neuron_indexed_df.columns:
-        #     if neuron_indexed_df[col].dtype != neuron_cat_type and neuron_indexed_df[col].dtype != partition_cat_type:
-        #         continue
-        #     if neuron_indexed_df[col].dtype != neuron_cat_type:
-        #         # Convert the column to the NeuronType category type
-        #         neuron_indexed_df[col] = neuron_indexed_df[col].apply(lambda x: x.hdfcodingClassName).astype(neuron_cat_type)
-        #     elif neuron_indexed_df[col].dtype != partition_cat_type:
-        #         # Convert the column to the SplitPartitionMembership category type
-        #         neuron_indexed_df[col] = neuron_indexed_df[col].apply(lambda x: x.name).astype(partition_cat_type)
-
-        # Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed
-        for col in neuron_indexed_df.columns:
-            col_type = type(neuron_indexed_df[col].iloc[0])
-            if issubclass(col_type, HDF_Converter.HDFConvertableEnum):
-                cat_type = col_type.get_pandas_categories_type()
-                if neuron_indexed_df[col].dtype != cat_type:
-                    neuron_indexed_df[col] = neuron_indexed_df[col].apply(col_type.convert_to_hdf).astype(cat_type)
-
         neuron_indexed_df = HDF_Converter.HDFConvertableEnum.convert_dataframe_columns_for_hdf(neuron_indexed_df)
 
         return neuron_indexed_df
