@@ -103,7 +103,13 @@ class HDF_Converter:
     
 
     class HDFConvertableEnum:
-        """ indicates conformers should be converted to an HDF-enumeration if they are used as a dataframe column. """
+        """ indicates conformers should be converted to an HDF-enumeration if they are used as a dataframe column. 
+        
+        TODO: see notes on
+        
+        .apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+        
+        """
         @classmethod
         def get_pandas_categories_type(cls) -> Type:
             raise NotImplementedError("Subclasses must implement this method")
