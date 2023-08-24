@@ -271,7 +271,9 @@ class HDF_Converter:
 
     @classmethod
     def expand_dataframe_session_context_column(cls, non_expanded_context_df: pd.DataFrame, session_uid_column_name:str='session_uid') -> pd.DataFrame:
-        """ expands a column (session_uid_column_name) containing a str representation of the session context (e.g. 'kdiba|gor01|one|2006-6-08_14-26-15') into its four separate component ['format_name', 'animal', 'exper_name', 'session_name'] columns. """
+        """ expands a column (session_uid_column_name) containing a str representation of the session context (e.g. 'kdiba|gor01|one|2006-6-08_14-26-15') into its four separate component ['format_name', 'animal', 'exper_name', 'session_name'] columns.
+        Additionally adds the 'session_datetime' column if it can be parsed from the 'session_name' column.
+         """
         assert session_uid_column_name in non_expanded_context_df.columns
         assert len(non_expanded_context_df[session_uid_column_name]) > 0 # must have at least one element
         if isinstance(non_expanded_context_df[session_uid_column_name][0], str):
@@ -284,6 +286,10 @@ class HDF_Converter:
         else:
             raise TypeError         
         expanded_context_df = pd.DataFrame.from_records(all_sess_context_tuples, columns=IdentifyingContext._get_session_context_keys())
+        # parse session date if possible:
+        # Apply the extract_date function to the 'session_name' column to create a new 'session_date' column
+        expanded_context_df['session_datetime'] = expanded_context_df['session_name'].apply(IdentifyingContext.try_extract_date_from_session_name)
+
         return pd.concat((expanded_context_df, non_expanded_context_df), axis=1)
 
     @classmethod
@@ -308,14 +314,14 @@ class HDF_Converter:
 
     @classmethod
     def general_post_load_restore_table_as_needed(cls, df: pd.DataFrame, session_uid_column_name='session_uid') -> pd.DataFrame:
-            """ 2023-08-24 should be generally safe to apply on loaded PyTables tables loaded as dataframes.
+        """ 2023-08-24 should be generally safe to apply on loaded PyTables tables loaded as dataframes.
 
-            Usage:
-                _out_table = general_post_load_restore_table_as_needed(_out_table)
-            """
-            cls.restore_native_column_types_manual_if_needed(df)
-            df = cls.expand_dataframe_session_context_column(df, session_uid_column_name=session_uid_column_name)
-            return df
+        Usage:
+            _out_table = general_post_load_restore_table_as_needed(_out_table)
+        """
+        cls.restore_native_column_types_manual_if_needed(df)
+        df = cls.expand_dataframe_session_context_column(df, session_uid_column_name=session_uid_column_name)
+        return df
 
 
 # ==================================================================================================================== #
