@@ -273,7 +273,7 @@ class HDF_Converter:
     def expand_dataframe_session_context_column(cls, non_expanded_context_df: pd.DataFrame, session_uid_column_name:str='session_uid') -> pd.DataFrame:
         """ expands a column (session_uid_column_name) containing a str representation of the session context (e.g. 'kdiba|gor01|one|2006-6-08_14-26-15') into its four separate component ['format_name', 'animal', 'exper_name', 'session_name'] columns. """
         assert session_uid_column_name in non_expanded_context_df.columns
-        assert len(non_expanded_context_df[session_uid_column_name][0]) > 0 # must have at least one element
+        assert len(non_expanded_context_df[session_uid_column_name]) > 0 # must have at least one element
         if isinstance(non_expanded_context_df[session_uid_column_name][0], str):
             # String representations of session contexts ('session_uid'-style):
             non_expanded_context_df = non_expanded_context_df.astype({session_uid_column_name: 'string'})
