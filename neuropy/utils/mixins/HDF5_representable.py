@@ -272,13 +272,13 @@ class HDF_Converter:
     @classmethod
     def expand_dataframe_session_context_column(cls, non_expanded_context_df: pd.DataFrame, session_uid_column_name:str='session_uid') -> pd.DataFrame:
         """ expands a column (session_uid_column_name) containing a str representation of the session context (e.g. 'kdiba|gor01|one|2006-6-08_14-26-15') into its four separate component ['format_name', 'animal', 'exper_name', 'session_name'] columns. """
-        assert session_uid_column_name in _out_table.columns
-        assert len(_out_table[session_uid_column_name][0]) > 0 # must have at least one element
-        if isinstance(_out_table[session_uid_column_name][0], str):
+        assert session_uid_column_name in non_expanded_context_df.columns
+        assert len(non_expanded_context_df[session_uid_column_name][0]) > 0 # must have at least one element
+        if isinstance(non_expanded_context_df[session_uid_column_name][0], str):
             # String representations of session contexts ('session_uid'-style):
             non_expanded_context_df = non_expanded_context_df.astype({session_uid_column_name: 'string'})
             all_sess_context_tuples = [tuple(a_session_uid.split('|', maxsplit=4)) for a_session_uid in non_expanded_context_df[session_uid_column_name]]
-        elif isinstance(_out_table[session_uid_column_name][0], IdentifyingContext):
+        elif isinstance(non_expanded_context_df[session_uid_column_name][0], IdentifyingContext):
             # IdentifyingContext type objects:
             all_sess_context_tuples = [a_ctx.as_tuple() for a_ctx in non_expanded_context_df[session_uid_column_name]] #[('kdiba', 'gor01', 'one', '2006-6-07_11-26-53'), ('kdiba', 'gor01', 'one', '2006-6-08_14-26-15'), ('kdiba', 'gor01', 'one', '2006-6-09_1-22-43'), ...]
         else:
@@ -287,7 +287,7 @@ class HDF_Converter:
         return pd.concat((expanded_context_df, non_expanded_context_df), axis=1)
 
     @classmethod
-    def restore_native_column_types_manual_if_needed(cls, _out_table: pd.DataFrame) -> pd.DataFrame:
+    def restore_native_column_types_manual_if_needed(cls, df: pd.DataFrame) -> pd.DataFrame:
         """ 2023-08-24
         Usage:
             restore_native_column_types_manual_if_needed(_out_table)
@@ -297,14 +297,25 @@ class HDF_Converter:
         from pyphoplacecellanalysis.General.Mixins.CrossComputationComparisonHelpers import SplitPartitionMembership
 
         # manual conversion is required for some reason:
-        if _out_table.dtypes["track_membership"] == np.int8:
-            _out_table["track_membership"] = _out_table["track_membership"].apply(lambda x: SplitPartitionMembership.hdf_coding_ClassNames()[x]).astype(object)
-        if _out_table.dtypes["neuron_type"] == np.int8:
-            _out_table["neuron_type"] = _out_table["neuron_type"].apply(lambda x: NeuronType.hdf_coding_ClassNames()[x]).astype(object)
+        
+        if ("track_membership" in df.columns) and (df.dtypes["track_membership"] == np.int8):
+            df["track_membership"] = df["track_membership"].apply(lambda x: SplitPartitionMembership.hdf_coding_ClassNames()[x]).astype(object)
+        if ("neuron_type" in df.columns) and (df.dtypes["neuron_type"] == np.int8):
+            df["neuron_type"] = df["neuron_type"].apply(lambda x: NeuronType.hdf_coding_ClassNames()[x]).astype(object)
 
-        cls._restore_dataframe_byte_strings_to_strings(_out_table)
+        cls._restore_dataframe_byte_strings_to_strings(df)
+        return df
 
-        return _out_table
+    @classmethod
+    def general_post_load_restore_table_as_needed(cls, df: pd.DataFrame, session_uid_column_name='session_uid') -> pd.DataFrame:
+            """ 2023-08-24 should be generally safe to apply on loaded PyTables tables loaded as dataframes.
+
+            Usage:
+                _out_table = general_post_load_restore_table_as_needed(_out_table)
+            """
+            cls.restore_native_column_types_manual_if_needed(df)
+            df = cls.expand_dataframe_session_context_column(df, session_uid_column_name=session_uid_column_name)
+            return df
 
 
 # ==================================================================================================================== #
