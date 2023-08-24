@@ -90,6 +90,11 @@ class MyClass(DeserializationMixin):
         
 """
 
+
+# ==================================================================================================================== #
+# HDF Conversion Helpers                                                                                               #
+# ==================================================================================================================== #
+
 class HDF_Converter:
     """ holds static functions that convert specific types to an HDF compatible datatype. 
 
@@ -159,15 +164,14 @@ class HDF_Converter:
 
     # Static Conversion Functions ________________________________________________________________________________________ #
     
+
+    # TO HDF _____________________________________________________________________________________________________________ #
+
     @staticmethod
     def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
         """ value: dict-like """
         for sub_k, sub_v in value.items():
             f[f'{key}/{sub_k}'] = sub_v
-
-
-
-
 
     # @staticmethod
     # def _convert_Path_dict_to_hdf_attrs_fn(f, key: str, value):
@@ -177,9 +181,6 @@ class HDF_Converter:
     #     # (lambda f, k, v: f[f'{key}/{sub_k}'] = str(sub_v) for sub_k, sub_v in value.items())
     #     assert isinstance(value, Path)
     #     return str(value)
-
-
-
 
     # Value Type Conversion functions: `_prepare_{A_TYPE}_value_to_for_hdf_fn`
     ## Do not write to f themselves, simply convert values of a specific type to a HDF or PyTables compatable type:
@@ -192,7 +193,6 @@ class HDF_Converter:
         # Convert to np.int64 (64-bit integer) for tb.Time64Col()
         time_as_np_int64 = np.int64(time_in_nanoseconds)
         return time_as_np_int64
-
 
     @classmethod
     def prepare_neuron_indexed_dataframe_for_hdf(cls, neuron_indexed_df: pd.DataFrame, active_context: IdentifyingContext, aclu_column_name: Optional[str]='aclu') -> pd.DataFrame:
@@ -217,17 +217,11 @@ class HDF_Converter:
 
         return neuron_indexed_df
 
-
-
-
     @staticmethod
     def _prepare_pathlib_Path_for_hdf_fn(f, key: str, value):
         assert isinstance(value, Path)
         return str(value)
     
-
-
-
     @staticmethod
     def _try_default_to_hdf_conversion_fn(file_path, key: str, value, file_mode:str='a'):
         """ naievely attempts to save the value `a_value` out to hdf based on its type. Even if it works it might not be correct or deserializable due to datatype issues. 
@@ -265,6 +259,57 @@ class HDF_Converter:
             raise NotImplementedError
 
 
+    # FROM HDF ___________________________________________________________________________________________________________ #
+    @classmethod
+    def _restore_dataframe_byte_strings_to_strings(cls, df: pd.DataFrame) -> pd.DataFrame:
+        """ converts columns containing byte strings (b'aString') to normal strings ('aString') """
+        for col in df:
+            if isinstance(df[col][0], bytes):
+                # print(col, "will be transformed from bytestring to string")
+                df[col] = df[col].str.decode("utf8")  # or any other encoding
+
+
+    @classmethod
+    def expand_dataframe_session_context_column(cls, non_expanded_context_df: pd.DataFrame, session_uid_column_name:str='session_uid') -> pd.DataFrame:
+        """ expands a column (session_uid_column_name) containing a str representation of the session context (e.g. 'kdiba|gor01|one|2006-6-08_14-26-15') into its four separate component ['format_name', 'animal', 'exper_name', 'session_name'] columns. """
+        assert session_uid_column_name in _out_table.columns
+        assert len(_out_table[session_uid_column_name][0]) > 0 # must have at least one element
+        if isinstance(_out_table[session_uid_column_name][0], str):
+            # String representations of session contexts ('session_uid'-style):
+            non_expanded_context_df = non_expanded_context_df.astype({session_uid_column_name: 'string'})
+            all_sess_context_tuples = [tuple(a_session_uid.split('|', maxsplit=4)) for a_session_uid in non_expanded_context_df[session_uid_column_name]]
+        elif isinstance(_out_table[session_uid_column_name][0], IdentifyingContext):
+            # IdentifyingContext type objects:
+            all_sess_context_tuples = [a_ctx.as_tuple() for a_ctx in non_expanded_context_df[session_uid_column_name]] #[('kdiba', 'gor01', 'one', '2006-6-07_11-26-53'), ('kdiba', 'gor01', 'one', '2006-6-08_14-26-15'), ('kdiba', 'gor01', 'one', '2006-6-09_1-22-43'), ...]
+        else:
+            raise TypeError         
+        expanded_context_df = pd.DataFrame.from_records(all_sess_context_tuples, columns=IdentifyingContext._get_session_context_keys())
+        return pd.concat((expanded_context_df, non_expanded_context_df), axis=1)
+
+    @classmethod
+    def restore_native_column_types_manual_if_needed(cls, _out_table: pd.DataFrame) -> pd.DataFrame:
+        """ 2023-08-24
+        Usage:
+            restore_native_column_types_manual_if_needed(_out_table)
+        """
+        # restore native column types:
+        from neuropy.core.neurons import NeuronType
+        from pyphoplacecellanalysis.General.Mixins.CrossComputationComparisonHelpers import SplitPartitionMembership
+
+        # manual conversion is required for some reason:
+        if _out_table.dtypes["track_membership"] == np.int8:
+            _out_table["track_membership"] = _out_table["track_membership"].apply(lambda x: SplitPartitionMembership.hdf_coding_ClassNames()[x]).astype(object)
+        if _out_table.dtypes["neuron_type"] == np.int8:
+            _out_table["neuron_type"] = _out_table["neuron_type"].apply(lambda x: NeuronType.hdf_coding_ClassNames()[x]).astype(object)
+
+        cls._restore_dataframe_byte_strings_to_strings(_out_table)
+
+        return _out_table
+
+
+# ==================================================================================================================== #
+# HDF Serialization (saving to HDF5 file)                                                                              #
+# ==================================================================================================================== #
 _ALLOW_GLOBAL_NESTED_EXPANSION:bool = False
 # _ALLOW_GLOBAL_NESTED_EXPANSION:bool = True
 
