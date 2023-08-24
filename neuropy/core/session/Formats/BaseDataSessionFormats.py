@@ -1,5 +1,6 @@
+import re # used in try_extract_date_from_session_name
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
@@ -337,6 +338,48 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         format_name = cls.get_session_format_name() 
         curr_sess_ctx.format_name = format_name
         return curr_sess_ctx # IdentifyingContext<('KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')>
+
+
+
+    # @classmethod
+    # def try_extract_date_from_session_name(cls, session_name: str): # Optional[Union[pd.Timestamp, NaTType]]
+    #     """ 2023-08-24 - Attempts to determine at least the relative recording date for a given session from the session's name alone.
+    #     From the 'session_name' column in the provided data, we can observe two different formats used to specify the date:
+
+    #     Format 1: Dates with the pattern YYYY-M-D_H-M-S (e.g., "2006-6-07_11-26-53").
+    #     Format 2: Dates with the pattern MM-DD_H-M-S (e.g., "11-02_17-46-44").
+        
+    #     """
+    #     # Remove any non-digit prefixes or suffixes before parsing. Handles 'fet11-01_12-58-54'
+
+    #     # Check for any non-digit prefix
+    #     if re.match(r'^\D+', session_name):
+    #         print(f"WARN: Removed prefix from session_name: {session_name}")
+    #         session_name = re.sub(r'^\D*', '', session_name)
+
+    #     # Check for any non-digit suffix
+    #     if re.search(r'\D+$', session_name):
+    #         print(f"WARN: Removed suffix from session_name: {session_name}")
+    #         session_name = re.sub(r'\D*$', '', session_name)
+
+
+    #     # Try Format 1 (YYYY-M-D_H-M-S)
+    #     date_match1 = re.search(r'\d{4}-\d{1,2}-\d{1,2}_\d{1,2}-\d{1,2}-\d{1,2}', session_name)
+    #     if date_match1:
+    #         date_str1 = date_match1.group().replace('_', ' ')
+    #         return pd.to_datetime(date_str1, format='%Y-%m-%d %H-%M-%S', errors='coerce')
+
+    #     # Try Format 2 (MM-DD_H-M-S)
+    #     date_match2 = re.search(r'\d{1,2}-\d{1,2}_\d{1,2}-\d{1,2}-\d{1,2}', session_name)
+    #     if date_match2:
+    #         date_str2 = "2000-" + session_name.split('_')[0] # Assuming year 2000
+    #         time_str2 = session_name.split('_')[1].replace('-', ':')
+    #         full_str2 = date_str2 + ' ' + time_str2
+    #         return pd.to_datetime(full_str2, format='%Y-%m-%d %H:%M:%S', errors='coerce')
+
+    #     print(f"WARN: Could not parse date from session_name: {session_name} for any known format.")
+    #     return None
+
 
 
     @classmethod

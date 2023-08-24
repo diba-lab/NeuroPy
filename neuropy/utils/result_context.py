@@ -30,14 +30,16 @@ There's one hidden one: 'tabs', 'windows'
 Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (a single outlier rendered in juxtaposition to an inclusion set of the norms)
 
 """
-
+import re # used in try_extract_date_from_session_name
 import copy
 from typing import Any, List, Dict, Optional, Union
 from enum import Enum
 from functools import wraps # used for decorators
 from attrs import define, field, Factory
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
-from collections import defaultdict # used for find_unique_values
+from collections import defaultdict
+
+import pandas as pd # used for find_unique_values
 
 from neuropy.utils.mixins.diffable import DiffableObject
 from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
@@ -418,6 +420,52 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         self.__dict__.update(state)
         
         
+    # ==================================================================================================================== #
+    # BADLY PLACED METHODS (TO REFACTOR)                                                                                   #
+    # ==================================================================================================================== #
+
+    @classmethod
+    def try_extract_date_from_session_name(cls, session_name: str, assumed_year_if_missing:str="2009", debug_print:bool=False): # Optional[Union[pd.Timestamp, NaTType]]
+        """ 2023-08-24 - Attempts to determine at least the relative recording date for a given session from the session's name alone.
+        From the 'session_name' column in the provided data, we can observe two different formats used to specify the date:
+
+        Format 1: Dates with the pattern YYYY-M-D_H-M-S (e.g., "2006-6-07_11-26-53").
+        Format 2: Dates with the pattern MM-DD_H-M-S (e.g., "11-02_17-46-44").
+        
+        """
+        # Remove any non-digit prefixes or suffixes before parsing. Handles 'fet11-01_12-58-54'
+
+        # Check for any non-digit prefix
+        if re.match(r'^\D+', session_name):
+            if debug_print:
+                print(f"WARN: Removed prefix from session_name: {session_name}")
+            session_name = re.sub(r'^\D*', '', session_name)
+
+        # Check for any non-digit suffix
+        if re.search(r'\D+$', session_name):
+            if debug_print:
+                print(f"WARN: Removed suffix from session_name: {session_name}")
+            session_name = re.sub(r'\D*$', '', session_name)
+
+
+        # Try Format 1 (YYYY-M-D_H-M-S)
+        date_match1 = re.search(r'\d{4}-\d{1,2}-\d{1,2}_\d{1,2}-\d{1,2}-\d{1,2}', session_name)
+        if date_match1:
+            date_str1 = date_match1.group().replace('_', ' ')
+            return pd.to_datetime(date_str1, format='%Y-%m-%d %H-%M-%S', errors='coerce')
+
+        # Try Format 2 (MM-DD_H-M-S)
+        date_match2 = re.search(r'\d{1,2}-\d{1,2}_\d{1,2}-\d{1,2}-\d{1,2}', session_name)
+        if date_match2:
+            date_str2 = f"{assumed_year_if_missing}-" + session_name.split('_')[0] # Assuming year provided in `assumed_year_if_missing`
+            time_str2 = session_name.split('_')[1].replace('-', ':')
+            full_str2 = date_str2 + ' ' + time_str2
+            return pd.to_datetime(full_str2, format='%Y-%m-%d %H:%M:%S', errors='coerce')
+
+        if debug_print:
+            print(f"WARN: Could not parse date from session_name: {session_name} for any known format.")
+        return None
+    
         
 
 # ==================================================================================================================== #
