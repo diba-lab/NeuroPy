@@ -274,6 +274,10 @@ class HDF_Converter:
         """ expands a column (session_uid_column_name) containing a str representation of the session context (e.g. 'kdiba|gor01|one|2006-6-08_14-26-15') into its four separate component ['format_name', 'animal', 'exper_name', 'session_name'] columns.
         Additionally adds the 'session_datetime' column if it can be parsed from the 'session_name' column.
          """
+        def check_all_columns_exist(df, required_columns):
+            return all(col in df.columns for col in required_columns)
+
+
         assert session_uid_column_name in non_expanded_context_df.columns
         assert len(non_expanded_context_df[session_uid_column_name]) > 0 # must have at least one element
         if isinstance(non_expanded_context_df[session_uid_column_name][0], str):
@@ -285,12 +289,20 @@ class HDF_Converter:
             all_sess_context_tuples = [a_ctx.as_tuple() for a_ctx in non_expanded_context_df[session_uid_column_name]] #[('kdiba', 'gor01', 'one', '2006-6-07_11-26-53'), ('kdiba', 'gor01', 'one', '2006-6-08_14-26-15'), ('kdiba', 'gor01', 'one', '2006-6-09_1-22-43'), ...]
         else:
             raise TypeError         
-        expanded_context_df = pd.DataFrame.from_records(all_sess_context_tuples, columns=IdentifyingContext._get_session_context_keys())
-        # parse session date if possible:
-        # Apply the extract_date function to the 'session_name' column to create a new 'session_date' column
-        expanded_context_df['session_datetime'] = expanded_context_df['session_name'].apply(IdentifyingContext.try_extract_date_from_session_name)
+        
+        # Check if the dataframe already has the appropriate rows:
+        if not check_all_columns_exist(non_expanded_context_df, required_columns=IdentifyingContext._get_session_context_keys()):
+            expanded_context_df = pd.DataFrame.from_records(all_sess_context_tuples, columns=IdentifyingContext._get_session_context_keys())
+            out_df = pd.concat((expanded_context_df, non_expanded_context_df), axis=1)
+        else:
+            out_df = non_expanded_context_df
+            
+        if not 'session_datetime' in out_df.columns:
+            # parse session date if possible:
+            # Apply the extract_date function to the 'session_name' column to create a new 'session_date' column
+            out_df['session_datetime'] = out_df['session_name'].apply(IdentifyingContext.try_extract_date_from_session_name)
 
-        return pd.concat((expanded_context_df, non_expanded_context_df), axis=1)
+        return out_df
 
     @classmethod
     def restore_native_column_types_manual_if_needed(cls, df: pd.DataFrame) -> pd.DataFrame:
@@ -306,7 +318,7 @@ class HDF_Converter:
         
         if ("track_membership" in df.columns) and (df.dtypes["track_membership"] == np.int8):
             df["track_membership"] = df["track_membership"].apply(lambda x: SplitPartitionMembership.hdf_coding_ClassNames()[x]).astype(object)
-        if ("neuron_type" in df.columns) and (df.dtypes["neuron_type"] == np.int8):
+        if ("neuron_type" in df.columns) and ((df.dtypes["neuron_type"] == np.int8) or (df.dtypes["neuron_type"] == np.uint8)):
             df["neuron_type"] = df["neuron_type"].apply(lambda x: NeuronType.hdf_coding_ClassNames()[x]).astype(object)
 
         cls._restore_dataframe_byte_strings_to_strings(df)
