@@ -431,7 +431,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
-    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, debug_print=False):
+    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -450,7 +450,8 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         [description], by default "tab20b"
     curve_hatch_style : dict, optional
         if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves, by default None
-    single_cell_pfmap_processing_fn: Callable
+    missing_aclu_string_formatter: a lambda function that takes the current aclu string and returns a modified string that reflects that this aclu value is missing from the current result (e.g. missing_aclu_string_formatter('3') -> '3 <shared>')
+    single_cell_pfmap_processing_fn: Callable (lambda i, aclu, pfmap) - takes the index, aclu, and pfmap and returns a potentially modified pfmap 
 
 
     Returns
@@ -467,6 +468,8 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     """
     
     #TODO 2023-06-16 04:27: - [ ] Ordering doesn't work at all. Even when 'sortby' is the correct order the labels and maps aren't changed.
+    def _build_flexitext_neuron_extended_id_sublabel(label:str='s', value:str=666):
+        return f'<size:8>{label}</><size:7>{value}</>'
 
     if ratemap.n_neurons == 0:
         module_logger.warning(f'WARNING: Cannot plot ratemap with no neurons.')
@@ -558,6 +561,9 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     if normalize_xbin:
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
+    # The "zero" line where each pf1D starts:
+    y_baselines: np.ndarray = float(pad) * np.arange(len(sorted_included_unit_indicies))
+
     # for i, neuron_ind in enumerate(sort_ind):
     for i, curr_included_unit_index in enumerate(sorted_included_unit_indicies):
         # `curr_included_unit_index` is either an index into the `included_unit_neuron_IDs` array or None
@@ -575,8 +581,18 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
                 assert max_value_formatter is not None
                 ## NOTE: must set max_value_formatter on the pfmap BEFORE the `_scale_current_placefield_to_acceptable_range` is called to have it show accurate labels!
                 formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
-                
-            final_title_str = _build_neuron_identity_label(neuron_extended_id=ratemap.neuron_extended_ids[curr_ratemap_relative_neuron_IDX], brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+    
+            if not use_flexitext_titles:
+                final_label_str = _build_neuron_identity_label(neuron_extended_id=ratemap.neuron_extended_ids[curr_ratemap_relative_neuron_IDX], brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
+
+            else:
+                # TODO: drops the formatted_max_value_string (firing rate) and maybe some other things 
+                neuron_extended_id=ratemap.neuron_extended_ids[curr_ratemap_relative_neuron_IDX]
+                final_label_str = f'<size:10><weight:bold>{neuron_extended_id.id}</></>'
+                final_label_str = final_label_str + '|'.join([ # _build_flexitext_neuron_extended_id_sublabel('aclu', neuron_extended_id.id),
+                        _build_flexitext_neuron_extended_id_sublabel('s', neuron_extended_id.shank),
+                        _build_flexitext_neuron_extended_id_sublabel('c', neuron_extended_id.cluster),
+                    ])
 
         else:
             # invalid neuron ID, generate blank entry
@@ -586,7 +602,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
 
             pfmap = np.zeros((np.shape(active_maps)[1],)) # fully allocated new array of zeros
             curr_extended_id_string = f'{curr_neuron_ID}' # get the aclu value (which is all that's known about the missing cell and use that as the curr_extended_id_string
-            final_title_str = missing_aclu_string_formatter(curr_extended_id_string)
+            final_label_str = missing_aclu_string_formatter(curr_extended_id_string)
 
 
         # Apply the function:
@@ -597,7 +613,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         y2 = (y_baseline + pfmap) # (y2): the top of each point is determined by adding the specific pfmap values to the baseline
         
         # New way:
-        sorted_neuron_id_labels.append(final_title_str)
+        sorted_neuron_id_labels.append(final_label_str)
         color = neurons_colors_array[:, i] # TODO 2023-06-16 12:01: - [ ] the `i` here means that color will always be assigned with the same row position (unless `neurons_colors_array` is pre-sorted)
         # TODO: PERFORMANCE: can the hatching and the fill be drawn at the same time?
         
@@ -611,20 +627,90 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
 
         ax.plot(bin_cntr, y2, color=color, alpha=0.7) # This is essential for drawing the outer bold border line that makes each cell's curve easily distinguishable.
 
+
+
+    # Titles, Subtitles, and Labels ______________________________________________________________________________________ #
+    title_string = f'1D Placemaps {title_substring}'
+    subtitle_string = f'({len(ratemap.neuron_ids)} good cells)'
+
+    fig.canvas.manager.set_window_title(title_string) # sets the window's title
+
     # Set up cell labels (on each y-tick):
     if n_neurons > 0:
-        ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5)) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
-        ax.set_yticklabels(list(sorted_neuron_id_labels))
-        # Set the neuron id labels on the y-axis to the color of their cell:
-        for i, a_tick_label in enumerate(ax.get_yticklabels()):
-            color = neurons_colors_array[:, i]
-            ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
-            a_tick_label.set_color('black')
-            strokewidth = 0.5
-            a_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
+        ytick_locations = list(np.arange(len(sort_ind)) + 0.5)
+
+        if not use_flexitext_titles:
+            ax.set_yticks(ytick_locations) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
+            ax.set_yticklabels(list(sorted_neuron_id_labels))
+            # Set the neuron id labels on the y-axis to the color of their cell:
+            for i, a_tick_label in enumerate(ax.get_yticklabels()):
+                color = neurons_colors_array[:, i]
+                ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
+                a_tick_label.set_color('black')
+                strokewidth = 0.5
+                a_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
+        else:
+            from flexitext import flexitext ## flexitext tick-labels version
+
+            ax.set_yticks(ytick_locations) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
+            # Hide y-tick labels but keep spacing
+            ax.set_yticklabels(['' for _ in ax.get_yticks()])
+
+            ytick_location_fraction = np.array(ytick_locations) / float(len(sort_ind))
+            y_baselines_fraction = y_baselines / float(len(sort_ind))
+            
+            # Transform point to figure fraction
+
+            points_in_fig_coords_list = [ax.transAxes.transform((0.0, y)) for y in y_baselines_fraction]
+            points_in_fig_fraction_list = [fig.transFigure.inverted().transform(point_in_fig_coords) for point_in_fig_coords in points_in_fig_coords_list]
+
+            print(f'ytick_locations: {ytick_locations}')
+            print(f'ytick_location_fraction: {ytick_location_fraction}')
+            print(f'y_baselines_fraction: {y_baselines_fraction}')
+            print(f'points_in_fig_coords_list: {points_in_fig_coords_list}')
+            print(f'points_in_fig_fraction_list: {points_in_fig_fraction_list}')
+
+
+            # print(f'sorted_neuron_id_labels: {list(sorted_neuron_id_labels)}')
+
+            y_tick_label_objects = []
+            # for i, a_tick_label in enumerate(ax.get_yticklabels()):
+            for i, (a_tick_location, a_y_baseline_fraction, label_text) in enumerate(zip(ytick_location_fraction, y_baselines_fraction, list(sorted_neuron_id_labels))):
+                color = neurons_colors_array[:, i]
+                ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
+                # a_tick_label.set_color('black')
+                # strokewidth = 0.5
+                # a_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
+                # label_text = a_tick_label.get_text()
+                # pos_x, pos_y = a_tick_label.get_position()
+                pos_x = 0.0
+                pos_y = a_y_baseline_fraction
+                # Example point in axis fraction coordinates (0.5, 0.5)
+                # point_axis_fraction = (pos_x, pos_y)
+
+                # Transform point to figure fraction
+                # point_in_fig_coords = ax.transAxes.transform(point_axis_fraction)
+                # point_in_fig_fraction = fig.transFigure.inverted().transform(point_in_fig_coords)
+
+                # pos_x, pos_y = point_in_fig_fraction
+
+                pos_x = -0.125
+
+                # Labels come in like: ['87-s10, c10\n1.0 Hz', '102-s12, c9\n1.0 Hz', ...]
+                a_flexi_tick_label = flexitext(pos_x, pos_y, f'<size:10><weight:bold>{label_text}</></>', xycoords="axes fraction", ha="right", ax=ax) # , xycoords="figure fraction", va="bottom", ha="right" \t<size:8>small</>
+                ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
+                # a_tick_label.set_color('black')
+                strokewidth = 0.5
+                a_flexi_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
+
+                y_tick_label_objects.append(a_flexi_tick_label)
+
 
     ax.set_xlabel("Position")
     ax.spines["left"].set_visible(False)
+    # Hide the right and top spines
+    ax.spines[['right', 'top']].set_visible(False)
+
     if normalize_xbin:
         ax.set_xlim([0, 1])
     ax.tick_params("y", length=0)
@@ -632,8 +718,39 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     if n_neurons > 0:
         ax.set_ylim([0, len(sort_ind)]) # OLD: ax.set_ylim([0, len(sort_ind)])
         
-    title_string = f'1D Placemaps {title_substring} ({len(ratemap.neuron_ids)} good cells)'
-    ax.set_title(title_string) # this doesn't appear to be visible, so what is it used for?
+
+
+
+
+    if (active_context is None) or (not use_flexitext_titles):
+        fig.suptitle(title_string, fontsize='14', wrap=True)
+        ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
+
+    else:
+        from flexitext import flexitext ## flexitext version
+        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+        # Clear the normal text:
+        fig.suptitle('')
+        ax.set_title('')
+        text_formatter = FormattedFigureText()
+        text_formatter.setup_margins(fig)
+
+        # try:
+        #     active_config = deepcopy(self.config)
+        #     # active_config.float_precision = 1
+            
+        #     subtitle_string = '\n'.join([f'{active_config.str_for_display(is_2D)}'])
+        # except (NameError, KeyError, AttributeError):
+        #     subtitle_string = "TEST"
+
+        # text_formatter.left_margin = 
+
+        header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+        footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
+        # label_objects = {'header': header_text_obj, 'footer': footer_text_obj, 'formatter': text_formatter}
+
 
     return ax, sort_ind, neurons_colors_array
 
