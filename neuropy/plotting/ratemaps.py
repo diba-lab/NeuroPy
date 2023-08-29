@@ -431,7 +431,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
-    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, debug_print=False):
+    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, use_flexitext_ticks=False, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -582,7 +582,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
                 ## NOTE: must set max_value_formatter on the pfmap BEFORE the `_scale_current_placefield_to_acceptable_range` is called to have it show accurate labels!
                 formatted_max_value_string = max_value_formatter(np.nanmax(pfmap))
     
-            if not use_flexitext_titles:
+            if not use_flexitext_ticks:
                 final_label_str = _build_neuron_identity_label(neuron_extended_id=ratemap.neuron_extended_ids[curr_ratemap_relative_neuron_IDX], brev_mode=brev_mode, formatted_max_value_string=formatted_max_value_string, use_special_overlayed_title=use_special_overlayed_title)
 
             else:
@@ -639,7 +639,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     if n_neurons > 0:
         ytick_locations = list(np.arange(len(sort_ind)) + 0.5)
 
-        if not use_flexitext_titles:
+        if not use_flexitext_ticks:
             ax.set_yticks(ytick_locations) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
             ax.set_yticklabels(list(sorted_neuron_id_labels))
             # Set the neuron id labels on the y-axis to the color of their cell:
@@ -661,16 +661,13 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             
             # Transform point to figure fraction
 
-            points_in_fig_coords_list = [ax.transAxes.transform((0.0, y)) for y in y_baselines_fraction]
-            points_in_fig_fraction_list = [fig.transFigure.inverted().transform(point_in_fig_coords) for point_in_fig_coords in points_in_fig_coords_list]
-
-            print(f'ytick_locations: {ytick_locations}')
-            print(f'ytick_location_fraction: {ytick_location_fraction}')
-            print(f'y_baselines_fraction: {y_baselines_fraction}')
-            print(f'points_in_fig_coords_list: {points_in_fig_coords_list}')
-            print(f'points_in_fig_fraction_list: {points_in_fig_fraction_list}')
-
-
+            # points_in_fig_coords_list = [ax.transAxes.transform((0.0, y)) for y in y_baselines_fraction]
+            # points_in_fig_fraction_list = [fig.transFigure.inverted().transform(point_in_fig_coords) for point_in_fig_coords in points_in_fig_coords_list]
+            # print(f'ytick_locations: {ytick_locations}')
+            # print(f'ytick_location_fraction: {ytick_location_fraction}')
+            # print(f'y_baselines_fraction: {y_baselines_fraction}')
+            # print(f'points_in_fig_coords_list: {points_in_fig_coords_list}')
+            # print(f'points_in_fig_fraction_list: {points_in_fig_fraction_list}')
             # print(f'sorted_neuron_id_labels: {list(sorted_neuron_id_labels)}')
 
             y_tick_label_objects = []
@@ -684,24 +681,15 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
                 # label_text = a_tick_label.get_text()
                 # pos_x, pos_y = a_tick_label.get_position()
                 pos_x = 0.0
+                # pos_x = -0.125
                 pos_y = a_y_baseline_fraction
-                # Example point in axis fraction coordinates (0.5, 0.5)
-                # point_axis_fraction = (pos_x, pos_y)
-
-                # Transform point to figure fraction
-                # point_in_fig_coords = ax.transAxes.transform(point_axis_fraction)
-                # point_in_fig_fraction = fig.transFigure.inverted().transform(point_in_fig_coords)
-
-                # pos_x, pos_y = point_in_fig_fraction
-
-                pos_x = -0.125
-
+                
                 # Labels come in like: ['87-s10, c10\n1.0 Hz', '102-s12, c9\n1.0 Hz', ...]
                 a_flexi_tick_label = flexitext(pos_x, pos_y, f'<size:10><weight:bold>{label_text}</></>', xycoords="axes fraction", ha="right", ax=ax) # , xycoords="figure fraction", va="bottom", ha="right" \t<size:8>small</>
                 ## Cell color is stroke color mode: black text with stroke colored with cell-specific color:
                 # a_tick_label.set_color('black')
-                strokewidth = 0.5
-                a_flexi_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
+                # strokewidth = 0.5
+                # a_flexi_tick_label.set_path_effects([withStroke(foreground=color, linewidth=strokewidth)])
 
                 y_tick_label_objects.append(a_flexi_tick_label)
 
@@ -718,10 +706,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     if n_neurons > 0:
         ax.set_ylim([0, len(sort_ind)]) # OLD: ax.set_ylim([0, len(sort_ind)])
         
-
-
-
-
+    ## Flexitext Titles and Footers:
     if (active_context is None) or (not use_flexitext_titles):
         fig.suptitle(title_string, fontsize='14', wrap=True)
         ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
@@ -730,23 +715,20 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         from flexitext import flexitext ## flexitext version
         from neuropy.utils.matplotlib_helpers import FormattedFigureText
 
-        # Clear the normal text:
-        fig.suptitle('')
-        ax.set_title('')
+        
         text_formatter = FormattedFigureText()
+        # text_formatter.top_margin = 0.6 # doesn't change anything. Neither does subplot_adjust
         text_formatter.setup_margins(fig)
 
-        # try:
-        #     active_config = deepcopy(self.config)
-        #     # active_config.float_precision = 1
-            
-        #     subtitle_string = '\n'.join([f'{active_config.str_for_display(is_2D)}'])
-        # except (NameError, KeyError, AttributeError):
-        #     subtitle_string = "TEST"
+        # ## Header:
+        # # Clear the normal text:
+        # fig.suptitle('')
+        # ax.set_title('')
+        # # header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
 
-        # text_formatter.left_margin = 
-
-        header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+        ## Footer only:
+        fig.suptitle(title_string, fontsize='14', wrap=True)
+        ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
         footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
 
         # label_objects = {'header': header_text_obj, 'footer': footer_text_obj, 'formatter': text_formatter}

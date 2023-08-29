@@ -549,6 +549,8 @@ class FigureMargins:
     right_margin: float = 0.85 # (1.0-0.15)
     bottom_margin: float = 0.150
 
+    
+    
 
 # left_margin: float = 0.090
 # right_margin: float = 0.91 # (1.0-0.090)

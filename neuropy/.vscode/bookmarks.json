@@ -89,7 +89,7 @@
 			"path": "utils/matplotlib_helpers.py",
 			"bookmarks": [
 				{
-					"line": 1152,
+					"line": 1154,
 					"column": 41,
 					"label": "ACTIVE: interactive_select_grid_bin_bounds_2D"
 				}
