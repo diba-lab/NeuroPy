@@ -204,13 +204,14 @@ class HDF_Converter:
         else:
             sess_specific_aclus = list(neuron_indexed_df[aclu_column_name].to_numpy())
 
-        session_ctxt_key:str = active_context.get_description(separator='|', subset_includelist=IdentifyingContext._get_session_context_keys())
+        
 
         # Adds column columns=['neuron_uid', 'session_uid', 'aclu']
-        neuron_indexed_df['aclu'] = sess_specific_aclus # _neuron_replay_stats_df.index.to_numpy() # add explicit 'aclu' column from index
+        neuron_indexed_df['aclu'] = neuron_indexed_df.get('aclu', sess_specific_aclus)  # add explicit 'aclu' column from index if it doesn't exist
+
+        session_ctxt_key:str = active_context.get_description(separator='|', subset_includelist=IdentifyingContext._get_session_context_keys())
         neuron_indexed_df['session_uid'] = session_ctxt_key # add fixed 'session_uid' column 
         neuron_indexed_df['neuron_uid'] = [f"{session_ctxt_key}|{aclu}" for aclu in sess_specific_aclus]
-
 
         # Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed
         neuron_indexed_df = HDF_Converter.HDFConvertableEnum.convert_dataframe_columns_for_hdf(neuron_indexed_df)
