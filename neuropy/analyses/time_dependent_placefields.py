@@ -233,6 +233,10 @@ class PfND_TimeDependent(PfND):
 
         ## Passes self.included_neuron_IDs explicitly
 
+
+    def __repr__(self):
+        return f'{self.__class__.__qualname__.rsplit(">.", 1)[-1]}(spikes_df={self.spikes_df!r}, position={self.position!r}, epochs={self.epochs!r}, config={self.config!r}, position_srate={self.position_srate!r}, setup_on_init={self.setup_on_init!r}, compute_on_init={self.compute_on_init!r}, _save_intermediate_spikes_maps={self._save_intermediate_spikes_maps!r}, _included_thresh_neurons_indx={self._included_thresh_neurons_indx!r}, _peak_frate_filter_function={self._peak_frate_filter_function!r}, ratemap={self.ratemap!r}, _filtered_pos_df={self._filtered_pos_df!r}, _filtered_spikes_df={self._filtered_spikes_df!r}, ndim={self.ndim!r}, xbin={self.xbin!r}, ybin={self.ybin!r}, bin_info={self.bin_info!r})'
+    
   
     # ==================================================================================================================== #
     # Initializer                                                                                                          #
@@ -458,9 +462,13 @@ class PfND_TimeDependent(PfND):
             print(f'ERROR: unhandled exception: {e}')
             raise e
         
+        # I think this is okay:
+        if not hasattr(self, '_included_thresh_neurons_indx'):
+            self._reset_after_neuron_index_update()
+            
         # Rebuild the filter function from self._included_thresh_neurons_indx
         # self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
-        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria        
+        # self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria        
         
         
     # ==================================================================================================================== #
