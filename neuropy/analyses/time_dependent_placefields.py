@@ -15,30 +15,41 @@ from neuropy.utils.misc import safe_pandas_get_group, copy_if_not_none
 from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_position_columns # for perform_time_range_computation only
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
 
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
 
 ## On saving:
 # 2023-04-20 - AttributeError: 'PfND_TimeDependent' object has no attribute '_included_thresh_neurons_indx'
 # I think this relates to `__attrs_post_init__` not being called upon unpickling.
 
-class PlacefieldSnapshot(object):
+
+
+@custom_define(slots=False, repr=False)
+class PlacefieldSnapshot(HDFMixin):
     """Holds a snapshot in time for `PfND_TimeDependent`
 
     raw_occupancy_map: num_position_samples_occupancy
     raw_smoothed_occupancy_map: num_position_samples_smoothed_occupancy
     """
+    num_position_samples_occupancy: Optional[np.ndarray] = serialized_field()
+    num_position_samples_smoothed_occupancy: Optional[np.ndarray] = serialized_field()
+    seconds_occupancy: np.ndarray = serialized_field()
+    normalized_occupancy: Optional[np.ndarray] = serialized_field()
+    spikes_maps_matrix: np.ndarray = serialized_field()
+    smoothed_spikes_maps_matrix: Optional[np.ndarray] = serialized_field()
+    occupancy_weighted_tuning_maps_matrix: np.ndarray = serialized_field()
+    
+    # def __init__(self, num_position_samples_occupancy, num_position_samples_smoothed_occupancy, seconds_occupancy, normalized_occupancy, spikes_maps_matrix, smoothed_spikes_maps_matrix, occupancy_weighted_tuning_maps_matrix):
+    #     super(PlacefieldSnapshot, self).__init__()
+    #     self.num_position_samples_occupancy = num_position_samples_occupancy
+    #     self.num_position_samples_smoothed_occupancy = num_position_samples_smoothed_occupancy
+    #     self.seconds_occupancy = seconds_occupancy
+    #     self.normalized_occupancy = normalized_occupancy
 
-    def __init__(self, num_position_samples_occupancy, num_position_samples_smoothed_occupancy, seconds_occupancy, normalized_occupancy, spikes_maps_matrix, smoothed_spikes_maps_matrix, occupancy_weighted_tuning_maps_matrix):
-        super(PlacefieldSnapshot, self).__init__()
-        self.num_position_samples_occupancy = num_position_samples_occupancy
-        self.num_position_samples_smoothed_occupancy = num_position_samples_smoothed_occupancy
-        self.seconds_occupancy = seconds_occupancy
-        self.normalized_occupancy = normalized_occupancy
-
-        self.spikes_maps_matrix = spikes_maps_matrix
-        self.smoothed_spikes_maps_matrix = smoothed_spikes_maps_matrix
-        self.occupancy_weighted_tuning_maps_matrix = occupancy_weighted_tuning_maps_matrix
+    #     self.spikes_maps_matrix = spikes_maps_matrix
+    #     self.smoothed_spikes_maps_matrix = smoothed_spikes_maps_matrix
+    #     self.occupancy_weighted_tuning_maps_matrix = occupancy_weighted_tuning_maps_matrix
 
 
     def to_dict(self):
@@ -257,88 +268,6 @@ class PfND_TimeDependent(PfND):
             config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh),
             setup_on_init=setup_on_init, compute_on_init=compute_on_init, position_srate=position.sampling_rate, historical_snapshots={}, last_t=np.finfo('float').max)
 
-    # def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1)):
-    #     """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
-    #     without speed thresholds.
-
-    #     Parameters
-    #     ----------
-    #     spikes_df: pd.DataFrame
-    #     position : core.Position
-    #     epochs : core.Epoch
-    #         specifies the list of epochs to include.
-    #     grid_bin : int
-    #         bin size of position bining, by default 5
-    #     speed_thresh : int
-    #         speed threshold for calculating place field
-        
-        
-    #     NOTE: doesn't call super().__init__(...)
-        
-    #     NOTE: _peak_frate_filter_function is only used in computing self.ratemap, meaning it keeps and does calculations for all neuron_IDs (not just those passing _peak_frate_filter_function) behind the scenes. This can be taken advantage of if you want a ratemap only for certain neurons by setting self._included_thresh_neurons_indx manually
-
-    #     EXAMPLE of filtering by neuron_IDs:
-    #         # Find the neuron_IDs that are included in the active_pf_2D for filtering the active_pf_2D_dt's results:
-    #         is_pf_2D_included_neuron = np.isin(active_pf_2D_dt.included_neuron_IDs, active_pf_2D.included_neuron_IDs)
-    #         pf_2D_included_neuron_indx = active_pf_2D_dt._included_thresh_neurons_indx[is_pf_2D_included_neuron]
-
-    #         # #NOTE: to reset and include all neurons:
-    #         # active_pf_2D_dt._included_thresh_neurons_indx = np.arange(active_pf_2D_dt.n_fragile_linear_neuron_IDXs)
-
-    #         active_pf_2D_dt._included_thresh_neurons_indx = pf_2D_included_neuron_indx
-    #         active_pf_2D_dt._peak_frate_filter_function = lambda list_: [list_[_] for _ in active_pf_2D_dt._included_thresh_neurons_indx]
-
-    #         assert (active_pf_2D_dt.ratemap.spikes_maps == active_pf_2D.ratemap.spikes_maps).all(), f"active_pf_2D_dt.ratemap.spikes_maps: {active_pf_2D_dt.ratemap.spikes_maps}\nactive_pf_2D.ratemap.spikes_maps: {active_pf_2D.ratemap.spikes_maps}"
-        
-    #     """
-    #     # save the config that was used to perform the computations
-    #     self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh)
-    #     self.position_srate = position.sampling_rate
-
-    #     self._included_thresh_neurons_indx = None
-    #     self._peak_frate_filter_function = None
-    #     self._filtered_pos_df = None
-    #     self._filtered_spikes_df = None
-    #     self.ndim = None # Set the dimensionality of the PfND object from the position's dimensionality in self.setup(...)
-    #     self.xbin = None
-    #     self.ybin = None 
-    #     self.bin_info = None
-
-    #     self.last_t = np.finfo('float').max # set to maximum value (so all times are included) just for setup.
-        
-    #     # Perform the primary setup to build the placefield
-    #     self.setup(position, spikes_df, epochs) # Sets up self.xbin, self.ybin, self.bin_info, self._filtered_pos_df, self.filtered_spikes_df
-        
-    #     # TODO: replace with `self._drop_extra_position_info(self)` once I'm sure that position.ndim works out okay
-    #     if (self.ndim < 2):
-    #         # Drop any 'y' related columns if it's a 1D version:
-    #         # print(f"dropping 'y'-related columns in self._filtered_spikes_df because self.ndim: {self.ndim} (< 2).")
-    #         self._filtered_spikes_df.drop(columns=['y','y_loaded'], inplace=True)
-
-    #     self._filtered_pos_df.dropna(axis=0, how='any', subset=[*self._position_variable_names], inplace=True) # dropped NaN values
-        
-    #     if 'binned_x' in self._filtered_pos_df:
-    #         if (position.ndim > 1):
-    #             self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x', 'binned_y'], inplace=True) # dropped NaN values
-    #         else:
-    #             self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
-
-        
-
-    #     self._reset_after_neuron_index_update()
-
-    #     ## Interpolate the spikes over positions
-    #     self._filtered_spikes_df['x'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.x)
-    #     if 'binned_x' not in self._filtered_spikes_df:
-    #         self._filtered_spikes_df['binned_x'] = pd.cut(self._filtered_spikes_df['x'].to_numpy(), bins=self.xbin, include_lowest=True, labels=self.xbin_labels) # same shape as the input data 
-    
-    #     if (self.ndim > 1):
-    #         self._filtered_spikes_df['y'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.y)
-    #         if 'binned_y' not in self._filtered_spikes_df:
-    #             self._filtered_spikes_df['binned_y'] = pd.cut(self._filtered_spikes_df['y'].to_numpy(), bins=self.ybin, include_lowest=True, labels=self.ybin_labels)
-    
-    #     self._setup_time_varying()
-        
 
 # ==================================================================================================================== #
 # Time-dependent state manipulation                                                                                    #
