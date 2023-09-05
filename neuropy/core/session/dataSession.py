@@ -684,6 +684,11 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         if self.paradigm is not None:
             self.paradigm.to_hdf(file_path=file_path, key=f'{session_group_key}/epochs')
 
+
+        if self.laps is not None:
+            self.laps.to_hdf(file_path=file_path, key=f'{session_group_key}/laps')
+
+
         # Save flattened_spiketrains if available
         if self.flattened_spiketrains is not None:
             # flattened_spiketrains_group = data_session_group.create_group("flattened_spiketrains")
