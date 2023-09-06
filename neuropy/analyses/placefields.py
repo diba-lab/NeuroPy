@@ -285,6 +285,8 @@ class PfnDMixin(SimplePrintable):
         Updated to work with both 1D and 2D Placefields
 
         should_include_trajectory:bool - if False, will not try to plot the animal's trajectory/position
+            NOTE: Draws the spike_positions actually instead of the continuously sampled animal position
+
         should_include_labels:bool - whether the plot should include text labels, like the title, axes labels, etc
         should_include_spikes:bool - if False, will not try to plot points for spikes
 
@@ -297,16 +299,21 @@ class PfnDMixin(SimplePrintable):
             ax = [ax]
 
         # plot trajectories
+        pos_df = self.position.to_dataframe()
         if self.ndim < 2:
-            variable_array = [self.x]
+            # variable_array = [self.x]
+            variable_array = ['x']
             label_array = ["X position (cm)"]
         else:
-            variable_array = [self.x, self.y]
+            # variable_array = [self.x, self.y]
+            variable_array = ['x', 'y']
             label_array = ["X position (cm)", "Y position (cm)"]
 
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             if should_include_trajectory:
-                a.plot(self.t, pos, **(position_plot_kwargs or {}))
+                # a.plot(self.t, pos, **(position_plot_kwargs or {}))
+                pos_df.plot(x='t', y=pos, ax=a, **(position_plot_kwargs or {}))
+
             if should_include_labels:
                 a.set_xlabel("Time (seconds)")
                 a.set_ylabel(ylabel)
@@ -317,7 +324,7 @@ class PfnDMixin(SimplePrintable):
             if should_include_spikes:
                 # Grab correct spike times/positions
                 if speed_thresh:
-                    spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
+                    spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t # TODO: these don't exist
                 else:
                     spk_pos_, spk_t_ = self.spk_pos, self.spk_t
 
