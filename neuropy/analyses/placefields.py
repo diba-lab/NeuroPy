@@ -351,6 +351,7 @@ class PfnDMixin(SimplePrintable):
                 for a, pos in zip(ax, spk_pos_[cellind]):
                     # WARNING: if spike_plot_kwargs contains the 'markerfacecolor' key, it's value will override plot's color= argument, so the specified spikes_color will be ignored.
                     a.plot(spk_t_[cellind], pos, color=spikes_color_RGBA, **(spike_plot_kwargs or {})) # , color=[*spikes_color, spikes_alpha]
+                    #TODO 2023-09-06 02:23: - [ ] Note that without extra `spike_plot_kwargs` this plots spikes as connected lines without markers which is nearly always wrong.
 
             # Put info on title
             if should_include_labels:

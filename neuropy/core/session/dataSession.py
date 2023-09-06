@@ -685,8 +685,9 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             self.paradigm.to_hdf(file_path=file_path, key=f'{session_group_key}/epochs')
 
 
-        if self.laps is not None:
-            self.laps.to_hdf(file_path=file_path, key=f'{session_group_key}/laps')
+        # if self.laps is not None:
+            # convert to Epoch object, and then to DataFrame if needed?
+            # self.laps.to_hdf(file_path=file_path, key=f'{session_group_key}/laps')
 
 
         # Save flattened_spiketrains if available
