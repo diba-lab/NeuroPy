@@ -4,8 +4,11 @@ from typing import List, Any, Tuple, Optional, Callable
 from attrs import define, field, Factory, asdict
 import numpy as np
 import pandas as pd
+import tables as tb
 from datetime import datetime
 from neuropy.utils.result_context import IdentifyingContext
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 # ==================================================================================================================== #
 # 2023-06-21 User Annotations                                                                      #
@@ -20,16 +23,24 @@ from neuropy.core.user_annotations import UserAnnotationsManager
 """
 
 
-@define(slots=False)
-class UserAnnotationRecord:
-    """ an annotation made by the user at a specific date/time covering a specific context """
-    created: datetime
-    modified: datetime
-    context: IdentifyingContext
-    content: dict
+# @custom_define(slots=False)
+# class UserAnnotationRecord(HDFMixin):
+#     """ CONCEPTUAL, NEVER USED ANYWHERE - an annotation made by the user at a specific date/time covering a specific context """
+#     created: datetime
+#     modified: datetime
+#     context: IdentifyingContext
+#     content: dict
 
-@define(slots=False)
-class UserAnnotationsManager:
+# class UserAnnotationTable(tb.IsDescription):
+#     """ conceptual pytables table"""
+#     created = tb.Time64Col()
+#     modified = tb.Time64Col()
+#     context = tb.StringCol(itemsize=320)
+
+
+
+@custom_define(slots=False)
+class UserAnnotationsManager(HDFMixin):
     """ class for holding User Annotations of the data. Performed interactive by the user, and then saved to disk for later use. An example are the selected replays to be used as examples. 
     
     Usage:
