@@ -300,19 +300,26 @@ class PfnDMixin(SimplePrintable):
 
         # plot trajectories
         pos_df = self.position.to_dataframe()
+        use_pandas_plotting = False
         if self.ndim < 2:
-            # variable_array = [self.x]
-            variable_array = ['x']
+            if not use_pandas_plotting:
+                variable_array = [self.x]
+            else:
+                variable_array = ['x']
             label_array = ["X position (cm)"]
         else:
-            # variable_array = [self.x, self.y]
-            variable_array = ['x', 'y']
+            if not use_pandas_plotting:
+                variable_array = [self.x, self.y]
+            else:
+                variable_array = ['x', 'y']
             label_array = ["X position (cm)", "Y position (cm)"]
 
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             if should_include_trajectory:
-                # a.plot(self.t, pos, **(position_plot_kwargs or {}))
-                pos_df.plot(x='t', y=pos, ax=a, legend=False, **(position_plot_kwargs or {})) # changed to pandas.plot because the filtered positions were missing the end caps, and the default a.plot(...) resulted in connected lines which looked bad.
+                if not use_pandas_plotting:
+                    a.plot(self.t, pos, **(position_plot_kwargs or {}))
+                else:
+                    pos_df.plot(x='t', y=pos, ax=a, legend=False, **(position_plot_kwargs or {})) # changed to pandas.plot because the filtered positions were missing the end caps, and the default a.plot(...) resulted in connected lines which looked bad.
 
             if should_include_labels:
                 a.set_xlabel("Time (seconds)")
