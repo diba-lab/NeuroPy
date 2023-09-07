@@ -620,16 +620,28 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # return the session with the upadated member variables
         return session
     
-    
+    @classmethod
+    def _spikes_df_post_process(cls, spikes_df):
+        """ Converts the ['theta', 'ripple', 'ph'] columns into the correct type and renames them to ["is_theta", "is_ripple", "theta_phase_radians"].
+            factors out reused code from __default_kdiba_pho_exported_spikeII_load_mat and __default_kdiba_spikeII_load_mat"""
+        # Convert and rename the 'theta' and 'ripple' variables which contain a zero or one indicating whether that activity (theta-activity or ripple-activity) is present for each spikes.
+        spikes_df[['theta', 'ripple']] = spikes_df[['theta', 'ripple']].astype('bool') # convert boolean calumns to correct datatype
+        spikes_df.rename(columns={"theta": "is_theta", "ripple": "is_ripple"})
+        # Extract the theta phase in radians:
+        spikes_df.rename(columns={"ph": "theta_phase_radians"})
+        spikes_df[['theta_phase_radians']] = spikes_df[['theta_phase_radians']].astype('float') 
+        return spikes_df
+
     @classmethod
     def __default_kdiba_pho_exported_spikeII_load_mat(cls, sess, timestamp_scale_factor=1):
+        """ loads the spikes from the .mat exported by the script: `IIDataMat_Export_ToPython_2022_08_01.m` """
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikes.mat'.format(sess.session_name))
         if not spike_mat_file.is_file():
             print('ERROR: file {} does not exist!'.format(spike_mat_file))
             raise FileNotFoundError
         flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
         flat_spikes_data = flat_spikes_mat_file['spike']
-        mat_variables_to_extract = ['t','t_seconds','t_rel_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
+        mat_variables_to_extract = ['t','t_seconds','t_rel_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id', 'theta', 'ripple', 'ph']
         num_mat_variables = len(mat_variables_to_extract)
         flat_spikes_out_dict = dict()
         for i in np.arange(num_mat_variables):
@@ -645,7 +657,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # print(flat_spikes_out_dict)
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
         spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']].astype('int') # convert integer calumns to correct datatype
-        
+
+        spikes_df = cls._spikes_df_post_process(spikes_df)
+
         spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
         # add times in seconds both to the dict and the spikes_df under a new key:
         # flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
@@ -738,7 +752,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         flat_spikes_data = flat_spikes_mat_file['spike']
         # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
         # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
-        mat_variables_to_extract = ['t', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap']
+        mat_variables_to_extract = ['t', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap', 'theta', 'ripple', 'ph']
         num_mat_variables = len(mat_variables_to_extract)
         flat_spikes_out_dict = dict()
         for i in np.arange(num_mat_variables):
@@ -758,6 +772,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # spikes_df['qclu']
         spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
         spikes_df[['flat_spike_idx']] = spikes_df[['flat_spike_idx']].astype('int') # convert integer calumns to correct datatype
+
+        spikes_df = cls._spikes_df_post_process(spikes_df)
+
         return spikes_df, flat_spikes_out_dict 
 
     @classmethod
