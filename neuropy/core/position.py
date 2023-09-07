@@ -574,6 +574,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
         _df = self.to_dataframe()
         
         # Save the DataFrame using pandas
+        # Unable to open/create file '/media/MAX/Data/KDIBA/gor01/one/2006-6-12_15-55-31/output/pipeline_results.h5'
         with pd.HDFStore(file_path) as store:
             _df.to_hdf(path_or_buf=store, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
 
