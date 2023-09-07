@@ -312,7 +312,7 @@ class PfnDMixin(SimplePrintable):
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             if should_include_trajectory:
                 # a.plot(self.t, pos, **(position_plot_kwargs or {}))
-                pos_df.plot(x='t', y=pos, ax=a, **(position_plot_kwargs or {}))
+                pos_df.plot(x='t', y=pos, ax=a, legend=False, **(position_plot_kwargs or {})) # changed to pandas.plot because the filtered positions were missing the end caps, and the default a.plot(...) resulted in connected lines which looked bad.
 
             if should_include_labels:
                 a.set_xlabel("Time (seconds)")
