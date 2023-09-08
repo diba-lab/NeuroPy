@@ -626,9 +626,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             factors out reused code from __default_kdiba_pho_exported_spikeII_load_mat and __default_kdiba_spikeII_load_mat"""
         # Convert and rename the 'theta' and 'ripple' variables which contain a zero or one indicating whether that activity (theta-activity or ripple-activity) is present for each spikes.
         spikes_df[['theta', 'ripple']] = spikes_df[['theta', 'ripple']].astype('bool') # convert boolean calumns to correct datatype
-        spikes_df.rename(columns={"theta": "is_theta", "ripple": "is_ripple"})
+        spikes_df = spikes_df.rename(columns={"theta": "is_theta", "ripple": "is_ripple"})
         # Extract the theta phase in radians:
-        spikes_df.rename(columns={"ph": "theta_phase_radians"})
+        spikes_df = spikes_df.rename(columns={"ph": "theta_phase_radians"})
         spikes_df[['theta_phase_radians']] = spikes_df[['theta_phase_radians']].astype('float') 
         return spikes_df
 
