@@ -1,0 +1,37 @@
+name: NeuroPy3
+channels:
+    - conda-forge
+dependencies:
+    - python
+    - numpy
+    - scipy
+    - matplotlib
+    - pandas
+    - joblib
+    - scikit-learn
+    - hmmlearn
+    # This and ONLY this specific combo of ipympl and ipywidgets works with python=3.11.5
+    - ipympl=0.9.3
+    - ipywidgets=8.1.0
+    - seaborn
+    - h5py
+    - opencv
+    - pytables
+    - tqdm
+    - xarray=0.16.2
+    - zarr
+    - scikit-image
+    - notebook
+    # May need to install pingouin via pip after the fact
+    - pingouin
+    # May need to install libgcc for linux distributions
+    - libgcc
+    # These modules are for importing DeepLabCut data, comment out if you don't need.
+    - easydict
+    - ruamel.yaml
+    # - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
+    
+    # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
+    - pip
+    - pip:
+      - scikit-posthocs
