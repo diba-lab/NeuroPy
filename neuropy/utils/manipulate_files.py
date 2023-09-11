@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import os
 import shutil
+import numpy as np
 
 
 def get_record_time_from_pathname(
@@ -74,6 +75,16 @@ def prepend_time_from_folder_to_file(
         print(f"{success} files copied/renamed successfully!")
     else:
         print(f"Only {success} of {len(files)} files copied! Check results!")
+
+
+def decrement_ncs_file_num(folder, decr_amount=1):
+    """Subtract decr_amount from end of NCS file name"""
+    file_num = []
+    for file in sorted(Path(dir).glob("*.ncs")):
+        file_num.append(int(str(file).split("_")[-1].split(".")[0]))
+    file_num = np.array(file_num)
+
+    ids = np.argsort(file_num)
 
 
 if __name__ == "__main__":
