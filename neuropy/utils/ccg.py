@@ -11,10 +11,10 @@ import numpy as np
 # Cross-correlograms
 # ------------------------------------------------------------------------------
 _ACCEPTED_ARRAY_DTYPES = (
-    np.float,
+    float,
     np.float32,
     np.float64,
-    np.int,
+    int,
     np.int8,
     np.int16,
     np.uint8,
@@ -23,7 +23,7 @@ _ACCEPTED_ARRAY_DTYPES = (
     np.int64,
     np.uint32,
     np.uint64,
-    np.bool,
+    bool,
 )
 
 
