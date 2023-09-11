@@ -146,7 +146,8 @@ class Probe:
             shank_df["x"] += x[i]
             shank_df["y"] += y[i]
             shank_df["shank_id"] = i * np.ones(shank.n_contacts)
-            self._data = self._data.append(shank_df)
+            # self._data = self._data.append(shank_df)
+            self._data = pd.concat([self._data, shank_df])
         self._data = self._data.reset_index(drop=True)
         self._data["contact_id"] = np.arange(len(self._data))
 
@@ -358,7 +359,7 @@ class ProbeGroup(DataWriter):
         if self.n_probes > 0:
             probe_df["shank_id"] = probe_df["shank_id"] + self.n_shanks
 
-        self._data = self._data.append(probe_df)
+        self._data = pd.concat([self._data, probe_df])
 
         # _, counts = np.unique(self.get_channel_ids(), return_counts=True)
 
