@@ -137,8 +137,16 @@ class Probe:
             assert np.all([_.__class__.__name__ == "Shank" for _ in shanks])
 
         self._data = pd.DataFrame(
-            columns=["x", "y", "contact_id", "channel_id", "connected", "shank_id"]
+            {
+                "x": np.array([]),
+                "y": np.array([]),
+                "contact_id": np.array([]),
+                "channel_id": np.array([]),
+                "connected": np.array([], dtype=bool),
+                "shank_id": np.array([]),
+            }
         )
+
         x = np.arange(len(shanks)) * shank_pitch[0]
         y = np.arange(len(shanks)) * shank_pitch[1]
         for i, shank in enumerate(shanks):
@@ -194,7 +202,7 @@ class Probe:
         for shank in shanks:
             shank_df = shank.to_dataframe()
             shank_df["shank_id"] = (self.n_shanks - 1) * np.ones(shank.n_contacts)
-            self._data = self._data.append(shank_df)
+            self._data = pd.concat([self._data, shank_df])
 
     def to_dict(self):
         return self._data.to_dict()

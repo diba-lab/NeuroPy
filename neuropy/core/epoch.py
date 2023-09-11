@@ -122,8 +122,8 @@ class Epoch(DataWriter):
             keep = (starts <= t_stop) & (stops >= t_start)
             epoch_df = self.to_dataframe()[keep].reset_index(drop=True)
             epoch_df = epoch_df.drop(["duration"], axis=1)
-            epoch_df[epoch_df["start"] < t_start] = t_start
-            epoch_df[epoch_df["stop"] > t_stop] = t_stop
+            epoch_df.loc[epoch_df["start"] < t_start, "start"] = t_start
+            epoch_df.loc[epoch_df["stop"] > t_stop, "stop"] = t_stop
 
         return Epoch(epoch_df)
 
@@ -285,7 +285,47 @@ class Epoch(DataWriter):
 
         epochs_arr = np.vstack((starts, stops)).T
         epochs_arr = np.delete(epochs_arr, ind_delete, axis=0)
+
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1])
+
+    def merge_neighbors(self):
+
+        ep_times, ep_stops, ep_labels = (
+            self.starts,
+            self.stops,
+            self.labels
+        )
+        
+        ep_durations = self.durations
+
+        ind_delete = []
+        for label in ep_labels:
+            (inds,) = np.nonzero(ep_labels == label)
+            for i in range(len(inds) - 1):
+
+                # if two sequentially adjacent epochs with the same label
+                # overlap or have less than 1 microsecond separation, merge them
+                if ep_times[inds[i + 1]] - ep_stops[inds[i]] < 1e-6:
+
+                    # stretch the second epoch to cover the range of both epochs
+                    ep_times[inds[i + 1]] = min(
+                        ep_times[inds[i]], ep_times[inds[i + 1]]
+                    )
+                    ep_stops[inds[i + 1]] = max(
+                        ep_stops[inds[i]], ep_stops[inds[i + 1]]
+                    )
+                    ep_durations[inds[i + 1]] = (
+                        ep_stops[inds[i + 1]] - ep_times[inds[i + 1]]
+                    )
+
+                    ind_delete.append(inds[i])
+
+
+        epochs_arr = np.vstack((ep_times, ep_stops)).T
+        epochs_arr = np.delete(epochs_arr, ind_delete, axis=0)
+        labels_arr = np.delete(ep_labels,ind_delete)
+
+        return Epoch.from_array(epochs_arr[:,0],epochs_arr[:,1],labels_arr)
 
     def contains(self, t):
         """Check if timepoints lie within epochs, must be non-overlapping epochs

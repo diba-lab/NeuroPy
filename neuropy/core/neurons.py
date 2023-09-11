@@ -203,8 +203,20 @@ class Neurons(DataWriter):
 
     def get_by_id(self, ids):
         """Returns neurons object with neuron_ids equal to ids"""
-        indices = np.isin(self.neuron_ids, ids, assume_unique=True)
+        # indices = np.isin(self.neuron_ids, ids, assume_unique=True)
+        indices = np.array([np.where(self.neuron_ids == _)[0][0] for _ in ids])
         return self[indices]
+
+    def to_dataframe(self):
+        """Generates a pandas dataframe with some descriptions about the neurons"""
+        print("Number of neurons:", self.n_neurons)
+        return pd.DataFrame(
+            dict(
+                neuron_type=self.neuron_type,
+                nspikes=self.n_spikes,
+                mean_frate=self.firing_rate,
+            )
+        )
 
     def get_isi(self, bin_size=0.001, n_bins=200):
         """Interspike interval
@@ -293,6 +305,37 @@ class Neurons(DataWriter):
     #     """Get peri-stimulus time histograms w.r.t time points in t"""
 
     #     time_diff = [np.histogram(spktrn - t) for spktrn in self.spiketrains]
+
+    def get_neurons_in_epochs(self, epochs: Epoch):
+        """Remove spikes that lie outside of given epochs and return a new Neurons object with t_start and t_stop changed to start of first epoch and stop of last epoch.
+
+        Parameters
+        ----------
+        epochs : Epoch
+            epochs defining starts and stops
+        """
+        assert epochs.is_overlapping == False, "epochs should be non-overlapping"
+        spktrns = self.spiketrains
+        epochs_bins = epochs.flatten()
+
+        new_spktrns = []
+        for spktrn in spktrns:
+            bin_loc = np.digitize(spktrn, epochs_bins)
+            new_spktrns.append(spktrn[bin_loc % 2 == 1])
+
+        new_spktrns = np.array(new_spktrns, dtype="object")
+
+        return Neurons(
+            spiketrains=new_spktrns,
+            t_start=epochs.starts[0],
+            t_stop=epochs.stops[-1],
+            sampling_rate=self.sampling_rate,
+            neuron_ids=self.neuron_ids,
+            neuron_type=self.neuron_type,
+            waveforms=self.waveforms,
+            peak_channels=self.peak_channels,
+            shank_ids=self.shank_ids,
+        )
 
     def get_modulation_in_epochs(self, epochs: Epoch, n_bins):
         """Total number of across all epochs where each epoch is divided into equal number of bins
