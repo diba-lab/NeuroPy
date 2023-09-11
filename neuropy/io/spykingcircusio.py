@@ -84,6 +84,7 @@ class SpykingCircusIO:
         rmv_badchans=True,
         combine_shanks=False,
         nb_chans=None,
+        groupby: str in ["shank", "probe"] = "shank",
     ):
         """Creates .prb file for spyking circus in the basepath folder
 
@@ -108,9 +109,9 @@ class SpykingCircusIO:
             .sort_values(by=["shank_id", "y"], ascending=[True, False])
             .set_index("channel_id")
         )
-        channelgroups = prb.get_channels(groupby="shank")
+        channelgroups = prb.get_channels(groupby=groupby)
         if rmv_badchans:
-            channelgroups = prb.get_connected_channels(groupby="shank")
+            channelgroups = prb.get_connected_channels(groupby=groupby)
 
         with file.open("w") as f:
             f.write(f"total_nb_channels = {nChans}\n")
