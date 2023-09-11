@@ -2,12 +2,27 @@ from scipy.io import wavfile
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.io import loadmat
 
 from neuropy.core.signal import Signal
 from neuropy.utils.signal_process import filter_sig
 
 dir_use = Path('/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_20_training/shock_box')
 
+class DeepSqueakIO:
+    def __init__(self, filename):
+        self.filename = filename
+
+        pass
+
+    def load_calls(self, filename):
+        """Loads calls from DeepSqueak that have been made MATLAB compatible by running the MATLAB function
+        Calls2python located in the neuropy.io folder"""
+
+        # Load in file and grab keys and data
+        mat_in = loadmat(filename, simplify_cells=True)
+        data = mat_in[list(mat_in.keys())[np.where(['data' in key for key in mat_in.keys()])[0][0]]]
+        keys = mat_in[list(mat_in.keys())[np.where(['keys' in key for key in mat_in.keys()])[0][0]]]
 
 def detect_start_tone(filename, freq_lims: list = [480, 520], start_sec_use: int = 240, thresh=50,
                       plot_check: bool = True):
