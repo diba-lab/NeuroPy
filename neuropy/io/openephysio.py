@@ -595,6 +595,6 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    sync_file = "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/2_ctx_habituation/2022-01-18_12-47-19/Record Node 104/experiment3/recording1/sync_messages.txt"
-    SR, sync_frame = parse_sync_file(sync_file)
+    events_folder = "/data3/Trace_FC/Recording_Rats/Django/2023_03_09_recall1/1_tone_recall/2023-03-09_12-14-31/Record Node 103/experiment1/recording1/events/Intan_Rec._Controller-100.0/TTL_1"
+    load_all_ttl_events(events_folder)
     pass
