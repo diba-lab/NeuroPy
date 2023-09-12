@@ -785,7 +785,7 @@ class PfND_TimeDependent(PfND):
             ## This version was brought in from PfND.perform_time_range_computation(...):
             # If xbin_values is not None and ybin_values is None, assume 1D
             # if xbin_values is not None and ybin_values is None:
-            if 'y' not in active_pf_spikes_df.columns:
+            if ('y' not in active_pf_spikes_df.columns) or ((xbin_values is not None) and (ybin_values is None)):
                 # Assume 1D:
                 ndim = 1
                 pos_col_names = ('x',)
@@ -793,6 +793,7 @@ class PfND_TimeDependent(PfND):
                 bin_values = (xbin_values,)
             else:
                 # otherwise assume 2D:
+                assert ybin_values is not None
                 ndim = 2
                 pos_col_names = ('x', 'y')
                 binned_col_names = ('binned_x', 'binned_y')
@@ -856,7 +857,7 @@ class PfND_TimeDependent(PfND):
         seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_position_samples_occupancy, position_srate=position_srate)
 
         ## TODO: Copy the 1D Gaussian filter code here. Currently it always does 2D:
-        if 'y' not in active_pf_spikes_df.columns:
+        if (ybin is None) or ('y' not in active_pf_spikes_df.columns):
             # Assume 1D:
             ndim = 1
             smooth_criteria_fn = lambda smooth: (smooth[0] > 0.0)
