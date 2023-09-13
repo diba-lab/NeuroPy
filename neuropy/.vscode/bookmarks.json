@@ -109,12 +109,12 @@
 			"path": "utils/mixins/HDF5_representable.py",
 			"bookmarks": [
 				{
-					"line": 143,
+					"line": 154,
 					"column": 105,
 					"label": ""
 				},
 				{
-					"line": 197,
+					"line": 208,
 					"column": 48,
 					"label": "prepare_neuron_indexed_df_for_hdf"
 				}
