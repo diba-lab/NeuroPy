@@ -130,13 +130,24 @@ class HDF_Converter:
         @classmethod
         def convert_dataframe_columns_for_hdf(cls, df: pd.DataFrame) -> pd.DataFrame:
             """ Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed """
-            for col in df.columns:
+            # [col for col in df.columns if issubclass(type(df[col].iloc[0]), HDF_Converter.HDFConvertableEnum)]
+            convertable_cols = [col for col in df.columns if (hasattr(type(df[col].iloc[0]), 'get_pandas_categories_type') and hasattr(type(df[col].iloc[0]), 'convert_to_hdf'))] # this works, ['track_membership', 'neuron_type']
+
+            # [df[col].apply(type(df[col].iloc[0]).convert_to_hdf).astype(type(df[col].iloc[0]).get_pandas_categories_type()) for col in convertable_cols]
+
+            for col in convertable_cols:
                 col_type = type(df[col].iloc[0])
-                if issubclass(col_type, HDF_Converter.HDFConvertableEnum): # could use cls
-                    # could check for attributes ('get_pandas_categories_type', 'convert_to_hdf') instead of using issubclass 
-                    cat_type = col_type.get_pandas_categories_type()
-                    if df[col].dtype != cat_type:
-                        df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
+                cat_type = col_type.get_pandas_categories_type()
+                if df[col].dtype != cat_type:
+                    df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
+
+            # for col in df.columns:
+            #     col_type = type(df[col].iloc[0])
+            #     if issubclass(col_type, HDF_Converter.HDFConvertableEnum): # could use cls
+            #         # could check for attributes ('get_pandas_categories_type', 'convert_to_hdf') instead of using issubclass 
+            #         cat_type = col_type.get_pandas_categories_type()
+            #         if df[col].dtype != cat_type:
+            #             df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
             return df
         
         @classmethod
@@ -387,8 +398,16 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
         hdf_dataset_fields, hdf_dataset_fields_filter_fn = self.get_serialized_dataset_fields('hdf')
         active_hdf_dataset_fields_dict = {a_field.name:a_field for a_field in hdf_dataset_fields} # a dict that allows accessing the actual attr by its name
         # use `asdict` to get a dictionary-representation of self only for the `hdf` serializable fields
-        _active_obj_dataset_values_dict = asdict(self, filter=hdf_dataset_fields_filter_fn, recurse=False)
-        
+        try:
+            _active_obj_dataset_values_dict = asdict(self, filter=hdf_dataset_fields_filter_fn, recurse=False)
+        except AttributeError as err:
+            # happens when the type of `self` is modified after a pickled version is saved. The unpickled result seems to be lacking the property and asdict fails
+            print(f'asdict(...) failed with error: {err}')
+            _active_obj_dataset_values_dict = asdict(self, filter=hdf_dataset_fields_filter_fn, recurse=False)
+        except BaseException:
+            raise
+
+
         # print(f'_temp_obj_dict: {_active_obj_values_dict}')
         # for a_field in hdf_fields:
         for a_field_name, a_value in _active_obj_dataset_values_dict.items():
