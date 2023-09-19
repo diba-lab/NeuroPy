@@ -431,7 +431,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
-    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, use_flexitext_ticks=False, debug_print=False):
+    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, use_flexitext_ticks=False, ytick_location_shift:float=0.5, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -452,7 +452,8 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         if curve_hatch_style is not None, hatch marks are drawn inside the plotted curves, by default None
     missing_aclu_string_formatter: a lambda function that takes the current aclu string and returns a modified string that reflects that this aclu value is missing from the current result (e.g. missing_aclu_string_formatter('3') -> '3 <shared>')
     single_cell_pfmap_processing_fn: Callable (lambda i, aclu, pfmap) - takes the index, aclu, and pfmap and returns a potentially modified pfmap 
-
+    ytick_location_shift: float, default 0.5
+        The amount of shift in y-position for the ticks that represents each aclu
 
     Returns
     -------
@@ -513,6 +514,8 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             if debug_print:
                 print(f'normalizing tuning curves...')
             active_maps = mathutil.min_max_scaler(active_maps)
+            if pad != 1:
+                module_logger.warning(f'WARNING: when normalize_tuning_curve=True pad will be set to 1, the current value of pad={pad} will be overriden.')
             pad = 1
 
     ## Sorting (via sortby):
@@ -609,7 +612,11 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         pfmap = single_cell_pfmap_processing_fn(i, curr_neuron_ID, pfmap)
 
         # bin_cntr # contains the x-positions of each point. Same for all cells
-        y_baseline = (i * pad) # y_baseline (y1): the y-position for each cell 
+
+        # y_baseline (y1): the y-position for each cell
+        # y_baseline = (i * pad) 
+        y_baseline = y_baselines[i]
+        assert y_baseline == (float(i) * float(pad)), f"y_baseline[i]: {y_baseline}, (float(i) * float(pad)): {(float(i) * float(pad))}"
         y2 = (y_baseline + pfmap) # (y2): the top of each point is determined by adding the specific pfmap values to the baseline
         
         # New way:
@@ -630,14 +637,10 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
 
 
     # Titles, Subtitles, and Labels ______________________________________________________________________________________ #
-    title_string = f'1D Placemaps {title_substring}'
-    subtitle_string = f'({len(ratemap.neuron_ids)} good cells)'
-
-    fig.canvas.manager.set_window_title(title_string) # sets the window's title
 
     # Set up cell labels (on each y-tick):
     if n_neurons > 0:
-        ytick_locations = list(np.arange(len(sort_ind)) + 0.5)
+        ytick_locations = list(np.arange(len(sort_ind)) + ytick_location_shift)
 
         if not use_flexitext_ticks:
             ax.set_yticks(ytick_locations) # OLD: ax.set_yticks(list(np.arange(len(sort_ind)) + 0.5))
@@ -707,6 +710,11 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         ax.set_ylim([0, len(sort_ind)]) # OLD: ax.set_ylim([0, len(sort_ind)])
         
     ## Flexitext Titles and Footers:
+    title_string = f'1D Placemaps {title_substring}'
+    subtitle_string = f'({len(ratemap.neuron_ids)} good cells)'
+
+    fig.canvas.manager.set_window_title(title_string) # sets the window's title
+
     if (active_context is None) or (not use_flexitext_titles):
         fig.suptitle(title_string, fontsize='14', wrap=True)
         ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
@@ -715,7 +723,6 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         from flexitext import flexitext ## flexitext version
         from neuropy.utils.matplotlib_helpers import FormattedFigureText
 
-        
         text_formatter = FormattedFigureText()
         # text_formatter.top_margin = 0.6 # doesn't change anything. Neither does subplot_adjust
         text_formatter.setup_margins(fig)
