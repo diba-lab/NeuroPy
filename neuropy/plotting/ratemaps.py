@@ -25,6 +25,7 @@ from neuropy.utils import mathutil
 from neuropy.utils.misc import RowColTuple, safe_item
 from neuropy.utils.colors_util import get_neuron_colors
 from neuropy.utils.matplotlib_helpers import build_or_reuse_figure, _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label
+from neuropy.utils.matplotlib_helpers import perform_update_title_subtitle
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 from .figure import Fig
 
@@ -431,7 +432,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
-    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, use_flexitext_ticks=False, ytick_location_shift:float=0.5, debug_print=False):
+    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, use_flexitext_ticks=False, ytick_location_shift:float=0.5, plot_zero_baselines:bool=True, skip_figure_titles:bool=False, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -454,7 +455,11 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     single_cell_pfmap_processing_fn: Callable (lambda i, aclu, pfmap) - takes the index, aclu, and pfmap and returns a potentially modified pfmap 
     ytick_location_shift: float, default 0.5
         The amount of shift in y-position for the ticks that represents each aclu
-
+    plot_zero_baselines: bool, default True
+        If True, plots the baseline for each plot. Useful for plotting a comparison where one is reflected over the y-axis
+    skip_figure_titles: bool, default False
+        if True, no figure titles are rendered of any type. This is useful if you want to set the titles later (for example for a shared long/short plot)
+    
     Returns
     -------
     [type]
@@ -567,6 +572,12 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # The "zero" line where each pf1D starts:
     y_baselines: np.ndarray = float(pad) * np.arange(len(sorted_included_unit_indicies))
 
+    if plot_zero_baselines:
+        # Plot the horizontal baseline
+        # zorder=100 - means render in front
+        baseline_objs = [ax.axhline(y=a_baseline_y, color='#0c0c0c', linewidth=1.0, zorder=100, label=f'baseline[{i}]') for i, a_baseline_y in enumerate(y_baselines)] # , linestyle='--'
+        # baselines_collection = ax.hlines(y_baselines, zorder=-1, alpha=0.7, color='#666666')
+
     # for i, neuron_ind in enumerate(sort_ind):
     for i, curr_included_unit_index in enumerate(sorted_included_unit_indicies):
         # `curr_included_unit_index` is either an index into the `included_unit_neuron_IDs` array or None
@@ -632,7 +643,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             # I think the stripe color for the hatch is specified by `edgecolor`
             ax.fill_between(bin_cntr, y_baseline, y2, zorder=(i + 2), **({'hatch': '///', 'facecolor': 'none', 'edgecolor': 'k', 'linewidth': 0.0, 'alpha': 0.5} | curve_hatch_style))
 
-        ax.plot(bin_cntr, y2, color=color, alpha=0.7) # This is essential for drawing the outer bold border line that makes each cell's curve easily distinguishable.
+        ax.plot(bin_cntr, y2, color=color, alpha=0.7, label=f'pf[{i}|{curr_neuron_ID}]_outline') # This is essential for drawing the outer bold border line that makes each cell's curve easily distinguishable.
 
 
 
@@ -710,36 +721,39 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         ax.set_ylim([0, len(sort_ind)]) # OLD: ax.set_ylim([0, len(sort_ind)])
         
     ## Flexitext Titles and Footers:
-    title_string = f'1D Placemaps {title_substring}'
-    subtitle_string = f'({len(ratemap.neuron_ids)} good cells)'
-
-    fig.canvas.manager.set_window_title(title_string) # sets the window's title
-
-    if (active_context is None) or (not use_flexitext_titles):
-        fig.suptitle(title_string, fontsize='14', wrap=True)
-        ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
-
+    if skip_figure_titles:
+        title_string = f'1D Placemaps {title_substring}'
+        subtitle_string = f'({len(ratemap.neuron_ids)} good cells)'
+        _title_labels_objs = perform_update_title_subtitle(fig=fig, ax=ax, title_string=title_string, subtitle_string=subtitle_string, active_context=active_context, use_flexitext_titles=use_flexitext_titles)
     else:
-        from flexitext import flexitext ## flexitext version
-        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+        _title_labels_objs = None
 
-        text_formatter = FormattedFigureText()
-        # text_formatter.top_margin = 0.6 # doesn't change anything. Neither does subplot_adjust
-        text_formatter.setup_margins(fig)
+    # fig.canvas.manager.set_window_title(title_string) # sets the window's title
 
-        # ## Header:
-        # # Clear the normal text:
-        # fig.suptitle('')
-        # ax.set_title('')
-        # # header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+    # if (active_context is None) or (not use_flexitext_titles):
+    #     fig.suptitle(title_string, fontsize='14', wrap=True)
+    #     ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
 
-        ## Footer only:
-        fig.suptitle(title_string, fontsize='14', wrap=True)
-        ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
-        footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+    # else:
+    #     from flexitext import flexitext ## flexitext version
+    #     from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+    #     text_formatter = FormattedFigureText()
+    #     # text_formatter.top_margin = 0.6 # doesn't change anything. Neither does subplot_adjust
+    #     text_formatter.setup_margins(fig)
+
+    #     # ## Header:
+    #     # # Clear the normal text:
+    #     # fig.suptitle('')
+    #     # ax.set_title('')
+    #     # # header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+
+    #     ## Footer only:
+    #     fig.suptitle(title_string, fontsize='14', wrap=True)
+    #     ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
+    #     footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
 
         # label_objects = {'header': header_text_obj, 'footer': footer_text_obj, 'formatter': text_formatter}
-
 
     return ax, sort_ind, neurons_colors_array
 

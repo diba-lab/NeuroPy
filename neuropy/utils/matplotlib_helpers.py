@@ -645,9 +645,9 @@ class FormattedFigureText:
         top_margin, left_margin, right_margin, bottom_margin = kwargs.get('top_margin', self.top_margin), kwargs.get('left_margin', self.left_margin), kwargs.get('right_margin', self.right_margin), kwargs.get('bottom_margin', self.bottom_margin)
         fig.subplots_adjust(top=top_margin, left=left_margin, right=right_margin, bottom=bottom_margin) # perform the adjustment on the figure
 
-    def add_flexitext_context_footer(self, active_context):
+    def add_flexitext_context_footer(self, active_context, override_left_margin_multipler:float=0.1, override_bottom_margin_multiplier:float=0.25):
         """ adds the default footer  """
-        return flexitext((self.left_margin*0.1), (self.bottom_margin*0.25), self._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+        return flexitext((self.left_margin*float(override_left_margin_multipler)), (self.bottom_margin*float(override_bottom_margin_multiplier)), self._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
 
 
 
@@ -1235,6 +1235,52 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
     else:
         return fig, ax, rect_selector, set_extents, reset_extents
 
+
+# Title Helpers ______________________________________________________________________________________________________ #
+def perform_update_title_subtitle(fig, ax, title_string:Optional[str], subtitle_string:Optional[str], active_context=None, use_flexitext_titles=False):
+    """ Only updates the title/subtitle if the value is not None
+    
+    Usage:
+    
+    from neuropy.utils.matplotlib_helpers import perform_update_title_subtitle
+    perform_update_title_subtitle(fig=fig_long_pf_1D, ax=ax_long_pf_1D, title_string="TEST - 1D Placemaps", subtitle_string="TEST - SUBTITLE")
+    
+    """
+    if title_string is not None:
+        fig.canvas.manager.set_window_title(title_string) # sets the window's title
+
+    if (active_context is None) or (not use_flexitext_titles):
+        if title_string is not None:
+            fig.suptitle(title_string, fontsize='14', wrap=True)
+        if subtitle_string is not None:
+            ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
+
+        footer_text_obj = None
+    else:
+        from flexitext import flexitext ## flexitext version
+        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+        text_formatter = FormattedFigureText()
+        # text_formatter.bottom_margin = 0.0 # No margin on the bottom
+        # text_formatter.top_margin = 0.6 # doesn't change anything. Neither does subplot_adjust
+        text_formatter.setup_margins(fig)
+
+        # ## Header:
+        # # Clear the normal text:
+        # fig.suptitle('')
+        # ax.set_title('')
+        # # header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+
+        ## Footer only:
+        if title_string is not None:
+            fig.suptitle(title_string, fontsize='14', wrap=True)
+        if subtitle_string is not None:
+            ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
+
+        footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context, override_left_margin_multipler=0.1, override_bottom_margin_multiplier=0.1) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
+        # label_objects = {'header': header_text_obj, 'footer': footer_text_obj, 'formatter': text_formatter}
+    return footer_text_obj
 
 
 def matplotlib_configuration_update(is_interactive:bool, backend:Optional[str]=None):
