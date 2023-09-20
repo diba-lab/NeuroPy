@@ -432,7 +432,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=None, included_unit_ind
 @safely_accepts_kwargs
 def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=None, ax=None, pad=2, normalize_tuning_curve=False, sortby=None, cmap=None, included_unit_indicies=None, included_unit_neuron_IDs=None,
     brev_mode: PlotStringBrevityModeEnum=PlotStringBrevityModeEnum.NONE, plot_variable: enumTuningMap2DPlotVariables=enumTuningMap2DPlotVariables.TUNING_MAPS,
-    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, use_flexitext_ticks=False, ytick_location_shift:float=0.5, plot_zero_baselines:bool=True, skip_figure_titles:bool=False, debug_print=False):
+    curve_hatch_style = None, missing_aclu_string_formatter=None, single_cell_pfmap_processing_fn=None, active_context=None, use_flexitext_titles=True, use_flexitext_ticks=False, ytick_location_shift:float=0.5, plot_zero_baselines:bool=True, skip_figure_titles:bool=False, flat_stack_mode:bool=False, debug_print=False):
     """Plot 1D place fields stacked
 
     Parameters
@@ -459,7 +459,9 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         If True, plots the baseline for each plot. Useful for plotting a comparison where one is reflected over the y-axis
     skip_figure_titles: bool, default False
         if True, no figure titles are rendered of any type. This is useful if you want to set the titles later (for example for a shared long/short plot)
-    
+    flat_stack_mode: bool, default False
+        if True, instead of cells being vertically offset from each other as a vertical stack of virtual axes they are rendered as a overlayed axis.
+        
     Returns
     -------
     [type]
@@ -570,13 +572,23 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
     # The "zero" line where each pf1D starts:
-    y_baselines: np.ndarray = float(pad) * np.arange(len(sorted_included_unit_indicies))
-
+    if not flat_stack_mode:
+        y_baselines: np.ndarray = float(pad) * np.arange(len(sorted_included_unit_indicies))
+    else:
+        print(f'flat_stack_mode enabled!')
+        y_baselines: np.ndarray = np.zeros_like(sorted_included_unit_indicies)
+        
     if plot_zero_baselines:
         # Plot the horizontal baseline
         # zorder=100 - means render in front
-        baseline_objs = [ax.axhline(y=a_baseline_y, color='#0c0c0c', linewidth=1.0, zorder=100, label=f'baseline[{i}]') for i, a_baseline_y in enumerate(y_baselines)] # , linestyle='--'
+        if (not flat_stack_mode):
+            baseline_objs = [ax.axhline(y=a_baseline_y, color='#0c0c0c', linewidth=1.0, zorder=100, label=f'baseline[{i}]') for i, a_baseline_y in enumerate(y_baselines)] # , linestyle='--'
+        else:
+            # single baseline at 0.0
+             baseline_objs = [ax.axhline(y=y_baselines[0], color='#0c0c0c', linewidth=1.0, zorder=100, label=f'baseline_flatstack')]
+
         # baselines_collection = ax.hlines(y_baselines, zorder=-1, alpha=0.7, color='#666666')
+    
 
     # for i, neuron_ind in enumerate(sort_ind):
     for i, curr_included_unit_index in enumerate(sorted_included_unit_indicies):
@@ -625,9 +637,8 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         # bin_cntr # contains the x-positions of each point. Same for all cells
 
         # y_baseline (y1): the y-position for each cell
-        # y_baseline = (i * pad) 
         y_baseline = y_baselines[i]
-        assert y_baseline == (float(i) * float(pad)), f"y_baseline[i]: {y_baseline}, (float(i) * float(pad)): {(float(i) * float(pad))}"
+        # assert y_baseline == (float(i) * float(pad)), f"y_baseline[i]: {y_baseline}, (float(i) * float(pad)): {(float(i) * float(pad))}"
         y2 = (y_baseline + pfmap) # (y2): the top of each point is determined by adding the specific pfmap values to the baseline
         
         # New way:
@@ -650,7 +661,7 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
     # Titles, Subtitles, and Labels ______________________________________________________________________________________ #
 
     # Set up cell labels (on each y-tick):
-    if n_neurons > 0:
+    if n_neurons > 0 and not flat_stack_mode:
         ytick_locations = list(np.arange(len(sort_ind)) + ytick_location_shift)
 
         if not use_flexitext_ticks:
@@ -717,8 +728,11 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         ax.set_xlim([0, 1])
     ax.tick_params("y", length=0)
 
-    if n_neurons > 0:
-        ax.set_ylim([0, len(sort_ind)]) # OLD: ax.set_ylim([0, len(sort_ind)])
+    if (n_neurons > 0):
+        if not flat_stack_mode:
+            ax.set_ylim([0, len(sort_ind)]) # OLD: ax.set_ylim([0, len(sort_ind)])
+        else:
+            ax.set_ylim([-1.0, 1.0])
         
     ## Flexitext Titles and Footers:
     if skip_figure_titles:
