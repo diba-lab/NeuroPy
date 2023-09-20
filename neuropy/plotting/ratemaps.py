@@ -646,15 +646,15 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
         color = neurons_colors_array[:, i] # TODO 2023-06-16 12:01: - [ ] the `i` here means that color will always be assigned with the same row position (unless `neurons_colors_array` is pre-sorted)
         # TODO: PERFORMANCE: can the hatching and the fill be drawn at the same time?
         
-        ax.fill_between(bin_cntr, y_baseline, y2, zorder=(i + 1), color=color, ec=None, alpha=0.5)
+        ax.fill_between(bin_cntr, y_baseline, y2, zorder=((3*i) + 1), color=color, ec=None, alpha=0.5)
         if curve_hatch_style is not None:
             if not isinstance(curve_hatch_style, dict):
                 assert isinstance(curve_hatch_style, str) # old mode used a string value for curve_hatch_style, which the argument to the 'hatch' kwarg
                 curve_hatch_style = {'hatch': curve_hatch_style}
             # I think the stripe color for the hatch is specified by `edgecolor`
-            ax.fill_between(bin_cntr, y_baseline, y2, zorder=(i + 2), **({'hatch': '///', 'facecolor': 'none', 'edgecolor': 'k', 'linewidth': 0.0, 'alpha': 0.5} | curve_hatch_style))
+            ax.fill_between(bin_cntr, y_baseline, y2, zorder=((3*i) + 2), **({'hatch': '///', 'facecolor': 'none', 'edgecolor': 'k', 'linewidth': 0.0, 'alpha': 0.5} | curve_hatch_style))
 
-        ax.plot(bin_cntr, y2, color=color, alpha=0.7, label=f'pf[{i}|{curr_neuron_ID}]_outline') # This is essential for drawing the outer bold border line that makes each cell's curve easily distinguishable.
+        ax.plot(bin_cntr, y2, color=color, alpha=0.7, label=f'pf[{i}|{curr_neuron_ID}]_outline', zorder=((3*i) + 3)) # This is essential for drawing the outer bold border line that makes each cell's curve easily distinguishable.
 
 
 
