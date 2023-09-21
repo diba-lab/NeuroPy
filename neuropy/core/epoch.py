@@ -290,12 +290,8 @@ class Epoch(DataWriter):
 
     def merge_neighbors(self):
 
-        ep_times, ep_stops, ep_labels = (
-            self.starts,
-            self.stops,
-            self.labels
-        )
-        
+        ep_times, ep_stops, ep_labels = (self.starts, self.stops, self.labels)
+
         ep_durations = self.durations
 
         ind_delete = []
@@ -320,12 +316,11 @@ class Epoch(DataWriter):
 
                     ind_delete.append(inds[i])
 
-
         epochs_arr = np.vstack((ep_times, ep_stops)).T
         epochs_arr = np.delete(epochs_arr, ind_delete, axis=0)
-        labels_arr = np.delete(ep_labels,ind_delete)
+        labels_arr = np.delete(ep_labels, ind_delete)
 
-        return Epoch.from_array(epochs_arr[:,0],epochs_arr[:,1],labels_arr)
+        return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1], labels_arr)
 
     def contains(self, t):
         """Check if timepoints lie within epochs, must be non-overlapping epochs
@@ -440,3 +435,47 @@ class Epoch(DataWriter):
         NOTE: returned array is monotonically increasing only if epochs are non-overlapping
         """
         return self.as_array().flatten("C")
+
+    def to_point_process(self, t_start=None, t_stop=None, bin_size=(1 / 1250)):
+        """Returns 1d numpy boolean where True = epochs"""
+        if t_start is None:
+            t_start = 0
+
+        if t_stop is None:
+            t_stop = np.max(self.stops)
+
+        times = np.arange(t_start, t_stop, bin_size)
+
+        # Super slow
+        time_bool = np.zeros_like(times).astype(bool)
+        # for start, stop in zip(self.starts, self.stops):
+        # time_bool = time_bool | ((times >= start) & (times < stop))
+
+        for start_ind, end_ind in zip(
+            (self.starts / bin_size).astype(int), (self.stops / bin_size).astype(int)
+        ):
+            time_bool[start_ind:end_ind] = True
+
+        return times, time_bool
+
+    def add_epoch_buffer(self, buffer_sec: float or int or tuple or list):
+        df = self._epochs.copy()
+        self._epochs = add_epoch_buffer(df, buffer_sec)
+
+        # Run below to update start and stop properties
+        self.starts
+        self.stops
+        print(f"Buffer of {buffer_sec} added before/after each epoch")
+
+
+def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple or list):
+    """Extend each epoch by buffer_sec before/after start/stop of each epoch"""
+    if type(buffer_sec) in [int, float]:
+        buffer_sec = (buffer_sec, buffer_sec)
+    else:
+        assert len(buffer_sec) == 2
+
+    epoch_df["start"] -= buffer_sec[0]
+    epoch_df["stop"] += buffer_sec[1]
+
+    return epoch_df
