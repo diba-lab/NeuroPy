@@ -1,15 +1,12 @@
-import pathlib
 from pathlib import Path
 import numpy as np
 from pickle import dump, load
 import xarray as xr
 import zarr
-import pandas as pd
 
 from neuropy.core.ca_neurons import CaNeurons
 from neuropy.io.miniscopeio import MiniscopeIO
 from neuropy.utils.misc import flatten
-from neuropy.utils.minian_util import load_subset
 
 
 class MinianIO:
@@ -280,7 +277,7 @@ def check_integrity(var_list, fix: str or bool in [False, "min_size"] = "min_siz
 
 
 if __name__ == "__main__":
-    from session_directory import get_session_dir
+    from tracefc.io.session_directory import get_session_dir
 
     animal = "Jyn"
     session = "Training"
