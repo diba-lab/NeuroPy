@@ -4,6 +4,7 @@ from ..utils.mathutil import gaussian_kernel1D
 import scipy.signal as sg
 from .datawriter import DataWriter
 from . import Epoch
+from .. import core
 from copy import deepcopy
 
 
@@ -606,7 +607,7 @@ class Mua(DataWriter):
 
     def get_smoothed(self, sigma=0.02, truncate=4.0):
         t_gauss = np.arange(-truncate * sigma, truncate * sigma, self.bin_size)
-        gaussian = np.exp(-(t_gauss**2) / (2 * sigma**2))
+        gaussian = np.exp(-(t_gauss ** 2) / (2 * sigma ** 2))
         gaussian /= np.sum(gaussian)
 
         # numpy convolve is much faster than scipy
@@ -641,3 +642,67 @@ class Mua(DataWriter):
 
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "spike_counts": self.spike_counts})
+
+
+def pe_raster(
+    neurons: Neurons,
+    neuron_id: int,
+    event_times: np.ndarray or list,
+    buffer_sec=(5, 5),
+):
+    """Get peri-event raster of spike times"""
+    spiketrain = neurons.spiketrains[neuron_id]
+    rast = []
+    for event_time in event_times:
+        time_bool = (spiketrain > (event_time - buffer_sec[0])) & (
+            spiketrain <= (event_time + buffer_sec[1])
+        )
+        rast.append(spiketrain[time_bool] - event_time)
+
+    return Neurons(rast, t_stop=buffer_sec[1], t_start=-buffer_sec[0])
+
+
+def binned_pe_raster(
+    binned_spiketrain: (BinnedSpiketrain, Mua),
+    event_times: np.ndarray or list,
+    neuron_id: int = 0,
+    buffer_sec=(5, 5),
+):
+    """Build a peri-event raster for a binned spiketrain or MUA. neuron_id only needed for
+    binned_spiketrain class."""
+
+    if isinstance(binned_spiketrain, BinnedSpiketrain):
+        binned_fr = binned_spiketrain.firing_rate[neuron_id]
+    elif isinstance(binned_spiketrain, Mua):
+        binned_fr = binned_spiketrain.firing_rate
+
+    firing_rate = []
+    for event_time in event_times:
+        time_bool = (binned_spiketrain.time > (event_time - buffer_sec[0])) & (
+            binned_spiketrain.time
+            <= (event_time + buffer_sec[1] + binned_spiketrain.bin_size * 0.5)
+        )
+        firing_rate.append(binned_fr[time_bool])
+
+    fr_len = [len(f) for f in firing_rate]
+    if np.max(fr_len) == np.min(fr_len):
+        fr_array = np.array(firing_rate)
+    elif (
+        np.max(fr_len) - np.min(fr_len)
+    ) == 1:  # append a 0 firing rate to last bin of any short
+        for id in np.where(fr_len == np.min(fr_len))[0]:
+            firing_rate[id] = np.append(firing_rate[id], np.nan)
+        fr_array = np.array(firing_rate)
+    else:
+        fr_array = np.nan
+        print(
+            "Raster has uneven # of bins in one row, likely due to edge effects. Fix code or delete start/end event from input"
+        )
+
+    pe_times = np.arange(
+        -buffer_sec[0],
+        buffer_sec[1] + binned_spiketrain.bin_size * 0.5,
+        binned_spiketrain.bin_size,
+    )
+
+    return fr_array, pe_times
