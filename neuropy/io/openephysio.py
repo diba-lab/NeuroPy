@@ -27,16 +27,16 @@ def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit")
     return dt_start_utc.astimezone(to_zone)
 
 
-def get_dat_timestamps(basepath: str or Path, sync: bool = False):
+def get_dat_timestamps(basepath: str or Path, sync: bool = False, start_end_only=False):
     """
     Gets timestamps for each frame in your dat file(s) in a given directory.
 
     IMPORTANT: in the event your .dat file has less frames than you timestamps.npy file,
     you MUST create a "dropped_end_frames.txt" file with the # of missing frames in the same folder
     to properly account for this offset.
-
     :param basepath: str, path to parent directory, holding your 'experiment' folder(s).
     :param sync: True = use 'synchronized_timestamps.npy' file, default = False
+    :param start_end_only: True = only grab start and end timestamps
     :return:
     """
     basepath = Path(basepath)
@@ -44,7 +44,9 @@ def get_dat_timestamps(basepath: str or Path, sync: bool = False):
     timestamp_files = get_timestamp_files(basepath, type="continuous", sync=sync)
 
     timestamps = []
-    for file in timestamp_files:
+    nrec, start_end_str, nframe_dat = [], [], []  # for start_end=True only
+    nframe_end = -1
+    for idf, file in enumerate(timestamp_files):
         set_file = get_settings_filename(file)  # get settings file name
         set_folder = get_set_folder(file)
         try:
@@ -84,14 +86,66 @@ def get_dat_timestamps(basepath: str or Path, sync: bool = False):
 
             print(f"Dropping last {ndropped} frames per dropped_end_frames.txt file")
             stamps = stamps[0:-ndropped]
-
+        if start_end_only:  # grab start and end timestamps only
+            # Add up start and end frame numbers
+            nframe_dat.extend([nframe_end + 1, nframe_end + len(stamps)])
+            nframe_end = nframe_dat[-1]
+            stamps = stamps[[0, -1]]
         timestamps.append(
             (
                 start_time + pd.to_timedelta((stamps - sync_frame) / SR, unit="sec")
             ).to_frame(index=False)
         )  # Add in absolute timestamps, keep index of acquisition system
 
-    return pd.concat(timestamps)
+        if start_end_only:
+            nrec.extend([idf, idf])
+            start_end_str.extend(["start", "stop"])
+
+    if not start_end_only:
+        return pd.concat(timestamps)
+    else:
+        return pd.DataFrame(
+            {
+                "Recording": nrec,
+                "Datetime": np.concatenate(timestamps).reshape(-1),
+                "Condition": start_end_str,
+                "nframe_dat": nframe_dat,
+            }
+        )
+
+
+def create_sync_df(
+    basepath: str or Path, sync: bool = False, sr_dat=30000, sr_eeg=1250
+):
+    """Create a dataframe with start and stop times of all recordings in a parent folder.
+    nframe_dat and nframe_eeg assumes the files have been concatenated into one file.
+    """
+
+    start_stop_df = get_dat_timestamps(basepath, sync, start_end_only=True)
+
+    # Calculate eeg frames
+    nframe_eeg = (start_stop_df["nframe_dat"] / (sr_dat / sr_eeg)).values.astype(int)
+
+    # Augment repeated frame numbers by one
+    repeat_ind = np.where(np.diff(nframe_eeg) == 0)[0] + 1
+    nframe_eeg[repeat_ind] += 1
+
+    # Combine into one dataframe after calculating combined dat/eeg file times
+    sync_df = pd.concat(
+        (
+            start_stop_df,
+            pd.DataFrame(
+                {
+                    "dat_time": start_stop_df["nframe_dat"] / sr_dat,
+                    "nframe_eeg": nframe_eeg,
+                    "eeg_time": nframe_eeg / sr_eeg,
+                }
+            ),
+        ),
+        axis=1,
+    )
+
+    return sync_df
 
 
 def get_timestamp_files(
