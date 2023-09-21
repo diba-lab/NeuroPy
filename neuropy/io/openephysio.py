@@ -654,6 +654,6 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    events_folder = "/data3/Trace_FC/Recording_Rats/Django/2023_03_09_recall1/1_tone_recall/2023-03-09_12-14-31/Record Node 103/experiment1/recording1/events/Intan_Rec._Controller-100.0/TTL_1"
-    load_all_ttl_events(events_folder)
+    base_folder = "/data3/Trace_FC/Recording_Rats/Django/2023_03_10_recall2"
+    get_dat_timestamps(base_folder, start_end_only=True)
     pass
