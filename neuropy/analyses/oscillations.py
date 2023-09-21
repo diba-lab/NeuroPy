@@ -352,6 +352,7 @@ def detect_theta_epochs(
     sigma=0.125,
     edge_cutoff=-0.25,
     ignore_epochs: Epoch = None,
+    return_power=False,
 ):
 
     if probegroup is None:
@@ -394,10 +395,18 @@ def detect_theta_epochs(
         ignore_times=ignore_times,
         sigma=sigma,
         edge_cutoff=edge_cutoff,
+        return_power=return_power,
     )
-    epochs = epochs.shift(dt=signal.t_start)
-    epochs.metadata = dict(channels=selected_chan)
-    return epochs
+
+    if not return_power:
+        epochs = epochs.shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs
+    else:
+        theta_power = epochs[1]
+        epochs = epochs[0].shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs, theta_power
 
 
 def detect_spindle_epochs(
