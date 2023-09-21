@@ -1,10 +1,11 @@
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+from typing import Dict, List, Optional
 from pathlib import Path
 from neuropy.analyses.placefields import PlacefieldComputationParameters
 from neuropy.core.epoch import NamedTimerange
-from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
+from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass, find_local_session_paths
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
 from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, ParametersContainer
@@ -504,6 +505,56 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         return session, loaded_file_record_list
  
+
+    @classmethod
+    def build_session_basedirs_dict(cls, global_data_root_parent_path, debug_print=False) -> Dict[IdentifyingContext, Path]:
+        """ generates a dict of session_ctx:basedir. Hardcoded for the KDIBA sessions.
+        
+        Does not check for existance of the basedirs
+
+        History: 2023-09-21 - Extracted from `pyphoplacecellanalysis.General.Batch.runBatch.run_diba_batch`
+        
+        """
+        if not isinstance(global_data_root_parent_path, Path):
+            global_data_root_parent_path = Path(global_data_root_parent_path).resolve()
+            
+        active_data_mode_name = cls._session_class_name
+
+        
+
+        local_session_root_parent_context = IdentifyingContext(format_name=active_data_mode_name) # , animal_name='', configuration_name='one', session_name=self.session_name
+        local_session_root_parent_path = global_data_root_parent_path.joinpath('KDIBA')
+
+        animal_names = ['gor01', 'vvp01', 'pin01']
+        experiment_names_lists = [['one', 'two'], ['one', 'two'], ['one']] # there is no 'two' for animal 'pin01'
+        exclude_lists = [['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused'], [], [], [], ['redundant','showclus','sleep','tmaze']]
+
+        output_session_basedir_dict = {}
+        for animal_name, an_experiment_names_list, exclude_list in zip(animal_names, experiment_names_lists, exclude_lists):
+            for an_experiment_name in an_experiment_names_list:
+                local_session_parent_context = local_session_root_parent_context.adding_context(collision_prefix='animal', animal=animal_name, exper_name=an_experiment_name)
+                local_session_parent_path = local_session_root_parent_path.joinpath(local_session_parent_context.animal, local_session_parent_context.exper_name)
+                local_session_paths_list, local_session_names_list =  find_local_session_paths(local_session_parent_path, exclude_list=exclude_list)
+
+                if debug_print:
+                    print(f'local_session_paths_list: {local_session_paths_list}')
+                    print(f'local_session_names_list: {local_session_names_list}')
+
+                ## Build session contexts list:
+                local_session_contexts_list = [local_session_parent_context.adding_context(collision_prefix='sess', session_name=a_name) for a_name in local_session_names_list] # [IdentifyingContext<('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')>, ..., IdentifyingContext<('kdiba', 'gor01', 'one', '2006-6-13_14-42-6')>]
+
+                # {a_ctx:a_path for a_ctx, a_path in zip(local_session_contexts_list, local_session_paths_list if a_ctx)}
+                output_session_basedir_dict.update(dict(zip(local_session_contexts_list, local_session_paths_list)))
+
+                # ## Initialize `session_batch_status` with the NOT_STARTED status if it doesn't already have a different status
+                # for curr_session_basedir, curr_session_context in zip(local_session_paths_list, local_session_contexts_list):
+                # 	# basedir might be different (e.g. on different platforms), but context should be the same
+                    
+
+        ## end for
+        return output_session_basedir_dict
+
+
     # ---------------------------------------------------------------------------- #
     #                     Extended Computation/Loading Methods                     #
     # ---------------------------------------------------------------------------- #
