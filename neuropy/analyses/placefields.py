@@ -280,7 +280,7 @@ class PfnDMixin(SimplePrintable):
 
     @safely_accepts_kwargs
     def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=None, spikes_alpha=None, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None,
-        should_include_trajectory=True, should_include_spikes=True, should_include_labels=True):
+        should_include_trajectory=True, should_include_spikes=True, should_include_labels=True, use_filtered_positions=False, use_pandas_plotting=False):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
 
@@ -289,6 +289,8 @@ class PfnDMixin(SimplePrintable):
 
         should_include_labels:bool - whether the plot should include text labels, like the title, axes labels, etc
         should_include_spikes:bool - if False, will not try to plot points for spikes
+        use_pandas_plotting:bool = False
+        use_filtered_positions:bool = False # If True, uses only the filtered positions (which are missing the end caps) and the default a.plot(...) results in connected lines which look bad.
 
         """
         if ax is None:
@@ -300,16 +302,29 @@ class PfnDMixin(SimplePrintable):
 
         # plot trajectories
         pos_df = self.position.to_dataframe()
-        use_pandas_plotting = False
+        
+        # self.x, self.y contain filtered positions, pos_df's columns contain all positions.
+        if not use_pandas_plotting: # don't need to worry about 't' for pandas plotting, we'll just use the one in the dataframe.
+            if use_filtered_positions:
+                t = self.t
+            else:
+                t = pos_df.t.to_numpy()
+
         if self.ndim < 2:
             if not use_pandas_plotting:
-                variable_array = [self.x]
+                if use_filtered_positions:
+                    variable_array = [self.x]
+                else:
+                    variable_array = [pos_df.x.to_numpy()]
             else:
                 variable_array = ['x']
             label_array = ["X position (cm)"]
         else:
             if not use_pandas_plotting:
-                variable_array = [self.x, self.y]
+                if use_filtered_positions:
+                    variable_array = [self.x, self.y]
+                else:
+                    variable_array = [pos_df.x.to_numpy(), pos_df.y.to_numpy()]
             else:
                 variable_array = ['x', 'y']
             label_array = ["X position (cm)", "Y position (cm)"]
@@ -317,7 +332,7 @@ class PfnDMixin(SimplePrintable):
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             if should_include_trajectory:
                 if not use_pandas_plotting:
-                    a.plot(self.t, pos, **(position_plot_kwargs or {}))
+                    a.plot(t, pos, **(position_plot_kwargs or {}))
                 else:
                     pos_df.plot(x='t', y=pos, ax=a, legend=False, **(position_plot_kwargs or {})) # changed to pandas.plot because the filtered positions were missing the end caps, and the default a.plot(...) resulted in connected lines which looked bad.
 
