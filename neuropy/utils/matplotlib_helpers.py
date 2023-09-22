@@ -759,7 +759,7 @@ def _subfn_build_epoch_region_label(xy, text, ax, **labels_kwargs):
     return ax.text(xy[0], y, text, **({'ha': 'center', 'va': 'top', 'family': 'sans-serif', 'size': 14, 'rotation': 0} | labels_kwargs)) # va="top" places it inside the box if it's aligned to the top
 
 # @function_attributes(short_name='draw_epoch_regions', tags=['epoch','matplotlib','helper'], input_requires=[], output_provides=[], uses=['BrokenBarHCollection'], used_by=[], creation_date='2023-03-28 14:23')
-def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors=("black",), alpha=0.25, labels_kwargs=None, defer_render=False, debug_print=False):
+def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors=("black",), alpha=0.25, labels_kwargs=None, defer_render=False, debug_print=False, **kwargs):
     """ plots epoch rectangles with customizable color, edgecolor, and labels on an existing matplotlib axis
     2022-12-14
 
@@ -821,7 +821,7 @@ def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors
     curr_span_height = curr_span_ymax-curr_span_ymin
     # xrange: list of (float, float) The sequence of (left-edge-position, width) pairs for each bar.
     # yrange: (lower-edge, height) 
-    epochs_collection = BrokenBarHCollection(xranges=epoch_tuples, yrange=(curr_span_ymin, curr_span_height), facecolor=facecolor, alpha=alpha, edgecolors=edgecolors, linewidths=(1,)) # , offset_transform=curr_ax.transData
+    epochs_collection = BrokenBarHCollection(xranges=epoch_tuples, yrange=(curr_span_ymin, curr_span_height), facecolor=facecolor, alpha=alpha, edgecolors=edgecolors, linewidths=(1,), **kwargs) # , offset_transform=curr_ax.transData
     if debug_print:
         print(f'(curr_span_ymin, curr_span_ymax): ({curr_span_ymin}, {curr_span_ymax}), epoch_tuples: {epoch_tuples}')
     curr_ax.add_collection(epochs_collection)
