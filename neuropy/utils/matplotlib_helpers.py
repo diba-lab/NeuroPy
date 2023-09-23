@@ -708,6 +708,8 @@ def plot_position_curves_figure(position_obj, include_velocity=True, include_acc
     ax0.set_ylabel('pos_x')
     out_axes_list.append(ax0)
     
+    prev_axis = ax0
+
     if include_velocity:
         ax1 = fig.add_subplot(gs[1])
         # ax1.plot(position_obj.time, pos_df['velocity_x'], 'grey')
@@ -716,6 +718,9 @@ def plot_position_curves_figure(position_obj, include_velocity=True, include_acc
         ax1.set_ylabel('Velocity_x')
         ax0.set_xticklabels([]) # this is intensionally ax[i-1], as we want to disable the tick labels on above plots        
         out_axes_list.append(ax1)
+        # share x axis
+        ax1.sharex(prev_axis)
+        prev_axis = ax1
 
     if include_accel:  
         ax2 = fig.add_subplot(gs[2])
@@ -726,10 +731,13 @@ def plot_position_curves_figure(position_obj, include_velocity=True, include_acc
         ax2.set_ylabel('Higher Order Terms')
         ax1.set_xticklabels([]) # this is intensionally ax[i-1], as we want to disable the tick labels on above plots
         out_axes_list.append(ax2)
-    
+        # share x axis
+        ax2.sharex(prev_axis)
+        prev_axis = ax2
+
     # Shared:
     # ax0.get_shared_x_axes().join(ax0, ax1)
-    ax0.get_shared_x_axes().join(*out_axes_list)
+    # ax0.get_shared_x_axes().join(*out_axes_list) # this was removed for some reason! AttributeError: 'GrouperView' object has no attribute 'join'
     ax0.set_xticklabels([])
     ax0.set_xlim([position_obj.time[0], position_obj.time[-1]])
 
