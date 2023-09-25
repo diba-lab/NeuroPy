@@ -20,7 +20,7 @@ class Pf1D(core.Ratemap):
         epochs: core.Epoch = None,
         frate_thresh=1.0,
         speed_thresh=3,
-        grid_bin=1,
+        grid_bin=5,
         sigma=1,
     ):
         """computes 1d place field using linearized coordinates. It always computes two place maps with and
@@ -113,7 +113,9 @@ class Pf1D(core.Ratemap):
         spk_t = [spk_t[_] for _ in frate_thresh_indx]
         spk_pos = [spk_pos[_] for _ in frate_thresh_indx]
 
-        super().__init__(tuning_curves=tuning_curve, xbin=xbin, neuron_ids=neuron_ids)
+        super().__init__(
+            tuning_curves=tuning_curve, coords=xbin[:-1], neuron_ids=neuron_ids
+        )
         self.ratemap_spiketrains = spk_t
         self.ratemap_spiketrains_pos = spk_pos
         self.occupancy = occupancy
@@ -172,7 +174,6 @@ class Pf1D(core.Ratemap):
             axphase.set_ylabel(r"$\theta$ Phase")
 
         if ax is None:
-
             if subplots is None:
                 _, gs = plotting.Fig().draw(grid=(1, 1), size=(10, 5))
                 ax = plt.subplot(gs[0])
@@ -204,7 +205,6 @@ class Pf1D(core.Ratemap):
         return plotting.plot_ratemaps()
 
     def plot_ratemaps_raster(self):
-
         _, ax = plt.subplots()
         order = self.get_sort_order(by="index")
         spiketrains_pos = [self.ratemap_spiketrains_pos[i] for i in order]
@@ -226,7 +226,6 @@ class Pf2D:
         grid_bin=1,
         sigma=1,
     ):
-
         """Calculates 2D placefields
         Parameters
         ----------
@@ -269,7 +268,7 @@ class Pf2D:
         diff_posx = np.diff(x)
         diff_posy = np.diff(y)
 
-        speed = np.sqrt(diff_posx ** 2 + diff_posy ** 2) / (1 / trackingRate)
+        speed = np.sqrt(diff_posx**2 + diff_posy**2) / (1 / trackingRate)
 
         speed = smooth_(speed)
 

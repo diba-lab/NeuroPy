@@ -5,7 +5,6 @@ from .datawriter import DataWriter
 
 class Shank:
     def __init__(self) -> None:
-
         self._x = None
         self._y = None
         self._connected = None
@@ -129,7 +128,6 @@ class Shank:
 
 class Probe:
     def __init__(self, shanks, shank_pitch=(150, 0)) -> None:
-
         if isinstance(shanks, Shank):
             shanks = [shanks]
 
@@ -192,7 +190,6 @@ class Probe:
         return self._data["connected"].values
 
     def add_shanks(self, shanks: Shank, shank_pitch=(150, 0)):
-
         if isinstance(shanks, list):
             assert np.all([_.__class__.__name__ == "Shank" for _ in shanks])
         else:
@@ -218,7 +215,6 @@ class Probe:
 
 class ProbeGroup(DataWriter):
     def __init__(self, metadata=None) -> None:
-
         super().__init__(metadata=metadata)
         self._data = pd.DataFrame(
             {
@@ -329,7 +325,7 @@ class ProbeGroup(DataWriter):
             [probe_ids[np.where(channel_ids == _)[0]] for _ in channel_id]
         ).astype("int")
 
-    def get_probe(self):
+    def get_probe(self, probe_id):
         pass
 
     def get_connected_channels(self, groupby="shank"):

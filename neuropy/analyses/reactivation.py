@@ -9,7 +9,7 @@ import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 from typing import Union
-from ..utils.mathutil import getICA_Assembly, parcorr_mult
+from ..utils.mathutil import getICA_Assembly
 from .. import core
 from ..plotting import Fig
 
@@ -193,7 +193,6 @@ class ExplainedVariance(core.DataWriter):
         color_rev="#05d69e",
         show_ignore_epochs=True,
     ):
-
         if ax is None:
             fig, ax = plt.subplots()
         # ---- plot rev first ---------
@@ -254,20 +253,6 @@ class ExplainedVariance(core.DataWriter):
 class NeuronEnsembles(core.DataWriter):
     """[summary]
 
-    Parameters
-    ----------
-    neurons : [type]
-        [description]
-    t_start : float
-        start of the ensemble detection period
-    t_stop : float
-        end of the ensemble detection period
-    bin_size : float
-        bining for calculating spike counts
-    frate_thresh : float
-        exclude neurons with firing rate below or equal to this number
-    ignore_epochs: core.Epoch
-
     References
     ----------
     1) van de Ven, G. M., Trouche, S., McNamara, C. G., Allen, K., & Dupret, D. (2016). Hippocampal offline reactivation consolidates recently formed cell assembly patterns during sharp wave-ripples. Neuron, 92(5), 968-974.Gido M. van de Ven et al. 2016
@@ -276,43 +261,64 @@ class NeuronEnsembles(core.DataWriter):
     def __init__(
         self,
         neurons: core.Neurons,
-        t_start=None,
-        t_stop=None,
+        epochs: core.Epoch,
         bin_size=0.250,
-        frate_thresh=0,
-        ignore_epochs: core.Epoch = None,
+        # ignore_epochs: core.Epoch = None,
+        verbose=True,
     ):
+        """
+
+        Parameters
+        ----------
+        neurons : core.Neurons
+            neurons to use for ensemble detection
+        epochs : core.Epoch
+            epochs with which ensembles are detected
+        bin_size : float, optional
+            binning size for spike counts, by default 0.250
+        verbose : bool, optional
+            _description_, by default True
+        """
         super().__init__()
 
-        # ---- selecting neurons which are above frate_thresh ------
-        frate = neurons.time_slice(t_start, t_stop).firing_rate
-        neuron_indx_thresh = frate > frate_thresh
+        self.bin_size = bin_size
+        # self.ignore_epochs = ignore_epochs
+        self.neurons, self.epochs = self._validate(neurons, epochs)
+        self.weights = self._estimate_weights()
+        self.verbose = verbose
 
+    def _validate(self, neurons, epochs):
+        assert isinstance(neurons, core.Neurons), "neurons is not of type core.Neurons"
+        assert isinstance(epochs, core.Epoch), "epochs is not of type core.Epoch"
+
+        # ---- removing neurons which do not fire during the epochs ------
+        frate = np.zeros(len(neurons))
+        for e in epochs.itertuples():
+            frate += neurons.time_slice(e.start, e.stop).firing_rate
+
+        neuron_indx_thresh = frate > 0
         if len(np.argwhere(neuron_indx_thresh)) < neurons.n_neurons:
             print(
-                f"Based on frate_thresh, excluded neuron_ids: {neurons.neuron_ids[~neuron_indx_thresh]}"
+                f"Removed neurons with no spikes within provided epochs, neuron_ids : {neurons.neuron_ids[~neuron_indx_thresh]}"
             )
-        self.neurons = neurons[neuron_indx_thresh]
 
-        self.t_start = t_start
-        self.t_stop = t_stop
-        self.bin_size = bin_size
-        self.ignore_epochs = ignore_epochs
-        self.ensembles = None
-        self._estimate_ensembles()
+            neurons = neurons[neuron_indx_thresh]
 
-    def _estimate_ensembles(self):
-        """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights"""
+        return neurons, epochs
 
-        template = (
-            self.neurons.time_slice(self.t_start, self.t_stop)
-            .get_binned_spiketrains(bin_size=self.bin_size)
-            .spike_counts
-        )
+    def _estimate_weights(self):
+        """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distribution vinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights"""
+        template = []
+        for e in self.epochs.itertuples():
+            template.append(
+                self.neurons.time_slice(e.start, e.stop)
+                .get_binned_spiketrains(bin_size=self.bin_size)
+                .spike_counts
+            )
+        template = np.hstack(template)
+
         n_spikes = np.sum(template, axis=1)
-        assert np.all(
-            n_spikes > 0
-        ), f"You have neurons with no spikes between {self.t_start,self.t_stop} seconds."
+        assert np.all(n_spikes > 0), f"Neurons with no spikes within epochs"
 
         zsc_template = stats.zscore(template, axis=1)
 
@@ -332,20 +338,40 @@ class NeuronEnsembles(core.DataWriter):
         max_weight = V[np.argmax(np.abs(V), axis=0), range(V.shape[1])]
         V[:, np.where(max_weight < 0)[0]] = (-1) * V[:, np.where(max_weight < 0)[0]]
         V /= np.sqrt(np.sum(V**2, axis=0))  # making sum of squares=1
-
-        self.weights = V
+        return V
 
     @property
     def n_ensembles(self):
         return self.weights.shape[1]
 
-    def get_activation(self, t_start=None, t_stop=None, bin_size=0.250):
+    def get_activation(self, epochs: core.Epoch, bin_size=0.250):
+        """Calculates activation strength of ensembles in given epochs. If number of epochs is more than one then activation strengths are calculated on combined binned spikecounts across epochs.
+
+        Parameters
+        ----------
+        epochs : core.Epoch
+            activation strength calculation is restricted to these epochs
+        bin_size : float, optional
+            bin size for spike counts, by default 0.250
+
+        Returns
+        -------
+        array
+            activation strength of the ensembles (n_neurons x n_bins)
+        time
+            time corresponding to each bin (n_bins x 0)
+        """
 
         W = self.weights
-        act_binspk = self.neurons.time_slice(t_start, t_stop).get_binned_spiketrains(
-            bin_size=bin_size
-        )
-        spkcnts = act_binspk.spike_counts
+        spkcnts, time = [], []
+        for e in epochs.itertuples():
+            e_binspk = self.neurons.time_slice(e.start, e.stop).get_binned_spiketrains(
+                bin_size=bin_size
+            )
+            spkcnts.append(e_binspk.spike_counts)
+            time.append(e_binspk.time)
+        spkcnts = np.hstack(spkcnts)
+        time = np.concatenate(time)
 
         activation = []
         for i in range(W.shape[1]):
@@ -360,14 +386,9 @@ class NeuronEnsembles(core.DataWriter):
                 )
             )
 
-        # self.activation = np.asarray(activation)
-        # self.activation_time = act_binspk.time
-        # self.activation_bin_size = bin_size
-
-        return np.asarray(activation), act_binspk.time
+        return np.asarray(activation), time
 
     def plot_activation(self, time, activation, nrows=None, ncols=None):
-
         if nrows is None:
             nrows, ncols = self.n_ensembles // 2, 2
 
