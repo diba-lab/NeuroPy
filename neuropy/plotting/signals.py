@@ -85,7 +85,9 @@ def plot_spectrogram(
     return ax
 
 
-def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1, axlabel=False):
+def plot_signal_traces(
+    signal: Signal, ax=None, pad=0.2, color="k", lw=1, axlabel=False
+):
 
     n_channels = signal.n_channels
     sig = signal.traces
@@ -106,7 +108,9 @@ def plot_signal_traces(signal: Signal, ax=None, pad=0.2, color="k", lw=1, axlabe
     for i, trace in enumerate(sig):
         ax.plot(signal.time, trace, color=colors[i], lw=lw)
 
-    channel_id = [signal.channel_id] if isinstance(signal.channel_id, int) else signal.channel_id
+    channel_id = (
+        [signal.channel_id] if isinstance(signal.channel_id, int) else signal.channel_id
+    )
     ax.set_yticks(pad_vals)
     ax.set_yticklabels(channel_id)
     if not axlabel:
@@ -127,3 +131,16 @@ def plot_signal_heatmap(signal: Signal, ax=None, **kwargs):
     ax.pcolormesh(
         signal.time, signal.channel_id, signal.traces, shading="gouraud", **kwargs
     )
+
+
+def plot_signal_w_epochs(signal, channel, epochs, ax=None):
+    """Plot a trace from a single electrode with epochs overlying it for quick sanity check"""
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=(12, 3))
+    ax.plot(signal.time, signal.traces[channel])
+
+    for start, stop in zip(epochs.starts, epochs.stops):
+        ax.axvspan(start, stop, color=[0, 0.3, 0, 0.5])
+
+    return ax

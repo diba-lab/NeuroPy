@@ -278,7 +278,7 @@ class FourierSg(Spectrogram):
         multitaper=False,
         sigma=None,
     ) -> None:
-        """Forier spectrogram on core.Signal object
+        """Fourier spectrogram on core.Signal object
 
         Parameters
         ----------
@@ -307,7 +307,7 @@ class FourierSg(Spectrogram):
             trace = stats.zscore(trace)
 
         if multitaper:
-            sxx, freqs, t = self._ft(
+            sxx, f, t = self._ft(
                 trace, signal.sampling_rate, window, overlap, mt=True
             )
         else:

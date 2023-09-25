@@ -18,6 +18,7 @@ def _detect_freq_band_epochs(
     fs,
     sigma,
     ignore_times=None,
+    return_power=False,
 ):
     """Detects epochs of high power in a given frequency band
 
@@ -102,7 +103,7 @@ def _detect_freq_band_epochs(
 
     # ------duration thresh---------
     epochs = epochs.duration_slice(min_dur=mindur, max_dur=maxdur)
-    print(f"{len(epochs)} epochs reamining with durations within ({mindur},{maxdur})")
+    print(f"{len(epochs)} epochs remaining with durations within ({mindur},{maxdur})")
 
     epochs.metadata = {
         "params": {
@@ -114,8 +115,10 @@ def _detect_freq_band_epochs(
             # "mergedist": mergedist,
         },
     }
-
-    return epochs
+    if not return_power:
+        return epochs
+    else:
+        return epochs, power
 
 
 def detect_hpc_delta_wave_epochs(
@@ -377,6 +380,7 @@ def detect_theta_epochs(
     sigma=0.125,
     edge_cutoff=-0.25,
     ignore_epochs: Epoch = None,
+    return_power=False,
 ):
     if probegroup is None:
         selected_chan = signal.channel_id
@@ -418,10 +422,18 @@ def detect_theta_epochs(
         ignore_times=ignore_times,
         sigma=sigma,
         edge_cutoff=edge_cutoff,
+        return_power=return_power,
     )
-    epochs = epochs.shift(dt=signal.t_start)
-    epochs.metadata = dict(channels=selected_chan)
-    return epochs
+
+    if not return_power:
+        epochs = epochs.shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs
+    else:
+        theta_power = epochs[1]
+        epochs = epochs[0].shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs, theta_power
 
 
 def detect_spindle_epochs(

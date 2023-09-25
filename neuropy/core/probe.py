@@ -272,6 +272,11 @@ class ProbeGroup(DataWriter):
             channels = []
             for i in prb.groups.keys():
                 channels.append(prb.get_group(i).channel_id.values)
+        if groupby == "probe":
+            prb = prb.groupby("probe_id")
+            channels = []
+            for i in prb.groups.keys():
+                channels.append(prb.get_group(i).channel_id.values)
 
         return np.array(channels, dtype="object")
 

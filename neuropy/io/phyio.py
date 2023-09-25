@@ -87,7 +87,7 @@ class PhyIO:
 
             self.spiketrains = np.array(spiketrains, dtype="object")
             self.clu_ids = np.array(clu_id, dtype="object")
-            self.tempate_id = np.array(template_id)
+            self.template_id = np.array(template_id)
             self.waveforms = np.array(template_waveforms)
             self.waveforms_amplitude = np.asarray(template_amplitudes, dtype="object")
             self.peak_waveforms = [

@@ -2,9 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-from neuropy.utils.misc import interp_nans, find_nearest, arg_find_nearest
-from pathlib import Path
-from copy import deepcopy, copy
+from neuropy.utils.misc import interp_nans, arg_find_nearest
+from copy import deepcopy
 
 
 class Raster:
@@ -720,7 +719,7 @@ def plot_pe_traces(
 
 
 if __name__ == "__main__":
-    import session_directory as sd
+    from tracefc.io import session_directory as sd
     from neuropy.io.minianio import MinianIO
     from neuropy.analyses.trace_fc import load_events_from_csv
 

@@ -5,8 +5,6 @@ from scipy import stats
 from tqdm import tqdm
 import scipy.signal as sg
 from typing import Union
-from numpy.typing import NDArray
-from .placefields import Pf1D, Pf2D
 from .. import core
 from .. import plotting
 

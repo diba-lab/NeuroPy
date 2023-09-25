@@ -1,10 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.ndimage import gaussian_filter1d
-import scipy.signal as sg
 from neuropy.core.datawriter import DataWriter
-from copy import deepcopy
 from skimage import feature
 from skimage.measure import regionprops
 from pathlib import Path
@@ -807,7 +804,7 @@ def detect_roi_centroid(roi_binary, **kwargs):
 
 
 if __name__ == "__main__":
-    import session_directory as sd
+    from tracefc.io import session_directory as sd
 
     # from neuropy.io.minianio import MinianIO
     #
