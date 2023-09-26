@@ -4,8 +4,10 @@ import pandas as pd
 from sklearn.decomposition import FastICA, PCA
 from scipy import stats
 from hmmlearn.hmm import GaussianHMM
+from sklearn.mixture import GaussianMixture
 from .ccg import correlograms
 import scipy.signal as sg
+import typing
 
 
 def choose_elementwise(x, y, condition):
@@ -72,68 +74,6 @@ def cdf(x, bins):
     return np.cumsum(np.histogram(x, bins, density=True)[0])
 
 
-def partialcorr(x, y, z):
-    """
-    correlation between x and y , with controlling for z
-    """
-    # convert them to pandas series
-    x = pd.Series(x)
-    y = pd.Series(y)
-    z = pd.Series(z)
-    # xyz = pd.DataFrame({"x-values": x, "y-values": y, "z-values": z})
-
-    xy = x.corr(y)
-    xz = x.corr(z)
-    zy = z.corr(y)
-
-    parcorr = (xy - xz * zy) / (np.sqrt(1 - xz**2) * np.sqrt(1 - zy**2))
-
-    return parcorr
-
-
-def parcorr_mult(x, y, z):
-    """
-    correlation between multidimensional x and y , with controlling for multidimensional z
-
-    """
-
-    parcorr = np.zeros((len(z), len(y), len(x)))
-    for i, x_ in enumerate(x):
-        for j, y_ in enumerate(y):
-            for k, z_ in enumerate(z):
-                parcorr[k, j, i] = partialcorr(x_, y_, z_)
-
-    revcorr = np.zeros((len(z), len(y), len(x)))
-    for i, x_ in enumerate(x):
-        for j, y_ in enumerate(y):
-            for k, z_ in enumerate(z):
-                revcorr[k, j, i] = partialcorr(x_, z_, y_)
-
-    return parcorr, revcorr
-
-
-# TODO improve the partial correlation calucalation maybe use arrays instead of list
-def parcorr_muglt(x, y, z):
-    """
-    correlation between multidimensional x and y , with controlling for multidimensional z
-
-    """
-
-    parcorr = np.zeros(z.shape[0], y.shape[0], x.shape[0])
-    for i, x_ in enumerate(x):
-        for j, y_ in enumerate(y):
-            for k, z_ in enumerate(z):
-                parcorr[k, j, i] = partialcorr(x_, y_, z_)
-
-    revcorr = np.zeros((len(z), len(y), len(x)))
-    for i, x_ in enumerate(x):
-        for j, y_ in enumerate(y):
-            for k, z_ in enumerate(z):
-                revcorr[k, j, i] = partialcorr(x_, z_, y_)
-
-    return parcorr, revcorr
-
-
 def getICA_Assembly(x):
     """extracting statisticaly independent components from significant eigenvectors as detected using Marcenko-Pasteur distributionvinput = Matrix  (m x n) where 'm' are the number of cells and 'n' time bins ICA weights thus extracted have highiest weight positive (as done in Gido M. van de Ven et al. 2016) V = ICA weights for each neuron in the coactivation (weight having the highiest value is kept positive) M1 =  originally extracted neuron weights
 
@@ -162,7 +102,6 @@ def getICA_Assembly(x):
 
 
 def threshPeriods(arr, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
-
     ThreshSignal = np.diff(np.where(arr > lowthresh, 1, 0))
     start = np.where(ThreshSignal == 1)[0]
     stop = np.where(ThreshSignal == -1)[0]
@@ -226,7 +165,6 @@ def _unpack_args(values, fs=1):
 
 
 def thresh_epochs(arr: np.ndarray, thresh, length, sep=0, boundary=0, fs=1):
-
     hmin, hmax = _unpack_args(thresh)  # does not need fs
     lmin, lmax = _unpack_args(length, fs=fs)
     sep = sep * fs + 1e-6
@@ -244,7 +182,6 @@ def thresh_epochs(arr: np.ndarray, thresh, length, sep=0, boundary=0, fs=1):
     ind_delete = []
     for i in range(n_epochs - 1):
         if (starts[i + 1] - stops[i]) < sep:
-
             # stretch the second epoch to cover the range of both epochs
             starts[i + 1] = min(starts[i], starts[i + 1])
             stops[i + 1] = max(stops[i], stops[i + 1])
@@ -297,7 +234,107 @@ def contiguous_regions(condition):
     return idx
 
 
-def hmmfit1d(Data, n_comp=2, n_iter=50):
+def schmitt_threshold(arr: np.array, low_thresh: float, high_thresh: float):
+    """Detect high and low states in an array using two thresholds (Schmitt trigger). Works best for bimodal data.
+
+    Parameters
+    ----------
+    arr : np.array
+        array for threshold detection
+    low_thresh : float
+        low threshold
+    high_thresh : float
+        high threshold
+
+    Returns
+    -------
+    logical array
+        array of 0(low state) and 1(high state)
+    """
+    states = np.zeros_like(arr)
+    first_low = np.where(arr <= low_thresh)[0][0]
+    first_high = np.where(arr >= high_thresh)[0][0]
+    first_ind = np.min([first_low, first_high])
+    states[:first_ind] = np.argmin([first_low, first_high])
+    current_state = states[first_ind - 1]
+
+    for i in range(first_ind, len(arr)):
+        if arr[i] >= high_thresh:
+            current_state = 1
+        if arr[i] <= low_thresh:
+            current_state = 0
+
+        states[i] = current_state
+
+    return states
+
+
+def bimodal_classify(
+    arr,
+    ret_params=False,
+    threshold_type: typing.Literal["default", "schmitt"] = "default",
+):
+    """Gaussian classification of features into two components.
+
+    Parameters
+    ----------
+    arr : 1D or 2D array
+        features to be classified.
+    ret_params : bool, optional
+        Gaussian fit parameters are retured if true , by default False
+    plot : bool, optional
+        _description_, by default False
+    ax : _type_, optional
+        _description_, by default None
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    assert arr.ndim < 2, "Only 1D data accepted"
+
+    clus = GaussianMixture(
+        n_components=2, init_params="k-means++", max_iter=200, n_init=10
+    ).fit(arr[:, None])
+    labels = clus.predict(arr[:, None])
+    clus_means = clus.means_.squeeze()
+
+    # --- order cluster labels by increasing mean (low=0, high=1) ------
+    sort_idx = np.argsort(clus_means)
+    label_map = np.zeros_like(sort_idx)
+    label_map[sort_idx] = np.arange(len(sort_idx))
+    fixed_labels = label_map[labels.astype("int")]
+    means = clus_means[sort_idx]
+    covs = clus.covariances_.squeeze()[sort_idx]
+    weights = clus.weights_[sort_idx]
+
+    if threshold_type == "schmitt":
+        bins = np.linspace(arr.min(), arr.max(), 200)
+        full_fit = np.zeros_like(bins)
+        for i in range(2):
+            full_fit += stats.norm.pdf(bins, means[i], np.sqrt(covs[i])) * weights[i]
+
+        bins_between_peaks = (bins > means[0]) & (bins < means[1])
+        thresh_ind = np.argmin(full_fit[bins_between_peaks])
+        thresh_val = bins[bins_between_peaks][thresh_ind]
+        low_thresh = (means[0] + thresh_val) / 2
+        high_thresh = (means[1] + thresh_val) / 2
+
+        fixed_labels = schmitt_threshold(arr, low_thresh, high_thresh)
+
+    if ret_params:
+        params_dict = dict(
+            weights=weights,
+            means=means,
+            covariances=covs,
+        )
+        return fixed_labels, params_dict
+    else:
+        return fixed_labels
+
+
+def hmmfit1d(Data, ret_means=False, **kwargs):
     # hmm states on 1d data and returns labels with highest mean = highest label
     flag = None
     if np.isnan(Data).any():
@@ -309,7 +346,15 @@ def hmmfit1d(Data, n_comp=2, n_iter=50):
         flag = 1
 
     Data = (np.asarray(Data)).reshape(-1, 1)
-    model = GaussianHMM(n_components=n_comp, n_iter=n_iter).fit(Data)
+    models = []
+    scores = []
+    for i in range(10):
+        model = GaussianHMM(n_components=2, n_iter=10, random_state=i, **kwargs)
+        model.fit(Data)
+        models.append(model)
+        scores.append(model.score(Data))
+    model = models[np.argmax(scores)]
+
     hidden_states = model.predict(Data)
     mus = np.squeeze(model.means_)
     sigmas = np.squeeze(np.sqrt(model.covars_))
@@ -321,7 +366,7 @@ def hmmfit1d(Data, n_comp=2, n_iter=50):
     transmat = transmat[idx, :][:, idx]
 
     state_dict = {}
-    states = [i for i in range(5)]
+    states = [i for i in range(4)]
     for i in idx:
         state_dict[idx[i]] = states[i]
 
@@ -329,15 +374,16 @@ def hmmfit1d(Data, n_comp=2, n_iter=50):
     relabeled_states[:2] = [0, 0]
     relabeled_states[-2:] = [0, 0]
 
-    hmmlabels = None
     if flag:
-
         hmmlabels[non_nan_indices] = relabeled_states
 
     else:
         hmmlabels = relabeled_states
 
-    return hmmlabels
+    if ret_means:
+        return hmmlabels, mus
+    else:
+        return hmmlabels
 
 
 def eventpsth(ref, event, fs, quantparam=None, binsize=0.01, window=1, nQuantiles=1):

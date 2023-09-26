@@ -1,6 +1,7 @@
 import numpy as np
 from pathlib import Path
 import datetime
+import pandas as pd
 
 
 class DataWriter:
@@ -40,10 +41,16 @@ class DataWriter:
         d = dict()
         attrs = self.__dict__.keys()
         for k in attrs:
-            if k.startswith("_"):
-                d[k[1:]] = getattr(self, k)
-            else:
-                d[k] = getattr(self, k)
+            key_data = getattr(self, k)
+
+            # To avoid pickling error when reading pandas object from .npy file
+            if isinstance(key_data, pd.DataFrame):
+                key_data = key_data.to_dict()
+
+            k = k[1:] if k.startswith("_") else k
+
+            d[k] = key_data
+
         return d
 
     def save(self, fp):

@@ -1,4 +1,4 @@
-name: NeuroPy3
+name: NeuroPy
 channels:
     - conda-forge
 dependencies:

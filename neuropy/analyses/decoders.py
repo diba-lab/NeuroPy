@@ -181,7 +181,7 @@ class Decode1d:
         self.posterior = None
         self.neurons = neurons
         self.bin_size = bin_size
-        self.pos_bin_size = ratemap.xbin_size
+        self.pos_bin_size = ratemap.x_binsize
         self.decoded_position = None
         self.epochs = epochs
         self.slideby = slideby
@@ -229,14 +229,12 @@ class Decode1d:
         return prob
 
     def _estimate(self):
-
         """Estimates position within each bin"""
 
         tuning_curves = self.ratemap.tuning_curves
-        bincntr = self.ratemap.xbin_centers
+        bincntr = self.ratemap.x
 
         if self.epochs is not None:
-
             spkcount, nbins = self.neurons.get_spikes_in_epochs(
                 self.epochs, self.bin_size, self.slideby
             )
@@ -318,7 +316,7 @@ class Decode1d:
             assert self.posterior is not None, "No posteriors found"
             posteriors = self.posterior
 
-        neighbours = int(margin / self.ratemap.xbin_size)
+        neighbours = int(margin / self.ratemap.x_binsize)
 
         results = Parallel(n_jobs=self.n_jobs)(
             delayed(radon_transform)(
@@ -384,7 +382,6 @@ class Decode1d:
 
     @property
     def percentile_score(self):
-
         return np.array(
             [
                 stats.percentileofscore(
@@ -421,7 +418,6 @@ class Decode1d:
         n_neurons = self.neurons.n_neurons
 
         for i, arr in enumerate(arrs):
-
             t_start = self.epochs[posterior_ind[i]].flatten()[0]
             score = self.score[posterior_ind[i]]
 
@@ -462,10 +458,9 @@ class Decode1d:
         zsc_tuning = stats.zscore(self.ratemap.tuning_curves, axis=1)
         sort_ind = np.argsort(np.argmax(zsc_tuning, axis=1))
         n_neurons = self.neurons.n_neurons
-        neighbours = int(self.decode_margin / self.ratemap.xbin_size)
+        neighbours = int(self.decode_margin / self.ratemap.x_binsize)
 
         for i, arr in enumerate(arrs):
-
             t_start = self.epochs[posterior_ind[i]].flatten()[0]
             score = self.score[posterior_ind[i]]
             velocity, intercept = (

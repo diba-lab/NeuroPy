@@ -3,7 +3,6 @@ from ..utils import mathutil
 import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
-from .signal import Signal
 from .datawriter import DataWriter
 
 
@@ -15,7 +14,6 @@ class Position(DataWriter):
         sampling_rate=120,
         metadata=None,
     ) -> None:
-
         if traces.ndim == 1:
             traces = traces.reshape(1, -1)
 
@@ -94,6 +92,15 @@ class Position(DataWriter):
         dt = 1 / self.sampling_rate
         speed = np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
         return np.hstack(([0], speed))
+
+    def get_smoothed(self, sigma):
+        dt = 1 / self.sampling_rate
+        smooth = lambda x: gaussian_filter1d(x, sigma=sigma / dt, axis=-1)
+        return Position(
+            traces=smooth(self.traces),
+            sampling_rate=self.sampling_rate,
+            t_start=self.t_start,
+        )
 
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "x": self.x})

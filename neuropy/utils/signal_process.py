@@ -18,24 +18,89 @@ try:
 except ImportError:
     from neuropy.plotting import Fig
     from neuropy import core
-from .. import core
 
-import seaborn as sns
-from scipy.interpolate import interp2d
 
-try:
-    from ..plotting import Fig
-    from .. import core
-except ImportError:
-    from neuropy.plotting import Fig
-    from neuropy import core
-from .. import core
+class Spectrogram(core.Signal):
+    def __init__(self, traces, freqs, sampling_rate=1, t_start=0) -> None:
+        super().__init__(traces, sampling_rate, t_start=t_start, channel_id=freqs)
+
+    @property
+    def freqs(self):
+        return self.channel_id
+
+    def time_slice(self, t_start=None, t_stop=None):
+        return super().time_slice(t_start=t_start, t_stop=t_stop)
+
+    def freq_slice(self, f1=None, f2=None):
+        if f1 is None:
+            f1 = self.freqs[0]
+
+        if f2 is None:
+            f2 = self.freqs[-1]
+
+        assert f1 >= self.freqs[0], "f1 should be greater than lowest frequency"
+        assert (
+            f2 <= self.freqs[-1]
+        ), "f2 should be lower than highest possible frequency"
+        assert f2 > f1, "f2 should be greater than f1"
+
+        ind = np.where((self.freqs >= f1) & (self.freqs <= f2))[0]
+        freqs = self.freqs[ind]
+
+        return Spectrogram(
+            traces=self.traces[ind],
+            freqs=freqs,
+            sampling_rate=self.sampling_rate,
+            t_start=self.t_start,
+        )
+
+    def mean_power(self):
+        return np.mean(self.traces, axis=0)
+
+    def get_band_power(self, f1=None, f2=None):
+        if f1 is None:
+            f1 = self.freqs[0]
+
+        if f2 is None:
+            f2 = self.freqs[-1]
+
+        assert f1 >= self.freqs[0], "f1 should be greater than lowest frequency"
+        assert (
+            f2 <= self.freqs[-1]
+        ), "f2 should be lower than highest possible frequency"
+        assert f2 > f1, "f2 should be greater than f1"
+
+        ind = np.where((self.freqs >= f1) & (self.freqs <= f2))[0]
+        band_power = np.mean(self.traces[ind, :], axis=0)
+        return band_power
+
+    def get_band_ratio(self, band1, band2):
+        assert len(band1) == 2, "band1 must have 2 frequencies"
+        assert len(band2) == 2, "band2 must have 2 frequencies"
+        assert np.diff(band1)[0] > 0, "band1: 2nd value should be greater"
+        assert np.diff(band2)[0] > 0, "band2: 2nd value should be greater"
+
+        return self.get_band_power(*band1) / self.get_band_power(*band2)
+
+    def get_noisy_spect_bool(self, thresh=5):
+        """Identifies indices which are noisy in a spectrogram. Time points are considered noisy if sum of the power across all frequencies exceeds threshold std or is zero.
+
+        Parameters
+        ----------
+        thresh: float
+            indices exceeding this are considered noisy
+
+        Returns
+        -------
+        Boolean array
+        """
+        spect_sum = self.traces.sum(axis=0)
+        return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
 
 
 class filter_sig:
     @staticmethod
     def bandpass(signal, lf, hf, fs=1250, order=3, ax=-1):
-
         if isinstance(signal, core.Signal):
             y = signal.traces
             nyq = 0.5 * signal.sampling_rate
@@ -56,7 +121,6 @@ class filter_sig:
 
     @staticmethod
     def highpass(signal, cutoff, fs=1250, order=6, ax=-1):
-
         if isinstance(signal, core.Signal):
             y = signal.traces
             nyq = 0.5 * signal.sampling_rate
@@ -115,34 +179,6 @@ class filter_sig:
 
         return yf
 
-    @staticmethod
-    def delta(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=0.5, hf=4, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def theta(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=4, hf=10, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def spindle(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=8, hf=16, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def slowgamma(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=25, hf=50, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def mediumgamma(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=60, hf=90, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def fastgamma(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=100, hf=140, fs=fs, order=order, ax=ax)
-
-    @staticmethod
-    def ripple(signal, fs=1250, order=3, ax=-1):
-        return filter_sig.bandpass(signal, lf=150, hf=240, fs=fs, order=order, ax=ax)
-
 
 def whiten(strain, interp_psd, dt):
     Nt = len(strain)
@@ -159,7 +195,7 @@ def whiten(strain, interp_psd, dt):
     return white_ht
 
 
-class WaveletSg(core.Spectrogram):
+class WaveletSg(Spectrogram):
     def __init__(
         self,
         signal: core.Signal,
@@ -222,7 +258,7 @@ class WaveletSg(core.Spectrogram):
 
         sigma = ncycles / (2 * np.pi * freqs)
         A = (sigma * np.sqrt(np.pi)) ** -0.5
-        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
+        real_part = np.exp(-(t_wavelet**2) / (2 * sigma**2))
         img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
         wavelets = A * real_part * img_part
 
@@ -231,7 +267,7 @@ class WaveletSg(core.Spectrogram):
         return np.abs(conv_val).astype("float32")
 
 
-class FourierSg(core.Spectrogram):
+class FourierSg(Spectrogram):
     def __init__(
         self,
         signal: core.Signal,
@@ -242,7 +278,7 @@ class FourierSg(core.Spectrogram):
         multitaper=False,
         sigma=None,
     ) -> None:
-        """Forier spectrogram on core.Signal object
+        """Fourier spectrogram on core.Signal object
 
         Parameters
         ----------
@@ -271,7 +307,7 @@ class FourierSg(core.Spectrogram):
             trace = stats.zscore(trace)
 
         if multitaper:
-            sxx, freqs, t = self._ft(
+            sxx, f, t = self._ft(
                 trace, signal.sampling_rate, window, overlap, mt=True
             )
         else:
@@ -320,7 +356,6 @@ class FourierSg(core.Spectrogram):
 
 
 def hilbertfast(arr, ax=-1):
-
     """inputs a signal does padding to next power of 2 for faster computation of hilbert transform
 
     Arguments:
@@ -458,7 +493,6 @@ class bicoherence:
         return bicoher
 
     def plot(self, index=None, ax=None, smooth=2, **kwargs):
-
         if index is None:
             bic = self.bicoher
         else:
@@ -549,7 +583,6 @@ class Csd:
         pass
 
     def plot(self, ax=None, smooth=3, plotLFP=False, **kwargs):
-
         if smooth is not None:
             csdmap = gaussian_filter(self.csdmap, sigma=smooth)
         else:
@@ -918,7 +951,6 @@ def psd_auc(signal: core.Signal, freq_band: tuple, window=10, overlap=5):
     fs = signal.sampling_rate
     aucChans = []
     for sig in signal.traces:
-
         f, pxx = sg.welch(
             stats.zscore(sig),
             fs=fs,
@@ -1020,7 +1052,6 @@ def irasa(
     win_sec=4,
     kwargs_welch=dict(average="median", window="hamming"),
 ):
-
     """
     Separate the aperiodic (= fractal, or 1/f) and oscillatory component of the
     power spectra of EEG data using the IRASA method.
@@ -1182,7 +1213,7 @@ def irasa(
 
         def func(t, a, b):
             # See https://github.com/fooof-tools/fooof
-            return a + np.log(t ** b)
+            return a + np.log(t**b)
 
         for y in np.atleast_2d(psd_aperiodic):
             y_log = np.log(y)
@@ -1195,7 +1226,7 @@ def irasa(
             slopes.append(popt[1])
             # Calculate R^2: https://stackoverflow.com/q/19189362/10581531
             residuals = y_log - func(freqs, *popt)
-            ss_res = np.sum(residuals ** 2)
+            ss_res = np.sum(residuals**2)
             ss_tot = np.sum((y_log - np.mean(y_log)) ** 2)
             r_squared.append(1 - (ss_res / ss_tot))
 
@@ -1220,7 +1251,6 @@ def plot_miniscope_noise(
     remove_disconnects=False,
     EWLnoise_range=(4835, 4855),
 ):
-
     assert isinstance(signal, core.Signal)
 
     f_full, Pxx_full, time = [], [], []
