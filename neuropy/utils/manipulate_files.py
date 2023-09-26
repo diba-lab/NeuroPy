@@ -6,6 +6,7 @@ import re
 import os
 import shutil
 import numpy as np
+import ipynbname
 
 
 def get_record_time_from_pathname(
@@ -85,6 +86,33 @@ def decrement_ncs_file_num(folder, decr_amount=1):
     file_num = np.array(file_num)
 
     ids = np.argsort(file_num)
+
+
+def save_notebook(
+    base_dir: str or Path,
+    save_name: str or None = None,
+    save_prepend: str or None = None,
+):
+    """Save a jupyter notebook to base directory noted. Make sure you save it beforehand! (Autosave should take care
+    of this, but please check.
+    :param: base_dir: directory to save to
+    :param save_name: name of notebook, if None uses existing name
+    :param save_prepend: if not None, save_prepend is added to the beginning of the notebook name"""
+
+    assert isinstance(save_name, (str, type(None)))
+    assert isinstance(save_prepend, (str, type(None)))
+
+    # Assemble/get save_name variables
+    nb_fname = ipynbname.name() if save_name is None else save_name
+    nb_path = Path(base_dir)
+    save_prepend = "" if save_prepend is None else save_prepend
+
+    # Create savename and save file
+    nb_copy_savename = nb_path / f"{save_prepend}{nb_fname}.ipynb"
+    shutil.copy(str(ipynbname.path()), str(nb_copy_savename))
+
+    # Spit it out for confirmation
+    print(f"{ipynbname.path()} saved to {nb_copy_savename}")
 
 
 if __name__ == "__main__":
