@@ -1,8 +1,10 @@
 from copy import deepcopy
 from typing import Dict, Optional, OrderedDict # PlacefieldSnapshot
 from attrs import define, field, filters, asdict, astuple, Factory
+import h5py
 import pandas as pd
 import numpy as np
+import xarray as xr
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
 from neuropy.analyses.placefields import PfND, PlacefieldComputationParameters
 from neuropy.core.epoch import Epoch
@@ -32,13 +34,13 @@ class PlacefieldSnapshot(HDFMixin):
     raw_occupancy_map: num_position_samples_occupancy
     raw_smoothed_occupancy_map: num_position_samples_smoothed_occupancy
     """
-    num_position_samples_occupancy: Optional[np.ndarray] = serialized_field()
-    num_position_samples_smoothed_occupancy: Optional[np.ndarray] = serialized_field()
-    seconds_occupancy: np.ndarray = serialized_field()
-    normalized_occupancy: Optional[np.ndarray] = serialized_field()
-    spikes_maps_matrix: np.ndarray = serialized_field()
-    smoothed_spikes_maps_matrix: Optional[np.ndarray] = serialized_field()
-    occupancy_weighted_tuning_maps_matrix: np.ndarray = serialized_field()
+    num_position_samples_occupancy: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_xbins')})
+    num_position_samples_smoothed_occupancy: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_xbins')})
+    seconds_occupancy: np.ndarray = serialized_field(metadata={'shape': ('n_xbins')})
+    normalized_occupancy: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_xbins')})
+    spikes_maps_matrix: np.ndarray = serialized_field(metadata={'shape': ('n_neurons', 'n_xbins')})
+    smoothed_spikes_maps_matrix: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_neurons', 'n_xbins')})
+    occupancy_weighted_tuning_maps_matrix: np.ndarray = serialized_field(metadata={'shape': ('n_neurons', 'n_xbins')})
     
     # def __init__(self, num_position_samples_occupancy, num_position_samples_smoothed_occupancy, seconds_occupancy, normalized_occupancy, spikes_maps_matrix, smoothed_spikes_maps_matrix, occupancy_weighted_tuning_maps_matrix):
     #     super(PlacefieldSnapshot, self).__init__()
@@ -102,7 +104,6 @@ class PlacefieldSnapshot(HDFMixin):
         copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix[included_indicies]
         copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix[included_indicies]
         return copy_snapshot
-
 
 
 @define(slots=False, repr=False)
@@ -946,6 +947,152 @@ class PfND_TimeDependent(PfND):
         # assert (active_pf_nD_dt.ratemap.spikes_maps == active_pf_nD.ratemap.spikes_maps).all(), f"active_pf_nD_dt.ratemap.spikes_maps: {active_pf_nD_dt.ratemap.spikes_maps}\nactive_pf_nD.ratemap.spikes_maps: {active_pf_nD.ratemap.spikes_maps}"
         assert np.isclose(active_pf_nD_dt.ratemap.spikes_maps, active_pf_nD.ratemap.spikes_maps).all(), f"active_pf_nD_dt.ratemap.spikes_maps: {active_pf_nD_dt.ratemap.spikes_maps}\nactive_pf_nD.ratemap.spikes_maps: {active_pf_nD.ratemap.spikes_maps}"
         
+
+
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
+            
+            included_key_names = ['spikes_df', 'position', 'epochs', 'config', 'position_srate', 'setup_on_init', 'compute_on_init',
+          '_save_intermediate_spikes_maps', '_filtered_pos_df', '_filtered_spikes_df',
+           'ndim', 'xbin', 'ybin', 'bin_info', 'last_t', 'historical_snapshots', 'fragile_linear_neuron_IDXs', 'n_fragile_linear_neuron_IDXs']
+
+        # print(f'to_dict(...): {list(self.__dict__.keys())}')
+        curr_snapshot_time, curr_snapshot_data = self.snapshot() # take a snapshot of the current state
+        # self._setup_time_varying() # reset completely before saving. Throw out everything
+        # Excluded from serialization: ['_included_thresh_neurons_indx', '_peak_frate_filter_function']
+        # filter_fn = filters.exclude(fields(PfND)._included_thresh_neurons_indx, int)
+        # [an_attr.name for an_attr in self.__attrs_attrs__]
+        # print(f'{[an_attr.name for an_attr in self.__attrs_attrs__]}')
+
+        # filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function", "_ratemap", "_ratemap_spiketrains", "_ratemap_spiketrains_pos"]
+        # if not hasattr(self, '_included_thresh_neurons_indx'):
+        #     self.reset()
+        # filter_fn = lambda attr, value: attr.name in included_key_names
+        # _out = asdict(self, recurse=False, filter=filter_fn) # serialize using attrs.asdict but exclude the listed properties
+        _out = {k:v for k,v in self.__dict__.items() if k in included_key_names}
+        
+        
+        """
+    
+        self.position.to_hdf(file_path=file_path, key=f'{key}/pos')
+        if self.epochs is not None:
+            self.epochs.to_hdf(file_path=file_path, key=f'{key}/epochs') #TODO 2023-07-30 11:13: - [ ] What if self.epochs is None?
+        else:
+            # if self.epochs is None
+            pass
+        self.spikes_df.spikes.to_hdf(file_path, key=f'{key}/spikes')
+        self.ratemap.to_hdf(file_path, key=f'{key}/ratemap')
+
+
+        # Do the dt specific ones:
+        #'_filtered_pos_df', '_filtered_spikes_df', 'xbin', 'ybin', 'bin_info', 'last_t', 'historical_snapshots', 'fragile_linear_neuron_IDXs', 'n_fragile_linear_neuron_IDXs'
+        snapshots_xarray: xr.DataArray = self.prepare_snapshots_for_export_as_xarray()
+        snapshots_np_array = snapshots_xarray.to_numpy() # .shape # (5104, 49, 112)
+        # Write the xr.DataArray to .h5 file:
+        # snapshots_xarray.to_netcdf(file_path, kwargs.get('mode', 'a'), group=f'{key}/snapshots', ) # "output/test_xr_DataArray.h5"
+        # snapshots_np_array
+
+        # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+        with h5py.File(file_path, 'r+') as f:
+            ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
+            group = f[key]
+
+            ## Assign by numpy array first:
+            group.create_dataset('snapshots_array', data=snapshots_np_array)
+            
+
+            group.attrs['position_srate'] = self.position_srate
+            group.attrs['ndim'] = self.ndim
+
+            # can't just set the dict directly
+            # group.attrs['config'] = str(self.config.to_dict())  # Store as string if it's a complex object
+            # Manually set the config attributes
+            config_dict = self.config.to_dict()
+            group.attrs['config/speed_thresh'] = config_dict['speed_thresh']
+            group.attrs['config/grid_bin'] = config_dict['grid_bin']
+            group.attrs['config/grid_bin_bounds'] = config_dict['grid_bin_bounds']
+            group.attrs['config/smooth'] = config_dict['smooth']
+            group.attrs['config/frate_thresh'] = config_dict['frate_thresh']
+            
+            # Do the dt-specific ones:
+            group.attrs['last_t'] = self.last_t
+            group.attrs['n_fragile_linear_neuron_IDXs'] = self.n_fragile_linear_neuron_IDXs
+
+
+
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "PfND":
+        """ Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pfnd_obj = PfND.read_hdf(hdf5_output_path, key='test_pfnd')
+            _reread_pfnd_obj
+        """
+        # Read DataFrames using pandas
+        position = Position.read_hdf(file_path, key=f'{key}/pos')
+        try:
+            epochs = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        except KeyError as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key.  'No object named test_pfnd/epochs in the file'
+            epochs = None
+        except Exception as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key
+            print(f'Unhandled exception {e}')
+            raise e
+        
+        spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
+
+        # Open the file with h5py to read attributes
+        with h5py.File(file_path, 'r') as f:
+            group = f[key]
+            position_srate = group.attrs['position_srate']
+            ndim = group.attrs['ndim'] # Assuming you'll use it somewhere else if needed
+
+            # Read the config attributes
+            config_dict = {
+                'speed_thresh': group.attrs['config/speed_thresh'],
+                'grid_bin': tuple(group.attrs['config/grid_bin']),
+                'grid_bin_bounds': tuple(group.attrs['config/grid_bin_bounds']),
+                'smooth': tuple(group.attrs['config/smooth']),
+                'frate_thresh': group.attrs['config/frate_thresh']
+            }
+
+        # Create a PlacefieldComputationParameters object from the config_dict
+        config = PlacefieldComputationParameters(**config_dict)
+
+        #TODO 2023-09-26 08:47: - [ ] Needs UPDATE for dt-version. This was copied literally from non-time dependent version
+
+
+        # Reconstruct the object using the from_config_values class method
+        return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
+    
+    
+    def prepare_snapshots_for_export_as_xarray(self) -> xr.DataArray:
+        """ exports all snapshots as an xarray """
+        
+
+
+        # post_update_times = active_extended_stats.pf_dt_sequential_surprise.post_update_times
+
+        snapshot_t_times = np.array(list(self.historical_snapshots.keys()), dtype=np.float64)
+        if self.ndim < 2:
+            pos_dim_labels = ("xbin", )
+        else:
+            pos_dim_labels = ("xbin", "ybin")
+
+        # occupancy_weighted_tuning_maps_over_time_arr = np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for timestamp_t, placefield_snapshot in self.historical_snapshots.items()]) # Concatenates so that the time is the first dimension
+        occupancy_weighted_tuning_maps_over_time_xr = xr.DataArray(np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for placefield_snapshot in self.historical_snapshots.values()]), dims=("snapshot_t", "neuron_idx", *pos_dim_labels), name="tuning_maps", coords={'snapshot_t': snapshot_t_times}) # , coords={"x": [10, 20]}
+        occupancy_weighted_tuning_maps_over_time_xr.attrs["long_name"] = "occupancy_weighted_tuning_maps"
+        occupancy_weighted_tuning_maps_over_time_xr.attrs["units"] = "spikes/sec"
+        occupancy_weighted_tuning_maps_over_time_xr.attrs["description"] = "The tuning maps for each cell normalized for their occupancy."
+        occupancy_weighted_tuning_maps_over_time_xr.attrs["random_attribute"] = 123
+        return occupancy_weighted_tuning_maps_over_time_xr
 
 
 
