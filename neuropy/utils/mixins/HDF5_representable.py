@@ -402,7 +402,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             _active_obj_dataset_values_dict = asdict(self, filter=hdf_dataset_fields_filter_fn, recurse=False)
         except AttributeError as err:
             # happens when the type of `self` is modified after a pickled version is saved. The unpickled result seems to be lacking the property and asdict fails
-            print(f'asdict(...) failed with error: {err}')
+            print(f'WARN: to_hdf(..., key: {key}, ...): \n\tasdict(...) failed with error: {err}')
             _active_obj_dataset_values_dict = asdict(self, filter=hdf_dataset_fields_filter_fn, recurse=False)
         except BaseException:
             raise
@@ -443,8 +443,8 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                 else:
                     ## field is not known to be hdf_serializable! It might not serialize correctly even if this method doesn't throw an error.
                     if debug_print:
-                        print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')
-                    print(f'WARNING: {a_field_key} is not custom serializable, but we will try HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
+                        print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')                    
+                        print(f'WARNING: {a_field_key} is not custom serializable, but we will try HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
 
 
                     # if the user set the "is_hdf_handled_custom" field, it will be handled in the overriden .to_hdf(...)
@@ -479,7 +479,8 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                             raise e
 
                     else:
-                        print(f'field "{a_field_name}" with key "{a_field_key}" has "is_hdf_handled_custom" set, meaning the inheritor from this class must handle it in the overriden method.')
+                        if debug_print:
+                            print(f'field "{a_field_name}" with key "{a_field_key}" has "is_hdf_handled_custom" set, meaning the inheritor from this class must handle it in the overriden method.')
 
 
             # Post serializing the dataset, set any hdf_metadata properties it might have:
