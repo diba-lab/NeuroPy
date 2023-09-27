@@ -29,7 +29,13 @@ class Spectrogram(core.Signal):
         return self.channel_id
 
     def time_slice(self, t_start=None, t_stop=None):
-        return super().time_slice(t_start=t_start, t_stop=t_stop)
+        spec_slice = super().time_slice(t_start=t_start, t_stop=t_stop)
+        return Spectrogram(
+            spec_slice.traces,
+            self.freqs,
+            sampling_rate=self.sampling_rate,
+            t_start=self.t_start,
+        )
 
     def freq_slice(self, f1=None, f2=None):
         if f1 is None:
@@ -258,7 +264,7 @@ class WaveletSg(Spectrogram):
 
         sigma = ncycles / (2 * np.pi * freqs)
         A = (sigma * np.sqrt(np.pi)) ** -0.5
-        real_part = np.exp(-(t_wavelet**2) / (2 * sigma**2))
+        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
         img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
         wavelets = A * real_part * img_part
 
@@ -307,9 +313,7 @@ class FourierSg(Spectrogram):
             trace = stats.zscore(trace)
 
         if multitaper:
-            sxx, f, t = self._ft(
-                trace, signal.sampling_rate, window, overlap, mt=True
-            )
+            sxx, f, t = self._ft(trace, signal.sampling_rate, window, overlap, mt=True)
         else:
             sxx, f, t = self._ft(trace, signal.sampling_rate, window, overlap)
 
@@ -1213,7 +1217,7 @@ def irasa(
 
         def func(t, a, b):
             # See https://github.com/fooof-tools/fooof
-            return a + np.log(t**b)
+            return a + np.log(t ** b)
 
         for y in np.atleast_2d(psd_aperiodic):
             y_log = np.log(y)
@@ -1226,7 +1230,7 @@ def irasa(
             slopes.append(popt[1])
             # Calculate R^2: https://stackoverflow.com/q/19189362/10581531
             residuals = y_log - func(freqs, *popt)
-            ss_res = np.sum(residuals**2)
+            ss_res = np.sum(residuals ** 2)
             ss_tot = np.sum((y_log - np.mean(y_log)) ** 2)
             r_squared.append(1 - (ss_res / ss_tot))
 
