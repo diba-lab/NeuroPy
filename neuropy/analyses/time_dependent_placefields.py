@@ -106,6 +106,23 @@ class PlacefieldSnapshot(HDFMixin):
         return copy_snapshot
 
 
+def prepare_snapshots_for_export_as_xarray(historical_snapshots: dict, ndim: int=1) -> xr.DataArray:
+	""" exports all snapshots as an xarray """
+	snapshot_t_times = np.array(list(historical_snapshots.keys()), dtype=np.float64)
+	if ndim < 2:
+		pos_dim_labels = ("xbin", )
+	else:
+		pos_dim_labels = ("xbin", "ybin")
+
+	# occupancy_weighted_tuning_maps_over_time_arr = np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for timestamp_t, placefield_snapshot in self.historical_snapshots.items()]) # Concatenates so that the time is the first dimension
+	occupancy_weighted_tuning_maps_over_time_xr = xr.DataArray(np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for placefield_snapshot in historical_snapshots.values()]), dims=("snapshot_t", "neuron_idx", *pos_dim_labels), name="tuning_maps", coords={'snapshot_t': snapshot_t_times}) # , coords={"x": [10, 20]}
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["long_name"] = "occupancy_weighted_tuning_maps"
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["units"] = "spikes/sec"
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["description"] = "The tuning maps for each cell normalized for their occupancy."
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["ndim"] = ndim
+	return occupancy_weighted_tuning_maps_over_time_xr
+
+
 @define(slots=False, repr=False)
 class PfND_TimeDependent(PfND):
     """ Time Dependent N-dimensional Placefields
@@ -1075,28 +1092,7 @@ class PfND_TimeDependent(PfND):
     
     def prepare_snapshots_for_export_as_xarray(self) -> xr.DataArray:
         """ exports all snapshots as an xarray """
-        
-
-
-        # post_update_times = active_extended_stats.pf_dt_sequential_surprise.post_update_times
-
-        snapshot_t_times = np.array(list(self.historical_snapshots.keys()), dtype=np.float64)
-        if self.ndim < 2:
-            pos_dim_labels = ("xbin", )
-        else:
-            pos_dim_labels = ("xbin", "ybin")
-
-        # occupancy_weighted_tuning_maps_over_time_arr = np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for timestamp_t, placefield_snapshot in self.historical_snapshots.items()]) # Concatenates so that the time is the first dimension
-        occupancy_weighted_tuning_maps_over_time_xr = xr.DataArray(np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for placefield_snapshot in self.historical_snapshots.values()]), dims=("snapshot_t", "neuron_idx", *pos_dim_labels), name="tuning_maps", coords={'snapshot_t': snapshot_t_times}) # , coords={"x": [10, 20]}
-        occupancy_weighted_tuning_maps_over_time_xr.attrs["long_name"] = "occupancy_weighted_tuning_maps"
-        occupancy_weighted_tuning_maps_over_time_xr.attrs["units"] = "spikes/sec"
-        occupancy_weighted_tuning_maps_over_time_xr.attrs["description"] = "The tuning maps for each cell normalized for their occupancy."
-        occupancy_weighted_tuning_maps_over_time_xr.attrs["random_attribute"] = 123
-        return occupancy_weighted_tuning_maps_over_time_xr
-
-
-
-
+        return prepare_snapshots_for_export_as_xarray(historical_snapshots=self.historical_snapshots, ndim=self.ndim)
 
 
 
