@@ -103,6 +103,61 @@ class Spectrogram(core.Signal):
         spect_sum = self.traces.sum(axis=0)
         return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
 
+    def get_pe_mean_spec(self, event_times, buffer_sec=(0.5, 0.5)):
+        """Get peri-event mean spectrogram
+
+        Parameters
+        ----------
+        event_times: ndarray of floats times of each event in seconds, will be time 0 in mean spectrogram
+
+        buffer_sec: tuple of floats defining amount of time before/after event to grab.
+
+        Returns
+        -------
+        Spectrogram class with traces = mean spectrogram and times ranging from -buffer_sec[0] to buffer_sec[1]
+        """
+
+        event_times = event_times.squeeze()
+        assert event_times.ndim == 1, "event_times must be broadcastable to ndim=1"
+
+        # Keep only events within time limits of recording
+        epoch_start_stops = event_times[:, None] + np.multiply(buffer_sec, (-1, 1))
+        keep_bool = (epoch_start_stops[:, 0] > self.t_start) & (
+            epoch_start_stops[:, 1] < self.t_stop
+        )
+        if np.sum(keep_bool) < len(event_times):
+            event_times = event_times[keep_bool]
+            print(
+                f"Events {np.where(~keep_bool)[0]} are outside of data range and were dropped"
+            )
+
+        sxx_list = []
+        ntime_bins = int(np.ceil(np.sum(buffer_sec) * self.sampling_rate))
+        for t_event in event_times:
+            start_time = t_event - buffer_sec[0]
+            stop_time = t_event + buffer_sec[1]
+            wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
+
+            # Add/remove one frame at end if array size doesn't match expected number of time bins
+            if len(wvlet_temp.time) != ntime_bins:
+                if len(wvlet_temp.time) == (ntime_bins + 1):
+                    stop_time -= 0.5 / self.sampling_rate
+                elif len(wvlet_temp.time) == (ntime_bins - 1):
+                    stop_time += 0.5 / self.sampling_rate
+                else:
+                    print("Error - time bins off by more than 1")
+                wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
+            sxx_list.append(wvlet_temp.traces)
+
+        sxx_mean = np.stack(sxx_list, axis=2).mean(axis=2)
+
+        return Spectrogram(
+            sxx_mean,
+            self.freqs,
+            sampling_rate=self.sampling_rate,
+            t_start=-buffer_sec[0],
+        )
+
 
 class filter_sig:
     @staticmethod
