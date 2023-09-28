@@ -9,6 +9,7 @@ from xml.etree import ElementTree
 import pandas as pd
 from datetime import datetime, timezone
 from dateutil import tz
+import matplotlib.pyplot as plt
 
 
 def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit"):
@@ -198,14 +199,15 @@ def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
     return dat_times.iloc[slice(0, None, int(SRdat / SRlfp))]
 
 
-def load_all_ttl_events(basepath: str or Path, sync: bool = False, **kwargs):
+def load_all_ttl_events(
+    basepath: str or Path, sanity_check_channel: int or None = None, **kwargs
+):
     """Loads TTL events from digital input port on an OpenEphys box or Intan Recording Controller in BINARY format.
     Assumes you have left the directory structure intact! Flexible - can load from just one recording or all recordings.
     Combines all events into one dataframe with datetimes.
 
     :param TTLpath: folder where TTL files live
-    :param sync: continuous data timestamps to use for alignment. False(default) = use 'timestamps.npy',
-    True = use 'synchronized_timestamps.npy'
+    :param sanity_check_channel: int or None (default), if not None specifies TTL channel to plot timestamps of
     :param kwargs: accepts all kwargs to load_ttl_events
     """
     basepath = Path(basepath)
@@ -226,11 +228,20 @@ def load_all_ttl_events(basepath: str or Path, sync: bool = False, **kwargs):
     times_list = []
     for ide, events in enumerate(events_all):
         times_list.append(events_to_datetime(events))
-        # NRK todo: start here 11/1/2021 - make a continuous running index here to match up with concatenated .dat files!
 
-    # NRK todo: add in recording # as a column for easy reference
+    ttl_df = pd.concat(times_list)
 
-    return pd.concat(times_list)
+    # Plot sanity check
+    if sanity_check_channel is not None:
+        assert isinstance(sanity_check_channel, int)
+        ts_plot = ttl_df[ttl_df["channel_states"].abs() == sanity_check_channel]
+        ttt = (ts_plot["datetimes"] - ts_plot["datetimes"].iloc[0]).values
+        _, ax = plt.subplots()
+        ax.plot(ttt)
+        ax.set_xlabel(f"TTL{sanity_check_channel} #")
+        ax.set_ylabel("Time elapsed from first TTL event (sec)")
+        ax.set_title("Sanity check - should be monotonically increasing!")
+    return ttl_df
 
 
 def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=True):
@@ -312,6 +323,56 @@ def events_to_datetime(events):
         sub_dict["event_name"] = event_names
 
     return pd.DataFrame.from_dict(sub_dict)
+
+
+def recording_events_to_combined_time(
+    event_df: pd.DataFrame,
+    sync_df: pd.DataFrame,
+    time_out="eeg_time",
+    event_ts_key: str = "datetimes",
+    sync_ts_key: str = "Datetime",
+):
+
+    """Infers appropriate start frame/time of each event if multiple recordings/experiments in the same folder
+    have been combined
+    :param event_df: dataframe with datetimes of each event
+    :param sync_df: output of function create_sync_df
+    :param time_out: eeg_time or dat_time
+    :param event_ts_key: key to use to access datetimes in event_df
+    :param sync_ts_key: key to use to access datetimes in sync_df"""
+    # Calc and check that each cs occurs in the same recording.
+    nrec_start = [
+        sync_df["Recording"][np.max(np.nonzero(start > sync_df[sync_ts_key]))]
+        for start in event_df[event_ts_key]
+    ]
+    nrec_stop = [
+        sync_df["Recording"][np.min(np.nonzero(start < sync_df[sync_ts_key]))]
+        for start in event_df[event_ts_key]
+    ]
+
+    # Loop through each recording and calculate CS time in combined dat/eeg file
+    if nrec_start == nrec_stop:
+        event_time_comb = []
+        for nrec, event_time in zip(nrec_start, event_df[event_ts_key]):
+            # Get correct start time of recording in the desired output time (eeg/dat) and timestamp
+            rec_start_time = sync_df[
+                (sync_df["Recording"] == nrec) & (sync_df["Condition"] == "start")
+            ][time_out].values[0]
+            rec_start_timestamp = sync_df[
+                (sync_df["Recording"] == nrec) & (sync_df["Condition"] == "start")
+            ][sync_ts_key].iloc[0]
+            event_dt = (event_time - rec_start_timestamp).total_seconds()
+            event_time_comb.append(event_dt + rec_start_time)
+
+        event_time_comb = np.array(event_time_comb)
+
+    else:
+        print(
+            f"Recording start and end numbers do not all match. starts = {nrec_start}, ends = {nrec_stop}."
+        )
+        event_time_comb = np.nan
+
+    return event_time_comb
 
 
 def parse_sync_file(sync_file):
