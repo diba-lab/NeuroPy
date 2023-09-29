@@ -3,7 +3,6 @@ import ipywidgets
 import numpy as np
 import matplotlib as mpl
 from ..core import Signal
-from neuropy.utils.signal_process import Spectrogram, WaveletSg, FourierSg
 from scipy.ndimage import gaussian_filter1d, gaussian_filter
 
 
