@@ -7,7 +7,13 @@ from scipy.ndimage import gaussian_filter1d, gaussian_filter
 
 
 def plot_spectrogram(
-    sxx, time_lims, freq_lims=(0, 30), ax=None, cmap="jet", sigma=None
+    sxx,
+    time_lims,
+    freq_lims=(0, 30),
+    ax=None,
+    cmap="jet",
+    sigma=None,
+    std_sxx=None,
 ):
     """Generating spectrogram plot for given channel
 
@@ -37,7 +43,8 @@ def plot_spectrogram(
 
     if sigma is not None:
         sxx = gaussian_filter(sxx, sigma=sigma)
-    std_sxx = np.std(sxx)
+    if std_sxx is None:  # Calculate standard deviation if needed for plotting purposes.
+        std_sxx = np.std(sxx)
     # time = np.linspace(time[0], time[1], sxx.shape[1])
     # freq = np.linspace(freq[0], freq[1], sxx.shape[0])
 
