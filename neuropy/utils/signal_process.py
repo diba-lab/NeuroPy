@@ -103,7 +103,9 @@ class Spectrogram(core.Signal):
         spect_sum = self.traces.sum(axis=0)
         return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
 
-    def get_pe_mean_spec(self, event_times, buffer_sec=(0.5, 0.5)):
+    def get_pe_mean_spec(
+        self, event_times, buffer_sec=(0.5, 0.5), ignore_epochs: core.Epoch = None
+    ):
         """Get peri-event mean spectrogram
 
         Parameters
@@ -111,6 +113,8 @@ class Spectrogram(core.Signal):
         event_times: ndarray of floats times of each event in seconds, will be time 0 in mean spectrogram
 
         buffer_sec: tuple of floats defining amount of time before/after event to grab.
+
+        ignore_epochs: core.Epoch class of epochs to ignore when calculating mean spectrogram
 
         Returns
         -------
@@ -147,9 +151,22 @@ class Spectrogram(core.Signal):
                 else:
                     print("Error - time bins off by more than 1")
                 wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
-            sxx_list.append(wvlet_temp.traces)
+            sxx_temp = wvlet_temp.traces
 
-        sxx_mean = np.stack(sxx_list, axis=2).mean(axis=2)
+            # Ignore times if specified - these are likely already NaN in the spectrogram
+            if ignore_epochs is not None:
+                time_bins = np.linspace(start_time, stop_time, ntime_bins)
+                ignore_bool, ignore_times, _ = ignore_epochs.contains(time_bins)
+
+                # Display ignored frames
+                if np.sum(ignore_bool) > 0:
+                    sxx_temp[:, ignore_bool] = np.nan
+                    print(
+                        f"{np.sum(ignore_bool)} frames between {ignore_times.min():.1F} and {ignore_times.max():.1F} ignored (sent to nan)"
+                    )
+            sxx_list.append(sxx_temp)
+
+        sxx_mean = np.nanmean(np.stack(sxx_list, axis=2), axis=2)
 
         return Spectrogram(
             sxx_mean,
