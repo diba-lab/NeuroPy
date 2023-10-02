@@ -90,6 +90,14 @@ class Epoch(DataWriter):
 
         return Epoch(epochs=df_new)
 
+    def add_epoch_manually(self, start, stop, label="", merge_dt: float or None = 0):
+        comb_df = pd.DataFrame({"start": [start], "stop": [stop], "label": label})
+
+        if merge_dt is not None:
+            return self.__add__(Epoch(comb_df)).merge(merge_dt)
+        else:
+            return self.__add__(Epoch(comb_df))
+
     def shift(self, dt):
         epochs = self._epochs.copy()
         epochs[["start", "stop"]] += dt
