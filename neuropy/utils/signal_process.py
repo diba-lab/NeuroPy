@@ -120,7 +120,7 @@ class Spectrogram(core.Signal):
         -------
         Spectrogram class with traces = mean spectrogram and times ranging from -buffer_sec[0] to buffer_sec[1]
         """
-        ###NRK todo: add in option to ignore artifact epochs!
+
         event_times = event_times.squeeze()
         assert event_times.ndim == 1, "event_times must be broadcastable to ndim=1"
 
