@@ -1,6 +1,6 @@
 import sys
 from copy import deepcopy
-from typing import List, Any, Tuple, Optional, Callable
+from typing import List, Dict, Any, Tuple, Optional, Callable
 from attrs import define, field, Factory, asdict
 import numpy as np
 import pandas as pd
@@ -47,6 +47,8 @@ class UserAnnotationsManager(HDFMixin):
         from neuropy.core.user_annotations import UserAnnotationsManager
         
     """
+    annotations: Dict[IdentifyingContext, Any] = serialized_field(default=Factory(dict))
+
     @staticmethod
     def get_user_annotations():
         """ hardcoded user annotations
@@ -172,6 +174,10 @@ class UserAnnotationsManager(HDFMixin):
                 was_annotation_found = True
                 break # done looking
         return was_annotation_found
+
+
+    # def add_user_annotation(self, context: IdentifyingContext, value):
+
 
     @classmethod
     def get_hardcoded_specific_session_override_dict(cls) -> dict:
