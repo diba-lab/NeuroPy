@@ -59,7 +59,16 @@ def detect_start_tone(
     plot_check: bool = True,
 ):
     """Detect USV start tone - typically a 0.5 sec 500Hz pure tone"""
-    fs, Audiodata = wavfile.read(filename)
+    """NRK todo: load in with a downsample. From https://stackoverflow.com/questions/30619740/downsampling-wav-audio-file
+    import librosa    
+    y, s = librosa.load('test.wav', sr=8000) # Downsample 44.1kHz to 8kHz
+    The extra effort to install Librosa is probably worth the peace of mind.
+
+    Pro-tip: when installing Librosa on Anaconda, you need to install ffmpeg as well, so
+
+    pip install librosa
+    conda install -c conda-forge ffmpeg"""
+    fs, Audiodata = wavfile.read(filename, mmap=True)
     audio_sig = Signal(Audiodata, fs)
 
     bp500 = filter_sig.bandpass(audio_sig, freq_lims[0], freq_lims[1], order=2, fs=fs)
@@ -70,7 +79,7 @@ def detect_start_tone(
 
     if plot_check:
         _, ax = plt.subplots()
-        ax.set_title(f"{freq_lims[0]} to {freq_lims[1]} filtered signal")
+        ax.set_title(f"{freq_lims[0]} Hz to {freq_lims[1]} Hz filtered signal")
         (ht,) = ax.plot(
             np.linspace(0, start_sec_use, start_sec_use * 2000),
             np.abs(bp500.traces[0][0 : (start_sec_use * fs) : int(fs / 2000)]),
@@ -85,9 +94,15 @@ def detect_start_tone(
 
 
 if __name__ == "__main__":
-    base_dir = Path(
-        "/data2/Trace_FC/Recording_Rats/Han/2022_08_03_training/2_training/USVdetections"
-    )
-    DeepSqueakIO(base_dir / "T0000001 2023-09-19  4_23 PM_copy_cell.mat")
+    import matplotlib
+
+    matplotlib.use('TkAgg')
+
+    base_dir = Path("/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_21_recall1/1_tone_recall")
+    detect_start_tone(sorted(base_dir.glob("**/*.WAV"))[0], freq_lims=(6800, 7300), start_sec_use=8*60)
+    # base_dir = Path(
+    #     "/data2/Trace_FC/Recording_Rats/Han/2022_08_03_training/2_training/USVdetections"
+    # )
+    # DeepSqueakIO(base_dir / "T0000001 2023-09-19  4_23 PM_copy_cell.mat")
     # time_start, time_end = detect_start_tone(dir_use / "T0000002.WAV")
 # basically need to figure out how to take the above and threshold it and find out when it jumps above a certain value for > 0.4sec
