@@ -122,7 +122,7 @@ class NeuronIdentityDataframeAccessor:
 
 
     def make_neuron_indexed_df_global(self, curr_session_context: "IdentifyingContext", add_expanded_session_context_keys:bool=False, add_extended_aclu_identity_columns:bool=False, inplace:bool=False) -> pd.DataFrame:
-        """ Builds session-relative neuron identifiers, adding the global columns to the neuron_indexed_df
+        """ 2023-10-04 - Builds session-relative neuron identifiers, adding the global columns to the neuron_indexed_df
 
         Usage:
             from neuropy.core.neuron_identities import NeuronIdentityDataframeAccessor
