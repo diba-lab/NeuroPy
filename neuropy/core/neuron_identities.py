@@ -59,9 +59,16 @@ class NeuronIdentityDataframeAccessor:
 
     @staticmethod
     def _validate(obj):
-        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
-        if "aclu" not in obj.columns or "cell_type" not in obj.columns:
-            raise AttributeError("Must have unit id column 'aclu' and 'cell_type' column.")
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """
+        # Rename column 'neuron_type' to 'cell_type'
+        if "aclu" not in obj.columns:
+            raise AttributeError(f"Must have unit id column 'aclu'. obj.columns: {list(obj.columns)}")
+        if "cell_type" not in obj.columns:
+            if "neuron_type" in obj.columns:
+                print(f'WARN: NeuronIdentityDataframeAccessor._validate(...): renaming "neuron_type" column to "cell_type".')
+                obj.rename(columns={'neuron_type': 'cell_type'}, inplace=True)
+            else:
+                raise AttributeError(f"Must have unit id column 'aclu' and 'cell_type' column. obj.columns: {list(obj.columns)}")
         
     @property
     def neuron_ids(self):
@@ -104,6 +111,55 @@ class NeuronIdentityDataframeAccessor:
     # Additive Mutating Functions: Adds or Update Columns in the Dataframe                                                 #
     # ==================================================================================================================== #
     
+    @classmethod
+    def _add_global_uid(cls, neuron_indexed_df: pd.DataFrame, session_context: "IdentifyingContext") -> pd.DataFrame:
+        """ adds the ['session_uid', 'global_uid'] columns to the dataframe. """
+        assert 'aclu' in neuron_indexed_df.columns
+        session_uid: str = session_context.get_description(separator="|", include_property_names=False)
+        neuron_indexed_df['session_uid'] = session_uid  # Provide an appropriate session identifier here
+        neuron_indexed_df['global_uid'] = neuron_indexed_df.apply(lambda row: f"{session_uid}|{str(row['aclu'])}", axis=1) 
+        return neuron_indexed_df
+
+
+    def make_neuron_indexed_df_global(self, curr_session_context: "IdentifyingContext", add_expanded_session_context_keys:bool=False, add_extended_aclu_identity_columns:bool=False, inplace:bool=False) -> pd.DataFrame:
+        """ Builds session-relative neuron identifiers, adding the global columns to the neuron_indexed_df
+
+        Usage:
+            from neuropy.core.neuron_identities import NeuronIdentityDataframeAccessor
+
+            curr_session_context = curr_active_pipeline.get_session_context()
+            input_df = neuron_replay_stats_df.copy()
+            input_df = input_df.neuron_identity.make_neuron_indexed_df_global(curr_active_pipeline.get_session_context(), add_expanded_session_context_keys=False, add_extended_aclu_identity_columns=False)
+            input_df
+
+        """
+        if not inplace:
+            neuron_indexed_df: pd.DataFrame = self._obj.copy()
+        else:
+            neuron_indexed_df: pd.DataFrame = self._obj
+
+        # Get the aclu information for each aclu in the dataframe. Adds the ['aclu', 'shank', 'cluster', 'qclu', 'cell_type'] columns
+        # unique_aclu_information_df: pd.DataFrame = curr_active_pipeline.sess.spikes_df.spikes.extract_unique_neuron_identities()
+        if add_extended_aclu_identity_columns:
+            # unique_aclu_information_df: pd.DataFrame = curr_active_pipeline.get_session_unique_aclu_information()
+            unique_aclu_information_df: pd.DataFrame = self.extract_unique_neuron_identities()
+            unique_aclu_identity_subcomponents_column_names = list(unique_aclu_information_df.columns)
+            # Horizontally join (merge) the dataframes
+            result_df: pd.DataFrame = pd.merge(unique_aclu_information_df, neuron_indexed_df, left_on='aclu', right_on='aclu', how='inner')
+        else:
+            result_df: pd.DataFrame = neuron_indexed_df
+
+        # Add this session context columns for each entry: creates the columns ['format_name', 'animal', 'exper_name', 'session_name']
+        _static_session_context_keys = curr_session_context._get_session_context_keys()
+        if add_expanded_session_context_keys:
+            result_df[_static_session_context_keys] = curr_session_context.as_tuple()
+        # Reordering the columns to place the new columns on the left
+        # result_df = result_df[['format_name', 'animal', 'exper_name', 'session_name', 'aclu', 'shank', 'cluster', 'qclu', 'cell_type', 'active_set_membership', 'lap_delta_minus', 'lap_delta_plus', 'replay_delta_minus', 'replay_delta_plus']]
+        result_df = self._add_global_uid(neuron_indexed_df=result_df, session_context=curr_session_context)
+        return result_df
+
+
+
     # def to_hdf(self, file_path, key: str, **kwargs):
     #     """ Saves the object to key in the hdf5 file specified by file_path 
     #     Usage:
