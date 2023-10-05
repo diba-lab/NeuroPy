@@ -1,12 +1,17 @@
 import pandas as pd
-from scipy.io import wavfile
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io import loadmat
+import scipy.stats as stats
+
+from scipy.io import wavfile  # outdated?
+import librosa
 
 from neuropy.core.signal import Signal
-from neuropy.utils.signal_process import filter_sig
+from neuropy.core.epoch import Epoch
+from neuropy.utils.signal_process import filter_sig, hilbertfast
+from neuropy.utils.mathutil import contiguous_regions
 
 dir_use = Path(
     "/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_20_training/shock_box"
@@ -51,11 +56,13 @@ class DeepSqueakIO:
         self.usv_df = pd.concat(df_list, axis=1)
 
 
-def detect_start_tone(
+def detect_tone(
     filename,
     freq_lims: list = [480, 520],
-    start_sec_use: int = 240,
-    thresh=50,
+    smooth_window: float = 0.05,
+    thresh: float = 5,
+    tone_length: float = 0.5,
+    tone_label:str = "start_tone",
     plot_check: bool = True,
 ):
     """Detect USV start tone - typically a 0.5 sec 500Hz pure tone"""
@@ -68,38 +75,60 @@ def detect_start_tone(
 
     pip install librosa
     conda install -c conda-forge ffmpeg"""
-    fs, Audiodata = wavfile.read(filename, mmap=True)
+
+    # Load in file after downsampling to 2.5 x top frequency
+    sr_ds = int(np.round(np.max(freq_lims)*2.5, -2))  # downsample to 2.5 x top frequency, rounded to 100s
+    Audiodata, fs = librosa.load(filename, sr=sr_ds)
     audio_sig = Signal(Audiodata, fs)
 
-    bp500 = filter_sig.bandpass(audio_sig, freq_lims[0], freq_lims[1], order=2, fs=fs)
+    # Bandpass filter within frequency limits and also at half frequency limits to detect any general noise
+    # bp = filter_sig.bandpass(audio_sig, freq_lims[0], freq_lims[1], order=2, fs=fs)
+    # bp_half = filter_sig.bandpass(audio_sig, int(freq_lims[0]/2), int(freq_lims[1]/2), order=2, fs=fs)
 
-    thresh_bool = np.abs(bp500.traces[0][0 : (start_sec_use * fs)]) > thresh
+    # Get power in range of interest and background
+    power = np.abs(hilbertfast(filter_sig.bandpass(audio_sig.traces[0], lf=freq_lims[0], hf=freq_lims[1], fs=fs)))
+    power_half = np.abs(hilbertfast(filter_sig.bandpass(audio_sig.traces[0], lf=freq_lims[0]/2, hf=freq_lims[1]/2, fs=fs)))
 
-    time_start, time_end = np.where(thresh_bool)[0][[0, -1]] / fs
+    # Zscore, smooth, and threshold power / power_half then look for epochs close to the length of the tone(s)
+    power_ratio_sm = pd.Series(stats.zscore(power / power_half)).rolling(int(sr_ds * smooth_window)).mean().values
+    tone_cands = contiguous_regions(power_ratio_sm > thresh)
+    tone_cands = tone_cands[np.diff(tone_cands).squeeze()/sr_ds > 0.9*tone_length]/sr_ds  # give start and end of tones that meet threshold and time requirements
+
+    if tone_cands.shape[0] == 0:
+        print(f'No tones detected at thresh={thresh} and length={tone_length}. Adjust power/time thresholds and re-run')
 
     if plot_check:
         _, ax = plt.subplots()
         ax.set_title(f"{freq_lims[0]} Hz to {freq_lims[1]} Hz filtered signal")
-        (ht,) = ax.plot(
-            np.linspace(0, start_sec_use, start_sec_use * 2000),
-            np.abs(bp500.traces[0][0 : (start_sec_use * fs) : int(fs / 2000)]),
-        )
+        if fs > 2000:  # downsample for plotting to avoid laggy plots
+            (ht,) = ax.plot(audio_sig.time[::1000], power_ratio_sm[::1000])
+        else:
+            (ht,) = ax.plot(audio_sig.time, power_ratio_sm)
         hthresh = ax.axhline(thresh, color="r")
-        htone = ax.axvspan(time_start, time_end, color=[0, 0, 1, 0.3])
-        ax.legend([ht, hthresh, htone], ["Signal", "Threshold", "Detected Tone"])
-        ax.set_xlim([time_start - 3, time_end + 3])
-        ax.set_xlabel("Time (sec)")
 
-    return time_start, time_end
+        htone = None
+        for tone_times in tone_cands:
+            htone = ax.axvspan(tone_times[0], tone_times[1], color=[0, 0, 1, 0.3])
+
+        if htone is not None:
+            ax.legend([ht, hthresh, htone], ["Signal", "Threshold", "Detected Tone"])
+        else:
+            ax.legend(([ht, hthresh], ["Signal", "Threshold"]))
+        ax.set_xlabel("Time (sec)")
+        ax.set_ylabel("Smoothed power ratio")
+
+    return Epoch({"start": tone_cands[:, 0], "stop": tone_cands[:, 1], "label": tone_label})
 
 
 if __name__ == "__main__":
     import matplotlib
-
+    # Debug with different session - this one may have had many false starts! Enter in approximate time of start tone
+    # from file too to limit search?  Need to create a csv file with start times for each event!
+    # Should be easy!!! Grab start time from csv file and compare to start time from log file.
     matplotlib.use('TkAgg')
 
     base_dir = Path("/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_21_recall1/1_tone_recall")
-    detect_start_tone(sorted(base_dir.glob("**/*.WAV"))[0], freq_lims=(6800, 7300), start_sec_use=8*60)
+    detect_tone(sorted(base_dir.glob("**/*.WAV"))[0], freq_lims=(6900, 7100), tone_label="CS+")
     # base_dir = Path(
     #     "/data2/Trace_FC/Recording_Rats/Han/2022_08_03_training/2_training/USVdetections"
     # )
