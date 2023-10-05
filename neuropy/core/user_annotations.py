@@ -10,6 +10,9 @@ from neuropy.utils.result_context import IdentifyingContext
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
+from pyphocorehelpers.programming_helpers import metadata_attributes
+from pyphocorehelpers.function_helpers import function_attributes
+
 # ==================================================================================================================== #
 # 2023-06-21 User Annotations                                                                      #
 # ==================================================================================================================== #
@@ -72,6 +75,34 @@ class UserAnnotationsManager(HDFMixin):
             # Not ideal. Adds a key 'session_cell_exclusivity' to the extant session context instead of being indexable by an entirely new context
             self.annotations[a_ctx] = self.annotations.get(a_ctx, {}) | dict(session_cell_exclusivity=a_val)
             # annotation_man.annotations[a_ctx.overwriting_context(user_annotation='session_cell_exclusivity')] = a_val
+
+
+    @function_attributes(short_name=None, tags=['XxC','LxC', 'SxC'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-10-05 16:18', related_items=[])
+    def add_neuron_exclusivity_column(self, neuron_indexed_df, included_session_contexts, neuron_uid_column_name='neuron_uid'):
+        """ adds 'XxC_status' column to the `neuron_indexed_df`: the user-labeled cell exclusivity (LxC/SxC/Shared) status {'LxC', 'SxC', 'Shared'}
+        
+            annotation_man = UserAnnotationsManager()
+            long_short_fr_indicies_analysis_table = annotation_man.add_neuron_exclusivity_column(long_short_fr_indicies_analysis_table, included_session_contexts, aclu_column_name='neuron_id')
+            long_short_fr_indicies_analysis_table
+    
+        """
+        LxC_uids = []
+        SxC_uids = []
+
+        for a_ctxt in included_session_contexts:
+            session_uid = a_ctxt.get_description(separator="|", include_property_names=False)
+            session_uid
+            session_cell_exclusivity: SessionCellExclusivityRecord = self.annotations[a_ctxt].get('session_cell_exclusivity', None)
+            LxC_uids.extend([f"{session_uid}|{aclu}" for aclu in session_cell_exclusivity.LxC])
+            SxC_uids.extend([f"{session_uid}|{aclu}" for aclu in session_cell_exclusivity.SxC])
+            
+        neuron_indexed_df['XxC_status'] = 'Shared'
+        neuron_indexed_df.loc[np.isin(neuron_indexed_df[neuron_uid_column_name], LxC_uids), 'XxC_status'] = 'LxC'
+        neuron_indexed_df.loc[np.isin(neuron_indexed_df[neuron_uid_column_name], SxC_uids), 'XxC_status'] = 'SxC'
+
+        return neuron_indexed_df
+
+
 
 
     
