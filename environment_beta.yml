@@ -2,8 +2,6 @@ name: NeuroPy
 channels:
     - conda-forge
 dependencies:
-    # python 3.11 versions seem to break with librosa on Mac ARM architecture
-    # - python=3.10
     - python
     - numpy
     - scipy
