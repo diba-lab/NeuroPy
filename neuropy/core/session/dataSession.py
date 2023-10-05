@@ -356,13 +356,15 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             old_default_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
             old_kamran_parameters = dict(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
             new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
-            new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=new_papers_parameters)
+            kamrans_new_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=2.3) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300
+            
+            new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=kamrans_new_parameters)
 
         """
         from neuropy.analyses import detect_pbe_epochs
         print('computing PBE epochs for session...\n')
         if active_parameters is None:
-            active_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
+            active_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=2.3) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300
         smth_mua = session.mua.get_smoothed(sigma=active_parameters.pop('sigma', 0.02)) # Get the smoothed mua from the session's mua
         new_pbe_epochs = detect_pbe_epochs(smth_mua, **active_parameters) # NewPaper's Parameters # , **({'thresh': (0, 1.5), 'min_dur': 0.03, 'merge_dur': 0.1, 'max_dur': 0.3} | kwargs)
         if save_on_compute:
