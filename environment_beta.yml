@@ -2,6 +2,8 @@ name: NeuroPy
 channels:
     - conda-forge
 dependencies:
+    # python 3.11 versions seem to break with librosa on Mac ARM architecture
+    # - python=3.10
     - python
     - numpy
     - scipy
@@ -22,10 +24,13 @@ dependencies:
     - zarr
     - scikit-image
     - notebook
+    # These are needed for reading in USV/WAV files
+    - librosa
+    - ffmpeg
     # May need to install pingouin via pip after the fact
     - pingouin
     # May need to install libgcc for linux distributions
-    - libgcc
+    # - libgcc
     # These modules are for importing DeepLabCut data, comment out if you don't need.
     - easydict
     - ruamel.yaml
