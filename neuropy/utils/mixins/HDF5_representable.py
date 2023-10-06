@@ -370,7 +370,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     # Main Methods _______________________________________________________________________________________________________ #
 
     
-    def to_hdf(self, file_path, key: str, **kwargs):
+    def to_hdf(self, file_path, key: str, debug_print=False, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
         Usage:
             hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
@@ -381,7 +381,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
         # file_mode:str = kwargs.get('file_mode', 'w') # default to overwrite
         file_mode:str = kwargs.get('file_mode', 'a') # default to append
         
-        debug_print = True
+        
         if not attrs.has(type(self)):
             raise NotImplementedError # implementor must override!
     
