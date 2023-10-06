@@ -152,21 +152,22 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## Apply the laps as the limiting computation epochs:
         # computation_config.pf_params.computation_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0)
 
+        # Get the non-lap periods using PortionInterval's complement method:
+        non_running_periods = Epoch.from_PortionInterval(sess.laps.as_epoch_obj().to_PortionInterval().complement()) # TODO 2023-05-24- Truncate to session .t_start, .t_stop as currently includes infinity, but it works fine.
+        
 
         # ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING
         PBE_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.PBEs
         assert PBE_estimation_parameters is not None
+        PBE_estimation_parameters.require_intersecting_epoch = non_running_periods # 2023-10-06 - Require PBEs to occur during the non-running periods, REQUIRED BY KAMRAN contrary to my idea of what PBE is.
+        
         new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=PBE_estimation_parameters)
         sess.pbe = new_pbe_epochs
         updated_spk_df = sess.compute_spikes_PBEs()
 
         # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
         
-        # Get the non-lap periods using PortionInterval's complement method:
-        non_running_periods = Epoch.from_PortionInterval(sess.laps.as_epoch_obj().to_PortionInterval().complement()) # TODO 2023-05-24- Truncate to session .t_start, .t_stop as currently includes infinity, but it works fine.
-        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=non_running_periods, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=1.0, min_num_unique_aclu_inclusions=5)
+        
         
         # num_pre = session.replay.
         replay_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.replays
