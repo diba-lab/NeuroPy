@@ -393,7 +393,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         spiketrains = list()
         shank_ids = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
         cell_quality = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
-        cell_type = list() # (108,) Array of float64
+        neuron_type = list() # (108,) Array of float64
                 
         for i in np.arange(num_unique_cell_ids):
             curr_cell_id = flat_cell_ids[i] # actual cell ID
@@ -403,16 +403,16 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
             
             shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
             cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
-            cell_type.append(curr_cell_dataframe['neuron_type'].to_numpy()[0])
+            neuron_type.append(curr_cell_dataframe['neuron_type'].to_numpy()[0])
 
         spiketrains = np.array(spiketrains, dtype='object')
         t_stop = np.max(spikes_df[time_variable_name])
         flat_cell_ids = np.array(flat_cell_ids)
-        cell_type = np.array(cell_type)
+        neuron_type = np.array(neuron_type)
         out_neurons = Neurons(spiketrains, t_stop, t_start=0,
             sampling_rate=dat_sampling_rate,
             neuron_ids=flat_cell_ids,
-            neuron_type=cell_type,
+            neuron_type=neuron_type,
             shank_ids=shank_ids
         )
         return out_neurons

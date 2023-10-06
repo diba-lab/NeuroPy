@@ -129,10 +129,10 @@ class SpikesAccessor(TimeSlicedMixin):
         except Exception as e:
             raise e
         
-        # Compare via .shortClassName for both query_neuron_type and self._obj.cell_type
-        inclusion_mask = np.isin(np.array([a_type.shortClassName for a_type in self._obj.cell_type]), [query_neuron_type.shortClassName])
+        # Compare via .shortClassName for both query_neuron_type and self._obj.neuron_type
+        inclusion_mask = np.isin(np.array([a_type.shortClassName for a_type in self._obj.neuron_type]), [query_neuron_type.shortClassName])
         return self._obj.loc[inclusion_mask, :].copy()
-        # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.cell_type]), [query_neuron_type.shortClassName])]
+        # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.neuron_type]), [query_neuron_type.shortClassName])]
         
     def extract_unique_neuron_identities(self):
         """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
@@ -386,7 +386,7 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
             print('error!')
             return []
         flattened_spiketrains = deepcopy(self)
-        included_df = flattened_spiketrains.spikes_df[(flattened_spiketrains.spikes_df.cell_type == query_neuron_type)]
+        included_df = flattened_spiketrains.spikes_df[(flattened_spiketrains.spikes_df.neuron_type == query_neuron_type)]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
             
     # ConcatenationInitializable protocol:
