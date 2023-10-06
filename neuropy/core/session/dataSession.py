@@ -367,7 +367,15 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             raise NotImplementedError
             # active_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=2.3) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300
         smth_mua = session.mua.get_smoothed(sigma=active_parameters.pop('sigma', 0.02)) # Get the smoothed mua from the session's mua
+        # Filter parameters:
+        extracted_filter_parameters = dict(require_intersecting_epoch=active_parameters.pop('require_intersecting_epoch', None),
+                                            min_epoch_included_duration=active_parameters.pop('min_epoch_included_duration', None), max_epoch_included_duration=active_parameters.pop('max_epoch_included_duration', None),
+                                            maximum_speed_thresh=active_parameters.pop('maximum_speed_thresh', None),
+                                            min_inclusion_fr_active_thresh=active_parameters.pop('min_inclusion_fr_active_thresh', None), min_num_unique_aclu_inclusions=active_parameters.pop('min_num_unique_aclu_inclusions', None))
+
         new_pbe_epochs = detect_pbe_epochs(smth_mua, **active_parameters) # NewPaper's Parameters # , **({'thresh': (0, 1.5), 'min_dur': 0.03, 'merge_dur': 0.1, 'max_dur': 0.3} | kwargs)
+        new_pbe_epochs = Epoch.filter_epochs(new_pbe_epochs, pos_df=session.position.to_dataframe(), spikes_df=session.spikes_df.copy(), **extracted_filter_parameters, debug_print=False) # Filter based on the criteria if provided
+
         if save_on_compute:
             new_pbe_epochs.filename = session.filePrefix.with_suffix('.pbe.npy')
             with ProgressMessagePrinter(new_pbe_epochs.filename, 'Saving', 'pbe results'):
@@ -514,7 +522,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             if debug_print:
                 print(f'Replays missing from sessions. Computing replays...')
 
-        default_replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.05, 'min_num_unique_aclu_inclusions': 5}
+        default_replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': 0.6, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.05, 'min_num_unique_aclu_inclusions': 5}
 
         # compute estimates and assign them as the session's .replay value
         a_session.replay = a_session.estimate_replay_epochs(**(default_replay_estimation_parameters | kwargs)).to_dataframe()
