@@ -33,7 +33,7 @@ neuronTypesEnum = tb.Enum(neuronTypesList)
 
 class NeuronIdentityTable(tb.IsDescription):
     """ represents a single neuron in the scope of multiple sessions for use in a PyTables table or HDF5 output file """
-    global_uid = StringCol(68)  # TO REMOVE   # 68-character String, globally unique neuron identifier (across all sessions) composed of a session_uid and the neuron's (session-specific) aclu
+    neuron_uid = StringCol(68)  # TO REMOVE   # 68-character String, globally unique neuron identifier (across all sessions) composed of a session_uid and the neuron's (session-specific) aclu
     session_uid = StringCol(64)
     ## Session-Local Identifiers
     neuron_id = UInt16Col() # 65535 max neurons
@@ -113,11 +113,11 @@ class NeuronIdentityDataframeAccessor:
     
     @classmethod
     def _add_global_uid(cls, neuron_indexed_df: pd.DataFrame, session_context: "IdentifyingContext") -> pd.DataFrame:
-        """ adds the ['session_uid', 'global_uid'] columns to the dataframe. """
+        """ adds the ['session_uid', 'neuron_uid'] columns to the dataframe. """
         assert 'aclu' in neuron_indexed_df.columns
         session_uid: str = session_context.get_description(separator="|", include_property_names=False)
         neuron_indexed_df['session_uid'] = session_uid  # Provide an appropriate session identifier here
-        neuron_indexed_df['global_uid'] = neuron_indexed_df.apply(lambda row: f"{session_uid}|{str(row['aclu'])}", axis=1) 
+        neuron_indexed_df['neuron_uid'] = neuron_indexed_df.apply(lambda row: f"{session_uid}|{str(row['aclu'])}", axis=1) 
         return neuron_indexed_df
 
 

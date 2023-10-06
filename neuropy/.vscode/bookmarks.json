@@ -119,6 +119,16 @@
 					"label": "prepare_neuron_indexed_df_for_hdf"
 				}
 			]
+		},
+		{
+			"path": "core/neuron_identities.py",
+			"bookmarks": [
+				{
+					"line": 123,
+					"column": 37,
+					"label": "make_neuron_indexed_df_global"
+				}
+			]
 		}
 	]
 }
