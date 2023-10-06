@@ -403,7 +403,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
             
             shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
             cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
-            cell_type.append(curr_cell_dataframe['cell_type'].to_numpy()[0])
+            cell_type.append(curr_cell_dataframe['neuron_type'].to_numpy()[0])
 
         spiketrains = np.array(spiketrains, dtype='object')
         t_stop = np.max(spikes_df[time_variable_name])
@@ -492,7 +492,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         shank_array = unique_rows_df['shank'].values
         cluster_array = unique_rows_df['cluster'].values
         qclu_array = unique_rows_df['qclu'].values
-        neuron_type_array = unique_rows_df['cell_type'].values
+        neuron_type_array = unique_rows_df['neuron_type'].values
         neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in neuron_type_array]) # convert NeuronTypes to neuronTypesEnum
 
 

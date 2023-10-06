@@ -112,7 +112,7 @@ class HDF_Converter:
         
         TODO: see notes on
         
-        .apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+        .apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
         
         """
         @classmethod

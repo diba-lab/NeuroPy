@@ -32,9 +32,16 @@ class SpikesAccessor(TimeSlicedMixin):
 
     @staticmethod
     def _validate(obj):
-        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
-        if "aclu" not in obj.columns or "cell_type" not in obj.columns:
-            raise AttributeError("Must have unit id column 'aclu' and 'cell_type' column.")
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('neuron_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """
+        # Rename column 'cell_type' to 'neuron_type'
+        if "aclu" not in obj.columns:
+            raise AttributeError(f"Must have unit id column 'aclu'. obj.columns: {list(obj.columns)}")
+        if "neuron_type" not in obj.columns:
+            if "cell_type" in obj.columns:
+                print(f'WARN: SpikesAccessor._validate(...): renaming "cell_type" column to "neuron_type".')
+                obj.rename(columns={'cell_type': 'neuron_type'}, inplace=True)
+            else:
+                raise AttributeError(f"Must have unit id column 'aclu' and 'neuron_type' column. obj.columns: {list(obj.columns)}")
         if "flat_spike_idx" not in obj.columns:
             raise AttributeError("Must have 'flat_spike_idx' column.")
         if "t" not in obj.columns and "t_seconds" not in obj.columns and "t_rel_seconds" not in obj.columns:
@@ -129,7 +136,7 @@ class SpikesAccessor(TimeSlicedMixin):
         
     def extract_unique_neuron_identities(self):
         """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
-        selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'cell_type']
+        selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type']
         unique_rows_df = self._obj[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu. 
         assert len(unique_rows_df) == self.n_neurons, f"if this were false that would suggest that there are multiple entries for aclus. n_neurons: {self.n_neurons}, {len(unique_rows_df) =}"
         return unique_rows_df
@@ -139,7 +146,7 @@ class SpikesAccessor(TimeSlicedMixin):
         # shank_array = unique_rows_df['shank'].values
         # cluster_array = unique_rows_df['cluster'].values
         # qclu_array = unique_rows_df['qclu'].values
-        # neuron_type_array = unique_rows_df['cell_type'].values
+        # neuron_type_array = unique_rows_df['neuron_type'].values
         # neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in neuron_type_array]) # convert NeuronTypes to neuronTypesEnum
         
 
@@ -269,11 +276,11 @@ class SpikesAccessor(TimeSlicedMixin):
         .spikes.to_hdf(
         """
         _spikes_df = deepcopy(self._obj)
-        # Convert the 'cell_type' column of the dataframe to the categorical type if needed
+        # Convert the 'neuron_type' column of the dataframe to the categorical type if needed
         cat_type = NeuronType.get_pandas_categories_type()
-        if _spikes_df["cell_type"].dtype != cat_type:
+        if _spikes_df["neuron_type"].dtype != cat_type:
             # If this type check ever becomes a problem and we want a more liberal constraint, All instances of CategoricalDtype compare equal to the string 'category'.
-            _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
+            _spikes_df["neuron_type"] = _spikes_df["neuron_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
 
         # Store DataFrame using pandas
         with pd.HDFStore(file_path) as store:
@@ -293,14 +300,14 @@ class SpikesAccessor(TimeSlicedMixin):
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
         """  Reads the data from the key in the hdf5 file at file_path         
-        # TODO 2023-07-30 13:05: - [ ] interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+        # TODO 2023-07-30 13:05: - [ ] interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
             - UPDATE: I think adding `.astype(str)` to the end of the conversion resolves it and makes the type the same as it started. Still not sure if it would be better to leave it a categorical because I think it's more space efficient and better than it started anyway.
         """
         _spikes_df = pd.read_hdf(file_path, key=key, **kwargs)
-        # Convert the 'cell_type' column back to its original type (e.g., a custom class NeuronType)
+        # Convert the 'neuron_type' column back to its original type (e.g., a custom class NeuronType)
         # .astype(object)
 
-        _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+        _spikes_df["neuron_type"] = _spikes_df["neuron_type"].apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
         
         return _spikes_df
 
@@ -447,7 +454,7 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
                 'unit_id': np.array([int(active_session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]),
                 'shank': flattened_spike_shank_identities[flattened_sort_indicies],
                 'intra_unit_spike_idx': flattened_spike_linear_unit_spike_idx[flattened_sort_indicies],
-                'cell_type': flattened_spike_types[flattened_sort_indicies]
+                'neuron_type': flattened_spike_types[flattened_sort_indicies]
                 }
             )
         

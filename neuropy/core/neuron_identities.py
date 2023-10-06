@@ -25,7 +25,7 @@ NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank c
 
 """
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple, neuronTypesEnum, NeuronIdentityTable
-['shank', 'cluster', 'aclu', 'qclu', 'cell_type', 'fragile_linear_neuron_IDX']
+['shank', 'cluster', 'aclu', 'qclu', 'neuron_type', 'fragile_linear_neuron_IDX']
 """
 
 neuronTypesList: List[str] = ['pyr', 'bad', 'intr']
@@ -59,16 +59,16 @@ class NeuronIdentityDataframeAccessor:
 
     @staticmethod
     def _validate(obj):
-        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """
-        # Rename column 'neuron_type' to 'cell_type'
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('neuron_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """
+        # Rename column 'cell_type' to 'neuron_type'
         if "aclu" not in obj.columns:
             raise AttributeError(f"Must have unit id column 'aclu'. obj.columns: {list(obj.columns)}")
-        if "cell_type" not in obj.columns:
-            if "neuron_type" in obj.columns:
-                print(f'WARN: NeuronIdentityDataframeAccessor._validate(...): renaming "neuron_type" column to "cell_type".')
-                obj.rename(columns={'neuron_type': 'cell_type'}, inplace=True)
+        if "neuron_type" not in obj.columns:
+            if "cell_type" in obj.columns:
+                print(f'WARN: NeuronIdentityDataframeAccessor._validate(...): renaming "cell_type" column to "neuron_type".')
+                obj.rename(columns={'cell_type': 'neuron_type'}, inplace=True)
             else:
-                raise AttributeError(f"Must have unit id column 'aclu' and 'cell_type' column. obj.columns: {list(obj.columns)}")
+                raise AttributeError(f"Must have unit id column 'aclu' and 'neuron_type' column. obj.columns: {list(obj.columns)}")
         
     @property
     def neuron_ids(self):
@@ -92,7 +92,7 @@ class NeuronIdentityDataframeAccessor:
     
     def extract_unique_neuron_identities(self):
         """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
-        selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'cell_type']
+        selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type']
         unique_rows_df = self._obj[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu. 
         assert len(unique_rows_df) == self.n_neurons, f"if this were false that would suggest that there are multiple entries for aclus. n_neurons: {self.n_neurons}, {len(unique_rows_df) =}"
         return unique_rows_df
@@ -102,7 +102,7 @@ class NeuronIdentityDataframeAccessor:
         # shank_array = unique_rows_df['shank'].values
         # cluster_array = unique_rows_df['cluster'].values
         # qclu_array = unique_rows_df['qclu'].values
-        # neuron_type_array = unique_rows_df['cell_type'].values
+        # neuron_type_array = unique_rows_df['neuron_type'].values
         # neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in neuron_type_array]) # convert NeuronTypes to neuronTypesEnum
         
 
@@ -138,7 +138,7 @@ class NeuronIdentityDataframeAccessor:
         else:
             neuron_indexed_df: pd.DataFrame = self._obj
 
-        # Get the aclu information for each aclu in the dataframe. Adds the ['aclu', 'shank', 'cluster', 'qclu', 'cell_type'] columns
+        # Get the aclu information for each aclu in the dataframe. Adds the ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type'] columns
         # unique_aclu_information_df: pd.DataFrame = curr_active_pipeline.sess.spikes_df.spikes.extract_unique_neuron_identities()
         if add_extended_aclu_identity_columns:
             # unique_aclu_information_df: pd.DataFrame = curr_active_pipeline.get_session_unique_aclu_information()
@@ -154,7 +154,7 @@ class NeuronIdentityDataframeAccessor:
         if add_expanded_session_context_keys:
             result_df[_static_session_context_keys] = curr_session_context.as_tuple()
         # Reordering the columns to place the new columns on the left
-        # result_df = result_df[['format_name', 'animal', 'exper_name', 'session_name', 'aclu', 'shank', 'cluster', 'qclu', 'cell_type', 'active_set_membership', 'lap_delta_minus', 'lap_delta_plus', 'replay_delta_minus', 'replay_delta_plus']]
+        # result_df = result_df[['format_name', 'animal', 'exper_name', 'session_name', 'aclu', 'shank', 'cluster', 'qclu', 'neuron_type', 'active_set_membership', 'lap_delta_minus', 'lap_delta_plus', 'replay_delta_minus', 'replay_delta_plus']]
         result_df = self._add_global_uid(neuron_indexed_df=result_df, session_context=curr_session_context)
         return result_df
 
@@ -167,11 +167,11 @@ class NeuronIdentityDataframeAccessor:
     #     .spikes.to_hdf(
     #     """
     #     _spikes_df = deepcopy(self._obj)
-    #     # Convert the 'cell_type' column of the dataframe to the categorical type if needed
+    #     # Convert the 'neuron_type' column of the dataframe to the categorical type if needed
     #     cat_type = NeuronType.get_pandas_categories_type()
-    #     if _spikes_df["cell_type"].dtype != cat_type:
+    #     if _spikes_df["neuron_type"].dtype != cat_type:
     #         # If this type check ever becomes a problem and we want a more liberal constraint, All instances of CategoricalDtype compare equal to the string 'category'.
-    #         _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
+    #         _spikes_df["neuron_type"] = _spikes_df["neuron_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
 
     #     # Store DataFrame using pandas
     #     with pd.HDFStore(file_path) as store:
@@ -191,14 +191,14 @@ class NeuronIdentityDataframeAccessor:
     # @classmethod
     # def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
     #     """  Reads the data from the key in the hdf5 file at file_path         
-    #     # TODO 2023-07-30 13:05: - [ ] interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+    #     # TODO 2023-07-30 13:05: - [ ] interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
     #         - UPDATE: I think adding `.astype(str)` to the end of the conversion resolves it and makes the type the same as it started. Still not sure if it would be better to leave it a categorical because I think it's more space efficient and better than it started anyway.
     #     """
     #     _spikes_df = pd.read_hdf(file_path, key=key, **kwargs)
-    #     # Convert the 'cell_type' column back to its original type (e.g., a custom class NeuronType)
+    #     # Convert the 'neuron_type' column back to its original type (e.g., a custom class NeuronType)
     #     # .astype(object)
 
-    #     _spikes_df["cell_type"] = _spikes_df["cell_type"].apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["cell_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+    #     _spikes_df["neuron_type"] = _spikes_df["neuron_type"].apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
         
     #     return _spikes_df
 
@@ -613,7 +613,7 @@ class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
     @classmethod
     def from_qclu_series(cls, qclu_Series):
         # qclu_Series: a Pandas Series object, such as qclu_Series=spikes_df['qclu']
-        # example: spikes_df['cell_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
+        # example: spikes_df['neuron_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
         # temp_neuronTypeStrings = pd.cut(x=qclu_Series, bins=cls.classCutoffValues(), labels=cls.shortClassNames())
         temp_cutoff_map:dict = cls.classCutoffMap()
         temp_neuronTypeStrings = [temp_cutoff_map[int(qclu)] for qclu in qclu_Series]

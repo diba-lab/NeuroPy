@@ -191,7 +191,7 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         shank_ids = all_vars.spikes.spikes_cell_info_out_dict.shank
         cluster_ids = all_vars.spikes.spikes_cell_info_out_dict.cluster # NOT USED
         
-        _test_neurons_properties_df = pd.DataFrame({'aclu': flat_cell_ids, 'qclu': all_vars.spikes.spikes_cell_info_out_dict.qclu, 'cell_type': cell_type, 'shank': shank_ids, 'cluster': cluster_ids})
+        _test_neurons_properties_df = pd.DataFrame({'aclu': flat_cell_ids, 'qclu': all_vars.spikes.spikes_cell_info_out_dict.qclu, 'neuron_type': cell_type, 'shank': shank_ids, 'cluster': cluster_ids})
         _test_neurons_properties_df[['aclu','qclu','shank','cluster']] = _test_neurons_properties_df[['aclu','qclu','shank','cluster']].astype('int') # convert integer calumns to correct datatype
         ## Spike trains:
         spiketrains = np.array(all_vars.spikes.spike_list, dtype='object')

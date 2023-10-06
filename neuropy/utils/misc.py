@@ -319,7 +319,7 @@ def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, 
     
     
     By default lookup_properties_map_df can be obtained from curr_active_pipeline.sess.neurons._extended_neuron_properties_df and has the columns:
-        ['aclu', 'qclu', 'cell_type', 'shank', 'cluster']
+        ['aclu', 'qclu', 'neuron_type', 'shank', 'cluster']
     Which will be added to the spikes_df
     
     WARNING: the df will be unsorted after this operation, and you'll need to sort it again if you want it sorted
