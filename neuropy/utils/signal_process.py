@@ -1372,13 +1372,20 @@ def plot_miniscope_noise(
     ]
     for a, lim in zip(ax.reshape(-1)[1:], noise_limits):
         freq_bool = np.bitwise_and(f > lim[0], f < lim[1])
-        sns.heatmap(Pxx_full[:, freq_bool].T, ax=a)
-        a.set_yticks([0, freq_bool.sum()])
-        a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
-        a.set_xticks((0, nblocks))
-        a.set(xticklabels=("0", str(time[-1])))
-        a.set_xlabel("Time (30 sec blocks)")
-        a.set_ylabel("Frez (Hz)")
+        if np.any(freq_bool):
+            sns.heatmap(Pxx_full[:, freq_bool].T, ax=a)
+            a.set_yticks([0, freq_bool.sum()])
+            a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
+            a.set_xticks((0, nblocks))
+            a.set(xticklabels=("0", str(time[-1])))
+            a.set_xlabel("Time (30 sec blocks)")
+            a.set_ylabel("Frez (Hz)")
+        else:
+            a.text(
+                0.1,
+                0.5,
+                f"{lim[0]}-{lim[1]} Hz above Nyquist Frequency",
+            )
 
     fig.suptitle("Miniscope Noise Tracking")
 
