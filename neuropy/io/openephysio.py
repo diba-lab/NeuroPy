@@ -342,11 +342,11 @@ def recording_events_to_combined_time(
     :param sync_ts_key: key to use to access datetimes in sync_df"""
     # Calc and check that each cs occurs in the same recording.
     nrec_start = [
-        sync_df["Recording"][np.max(np.nonzero(start > sync_df[sync_ts_key]))]
+        sync_df["Recording"][np.max(np.nonzero((start > sync_df[sync_ts_key]).values))]
         for start in event_df[event_ts_key]
     ]
     nrec_stop = [
-        sync_df["Recording"][np.min(np.nonzero(start < sync_df[sync_ts_key]))]
+        sync_df["Recording"][np.min(np.nonzero((start < sync_df[sync_ts_key]).values))]
         for start in event_df[event_ts_key]
     ]
 
@@ -715,6 +715,17 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    base_folder = "/data3/Trace_FC/Recording_Rats/Django/2023_03_10_recall2"
-    get_dat_timestamps(base_folder, start_end_only=True)
+    import tracefc.io.traceio as traceio
+    basepath= Path("/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_21_recall1/")
+    ttl_df = load_all_ttl_events(basepath, sanity_check_channel=1, zero_timestamps=True)
+    cs_starts, cs_ends, cs_df = traceio.load_trace_events(basepath, session_type="tone_recall",
+                                                          event_type="CS+", return_df=True)
+    sync_df = create_sync_df(basepath)
+    ttl_lag_use = ttl_lag = pd.Timedelta(0.8, unit="seconds")
+    cs_oe_start_df = traceio.trace_ttl_to_openephys(cs_starts,
+                                                    ttl_df[ttl_df['channel_states'].abs() == 2],
+                                                    ttl_lag=ttl_lag_use)
+    # Convert to times in combined eeg file
+    cs_starts_combined = recording_events_to_combined_time(cs_oe_start_df, sync_df)
+
     pass
