@@ -98,7 +98,7 @@ def detect_tone(
         print(f'No tones detected at thresh={thresh} and length={tone_length}. Adjust power/time thresholds and re-run')
 
     if plot_check:
-        _, ax = plt.subplots()
+        _, ax = plt.subplots(figsize=(6, 3))
         ax.set_title(f"{freq_lims[0]} Hz to {freq_lims[1]} Hz filtered signal")
         if fs > 2000:  # downsample for plotting to avoid laggy plots
             (ht,) = ax.plot(audio_sig.time[::1000], power_ratio_sm[::1000])
