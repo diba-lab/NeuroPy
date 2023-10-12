@@ -39,7 +39,7 @@ class Epoch(DataWriter):
             try:
                 epochs = pd.DataFrame(epochs)
             except:
-                "If epochs is a dictionary then it should be pandas compatible"
+                print("Error converting dictionary to pandas DataFrame")
 
         assert isinstance(epochs, pd.DataFrame)
         assert (
