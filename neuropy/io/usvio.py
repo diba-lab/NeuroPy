@@ -23,14 +23,14 @@ class DeepSqueakIO:
         self.filename = filename
         self.usv_df = None
 
-        self.load_calls(filename)
+        self.load_calls()
 
-    def load_calls(self, filename, keys_ignore=["Type"]):
+    def load_calls(self, keys_ignore=["Type"]):
         """Loads calls from DeepSqueak that have been made MATLAB compatible by running the MATLAB function
         Calls2python located in the neuropy.io folder"""
 
         # Load in file and grab keys and data
-        mat_in = loadmat(filename, simplify_cells=True)
+        mat_in = loadmat(str(self.filename), simplify_cells=True)
         data = mat_in[
             list(mat_in.keys())[
                 np.where(["data" in key for key in mat_in.keys()])[0][0]
@@ -126,12 +126,16 @@ if __name__ == "__main__":
     # from file too to limit search?  Need to create a csv file with start times for each event!
     # Should be easy!!! Grab start time from csv file and compare to start time from log file.
     matplotlib.use('TkAgg')
-
-    base_dir = Path("/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_21_recall1/1_tone_recall")
-    detect_tone(sorted(base_dir.glob("**/*.WAV"))[0], freq_lims=(6900, 7100), tone_label="CS+")
+    #
+    # base_dir = Path("/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_21_recall1/1_tone_recall")
+    # detect_tone(sorted(base_dir.glob("**/*.WAV"))[0], freq_lims=(6900, 7100), tone_label="CS+")
     # base_dir = Path(
     #     "/data2/Trace_FC/Recording_Rats/Han/2022_08_03_training/2_training/USVdetections"
     # )
     # DeepSqueakIO(base_dir / "T0000001 2023-09-19  4_23 PM_copy_cell.mat")
     # time_start, time_end = detect_start_tone(dir_use / "T0000002.WAV")
-# basically need to figure out how to take the above and threshold it and find out when it jumps above a certain value for > 0.4sec
+
+    usv_detect_file = Path('/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_21_recall1/1_tone_recall/new_arena/USV_detect/T0000001 2023-10-02  4_01 PM_cell.mat')
+    ds_calls = DeepSqueakIO(filename=usv_detect_file)
+    ds_calls.load_calls()
+
