@@ -91,7 +91,6 @@ class UserAnnotationsManager(HDFMixin):
 
         for a_ctxt in included_session_contexts:
             session_uid = a_ctxt.get_description(separator="|", include_property_names=False)
-            session_uid
             session_cell_exclusivity: SessionCellExclusivityRecord = self.annotations[a_ctxt].get('session_cell_exclusivity', None)
             LxC_uids.extend([f"{session_uid}|{aclu}" for aclu in session_cell_exclusivity.LxC])
             SxC_uids.extend([f"{session_uid}|{aclu}" for aclu in session_cell_exclusivity.SxC])
@@ -327,8 +326,8 @@ class UserAnnotationsManager(HDFMixin):
             # Used in `build_lap_only_short_long_bin_aligned_computation_configs`
 
             Usage:
-                ## Get specific grid_bin_bounds overrides from the `cls._specific_session_override_dict`
-                override_dict = cls.get_specific_session_override_dict().get(sess.get_context(), {})
+                ## Get specific grid_bin_bounds overrides from the `UserAnnotationsManager._specific_session_override_dict`
+                override_dict = UserAnnotationsManager.get_hardcoded_specific_session_override_dict().get(sess.get_context(), {})
                 if override_dict.get('grid_bin_bounds', None) is not None:
                     grid_bin_bounds = override_dict['grid_bin_bounds']
                 else:
