@@ -269,6 +269,21 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Bi
         ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=ratemap_2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(ratemap_2D.neuron_ids), neuron_extended_ids=deepcopy(ratemap_2D.neuron_extended_ids), metadata=ratemap_2D.metadata)
         return ratemap_1D
 
+
+
+    def spatial_sparcity(self) -> np.ndarray:
+        """ computes the sparcity as a measure of spatial selectivity as in Silvia et al. 2015
+        
+        Sparcity = \frac{ <f>^2 }{ <f^2> }
+        
+        """
+        assert self.unsmoothed_tuning_maps is not None, "self.unsmoothed_tuning_maps is None! Did you pass it in while building the Ratemap?"
+        # Average over positions:
+        expected_f = np.array([np.nanmean(a_tuning_curve) for a_tuning_curve in ratemap.unsmoothed_tuning_maps]) # .shape
+        expected_f_squared = np.array([np.nanmean(a_tuning_curve**2) for a_tuning_curve in ratemap.unsmoothed_tuning_maps]) # .shape
+        return (expected_f**2) / expected_f_squared # sparcity.shape # (n_neurons,)
+        
+
     # ----------------------  HDF5 Serialization -------------------------:
     # HDFMixin Conformances ______________________________________________________________________________________________ #
     def to_hdf(self, file_path, key: str, **kwargs):
