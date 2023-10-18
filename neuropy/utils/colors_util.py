@@ -137,8 +137,12 @@ class ColorsUtil:
 
 
 
-def get_neuron_colors(sort_indicies, cmap=None, debug_print=False):
-    # returns the list of colors, an RGBA np.array of shape: 4 x n_neurons. 
+def get_neuron_colors(sort_indicies, cmap=None, debug_print=False) -> np.ndarray:
+    """ returns the list of colors, an RGBA np.array of shape: 4 x n_neurons. 
+    
+    colors_array = get_neuron_colors(sort_indicies, cmap=None, debug_print=False)
+    
+    """
     if cmap is None:
         # when none, get Pho's defaults which look good for large number of neurons.
         cmap = ColorsUtil.colors.active_cmap.copy()
@@ -164,4 +168,6 @@ def get_neuron_colors(sort_indicies, cmap=None, debug_print=False):
     for i, neuron_ind in enumerate(sort_indicies):
         colors_array[:, i] = extended_cmap(i / len(sort_indicies))
         
+    ## Note this returns a 0_to_1_format_array
+
     return colors_array
