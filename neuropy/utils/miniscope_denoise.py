@@ -180,7 +180,7 @@ def plot_miniscope_noise(
     f_full = np.asarray(f_full)
     Pxx_full = np.asarray(Pxx_full)
 
-    # Quick and dirty method to remove disconnects - threshold excessive high frequency noise
+    # Quick and dirty method to remove disconnects - threshold excessive high frequency noise - not working well!
     if remove_disconnects:
         freq_bool = np.bitwise_and(
             f_full[0] > EWLnoise_range[1], f_full[0] < EWLnoise_range[0]
@@ -191,10 +191,17 @@ def plot_miniscope_noise(
 
     fig, ax = plt.subplots(2, 3, figsize=(12, 8))
     colors = plt.cm.rainbow(np.linspace(0, 1, nblocks))
-    for fT, PxxT, color in zip(f_full, Pxx_full, colors):
-        ax[0][0].plot(fT, PxxT, color=color)
-    ax[0][0].set_xlabel("Freq (Hz)")
-    ax[0][0].set_ylabel("PSD")
+    for a in [ax[0][0], ax[1][2]]:
+        ymax = []
+        for fT, PxxT, color in zip(f_full, Pxx_full, colors):
+            a.plot(fT, PxxT, color=color)
+            ymax.append(
+                np.max((PxxT[(fT > EWLnoise_range[0]) & (fT < EWLnoise_range[1])]))
+            )
+        a.set_xlabel("Freq (Hz)")
+        a.set_ylabel("PSD")
+    ax[1][2].set_xlim(EWLnoise_range)
+    ax[1][2].set_ylim([-100, np.max(ymax)])
 
     # noise_limits = [[4835, 4855], [9670, 9700], [14510, 14550], [57, 63]]
     noise_limits = [
