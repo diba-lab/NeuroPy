@@ -122,7 +122,13 @@ def plot_spectrogram(
 
 
 def plot_signal_traces(
-    signal: Signal, ax=None, pad=0.2, color="k", lw=1, axlabel=False
+    signal: Signal,
+    ax=None,
+    pad=0.2,
+    color="k",
+    lw=1,
+    axlabel=False,
+    epochs=None,
 ):
 
     n_channels = signal.n_channels
@@ -155,6 +161,11 @@ def plot_signal_traces(
     ax.spines["left"].set_visible(False)
 
     ax.tick_params(axis="both", length=0)
+
+    if epochs is not None:
+        epochs_plot = epochs.time_slice(t_start=signal.t_start, t_stop=signal.t_stop)
+        for start, stop in zip(epochs_plot.starts, epochs_plot.stops):
+            ax.axvspan(start, stop, color=[0, 0.3, 0, 0.5])
 
     return ax
 
