@@ -29,7 +29,13 @@ class Spectrogram(core.Signal):
         return self.channel_id
 
     def time_slice(self, t_start=None, t_stop=None):
-        return super().time_slice(t_start=t_start, t_stop=t_stop)
+        spec_slice = super().time_slice(t_start=t_start, t_stop=t_stop)
+        return Spectrogram(
+            spec_slice.traces,
+            self.freqs,
+            sampling_rate=self.sampling_rate,
+            t_start=self.t_start,
+        )
 
     def freq_slice(self, f1=None, f2=None):
         if f1 is None:
@@ -96,6 +102,78 @@ class Spectrogram(core.Signal):
         """
         spect_sum = self.traces.sum(axis=0)
         return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
+
+    def get_pe_mean_spec(
+        self, event_times, buffer_sec=(0.5, 0.5), ignore_epochs: core.Epoch = None
+    ):
+        """Get peri-event mean spectrogram
+
+        Parameters
+        ----------
+        event_times: ndarray of floats times of each event in seconds, will be time 0 in mean spectrogram
+
+        buffer_sec: tuple of floats defining amount of time before/after event to grab.
+
+        ignore_epochs: core.Epoch class of epochs to ignore when calculating mean spectrogram
+
+        Returns
+        -------
+        Spectrogram class with traces = mean spectrogram and times ranging from -buffer_sec[0] to buffer_sec[1]
+        """
+
+        event_times = event_times.squeeze()
+        assert event_times.ndim == 1, "event_times must be broadcastable to ndim=1"
+
+        # Keep only events within time limits of recording
+        epoch_start_stops = event_times[:, None] + np.multiply(buffer_sec, (-1, 1))
+        keep_bool = (epoch_start_stops[:, 0] > self.t_start) & (
+            epoch_start_stops[:, 1] < self.t_stop
+        )
+        if np.sum(keep_bool) < len(event_times):
+            event_times = event_times[keep_bool]
+            print(
+                f"Events {np.where(~keep_bool)[0]} are outside of data range and were dropped"
+            )
+
+        sxx_list = []
+        ntime_bins = int(np.ceil(np.sum(buffer_sec) * self.sampling_rate))
+        for t_event in event_times:
+            start_time = t_event - buffer_sec[0]
+            stop_time = t_event + buffer_sec[1]
+            wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
+
+            # Add/remove one frame at end if array size doesn't match expected number of time bins
+            if len(wvlet_temp.time) != ntime_bins:
+                if len(wvlet_temp.time) == (ntime_bins + 1):
+                    stop_time -= 0.5 / self.sampling_rate
+                elif len(wvlet_temp.time) == (ntime_bins - 1):
+                    stop_time += 0.5 / self.sampling_rate
+                else:
+                    print("Error - time bins off by more than 1")
+                wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
+            sxx_temp = wvlet_temp.traces
+
+            # Ignore times if specified - these are likely already NaN in the spectrogram
+            if ignore_epochs is not None:
+                time_bins = np.linspace(start_time, stop_time, ntime_bins)
+                ignore_bool, ignore_times, _ = ignore_epochs.contains(time_bins)
+
+                # Display ignored frames
+                if np.sum(ignore_bool) > 0:
+                    sxx_temp[:, ignore_bool] = np.nan
+                    print(
+                        f"{np.sum(ignore_bool)} frames between {ignore_times.min():.1F} and {ignore_times.max():.1F} ignored (sent to nan)"
+                    )
+            sxx_list.append(sxx_temp)
+
+        sxx_mean = np.nanmean(np.stack(sxx_list, axis=2), axis=2)
+
+        return Spectrogram(
+            sxx_mean,
+            self.freqs,
+            sampling_rate=self.sampling_rate,
+            t_start=-buffer_sec[0],
+        )
 
 
 class filter_sig:
@@ -258,7 +336,7 @@ class WaveletSg(Spectrogram):
 
         sigma = ncycles / (2 * np.pi * freqs)
         A = (sigma * np.sqrt(np.pi)) ** -0.5
-        real_part = np.exp(-(t_wavelet**2) / (2 * sigma**2))
+        real_part = np.exp(-(t_wavelet ** 2) / (2 * sigma ** 2))
         img_part = np.exp(2j * np.pi * (t_wavelet * freqs))
         wavelets = A * real_part * img_part
 
@@ -307,9 +385,7 @@ class FourierSg(Spectrogram):
             trace = stats.zscore(trace)
 
         if multitaper:
-            sxx, f, t = self._ft(
-                trace, signal.sampling_rate, window, overlap, mt=True
-            )
+            sxx, f, t = self._ft(trace, signal.sampling_rate, window, overlap, mt=True)
         else:
             sxx, f, t = self._ft(trace, signal.sampling_rate, window, overlap)
 
@@ -1213,7 +1289,7 @@ def irasa(
 
         def func(t, a, b):
             # See https://github.com/fooof-tools/fooof
-            return a + np.log(t**b)
+            return a + np.log(t ** b)
 
         for y in np.atleast_2d(psd_aperiodic):
             y_log = np.log(y)
@@ -1226,7 +1302,7 @@ def irasa(
             slopes.append(popt[1])
             # Calculate R^2: https://stackoverflow.com/q/19189362/10581531
             residuals = y_log - func(freqs, *popt)
-            ss_res = np.sum(residuals**2)
+            ss_res = np.sum(residuals ** 2)
             ss_tot = np.sum((y_log - np.mean(y_log)) ** 2)
             r_squared.append(1 - (ss_res / ss_tot))
 
@@ -1296,13 +1372,20 @@ def plot_miniscope_noise(
     ]
     for a, lim in zip(ax.reshape(-1)[1:], noise_limits):
         freq_bool = np.bitwise_and(f > lim[0], f < lim[1])
-        sns.heatmap(Pxx_full[:, freq_bool].T, ax=a)
-        a.set_yticks([0, freq_bool.sum()])
-        a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
-        a.set_xticks((0, nblocks))
-        a.set(xticklabels=("0", str(time[-1])))
-        a.set_xlabel("Time (30 sec blocks)")
-        a.set_ylabel("Frez (Hz)")
+        if np.any(freq_bool):
+            sns.heatmap(Pxx_full[:, freq_bool].T, ax=a)
+            a.set_yticks([0, freq_bool.sum()])
+            a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
+            a.set_xticks((0, nblocks))
+            a.set(xticklabels=("0", str(time[-1])))
+            a.set_xlabel("Time (30 sec blocks)")
+            a.set_ylabel("Frez (Hz)")
+        else:
+            a.text(
+                0.1,
+                0.5,
+                f"{lim[0]}-{lim[1]} Hz above Nyquist Frequency",
+            )
 
     fig.suptitle("Miniscope Noise Tracking")
 

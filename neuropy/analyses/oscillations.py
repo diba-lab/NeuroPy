@@ -401,8 +401,7 @@ def detect_theta_epochs(
             fs=signal.sampling_rate,
             statistic="mean",
         )
-        selected_chan = channel_ids[np.argmax(hil_stat)]
-
+        selected_chan = channel_ids[np.argmax(hil_stat)].reshape(-1)
         traces = signal.time_slice(channel_id=selected_chan).traces.reshape(1, -1)
 
     print(f"Best channel for theta: {selected_chan}")

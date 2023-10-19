@@ -57,7 +57,7 @@ def plot_raster(
             jitter_add = 0
         ax.plot(
             spiketrain,
-            (ind + 1) * np.ones(len(spiketrain)) + jitter_add,
+            ((ind + 1) * np.ones(len(spiketrain)) + jitter_add),
             marker,
             markersize=markersize,
             markeredgewidth=markeredgewidth,

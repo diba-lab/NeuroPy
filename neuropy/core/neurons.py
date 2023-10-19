@@ -155,6 +155,33 @@ class Neurons(DataWriter):
             shank_ids=neurons.shank_ids,
         )
 
+    def neuron_slice(self, neuron_inds):
+        neurons = deepcopy(self)
+        spiketrains = neurons.spiketrains[neuron_inds]
+
+        waveforms = (
+            None if neurons.waveforms is None else neurons.waveforms[neuron_inds]
+        )
+        peak_channels = (
+            None
+            if neurons.peak_channels is None
+            else neurons.peak_channels[neuron_inds]
+        )
+        shank_ids = (
+            None if neurons.shank_ids is None else neurons.shank_ids[neuron_inds]
+        )
+        return Neurons(
+            spiketrains=spiketrains,
+            t_stop=neurons.t_stop,
+            t_start=neurons.t_start,
+            sampling_rate=neurons.sampling_rate,
+            neuron_ids=neurons.neuron_ids[neuron_inds],
+            neuron_type=neurons.neuron_type[neuron_inds],
+            waveforms=waveforms,
+            peak_channels=peak_channels,
+            shank_ids=shank_ids,
+        )
+
     def get_neuron_type(self, neuron_type):
         if isinstance(neuron_type, str):
             indices = self.neuron_type == neuron_type

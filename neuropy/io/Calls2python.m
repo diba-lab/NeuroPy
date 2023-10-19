@@ -11,5 +11,5 @@ calls_keys = load(detection_file).Calls.Properties.VariableNames;
 
 [path, name, ~] = fileparts(detection_file);
 
-save(fullfile(path, [name '_cell.mat']), 'calls_keys', 'calls_data')
+save(fullfile(path, strcat(name, '_cell.mat')), 'calls_keys', 'calls_data')
 end

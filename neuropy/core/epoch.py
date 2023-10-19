@@ -39,7 +39,7 @@ class Epoch(DataWriter):
             try:
                 epochs = pd.DataFrame(epochs)
             except:
-                "If epochs is a dictionary then it should be pandas compatible"
+                print("Error converting dictionary to pandas DataFrame")
 
         assert isinstance(epochs, pd.DataFrame)
         assert (
@@ -89,6 +89,14 @@ class Epoch(DataWriter):
             df_new = pd.concat([my_df, other_df]).reset_index(drop=True)
 
         return Epoch(epochs=df_new)
+
+    def add_epoch_manually(self, start, stop, label="", merge_dt: float or None = 0):
+        comb_df = pd.DataFrame({"start": [start], "stop": [stop], "label": label})
+
+        if merge_dt is not None:
+            return self.__add__(Epoch(comb_df)).merge(merge_dt)
+        else:
+            return self.__add__(Epoch(comb_df))
 
     def shift(self, dt):
         epochs = self._epochs.copy()
