@@ -2,6 +2,7 @@ import types
 from collections import namedtuple
 from enum import Enum, IntEnum, auto, unique
 from itertools import islice
+from typing import Tuple
 import numpy as np
 import pandas as pd
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
@@ -175,6 +176,35 @@ def shuffle_ids(neuron_ids, seed:int=1337):
     random.Random(seed).shuffle(shuffle_IDXs) # shuffle the list of indicies
     shuffle_IDXs = np.array(shuffle_IDXs)
     return neuron_ids[shuffle_IDXs], shuffle_IDXs
+
+
+
+def build_shuffled_ids(neuron_ids, num_shuffles: int = 1000, seed:int=1337, debug_print=False) -> Tuple[np.ndarray, np.ndarray]:
+	""" Builds `num_shuffles` of the neuron_ids and returns both shuffled_aclus and shuffled_IDXs
+	
+	Uses numpy 2023-10-20 best practices for random number generation.
+	
+	Shuffled.
+    
+    Returns:
+        shuffled_aclus.shape # .shape: (num_shuffles, n_neurons)
+        shuffled_IDXs.shape # .shape: (num_shuffles, n_neurons)
+        
+	"""
+	rng = np.random.default_rng(seed=seed)
+	
+	shuffled_IDXs = np.tile(np.arange(len(neuron_ids)), (num_shuffles, 1)) # not shuffled yet, just duplicated because shuffling a multidim array only occurs along the first axis.
+	shuffled_aclus = np.tile(neuron_ids, (num_shuffles, 1)) # not shuffled yet, just duplicated because shuffling a multidim array only occurs along the first axis.
+	for i in np.arange(num_shuffles):
+		# shuffle in place
+		rng.permuted(shuffled_IDXs[i], axis=0, out=shuffled_IDXs[i])
+		shuffled_aclus[i,:] = shuffled_aclus[i,:][shuffled_IDXs[i]] # sort the row's aclus by the shuffled indicies
+
+	if debug_print:
+		# shuffled_aclus.shape # .shape: (num_shuffles, n_neurons)
+		print(f'shuffled_IDXs.shape: {np.shape(shuffled_IDXs)}')
+	return shuffled_aclus, shuffled_IDXs
+
 
 
 # ==================================================================================================================== #
