@@ -1,0 +1,647 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "source": [
+    "from neuropy.io import NeuroscopeIO, BinarysignalIO\n",
+    "from neuropy import core\n",
+    "from pathlib import Path\n",
+    "\n",
+    "class ProcessData:\n",
+    "    def __init__(self, basepath):\n",
+    "        basepath = Path(basepath)\n",
+    "        xml_files = sorted(basepath.glob(\"*.xml\"))\n",
+    "        assert len(xml_files) == 1, \"Found more than one .xml file\"\n",
+    "\n",
+    "        fp = xml_files[0].with_suffix(\"\")\n",
+    "        self.filePrefix = fp\n",
+    "\n",
+    "        self.recinfo = NeuroscopeIO(xml_files[0])\n",
+    "        self.eegfile = BinarysignalIO(\n",
+    "            self.recinfo.eeg_filename,\n",
+    "            n_channels=self.recinfo.n_channels,\n",
+    "            sampling_rate=self.recinfo.eeg_sampling_rate,\n",
+    "        )\n",
+    "\n",
+    "        if self.recinfo.dat_filename.is_file():\n",
+    "            self.datfile = BinarysignalIO(\n",
+    "                self.recinfo.dat_filename,\n",
+    "                n_channels=self.recinfo.n_channels,\n",
+    "                sampling_rate=self.recinfo.dat_sampling_rate,\n",
+    "            )\n",
+    "\n",
+    "        self.probegroup = core.ProbeGroup.from_file(fp.with_suffix(\".probegroup.npy\"))\n",
+    "\n",
+    "\n",
+    "\n",
+    "    def __repr__(self) -> str:\n",
+    "        return f\"{self.__class__.__name__}({self.recinfo.source_file.name})\"\n",
+    "\n",
+    "\n",
+    "def ratN():\n",
+    "    basepath='/data/Clustering/sessions/RatN_Day1_test_neuropy'\n",
+    "    return ProcessData(basepath)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Check recording info"
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "source": [
+    "sess = ratN()\n",
+    "print(sess.recinfo)"
+   ],
+   "outputs": [
+    {
+     "output_type": "stream",
+     "name": "stdout",
+     "text": [
+      "filename: /data/Clustering/sessions/RatN_Day1_test_neuropy/RatN_Day1_2019-10-09_03-52-32.xml \n",
+      "# channels: 134\n",
+      "sampling rate: 30000\n",
+      "lfp Srate (downsampled): 1250\n"
+     ]
+    }
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Set probe configuration\n",
+    "Lets create probe configuration for a 128-channel probe"
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "source": [
+    "import numpy as np\n",
+    "from neuropy.core import Shank, Probe, ProbeGroup\n",
+    "from neuropy.plotting import plot_probe\n",
+    "\n",
+    "shanks = []\n",
+    "channel_groups = sess.recinfo.channel_groups\n",
+    "for i in range(8):\n",
+    "\n",
+    "    shank = Shank.auto_generate(\n",
+    "        columns=2,\n",
+    "        contacts_per_column=8,\n",
+    "        xpitch=15,\n",
+    "        ypitch=20,\n",
+    "        y_shift_per_column=[0, -7.5],\n",
+    "        channel_id=np.append(\n",
+    "            channel_groups[i][::2][::-1], channel_groups[i][1::2][::-1]\n",
+    "        ),\n",
+    "    )\n",
+    "    shanks.append(shank)\n",
+    "    shank.set_disconnected_channels(sess.recinfo.skipped_channels)\n",
+    "\n",
+    "probe1 = Probe(shanks,shank_pitch=(150,0))\n",
+    "\n",
+    "prbgrp = ProbeGroup()\n",
+    "prbgrp.add_probe(probe1)\n",
+    "\n",
+    "prbgrp.filename = sess.filePrefix.with_suffix(\".probegroup.npy\")\n",
+    "prbgrp.save()\n",
+    "plot_probe(prbgrp)"
+   ],
+   "outputs": [
+    {
+     "output_type": "stream",
+     "name": "stdout",
+     "text": [
+      "data saved\n"
+     ]
+    },
+    {
+     "output_type": "execute_result",
+     "data": {
+      "text/plain": [
+       "<AxesSubplot:title={'center':'Probe 128ch'}>"
+      ]
+     },
+     "metadata": {},
+     "execution_count": 5
+    },
+    {
+     "output_type": "display_data",
+     "data": {
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ],
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAAXcAAAEICAYAAACktLTqAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjQuMSwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy/Z1A+gAAAACXBIWXMAAAsTAAALEwEAmpwYAAAaGElEQVR4nO3df5Sc1X3f8fdHWmEM1EFCCwVBJAg6UEFam6wJ2K2jE0UH5DiI0lLjxAm2wSQNbW2nBEtxU5M/CHLwcez6V49i8yMpP6xjKw6HWl50VCt2WrCzMjgWaGWJ38KytQg52IkDWunbP55H3mE9s9qdmbs79+7ndY7OzNxnnmc+dxe++8ydufdRRGBmZmWZM9MBzMys+1zczcwK5OJuZlYgF3czswK5uJuZFcjF3cysQC7uVixJIensmc7RLklbJV070zksTy7u1lMkPSXpx5J+JOn7km6XdEIP5Fovaaekw5LeMW7b1ZK2SXpR0h5JfyKpr2H7EklfknRA0vckfaJxu1kKLu7Wi34tIk4ALgBeD/y38U+YgeL4LeB3gW822XYc8F5gIfCLwArghobtnwL2AacCrwV+qT6WWTIu7tazIuI5YBNwPvxkmOV6SbuAXXXbuyXtlvSCpPsknTbuMG+W9ISk5yXdKukn/81LepekHfUZ9aCkxRNk+WREbAH+qcm2T0fE1yLi5TrzXcAbG55yJrAhIv4pIr4HfBk4ryHHakmP1Gf+j0u6tGHfxZL+r6QfSnpA0sLJ/fRstnNxt54l6QzgzcDDDc2XU50dL5P0y8AtwH+gOit+Grh33GH+LTBA9S5gNfCu+tiXA38AXAH0A18D7ulS9DcBjzY8/hhwlaTjJC0CVlEVeCRdCPw58PvAifW+TzXs++vAO4GTgWN45TsCs5Zc3K0XfVHSD4C/Af4a+OOGbbdExAsR8WPgN4DbIuKbEfESsBa4WNKShud/qH7+M8BHgbfV7b9dH2tHRIzWr/Haic7eJ0PSO6n+mHy4ofmvqc7UXwT2AEPAF+tt19R92BwRhyPiuYgYbtj39oj4Tt3fDVTDOmZH5eJuvejyiDgxIhZHxO/Whe2IZxvun0Z1tg5ARPwI2A8savH8p+t9ABYDH5P0g/oPyQuAxu07JfW7gXXAqoh4vm6bAwwCG4Hjqcbl5wMfqnc7A3h8gsN+r+H+PwIz/uGy5cHF3XLTuIzpd6mKNACSjgdOAp5reM4ZDfd/tt4HqqL/2/UfkSP/Xh0R/6+dUPU4+Z9RfRj87YZNC+oMn4iIlyJiP3A71XDTkRw/185rmk3Exd1ydjfwTkmvlfQqqqGVr0fEUw3P+X1J8+vx+/cAn6vb/yewVtJ5AJJ+RtKVrV5I0jGSjqU6u58n6dgjH87WY/93Af8uIr7RuF99Bv8k8B8l9Uk6Ebia6ts3AJ+t+7BC0hxJiySd2/6PxKzi4m7Zqr+98ofAF4C9VGfAV4172l8B24BHgP9NVUyJiL+kGhq5V9KLwHaqDzpbeQD4MfAGYH19/031tj8Efgb4Uv39/B9J2tSw7xXApcAIsBsYBd5X5/gG1Qemfwr8PdX4fEfj/mYA8sU6zMzK4zN3M7MCubibmRXIxd3MrEAu7mZmBeqJlekWLlwYS5YsmekYZmZZ2bZt2/MR0d9sW08U9yVLljA0NDTTMczMsiLp6VbbPCxjZlYgF3czswK5uJuZFcjF3cysQC7uZmYFOmpxl3SbpH2StjfZdkN96bOFDW1r68ue7ZR0SbcDm5nZ0U3mzP0OqhXtXqFeQnUl8ExD2zKqVfnOq/f5lKS5XUnawvDGQR589w0MbxxM+TId2/b0AT75ld1se/rATEc5KmdNw1nTcNbmjvo994j46rjLlh3xp8CNVEuqHrEauLe+5NmTknYDFwIPdiHrTxneOMjit17G2YdGOXjHxxn+3H2ce0XvvVnY9vQBfuMzD/Hy6GGO6ZvDXddexC8snj/TsZpy1jScNQ1nba2tMXdJlwHPRcS3xm1axCsva7aHFpctk3SdpCFJQyMjI+3E4MCmzcw7NEpfHGbeoVEObNrc1nFSe+iJ/bw8epjDAQdHD/PQE/tnOlJLzpqGs6bhrK1NubhLOg74APDfm21u0tZ0wfiIWB8RAxEx0N/fdPbsUc1ftZKDc/sY1RwOzu1j/qqVbR0ntYvOOolj+uYwVzCvbw4XnXXSTEdqyVnTcNY0nLW1SV2sox6WuT8izpf088AWqov1ApxOdV3KC6muKENE3FLvNwjcFBETDssMDAxEu8sPDG8c5MCmzcxftbInh2SO2Pb0AR56Yj8XnXVSz75tPMJZ03DWNGZzVknbImKg6bapFvcm254CBiLi+fp6lHdTFfrTqP4ILI2IQxMdv5PibmY2W01U3CfzVch7qD4QPUfSHknXtHpuRDwKbAAeA74MXH+0wm5mZt03mW/LvO0o25eMe3wzcHNnsczMrBOeoWpmViAXdzOzAhVX3D1bLY1csuaSE5w1FWet9MSVmLrFs9XSyCVrLjnBWVNx1jFFnbl7tloauWTNJSc4ayrOOqao4u7ZamnkkjWXnOCsqTjrmElNYkqtm5OYZvNstZRyyZpLTnDWVGZT1o5nqKbmGapmZlPX0QxVMzPLj4u7mVmBXNzNzArk4m5mViAXdzOzArm4m5kVyMXdzKxALu5mZgVycTczK5CLu5lZgSZzDdXbJO2TtL2h7VZJw5L+TtJfSjqxYdtaSbsl7ZR0SaLcZmY2gcmcud8BXDqubTNwfkT8S+A7wFoAScuAq4Dz6n0+JWlu19I2MbxxkAfffQPDGwdTvkzHfAGBNJw1DWdNYzqzTuYC2V+VtGRc2wMNDx8C/n19fzVwb0S8BDwpaTdwIfBgd+K+0vDGQRa/9TLOPjTKwTs+zvDn7uPcK3rvzYIvIJCGs6bhrGlMd9ZujLm/C9hU318EPNuwbU/d9lMkXSdpSNLQyMhIWy98YNNm5h0apS8OM+/QKAc2bW7rOKn5AgJpOGsazprGdGftqLhL+gAwCtx1pKnJ05quKRwR6yNiICIG+vv723r9+atWcnBuH6Oaw8G5fcxftbKt46TmCwik4axpOGsa0511Uuu518My90fE+Q1tVwO/A6yIiH+s29YCRMQt9eNB4KaImHBYppP13Ic3DnJg02bmr1rZk0MyR8ymCwhMJ2dNw1nT6HbWji/WMb64S7oU+AjwSxEx0vC884C7qcbZTwO2AEsj4tBEx/fFOszMpm6i4n7UD1Ql3QMsBxZK2gN8kOrbMa8CNksCeCgificiHpW0AXiMarjm+qMVdjMz6z5fZs/MLFO+zJ6Z2Szj4m5mVqDiirtnq6WRS9ZccoKzpuKslaN+oJoTz1ZLI5esueQEZ03FWccUdebu2Wpp5JI1l5zgrKk465iiirtnq6WRS9ZccoKzpuKsY4r7KuRsnq2WUi5Zc8kJzprKbMra8QzV1Pw9dzOzqfP33M3MZhkXdzOzArm4m5kVyMXdzKxALu5mZgVycTczK5CLu5lZgVzczcwK5OJuZlYgF3czswIdtbhLuk3SPknbG9oWSNosaVd9O79h21pJuyXtlHRJquBmZtbaZM7c7wAuHde2BtgSEUuBLfVjJC0DrgLOq/f5lKS5XUvbxPDGQR589w0MbxxM+TId8wUE0sjl9w95/VydNY3pzHrUi3VExFclLRnXvBpYXt+/E9gKvL9uvzciXgKelLQbuBB4sEt5X2F44yCL33oZZx8a5eAdH2f4c/dx7hW992bBFxBII5ffP+T1c3XWNKY7a7tj7qdExF6A+vbkun0R8GzD8/bUbT9F0nWShiQNjYyMtBXiwKbNzDs0Sl8cZt6hUQ5s2tzWcVLzBQTSyOX3D3n9XJ01jenO2u0PVNWkremawhGxPiIGImKgv7+/rRebv2olB+f2Mao5HJzbx/xVK9s6Tmq+gEAaufz+Ia+fq7OmMd1ZJ7Weez0sc39EnF8/3gksj4i9kk4FtkbEOZLWAkTELfXzBoGbImLCYZlO1nMf3jjIgU2bmb9qZc++JYfZdQGB6ZTL7x/y+rk6axrdztrxxTqaFPdbgf0RsU7SGmBBRNwo6Tzgbqpx9tOoPmxdGhGHJjq+L9ZhZjZ1ExX3o36gKukeqg9PF0raA3wQWAdskHQN8AxwJUBEPCppA/AYMApcf7TCbmZm3TeZb8u8rcWmFS2efzNwcyehzMysM56hamZWIBd3M7MCFVfcPVstjVyy5pITnDUVZ60cdcw9J56tlkYuWXPJCc6airOOKerM3bPV0sglay45wVlTcdYxRRV3z1ZLI5esueQEZ03FWcdMahJTat2cxDSbZ6ullEvWXHKCs6Yym7J2PEM1Nc9QNTObuomKe1HDMmZmVnFxNzMrkIu7mVmBXNzNzArk4m5mViAXdzOzArm4m5kVyMXdzKxALu5mZgXqqLhLep+kRyVtl3SPpGMlLZC0WdKu+ra35/+amRWo7eIuaRHwX4CB+sLZc4GrgDXAlohYSnWB7DXdCGpmZpPX6bBMH/BqSX3AccB3gdXAnfX2O4HLO3yNCeWyMH8uOcFZU3HWNJy1ubYv1hERz0n6MPAM8GPggYh4QNIpEbG3fs5eSSd3KetPyWVh/lxygrOm4qxpOGtrnQzLzKc6Sz8TOA04XtLbp7D/dZKGJA2NjIy0lSGXhflzyQnOmoqzpuGsrXUyLPMrwJMRMRIRB4GNwBuA70s6FaC+3dds54hYHxEDETHQ39/fVoBcFubPJSc4ayrOmoazttb2eu6SfhG4DXg91bDMHcAQ8LPA/ohYJ2kNsCAibpzoWJ2s557Lwvy55ARnTcVZ05jNWZNdrEPSHwFvBUaBh4FrgROADVRF/hngyoh4YaLj+GIdZmZTN1Fxb/sDVYCI+CDwwXHNLwErOjmumZl1xjNUzcwK5OJuZlYgF3czswIVV9w9Wy2NXLLmkhOcNRVnrXT0gWqv8Wy1NHLJmktOcNZUnHVMUWfunq2WRi5Zc8kJzpqKs44pqrh7tloauWTNJSc4ayrOOqajSUzd0s1JTLN5tlpKuWTNJSc4ayqzKWuyGard4hmqZmZTN1FxL2pYxszMKi7uZmYFcnE3MyuQi7uZWYFc3M3MCuTibmZWIBd3M7MCubibmRXIxd3MrEAdFXdJJ0r6vKRhSTskXSxpgaTNknbVt709/9fMrECdnrl/DPhyRJwL/CtgB7AG2BIRS4Et9eNkclm7OZec4KypOGsaztpc2+u5S3oN8CbgHQAR8TLwsqTVwPL6aXcCW4H3dxKylVzWbs4lJzhrKs6ahrO21smZ+1nACHC7pIclfUbS8cApEbEXoL49udnOkq6TNCRpaGRkpK0AuazdnEtOcNZUnDUNZ22tk+LeB1wAfDoiXgf8A1MYgomI9RExEBED/f39bQXIZe3mXHKCs6birGk4a2ttL/kr6Z8DD0XEkvrxv6Eq7mcDyyNir6RTga0Rcc5Ex+pkyd9c1m7OJSc4ayrOmsZszppsPXdJXwOujYidkm4Cjq837Y+IdZLWAAsi4saJjuP13M3Mpm6i4t7pBbL/M3CXpGOAJ4B3Ug31bJB0DfAMcGWHr2FmZlPUUXGPiEeAZn81VnRyXDMz64xnqJqZFcjF3cysQC7uZmYFKq64eypyGrlkzSUnOGsqzlrp9NsyPcVTkdPIJWsuOcFZU3HWMUWduXsqchq5ZM0lJzhrKs46pqji7qnIaeSSNZec4KypOOuYjmaodks3Z6jO5qnIKeWSNZec4KypzKasyZYf6BYvP2BmNnUTFfeihmXMzKzi4m5mViAXdzOzArm4m5kVyMXdzKxALu5mZgVycTczK5CLu5lZgVzczcwK1HFxlzRX0sOS7q8fL5C0WdKu+ra35/+amRWoG2fu7wF2NDxeA2yJiKXAlvpxMrms3ZxLTnDWVJw1DWdtrqP13CWdDvwqcDPwe3XzamB5ff9OYCvw/k5ep5Vc1m7OJSc4ayrOmoazttbpmftHgRuBww1tp0TEXoD69uRmO0q6TtKQpKGRkZG2XjyXtZtzyQnOmoqzpuGsrbVd3CW9BdgXEdva2T8i1kfEQEQM9Pf3t5Uhl7Wbc8kJzpqKs6bhrK21veSvpFuA3wRGgWOB1wAbgdcDyyNir6RTga0Rcc5Ex+pkyd9c1m7OJSc4ayrOmsZszpp8PXdJy4EbIuItkm4F9kfEOklrgAURceNE+3s9dzOzqZvu9dzXASsl7QJW1o/NzGwadfRtmSMiYivVt2KIiP3Aim4c18zM2uMZqmZmBXJxNzMrUHHF3bPV0sglay45wVlTcdZKV8bce4Vnq6WRS9ZccoKzpuKsY4o6c/dstTRyyZpLTnDWVJx1TFHF3bPV0sglay45wVlTcdYxXZnE1KluTmKazbPVUsolay45wVlTmU1Zk89Q7ZRnqJqZTd10z1A1M7MZ5uJuZlYgF3czswK5uJuZFcjF3cysQC7uZmYFcnE3MyuQi7uZWYFc3M3MCuTibmZWoLaLu6QzJH1F0g5Jj0p6T92+QNJmSbvq295e3MHMrECdnLmPAv81Iv4FcBFwvaRlwBpgS0QsBbbUj5PJZWH+XHKCs6birGk4a3NtX6wjIvYCe+v7P5S0A1gErAaW10+7k+rC2e/vKGULuSzMn0tOcNZUnDUNZ22tK2PukpYArwO+DpxSF/4jfwBObrHPdZKGJA2NjIy09bq5LMyfS05w1lScNQ1nba3j4i7pBOALwHsj4sXJ7hcR6yNiICIG+vv723rtXBbmzyUnOGsqzpqGs7bW0XrukuYB9wODEfGRum0nsDwi9ko6FdgaEedMdJxO1nPPZWH+XHKCs6birGnM5qxJLtYhSVRj6i9ExHsb2m8F9kfEOklrgAURceNEx/LFOszMpm6i4t72B6rAG4HfBL4t6ZG67Q+AdcAGSdcAzwBXdvAaZmbWhk6+LfM3gFpsXtHucc3MrHOeoWpmViAXdzOzAhVX3D1bLY1csuaSE5w1FWetdPKBas/xbLU0csmaS05w1lScdUxRZ+6erZZGLllzyQnOmoqzjimquHu2Whq5ZM0lJzhrKs46pqMZqt3SzUlMs3m2Wkq5ZM0lJzhrKrMpa5IZqt3kGapmZlM3UXEvaljGzMwqLu5mZgVycTczK5CLu5lZgVzczcwK5OJuZlYgF3czswK5uJuZFcjF3cysQC7uZmYFSlbcJV0qaaek3fWFss3MbJokKe6S5gKfBFYBy4C3SVqW4rVyWZg/l5zgrKk4axrO2lyqi3VcCOyOiCcAJN0LrAYe6+aL5LIwfy45wVlTcdY0nLW1VMMyi4BnGx7vqdt+QtJ1koYkDY2MjLT1IrkszJ9LTnDWVJw1DWdtLVVxV5O2V6wtHBHrI2IgIgb6+/vbepFcFubPJSc4ayrOmoaztpZkPXdJFwM3RcQl9eO1ABFxS7Pnd7Keey4L8+eSE5w1FWdNYzZnnfaLdUjqA74DrACeA/4W+PWIeLTZ832xDjOzqZuouCf5QDUiRiX9J2AQmAvc1qqwm5lZ96X6tgwR8SXgS6mOb2ZmrXmGqplZgVzczcwKVFxx92y1NHLJmktOcNZUnLWSbMx9Jni2Whq5ZM0lJzhrKs46pqgzd89WSyOXrLnkBGdNxVnHFFXcPVstjVyy5pITnDUVZx2TZBLTVHVzEtNsnq2WUi5Zc8kJzprKbMo67TNUp8ozVM3Mpm6i4l7UsIyZmVVc3M3MCuTibmZWIBd3M7MCubibmRXIxd3MrEA98VVISSPA0x0cYiHwfJfi9Cr3sQzuYxl6pY+LI6LpdUp7orh3StJQq+96lsJ9LIP7WIYc+uhhGTOzArm4m5kVqJTivn6mA0wD97EM7mMZer6PRYy5m5nZK5Vy5m5mZg1c3M3MCpR1cZd0qaSdknZLWjPTedol6QxJX5G0Q9Kjkt5Tty+QtFnSrvp2fsM+a+t+75R0ycylnxpJcyU9LOn++nFRfZR0oqTPSxquf58XF9jH99X/nW6XdI+kY0voo6TbJO2TtL2hbcr9kvQLkr5db/sfkjTdfQEgIrL8B8wFHgfOAo4BvgUsm+lcbfblVOCC+v4/A74DLAP+BFhTt68BPlTfX1b391XAmfXPYe5M92OSff094G7g/vpxUX0E7gSure8fA5xYUh+BRcCTwKvrxxuAd5TQR+BNwAXA9oa2KfcL+AZwMSBgE7BqJvqT85n7hcDuiHgiIl4G7gVWz3CmtkTE3oj4Zn3/h8AOqv+JVlMVC+rby+v7q4F7I+KliHgS2E318+hpkk4HfhX4TENzMX2U9BqqAvFZgIh4OSJ+QEF9rPUBr5bUBxwHfJcC+hgRXwVeGNc8pX5JOhV4TUQ8GFWl//OGfaZVzsV9EfBsw+M9dVvWJC0BXgd8HTglIvZC9QcAOLl+Wq59/yhwI3C4oa2kPp4FjAC310NPn5F0PAX1MSKeAz4MPAPsBf4+Ih6goD6OM9V+Larvj2+fdjkX92bjWFl/r1PSCcAXgPdGxIsTPbVJW0/3XdJbgH0RsW2yuzRp6+k+Up3RXgB8OiJeB/wD1Vv5VrLrYz3mvJpqKOI04HhJb59olyZtPd3HSWrVr57pb87FfQ9wRsPj06neHmZJ0jyqwn5XRGysm79fv82jvt1Xt+fY9zcCl0l6imoI7Zcl/S/K6uMeYE9EfL1+/HmqYl9SH38FeDIiRiLiILAReANl9bHRVPu1p74/vn3a5Vzc/xZYKulMSccAVwH3zXCmttSfpn8W2BERH2nYdB9wdX3/auCvGtqvkvQqSWcCS6k+xOlZEbE2Ik6PiCVUv6v/ExFvp6w+fg94VtI5ddMK4DEK6iPVcMxFko6r/7tdQfUZUUl9bDSlftVDNz+UdFH98/mthn2m10x/Qt3JP+DNVN8seRz4wEzn6aAf/5rqrdvfAY/U/94MnARsAXbVtwsa9vlA3e+dzNCn8R30dzlj35Ypqo/Aa4Gh+nf5RWB+gX38I2AY2A78BdU3RrLvI3AP1ecIB6nOwK9pp1/AQP2zeRz4BPVKANP9z8sPmJkVKOdhGTMza8HF3cysQC7uZmYFcnE3MyuQi7uZWYFc3M3MCuTibmZWoP8PHPiRRQt/M6wAAAAASUVORK5CYII=",
+      "image/svg+xml": "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>\n<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n<svg height=\"263.63625pt\" version=\"1.1\" viewBox=\"0 0 375.2875 263.63625\" width=\"375.2875pt\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n <metadata>\n  <rdf:RDF xmlns:cc=\"http://creativecommons.org/ns#\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n   <cc:Work>\n    <dc:type rdf:resource=\"http://purl.org/dc/dcmitype/StillImage\"/>\n    <dc:date>2021-07-17T09:07:28.969995</dc:date>\n    <dc:format>image/svg+xml</dc:format>\n    <dc:creator>\n     <cc:Agent>\n      <dc:title>Matplotlib v3.4.1, https://matplotlib.org/</dc:title>\n     </cc:Agent>\n    </dc:creator>\n   </cc:Work>\n  </rdf:RDF>\n </metadata>\n <defs>\n  <style type=\"text/css\">*{stroke-linecap:butt;stroke-linejoin:round;}</style>\n </defs>\n <g id=\"figure_1\">\n  <g id=\"patch_1\">\n   <path d=\"M 0 263.63625 \nL 375.2875 263.63625 \nL 375.2875 0 \nL 0 0 \nz\n\" style=\"fill:none;\"/>\n  </g>\n  <g id=\"axes_1\">\n   <g id=\"patch_2\">\n    <path d=\"M 33.2875 239.758125 \nL 368.0875 239.758125 \nL 368.0875 22.318125 \nL 33.2875 22.318125 \nz\n\" style=\"fill:#ffffff;\"/>\n   </g>\n   <g id=\"matplotlib.axis_1\">\n    <g id=\"xtick_1\">\n     <g id=\"line2d_1\">\n      <defs>\n       <path d=\"M 0 0 \nL 0 3.5 \n\" id=\"ma57a14fc01\" style=\"stroke:#000000;stroke-width:0.8;\"/>\n      </defs>\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"48.505682\" xlink:href=\"#ma57a14fc01\" y=\"239.758125\"/>\n      </g>\n     </g>\n     <g id=\"text_1\">\n      <!-- 0 -->\n      <g transform=\"translate(45.324432 254.356563)scale(0.1 -0.1)\">\n       <defs>\n        <path d=\"M 2034 4250 \nQ 1547 4250 1301 3770 \nQ 1056 3291 1056 2328 \nQ 1056 1369 1301 889 \nQ 1547 409 2034 409 \nQ 2525 409 2770 889 \nQ 3016 1369 3016 2328 \nQ 3016 3291 2770 3770 \nQ 2525 4250 2034 4250 \nz\nM 2034 4750 \nQ 2819 4750 3233 4129 \nQ 3647 3509 3647 2328 \nQ 3647 1150 3233 529 \nQ 2819 -91 2034 -91 \nQ 1250 -91 836 529 \nQ 422 1150 422 2328 \nQ 422 3509 836 4129 \nQ 1250 4750 2034 4750 \nz\n\" id=\"DejaVuSans-30\" transform=\"scale(0.015625)\"/>\n       </defs>\n       <use xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"xtick_2\">\n     <g id=\"line2d_2\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"105.663172\" xlink:href=\"#ma57a14fc01\" y=\"239.758125\"/>\n      </g>\n     </g>\n     <g id=\"text_2\">\n      <!-- 200 -->\n      <g transform=\"translate(96.119422 254.356563)scale(0.1 -0.1)\">\n       <defs>\n        <path d=\"M 1228 531 \nL 3431 531 \nL 3431 0 \nL 469 0 \nL 469 531 \nQ 828 903 1448 1529 \nQ 2069 2156 2228 2338 \nQ 2531 2678 2651 2914 \nQ 2772 3150 2772 3378 \nQ 2772 3750 2511 3984 \nQ 2250 4219 1831 4219 \nQ 1534 4219 1204 4116 \nQ 875 4013 500 3803 \nL 500 4441 \nQ 881 4594 1212 4672 \nQ 1544 4750 1819 4750 \nQ 2544 4750 2975 4387 \nQ 3406 4025 3406 3419 \nQ 3406 3131 3298 2873 \nQ 3191 2616 2906 2266 \nQ 2828 2175 2409 1742 \nQ 1991 1309 1228 531 \nz\n\" id=\"DejaVuSans-32\" transform=\"scale(0.015625)\"/>\n       </defs>\n       <use xlink:href=\"#DejaVuSans-32\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"xtick_3\">\n     <g id=\"line2d_3\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"162.820663\" xlink:href=\"#ma57a14fc01\" y=\"239.758125\"/>\n      </g>\n     </g>\n     <g id=\"text_3\">\n      <!-- 400 -->\n      <g transform=\"translate(153.276913 254.356563)scale(0.1 -0.1)\">\n       <defs>\n        <path d=\"M 2419 4116 \nL 825 1625 \nL 2419 1625 \nL 2419 4116 \nz\nM 2253 4666 \nL 3047 4666 \nL 3047 1625 \nL 3713 1625 \nL 3713 1100 \nL 3047 1100 \nL 3047 0 \nL 2419 0 \nL 2419 1100 \nL 313 1100 \nL 313 1709 \nL 2253 4666 \nz\n\" id=\"DejaVuSans-34\" transform=\"scale(0.015625)\"/>\n       </defs>\n       <use xlink:href=\"#DejaVuSans-34\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"xtick_4\">\n     <g id=\"line2d_4\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"219.978153\" xlink:href=\"#ma57a14fc01\" y=\"239.758125\"/>\n      </g>\n     </g>\n     <g id=\"text_4\">\n      <!-- 600 -->\n      <g transform=\"translate(210.434403 254.356563)scale(0.1 -0.1)\">\n       <defs>\n        <path d=\"M 2113 2584 \nQ 1688 2584 1439 2293 \nQ 1191 2003 1191 1497 \nQ 1191 994 1439 701 \nQ 1688 409 2113 409 \nQ 2538 409 2786 701 \nQ 3034 994 3034 1497 \nQ 3034 2003 2786 2293 \nQ 2538 2584 2113 2584 \nz\nM 3366 4563 \nL 3366 3988 \nQ 3128 4100 2886 4159 \nQ 2644 4219 2406 4219 \nQ 1781 4219 1451 3797 \nQ 1122 3375 1075 2522 \nQ 1259 2794 1537 2939 \nQ 1816 3084 2150 3084 \nQ 2853 3084 3261 2657 \nQ 3669 2231 3669 1497 \nQ 3669 778 3244 343 \nQ 2819 -91 2113 -91 \nQ 1303 -91 875 529 \nQ 447 1150 447 2328 \nQ 447 3434 972 4092 \nQ 1497 4750 2381 4750 \nQ 2619 4750 2861 4703 \nQ 3103 4656 3366 4563 \nz\n\" id=\"DejaVuSans-36\" transform=\"scale(0.015625)\"/>\n       </defs>\n       <use xlink:href=\"#DejaVuSans-36\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"xtick_5\">\n     <g id=\"line2d_5\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"277.135643\" xlink:href=\"#ma57a14fc01\" y=\"239.758125\"/>\n      </g>\n     </g>\n     <g id=\"text_5\">\n      <!-- 800 -->\n      <g transform=\"translate(267.591893 254.356563)scale(0.1 -0.1)\">\n       <defs>\n        <path d=\"M 2034 2216 \nQ 1584 2216 1326 1975 \nQ 1069 1734 1069 1313 \nQ 1069 891 1326 650 \nQ 1584 409 2034 409 \nQ 2484 409 2743 651 \nQ 3003 894 3003 1313 \nQ 3003 1734 2745 1975 \nQ 2488 2216 2034 2216 \nz\nM 1403 2484 \nQ 997 2584 770 2862 \nQ 544 3141 544 3541 \nQ 544 4100 942 4425 \nQ 1341 4750 2034 4750 \nQ 2731 4750 3128 4425 \nQ 3525 4100 3525 3541 \nQ 3525 3141 3298 2862 \nQ 3072 2584 2669 2484 \nQ 3125 2378 3379 2068 \nQ 3634 1759 3634 1313 \nQ 3634 634 3220 271 \nQ 2806 -91 2034 -91 \nQ 1263 -91 848 271 \nQ 434 634 434 1313 \nQ 434 1759 690 2068 \nQ 947 2378 1403 2484 \nz\nM 1172 3481 \nQ 1172 3119 1398 2916 \nQ 1625 2713 2034 2713 \nQ 2441 2713 2670 2916 \nQ 2900 3119 2900 3481 \nQ 2900 3844 2670 4047 \nQ 2441 4250 2034 4250 \nQ 1625 4250 1398 4047 \nQ 1172 3844 1172 3481 \nz\n\" id=\"DejaVuSans-38\" transform=\"scale(0.015625)\"/>\n       </defs>\n       <use xlink:href=\"#DejaVuSans-38\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"xtick_6\">\n     <g id=\"line2d_6\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"334.293134\" xlink:href=\"#ma57a14fc01\" y=\"239.758125\"/>\n      </g>\n     </g>\n     <g id=\"text_6\">\n      <!-- 1000 -->\n      <g transform=\"translate(321.568134 254.356563)scale(0.1 -0.1)\">\n       <defs>\n        <path d=\"M 794 531 \nL 1825 531 \nL 1825 4091 \nL 703 3866 \nL 703 4441 \nL 1819 4666 \nL 2450 4666 \nL 2450 531 \nL 3481 531 \nL 3481 0 \nL 794 0 \nL 794 531 \nz\n\" id=\"DejaVuSans-31\" transform=\"scale(0.015625)\"/>\n       </defs>\n       <use xlink:href=\"#DejaVuSans-31\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n       <use x=\"190.869141\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n   </g>\n   <g id=\"matplotlib.axis_2\">\n    <g id=\"ytick_1\">\n     <g id=\"line2d_7\">\n      <defs>\n       <path d=\"M 0 0 \nL -3.5 0 \n\" id=\"m947114224c\" style=\"stroke:#000000;stroke-width:0.8;\"/>\n      </defs>\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"219.823333\"/>\n      </g>\n     </g>\n     <g id=\"text_7\">\n      <!-- 0 -->\n      <g transform=\"translate(19.925 223.622552)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"ytick_2\">\n     <g id=\"line2d_8\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"193.020251\"/>\n      </g>\n     </g>\n     <g id=\"text_8\">\n      <!-- 20 -->\n      <g transform=\"translate(13.5625 196.81947)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-32\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"ytick_3\">\n     <g id=\"line2d_9\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"166.21717\"/>\n      </g>\n     </g>\n     <g id=\"text_9\">\n      <!-- 40 -->\n      <g transform=\"translate(13.5625 170.016388)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-34\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"ytick_4\">\n     <g id=\"line2d_10\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"139.414088\"/>\n      </g>\n     </g>\n     <g id=\"text_10\">\n      <!-- 60 -->\n      <g transform=\"translate(13.5625 143.213307)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-36\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"ytick_5\">\n     <g id=\"line2d_11\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"112.611006\"/>\n      </g>\n     </g>\n     <g id=\"text_11\">\n      <!-- 80 -->\n      <g transform=\"translate(13.5625 116.410225)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-38\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"ytick_6\">\n     <g id=\"line2d_12\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"85.807925\"/>\n      </g>\n     </g>\n     <g id=\"text_12\">\n      <!-- 100 -->\n      <g transform=\"translate(7.2 89.607143)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-31\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-30\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"ytick_7\">\n     <g id=\"line2d_13\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"59.004843\"/>\n      </g>\n     </g>\n     <g id=\"text_13\">\n      <!-- 120 -->\n      <g transform=\"translate(7.2 62.804062)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-31\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-32\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n    <g id=\"ytick_8\">\n     <g id=\"line2d_14\">\n      <g>\n       <use style=\"stroke:#000000;stroke-width:0.8;\" x=\"33.2875\" xlink:href=\"#m947114224c\" y=\"32.201761\"/>\n      </g>\n     </g>\n     <g id=\"text_14\">\n      <!-- 140 -->\n      <g transform=\"translate(7.2 36.00098)scale(0.1 -0.1)\">\n       <use xlink:href=\"#DejaVuSans-31\"/>\n       <use x=\"63.623047\" xlink:href=\"#DejaVuSans-34\"/>\n       <use x=\"127.246094\" xlink:href=\"#DejaVuSans-30\"/>\n      </g>\n     </g>\n    </g>\n   </g>\n   <g id=\"line2d_15\">\n    <defs>\n     <path d=\"M 0 1.5 \nC 0.397805 1.5 0.77937 1.341951 1.06066 1.06066 \nC 1.341951 0.77937 1.5 0.397805 1.5 0 \nC 1.5 -0.397805 1.341951 -0.77937 1.06066 -1.06066 \nC 0.77937 -1.341951 0.397805 -1.5 0 -1.5 \nC -0.397805 -1.5 -0.77937 -1.341951 -1.06066 -1.06066 \nC -1.341951 -0.77937 -1.5 -0.397805 -1.5 0 \nC -1.5 0.397805 -1.341951 0.77937 -1.06066 1.06066 \nC -0.77937 1.341951 -0.397805 1.5 0 1.5 \nz\n\" id=\"mffed4bda9b\" style=\"stroke:#1f77b4;\"/>\n    </defs>\n    <g clip-path=\"url(#pe967b1dbe1)\">\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"48.505682\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"52.792494\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"91.3738\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"95.660611\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"134.241917\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"138.528729\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"177.110035\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"181.396847\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"219.978153\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"224.264965\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"262.846271\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"267.133083\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"305.714389\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"310.0012\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"219.823333\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"193.020251\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"166.21717\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"139.414088\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"112.611006\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"85.807925\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"59.004843\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"348.582506\" xlink:href=\"#mffed4bda9b\" y=\"32.201761\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"229.874489\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"203.071407\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"176.268325\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"149.465244\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"122.662162\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"95.85908\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"69.055999\"/>\n     <use style=\"fill:#1f77b4;stroke:#1f77b4;\" x=\"352.869318\" xlink:href=\"#mffed4bda9b\" y=\"42.252917\"/>\n    </g>\n   </g>\n   <g id=\"line2d_16\">\n    <defs>\n     <path d=\"M 0 1.5 \nC 0.397805 1.5 0.77937 1.341951 1.06066 1.06066 \nC 1.341951 0.77937 1.5 0.397805 1.5 0 \nC 1.5 -0.397805 1.341951 -0.77937 1.06066 -1.06066 \nC 0.77937 -1.341951 0.397805 -1.5 0 -1.5 \nC -0.397805 -1.5 -0.77937 -1.341951 -1.06066 -1.06066 \nC -1.341951 -0.77937 -1.5 -0.397805 -1.5 0 \nC -1.5 0.397805 -1.341951 0.77937 -1.06066 1.06066 \nC -0.77937 1.341951 -0.397805 1.5 0 1.5 \nz\n\" id=\"mc52200cc03\" style=\"stroke:#ff0000;\"/>\n    </defs>\n    <g clip-path=\"url(#pe967b1dbe1)\">\n     <use style=\"fill:#ff0000;stroke:#ff0000;\" x=\"48.505682\" xlink:href=\"#mc52200cc03\" y=\"85.807925\"/>\n     <use style=\"fill:#ff0000;stroke:#ff0000;\" x=\"48.505682\" xlink:href=\"#mc52200cc03\" y=\"59.004843\"/>\n     <use style=\"fill:#ff0000;stroke:#ff0000;\" x=\"48.505682\" xlink:href=\"#mc52200cc03\" y=\"32.201761\"/>\n     <use style=\"fill:#ff0000;stroke:#ff0000;\" x=\"177.110035\" xlink:href=\"#mc52200cc03\" y=\"85.807925\"/>\n    </g>\n   </g>\n   <g id=\"patch_3\">\n    <path d=\"M 33.2875 239.758125 \nL 33.2875 22.318125 \n\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n   </g>\n   <g id=\"patch_4\">\n    <path d=\"M 368.0875 239.758125 \nL 368.0875 22.318125 \n\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n   </g>\n   <g id=\"patch_5\">\n    <path d=\"M 33.2875 239.758125 \nL 368.0875 239.758125 \n\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n   </g>\n   <g id=\"patch_6\">\n    <path d=\"M 33.2875 22.318125 \nL 368.0875 22.318125 \n\" style=\"fill:none;stroke:#000000;stroke-linecap:square;stroke-linejoin:miter;stroke-width:0.8;\"/>\n   </g>\n   <g id=\"text_15\">\n    <!-- Probe 128ch -->\n    <g transform=\"translate(163.21 16.318125)scale(0.12 -0.12)\">\n     <defs>\n      <path d=\"M 1259 4147 \nL 1259 2394 \nL 2053 2394 \nQ 2494 2394 2734 2622 \nQ 2975 2850 2975 3272 \nQ 2975 3691 2734 3919 \nQ 2494 4147 2053 4147 \nL 1259 4147 \nz\nM 628 4666 \nL 2053 4666 \nQ 2838 4666 3239 4311 \nQ 3641 3956 3641 3272 \nQ 3641 2581 3239 2228 \nQ 2838 1875 2053 1875 \nL 1259 1875 \nL 1259 0 \nL 628 0 \nL 628 4666 \nz\n\" id=\"DejaVuSans-50\" transform=\"scale(0.015625)\"/>\n      <path d=\"M 2631 2963 \nQ 2534 3019 2420 3045 \nQ 2306 3072 2169 3072 \nQ 1681 3072 1420 2755 \nQ 1159 2438 1159 1844 \nL 1159 0 \nL 581 0 \nL 581 3500 \nL 1159 3500 \nL 1159 2956 \nQ 1341 3275 1631 3429 \nQ 1922 3584 2338 3584 \nQ 2397 3584 2469 3576 \nQ 2541 3569 2628 3553 \nL 2631 2963 \nz\n\" id=\"DejaVuSans-72\" transform=\"scale(0.015625)\"/>\n      <path d=\"M 1959 3097 \nQ 1497 3097 1228 2736 \nQ 959 2375 959 1747 \nQ 959 1119 1226 758 \nQ 1494 397 1959 397 \nQ 2419 397 2687 759 \nQ 2956 1122 2956 1747 \nQ 2956 2369 2687 2733 \nQ 2419 3097 1959 3097 \nz\nM 1959 3584 \nQ 2709 3584 3137 3096 \nQ 3566 2609 3566 1747 \nQ 3566 888 3137 398 \nQ 2709 -91 1959 -91 \nQ 1206 -91 779 398 \nQ 353 888 353 1747 \nQ 353 2609 779 3096 \nQ 1206 3584 1959 3584 \nz\n\" id=\"DejaVuSans-6f\" transform=\"scale(0.015625)\"/>\n      <path d=\"M 3116 1747 \nQ 3116 2381 2855 2742 \nQ 2594 3103 2138 3103 \nQ 1681 3103 1420 2742 \nQ 1159 2381 1159 1747 \nQ 1159 1113 1420 752 \nQ 1681 391 2138 391 \nQ 2594 391 2855 752 \nQ 3116 1113 3116 1747 \nz\nM 1159 2969 \nQ 1341 3281 1617 3432 \nQ 1894 3584 2278 3584 \nQ 2916 3584 3314 3078 \nQ 3713 2572 3713 1747 \nQ 3713 922 3314 415 \nQ 2916 -91 2278 -91 \nQ 1894 -91 1617 61 \nQ 1341 213 1159 525 \nL 1159 0 \nL 581 0 \nL 581 4863 \nL 1159 4863 \nL 1159 2969 \nz\n\" id=\"DejaVuSans-62\" transform=\"scale(0.015625)\"/>\n      <path d=\"M 3597 1894 \nL 3597 1613 \nL 953 1613 \nQ 991 1019 1311 708 \nQ 1631 397 2203 397 \nQ 2534 397 2845 478 \nQ 3156 559 3463 722 \nL 3463 178 \nQ 3153 47 2828 -22 \nQ 2503 -91 2169 -91 \nQ 1331 -91 842 396 \nQ 353 884 353 1716 \nQ 353 2575 817 3079 \nQ 1281 3584 2069 3584 \nQ 2775 3584 3186 3129 \nQ 3597 2675 3597 1894 \nz\nM 3022 2063 \nQ 3016 2534 2758 2815 \nQ 2500 3097 2075 3097 \nQ 1594 3097 1305 2825 \nQ 1016 2553 972 2059 \nL 3022 2063 \nz\n\" id=\"DejaVuSans-65\" transform=\"scale(0.015625)\"/>\n      <path id=\"DejaVuSans-20\" transform=\"scale(0.015625)\"/>\n      <path d=\"M 3122 3366 \nL 3122 2828 \nQ 2878 2963 2633 3030 \nQ 2388 3097 2138 3097 \nQ 1578 3097 1268 2742 \nQ 959 2388 959 1747 \nQ 959 1106 1268 751 \nQ 1578 397 2138 397 \nQ 2388 397 2633 464 \nQ 2878 531 3122 666 \nL 3122 134 \nQ 2881 22 2623 -34 \nQ 2366 -91 2075 -91 \nQ 1284 -91 818 406 \nQ 353 903 353 1747 \nQ 353 2603 823 3093 \nQ 1294 3584 2113 3584 \nQ 2378 3584 2631 3529 \nQ 2884 3475 3122 3366 \nz\n\" id=\"DejaVuSans-63\" transform=\"scale(0.015625)\"/>\n      <path d=\"M 3513 2113 \nL 3513 0 \nL 2938 0 \nL 2938 2094 \nQ 2938 2591 2744 2837 \nQ 2550 3084 2163 3084 \nQ 1697 3084 1428 2787 \nQ 1159 2491 1159 1978 \nL 1159 0 \nL 581 0 \nL 581 4863 \nL 1159 4863 \nL 1159 2956 \nQ 1366 3272 1645 3428 \nQ 1925 3584 2291 3584 \nQ 2894 3584 3203 3211 \nQ 3513 2838 3513 2113 \nz\n\" id=\"DejaVuSans-68\" transform=\"scale(0.015625)\"/>\n     </defs>\n     <use xlink:href=\"#DejaVuSans-50\"/>\n     <use x=\"58.552734\" xlink:href=\"#DejaVuSans-72\"/>\n     <use x=\"97.416016\" xlink:href=\"#DejaVuSans-6f\"/>\n     <use x=\"158.597656\" xlink:href=\"#DejaVuSans-62\"/>\n     <use x=\"222.074219\" xlink:href=\"#DejaVuSans-65\"/>\n     <use x=\"283.597656\" xlink:href=\"#DejaVuSans-20\"/>\n     <use x=\"315.384766\" xlink:href=\"#DejaVuSans-31\"/>\n     <use x=\"379.007812\" xlink:href=\"#DejaVuSans-32\"/>\n     <use x=\"442.630859\" xlink:href=\"#DejaVuSans-38\"/>\n     <use x=\"506.253906\" xlink:href=\"#DejaVuSans-63\"/>\n     <use x=\"561.234375\" xlink:href=\"#DejaVuSans-68\"/>\n    </g>\n   </g>\n  </g>\n </g>\n <defs>\n  <clipPath id=\"pe967b1dbe1\">\n   <rect height=\"217.44\" width=\"334.8\" x=\"33.2875\" y=\"22.318125\"/>\n  </clipPath>\n </defs>\n</svg>\n"
+     },
+     "metadata": {
+      "needs_background": "light"
+     }
+    }
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Create epochs for your experimental paradigm\n",
+    "A typical experiment involves multiple epochs such pre sleep, running on track and then another sleep epoch."
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "source": [
+    "import pandas as pd\n",
+    "from neuropy.core import Epoch\n",
+    "\n",
+    "epochs = pd.DataFrame(\n",
+    "    {\n",
+    "        \"start\": [0, 10000, 20000],\n",
+    "        \"stop\": [9000, 13600, 30000],\n",
+    "        \"label\": [\"pre\", \"maze\", \"post\"],\n",
+    "    }\n",
+    ")\n",
+    "\n",
+    "a = Epoch(epochs=epochs)\n",
+    "a.filename = sess.filePrefix.with_suffix(\".paradigm.npy\")\n",
+    "a.save()\n",
+    "a.to_dataframe()\n"
+   ],
+   "outputs": [
+    {
+     "output_type": "stream",
+     "name": "stdout",
+     "text": [
+      "data saved\n"
+     ]
+    },
+    {
+     "output_type": "execute_result",
+     "data": {
+      "text/plain": [
+       "   start   stop label  duration\n",
+       "0      0   9000   pre      9000\n",
+       "1  10000  13600  maze      3600\n",
+       "2  20000  30000  post     10000"
+      ],
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>start</th>\n",
+       "      <th>stop</th>\n",
+       "      <th>label</th>\n",
+       "      <th>duration</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>9000</td>\n",
+       "      <td>pre</td>\n",
+       "      <td>9000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>10000</td>\n",
+       "      <td>13600</td>\n",
+       "      <td>maze</td>\n",
+       "      <td>3600</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>20000</td>\n",
+       "      <td>30000</td>\n",
+       "      <td>post</td>\n",
+       "      <td>10000</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ]
+     },
+     "metadata": {},
+     "execution_count": 6
+    }
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "# Detect epochs\n",
+    "Here we will various types of epochs which typical for hippocampal recordings."
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Artifacts epochs\n",
+    "A typical session will have some artifacts that may negatively influence many analyses. Using a simple zscore measure, we can identify epochs where signal is above some threshold."
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "signal = sess.eegfile.get_signal([1])\n",
+    "artifact_epochs = analyses.detect_artifact_epochs(signal, thresh=7)\n",
+    "artifact_epochs.filename = sess.filePrefix.with_suffix(\".artifact.npy\")\n",
+    "artifact_epochs.save()\n",
+    "plotting.plot_artifact_epochs(artifact_epochs, signal)\n"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Ripple epochs\n",
+    "To detect ripples one also needs probegroup."
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "from neuropy.analyses import oscillations\n",
+    "signal = sess.eegfile.get_signal()\n",
+    "ripple_epochs =oscillations.detect_ripple_epochs(signal, sess.probegroup)\n",
+    "ripple_epochs.filename = sess.filePrefix.with_suffix('.ripple.npy')\n",
+    "ripple_epochs.save()"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "signal = sess.eegfile.get_signal(channel_id=[1, 2, 3, 4], t_start=1, t_stop=1.2)\n",
+    "plotting.plot_signal_traces(signal)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "# Neurons\n",
+    "- import spiketrains from Phy\n",
+    "- estimate neuron types: pyramidal, interneuron and mua. "
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Importing spiketrains from Phy"
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "from neuropy.io import PhyIO\n",
+    "from neuropy.core import Neurons\n",
+    "from pathlib import Path\n",
+    "import numpy as np\n",
+    "\n",
+    "cluster_path = Path(\n",
+    "    \"/data/Clustering/SleepDeprivation/RatN/Day1/spykcirc/clus_combined\"\n",
+    ")\n",
+    "chan_grps = sess.recinfo.channel_groups\n",
+    "sub_dirs = sorted([x for x in cluster_path.iterdir() if x.is_dir()])\n",
+    "\n",
+    "spk, peak_chans,waveforms,shank_id = [], [],[],[]\n",
+    "for f_ind, folder in enumerate(sub_dirs):\n",
+    "    print(folder)\n",
+    "    phy_data = PhyIO(folder)\n",
+    "    spk.extend(phy_data.spiketrains)\n",
+    "    peak_chans.extend(chan_grps[f_ind][phy_data.peak_channels])\n",
+    "    waveforms.extend(phy_data.peak_waveforms)\n",
+    "    shank_id.extend([f_ind]*len(phy_data.spiketrains))\n",
+    "\n",
+    "\n",
+    "\n",
+    "peak_chans = np.array(peak_chans)\n",
+    "\n",
+    "neurons = Neurons(\n",
+    "    np.array(spk, dtype=object),\n",
+    "    t_stop=sess.eegfile.duration,\n",
+    "    sampling_rate=phy_data.sampling_rate,\n",
+    "    peak_channels=peak_chans,\n",
+    "    waveforms=np.array(waveforms,dtype='object'),\n",
+    "    shank_ids=np.array(shank_id)\n",
+    ")"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Estimate neuron type"
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "from neuropy.utils import neurons_util\n",
+    "neuron_type = neurons_util.estimate_neuron_type(sess.neurons)\n",
+    "neurons.neuron_type = neuron_type"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "sess.neurons.filename = sess.filePrefix.with_suffix('.neurons')\n",
+    "sess.neurons.save()"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "%matplotlib widget\n",
+    "import matplotlib.pyplot as plt\n",
+    "from neuropy.plotting import plot_raster\n",
+    "\n",
+    "plot_raster(neurons,color='jet',add_vert_jitter=True)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## BinnedSpiketrain and Mua objects using Neurons"
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "mua =sess.neurons.get_mua()\n",
+    "mua.filename = sess.filePrefix.with_suffix(\".mua.npy\")\n",
+    "mua.save()   \n"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "%matplotlib widget\n",
+    "from neuropy import plotting\n",
+    "smth_mua = sess.mua.get_smoothed(sigma=0.02)\n",
+    "plotting.plot_mua(smth_mua)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "from neuropy.analyses import detect_pbe_epochs\n",
+    "\n",
+    "pbe = detect_pbe_epochs(smth_mua)\n",
+    "pbe.filename = sess.filePrefix.with_suffix('.pbe')\n",
+    "pbe.save()\n"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "# Assign position data"
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "from neuropy.io import OptitrackIO\n",
+    "from neuropy.core import Position\n",
+    "from pathlib import Path\n",
+    "\n",
+    "opti_folder = Path('/data/Clustering/SleepDeprivation/RatN/Day1/position')\n",
+    "opti_data = OptitrackIO(dirname=opti_folder)\n"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "import pandas as pd\n",
+    "from datetime import datetime\n",
+    "\n",
+    "#---- startimes of concatenated .dat files\n",
+    "tracking_sRate = opti_data.sampling_rate\n",
+    "rec_datetime = pd.read_csv(sess.filePrefix.with_suffix('.datetime.csv'))\n",
+    "data_time = []\n",
+    "for i, file_time in enumerate(rec_datetime[\"StartTime\"]):\n",
+    "    tbegin = datetime.strptime(file_time, \"%Y-%m-%d_%H-%M-%S\")\n",
+    "    nframes = rec_datetime[\"nFrames\"][i]\n",
+    "    duration = pd.Timedelta(nframes / sess.recinfo.dat_sampling_rate, unit=\"sec\")\n",
+    "    tend = tbegin + duration\n",
+    "    trange = pd.date_range(\n",
+    "        start=tbegin,\n",
+    "        end=tend,\n",
+    "        periods=int(duration.total_seconds() * tracking_sRate),\n",
+    "    )\n",
+    "    data_time.extend(trange)\n",
+    "data_time = pd.to_datetime(data_time)\n",
+    "\n",
+    "# ------- deleting intervals that were deleted from .dat file after concatenating\n",
+    "ndeletedintervals = rec_datetime.count()[\"deletedStart (minutes)\"]\n",
+    "for i in range(ndeletedintervals):\n",
+    "    tnoisy_begin = data_time[0] + pd.Timedelta(\n",
+    "        rec_datetime[\"deletedStart (minutes)\"][i], unit=\"m\"\n",
+    "    )\n",
+    "    tnoisy_end = data_time[0] + pd.Timedelta(\n",
+    "        rec_datetime[\"deletedEnd (minutes)\"][i], unit=\"m\"\n",
+    "    )\n",
+    "\n",
+    "    del_index = np.where((data_time > tnoisy_begin) & (data_time < tnoisy_end))[\n",
+    "        0\n",
+    "    ]\n",
+    "\n",
+    "    data_time = np.delete(data_time, del_index)\n",
+    "\n",
+    "x,y,z = opti_data.get_position_at_datetimes(data_time)\n",
+    "traces = np.vstack((z,x,y))\n",
+    "\n",
+    "position = Position(traces=traces,t_start=0,sampling_rate=opti_data.sampling_rate)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "position.filename = sess.filePrefix.with_suffix('.position.npy')\n",
+    "position.save()"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "%matplotlib widget\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "# plt.plot(opti_data.datetime_array,opti_data.z)\n",
+    "plt.plot(sess.position.x,sess.position.y)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Linearize position"
+   ],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "from neuropy.utils import position_util\n",
+    "\n",
+    "maze = sess.paradigm['maze']\n",
+    "maze_pos = sess.position.time_slice(maze[0],maze[1])\n",
+    "linear_pos = position_util.linearize_position(maze_pos)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "linear_pos.y"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "%matplotlib widget\n",
+    "plt.plot(maze_pos.time,maze_pos.x)\n",
+    "plt.plot(linear_pos.time,linear_pos.x)"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "import numpy as np\n",
+    "\n",
+    "a = np.ones(5)\n",
+    "np.vstack((a,a,a)).shape"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "from neuropy.core import animal\n",
+    "\n",
+    "d = {'name':'hello','tag':'ser'}\n",
+    "\n",
+    "an = animal.Animal(d) \n"
+   ],
+   "outputs": [],
+   "metadata": {}
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "source": [
+    "an.name"
+   ],
+   "outputs": [],
+   "metadata": {}
+  }
+ ],
+ "metadata": {
+  "interpreter": {
+   "hash": "7b10c821bc4bd3f433a613d47515e6babc6c2152896bd1e143404cc9d6ede4ad"
+  },
+  "kernelspec": {
+   "name": "python3",
+   "display_name": "Python 3.9.4 64-bit ('data_analysis': conda)"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.4"
+  },
+  "orig_nbformat": 4
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
