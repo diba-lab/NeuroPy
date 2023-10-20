@@ -341,6 +341,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             grid_bin_bounds = override_dict['grid_bin_bounds']
         else:
             # no overrides present
+            raise NotImplementedError
             pos_df = sess.position.to_dataframe().copy()
             if not 'lap' in pos_df.columns:
                 pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
