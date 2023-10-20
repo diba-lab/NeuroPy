@@ -9,10 +9,11 @@ from neuropy.utils import mathutil
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin, HDF_Converter
+from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin
 from . import DataWriter
 
 
-class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, DataWriter):
+class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, DataWriter):
     """A Ratemap holds information about each unit's firing rate across binned positions. 
         In addition, it also holds (tuning curves).
         

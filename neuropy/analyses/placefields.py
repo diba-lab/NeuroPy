@@ -28,6 +28,8 @@ from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin
+    
 
 # from .. import core
 # import neuropy.core as core
@@ -545,8 +547,10 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing.
 
+
+        
 @define(slots=False)
-class PfND(HDFMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. 
 
         It always computes two place maps with and without speed thresholds.
@@ -784,6 +788,14 @@ class PfND(HDFMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, Pfn
         self._ratemap = Ratemap(filtered_tuning_maps, unsmoothed_tuning_maps=filtered_unsmoothed_tuning_maps, spikes_maps=filtered_spikes_maps, xbin=self.xbin, ybin=self.ybin, neuron_ids=filtered_neuron_ids, occupancy=occupancy, neuron_extended_ids=filtered_tuple_neuron_ids)
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
+
+    # PeakLocationRepresentingMixin conformances:
+    @property
+    def PeakLocationRepresentingMixin_peak_curves_variable(self) -> np.array:
+        """ the variable that the peaks are calculated and returned for """
+        return self.ratemap.PeakLocationRepresentingMixin_peak_curves_variable
+    
+
 
     @property
     def t(self):
