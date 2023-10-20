@@ -3,7 +3,7 @@ import numpy as np
 from scipy import stats
 from ..core import Epoch
 from ..core import Signal
-from ..utils import signal_process
+from neuropy.utils import signal_process
 from pathlib import Path
 
 

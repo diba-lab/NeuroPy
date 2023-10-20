@@ -101,7 +101,7 @@ class Shank:
     def n_contacts(self):
         return len(self.x)
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         layout = {
             "x": self.x,
             "y": self.y,
@@ -372,7 +372,7 @@ class ProbeGroup(DataWriter):
 
         # _, counts = np.unique(self.get_channel_ids(), return_counts=True)
 
-    def to_dict(self):
+    def to_dict(self, recurrsively=False):
         return {
             "data": self._data,
             "metadata": self.metadata,

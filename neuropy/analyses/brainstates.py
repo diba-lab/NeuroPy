@@ -10,7 +10,7 @@ import typing
 
 from .. import core
 from ..plotting import plot_epochs
-from ..utils import mathutil, signal_process
+from neuropy.utils import mathutil, signal_process
 
 
 def emg_from_LFP(

@@ -5,8 +5,8 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
 
 from .. import core
-from ..utils.mathutil import contiguous_regions, thresh_epochs
-
+from neuropy.utils.mathutil import contiguous_regions, threshPeriods, compute_grid_bin_bounds, map_value, thresh_epochs
+from neuropy.utils.mixins.binning_helpers import compute_spanning_bins
 
 def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.

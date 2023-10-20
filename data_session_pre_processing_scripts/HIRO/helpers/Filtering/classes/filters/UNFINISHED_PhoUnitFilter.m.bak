@@ -1,0 +1,51 @@
+classdef PhoUnitFilter
+    %PhoUnitFilter Summary of this class goes here
+    %   Detailed explanation goes here
+
+    properties
+        filter_config
+    end
+
+    methods
+        function obj = PhoUnitFilter(inputArg1, should_include_only_always_stable, included_cell_types, maximum_included_contamination_level)
+            %PhoUnitFilter Construct an instance of this class
+            %   Detailed explanation goes here
+            %% Filtering Options:
+            obj.filter_config.showOnlyAlwaysStableCells = should_include_only_always_stable;
+            obj.filter_config.filter_included_cell_types = included_cell_types;
+            obj.filter_config.filter_maximum_included_contamination_level = maximum_included_contamination_level;
+
+        end
+
+        function outputArg = method1(obj,inputArg)
+            %METHOD1 Summary of this method goes here
+            %   Detailed explanation goes here
+            outputArg = obj.Property1 + inputArg;
+        end
+    end
+
+    methods (Static)
+
+        
+       function [filter_active_units, original_unit_index] = filter(filter_target, included_epochs)
+           % filter: filters the filter_target (such as a table column containing epoch type information) to only include the epoch types included in included_epochs
+           %% Example: [is_epoch_included] = BehavioralEpoch.filter(active_processing.behavioral_periods_table.behavioral_epoch, {'pre_sleep','track'});
+            %% Filtering Options:
+            % filter_config.filter_included_cell_types = {};
+            filter_config.filter_included_cell_types = {'pyramidal'};
+            % filter_config.filter_included_cell_types = {'interneurons'};
+            filter_config.filter_maximum_included_contamination_level = {2};
+            
+            %% Get filter info for active units
+            [plot_outputs.filter_active_units, plot_outputs.original_unit_index] = fnFilterUnitsWithCriteria(active_processing, true, filter_config.filter_included_cell_types, ...
+                filter_config.filter_maximum_included_contamination_level);
+            temp.num_active_units = sum(plot_outputs.filter_active_units, 'all');
+            fprintf('Filter: Including %d of %d total units\n', temp.num_active_units, length(plot_outputs.filter_active_units));
+
+
+       end
+
+    end % end static method block
+
+
+end

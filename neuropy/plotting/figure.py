@@ -374,6 +374,43 @@ def pretty_plot(ax, round_ylim=False):
     return ax
 
 
+def debug_print_matplotlib_figure_size(F):
+    """ Prints the current figure size and DPI for a matplotlib figure F.
+    See https://stackoverflow.com/questions/332289/how-do-you-change-the-size-of-figures-drawn-with-matplotlib
+    Usage:
+        SizeInches, DPI = debug_print_matplotlib_figure_size(a_fig)
+    """
+    DPI = F.get_dpi()
+    print(f'DPI: {DPI}')
+    SizeInches = F.get_size_inches()
+    print(f'Default size in Inches: {SizeInches}')
+    print('Which should result in a {} x {} Image'.format(DPI*SizeInches[0], DPI*SizeInches[1]))
+    return SizeInches, DPI
+
+def rescale_figure_size(F, scale_multiplier=2.0, debug_print=False):
+    """ Scales up the Matplotlib Figure by a factor of scale_multiplier (in both width and height) without distorting the fonts or line sizes.
+    Usage:
+        rescale_figure_size(a_fig, scale_multiplier=2.0, debug_print=True)
+    """
+    CurrentSize = F.get_size_inches()
+    F.set_size_inches((CurrentSize[0]*scale_multiplier, CurrentSize[1]*scale_multiplier))
+    if debug_print:
+        RescaledSize = F.get_size_inches()
+        print(f'Size in Inches: {RescaledSize}')
+    return F
+
+
+def compute_figure_size_pixels(figure_size_inches):
+    # px_to_inches = 1/plt.rcParams['figure.dpi']  # pixel in inches
+    inches_to_px = plt.rcParams['figure.dpi']  # pixel in inches
+    return (figure_size_inches[0]*inches_to_px, figure_size_inches[1]*inches_to_px)
+
+
+def compute_figure_size_inches(figure_size_pixels):
+    """ inverse of compute_figure_size_pixels """
+    inches_to_px = float(plt.rcParams['figure.dpi'])  # pixel in inches
+    return (np.round(float(figure_size_pixels[0])/inches_to_px), np.round(float(figure_size_pixels[1])/inches_to_px))
+
 def neuron_number_title(neurons):
     titles = ["Neuron: " + str(n) for n in neurons]
 

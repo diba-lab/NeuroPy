@@ -3,7 +3,7 @@ import matplotlib as mpl
 from .. import core
 import numpy as np
 import seaborn as sns
-
+from neuropy.utils.colors_util import ColorsUtil
 
 def plot_raster(
     neurons: core.Neurons,

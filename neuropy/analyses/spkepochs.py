@@ -79,6 +79,8 @@ def detect_pbe_epochs(
         minimum and maximum duration of pbe, in seconds, default = (0.1,None) seconds
     distance : float, optioal
         if two events are less than this time apart, they are merged, in seconds
+    max_dur : float, optional
+        events only lasting below this duration
     """
 
     assert len(thresh) == 2, "thresh can only have two elements"
