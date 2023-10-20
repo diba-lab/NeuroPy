@@ -7,10 +7,12 @@ from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin
 from neuropy.plotting.mixins.ratemap_mixins import RatemapPlottingMixin
 from neuropy.utils import mathutil
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
+from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin, HDF_Converter
 from . import DataWriter
 
-class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, BinnedPositionsMixin, DataWriter):
+
+class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, DataWriter):
     """A Ratemap holds information about each unit's firing rate across binned positions. 
         In addition, it also holds (tuning curves).
         
@@ -150,6 +152,29 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Bi
         return Ratemap.nanmin_nanmax_scaler(self.tuning_curves)
 
     # Other ______________________________________________________________________________________________________________ #
+
+    def __getitem__(self, i) -> "Ratemap":
+        """ Allows accessing via indexing brackets: e.g. `a_ratemap[i]`. Returns a copy of self at the certain indicies """
+        _out = deepcopy(self)
+        _out.neuron_ids = _out.neuron_ids[i]
+        if _out._neuron_extended_ids is not None:
+            _out._neuron_extended_ids = _out._neuron_extended_ids[i]
+        
+        _out.spikes_maps = _out.spikes_maps[i]
+        _out.tuning_curves = _out.tuning_curves[i]
+
+        if _out.unsmoothed_tuning_maps is not None:
+            _out.unsmoothed_tuning_maps = _out.unsmoothed_tuning_maps[i]
+
+        return _out
+    
+    # for NeuronUnitSlicableObjectProtocol:
+    def get_by_id(self, ids):
+        """Returns self with neuron_ids equal to ids"""
+        assert np.all(np.isin(ids, self.neuron_ids)), f"we better have the included neuron_ids, or else oh-no, what do we do?"
+        indices = np.isin(self.neuron_ids, ids)
+        return self[indices]
+    
 
     def get_sort_indicies(self, sortby=None):
         # curr_tuning_curves = self.normalized_tuning_curves
