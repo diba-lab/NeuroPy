@@ -143,6 +143,7 @@ class ParametersContainer:
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     """A simple data structure that holds the information specifying a data session, such as the basepath, session_spec, and session_name
     
+    TODO 2023-10-23 - Upgrade to attrs class
     
     """
     
