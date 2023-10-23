@@ -148,9 +148,18 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
         assert lap_estimation_parameters is not None
+
+        use_direction_dependent_laps: bool = lap_estimation_parameters.pop('use_direction_dependent_laps', True)
         sess.replace_session_laps_with_estimates(**lap_estimation_parameters, should_plot_laps_2d=False) # , time_variable_name=None
+        ## add `use_direction_dependent_laps` back in:
+        lap_estimation_parameters.use_direction_dependent_laps = use_direction_dependent_laps
+
         ## Apply the laps as the limiting computation epochs:
         # computation_config.pf_params.computation_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0)
+        if use_direction_dependent_laps:
+            print(f'.POSTLOAD_estimate_laps_and_replays(...): WARN: {use_direction_dependent_laps}')
+            # TODO: I think this is okay here.
+
 
         # Get the non-lap periods using PortionInterval's complement method:
         non_running_periods = Epoch.from_PortionInterval(sess.laps.as_epoch_obj().to_PortionInterval().complement()) # TODO 2023-05-24- Truncate to session .t_start, .t_stop as currently includes infinity, but it works fine.
@@ -258,7 +267,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
         ## Lap-restricted computation epochs:
-        use_direction_dependent_laps = False # whether to split the laps into left and right directions
+        use_direction_dependent_laps = True # whether to split the laps into left and right directions
         
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
@@ -309,8 +318,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
 
         ## Lap-restricted computation epochs:
-        # use_direction_dependent_laps = False # whether to split the laps into left and right directions
         use_direction_dependent_laps = True # whether to split the laps into left and right directions
+        # use_direction_dependent_laps = True # whether to split the laps into left and right directions
 
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
