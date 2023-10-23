@@ -16,7 +16,7 @@ class ContextToPathOption:
 
     Usage: 
 
-        from neuropy.core.persistence_manager import ContextToPathOption
+       from neuropy.core.persistence_manager import ContextToPathOption, PersistenceManager
 
         
     """
@@ -111,6 +111,29 @@ class ContextToPathOption:
         return file_basename
 
 
+    def file_path_for_context(self, output_root: Union[Path,str], active_identifying_ctx, original_file_path: Union[Path,str]) -> Path:
+        fpath = self.session_context_to_relative_path(output_root, active_identifying_ctx, create_directories=False)
+        f_basename = self.build_basename_from_context(active_identifying_ctx)
+
+        ## Get Original filepath:
+        if not isinstance(original_file_path, Path):
+            original_file_path = Path(original_file_path)
+
+        # Extract the original basename:
+        original_stem: str = original_file_path.stem # 'global_computation_results'
+        original_suffixes = original_file_path.suffixes # ['.pkl']
+        original_name: str = original_file_path.name # 'global_computation_results.pkl'
+
+        if (len(f_basename) > 0) and (len(original_stem) > 0):
+            desired_stem: str = "_".join([f_basename, original_stem])
+        else:
+            desired_stem: str = "".join([f_basename, original_stem])
+
+        desired_final_filename: str = original_file_path.with_stem(desired_stem).name
+
+        desired_final_filepath: Path = fpath.joinpath(desired_final_filename).resolve()
+        return desired_final_filepath
+
     @classmethod
     def init_HIERARCHY_UNIQUE(cls) -> "ContextToPathOption":
         return cls(['format_name','animal','exper_name', 'session_name'], filename_base_keys=[])
@@ -130,5 +153,6 @@ class PersistenceManager:
 
     """
     global_data_root_parent_path: Path
+
 
 
