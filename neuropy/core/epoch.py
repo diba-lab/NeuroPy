@@ -91,7 +91,13 @@ class Epoch(DataWriter):
         return Epoch(epochs=df_new)
 
     def add_epoch_manually(self, start, stop, label="", merge_dt: float or None = 0):
-        comb_df = pd.DataFrame({"start": [start], "stop": [stop], "label": label})
+        comb_df = pd.DataFrame(
+            {
+                "start": np.array(start).reshape(-1),
+                "stop": np.array(stop).reshape(-1),
+                "label": label,
+            }
+        )
 
         if merge_dt is not None:
             return self.__add__(Epoch(comb_df)).merge(merge_dt)
@@ -691,3 +697,10 @@ def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple o
             time_bool[np.where((t >= e[0]) & (t <= e[1]))[0]] = 1
 
         return time_bool.astype("bool")
+
+
+if __name__ == "__main__":
+    art_file = "/data3/Trace_FC/Recording_Rats/Finn2/2023_05_06_habituation1/Finn2_habituation1_denoised.art_epochs.npy"
+    art_epochs = Epoch(epochs=None, file=art_file)
+    epochs_to_add = np.array([[1291, 1291.2], [2734, 2734.5], [1622, 1623.4]])
+    art_epochs.add_epoch_manually(epochs_to_add[:, 0], epochs_to_add[:, 1])
