@@ -309,7 +309,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
 
         ## Lap-restricted computation epochs:
-        use_direction_dependent_laps = False # whether to split the laps into left and right directions
+        # use_direction_dependent_laps = False # whether to split the laps into left and right directions
+        use_direction_dependent_laps = True # whether to split the laps into left and right directions
 
         # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
         lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
