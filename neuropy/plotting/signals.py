@@ -91,7 +91,7 @@ def plot_spectrogram(
             """Plots data from Spectrogram class and preserves time and frequency info on axes"""
             spec_use = spec.time_slice(t_start=time_lims[0], t_stop=time_lims[1])
             ax.pcolormesh(
-                spec_use.time,
+                spec_use.time + time_lims[0],
                 spec_use.freqs,
                 spec_use.traces,
                 cmap=cmap,
@@ -100,7 +100,7 @@ def plot_spectrogram(
             )
             ax.set_ylim(freq)
 
-        ax.set_xlim([time_lims[0], time_lims[-1]])
+        ax.set_xlim([time_lims[-1], time_lims[0]])
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Frequency (Hz)")
 
