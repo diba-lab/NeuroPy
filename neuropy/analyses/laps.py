@@ -229,7 +229,50 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
 
 
 
+def build_lap_computation_epochs(sess, use_direction_dependent_laps:bool = True):
+	""" Builds desired_computation_epochs from the session's laps object
 
+        from neuropy.analyses.laps import build_lap_computation_epochs
+
+		desired_computation_epochs = build_lap_computation_epochs(global_session, use_direction_dependent_laps=True)
+		desired_computation_epochs
+
+
+    Notes:
+        lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
+
+	"""
+	## Lap-restricted computation epochs:
+	 # whether to split the laps into left and right directions
+	# use_direction_dependent_laps = True # whether to split the laps into left and right directions
+
+	# Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
+	lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
+	# Recover the lap information for the included epochs:
+	is_epoch_included_after_filtering = np.isin(sess.laps.starts, lap_specific_epochs.starts)
+	# included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
+	included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering].reset_index()
+
+	# Set the extended data properties:
+	included_column_names = ['lap_id', 'lap_dir']
+	lap_specific_epochs._df[included_column_names] = included_only_laps_dataframe[included_column_names].astype(int)
+	assert np.all(np.logical_not(lap_specific_epochs._df.isna())), f"laps should have no missing values, but there are! {lap_specific_epochs._df}"
+	#FIXED 2023-06-30 14:34: - [X] BUG: There is a bug of some sort here because 'lap_dir' and 'lap_id' are np.nan for some of the entries (like 6, 7, etc). Trace this
+	
+	## Get the actual epochs that will be used:
+	any_lap_specific_epochs = lap_specific_epochs
+	is_even_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 0)
+	is_odd_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 1)
+	even_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_even_lap)
+	odd_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_odd_lap)
+    # NOTE: any_lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
+
+	assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs
+	if use_direction_dependent_laps:
+		desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
+	else:
+		desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
+	return desired_computation_epochs
 
 
 # Load from the 'traj' variable of an exported SpikeII.mat file:

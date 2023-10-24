@@ -268,29 +268,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         ## Lap-restricted computation epochs:
         use_direction_dependent_laps = True # whether to split the laps into left and right directions
-        
-        # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
-        lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
-        # Recover the lap information for the included epochs:
-        is_epoch_included_after_filtering = np.isin(sess.laps.starts, lap_specific_epochs.starts)
-        included_only_laps_dataframe = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
-        # Set the extended data properties:
-        included_column_names = ['lap_id', 'lap_dir']
-        lap_specific_epochs._df[included_column_names] = included_only_laps_dataframe[included_column_names].astype(int)
-        ## Get the actual epochs that will be used:
-        any_lap_specific_epochs = lap_specific_epochs
-        #TODO 2023-06-30 14:34: - [ ] BUG: There is a bug of some sort here because 'lap_dir' and 'lap_id' are np.nan for some of the entries (like 6, 7, etc). Trace this
-        is_even_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 0)
-        is_odd_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 1)
-        even_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_even_lap)
-        odd_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_odd_lap)
-        # lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
-        assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs
-        if use_direction_dependent_laps:
-            desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
-        else:
-            desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
-        
+        desired_computation_epochs = build_lap_computation_epochs(global_session, use_direction_dependent_laps=use_direction_dependent_laps)
+
+
         # Lap-restricted computation epochs:
         print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
         final_active_session_computation_configs = []
@@ -320,29 +300,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## Lap-restricted computation epochs:
         use_direction_dependent_laps = True # whether to split the laps into left and right directions
         # use_direction_dependent_laps = True # whether to split the laps into left and right directions
-
-        # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
-        lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
-        # Recover the lap information for the included epochs:
-        is_epoch_included_after_filtering = np.isin(sess.laps.starts, lap_specific_epochs.starts)
-        included_only_laps_dataframe = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
-        # Set the extended data properties:
-        included_column_names = ['lap_id', 'lap_dir']
-        lap_specific_epochs._df[included_column_names] = included_only_laps_dataframe[included_column_names].astype(int)
-        ## Get the actual epochs that will be used:
-        any_lap_specific_epochs = lap_specific_epochs
-        #TODO 2023-06-30 14:34: - [ ] BUG: There is a bug of some sort here because 'lap_dir' and 'lap_id' are np.nan for some of the entries (like 6, 7, etc). Trace this
-        is_even_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 0)
-        is_odd_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 1)
-        even_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_even_lap)
-        odd_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_odd_lap)
-
-        # lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
-        assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs
-        if use_direction_dependent_laps:
-            desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
-        else:
-            desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
+        desired_computation_epochs = build_lap_computation_epochs(global_session, use_direction_dependent_laps=use_direction_dependent_laps)
 
 
         ## Get specific grid_bin_bounds overrides from the `cls._specific_session_override_dict`
