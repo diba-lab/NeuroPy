@@ -234,6 +234,8 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
 
 
 
+
+
 def build_lap_computation_epochs(sess, use_direction_dependent_laps:bool = True):
     """ Builds desired_computation_epochs from the session's laps object
 
@@ -251,18 +253,21 @@ def build_lap_computation_epochs(sess, use_direction_dependent_laps:bool = True)
      # whether to split the laps into left and right directions
     # use_direction_dependent_laps = True # whether to split the laps into left and right directions
 
+    ## Depends on having a real `sess.laps` Laps object:
+    active_laps_obj: Laps = deepcopy(sess.laps)
+
     # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
-    lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
+    lap_specific_epochs: Epoch = active_laps_obj.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
     # Recover the lap information for the included epochs:
-    is_epoch_included_after_filtering = np.isin(sess.laps.starts, lap_specific_epochs.starts)
-    # included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
-    included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering].reset_index()
+    is_epoch_included_after_filtering = np.isin(active_laps_obj.starts, lap_specific_epochs.starts)
+    # included_only_laps_dataframe: pd.DataFrame = active_laps_obj.to_dataframe()[is_epoch_included_after_filtering]
+    included_only_laps_dataframe: pd.DataFrame = active_laps_obj.to_dataframe()[is_epoch_included_after_filtering].reset_index()
 
     # Set the extended data properties:
     included_column_names = ['lap_id', 'lap_dir']
     lap_specific_epochs._df[included_column_names] = included_only_laps_dataframe[included_column_names].astype(int)
     assert np.all(np.logical_not(lap_specific_epochs._df.isna())), f"laps should have no missing values, but there are! {lap_specific_epochs._df}"
-    #FIXED 2023-06-30 14:34: - [X] BUG: There is a bug of some sort here because 'lap_dir' and 'lap_id' are np.nan for some of the entries (like 6, 7, etc). Trace this
+    #FIXED 2023-06-30 14:34: - [X] There WAS a bug of some sort here because 'lap_dir' and 'lap_id' are np.nan for some of the entries (like 6, 7, etc). Trace this
 
     ## Get the actual epochs that will be used:
     any_lap_specific_epochs = lap_specific_epochs
