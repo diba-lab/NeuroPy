@@ -15,7 +15,7 @@ from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua,
 from neuropy.utils.load_exported import import_mat_file
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
-from neuropy.analyses.laps import estimate_session_laps # for estimation_session_laps
+from neuropy.analyses.laps import estimate_session_laps, build_lap_computation_epochs # for estimation_session_laps
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
 from neuropy.utils.dynamic_container import DynamicContainer
 from neuropy.utils.result_context import IdentifyingContext
@@ -267,9 +267,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
         ## Lap-restricted computation epochs:
-        use_direction_dependent_laps = True # whether to split the laps into left and right directions
-        desired_computation_epochs = build_lap_computation_epochs(global_session, use_direction_dependent_laps=use_direction_dependent_laps)
-
+        lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
+        assert lap_estimation_parameters is not None
+        use_direction_dependent_laps: bool = lap_estimation_parameters['use_direction_dependent_laps'] # whether to split the laps into left and right directions
+        # print(f'use_direction_dependent_laps: {use_direction_dependent_laps}')
+        desired_computation_epochs = build_lap_computation_epochs(sess, use_direction_dependent_laps=use_direction_dependent_laps)
 
         # Lap-restricted computation epochs:
         print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
@@ -298,10 +300,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
 
         ## Lap-restricted computation epochs:
-        use_direction_dependent_laps = True # whether to split the laps into left and right directions
-        # use_direction_dependent_laps = True # whether to split the laps into left and right directions
-        desired_computation_epochs = build_lap_computation_epochs(global_session, use_direction_dependent_laps=use_direction_dependent_laps)
-
+        lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
+        assert lap_estimation_parameters is not None
+        use_direction_dependent_laps: bool = lap_estimation_parameters['use_direction_dependent_laps'] # whether to split the laps into left and right directions
+        # print(f'use_direction_dependent_laps: {use_direction_dependent_laps}')
+        desired_computation_epochs = build_lap_computation_epochs(sess, use_direction_dependent_laps=use_direction_dependent_laps)
 
         ## Get specific grid_bin_bounds overrides from the `cls._specific_session_override_dict`
         override_dict = cls.get_specific_session_override_dict().get(sess.get_context(), {})
