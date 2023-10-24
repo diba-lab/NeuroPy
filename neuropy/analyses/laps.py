@@ -21,14 +21,14 @@ from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs #
 
 
 # Define Run:
-	# Find all times the animal crosses the midline (the line bisecting the track through its midpoint) of the track.
+    # Find all times the animal crosses the midline (the line bisecting the track through its midpoint) of the track.
 
 
 def _subfn_perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
     """ Adds the 'start_spike_index' and 'end_spike_index' columns to the laps_df
     laps_df has two columns added: 'start_spike_index' and 'end_spike_index'
     spikes_df is not modified
-        
+
     Known Usages: Called only by `_subfn_compute_laps_spike_indicies(...)`
     """
     n_laps = len(laps_df['start'])
@@ -53,15 +53,15 @@ def _subfn_perform_compute_laps_spike_indicies(laps_df: pd.DataFrame, spikes_df:
 
 
 def _subfn_compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame, time_variable_name='t_rel_seconds'):
-    """ Determine the spikes included with each computed lap 
+    """ Determine the spikes included with each computed lap
 
-    Called only by `estimation_session_laps(...)`    
+    Called only by `estimation_session_laps(...)`
     """
     laps_obj._data = _subfn_perform_compute_laps_spike_indicies(laps_obj._data, spikes_df, time_variable_name=time_variable_name) # adds the 'start_spike_index' and 'end_spike_index' columns to the dataframe
     laps_obj._data = Laps._update_dataframe_computed_vars(laps_obj._data) # call this to update the column types and any computed columns that depend on the added columns (such as num_spikes)
     return laps_obj
 
- 
+
 def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0, debug_print=False):
     """ Pho 2021-12-20 - Custom lap computation based on position/velocity thresholding to detect laps
     pos_df
@@ -71,7 +71,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
         desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = estimate_laps(pos_df)
 
         # there are three variables for each of the two movement directions (ascending and descending)
-        # for each movement direction:        
+        # for each movement direction:
             crossing_midpoints: the indicies were the animal crosses the hardcoded_track_midpoint_x
             beginnings and endings: the nearest {preceding/following} points where the animal changes direction.
 
@@ -83,7 +83,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     track_min_max_x = (np.nanmin(pos_df['x']), np.nanmax(pos_df['x']))
     # sane_midpoint_x = (np.nanmax(pos_df['x']) - np.nanmin(pos_df['x'])) / 2.0 # fails when track_min_max_x = (-112.6571782148526, 127.8636830487316) because of negative x value.
     sane_midpoint_x = np.mean(track_min_max_x)
-    # Doesn't work when x permits negative values seemingly. 
+    # Doesn't work when x permits negative values seemingly.
     if debug_print:
         print(f'sane_midpoint_x: {sane_midpoint_x}, hardcoded_track_midpoint_x: {hardcoded_track_midpoint_x}, track_min_max_x: {track_min_max_x}')
     if hardcoded_track_midpoint_x is None:
@@ -113,13 +113,13 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
             print(f'WARNING: must drop last desc_crossing_midpoint.')
         assert len(desc_crossing_midpoint_idxs) > 1
         desc_crossing_midpoint_idxs = desc_crossing_midpoint_idxs[:-1] # all but the very last which is dropped
-        
+
     elif len(asc_crossing_midpoint_idxs) > len(desc_crossing_midpoint_idxs):
         if debug_print:
             print(f'WARNING: must drop last asc_crossing_midpoints.')
         assert len(asc_crossing_midpoint_idxs) > 1
         asc_crossing_midpoint_idxs = asc_crossing_midpoint_idxs[:-1] # all but the very last which is dropped
-        
+
     assert len(asc_crossing_midpoint_idxs) == len(desc_crossing_midpoint_idxs), f"desc_crossings_x: {np.shape(desc_crossing_midpoint_idxs)}, asc_crossings_x: {np.shape(asc_crossing_midpoint_idxs)}"
     desc_crossing_midpoint_idxs, asc_crossing_midpoint_idxs
 
@@ -129,7 +129,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     for a_desc_crossing_i in np.arange(len(desc_crossing_midpoint_idxs)):
         a_desc_crossing = desc_crossing_midpoint_idxs[a_desc_crossing_i]
         # print(f'a_desc_crossing: {a_desc_crossing}')
-        
+
         curr_remainder_pos_df = pos_df.loc[a_desc_crossing:, :] # This is causing an error, should it be .iloc?
         curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df['velocity_x_smooth'] > 0.0].index # the first increasing
         curr_next_transition_point = curr_next_transition_points[0] # desc endings
@@ -151,7 +151,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
         curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df['velocity_x_smooth'] < 0.0].index # the first decreasing
         curr_next_transition_point = curr_next_transition_points[0] # asc endings
         asc_crossing_ending_idxs[a_asc_crossing_i] = curr_next_transition_point
-        
+
         # Preceeding points:
         curr_preceeding_pos_df = pos_df.loc[0:an_asc_crossing, :] # get all pos_df prior to an_asc_crossing
         curr_prev_transition_points = curr_preceeding_pos_df[curr_preceeding_pos_df['velocity_x_smooth'] < 0.0].index #
@@ -178,12 +178,12 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     if should_backup_extant_laps_obj:
         assert not hasattr(sess, 'laps_backup'), 'sess.laps_backup already exists, so we can''t backup the extant laps object.'
         sess.laps_backup = deepcopy(sess.laps)
-        
+
     if should_plot_laps_2d:
         # plot originals:
         fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=True)
         out_axes_list[0].set_title('Old SpikeII computed Laps')
-    
+
     # position_obj = sess.position
     position_obj = sess.position.linear_pos_obj
 
@@ -230,49 +230,50 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
 
 
 def build_lap_computation_epochs(sess, use_direction_dependent_laps:bool = True):
-	""" Builds desired_computation_epochs from the session's laps object
+    """ Builds desired_computation_epochs from the session's laps object
 
         from neuropy.analyses.laps import build_lap_computation_epochs
 
-		desired_computation_epochs = build_lap_computation_epochs(global_session, use_direction_dependent_laps=True)
-		desired_computation_epochs
+        desired_computation_epochs = build_lap_computation_epochs(global_session, use_direction_dependent_laps=True)
+        desired_computation_epochs
 
 
     Notes:
         lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
 
-	"""
-	## Lap-restricted computation epochs:
-	 # whether to split the laps into left and right directions
-	# use_direction_dependent_laps = True # whether to split the laps into left and right directions
+    """
+    ## Lap-restricted computation epochs:
+     # whether to split the laps into left and right directions
+    # use_direction_dependent_laps = True # whether to split the laps into left and right directions
 
-	# Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
-	lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
-	# Recover the lap information for the included epochs:
-	is_epoch_included_after_filtering = np.isin(sess.laps.starts, lap_specific_epochs.starts)
-	# included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
-	included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering].reset_index()
+    # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
+    lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
+    # Recover the lap information for the included epochs:
+    is_epoch_included_after_filtering = np.isin(sess.laps.starts, lap_specific_epochs.starts)
+    # included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering]
+    included_only_laps_dataframe: pd.DataFrame = sess.laps.to_dataframe()[is_epoch_included_after_filtering].reset_index()
 
-	# Set the extended data properties:
-	included_column_names = ['lap_id', 'lap_dir']
-	lap_specific_epochs._df[included_column_names] = included_only_laps_dataframe[included_column_names].astype(int)
-	assert np.all(np.logical_not(lap_specific_epochs._df.isna())), f"laps should have no missing values, but there are! {lap_specific_epochs._df}"
-	#FIXED 2023-06-30 14:34: - [X] BUG: There is a bug of some sort here because 'lap_dir' and 'lap_id' are np.nan for some of the entries (like 6, 7, etc). Trace this
-	
-	## Get the actual epochs that will be used:
-	any_lap_specific_epochs = lap_specific_epochs
-	is_even_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 0)
-	is_odd_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 1)
-	even_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_even_lap)
-	odd_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_odd_lap)
+    # Set the extended data properties:
+    included_column_names = ['lap_id', 'lap_dir']
+    lap_specific_epochs._df[included_column_names] = included_only_laps_dataframe[included_column_names].astype(int)
+    assert np.all(np.logical_not(lap_specific_epochs._df.isna())), f"laps should have no missing values, but there are! {lap_specific_epochs._df}"
+    #FIXED 2023-06-30 14:34: - [X] BUG: There is a bug of some sort here because 'lap_dir' and 'lap_id' are np.nan for some of the entries (like 6, 7, etc). Trace this
+
+    ## Get the actual epochs that will be used:
+    any_lap_specific_epochs = lap_specific_epochs
+    is_even_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 0)
+    is_odd_lap = (lap_specific_epochs._df['lap_dir'].to_numpy() == 1)
+    even_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_even_lap)
+    odd_lap_specific_epochs = lap_specific_epochs.boolean_indicies_slice(is_odd_lap)
     # NOTE: any_lap_specific_epochs.labels: ['0', '1', ..., '79'] == ['0', ..., f'{len(sess.laps.lap_id)-1}]
 
-	assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs
-	if use_direction_dependent_laps:
-		desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
-	else:
-		desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
-	return desired_computation_epochs
+    assert even_lap_specific_epochs.n_epochs + odd_lap_specific_epochs.n_epochs <= any_lap_specific_epochs.n_epochs
+    if use_direction_dependent_laps:
+        # desired_computation_epochs = [even_lap_specific_epochs, odd_lap_specific_epochs, any_lap_specific_epochs]
+        desired_computation_epochs = [odd_lap_specific_epochs, even_lap_specific_epochs, any_lap_specific_epochs]
+    else:
+        desired_computation_epochs = [any_lap_specific_epochs] # no directional laps version
+    return desired_computation_epochs
 
 
 # Load from the 'traj' variable of an exported SpikeII.mat file:
@@ -289,7 +290,7 @@ def build_lap_computation_epochs(sess, use_direction_dependent_laps:bool = True)
 #     print('lap[{}]: ({}, {}): '.format(curr_lap_id, curr_lap_t_start, curr_lap_t_stop))
 
 #     curr_lap_position_df_is_included = curr_position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive=True) # returns a boolean array indicating inclusion in teh current lap
-#     curr_lap_position_df = curr_position_df[curr_lap_position_df_is_included] 
+#     curr_lap_position_df = curr_position_df[curr_lap_position_df_is_included]
 #     # curr_position_df.query('-0.5 <= t < 0.5')
 #     curr_lap_position_traces = curr_lap_position_df[['x','y']].to_numpy().T
 #     print('\t {} positions.'.format(np.shape(curr_lap_position_traces)))
@@ -317,9 +318,9 @@ from neuropy.utils.mixins.indexing_helpers import interleave_elements # for _bui
 
 def _build_new_lap_and_intra_lap_intervals(sess):
     """ TODO - UNUSED
-    
+
     Factored out of Notebook on 2022-12-13
-    
+
     Usage:
         from neuropy.analyses.laps import _build_new_lap_and_intra_lap_intervals
         sess = curr_active_pipeline.sess
@@ -375,7 +376,7 @@ def _build_new_lap_and_intra_lap_intervals(sess):
     #  ['lap', '1978.5230138762854', '1988.0340438865824', '74'],
     #  ['intra', 1988.0340438865824, 2093.8978568242164, 74]]
     # combined_records_list
-    
+
     ## Can build a pd.DataFrame version:
 #     combined_df = pd.DataFrame.from_records(combined_records_list, columns=['epoch_type','start','stop','interval_type_id'], coerce_float=True)
 #     combined_df['label'] = combined_df.index.astype("str") # add the required 'label' column so it can be convereted into an Epoch object
