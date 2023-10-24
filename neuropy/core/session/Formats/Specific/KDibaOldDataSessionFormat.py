@@ -302,7 +302,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## Lap-restricted computation epochs:
         lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
         assert lap_estimation_parameters is not None
-        use_direction_dependent_laps: bool = lap_estimation_parameters['use_direction_dependent_laps'] # whether to split the laps into left and right directions
+        use_direction_dependent_laps: bool = lap_estimation_parameters.get('use_direction_dependent_laps', False) # whether to split the laps into left and right directions
         # print(f'use_direction_dependent_laps: {use_direction_dependent_laps}')
         desired_computation_epochs = build_lap_computation_epochs(sess, use_direction_dependent_laps=use_direction_dependent_laps)
 
