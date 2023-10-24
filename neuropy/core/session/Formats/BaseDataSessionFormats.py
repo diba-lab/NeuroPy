@@ -23,7 +23,7 @@ from neuropy.utils.result_context import IdentifyingContext
 # 2022-12-07 - Finding Local Session Paths
 # ==================================================================================================================== #
 
-def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_print=True):
+def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_print=False):
     """Finds the local session paths
 
     History: From PendingNotebookCode's 2022-12-07 section - "Finding Local Session Paths"

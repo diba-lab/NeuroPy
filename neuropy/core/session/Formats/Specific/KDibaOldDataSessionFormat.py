@@ -490,9 +490,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             global_data_root_parent_path = Path(global_data_root_parent_path).resolve()
             
         active_data_mode_name = cls._session_class_name
-
-        
-
         local_session_root_parent_context = IdentifyingContext(format_name=active_data_mode_name) # , animal_name='', configuration_name='one', session_name=self.session_name
         local_session_root_parent_path = global_data_root_parent_path.joinpath('KDIBA')
 
@@ -505,7 +502,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             for an_experiment_name in an_experiment_names_list:
                 local_session_parent_context = local_session_root_parent_context.adding_context(collision_prefix='animal', animal=animal_name, exper_name=an_experiment_name)
                 local_session_parent_path = local_session_root_parent_path.joinpath(local_session_parent_context.animal, local_session_parent_context.exper_name)
-                local_session_paths_list, local_session_names_list =  find_local_session_paths(local_session_parent_path, exclude_list=exclude_list)
+                local_session_paths_list, local_session_names_list =  find_local_session_paths(local_session_parent_path, exclude_list=exclude_list, debug_print=debug_print)
 
                 if debug_print:
                     print(f'local_session_paths_list: {local_session_paths_list}')
