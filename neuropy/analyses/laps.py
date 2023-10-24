@@ -170,6 +170,11 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     USES: Used in KDibaOldDataSessionFormat as a post-processing step to replace the laps computed from the spikesII.mat data
 
         2023-04-07 - Used in notebook to compute the laps if they aren't there so that we can filter by them.
+
+
+    Note: Uses `sess.position`
+
+    Uses: ['_subfn_perform_estimate_lap_splits_1D', 'Laps.from_estimated_laps', '_subfn_compute_laps_spike_indicies']
     """
     if should_plot_laps_2d:
         from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
@@ -190,14 +195,14 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     # position_obj.dt
     position_obj.compute_higher_order_derivatives()
     pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
-    pos_df = position_obj.to_dataframe()
+    pos_df: pd.DataFrame = position_obj.to_dataframe()
     if pos_df.index[0] != 0:
         # If the index doesn't start at zero, it will need to for compatibility with the lap splitting logic because it uses the labels via "df.loc"
         pos_df['index_backup'] = pos_df.index  # Backup the current index to a new column
         pos_df.reset_index(drop=True, inplace=True)  # Reset the index to 0
 
     # custom_test_laps = deepcopy(sess.laps)
-    spikes_df = deepcopy(sess.spikes_df)
+    spikes_df: pd.DataFrame = deepcopy(sess.spikes_df)
     if time_variable_name is None:
         time_variable_name = 't_rel_seconds'
     else:
