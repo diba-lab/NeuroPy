@@ -374,10 +374,21 @@ def recording_events_to_combined_time(
         event_time_comb = np.array(event_time_comb)
 
     else:
+        good_bool = [start == stop for start, stop in zip(nrec_start, nrec_stop)]
+        good_events = np.where(good_bool)[0]
+        bad_events = np.where(~np.array(good_bool))[0]
+
         print(
-            f"Recording start and end numbers do not all match. starts = {nrec_start}, ends = {nrec_stop}."
+            f"Event(s) # {bad_events + 1} occurs in between recordings and has(have) been left out"
         )
-        event_time_comb = np.nan
+        # print(
+        #     f"Recording start and end numbers do not all match. starts = {nrec_start}, ends = {nrec_stop}."
+        # )
+        # event_time_comb = np.nan
+
+        event_time_comb = recording_events_to_combined_time(
+            event_df.iloc[good_events], sync_df, time_out, event_ts_key, sync_ts_key
+        )
 
     return event_time_comb
 
