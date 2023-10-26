@@ -240,3 +240,7 @@ class MultiItemStringRepresentationMixin:
         """
         return build_formatted_str_from_properties_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist), param_sep_char, key_val_sep_char, float_precision=(override_float_precision or self.float_precision), array_items_threshold=(override_array_items_threshold or self.array_items_threshold))
 
+
+def print_array(a: np.array) -> str:
+    """ computes an numpy array with the full separators for use in pasting back into code. """
+    return np.array2string(a, separator=',')
