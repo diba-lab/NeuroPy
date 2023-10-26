@@ -327,7 +327,14 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         basedir = Path(basedir) # basedir WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-07_11-26-53')
         dir_parts = basedir.parts # ('W:\\', 'Data', 'KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')
         # Finds the index of the 'Data' or 'data' (global_data_root) part of the path to include only what's after that.
-        data_index = tuple(map(str.casefold, dir_parts)).index('DATA'.casefold()) # .casefold is equivalent to .lower, but works for unicode characters
+        try:        
+            data_index = tuple(map(str.casefold, dir_parts)).index('DATA'.casefold()) # .casefold is equivalent to .lower, but works for unicode characters
+        except ValueError:
+            # Enables looking for 'FASTDATA' in the path when DATA is not found
+            data_index = tuple(map(str.casefold, dir_parts)).index('FASTDATA'.casefold()) # .casefold is equivalent to .lower, but works for unicode characters
+        except BaseException:
+            raise # unhandled exception
+
         post_data_root_dir_parts = dir_parts[data_index+1:] # ('KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')
         num_parts = len(post_data_root_dir_parts)
         context_keys = cls.get_session_basepath_to_context_parsing_keys()

@@ -89,7 +89,7 @@
 			"path": "core/session/Formats/BaseDataSessionFormats.py",
 			"bookmarks": [
 				{
-					"line": 515,
+					"line": 522,
 					"column": 41,
 					"label": "ExternallyComputedRipplesLoading"
 				}

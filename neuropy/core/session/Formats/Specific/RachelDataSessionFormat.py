@@ -186,31 +186,33 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
     
     ## Initial Function required to wrangle the data from the raw output to a format like Bapun's .npy format:
     @classmethod
-    def initialize_data_directory(cls, filepath):
+    def initialize_data_directory(cls, filepath=Path('/home/halechr/FastData/Rachel/20230614_Rachel'), filename: str = '20230614_Rachel'):
         """ TODO: this function is supposed to combine all the steps needed to process a freshly output recording directory to generate the required *.npy files that are used to build the session. 
         
             I did my best to piece together the relevant looking parts of Rachel's pre-processing scripts/notebooks (`test.py` and `ttl_check.ipynb`) but they don't appear sufficient to perform all the pre-processing. I think this was becuase Rachel did some of the conversion in MATLAB. These scripts will need to be converted to folded in to this function. 
             
         """
         
-        global_data_root_parent_path = find_first_extant_path([Path(r'W:\Data'), Path(r'/home/halechr/FastData'), Path(r'/media/MAX/Data'), Path(r'/Volumes/MoverNew/data'), Path(r'/home/halechr/turbo/Data'), Path(r'/home/halechr/cloud/turbo/Data')])
-        assert global_data_root_parent_path.exists(), f"global_data_root_parent_path: {global_data_root_parent_path} does not exist! Is the right computer's config commented out above?"
+        # global_data_root_parent_path = find_first_extant_path([Path(r'W:\Data'), Path(r'/home/halechr/FastData'), Path(r'/media/MAX/Data'), Path(r'/Volumes/MoverNew/data'), Path(r'/home/halechr/turbo/Data'), Path(r'/home/halechr/cloud/turbo/Data')])
+        # assert global_data_root_parent_path.exists(), f"global_data_root_parent_path: {global_data_root_parent_path} does not exist! Is the right computer's config commented out above?"
 
 
-        ## Rachel:
-        active_data_mode_name = 'rachel'
-        local_session_root_parent_context = IdentifyingContext(format_name=active_data_mode_name) # , animal_name='', configuration_name='one', session_name=a_sess.session_name
-        local_session_root_parent_path = global_data_root_parent_path.joinpath('Rachel')
+        # ## Rachel:
+        # active_data_mode_name = 'rachel'
+        # local_session_root_parent_context = IdentifyingContext(format_name=active_data_mode_name) # , animal_name='', configuration_name='one', session_name=a_sess.session_name
+        # local_session_root_parent_path = global_data_root_parent_path.joinpath('Rachel')
 
         # basedir: Path = Path(r'W:\Data\Rachel\20230614_Rachel').resolve()
 
         # basedir: Path = Path('/home/halechr/FastData/Rachel/20230614_Rachel/merged_20230614_2crs.GUI').resolve()
 
-        basedir: Path = Path('/home/halechr/FastData/Rachel/20230614_Rachel').resolve()
+        # basedir: Path = Path('/home/halechr/FastData/Rachel/20230614_Rachel').resolve()
+        basedir: Path = filepath.resolve()
         assert basedir.exists()
+        print(f'basedir: {basedir}')
 
-        filename: str = '20230614_Rachel'
-
+        # filename: str = '20230614_Rachel'
+        print(f'filename: {filename}')
 
         # RachelDataSessionFormat.initialize_data_directory(basedir)
         ## Builds the .neurons.npy:
@@ -283,22 +285,38 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         position.filename = basedir.joinpath(f'{filename}.position.npy')
         position.save()
 
-        # ## Builds the .paradigm.npy file from scratch:
-        # starts = [0,5*60]
-        # stops = [5*60-1,3.8398632e+03]
+
+        ## Builds the .paradigm.npy file from scratch:
+        # ## Old example:
+        # starts = [0, 5*60]
+        # stops = [5*60-1, 3.8398632e+03]
         # labels = ['pre','maze']
         # d = {'start':starts,'stop':stops,'label':labels} 
-        # paradigmdf = pd.DataFrame(data=d)
-        # paradigm = Epoch(paradigmdf)
+        
+        ## 2023-10-26 - Example from Rachel's new data:
+        paradigm_df = pd.DataFrame(dict(label=['Pre','Maze','Post'],
+            start = ['11:15:49.000','12:02:19.095','13:08:37.999'],
+            stops = ['11:53:19.384','13:04:54.815','14:53:22.047'],
+        ))
+        # Change column type to timedelta64[ns] for columns: 'Starts', 'Stops'
+        paradigm_df = paradigm_df.astype({'start': 'timedelta64[ns]', 'stops': 'timedelta64[ns]'})
+
+        ## Build and save the paradigm.npy
+        d = {'start':paradigm_df.start.dt.total_seconds().to_numpy(),
+            'stop':paradigm_df.stops.dt.total_seconds().to_numpy(),
+            'label':paradigm_df.label.to_list()} 
+
+        paradigmdf = pd.DataFrame(data=d)
+        paradigm = Epoch(paradigmdf)
         # paradigm.filename = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy/merged_M1_20211123_raw.paradigm.npy')
-        # paradigm.save()
+        paradigm.filename = basedir.joinpath(f'{filename}.paradigm.npy')
+        paradigm.save()
 
 
 
-        _test_session = RachelDataSessionFormat.build_session(basedir)
-        _test_session, loaded_file_record_list = RachelDataSessionFormat.load_session(_test_session)
-        _test_session
-
+        # _test_session = RachelDataSessionFormat.build_session(basedir)
+        # _test_session, loaded_file_record_list = RachelDataSessionFormat.load_session(_test_session)
+        # _test_session
 
 
         # # ==================================================================================================================== #
