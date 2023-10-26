@@ -476,7 +476,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             else:
                 print(f'\t Failure loading "{session.filePrefix.with_suffix(active_file_suffix)}". Must recompute.\n')
             with ProgressMessagePrinter('spikes_df', 'Computing', 'interpolate_spike_positions columns'):
-                spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
+                if session.position.has_linear_pos:
+                    lin_pos = session.position.linear_pos
+                else:
+                    lin_pos = None
+                spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=lin_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
                 session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
             
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)

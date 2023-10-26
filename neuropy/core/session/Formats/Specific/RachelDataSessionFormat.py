@@ -137,21 +137,21 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         # ['.neurons.npy','.probegroup.npy','.position.npy','.paradigm.npy']
         # session = DataSessionLoader.__default_compute_bapun_flattened_spikes(session)
         
-        # Load or compute linear positions if needed:        
-        if (not session.position.has_linear_pos):
-            # compute linear positions:
-            print('computing linear positions for all active epochs for session...')
-            # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
-            session.position.linear_pos = np.full_like(session.position.time, np.nan)
-            acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession._perform_compute_session_linearized_position(session, 'maze')
-            session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
-            session.position.filename = session.filePrefix.with_suffix(".position.npy")
-            # print('Saving updated position results to {}...'.format(session.position.filename))
-            with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
-                session.position.save()
-            # print('done.\n')
-        else:
-            print('linearized position loaded from file.')
+        # # Load or compute linear positions if needed:        
+        # if (not session.position.has_linear_pos):
+        #     # compute linear positions:
+        #     print('computing linear positions for all active epochs for session...')
+        #     # end result will be session.computed_traces of the same length as session.traces in terms of frames, with all non-maze times holding NaN values
+        #     session.position.linear_pos = np.full_like(session.position.time, np.nan)
+        #     acitve_epoch_timeslice_indicies1, active_positions_maze1, linearized_positions_maze1 = DataSession._perform_compute_session_linearized_position(session, 'maze')
+        #     session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
+        #     session.position.filename = session.filePrefix.with_suffix(".position.npy")
+        #     # print('Saving updated position results to {}...'.format(session.position.filename))
+        #     with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
+        #         session.position.save()
+        #     # print('done.\n')
+        # else:
+        #     print('linearized position loaded from file.')
 
         ## Load or compute flattened spikes since this format of data has the spikes ordered only by cell_id:
         ## flattened.spikes:
