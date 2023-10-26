@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -10,6 +11,13 @@ from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains, Shank, Probe, ProbeGroup
 from neuropy.io import OptitrackIO, PhyIO
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
+
+from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder, DataSessionFormatBaseRegisteredClass
+from neuropy.utils.result_context import IdentifyingContext
+
+## Pho's Custom Libraries:
+from pyphocorehelpers.Filesystem.path_helpers import find_first_extant_path
+from pyphocorehelpers.Filesystem.open_in_system_file_manager import reveal_in_system_file_manager
 
 
 class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
@@ -184,15 +192,40 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
             I did my best to piece together the relevant looking parts of Rachel's pre-processing scripts/notebooks (`test.py` and `ttl_check.ipynb`) but they don't appear sufficient to perform all the pre-processing. I think this was becuase Rachel did some of the conversion in MATLAB. These scripts will need to be converted to folded in to this function. 
             
         """
+        
+        global_data_root_parent_path = find_first_extant_path([Path(r'W:\Data'), Path(r'/home/halechr/FastData'), Path(r'/media/MAX/Data'), Path(r'/Volumes/MoverNew/data'), Path(r'/home/halechr/turbo/Data'), Path(r'/home/halechr/cloud/turbo/Data')])
+        assert global_data_root_parent_path.exists(), f"global_data_root_parent_path: {global_data_root_parent_path} does not exist! Is the right computer's config commented out above?"
+
+
+        ## Rachel:
+        active_data_mode_name = 'rachel'
+        local_session_root_parent_context = IdentifyingContext(format_name=active_data_mode_name) # , animal_name='', configuration_name='one', session_name=a_sess.session_name
+        local_session_root_parent_path = global_data_root_parent_path.joinpath('Rachel')
+
+        # basedir: Path = Path(r'W:\Data\Rachel\20230614_Rachel').resolve()
+
+        # basedir: Path = Path('/home/halechr/FastData/Rachel/20230614_Rachel/merged_20230614_2crs.GUI').resolve()
+
+        basedir: Path = Path('/home/halechr/FastData/Rachel/20230614_Rachel').resolve()
+        assert basedir.exists()
+
+        filename: str = '20230614_Rachel'
+
+
+        # RachelDataSessionFormat.initialize_data_directory(basedir)
         ## Builds the .neurons.npy:
         # folder = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy')
-        folder = Path(r'W:\Data\Rachel\20230614_Rachel')
+        # folder = Path(r'W:\Data\Rachel\20230614_Rachel')
+        folder = basedir.resolve()
         phydata = PhyIO(folder)
+        # /home/halechr/FastData/Rachel/20230614_Rachel/params.py
 
-        neuronIDs = pd.read_csv(r'W:\Data\Rachel\20230614_Rachel\cluster_q.tsv');
 
+        # neuronIDs = pd.read_csv(r'W:\Data\Rachel\20230614_Rachel\cluster_q.tsv');
+
+        neuronIDs = pd.read_csv(basedir.joinpath('cluster_q.tsv'))
         neurons = Neurons(spiketrains=phydata.spiketrains, t_stop=2*3600, sampling_rate=30000, neuron_ids = {1:'pyr1',2:'pyr2',3:'pyr3',4:'int1',5:'int2',6:'int3',7:"mua1",8:'mua2',9:'mua3'})
-        neurons.filename = folder.joinpath('merged_M1_20211123_raw.neurons.npy')
+        neurons.filename = folder.joinpath(f'{filename}.neurons.npy')
         neurons.save()
 
         # Probe Groups file
@@ -217,16 +250,37 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         # prbgroup.add_probe(prb)
 
 
+
         ## Builds the .position.npy:
-        opti_folder = Path(r'W:\Data\Rachel\20230614_Rachel')
-        opti_data = OptitrackIO(opti_folder)
-        brelative = pd.read_csv(r'W:\Data\Rachel\20230614_Rachel\merged_M1_20211123_raw_behavior_relativetoLFP.csv',header = None)
+        # opti_folder = Path(r'W:\Data\Rachel\20230614_Rachel')
+        # opti_folder = basedir.resolve()
+        # opti_data = OptitrackIO(opti_folder)
+        # brelative = pd.read_csv(r'W:\Data\Rachel\20230614_Rachel\merged_M1_20211123_raw_behavior_relativetoLFP.csv',header = None)
+
+        csv_path = basedir.joinpath(f'20230614_positionData.csv')
+        # brelative = pd.read_csv(csv_path, header = None)
+        brelative = pd.read_csv(csv_path)
+        brelative
+        # Change column type to timedelta64[ns] for column: 'AbsoluteTime'
+        brelative = brelative.astype({'AbsoluteTime': 'timedelta64[ns]'})
+
+        brelative_seconds = brelative.AbsoluteTime.dt.total_seconds().to_numpy()
+        start_t = np.min(brelative_seconds)
+        # start_t = np.min(brelative.AbsoluteTime.to_numpy())
+        print(f'start_t: {start_t}')
+
+        t_relative = brelative_seconds - start_t
+        t_relative
+
         print(f'brelative.shape: {brelative.shape}')
-        d = {'t':brelative[0],'x':opti_data.z,'y':opti_data.x} 
+        # d = {'t':brelative[0],'x':opti_data.z,'y':opti_data.x} 
+        d = {'t':brelative_seconds,'x':brelative.Z.to_numpy(),'y':brelative.X.to_numpy()} 
+
         behaviordf = pd.DataFrame(data=d)
         print(f'behaviordf.shape: {behaviordf.shape}')
         position = Position(behaviordf)
-        position.filename = Path('W:\Data\Rachel\20230614_Rachel\merged_M1_20211123_raw.position.npy')
+        # position.filename = Path(f'W:\Data\Rachel\20230614_Rachel\{filename}.position.npy')
+        position.filename = basedir.joinpath(f'{filename}.position.npy')
         position.save()
 
         # ## Builds the .paradigm.npy file from scratch:
@@ -238,3 +292,69 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         # paradigm = Epoch(paradigmdf)
         # paradigm.filename = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy/merged_M1_20211123_raw.paradigm.npy')
         # paradigm.save()
+
+
+
+        _test_session = RachelDataSessionFormat.build_session(basedir)
+        _test_session, loaded_file_record_list = RachelDataSessionFormat.load_session(_test_session)
+        _test_session
+
+
+
+        # # ==================================================================================================================== #
+        # # BEGIN PRE 2023-10-26                                                                                                 #
+        # # ==================================================================================================================== #
+        # ## Builds the .neurons.npy:
+        # # folder = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy')
+        # folder = Path(r'W:\Data\Rachel\20230614_Rachel')
+        # phydata = PhyIO(folder)
+
+        # neuronIDs = pd.read_csv(r'W:\Data\Rachel\20230614_Rachel\cluster_q.tsv');
+
+        # neurons = Neurons(spiketrains=phydata.spiketrains, t_stop=2*3600, sampling_rate=30000, neuron_ids = {1:'pyr1',2:'pyr2',3:'pyr3',4:'int1',5:'int2',6:'int3',7:"mua1",8:'mua2',9:'mua3'})
+        # neurons.filename = folder.joinpath('merged_M1_20211123_raw.neurons.npy')
+        # neurons.save()
+
+        # # Probe Groups file
+        # # TODO: Probe group generation
+        # # shanks = []
+        # # # channel_groups = sess.recinfo.channel_groups
+        # # for i in range(8):
+        # #     shank = Shank.auto_generate(
+        # #         columns=1,
+        # #         contacts_per_column=128,
+        # #         xpitch=90,
+        # #         ypitch=0,
+        # #         y_shift_per_column=[0, 0],
+        # #         channel_id=np.arange(0,128,1)
+        # #         ),
+            
+        # # elec_IDs = np.arange(0,128,1)
+        # # shanks = Shank.auto_generate(channels=1, contacts_per_column = 128)
+        # # shanks = pd.read_csv('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/Probe.csv',delimiter=',',usecols=["ShankNumber"])
+        # # prb = Probe(shanks)
+        # # prbgroup = ProbeGroup()
+        # # prbgroup.add_probe(prb)
+
+
+        # ## Builds the .position.npy:
+        # opti_folder = Path(r'W:\Data\Rachel\20230614_Rachel')
+        # opti_data = OptitrackIO(opti_folder)
+        # brelative = pd.read_csv(r'W:\Data\Rachel\20230614_Rachel\merged_M1_20211123_raw_behavior_relativetoLFP.csv',header = None)
+        # print(f'brelative.shape: {brelative.shape}')
+        # d = {'t':brelative[0],'x':opti_data.z,'y':opti_data.x} 
+        # behaviordf = pd.DataFrame(data=d)
+        # print(f'behaviordf.shape: {behaviordf.shape}')
+        # position = Position(behaviordf)
+        # position.filename = Path('W:\Data\Rachel\20230614_Rachel\merged_M1_20211123_raw.position.npy')
+        # position.save()
+
+        # # ## Builds the .paradigm.npy file from scratch:
+        # # starts = [0,5*60]
+        # # stops = [5*60-1,3.8398632e+03]
+        # # labels = ['pre','maze']
+        # # d = {'start':starts,'stop':stops,'label':labels} 
+        # # paradigmdf = pd.DataFrame(data=d)
+        # # paradigm = Epoch(paradigmdf)
+        # # paradigm.filename = Path('/home/wahlberg/Exp_Data/M1_Nov2021/20211123/merged_M1_20211123_raw/merged_M1_20211123_raw_phy/merged_M1_20211123_raw.paradigm.npy')
+        # # paradigm.save()
