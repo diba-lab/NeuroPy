@@ -7,7 +7,7 @@ from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 from .datawriter import DataWriter
-
+from neuropy.core.epoch import Epoch
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
@@ -16,8 +16,8 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
 
 # TODO: implement: NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol
-class Laps(DataFrameRepresentable, DataWriter):
-    
+class Laps(Epoch):
+    # epoch column labels: ["start", "stop", "label"]
     df_all_fieldnames = ['lap_id','maze_id','start_spike_index', 'end_spike_index', 'start_t', 'end_t', 'start_t_seconds', 'end_t_seconds', 'duration_seconds']
     
     def __init__(self, laps: pd.DataFrame, metadata=None) -> None:
