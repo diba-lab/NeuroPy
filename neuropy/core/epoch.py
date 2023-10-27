@@ -31,6 +31,7 @@ class Epoch(DataWriter):
                 file is not None
             ), "Must specify file to load if no epochs dataframe entered"
             epochs = np.load(file, allow_pickle=True).item()["epochs"]
+            self.metadata = np.load(file, allow_pickle=True).item()["metadata"]
 
         self._epochs = self._validate(epochs)
 
