@@ -178,4 +178,19 @@ class Laps(Epoch):
         # included_df = laps_obj._data[((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop))]
         return Laps(included_df, metadata=laps_obj.metadata)
         
- 
+
+     ## For serialization/pickling:
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        # del state['file']
+        return state
+
+    def __setstate__(self, state):
+        # Restore instance attributes (i.e., _mapping and _keys_at_init).
+        # for backwards compatibility with pre-Epoch baseclass versions of Laps loaded from pickle
+        if '_df' not in state:
+            assert '_data' in state
+            state['_df'] = state.pop('_data', None)
+
+        self.__dict__.update(state)
