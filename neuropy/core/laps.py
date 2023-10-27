@@ -26,10 +26,19 @@ class Laps(Epoch):
             laps (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
             metadata (dict, optional): [description]. Defaults to None.
         """
-        super().__init__(metadata=metadata)
-        self._data = laps # set to the laps dataframe
-        self._data = Laps._update_dataframe_computed_vars(self._data)
-        self._data = self._data.sort_values(by=['start']) # sorts all values in ascending order
+        super().__init__(laps, metadata=metadata)
+        # self._data = laps # set to the laps dataframe
+        self._df = Laps._update_dataframe_computed_vars(self._df)
+        self._df = self._df.sort_values(by=['start']) # sorts all values in ascending order
+
+    @property
+    def _data(self):
+        """ 2023-10-27 - a passthrough property for backwards compatibility. After adapting to a subclass of Epoch, the internal property is known as `self._df` not `self._data` """
+        return self._df
+    @_data.setter
+    def _data(self, value):
+        self._df = value
+
 
     @property
     def lap_id(self):
@@ -154,7 +163,8 @@ class Laps(Epoch):
 
     @staticmethod
     def from_dict(d: dict):
-        return Laps(d['_data'], metadata = d.get('metadata', None))
+        return Laps((d.get('_df', None) or d.get('_data', None)), metadata = d.get('metadata', None))
+        # return Laps(d['_data'], metadata = d.get('metadata', None))
         
     def to_dict(self):
         return self.__dict__
