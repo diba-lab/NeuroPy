@@ -3,6 +3,8 @@ import warnings
 from warnings import warn
 import numpy as np
 import pandas as pd
+
+from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable, DataFrameInitializable
 from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin, TimeColumnAliasesProtocol
@@ -218,7 +220,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
 
 
-class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
+class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
@@ -269,10 +271,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWrite
     def get_named_timerange(self, epoch_name):
         return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
 
-
-    def to_dataframe(self):
-        df = self._df.copy()
-        return df
 
     @property
     def metadata(self):
@@ -598,3 +596,12 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataWrite
         return cls(_df, metadata=None) # TODO: recover metadata
 
 
+    # DataFrameInitializable Conformances ________________________________________________________________________________ #
+    
+    def to_dataframe(self):
+        df = self._df.copy()
+        return df
+    
+    @classmethod
+    def from_dataframe(cls, df):
+        return cls(df)
