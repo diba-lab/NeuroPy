@@ -1,6 +1,8 @@
 from copy import deepcopy
 from warnings import warn
 import numpy as np
+from nptyping import NDArray
+from scipy import ndimage # used for `compute_placefield_center_of_masses`
 import h5py
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
 from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin
@@ -12,6 +14,9 @@ from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, po
 from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin
 from . import DataWriter
 
+def compute_placefield_center_of_masses(tuning_curves: NDArray) -> NDArray:
+    """ returns the location of the center of mass for each of the tuning_curves. """
+    return np.squeeze(np.array([ndimage.center_of_mass(x) for x in tuning_curves]))
 
 class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, DataWriter):
     """A Ratemap holds information about each unit's firing rate across binned positions. 
@@ -151,6 +156,27 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Pe
             The peak of each placefield will have height 1.0.
         """
         return Ratemap.nanmin_nanmax_scaler(self.tuning_curves)
+
+    @property
+    def spatial_sparcity(self) -> np.ndarray:
+        """ computes the sparcity as a measure of spatial selectivity as in Silvia et al. 2015
+        
+        Sparcity = \frac{ <f>^2 }{ <f^2> }
+        
+        """
+        assert self.unsmoothed_tuning_maps is not None, "self.unsmoothed_tuning_maps is None! Did you pass it in while building the Ratemap?"
+        # Average over positions:
+        expected_f = np.array([np.nanmean(a_tuning_curve) for a_tuning_curve in self.unsmoothed_tuning_maps]) # .shape
+        expected_f_squared = np.array([np.nanmean(a_tuning_curve**2) for a_tuning_curve in self.unsmoothed_tuning_maps]) # .shape
+        return (expected_f**2) / expected_f_squared # sparcity.shape # (n_neurons,)
+
+
+    @property
+    def peak_tuning_curve_center_of_masses(self) -> NDArray:
+        """ returns the locations of the center of mass of each of the tuning curves."""
+        curves = self.pdf_normalized_tuning_curves
+        return compute_placefield_center_of_masses(curves)
+    
 
     # Other ______________________________________________________________________________________________________________ #
 
@@ -297,18 +323,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Pe
 
 
 
-    def spatial_sparcity(self) -> np.ndarray:
-        """ computes the sparcity as a measure of spatial selectivity as in Silvia et al. 2015
-        
-        Sparcity = \frac{ <f>^2 }{ <f^2> }
-        
-        """
-        assert self.unsmoothed_tuning_maps is not None, "self.unsmoothed_tuning_maps is None! Did you pass it in while building the Ratemap?"
-        # Average over positions:
-        expected_f = np.array([np.nanmean(a_tuning_curve) for a_tuning_curve in ratemap.unsmoothed_tuning_maps]) # .shape
-        expected_f_squared = np.array([np.nanmean(a_tuning_curve**2) for a_tuning_curve in ratemap.unsmoothed_tuning_maps]) # .shape
-        return (expected_f**2) / expected_f_squared # sparcity.shape # (n_neurons,)
-        
+
 
     # ----------------------  HDF5 Serialization -------------------------:
     # HDFMixin Conformances ______________________________________________________________________________________________ #
