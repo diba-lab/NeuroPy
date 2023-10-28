@@ -3,6 +3,7 @@ import warnings
 from warnings import warn
 import numpy as np
 import pandas as pd
+import portion as P # Required for interval search: portion~=2.3.0
 
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable, DataFrameInitializable
 from .datawriter import DataWriter
@@ -132,7 +133,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return list(set(self._obj.columns) - set(self._required_column_names))
         
     @property
-    def extra_data_datframe(self) -> pd.DataFrame:
+    def extra_data_dataframe(self) -> pd.DataFrame:
         """The subset of the dataframe containing additional information in its columns beyond that what is required. """
         return self._obj[self.extra_data_column_names]
 
@@ -151,27 +152,31 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return self._obj.copy()
 
     ## Handling overlapping
-    def get_non_overlapping_df(self, debug_print=False):
+    def get_non_overlapping_df(self, debug_print=False) -> pd.DataFrame:
         """ Returns a dataframe with overlapping epochs removed. """
         ## 2023-02-23 - PortionInterval approach to ensuring uniqueness:
         from neuropy.utils.efficient_interval_search import convert_PortionInterval_to_epochs_df, _convert_start_end_tuples_list_to_PortionInterval
         ## Capture dataframe properties beyond just the start/stop times:
         
-        # d = P.IntervalDict()
-        self.extra_data_datframe
+        # _intermedia_start_end_tuples_list = self.get_start_stop_tuples_list()
+        _intermediate_portions_interval: P.Interval = _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
+        filtered_epochs_df = convert_PortionInterval_to_epochs_df(_intermediate_portions_interval)
+        # is_epoch_included = np.array([(a_tuple.start, a_tuple.stop) in _intermedia_start_end_tuples_list for a_tuple in list(filtered_epochs_df.itertuples(index=False))])
 
-
-        _intermediate_portions_interval = _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
         
         if debug_print:
             before_num_rows = self.n_epochs
-            filtered_epochs = convert_PortionInterval_to_epochs_df(_convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops)))
-            after_num_rows = np.shape(filtered_epochs)[0]
+            filtered_epochs_df = convert_PortionInterval_to_epochs_df(_intermediate_portions_interval)
+            after_num_rows = np.shape(filtered_epochs_df)[0]
             changed_num_rows = after_num_rows - before_num_rows
             print(f'Dataframe Changed from {before_num_rows} -> {after_num_rows} ({changed_num_rows = })')
-            return filtered_epochs
+            return filtered_epochs_df
         else:
-            return convert_PortionInterval_to_epochs_df(_convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops)))
+            
+            
+            return filtered_epochs_df
+
+
 
     def get_epochs_longer_than(self, minimum_duration, debug_print=False):
         """ returns a copy of the dataframe contining only epochs longer than the specified minimum_duration. """
