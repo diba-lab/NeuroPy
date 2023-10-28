@@ -79,6 +79,10 @@ class Laps(Epoch):
         Modifies: ['end_t_rel_seconds', 'stop', 'duration']
 
         Invalidates: ['start_position_index', 'end_position_index', 'start_spike_index', 'end_spike_index', 'num_spikes']
+
+
+        TODO 2023-10-27 - could refactor to parent Epochs class?
+
         """
         safe_trim_delta: float = 10.0 * (1.0/30.0) # 10 samples assuming 30Hz sampling of position data. This doesn't matter but just not to introduce artefacts.
 

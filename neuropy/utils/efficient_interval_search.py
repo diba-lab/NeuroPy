@@ -358,7 +358,7 @@ def deduplicate_epochs(epochs_df, agressive_deduplicate:bool=True):
 # `portion`-based interval search and operations                                                                       #
 # ==================================================================================================================== #
 
-def _convert_start_end_tuples_list_to_PortionInterval(start_end_tuples_list):
+def _convert_start_end_tuples_list_to_PortionInterval(start_end_tuples_list) -> P.Interval:
     return P.from_data([(P.CLOSED, start, stop, P.CLOSED) for start, stop in start_end_tuples_list])
 
 def _convert_PortionInterval_to_4uples_list(interval: P.Interval):
