@@ -51,7 +51,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     
     _time_column_name_synonyms = {"start":{'begin','start_t'},
             "stop":['end','stop_t'],
-            "label":['name', 'id', 'flat_replay_idx']
+            "label":['name', 'id', 'flat_replay_idx','lap_id']
         }
     
 

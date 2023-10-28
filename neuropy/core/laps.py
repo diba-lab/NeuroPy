@@ -272,6 +272,8 @@ class Laps(Epoch):
         # Sort the laps based on the start time, reset the index, and finally assign lap_id's from the sorted laps
         custom_test_laps_df = custom_test_laps_df.sort_values(by=['start']).reset_index(drop=True) # sorts all values in ascending order
         custom_test_laps_df['lap_id'] = (custom_test_laps_df.index + 1) # set the lap_id column to the index starting at 1
+
+        custom_test_laps_df['label'] = custom_test_laps_df['lap_id'] # add the label column required by Epoch
         return Laps(custom_test_laps_df).filter_to_valid() ## TODO: instead of `.filter_to_valid().trimmed_to_non_overlapping()` couldn't we just fix the indicies above (or better yet whatever is causing them to be wrong)?
 
     @classmethod
