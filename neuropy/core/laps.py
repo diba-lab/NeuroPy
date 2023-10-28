@@ -74,6 +74,9 @@ class Laps(Epoch):
     def trim_overlapping_laps(cls, global_laps: "Laps", debug_print=False) -> "Laps":
         """ 2023-10-27 9pm - trims overlaps by removing the overlap from the even_global_laps (assuming that even first... hmmm that might be a problem? No, because even is always first because it refers to the 0 index lap_id.
 
+        Avoids major issues introduced by Portion library by first splitting into odd/even (adjacent epochs) and only considering the overlap between the adjacent ones.
+        Then it gets the indicies of the ones that changed so it can manually update the stop times for those epochs only on the even epochs so the other column's data isn't lost like it is in the portion/Epoch methods.
+
         ## SHOOT: changing this will change the other computed numbers!! 
 
         Modifies: ['end_t_rel_seconds', 'stop', 'duration']
@@ -236,15 +239,40 @@ class Laps(Epoch):
             'end_position_index': np.concatenate([desc_crossing_ending_idxs, asc_crossing_ending_idxs]),
             'lap_dir': np.concatenate([np.zeros_like(desc_crossing_begining_idxs), np.ones_like(asc_crossing_begining_idxs)])
         })
+
+
+        # IMPORTANT 2023-10-27 - iterate through the pairs and insure no overlap between indicies, to prevent needing to fix the times manually later:
+        prev_index = None
+        prev_end_value = None
+        indicies_to_change = {}
+
+        for index, row in custom_test_laps_df.iterrows():
+            # print(row['start_position_index'], row['end_position_index'])
+            if prev_end_value is not None:
+                if prev_end_value > row['start_position_index']:
+                    # print(f'overlap at {index}, row: {row}')
+                    indicies_to_change[prev_index] = (row['start_position_index'] - 1) # subtract one from this epoch's the start index to use the correct end index for the last epoch
+            prev_end_value = row['end_position_index']
+            prev_index = index
+
+        ## Make changes:
+        for an_index, a_new_end_pos_index in indicies_to_change.items():
+            custom_test_laps_df.loc[an_index, 'end_position_index'] = a_new_end_pos_index
+            # print(f'changed row[{an_index}]')
+
+
+
         # Get start/end times from the indicies
-        custom_test_laps_df['start_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_begining_idxs], pos_t_rel_seconds[asc_crossing_begining_idxs]])
-        custom_test_laps_df['end_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_ending_idxs], pos_t_rel_seconds[asc_crossing_ending_idxs]])
+        # custom_test_laps_df['start_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_begining_idxs], pos_t_rel_seconds[asc_crossing_begining_idxs]])
+        # custom_test_laps_df['end_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_ending_idxs], pos_t_rel_seconds[asc_crossing_ending_idxs]])
+        custom_test_laps_df['start_t_rel_seconds'] = np.array([pos_t_rel_seconds[an_idx] for an_idx in custom_test_laps_df['start_position_index'].to_numpy()])
+        custom_test_laps_df['end_t_rel_seconds'] = np.array([pos_t_rel_seconds[an_idx] for an_idx in custom_test_laps_df['end_position_index'].to_numpy()])
         custom_test_laps_df['start'] = custom_test_laps_df['start_t_rel_seconds']
         custom_test_laps_df['stop'] = custom_test_laps_df['end_t_rel_seconds']
         # Sort the laps based on the start time, reset the index, and finally assign lap_id's from the sorted laps
         custom_test_laps_df = custom_test_laps_df.sort_values(by=['start']).reset_index(drop=True) # sorts all values in ascending order
         custom_test_laps_df['lap_id'] = (custom_test_laps_df.index + 1) # set the lap_id column to the index starting at 1
-        return Laps(custom_test_laps_df)
+        return Laps(custom_test_laps_df).filter_to_valid() ## TODO: instead of `.filter_to_valid().trimmed_to_non_overlapping()` couldn't we just fix the indicies above (or better yet whatever is causing them to be wrong)?
 
     @classmethod
     def from_dataframe(cls, df):
