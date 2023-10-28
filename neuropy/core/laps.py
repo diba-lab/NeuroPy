@@ -10,6 +10,7 @@ from .datawriter import DataWriter
 from neuropy.core.epoch import Epoch
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, deduplicate_epochs # for EpochsAccessor's .get_non_overlapping_df()
 
 ## Import:
 # from neuropy.core.laps import Laps
@@ -68,6 +69,103 @@ class Laps(Epoch):
         sliced_copy._data = sliced_copy._data[np.isin(sliced_copy.lap_id, lap_ids)]
         return sliced_copy
         
+
+    @classmethod
+    def trim_overlapping_laps(cls, global_laps: "Laps", debug_print=False) -> "Laps":
+        """ 2023-10-27 9pm - trims overlaps by removing the overlap from the even_global_laps (assuming that even first... hmmm that might be a problem? No, because even is always first because it refers to the 0 index lap_id.
+
+        ## SHOOT: changing this will change the other computed numbers!! 
+
+        Modifies: ['end_t_rel_seconds', 'stop', 'duration']
+
+        Invalidates: ['start_position_index', 'end_position_index', 'start_spike_index', 'end_spike_index', 'num_spikes']
+        """
+        safe_trim_delta: float = 10.0 * (1.0/30.0) # 10 samples assuming 30Hz sampling of position data. This doesn't matter but just not to introduce artefacts.
+
+        even_global_laps = Laps(global_laps._df[global_laps._df.lap_dir == 0])
+        odd_global_laps = Laps(global_laps._df[global_laps._df.lap_dir == 1])
+
+        even_global_laps_epochs = even_global_laps.as_epoch_obj()
+        odd_global_laps_epochs = odd_global_laps.as_epoch_obj()
+
+        even_laps_portion = even_global_laps.to_PortionInterval()
+        odd_laps_portion = odd_global_laps.to_PortionInterval()
+
+        even_global_laps_df = even_global_laps_epochs.to_dataframe()
+        odd_global_laps_df = odd_global_laps_epochs.to_dataframe()
+
+        # intersecting_epochs = Epoch.from_PortionInterval(even_global_laps.to_PortionInterval().intersection(odd_global_laps.to_PortionInterval()))
+        intersecting_portion = even_laps_portion.intersection(odd_laps_portion)
+        intersecting_epochs = Epoch.from_PortionInterval(intersecting_portion)
+
+        n_epochs_with_changes = intersecting_epochs.n_epochs
+        if debug_print:
+            print(f'intersecting_epochs: {intersecting_epochs}')
+
+
+        ## Find the stop times in the even_laps
+        even_epochs_with_changes = np.where(np.isin(even_global_laps_df.stop, intersecting_epochs.stops)) # recovers the indicies of the epochs that changed, index into the even array, e.g. (array([33, 37], dtype=int64),)
+        global_laps_end_change_indicies = even_global_laps._df.index[even_epochs_with_changes] # get the original indicies for use in the non even/odd split laps object, e.g. Int64Index([66, 74], dtype='int64')
+
+        ## Replace the lap's current stop with the start of the intersection less a little wiggle room:
+        desired_stops = intersecting_epochs.starts - safe_trim_delta
+        
+        # prev-values:
+        # 66    1901.413540
+        # 74    2002.917111
+        # Name: stop, dtype: float64
+        backup_values = global_laps._df.loc[global_laps_end_change_indicies, 'stop']
+        if debug_print:
+            print(f'backup_values: {backup_values}')
+            print(f'desired_stops: {desired_stops}')
+        global_laps._df.loc[global_laps_end_change_indicies, 'stop'] = desired_stops
+        # Recompute duration
+        global_laps._df.loc[global_laps_end_change_indicies, 'duration'] = global_laps._df.loc[global_laps_end_change_indicies, 'stop'] - global_laps._df.loc[global_laps_end_change_indicies, 'start']
+        global_laps._df.loc[global_laps_end_change_indicies, 'end_t_rel_seconds'] = global_laps._df.loc[global_laps_end_change_indicies, 'stop'] # copy the new time to 'end_t_rel_seconds'
+
+        print("WARN: .trim_overlapping_laps(...): need to recompute  ['start_position_index', 'end_position_index', 'start_spike_index', 'end_spike_index', 'num_spikes'] for the laps after calling self.trim_overlapping_laps()!")
+        return global_laps, global_laps_end_change_indicies
+
+
+    @classmethod
+    def ensure_valid_laps_epochs_df(cls, original_laps_epoch_df: pd.DataFrame, rebuild_lap_id_columns=True) -> pd.DataFrame:
+        """ De-duplicates, sorts, and filters by duration any potential laps
+
+
+        
+        laps_epoch_obj: Epoch = deepcopy(global_laps).as_epoch_obj()
+        original_laps_epoch_df = laps_epoch_obj.to_dataframe()        
+        filtered_laps_epoch_df = cls.ensure_valid_laps_epochs_df(original_laps_epoch_df)
+
+        """
+        # Drop duplicate rows in columns: 'start', 'stop'
+        laps_epoch_df: pd.DataFrame = deepcopy(original_laps_epoch_df) #laps_epoch_obj.to_dataframe()
+
+        # laps_epoch_df = deduplicate_epochs(laps_epoch_df) # this breaks things!
+        # Filter rows based on column: 'duration'
+        laps_epoch_df = laps_epoch_df[laps_epoch_df['duration'] > 1]
+        # Filter rows based on column: 'duration'
+        laps_epoch_df = laps_epoch_df[laps_epoch_df['duration'] <= 30]
+        # # Drop duplicate rows in columns: 'start', 'stop'
+        laps_epoch_df = laps_epoch_df.drop_duplicates(subset=['start', 'stop'])
+        # Sort by column: 'start' (ascending)
+        laps_epoch_df = laps_epoch_df.sort_values(['start']).reset_index(drop=True)
+        ## Rebuild lap_id and label column:
+        if rebuild_lap_id_columns:
+            laps_epoch_df['lap_id'] = (laps_epoch_df.index + 1)
+            laps_epoch_df['label'] = laps_epoch_df['lap_id']
+
+        return laps_epoch_df # Epoch(laps_epoch_df, metadata=laps_epoch_obj.metadata)
+
+    def filter_to_valid(self) -> "Laps":
+        laps_epoch_obj: Epoch = deepcopy(self).as_epoch_obj()
+        original_laps_epoch_df = laps_epoch_obj.to_dataframe()        
+        filtered_laps_epoch_df = Laps.ensure_valid_laps_epochs_df(original_laps_epoch_df)
+        return Laps(filtered_laps_epoch_df, metadata=self.metadata)
+
+    def trimmed_to_non_overlapping(self) -> "Laps":
+        return Laps.trim_overlapping_laps(self)[0]
+
     @classmethod
     def _update_dataframe_computed_vars(cls, laps_df: pd.DataFrame):
         # laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
