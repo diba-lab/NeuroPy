@@ -269,6 +269,29 @@ class SpikesAccessor(TimeSlicedMixin):
         self._obj['binned_time'] = pd.cut(self._obj[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
         return self._obj
 
+    def adding_lap_identity_column(self, laps_epoch_df, epoch_id_key_name:str='new_lap_IDX'):
+        """ Adds the lap IDX column to the spikes df from a set of lap epochs.
+
+            spikes: curr_active_pipeline.sess.spikes_df
+            adds column 'new_lap_IDX' to spikes df.
+            
+            # Created Columns:
+                'new_lap_IDX'
+
+        """
+        if epoch_id_key_name in self._obj.columns:
+            print(f'column "{epoch_id_key_name}" already exists in df! Skipping recomputation.')
+            return
+        else:
+            from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
+            from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+
+            spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
+            self._obj[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
+            self._obj = add_epochs_id_identity(self._obj, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            return self._obj
+
+
 
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path 
