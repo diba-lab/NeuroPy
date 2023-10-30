@@ -249,6 +249,11 @@ def _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_a
     return event_interval_identity_arr
 
 def determine_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels=None, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
+    """ Given a list of event times (`times_arr`) and a separate list of epoch start_stop_times (`start_stop_times_arr`), adds a
+    Usage:
+        from neuropy.utils.efficient_interval_search import determine_event_interval_identity
+
+    """
     if period_identity_labels is None:
         period_identity_labels = np.arange(np.shape(start_stop_times_arr)[0]) # just label them ascending if they don't have labels
     assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
