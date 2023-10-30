@@ -58,7 +58,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     _required_column_names = ['start', 'stop', 'label', 'duration']
 
     def __init__(self, pandas_obj):
-        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict=self._time_column_name_synonyms) 
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict=self._time_column_name_synonyms)       #@IgnoreException 
         pandas_obj = self._validate(pandas_obj)
         self._obj = pandas_obj
         self._obj = self._obj.sort_values(by=["start"]) # sorts all values in ascending order

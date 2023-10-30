@@ -93,7 +93,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     """ Allows general epochs represented as Pandas DataFrames to be easily time-sliced and manipulated along with their accompanying data without making a custom class. """
 
     def __init__(self, pandas_obj):
-        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "end":['stop','stop_t']})
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "end":['stop','stop_t']}) # @IgnoreException 
         self._validate(pandas_obj)
         self._obj = pandas_obj
 
