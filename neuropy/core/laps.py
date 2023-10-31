@@ -111,6 +111,8 @@ class Laps(Epoch):
 
 
         ## Find the stop times in the even_laps
+        # Get whichever starts earlier
+        assert even_global_laps_df.epochs.t_start < odd_global_laps_df.epochs.t_start, f"even laps should start before odd laps. even_global_laps_df.epochs.t_start: {even_global_laps_df.epochs.t_start}, odd_global_laps_df.epochs.t_start: {odd_global_laps_df.epochs.t_start}"
         even_epochs_with_changes = np.where(np.isin(even_global_laps_df.stop, intersecting_epochs.stops)) # recovers the indicies of the epochs that changed, index into the even array, e.g. (array([33, 37], dtype=int64),)
         global_laps_end_change_indicies = even_global_laps._df.index[even_epochs_with_changes] # get the original indicies for use in the non even/odd split laps object, e.g. Int64Index([66, 74], dtype='int64')
 

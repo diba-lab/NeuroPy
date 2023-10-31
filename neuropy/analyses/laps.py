@@ -257,7 +257,7 @@ def build_lap_computation_epochs(sess, use_direction_dependent_laps:bool = True)
     active_laps_obj: Laps = deepcopy(sess.laps)
 
     # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
-    active_laps_obj = active_laps_obj.filter_to_valid().trimmed_to_non_overlapping()
+    active_laps_obj = active_laps_obj.filter_to_valid() #.trimmed_to_non_overlapping()
 
     lap_specific_epochs: Epoch = active_laps_obj.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
     # Recover the lap information for the included epochs:
