@@ -92,6 +92,7 @@ def save_notebook(
     base_dir: str or Path,
     save_name: str or None = None,
     save_prepend: str or None = None,
+    save_append: str or None = None,
 ):
     """Save a jupyter notebook to base directory noted. Make sure you save it beforehand! (Autosave should take care
     of this, but please check.
@@ -101,14 +102,16 @@ def save_notebook(
 
     assert isinstance(save_name, (str, type(None)))
     assert isinstance(save_prepend, (str, type(None)))
+    assert isinstance(save_append, (str, type(None)))
 
     # Assemble/get save_name variables
     nb_fname = ipynbname.name() if save_name is None else save_name
     nb_path = Path(base_dir)
     save_prepend = "" if save_prepend is None else save_prepend
+    save_append = "" if save_append is None else save_append
 
     # Create savename and save file
-    nb_copy_savename = nb_path / f"{save_prepend}{nb_fname}.ipynb"
+    nb_copy_savename = nb_path / f"{save_prepend}{nb_fname}{save_append}.ipynb"
     shutil.copy(str(ipynbname.path()), str(nb_copy_savename))
 
     # Spit it out for confirmation
