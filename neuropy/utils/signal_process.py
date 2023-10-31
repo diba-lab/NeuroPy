@@ -104,7 +104,11 @@ class Spectrogram(core.Signal):
         return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
 
     def get_pe_mean_spec(
-        self, event_times, buffer_sec=(0.5, 0.5), ignore_epochs: core.Epoch = None
+        self,
+        event_times,
+        buffer_sec=(0.5, 0.5),
+        ignore_epochs: core.Epoch = None,
+        print_ignored_frames: bool = True,
     ):
         """Get peri-event mean spectrogram
 
@@ -161,9 +165,10 @@ class Spectrogram(core.Signal):
                 # Display ignored frames
                 if np.sum(ignore_bool) > 0:
                     sxx_temp[:, ignore_bool] = np.nan
-                    print(
-                        f"{np.sum(ignore_bool)} frames between {ignore_times.min():.1F} and {ignore_times.max():.1F} ignored (sent to nan)"
-                    )
+                    if print_ignored_frames:
+                        print(
+                            f"{np.sum(ignore_bool)} frames between {ignore_times.min():.1F} and {ignore_times.max():.1F} ignored (sent to nan)"
+                        )
             sxx_list.append(sxx_temp)
 
         sxx_mean = np.nanmean(np.stack(sxx_list, axis=2), axis=2)
