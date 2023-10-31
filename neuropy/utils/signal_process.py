@@ -103,14 +103,14 @@ class Spectrogram(core.Signal):
         spect_sum = self.traces.sum(axis=0)
         return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
 
-    def get_pe_mean_spec(
+    def get_pe_spec(
         self,
         event_times,
         buffer_sec=(0.5, 0.5),
         ignore_epochs: core.Epoch = None,
         print_ignored_frames: bool = True,
     ):
-        """Get peri-event mean spectrogram
+        """Get peri-event spectrogram for every event.
 
         Parameters
         ----------
@@ -122,8 +122,8 @@ class Spectrogram(core.Signal):
 
         Returns
         -------
-        Spectrogram class with traces = mean spectrogram and times ranging from -buffer_sec[0] to buffer_sec[1]
-        """
+        spec: nfreq x nbins x nevents array containing spectrogram for each event
+              ranging from -buffer_sec[0] to buffer_sec[1]"""
 
         event_times = event_times.squeeze()
         assert event_times.ndim == 1, "event_times must be broadcastable to ndim=1"
@@ -171,7 +171,37 @@ class Spectrogram(core.Signal):
                         )
             sxx_list.append(sxx_temp)
 
-        sxx_mean = np.nanmean(np.stack(sxx_list, axis=2), axis=2)
+        return np.stack(sxx_list, axis=2)
+
+    def get_pe_mean_spec(
+        self,
+        event_times,
+        buffer_sec=(0.5, 0.5),
+        ignore_epochs: core.Epoch = None,
+        print_ignored_frames: bool = True,
+    ):
+        """Get peri-event mean spectrogram
+
+        Parameters
+        ----------
+        event_times: ndarray of floats times of each event in seconds, will be time 0 in mean spectrogram
+
+        buffer_sec: tuple of floats defining amount of time before/after event to grab.
+
+        ignore_epochs: core.Epoch class of epochs to ignore when calculating mean spectrogram
+
+        Returns
+        -------
+        Spectrogram class with traces = mean spectrogram and times ranging from -buffer_sec[0] to buffer_sec[1]
+        """
+
+        # Get spectrogram for each event
+        sxx_by_event = self.get_pe_spec(
+            event_times, buffer_sec, ignore_epochs, print_ignored_frames
+        )
+
+        # Take the mean
+        sxx_mean = np.nanmean(sxx_by_event, axis=2)
 
         return Spectrogram(
             sxx_mean,
