@@ -28,7 +28,12 @@ def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit")
     return dt_start_utc.astimezone(to_zone)
 
 
-def get_dat_timestamps(basepath: str or Path, sync: bool = False, start_end_only=False):
+def get_dat_timestamps(
+    basepath: str or Path,
+    sync: bool = False,
+    start_end_only=False,
+    local_time="America/Detroit",
+):
     """
     Gets timestamps for each frame in your dat file(s) in a given directory.
 
@@ -56,8 +61,8 @@ def get_dat_timestamps(basepath: str or Path, sync: bool = False, start_end_only
         except KeyError:
             try:
                 experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
-                start_time = pd.Timestamp(
-                    experiment_meta["INFO"]["DATE"]
+                start_time = pd.Timestamp(experiment_meta["INFO"]["DATE"]).tz_localize(
+                    local_time
                 )  # get start time from meta-data
             except FileNotFoundError:
                 print(
@@ -70,7 +75,9 @@ def get_dat_timestamps(basepath: str or Path, sync: bool = False, start_end_only
                     "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
                     str(set_folder),
                 )
-                start_time = pd.to_datetime(m.group(0), format="%Y-%m-%d_%H-%M-%S")
+                start_time = pd.to_datetime(
+                    m.group(0), format="%Y-%m-%d_%H-%M-%S"
+                ).tz_localize(local_time)
 
         SR, sync_frame = parse_sync_file(
             file.parents[3] / "recording1/sync_messages.txt"
@@ -367,10 +374,21 @@ def recording_events_to_combined_time(
         event_time_comb = np.array(event_time_comb)
 
     else:
+        good_bool = [start == stop for start, stop in zip(nrec_start, nrec_stop)]
+        good_events = np.where(good_bool)[0]
+        bad_events = np.where(~np.array(good_bool))[0]
+
         print(
-            f"Recording start and end numbers do not all match. starts = {nrec_start}, ends = {nrec_stop}."
+            f"Event(s) # {bad_events + 1} occurs in between recordings and has(have) been left out"
         )
-        event_time_comb = np.nan
+        # print(
+        #     f"Recording start and end numbers do not all match. starts = {nrec_start}, ends = {nrec_stop}."
+        # )
+        # event_time_comb = np.nan
+
+        event_time_comb = recording_events_to_combined_time(
+            event_df.iloc[good_events], sync_df, time_out, event_ts_key, sync_ts_key
+        )
 
     return event_time_comb
 
@@ -716,15 +734,17 @@ def GetRecChs(File):
 
 if __name__ == "__main__":
     import tracefc.io.traceio as traceio
-    basepath= Path("/Users/nkinsky/Documents/UM/Working/Trace_FC/Recording_Rats/Finn/2022_01_21_recall1/")
+
+    basepath = Path("/data3/Trace_FC/Recording_Rats/Finn2/2023_05_06_habituation1")
     ttl_df = load_all_ttl_events(basepath, sanity_check_channel=1, zero_timestamps=True)
-    cs_starts, cs_ends, cs_df = traceio.load_trace_events(basepath, session_type="tone_recall",
-                                                          event_type="CS+", return_df=True)
+    cs_starts, cs_ends, cs_df = traceio.load_trace_events(
+        basepath, session_type="tone_recall", event_type="CS+", return_df=True
+    )
     sync_df = create_sync_df(basepath)
     ttl_lag_use = ttl_lag = pd.Timedelta(0.8, unit="seconds")
-    cs_oe_start_df = traceio.trace_ttl_to_openephys(cs_starts,
-                                                    ttl_df[ttl_df['channel_states'].abs() == 2],
-                                                    ttl_lag=ttl_lag_use)
+    cs_oe_start_df = traceio.trace_ttl_to_openephys(
+        cs_starts, ttl_df[ttl_df["channel_states"].abs() == 2], ttl_lag=ttl_lag_use
+    )
     # Convert to times in combined eeg file
     cs_starts_combined = recording_events_to_combined_time(cs_oe_start_df, sync_df)
 

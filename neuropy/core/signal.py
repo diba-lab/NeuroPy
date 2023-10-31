@@ -76,7 +76,13 @@ class Signal(DataWriter):
             channel_indx = [list(self.channel_id).index(_) for _ in channel_id]
             traces = self.traces[channel_indx, frame_start:frame_stop]
 
-        return Signal(traces, self.sampling_rate, t_start, channel_id)
+        return Signal(
+            traces,
+            self.sampling_rate,
+            t_start,
+            channel_id,
+            source_file=self.source_file,
+        )
 
     def rescale(self, factor=0.95 * 1e-3):
         """scales signal, use it for converting raw signal to volts, but can consume too much memory and time when used on large memmap arrays

@@ -13,7 +13,6 @@ def detect_artifact_epochs(
     edge_cutoff=2,
     merge=5,
     filt: list or np.ndarray = None,
-    data_use: str in ["raw_only", "filt_only", "both"] = "raw_only",
 ):
     """
     calculating artifact periods using z-score measure
@@ -33,7 +32,7 @@ def detect_artifact_epochs(
     filt : list, optional
         lower and upper limits with which to filter signal, e.g. 3, 3000] ->
         bandpass between and 3000 Hz while [45, None] -> high-pass above 45.
-    data_use: str, optional
+    data_use: str, optional (Not currently implemented)
         'raw_only' (default): z-score raw only
         'filt_only': z-score filtered data only
         'both': z-score both raw and filtered data
@@ -119,4 +118,4 @@ def detect_artifact_epochs(
 
 
 if __name__ == "__main__":
-    print('test')
+    print("test")

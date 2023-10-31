@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from pathlib import Path
 import xml.etree.ElementTree as Etree
 from .. import core
@@ -114,7 +115,14 @@ class NeuroscopeIO:
     def write_epochs(self, epochs: core.Epoch, ext="epc"):
         with self.source_file.with_suffix(f".evt.{ext}").open("w") as a:
             for event in epochs.to_dataframe().itertuples():
-                a.write(f"{event.start*1000} start\n{event.stop*1000} stop\n")
+                # First attempt to fix bug where Neuropy exported .evt files get broken after manual
+                # adjustment in NeuroScope - does not seem to work
+                event_start, event_stop = event.start * 1000, event.stop * 1000
+                if np.mod(event_start, 1) == 0:
+                    event_start += 0.2
+                if np.mod(event_stop, 1) == 0:
+                    event_stop += 0.2
+                a.write(f"{event_start}\tstart\n{event_stop}\tstop\n")
 
     def write_position(self, position: core.Position):
         """Writes core.Position object to neuroscope compatible format
@@ -143,3 +151,25 @@ class NeuroscopeIO:
             "dat_sampling_rate": self.dat_sampling_rate,
             "eeg_sampling_rate": self.eeg_sampling_rate,
         }
+
+    def event_to_epochs(self, evt_file, label=""):
+        """Read in an event file and convert to an epochs object"""
+        with open(evt_file, "r") as f:
+            Lines = f.readlines()
+
+        # Neuropy output saves file without tab separators
+        if Lines[0].find("\t") > -1:
+            split_str = "\t"
+        else:  # if you savne in Neuroscope the event file now has tab separators
+            split_str = " "
+
+        starts, stops = [], []
+        for line in Lines:
+            if line.find("start") > -1:
+                starts.append(float(line.split(f"{split_str}start")[0]) / 1000)
+            elif line.find("stop") > -1:
+                stops.append(float(line.split(f"{split_str}stop")[0]) / 1000)
+
+        return core.Epoch(
+            pd.DataFrame({"start": starts, "stop": stops, "label": label})
+        )
