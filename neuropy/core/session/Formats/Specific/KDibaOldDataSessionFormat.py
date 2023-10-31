@@ -313,20 +313,20 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         else:
             # no overrides present
             raise NotImplementedError
-            pos_df = sess.position.to_dataframe().copy()
-            if not 'lap' in pos_df.columns:
-                pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
-            laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
-            laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
-            print(f'\tlaps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
-            grid_bin_bounds = laps_only_grid_bin_bounds
-            # ## Determine the grid_bin_bounds from the long session:
-            # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
-            # # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
-            # DO INTERACTIVE MODE:
-            # grid_bin_bounds = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input=True)
-            # print(f'grid_bin_bounds: {grid_bin_bounds}')
-            # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
+            # pos_df = sess.position.to_dataframe().copy()
+            # if not 'lap' in pos_df.columns:
+            #     pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
+            # laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
+            # laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
+            # print(f'\tlaps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
+            # grid_bin_bounds = laps_only_grid_bin_bounds
+            # # ## Determine the grid_bin_bounds from the long session:
+            # # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
+            # # # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
+            # # DO INTERACTIVE MODE:
+            # # grid_bin_bounds = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input=True)
+            # # print(f'grid_bin_bounds: {grid_bin_bounds}')
+            # # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
 
         # Lap-restricted computation epochs:
         if debug_print:
