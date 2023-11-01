@@ -61,8 +61,7 @@ def _subfn_compute_laps_spike_indicies(laps_obj: Laps, spikes_df: pd.DataFrame, 
     laps_obj._data = Laps._update_dataframe_computed_vars(laps_obj._data) # call this to update the column types and any computed columns that depend on the added columns (such as num_spikes)
     return laps_obj
 
-
-def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0, debug_print=False):
+def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_midpoint_x=150.0, position_column_name:str='x', velocity_column_name:str='velocity_x_smooth', debug_print=False):
     """ Pho 2021-12-20 - Custom lap computation based on position/velocity thresholding to detect laps
     pos_df
     hardcoded_track_midpoint_x: Take 150.0 as the x midpoint line to be crossed for each trajectory
@@ -75,13 +74,19 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
             crossing_midpoints: the indicies were the animal crosses the hardcoded_track_midpoint_x
             beginnings and endings: the nearest {preceding/following} points where the animal changes direction.
 
+            
+            
+    Alternative approaches:
+        The track midpoint could be determined by finding the location on the track with the highest average velocity.
+            
     Known Usages: Called only by `estimation_session_laps(...)`
     """
-    assert set(['x','velocity_x_smooth']).issubset(pos_df.columns), 'pos_df requires the columns "x", and "velocity_x_smooth" at a minimum'
+    
+    assert set([position_column_name,velocity_column_name]).issubset(pos_df.columns), 'pos_df requires the columns "x", and "velocity_x_smooth" at a minimum'
 
     # Sanity check the midpoint
-    track_min_max_x = (np.nanmin(pos_df['x']), np.nanmax(pos_df['x']))
-    # sane_midpoint_x = (np.nanmax(pos_df['x']) - np.nanmin(pos_df['x'])) / 2.0 # fails when track_min_max_x = (-112.6571782148526, 127.8636830487316) because of negative x value.
+    track_min_max_x = (np.nanmin(pos_df[position_column_name]), np.nanmax(pos_df[position_column_name]))
+    # sane_midpoint_x = (np.nanmax(pos_df[position_column_name]) - np.nanmin(pos_df[position_column_name])) / 2.0 # fails when track_min_max_x = (-112.6571782148526, 127.8636830487316) because of negative x value.
     sane_midpoint_x = np.mean(track_min_max_x)
     # Doesn't work when x permits negative values seemingly.
     if debug_print:
@@ -91,7 +96,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
             print(f'hardcoded_track_midpoint_x is None, falling back to sane_midpoint_x... {sane_midpoint_x}')
         hardcoded_track_midpoint_x = sane_midpoint_x
 
-    zero_centered_x = pos_df['x'] - hardcoded_track_midpoint_x
+    zero_centered_x = pos_df[position_column_name] - hardcoded_track_midpoint_x
     zero_crossings_x = np.diff(np.sign(zero_centered_x))
     # Find ascending crossings:
     asc_crossing_midpoint_idxs = np.where(zero_crossings_x > 0)[0] # (24,), corresponding to increasing positions
@@ -131,13 +136,13 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
         # print(f'a_desc_crossing: {a_desc_crossing}')
 
         curr_remainder_pos_df = pos_df.loc[a_desc_crossing:, :] # This is causing an error, should it be .iloc?
-        curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df['velocity_x_smooth'] > 0.0].index # the first increasing
+        curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df[velocity_column_name] > 0.0].index # the first increasing
         curr_next_transition_point = curr_next_transition_points[0] # desc endings
         desc_crossing_ending_idxs[a_desc_crossing_i] = curr_next_transition_point
 
         # Preceeding points:
         curr_preceeding_pos_df = pos_df.loc[0:a_desc_crossing, :]
-        curr_prev_transition_points = curr_preceeding_pos_df[curr_preceeding_pos_df['velocity_x_smooth'] > 0.0].index # the last increasing # TODO: this is not quite right.
+        curr_prev_transition_points = curr_preceeding_pos_df[curr_preceeding_pos_df[velocity_column_name] > 0.0].index # the last increasing # TODO: this is not quite right.
         curr_prev_transition_point = curr_prev_transition_points[-1] # Get last (nearest to curr_preceeding_pos_df's end) point. desc beginings
         desc_crossing_begining_idxs[a_desc_crossing_i] = curr_prev_transition_point
 
@@ -148,18 +153,18 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
         curr_remainder_pos_df = pos_df.loc[an_asc_crossing:, :] # get from the an_asc_crossing up to the end of the pos_df
 
         # find the first index where the velocity is decreasing:
-        curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df['velocity_x_smooth'] < 0.0].index # the first decreasing
+        curr_next_transition_points = curr_remainder_pos_df[curr_remainder_pos_df[velocity_column_name] < 0.0].index # the first decreasing
         curr_next_transition_point = curr_next_transition_points[0] # asc endings
         asc_crossing_ending_idxs[a_asc_crossing_i] = curr_next_transition_point
 
         # Preceeding points:
         curr_preceeding_pos_df = pos_df.loc[0:an_asc_crossing, :] # get all pos_df prior to an_asc_crossing
-        curr_prev_transition_points = curr_preceeding_pos_df[curr_preceeding_pos_df['velocity_x_smooth'] < 0.0].index #
+        curr_prev_transition_points = curr_preceeding_pos_df[curr_preceeding_pos_df[velocity_column_name] < 0.0].index #
         curr_prev_transition_point = curr_prev_transition_points[-1] # Get last (nearest to curr_preceeding_pos_df's end) point. desc beginings
         asc_crossing_begining_idxs[a_asc_crossing_i] = curr_prev_transition_point
 
     # return desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings
-    return (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs)
+    return (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs), hardcoded_track_midpoint_x
 
 
 def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None, debug_print=False):

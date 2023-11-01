@@ -221,7 +221,7 @@ class Laps(Epoch):
         return laps_df
 
     @classmethod
-    def from_estimated_laps(cls, pos_t_rel_seconds, desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs):
+    def from_estimated_laps(cls, pos_t_rel_seconds, desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs, debug_print=True):
         """Builds a Laps object from the output of the neuropy.analyses.laps.estimate_laps function.
         Args:
             pos_t_rel_seconds ([type]): [description]
@@ -244,6 +244,8 @@ class Laps(Epoch):
 
 
         # IMPORTANT 2023-10-27 - iterate through the pairs and insure no overlap between indicies, to prevent needing to fix the times manually later:
+        # custom_test_laps_df = custom_test_laps_df.sort_values(by=['start_position_index']).reset_index(drop=True) # sorts all values in ascending order
+
         prev_index = None
         prev_end_value = None
         indicies_to_change = {}
@@ -258,6 +260,8 @@ class Laps(Epoch):
             prev_index = index
 
         ## Make changes:
+        if len(indicies_to_change) > 0:
+            print(f'WARN: Laps.from_estimated_laps(...) found {len(indicies_to_change)} indicies to change:\n\tindicies_to_change: {indicies_to_change}')
         for an_index, a_new_end_pos_index in indicies_to_change.items():
             custom_test_laps_df.loc[an_index, 'end_position_index'] = a_new_end_pos_index
             # print(f'changed row[{an_index}]')
