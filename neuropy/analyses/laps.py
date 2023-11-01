@@ -80,10 +80,30 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
         The track midpoint could be determined by finding the location on the track with the highest average velocity.
             
     Known Usages: Called only by `estimation_session_laps(...)`
+    
+    
+    Usage:
+        position_obj = sess.position.linear_pos_obj
+        position_obj.compute_higher_order_derivatives()
+        pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
+        pos_df: pd.DataFrame = position_obj.to_dataframe()
+        # If the index doesn't start at zero, it will need to for compatibility with the lap splitting logic because it uses the labels via "df.loc"
+        if 'index_backup' not in pos_df.columns:
+            pos_df['index_backup'] = pos_df.index  # Backup the current index to a new column
+        # Drop rows with missing data in columns: 't', 'velocity_x_smooth' and 2 other columns. This occurs from smoothing
+        pos_df = pos_df.dropna(subset=['t', 'x', 'x_smooth', 'velocity_x_smooth', 'acceleration_x_smooth'])    
+        pos_df.reset_index(drop=True, inplace=True) # Either way, reset the index
+        lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None, debug_print=debug_print) # allow smart midpoint determiniation
+        (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies    
+        custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs) ## Get the timestamps corresponding to the indicies
+        assert custom_test_laps_obj.n_laps > 0, f"estimation for {sess} produced no laps!"
+        
     """
     
     assert set([position_column_name,velocity_column_name]).issubset(pos_df.columns), 'pos_df requires the columns "x", and "velocity_x_smooth" at a minimum'
 
+    ## 2023-11-1 - Must drop index to make the indicies line up appropriately. Optionally I think I could fix it with .iloc, but I'm not sure.
+    
     # Sanity check the midpoint
     track_min_max_x = (np.nanmin(pos_df[position_column_name]), np.nanmax(pos_df[position_column_name]))
     # sane_midpoint_x = (np.nanmax(pos_df[position_column_name]) - np.nanmin(pos_df[position_column_name])) / 2.0 # fails when track_min_max_x = (-112.6571782148526, 127.8636830487316) because of negative x value.
@@ -167,7 +187,7 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     return (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs), hardcoded_track_midpoint_x
 
 
-def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None, debug_print=False):
+def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None, debug_plot=False, debug_print=False):
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
     Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)
 
@@ -180,9 +200,13 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     Note: Uses `sess.position`
 
     Uses: ['_subfn_perform_estimate_lap_splits_1D', 'Laps.from_estimated_laps', '_subfn_compute_laps_spike_indicies']
+    
+    
+    debug_plot: if True, plots a user-customizable laps view with the points detected for each
+    
+    
     """
-    if should_plot_laps_2d:
-        from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
+        
 
     # backup the extant laps object to prepare for the new one:
     if should_backup_extant_laps_obj:
@@ -190,36 +214,27 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         sess.laps_backup = deepcopy(sess.laps)
 
     if should_plot_laps_2d:
+        from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
         # plot originals:
         fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=True)
         out_axes_list[0].set_title('Old SpikeII computed Laps')
+        
 
     # position_obj = sess.position
     position_obj = sess.position.linear_pos_obj
-
-    # position_obj.dt
     position_obj.compute_higher_order_derivatives()
     pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
     pos_df: pd.DataFrame = position_obj.to_dataframe()
-    if pos_df.index[0] != 0:
-        # If the index doesn't start at zero, it will need to for compatibility with the lap splitting logic because it uses the labels via "df.loc"
+    # If the index doesn't start at zero, it will need to for compatibility with the lap splitting logic because it uses the labels via "df.loc"
+    if 'index_backup' not in pos_df.columns:
         pos_df['index_backup'] = pos_df.index  # Backup the current index to a new column
-        pos_df.reset_index(drop=True, inplace=True)  # Reset the index to 0
-
-    # custom_test_laps = deepcopy(sess.laps)
-
-
+    # Drop rows with missing data in columns: 't', 'velocity_x_smooth' and 2 other columns. This occurs from smoothing
+    pos_df = pos_df.dropna(subset=['t', 'x', 'x_smooth', 'velocity_x_smooth', 'acceleration_x_smooth'])    
+    pos_df.reset_index(drop=True, inplace=True) # Either way, reset the index
     lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None, debug_print=debug_print) # allow smart midpoint determiniation
-
-    (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies
-
-    ## Get the timestamps corresponding to the indicies:
-    # pos_times = pos_df['t'].to_numpy()
-    # desc_crossing_beginings, desc_crossing_midpoints, desc_crossing_endings, asc_crossing_beginings, asc_crossing_midpoints, asc_crossing_endings = [pos_times[idxs] for idxs in (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs)]
-
-    custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs)
+    (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies    
+    custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs) ## Get the timestamps corresponding to the indicies
     assert custom_test_laps_obj.n_laps > 0, f"estimation for {sess} produced no laps!"
-
 
     ## Determine the spikes included with each computed lap:
     spikes_df: pd.DataFrame = deepcopy(sess.spikes_df)
@@ -231,10 +246,18 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
 
     if should_plot_laps_2d:
+        from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
         # plot computed:
         fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=False)
         out_axes_list[0].set_title('New Pho Position Thresholding Estimated Laps')
         fig.canvas.manager.set_window_title('New Pho Position Thresholding Estimated Laps')
+
+
+    if debug_plot:
+        from pyphoplacecellanalysis.GUI.PyQtPlot.Widgets.GraphicsWidgets.EpochsEditorItem import EpochsEditor # perform_plot_laps_diagnoser
+        custom_epochs_editor = EpochsEditor.init_laps_diagnoser(pos_df, custom_test_laps_obj, include_velocity=True, include_accel=True)
+        custom_epochs_editor.add_lap_split_points(lap_change_indicies)
+
 
     return sess
 

@@ -230,6 +230,23 @@ class Laps(Epoch):
             asc_crossing_beginings ([type]): [description]
             asc_crossing_endings ([type]): [description]
 
+        Usage:
+        
+            position_obj = sess.position.linear_pos_obj
+            position_obj.compute_higher_order_derivatives()
+            pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
+            pos_df: pd.DataFrame = position_obj.to_dataframe()
+            # If the index doesn't start at zero, it will need to for compatibility with the lap splitting logic because it uses the labels via "df.loc"
+            if 'index_backup' not in pos_df.columns:
+                pos_df['index_backup'] = pos_df.index  # Backup the current index to a new column
+            # Drop rows with missing data in columns: 't', 'velocity_x_smooth' and 2 other columns. This occurs from smoothing
+            pos_df = pos_df.dropna(subset=['t', 'x', 'x_smooth', 'velocity_x_smooth', 'acceleration_x_smooth'])    
+            pos_df.reset_index(drop=True, inplace=True) # Either way, reset the index
+            lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None, debug_print=debug_print) # allow smart midpoint determiniation
+            (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs) = lap_change_indicies    
+            custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs) ## Get the timestamps corresponding to the indicies
+            assert custom_test_laps_obj.n_laps > 0, f"estimation for {sess} produced no laps!"
+            
         Returns:
             [type]: [description]
         """
@@ -244,7 +261,7 @@ class Laps(Epoch):
 
 
         # IMPORTANT 2023-10-27 - iterate through the pairs and insure no overlap between indicies, to prevent needing to fix the times manually later:
-        # custom_test_laps_df = custom_test_laps_df.sort_values(by=['start_position_index']).reset_index(drop=True) # sorts all values in ascending order
+        custom_test_laps_df = custom_test_laps_df.sort_values(by=['start_position_index']).reset_index(drop=True) # sorts all values in ascending order
 
         prev_index = None
         prev_end_value = None
@@ -261,11 +278,11 @@ class Laps(Epoch):
 
         ## Make changes:
         if len(indicies_to_change) > 0:
-            print(f'WARN: Laps.from_estimated_laps(...) found {len(indicies_to_change)} indicies to change:\n\tindicies_to_change: {indicies_to_change}')
+            if debug_print:
+                print(f'WARN: Laps.from_estimated_laps(...) found {len(indicies_to_change)} indicies to change:\n\tindicies_to_change: {indicies_to_change}')
         for an_index, a_new_end_pos_index in indicies_to_change.items():
             custom_test_laps_df.loc[an_index, 'end_position_index'] = a_new_end_pos_index
             # print(f'changed row[{an_index}]')
-
 
 
         # Get start/end times from the indicies
