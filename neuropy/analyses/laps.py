@@ -202,11 +202,7 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         pos_df.reset_index(drop=True, inplace=True)  # Reset the index to 0
 
     # custom_test_laps = deepcopy(sess.laps)
-    spikes_df: pd.DataFrame = deepcopy(sess.spikes_df)
-    if time_variable_name is None:
-        time_variable_name = 't_rel_seconds'
-    else:
-        time_variable_name = spikes_df.spikes.time_variable_name # get time_variable_name from the spikes_df object
+
 
     lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None, debug_print=debug_print) # allow smart midpoint determiniation
 
@@ -221,6 +217,11 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
 
 
     ## Determine the spikes included with each computed lap:
+    spikes_df: pd.DataFrame = deepcopy(sess.spikes_df)
+    if time_variable_name is None:
+        time_variable_name = 't_rel_seconds'
+    else:
+        time_variable_name = spikes_df.spikes.time_variable_name # get time_variable_name from the spikes_df object
     custom_test_laps_obj = _subfn_compute_laps_spike_indicies(custom_test_laps_obj, spikes_df, time_variable_name=time_variable_name)
     sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
 
@@ -233,6 +234,13 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     return sess
 
 
+""" 2023-11-1 - IDEA: New method to estimate laps for the linear track that avoids overlaps
+
+- Considers binned positions
+    - Only considers bins that have been occupied more than 3 times total (to ignore flickering outside the track, etc)
+
+
+"""
 
 
 
