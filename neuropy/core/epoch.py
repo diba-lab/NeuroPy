@@ -5,6 +5,7 @@ from .datawriter import DataWriter
 from pathlib import Path
 import scipy.signal as sg
 import typing
+from copy import deepcopy
 
 
 def _unpack_args(values, fs=1):
@@ -104,6 +105,15 @@ class Epoch(DataWriter):
             return self.__add__(Epoch(comb_df)).merge(merge_dt)
         else:
             return self.__add__(Epoch(comb_df))
+
+    def add_epoch_by_index(self, index, start, stop, label=""):
+        assert np.mod(index, 1) > 0, "index must be a non-integer, e.g. -0.5 or 11.5"
+        epochs_df = deepcopy(self._epochs)
+        line = pd.DataFrame(
+            {"start": start, "stop": stop, "label": label}, index=[index]
+        )
+        epochs_df = pd.concat((epochs_df, line), ignore_index=False)
+        self._epochs = epochs_df.sort_index().reset_index(drop=True)
 
     def shift(self, dt):
         epochs = self._epochs.copy()
