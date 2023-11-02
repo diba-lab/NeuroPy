@@ -128,13 +128,13 @@ class Spectrogram(core.Signal):
         event_times = event_times.squeeze()
         assert event_times.ndim == 1, "event_times must be broadcastable to ndim=1"
 
-        # Should not be necessary, keep in just in case
+        # Should not be necessary, keep ls - just in case
         # Keep only events within time limits of recording, retaining any nans
         epoch_start_stops = event_times[:, None] + np.multiply(buffer_sec, (-1, 1))
         keep_bool = (epoch_start_stops[:, 0] > self.t_start) & (
             epoch_start_stops[:, 1] < self.t_stop
         )
-        nan_bool = np.where(np.isnan(event_times))[0]
+        nan_bool = np.isnan(event_times)
         keep_bool = keep_bool | nan_bool
         if np.sum(keep_bool) < len(event_times):
             event_times = event_times[keep_bool]
