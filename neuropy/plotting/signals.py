@@ -96,7 +96,7 @@ def plot_spectrogram(
         def plotspec(n_std, freq):
             """Plots data from Spectrogram class and preserves time and frequency info on axes"""
             spec_use = spec.time_slice(t_start=time_lims[0], t_stop=time_lims[1])
-            ax.pcolormesh(
+            ax.pcolorfast(
                 spec_use.time,
                 spec_use.freqs,
                 spec_use.traces,
