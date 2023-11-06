@@ -14,6 +14,10 @@ from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, s
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 
+""" 
+from neuropy.core.epoch import NamedTimerange, EpochsAccessor, Epoch
+
+"""
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
     """ A simple named period of time with a known start and end time """
     def __init__(self, name, start_end_times):
@@ -226,6 +230,9 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
 
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
+    """ An Epoch object holds one ore more periods of time (marked by start/end timestamps) along with their corresponding metadata.
+
+    """
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
@@ -532,6 +539,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         return np.histogram(mid_times, bins=bins)[0]
 
     def to_neuroscope(self, ext="PHO"):
+        """ exports to a Neuroscope compatable .evt file. """
         assert self.filename is not None
         out_filepath = self.filename.with_suffix(f".{ext}.evt")
         with out_filepath.open("w") as a:

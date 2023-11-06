@@ -183,7 +183,7 @@ class Laps(Epoch):
             laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
         if set(['start_spike_index','end_spike_index']).issubset(laps_df.columns):
             laps_df[['start_spike_index', 'end_spike_index']] = laps_df[['start_spike_index', 'end_spike_index']].astype('int')
-            laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index']
+            laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index'] # builds 'num_spikes'
     
         if 'lap_dir' in laps_df.columns:
             laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')        

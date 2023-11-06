@@ -205,6 +205,9 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
     debug_plot: if True, plots a user-customizable laps view with the points detected for each
     
     
+    Updates:
+        `sess.laps`
+
     """
         
 
