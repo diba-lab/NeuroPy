@@ -2,6 +2,7 @@ from importlib import metadata
 import warnings
 from warnings import warn
 import numpy as np
+from nptyping import NDArray
 import pandas as pd
 import portion as P # Required for interval search: portion~=2.3.0
 
@@ -86,6 +87,11 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     @property
     def starts(self):
         return self._obj.start.values
+
+    @property
+    def midtimes(self): # -> NDArray
+        """ since each epoch is given by a (start, stop) time, the midtimes are the center of this epoch. """
+        return self._obj.start.values + ((self._obj.stop.values - self._obj.start.values)/2.0)
 
     @property
     def stops(self):
@@ -269,6 +275,12 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     @property
     def durations(self):
         return self.stops - self.starts
+
+    @property
+    def midtimes(self): # NDArray
+        """ since each epoch is given by a (start, stop) time, the midtimes are the center of this epoch. """
+        return self._df.epochs.midtimes
+
 
     @property
     def n_epochs(self):
