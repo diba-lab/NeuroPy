@@ -186,6 +186,47 @@ def _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, 
     # returns the array containing the PBE identity for each spike
     return event_interval_identity_arr, interval_timestamp_indicies_lists
 
+
+def _SLOW_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=np.nan): # Function is compiled by numba and runs in machine code
+    """MUCH slower than _compiled_searchsorted_event_interval_identity(...), but it works with non-sorted or overlapping start_stop intervals
+
+    Args:
+        times_arr (np.ndarray): An array of times of shape (N, ) in the same units as the start_stop_times_arr
+        start_stop_times_arr (np.ndarray): An array of start and stop intervals of shape (L, 2), with start_stop_times_arr[:, 0] representing the start times and start_stop_times_arr[:, 1] representing the stop times.
+        period_identity_labels (np.ndarray): An array of shape (L, ) specifying the appropriate id/identity of the interval in the corresponding row of start_stop_times_arr
+        no_interval_fill_value: The value to be used when the event doesn't belong to any of the provided intervals. Defaults to np.nan
+        
+    Returns:
+        np.ndarray: an array of length N that specifies the interval identity each event in times_arr belongs to, or np.nan if it occurs outside all specified intervals.
+        
+    Performance:
+        # For: np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
+            # Elapsed Time = 90.92654037475586, 93.46184754371643, 90.16610431671143, 89.04321789741516
+
+    """ 
+    event_interval_identity_arr = np.full((times_arr.shape[0],), no_interval_fill_value) # fill with NaN for all entries initially
+    # interval_timestamp_start_stop_indicies_arr = np.full((start_stop_times_arr.shape[0], 2), no_interval_fill_value) # each period_identity_labels corresponds to a single two-element row, containing the start/stop spike index for that interval. fill with NaN for all entries initially. If an interval has no spikes, the indicies wil be left NaN
+    # interval_timestamp_start_stop_indicies_list = []  
+    interval_timestamp_indicies_lists = []  
+
+    for i in range(start_stop_times_arr.shape[0]):
+        # find the spikes that fall in the current PBE (PBE[i])
+        curr_PBE_identity = period_identity_labels[i]
+        curr_bool_mask = np.logical_and((start_stop_times_arr[i,0] <= times_arr), (times_arr < start_stop_times_arr[i,1]))
+        # spike_pbe_identity_arr[((pbe_start_stop_arr[i,0] <= spk_times_arr) & (spk_times_arr < pbe_start_stop_arr[i,1]))] = curr_PBE_identity
+        event_interval_identity_arr[curr_bool_mask] = curr_PBE_identity
+
+        # np.transpose(np.nonzero(curr_bool_mask))
+        curr_timestamp_indicies = np.flatnonzero(curr_bool_mask)
+        interval_timestamp_indicies_lists.append(curr_timestamp_indicies)
+        # curr_timestamp_start_stop_indicies = (curr_timestamp_indicies[0], curr_timestamp_indicies[-1])
+        # interval_timestamp_start_stop_indicies_list.append(curr_timestamp_start_stop_indicies)
+
+        # print(f'')
+    # returns the array containing the PBE identity for each spike
+    return event_interval_identity_arr, interval_timestamp_indicies_lists
+
+
 def _searchsorted_find_event_interval_indicies(times_arr, start_stop_times_arr): # Function is compiled by numba and runs in machine code
     """Converts the L x 2 array of start and stop times (start_stop_times_arr) representing intervals in time to an array of indicies into times_arr of the same size
 
@@ -248,6 +289,10 @@ def _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_a
     # returns the array containing the PBE identity for each spike
     return event_interval_identity_arr
 
+
+
+
+
 def determine_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels=None, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
     """ Given a list of event times (`times_arr`) and a separate list of epoch start_stop_times (`start_stop_times_arr`), adds a
     Usage:
@@ -265,7 +310,11 @@ def determine_event_interval_identity(times_arr, start_stop_times_arr, period_id
         are_intervals_overlapping = not verify_non_overlapping(start_stop_times_arr=start_stop_times_arr)
         if are_intervals_overlapping:
             print('WARNING: Intervals in start_stop_times_arr are normally non-overlapping, but we can continue since we are using the slower determine_unsorted_event_interval_identity(...). Continuing.')
-        return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+        # return _compiled_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value) # Issue: TypingError: Failed in nopython mode pipeline (step: nopython frontend)
+            # non-precise type array(pyobject, 1d, C)
+        return _SLOW_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+
+
     else:
         raise NotImplementedError
 
