@@ -98,7 +98,10 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
             return self.smooth[0]
 
     def _unlisted_parameter_strings(self):
-        """ returns the string representations of all key/value pairs that aren't normally defined. """
+        """ returns the string representations of all key/value pairs that aren't normally defined.
+        NOTE: this seems generally useful!
+        
+        """
         # Dump all arguments into parameters.
         out_list = []
         for key, value in self.__dict__.items():
