@@ -1285,6 +1285,77 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
     
 
+    @classmethod
+    def build_merged_directional_placefields(cls, lhs: "PfND", rhs: "PfND", debug_print = True) -> "PfND":
+        """ Combine the non-directional PDFs and renormalize to get the directional PDF:
+                # Inputs: long_LR_pf1D, long_RL_pf1D
+
+                lhs: PfND = deepcopy(long_LR_pf1D)
+                rhs: PfND = deepcopy(long_RL_pf1D)
+                
+
+        """
+        from neuropy.utils.mixins.time_slicing import add_epochs_id_identity # for building direction pf's positions
+        from neuropy.analyses.placefields import PlacefieldComputationParameters
+
+        assert np.all(lhs.xbin == rhs.xbin)
+        assert np.all(lhs.ybin == rhs.ybin)
+        xbin = lhs.xbin
+        ybin = lhs.ybin
+
+        assert np.all(lhs.ndim == rhs.ndim)
+        ndim = lhs.ndim
+        new_pseduo_ndim = ndim + 1
+        if debug_print:
+            print(f'ndim: {ndim}, new_pseduo_ndim: {new_pseduo_ndim}')
+            
+        assert ndim == 1, f"currently only works for ndim == 1 but ndim: {ndim}! ybin will need to be changed to zbin for higher-order than 1D initial decoders."
+        ybin = np.arange(new_pseduo_ndim+1) # [0, 1, 2] because they are the edges of the bins
+
+        assert (lhs.position_srate == rhs.position_srate)
+        position_srate = lhs.position_srate
+
+        ## Pre-computation variables:
+        # These variables below are pre-computation variables and are used by `PfND.compute()` to actually build the ratemaps and filtered versions. They aren't quite right as is.
+        # epochs are merged:
+        epochs: Epoch = Epoch(pd.concat([lhs.epochs.to_dataframe(), rhs.epochs.to_dataframe()], verify_integrity=True).sort_values(['start', 'stop']))
+        epochs
+        # spikes_df are merged:
+        time_variable_name:str = lhs.spikes_df.spikes.time_variable_name
+        spikes_df = pd.concat([lhs.spikes_df, rhs.spikes_df]).drop_duplicates().sort_values([time_variable_name, 'aclu'])
+        spikes_df
+
+
+        # positions merge:
+        position = Position(pd.concat([lhs.position.to_dataframe(), rhs.position.to_dataframe()]).drop_duplicates().sort_values('t')) # Note that this would be expected to be an ND+1 position if we approximate using two rows
+
+        ## HACK: this adds the two directions of two separate 1D placefields into a stack with a pseudo-y dimension (with two bins):
+        ## WARNING: the animal will "teleport" between y-coordinates between the RL/LR laps. This will mean that all velocity_y, or vector-based velocity calculations (that use both x and y) are going to be messed up.
+
+        position.df['y'] = 0.0
+
+        ## Add the epoch ids to each spike so we can easily filter on them:
+        position.df = add_epochs_id_identity(position.df, lhs.epochs.to_dataframe(), epoch_id_key_name='lhs_epoch_id', epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name='t')
+        position.df = add_epochs_id_identity(position.df, rhs.epochs.to_dataframe(), epoch_id_key_name='rhs_epoch_id', epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name='t')
+        position.df.loc[(position.df['lhs_epoch_id'] != -1), 'y'] = 1.0
+        position.df.loc[(position.df['rhs_epoch_id'] != -1), 'y'] = 2.0
+
+
+        # Make the needed modifications to the config so spatial smoothing isn't used on the pseduo-y dimension:
+        # config: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.607897707662558), 'grid_bin_bounds': ((29.16, 261.7), (130.23, 150.99)), 'smooth': (2.0, 2.0), 'frate_thresh': 1.0};>
+        config = deepcopy(lhs.config)
+        config.is_directional = True
+
+        config.grid_bin_bounds
+        config.grid_bin = (*config.grid_bin[:ndim], 1.0) # bin size is exactly one (because there will be two pseduo-dimensions)
+        config.smooth = (*config.smooth[:ndim], 0.0) # do not allow smooth along the pseduo-y direction
+        config.grid_bin_bounds = (*config.grid_bin_bounds[:ndim], (0, new_pseduo_ndim))
+        config # result: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.0), 'grid_bin_bounds': ((29.16, 261.7), (0, 2)), 'smooth': (2.0, None), 'frate_thresh': 1.0, 'is_directional': True};>
+        merged_pf = PfND(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin) # , ybin=
+        return merged_pf
+
+
+
 # ==================================================================================================================== #
 # Global Placefield Computation Functions                                                                              #
 # ==================================================================================================================== #
