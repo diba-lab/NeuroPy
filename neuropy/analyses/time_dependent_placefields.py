@@ -1,8 +1,10 @@
 from copy import deepcopy
 from typing import Dict, Optional, OrderedDict # PlacefieldSnapshot
 from attrs import define, field, filters, asdict, astuple, Factory
+import h5py
 import pandas as pd
 import numpy as np
+import xarray as xr
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
 from neuropy.analyses.placefields import PfND, PlacefieldComputationParameters
 from neuropy.core.epoch import Epoch
@@ -15,27 +17,41 @@ from neuropy.utils.misc import safe_pandas_get_group, copy_if_not_none
 from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_position_columns # for perform_time_range_computation only
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
 
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
+
 ## On saving:
 # 2023-04-20 - AttributeError: 'PfND_TimeDependent' object has no attribute '_included_thresh_neurons_indx'
 # I think this relates to `__attrs_post_init__` not being called upon unpickling.
 
-class PlacefieldSnapshot(object):
+
+
+@custom_define(slots=False, repr=False)
+class PlacefieldSnapshot(HDFMixin):
     """Holds a snapshot in time for `PfND_TimeDependent`
 
     raw_occupancy_map: num_position_samples_occupancy
     raw_smoothed_occupancy_map: num_position_samples_smoothed_occupancy
     """
+    num_position_samples_occupancy: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_xbins')})
+    num_position_samples_smoothed_occupancy: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_xbins')})
+    seconds_occupancy: np.ndarray = serialized_field(metadata={'shape': ('n_xbins')})
+    normalized_occupancy: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_xbins')})
+    spikes_maps_matrix: np.ndarray = serialized_field(metadata={'shape': ('n_neurons', 'n_xbins')})
+    smoothed_spikes_maps_matrix: Optional[np.ndarray] = serialized_field(metadata={'shape': ('n_neurons', 'n_xbins')})
+    occupancy_weighted_tuning_maps_matrix: np.ndarray = serialized_field(metadata={'shape': ('n_neurons', 'n_xbins')})
+    
+    # def __init__(self, num_position_samples_occupancy, num_position_samples_smoothed_occupancy, seconds_occupancy, normalized_occupancy, spikes_maps_matrix, smoothed_spikes_maps_matrix, occupancy_weighted_tuning_maps_matrix):
+    #     super(PlacefieldSnapshot, self).__init__()
+    #     self.num_position_samples_occupancy = num_position_samples_occupancy
+    #     self.num_position_samples_smoothed_occupancy = num_position_samples_smoothed_occupancy
+    #     self.seconds_occupancy = seconds_occupancy
+    #     self.normalized_occupancy = normalized_occupancy
 
-    def __init__(self, num_position_samples_occupancy, num_position_samples_smoothed_occupancy, seconds_occupancy, normalized_occupancy, spikes_maps_matrix, smoothed_spikes_maps_matrix, occupancy_weighted_tuning_maps_matrix):
-        super(PlacefieldSnapshot, self).__init__()
-        self.num_position_samples_occupancy = num_position_samples_occupancy
-        self.num_position_samples_smoothed_occupancy = num_position_samples_smoothed_occupancy
-        self.seconds_occupancy = seconds_occupancy
-        self.normalized_occupancy = normalized_occupancy
-
-        self.spikes_maps_matrix = spikes_maps_matrix
-        self.smoothed_spikes_maps_matrix = smoothed_spikes_maps_matrix
-        self.occupancy_weighted_tuning_maps_matrix = occupancy_weighted_tuning_maps_matrix
+    #     self.spikes_maps_matrix = spikes_maps_matrix
+    #     self.smoothed_spikes_maps_matrix = smoothed_spikes_maps_matrix
+    #     self.occupancy_weighted_tuning_maps_matrix = occupancy_weighted_tuning_maps_matrix
 
 
     def to_dict(self):
@@ -89,6 +105,22 @@ class PlacefieldSnapshot(object):
         copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix[included_indicies]
         return copy_snapshot
 
+
+def prepare_snapshots_for_export_as_xarray(historical_snapshots: dict, ndim: int=1) -> xr.DataArray:
+	""" exports all snapshots as an xarray """
+	snapshot_t_times = np.array(list(historical_snapshots.keys()), dtype=np.float64)
+	if ndim < 2:
+		pos_dim_labels = ("xbin", )
+	else:
+		pos_dim_labels = ("xbin", "ybin")
+
+	# occupancy_weighted_tuning_maps_over_time_arr = np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for timestamp_t, placefield_snapshot in self.historical_snapshots.items()]) # Concatenates so that the time is the first dimension
+	occupancy_weighted_tuning_maps_over_time_xr = xr.DataArray(np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for placefield_snapshot in historical_snapshots.values()]), dims=("snapshot_t", "neuron_idx", *pos_dim_labels), name="tuning_maps", coords={'snapshot_t': snapshot_t_times}) # , coords={"x": [10, 20]}
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["long_name"] = "occupancy_weighted_tuning_maps"
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["units"] = "spikes/sec"
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["description"] = "The tuning maps for each cell normalized for their occupancy."
+	occupancy_weighted_tuning_maps_over_time_xr.attrs["ndim"] = ndim
+	return occupancy_weighted_tuning_maps_over_time_xr
 
 
 @define(slots=False, repr=False)
@@ -219,6 +251,10 @@ class PfND_TimeDependent(PfND):
 
         ## Passes self.included_neuron_IDs explicitly
 
+
+    def __repr__(self):
+        return f'{self.__class__.__qualname__.rsplit(">.", 1)[-1]}(spikes_df={self.spikes_df!r}, position={self.position!r}, epochs={self.epochs!r}, config={self.config!r}, position_srate={self.position_srate!r}, setup_on_init={self.setup_on_init!r}, compute_on_init={self.compute_on_init!r}, _save_intermediate_spikes_maps={self._save_intermediate_spikes_maps!r}, _included_thresh_neurons_indx={self._included_thresh_neurons_indx!r}, _peak_frate_filter_function={self._peak_frate_filter_function!r}, ratemap={self.ratemap!r}, _filtered_pos_df={self._filtered_pos_df!r}, _filtered_spikes_df={self._filtered_spikes_df!r}, ndim={self.ndim!r}, xbin={self.xbin!r}, ybin={self.ybin!r}, bin_info={self.bin_info!r})'
+    
   
     # ==================================================================================================================== #
     # Initializer                                                                                                          #
@@ -254,88 +290,6 @@ class PfND_TimeDependent(PfND):
             config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh),
             setup_on_init=setup_on_init, compute_on_init=compute_on_init, position_srate=position.sampling_rate, historical_snapshots={}, last_t=np.finfo('float').max)
 
-    # def __init__(self, spikes_df: pd.DataFrame, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), grid_bin_bounds=None, smooth=(1,1)):
-    #     """computes 2d place field using (x,y) coordinates. It always computes two place maps with and
-    #     without speed thresholds.
-
-    #     Parameters
-    #     ----------
-    #     spikes_df: pd.DataFrame
-    #     position : core.Position
-    #     epochs : core.Epoch
-    #         specifies the list of epochs to include.
-    #     grid_bin : int
-    #         bin size of position bining, by default 5
-    #     speed_thresh : int
-    #         speed threshold for calculating place field
-        
-        
-    #     NOTE: doesn't call super().__init__(...)
-        
-    #     NOTE: _peak_frate_filter_function is only used in computing self.ratemap, meaning it keeps and does calculations for all neuron_IDs (not just those passing _peak_frate_filter_function) behind the scenes. This can be taken advantage of if you want a ratemap only for certain neurons by setting self._included_thresh_neurons_indx manually
-
-    #     EXAMPLE of filtering by neuron_IDs:
-    #         # Find the neuron_IDs that are included in the active_pf_2D for filtering the active_pf_2D_dt's results:
-    #         is_pf_2D_included_neuron = np.isin(active_pf_2D_dt.included_neuron_IDs, active_pf_2D.included_neuron_IDs)
-    #         pf_2D_included_neuron_indx = active_pf_2D_dt._included_thresh_neurons_indx[is_pf_2D_included_neuron]
-
-    #         # #NOTE: to reset and include all neurons:
-    #         # active_pf_2D_dt._included_thresh_neurons_indx = np.arange(active_pf_2D_dt.n_fragile_linear_neuron_IDXs)
-
-    #         active_pf_2D_dt._included_thresh_neurons_indx = pf_2D_included_neuron_indx
-    #         active_pf_2D_dt._peak_frate_filter_function = lambda list_: [list_[_] for _ in active_pf_2D_dt._included_thresh_neurons_indx]
-
-    #         assert (active_pf_2D_dt.ratemap.spikes_maps == active_pf_2D.ratemap.spikes_maps).all(), f"active_pf_2D_dt.ratemap.spikes_maps: {active_pf_2D_dt.ratemap.spikes_maps}\nactive_pf_2D.ratemap.spikes_maps: {active_pf_2D.ratemap.spikes_maps}"
-        
-    #     """
-    #     # save the config that was used to perform the computations
-    #     self.config = PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh)
-    #     self.position_srate = position.sampling_rate
-
-    #     self._included_thresh_neurons_indx = None
-    #     self._peak_frate_filter_function = None
-    #     self._filtered_pos_df = None
-    #     self._filtered_spikes_df = None
-    #     self.ndim = None # Set the dimensionality of the PfND object from the position's dimensionality in self.setup(...)
-    #     self.xbin = None
-    #     self.ybin = None 
-    #     self.bin_info = None
-
-    #     self.last_t = np.finfo('float').max # set to maximum value (so all times are included) just for setup.
-        
-    #     # Perform the primary setup to build the placefield
-    #     self.setup(position, spikes_df, epochs) # Sets up self.xbin, self.ybin, self.bin_info, self._filtered_pos_df, self.filtered_spikes_df
-        
-    #     # TODO: replace with `self._drop_extra_position_info(self)` once I'm sure that position.ndim works out okay
-    #     if (self.ndim < 2):
-    #         # Drop any 'y' related columns if it's a 1D version:
-    #         # print(f"dropping 'y'-related columns in self._filtered_spikes_df because self.ndim: {self.ndim} (< 2).")
-    #         self._filtered_spikes_df.drop(columns=['y','y_loaded'], inplace=True)
-
-    #     self._filtered_pos_df.dropna(axis=0, how='any', subset=[*self._position_variable_names], inplace=True) # dropped NaN values
-        
-    #     if 'binned_x' in self._filtered_pos_df:
-    #         if (position.ndim > 1):
-    #             self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x', 'binned_y'], inplace=True) # dropped NaN values
-    #         else:
-    #             self._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
-
-        
-
-    #     self._reset_after_neuron_index_update()
-
-    #     ## Interpolate the spikes over positions
-    #     self._filtered_spikes_df['x'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.x)
-    #     if 'binned_x' not in self._filtered_spikes_df:
-    #         self._filtered_spikes_df['binned_x'] = pd.cut(self._filtered_spikes_df['x'].to_numpy(), bins=self.xbin, include_lowest=True, labels=self.xbin_labels) # same shape as the input data 
-    
-    #     if (self.ndim > 1):
-    #         self._filtered_spikes_df['y'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.t, self.y)
-    #         if 'binned_y' not in self._filtered_spikes_df:
-    #             self._filtered_spikes_df['binned_y'] = pd.cut(self._filtered_spikes_df['y'].to_numpy(), bins=self.ybin, include_lowest=True, labels=self.ybin_labels)
-    
-    #     self._setup_time_varying()
-        
 
 # ==================================================================================================================== #
 # Time-dependent state manipulation                                                                                    #
@@ -526,9 +480,13 @@ class PfND_TimeDependent(PfND):
             print(f'ERROR: unhandled exception: {e}')
             raise e
         
+        # I think this is okay:
+        if not hasattr(self, '_included_thresh_neurons_indx'):
+            self._reset_after_neuron_index_update()
+            
         # Rebuild the filter function from self._included_thresh_neurons_indx
         # self._included_thresh_neurons_indx = np.arange(self.n_fragile_linear_neuron_IDXs)
-        self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria        
+        # self._peak_frate_filter_function = lambda list_: [list_[_] for _ in self._included_thresh_neurons_indx] # filter_function: takes any list of length n_neurons (original number of neurons) and returns only the elements that met the firing rate criteria        
         
         
     # ==================================================================================================================== #
@@ -845,7 +803,7 @@ class PfND_TimeDependent(PfND):
             ## This version was brought in from PfND.perform_time_range_computation(...):
             # If xbin_values is not None and ybin_values is None, assume 1D
             # if xbin_values is not None and ybin_values is None:
-            if 'y' not in active_pf_spikes_df.columns:
+            if ('y' not in active_pf_spikes_df.columns) or ((xbin_values is not None) and (ybin_values is None)):
                 # Assume 1D:
                 ndim = 1
                 pos_col_names = ('x',)
@@ -853,6 +811,7 @@ class PfND_TimeDependent(PfND):
                 bin_values = (xbin_values,)
             else:
                 # otherwise assume 2D:
+                assert ybin_values is not None
                 ndim = 2
                 pos_col_names = ('x', 'y')
                 binned_col_names = ('binned_x', 'binned_y')
@@ -916,7 +875,7 @@ class PfND_TimeDependent(PfND):
         seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_position_samples_occupancy, position_srate=position_srate)
 
         ## TODO: Copy the 1D Gaussian filter code here. Currently it always does 2D:
-        if 'y' not in active_pf_spikes_df.columns:
+        if (ybin is None) or ('y' not in active_pf_spikes_df.columns):
             # Assume 1D:
             ndim = 1
             smooth_criteria_fn = lambda smooth: (smooth[0] > 0.0)
@@ -1007,8 +966,133 @@ class PfND_TimeDependent(PfND):
         
 
 
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
+            
+            included_key_names = ['spikes_df', 'position', 'epochs', 'config', 'position_srate', 'setup_on_init', 'compute_on_init',
+          '_save_intermediate_spikes_maps', '_filtered_pos_df', '_filtered_spikes_df',
+           'ndim', 'xbin', 'ybin', 'bin_info', 'last_t', 'historical_snapshots', 'fragile_linear_neuron_IDXs', 'n_fragile_linear_neuron_IDXs']
+
+        # print(f'to_dict(...): {list(self.__dict__.keys())}')
+        curr_snapshot_time, curr_snapshot_data = self.snapshot() # take a snapshot of the current state
+        # self._setup_time_varying() # reset completely before saving. Throw out everything
+        # Excluded from serialization: ['_included_thresh_neurons_indx', '_peak_frate_filter_function']
+        # filter_fn = filters.exclude(fields(PfND)._included_thresh_neurons_indx, int)
+        # [an_attr.name for an_attr in self.__attrs_attrs__]
+        # print(f'{[an_attr.name for an_attr in self.__attrs_attrs__]}')
+
+        # filter_fn = lambda attr, value: attr.name not in ["_included_thresh_neurons_indx", "_peak_frate_filter_function", "_ratemap", "_ratemap_spiketrains", "_ratemap_spiketrains_pos"]
+        # if not hasattr(self, '_included_thresh_neurons_indx'):
+        #     self.reset()
+        # filter_fn = lambda attr, value: attr.name in included_key_names
+        # _out = asdict(self, recurse=False, filter=filter_fn) # serialize using attrs.asdict but exclude the listed properties
+        _out = {k:v for k,v in self.__dict__.items() if k in included_key_names}
+        
+        
+        """
+    
+        self.position.to_hdf(file_path=file_path, key=f'{key}/pos')
+        if self.epochs is not None:
+            self.epochs.to_hdf(file_path=file_path, key=f'{key}/epochs') #TODO 2023-07-30 11:13: - [ ] What if self.epochs is None?
+        else:
+            # if self.epochs is None
+            pass
+        self.spikes_df.spikes.to_hdf(file_path, key=f'{key}/spikes')
+        self.ratemap.to_hdf(file_path, key=f'{key}/ratemap')
 
 
+        # Do the dt specific ones:
+        #'_filtered_pos_df', '_filtered_spikes_df', 'xbin', 'ybin', 'bin_info', 'last_t', 'historical_snapshots', 'fragile_linear_neuron_IDXs', 'n_fragile_linear_neuron_IDXs'
+        snapshots_xarray: xr.DataArray = self.prepare_snapshots_for_export_as_xarray()
+        snapshots_np_array = snapshots_xarray.to_numpy() # .shape # (5104, 49, 112)
+        # Write the xr.DataArray to .h5 file:
+        # snapshots_xarray.to_netcdf(file_path, kwargs.get('mode', 'a'), group=f'{key}/snapshots', ) # "output/test_xr_DataArray.h5"
+        # snapshots_np_array
+
+        # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+        with h5py.File(file_path, 'r+') as f:
+            ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
+            group = f[key]
+
+            ## Assign by numpy array first:
+            group.create_dataset('snapshots_array', data=snapshots_np_array)
+            
+
+            group.attrs['position_srate'] = self.position_srate
+            group.attrs['ndim'] = self.ndim
+
+            # can't just set the dict directly
+            # group.attrs['config'] = str(self.config.to_dict())  # Store as string if it's a complex object
+            # Manually set the config attributes
+            config_dict = self.config.to_dict()
+            group.attrs['config/speed_thresh'] = config_dict['speed_thresh']
+            group.attrs['config/grid_bin'] = config_dict['grid_bin']
+            group.attrs['config/grid_bin_bounds'] = config_dict['grid_bin_bounds']
+            group.attrs['config/smooth'] = config_dict['smooth']
+            group.attrs['config/frate_thresh'] = config_dict['frate_thresh']
+            
+            # Do the dt-specific ones:
+            group.attrs['last_t'] = self.last_t
+            group.attrs['n_fragile_linear_neuron_IDXs'] = self.n_fragile_linear_neuron_IDXs
+
+
+
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "PfND":
+        """ Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pfnd_obj = PfND.read_hdf(hdf5_output_path, key='test_pfnd')
+            _reread_pfnd_obj
+        """
+        # Read DataFrames using pandas
+        position = Position.read_hdf(file_path, key=f'{key}/pos')
+        try:
+            epochs = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        except KeyError as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key.  'No object named test_pfnd/epochs in the file'
+            epochs = None
+        except Exception as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key
+            print(f'Unhandled exception {e}')
+            raise e
+        
+        spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
+
+        # Open the file with h5py to read attributes
+        with h5py.File(file_path, 'r') as f:
+            group = f[key]
+            position_srate = group.attrs['position_srate']
+            ndim = group.attrs['ndim'] # Assuming you'll use it somewhere else if needed
+
+            # Read the config attributes
+            config_dict = {
+                'speed_thresh': group.attrs['config/speed_thresh'],
+                'grid_bin': tuple(group.attrs['config/grid_bin']),
+                'grid_bin_bounds': tuple(group.attrs['config/grid_bin_bounds']),
+                'smooth': tuple(group.attrs['config/smooth']),
+                'frate_thresh': group.attrs['config/frate_thresh']
+            }
+
+        # Create a PlacefieldComputationParameters object from the config_dict
+        config = PlacefieldComputationParameters(**config_dict)
+
+        #TODO 2023-09-26 08:47: - [ ] Needs UPDATE for dt-version. This was copied literally from non-time dependent version
+
+
+        # Reconstruct the object using the from_config_values class method
+        return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
+    
+    
+    def prepare_snapshots_for_export_as_xarray(self) -> xr.DataArray:
+        """ exports all snapshots as an xarray """
+        return prepare_snapshots_for_export_as_xarray(historical_snapshots=self.historical_snapshots, ndim=self.ndim)
 
 
 

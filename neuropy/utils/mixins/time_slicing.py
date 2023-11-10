@@ -93,7 +93,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     """ Allows general epochs represented as Pandas DataFrames to be easily time-sliced and manipulated along with their accompanying data without making a custom class. """
 
     def __init__(self, pandas_obj):
-        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "end":['stop','stop_t']})
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "end":['stop','stop_t']}) # @IgnoreException 
         self._validate(pandas_obj)
         self._obj = pandas_obj
 
@@ -129,7 +129,7 @@ def _compute_spike_arbitrary_provided_epoch_ids(spk_df, provided_epochs_df, epoc
         spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 
     """
     # spk_times_arr = spk_df.t_seconds.to_numpy()
-    active_time_variable_name = (override_time_variable_name or spk_df.spikes.time_variable_name) # by default use spk_df.spikes.time_variable_name, but an optional override can be provided (to ensure compatibility with PBEs)
+    active_time_variable_name: str = (override_time_variable_name or spk_df.spikes.time_variable_name) # by default use spk_df.spikes.time_variable_name, but an optional override can be provided (to ensure compatibility with PBEs)
     spk_times_arr = spk_df[active_time_variable_name].to_numpy()
     curr_epochs_start_stop_arr = provided_epochs_df[['start','stop']].to_numpy()
     if epoch_label_column_name is None:
@@ -148,6 +148,19 @@ def add_epochs_id_identity(spk_df, epochs_df, epoch_id_key_name='temp_epoch_id',
     """ Adds the epoch IDs to each spike in spikes_df as a column named epoch_id_key_name
     
     Example:
+        # add the active_epoch's id to each spike in active_spikes_df to make filtering and grouping easier and more efficient:
+        
+        from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+        
+        active_spikes_df = add_epochs_id_identity(active_spikes_df, epochs_df=active_epochs.to_dataframe(), epoch_id_key_name='Probe_Epoch_id', epoch_label_column_name=None, override_time_variable_name='t_rel_seconds', no_interval_fill_value=-1) # uses new add_epochs_id_identity
+
+        # Get all aclus and epoch_idxs used throughout the entire spikes_df:
+        all_aclus = active_spikes_df['aclu'].unique()
+        all_probe_epoch_ids = active_spikes_df['Probe_Epoch_id'].unique()
+
+        selected_spikes = active_spikes_df.groupby(['Probe_Epoch_id', 'aclu'])[active_spikes_df.spikes.time_variable_name].first() # first spikes
+        
+
         # np.shape(spk_times_arr): (16318817,), p.shape(pbe_start_stop_arr): (10960, 2), p.shape(pbe_identity_label): (10960,)
         spike_pbe_identity_arr # Elapsed Time (seconds) = 90.92654037475586, 93.46184754371643, 90.16610431671143 , 89.04321789741516
     """

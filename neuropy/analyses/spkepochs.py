@@ -63,7 +63,7 @@ def detect_pbe_epochs(mua: core.Mua, thresh=(0, 3), min_dur=0.1, merge_dur=0.01,
         values based on zscore i.e, events with firing rate above thresh[0] and peak exceeding thresh[1], by default (0, 3) --> above mean and greater than 3 SD
     min_dur : float, optional
         minimum duration of a pop burst event, in seconds, default = 0.1 seconds
-    merge_dur : float, optioal
+    merge_dur : float, optional
         if two events are less than this time apart, they are merged, in seconds
     max_dur : float, optional
         events only lasting below this duration

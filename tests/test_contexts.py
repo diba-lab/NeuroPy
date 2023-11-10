@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 import dill
 import copy
-from neuropy.utils.result_context import IdentifyingContext
+from neuropy.utils.result_context import IdentifyingContext, CollisionOutcome
 
 class TestIdentifyingContext(unittest.TestCase):
 
@@ -10,7 +10,26 @@ class TestIdentifyingContext(unittest.TestCase):
         # Create test instances of IdentifyingContext
         self.context1 = IdentifyingContext(format_name='kdiba', session_name='2006-6-08_14-26-15')
         self.context2 = IdentifyingContext(format_name='kdiba', session_name='2006-6-08_14-26-15')
+        # Create some IdentifyingContext instances for testing
+        self.ic1 = IdentifyingContext(format_name='kdiba', animal='gor01', exper_name='one', session_name='2006-6-08_14-26-15')
+        self.ic2 = IdentifyingContext(format_name='kdiba', animal='vvp01', exper_name='one', session_name='2006-4-09_17-29-30')
+        self.ic3 = IdentifyingContext(format_name='kdiba', animal='vvp01', exper_name='two', session_name='2006-4-09_16-40-54')
+        
 
+        # An example dictionary containing dictionaries with values for each of the IdentifyingContexts:
+        self.identifying_context_dict = { 
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):{'grid_bin_bounds':((22.397021260868584, 245.6584673739576), (133.66465594522782, 155.97244934208123))},
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((17.01858788173554, 250.2171441367766), (135.66814125966783, 154.75073313142283)))),
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):{'grid_bin_bounds':(((29.088604852961407, 251.70402561515647), (138.496638485457, 154.30675703402517)))},
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):{'grid_bin_bounds':(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))},
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):{'grid_bin_bounds':(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))},
+        }
+            
+        
     def test_add_context(self):
         self.context1.add_context(collision_prefix='prefix', additional_key='value')
         self.assertTrue(hasattr(self.context1, 'additional_key'))
@@ -110,6 +129,37 @@ class TestIdentifyingContext(unittest.TestCase):
 
         # Assert
         self.assertEqual(obj1, obj2)
+
+
+    def test_query(self):
+        # Test 1: Query for a single attribute
+        self.assertTrue(self.ic1.query({'exper_name': 'one'}))
+        self.assertFalse(self.ic1.query({'exper_name': 'two'}))
+        
+        # Test 2: Query for multiple attributes
+        self.assertTrue(self.ic1.query({'exper_name': 'one', 'animal': 'gor01'}))
+        self.assertFalse(self.ic1.query({'exper_name': 'one', 'animal': 'vvp01'}))
+        
+        # Test 3: Query for non-existent attribute
+        self.assertFalse(self.ic1.query({'nonexistent_attribute': 'value'}))
+    
+    def test_init_from_dict(self):
+        # Test: Check that init_from_dict initializes an IdentifyingContext instance correctly
+        ic = IdentifyingContext.init_from_dict({'format_name': 'kdiba', 'animal': 'gor01', 'exper_name': 'one', 'session_name': '2006-6-08_14-26-15'})
+        self.assertEqual(ic.format_name, 'kdiba')
+        self.assertEqual(ic.animal, 'gor01')
+        self.assertEqual(ic.exper_name, 'one')
+        self.assertEqual(ic.session_name, '2006-6-08_14-26-15')
+
+    def test_query_one(self):
+        # Test 1: To find any relevant entries for the 'exper_name' == 'one'
+        relevant_entries = [ic for ic in self.identifying_context_dict.keys() if ic.query({'exper_name': 'one'})]
+        self.assertEqual(len(relevant_entries), 5, F"{relevant_entries}")
+
+    def test_query_two(self):
+        # Test 2: To find any relevant entries for the 'animal' == 'vvp01'
+        relevant_entries = [ic for ic in self.identifying_context_dict.keys() if ic.query({'animal': 'vvp01'})]
+        self.assertEqual(len(relevant_entries), 3)
 
 
 

@@ -3,6 +3,8 @@ from typing import Sequence, Union
 from warnings import warn
 import numpy as np
 import pandas as pd
+import h5py
+import tables as tb
 # from klepto.safe import lru_cache as memoized
 # from neuropy.utils.result_context import context_extraction as memoized
 
@@ -29,20 +31,24 @@ from neuropy.utils.efficient_interval_search import determine_event_interval_ide
 
 # Klepto caching/memoization
 # from klepto.archives import sqltable_archive as sql_archive
-from klepto.archives import file_archive, sql_archive, dict_archive
-from klepto.keymaps import keymap, hashmap, stringmap
+# from klepto.archives import file_archive, sql_archive, dict_archive
+# from klepto.keymaps import keymap, hashmap, stringmap
 
-_context_keymap = stringmap(flat=False, sentinel='||')
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
+# _context_keymap = stringmap(flat=False, sentinel='||')
 # _context_keymap = keymap(flat=False, sentinel='||')
 # _context_keymap = hashmap(sentinel='||') # signature not recoverable
 
 #d = sql_archive('postgresql://user:pass@localhost/defaultdb', cached=False)
 #d = sql_archive('mysql://user:pass@localhost/defaultdb', cached=False)
 # _context_cache = sql_archive(cached=False)
-_context_cache = dict_archive('_test_context_cache')
+# _context_cache = dict_archive('_test_context_cache')
 # _context_cache = dict_archive(cached=False)
 
-class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
+
+class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, ConcatenationInitializable, TimeSlicableObjectProtocol):
     """ holds the collection of all data, both loaded and computed, related to an experimental recording session. Can contain multiple discontiguous time periods ('epochs') meaning it can represent the data collected over the course of an experiment for a single animal (across days), on a single day, etc.
     
     Provides methods for loading, accessing, and manipulating data such as neural spike trains, behavioral laps, etc.
@@ -350,15 +356,26 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             old_default_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
             old_kamran_parameters = dict(sigma=0.02, thresh=(0, 1.5), min_dur=0.06, merge_dur=0.06, max_dur=2.3) # Kamran's Parameters
             new_papers_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters
-            new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=new_papers_parameters)
+            kamrans_new_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.6) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300
+            
+            new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=kamrans_new_parameters)
 
         """
         from neuropy.analyses import detect_pbe_epochs
         print('computing PBE epochs for session...\n')
         if active_parameters is None:
-            active_parameters = dict(sigma=0.02, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0) # Default
+            raise NotImplementedError
+            # active_parameters = dict(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=2.3) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300
         smth_mua = session.mua.get_smoothed(sigma=active_parameters.pop('sigma', 0.02)) # Get the smoothed mua from the session's mua
+        # Filter parameters:
+        extracted_filter_parameters = dict(require_intersecting_epoch=active_parameters.pop('require_intersecting_epoch', None),
+                                            min_epoch_included_duration=active_parameters.pop('min_epoch_included_duration', None), max_epoch_included_duration=active_parameters.pop('max_epoch_included_duration', None),
+                                            maximum_speed_thresh=active_parameters.pop('maximum_speed_thresh', None),
+                                            min_inclusion_fr_active_thresh=active_parameters.pop('min_inclusion_fr_active_thresh', None), min_num_unique_aclu_inclusions=active_parameters.pop('min_num_unique_aclu_inclusions', None))
+
         new_pbe_epochs = detect_pbe_epochs(smth_mua, **active_parameters) # NewPaper's Parameters # , **({'thresh': (0, 1.5), 'min_dur': 0.03, 'merge_dur': 0.1, 'max_dur': 0.3} | kwargs)
+        new_pbe_epochs = Epoch.filter_epochs(new_pbe_epochs, pos_df=session.position.to_dataframe(), spikes_df=session.spikes_df.copy(), **extracted_filter_parameters, debug_print=False) # Filter based on the criteria if provided
+
         if save_on_compute:
             new_pbe_epochs.filename = session.filePrefix.with_suffix('.pbe.npy')
             with ProgressMessagePrinter(new_pbe_epochs.filename, 'Saving', 'pbe results'):
@@ -391,21 +408,6 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
 
         return session.position
         
-
-    # ## TODO: needs neuropy! Specifically: from neuropy.analyses import Pf1D, Pf2D, perform_compute_placefields, plot_all_placefields
-    # @staticmethod
-    # def compute_placefields_as_needed(active_session, computation_config=None, active_epoch_placefields1D = None, active_epoch_placefields2D = None, should_force_recompute_placefields=False, should_display_2D_plots=False):
-    #     if computation_config is None:
-    #         computation_config = PlacefieldComputationParameters(speed_thresh=9, grid_bin=2, smooth=0.5)
-    #     active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_session.neurons, active_session.position, computation_config, active_epoch_placefields1D, active_epoch_placefields2D, should_force_recompute_placefields=True)
-    #     # Plot the placefields computed and save them out to files:
-    #     if should_display_2D_plots:
-    #         ax_pf_1D, occupancy_fig, active_pf_2D_figures = plot_all_placefields(active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config)
-    #     else:
-    #         print('skipping 2D placefield plots')
-    #     return active_epoch_placefields1D, active_epoch_placefields2D
-
-
     # @memoized(cache=_context_cache, keymap=_context_keymap, ignore=('self', 'save_on_compute', 'debug_print'))
     def estimate_replay_epochs(self, require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, save_on_compute=False, debug_print=False):
         """estimates replay epochs from PBE and Position data.
@@ -520,15 +522,11 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
             if debug_print:
                 print(f'Replays missing from sessions. Computing replays...')
 
-        default_replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': None, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.05, 'min_num_unique_aclu_inclusions': 5}
+        default_replay_estimation_parameters = {'require_intersecting_epoch':a_session.ripple, 'min_epoch_included_duration': 0.06, 'max_epoch_included_duration': 0.6, 'maximum_speed_thresh': None, 'min_inclusion_fr_active_thresh': 0.05, 'min_num_unique_aclu_inclusions': 5}
 
         # compute estimates and assign them as the session's .replay value
         a_session.replay = a_session.estimate_replay_epochs(**(default_replay_estimation_parameters | kwargs)).to_dataframe()
         return a_session.replay
-
-
-
-
 
     # ConcatenationInitializable protocol:
     @classmethod
@@ -549,21 +547,7 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
                  neurons = new_neurons, probegroup = objList[0].probegroup, position = new_position, paradigm = objList[0].paradigm,
                  ripple = None, mua = None, pbe = None, laps= objList[0].laps, flattened_spiketrains = new_flattened_spiketrains)
     
-    
-    # def filtered_by_laps(self, lap_indices=None):
-    #     """ Returns a copy of this session with all of its members filtered by the laps.
-    #     """
-    #     lap_specific_subsessions, lap_specific_dataframes, lap_spike_indicies, lap_spike_t_seconds = Laps.build_lap_specific_lists(self, include_empty_lists=True)
-
-    #     if lap_indices is None:
-    #         lap_indices = np.arange(1, len(lap_specific_subsessions)) # all laps by default, but exclude the 0 element since that's the -1 value
-            
-    #     print('filtering by laps: {}'.format(lap_indices))
-    #     lap_specific_subsessions = [lap_specific_subsessions[i] for i in lap_indices] # filter by the desired number of laps 
-    #     ## Effectively build the new session using only the lap-specific spiketimes:
-    #     return DataSession.concat(lap_specific_subsessions)
-    #     # raise NotImplementedError
-    
+        
     def split_by_laps(self):
         """ Returns a list containing separate copies of this session with all of its members filtered by the laps, for each lap
         """
@@ -685,3 +669,103 @@ class DataSession(DataSessionPanelMixin, NeuronUnitSlicableObjectProtocol, Start
         out_axes_list[0].set_title('New Pho Position Thresholding Estimated Laps')
         fig.canvas.manager.set_window_title('New Pho Position Thresholding Estimated Laps')
         return fig, out_axes_list
+
+
+   # HDFMixin Conformances ______________________________________________________________________________________________ #
+    
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            file_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(file_path, key='test_pfnd')
+            
+            
+        `key` passed in should be the path to the session_root: '/kdiba/gor01/one/2006-6-08_14-26-15'
+        """
+        
+        ## Serialize the dataframe:
+        # raise NotImplementedError # 2023-08-02 - This is complete except for the fact that for Diba sessions it doesn't have a spikes_df because it is computed from one unlike the other sessions where it is loaded from one.
+
+        session_context = self.get_context()
+        session_group_key: str = key #  + '/sess' # session_context.get_description(separator="/", include_property_names=False) # 'kdiba/gor01/one/2006-6-08_14-26-15'
+        session_uid: str = session_context.get_description(separator="|", include_property_names=False)
+
+        self.position.to_hdf(file_path=file_path, key=f'{session_group_key}/pos')
+        if self.paradigm is not None:
+            self.paradigm.to_hdf(file_path=file_path, key=f'{session_group_key}/epochs')
+
+
+        # if self.laps is not None:
+            # convert to Epoch object, and then to DataFrame if needed?
+            # self.laps.to_hdf(file_path=file_path, key=f'{session_group_key}/laps')
+
+
+        # Save flattened_spiketrains if available
+        if self.flattened_spiketrains is not None:
+            # flattened_spiketrains_group = data_session_group.create_group("flattened_spiketrains")
+            # Serialize flattened_spiketrains data here (assuming flattened_spiketrains is an HDF_SerializationMixin)
+            self.flattened_spiketrains.to_hdf(file_path=file_path, key=f"{session_group_key}/flattened_spiketrains")
+
+        # Open the file with h5py to add attributes to the dataset
+        with h5py.File(file_path, 'r+') as f:
+            dataset = f[key]
+            metadata = {
+                'is_loaded': self.is_loaded,
+                'filePrefix': str(self.filePrefix),
+                'format_name': self.config.format_name,
+                'session_name': self.config.session_name,
+            }
+            for k, v in metadata.items():
+                dataset.attrs[k] = v
+
+            # Save config using attrs
+            # config_group = dataset.require_group("config")
+
+
+        # with tb.open_file(file_path, mode='a') as f: # this mode='w' is correct because it should overwrite the previous file and not append to it.
+        #     # a_global_computations_group = f.create_group(session_group_key, 'global_computations', title='the result of computations that operate over many or all of the filters in the session.', createparents=True)
+
+        #     data_session_group = f.create_group(session_group_key)
+
+        #     # Save basic attributes
+        #     data_session_group.attrs["is_loaded"] = self.is_loaded
+        #     data_session_group.attrs["filePrefix"] = str(self.filePrefix)
+        #     # data_session_group.attrs["recinfo"] = self.recinfo
+        #     # data_session_group.attrs["eegfile"] = self.eegfile
+        #     # data_session_group.attrs["datfile"] = self.datfile
+
+        #     # Save config using attrs
+        #     config_group = data_session_group.create_group("config")
+        #     for key, value in self.config.__dict__.items():
+        #         config_group.attrs[key] = value
+
+        #     # Save other attributes
+        #     # data_session_group.attrs["neurons"] = self.neurons
+        #     # data_session_group.attrs["probegroup"] = self.probegroup
+        #     # data_session_group.attrs["ripple"] = self.ripple
+        #     # data_session_group.attrs["mua"] = self.mua
+
+        #     # # Save laps if available
+        #     # if self.laps is not None:
+        #     #     laps_group = data_session_group.create_group("laps")
+        #     #     # Serialize laps data here (assuming laps is an HDF_SerializationMixin)
+
+            
+
+        #     # # Save additional attributes if any
+        #     # for key, value in self.__dict__.items():
+        #     #     if key not in ["config", "is_loaded", "filePrefix", "recinfo", "eegfile", "datfile", "neurons", "probegroup", "position", "paradigm", "ripple", "mua", "laps", "flattened_spiketrains"]:
+        #     #         data_session_group.attrs[key] = value
+                    
+
+
+
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "DataSession":
+        """ Reads the data from the key in the hdf5 file at file_path
+        """
+        raise NotImplementedError
+    

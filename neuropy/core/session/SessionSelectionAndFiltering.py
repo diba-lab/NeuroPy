@@ -1,7 +1,7 @@
 ## Idea: Build-up Filters for filtering the DataFrame sub-objects of my new DataFrame-based DataSession.
 """ Types of filters
 flat_spikes_df_inclusion: for a single filter/selector config, this is a pd.DataFrame or pd.Series object the same height as sess.spikes_df that specifies whether a given spike (corresponding to a row in the df) is included or not. The column name can be the name of the filter critiera.
-    a filter excluding neurons (such as filtering by (neuron_id == aclu), (neuron_type == cell_type))
+    a filter excluding neurons (such as filtering by (neuron_id == aclu), (neuron_type == neuron_type))
     a filter excluding time ranges (such as filtering by (epochs == maze), (lap_id == lap_id), or raw time ranges.
 
 position_df_inclusion: for a single filter/selector config, this is a pd.DataFrame or pd.Series object the same height as sess.pos_df that specifies whether a given position datapoint (corresponding to a row in the df) is included or not.
@@ -12,7 +12,8 @@ import numpy as np
 
 from neuropy import core
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
-from neuropy.core.neurons import Neurons, NeuronType
+from neuropy.core.neurons import Neurons
+from neuropy.core.neuron_identities import NeuronType
 from neuropy.core.position import Position  # , PositionAccessor
 from neuropy.core.session.dataSession import DataSession
 
@@ -100,7 +101,7 @@ def build_custom_epochs_filters(sess, epoch_name_includelist=None, filter_name_s
 
 ## Efficiently filter by cell type and desired ids
 def batch_filter_session(sess, position, spikes_df, epochs, debug_print=False):
-    """a workaround to efficiently filter DataSession objects by epochs and cell_type (currently hardcoded Pyramidal) that works around the issue with deepcopy(...) on DataSessions filled with Bapun's data."""
+    """a workaround to efficiently filter DataSession objects by epochs and neuron_type (currently hardcoded Pyramidal) that works around the issue with deepcopy(...) on DataSessions filled with Bapun's data."""
     """ #TODO: 2022-08-05 - What is this doing, and why is it needed? """
     position.compute_higher_order_derivatives()
     pos_df = (
@@ -123,11 +124,11 @@ def batch_filter_session(sess, position, spikes_df, epochs, debug_print=False):
     # included_neuron_type = 'pyramidal'
     included_neuron_type = NeuronType.PYRAMIDAL
     filtered_spikes_df = spk_df.query(
-        "@epochs.t_start <= `t_seconds` <= @epochs.t_stop and `cell_type` == @included_neuron_type"
+        "@epochs.t_start <= `t_seconds` <= @epochs.t_stop and `neuron_type` == @included_neuron_type"
     )  # 272 ms, 393 ms, Wall time: 183 ms
     # filtered_spikes_df = spk_df.query("@epochs.t_start <= `t_seconds` <= @epochs.t_stop and `aclu` in @filtered_spikes_df.spikes.neuron_ids") # 272 ms, 393 ms, Wall time: 183 ms
-    # filtered_spikes_df = spk_df.query("@epochs.t_start <= `t_seconds` <= @epochs.t_stop and `aclu` in @spk_df.spikes.neuron_ids and `cell_type` == @included_neuron_type" ) # 272 ms, 393 ms, Wall time: 183 ms
-    # filtered_spikes_df = spk_df.query("@epochs.t_start <= `t_seconds` <= @epochs.t_stop and `aclu` in @filtered_spikes_df.spikes.neuron_ids and `cell_type` == @included_neuron_type" ) # 272 ms, 393 ms, Wall time: 183 ms
+    # filtered_spikes_df = spk_df.query("@epochs.t_start <= `t_seconds` <= @epochs.t_stop and `aclu` in @spk_df.spikes.neuron_ids and `neuron_type` == @included_neuron_type" ) # 272 ms, 393 ms, Wall time: 183 ms
+    # filtered_spikes_df = spk_df.query("@epochs.t_start <= `t_seconds` <= @epochs.t_stop and `aclu` in @filtered_spikes_df.spikes.neuron_ids and `neuron_type` == @included_neuron_type" ) # 272 ms, 393 ms, Wall time: 183 ms
     # filtered_spikes_df = spk_df.query("`t_seconds` >= @epochs.starts and `t_seconds` <= @epochs.stops")
     # filtered_spikes_df = spk_df.query("`t_seconds` >= @epochs.starts and `t_seconds` <= @epochs.stops and `aclu` in @filtered_spikes_df.spikes.neuron_ids")
 

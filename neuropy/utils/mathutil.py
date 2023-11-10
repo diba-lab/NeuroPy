@@ -65,6 +65,8 @@ def compute_grid_bin_bounds(*args):
     """ computes the (min, max) bound for each passed array and returns a tuple of these (min, max) tuples. 
     from neuropy.utils.mathutil import compute_grid_bin_bounds
     
+    grid_bin_bounds: `((x_min, x_max), (y_min, y_max), ...)
+    
     """
     grid_bin_bounds = []
     for data in args:

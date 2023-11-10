@@ -1,0 +1,69 @@
+{
+  "include": [
+    "src"
+  ],
+  
+  "exclude": [
+    "**/.git", "**.svn", "**/.hg", "**/CVS", "**/*.asv",
+    "**/node_modules",
+    "**/.classpath",
+    "**/.factorypath",
+    "**/.ipynb_checkpoints",
+    "**/.project",
+    "**/.settings",
+    "**/.spyproject",
+    "**/.virtual_documents",
+    "**/.vscode",
+    "**/.dvc",
+    "**/__pycache__",
+    "**/.vscode",
+    "**/.idea",
+    "**/dist",
+    "**/build",
+    "**/.idea",
+  ],
+  "ignore": [
+    "**/.venv",
+    "src/oldstuff"
+  ],
+
+  "defineConstant": {
+    "DEBUG": true
+  },
+
+//   "stubPath": "src/stubs",
+//   "venv": "env367",
+
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+
+  "pythonVersion": "3.9",
+//   "pythonPlatform": "Linux",
+//   "executionEnvironments": [
+//     {
+//       "root": "src/web",
+//       "pythonVersion": "3.5",
+//       "pythonPlatform": "Windows",
+//       "extraPaths": [
+//         "src/service_libs"
+//       ]
+//     },
+//     {
+//       "root": "src/sdk",
+//       "pythonVersion": "3.0",
+//       "extraPaths": [
+//         "src/backend"
+//       ]
+//     },
+//     {
+//       "root": "src/tests",
+//       "extraPaths": [
+//         "src/tests/e2e",
+//         "src/sdk"
+//       ]
+//     },
+//     {
+//       "root": "src"
+//     }
+//   ]
+}

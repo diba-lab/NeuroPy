@@ -1,7 +1,8 @@
 from copy import deepcopy
 from typing import Callable, Optional
 from attrs import define, fields, filters, asdict, astuple
-
+import h5py
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
@@ -11,6 +12,9 @@ from neuropy.core.epoch import Epoch
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
+from neuropy.core.flattened_spiketrains import SpikesAccessor # allows placefields to be sliced by neuron ids
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 from neuropy.plotting.figure import pretty_plot
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
@@ -23,8 +27,9 @@ from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
-from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol # allows placefields to be sliced by neuron ids
-
+from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
+from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin
+    
 
 # from .. import core
 # import neuropy.core as core
@@ -32,8 +37,13 @@ from .. import plotting
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta, build_formatted_str_from_properties_dict
 
 
+
 class PlacefieldComputationParameters(SimplePrintable, DiffableObject, SubsettableDictRepresentable, metaclass=OrderedMeta):
-    """A simple wrapper object for parameters used in placefield calcuations"""
+    """A simple wrapper object for parameters used in placefield calcuations
+    
+    #TODO 2023-07-30 18:18: - [ ] HDFMixin conformance for PlacefieldComputationParameters
+    
+    """
     decimal_point_character=","
     param_sep_char='-'
     variable_names=['speed_thresh', 'grid_bin', 'smooth', 'frate_thresh']
@@ -88,7 +98,10 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
             return self.smooth[0]
 
     def _unlisted_parameter_strings(self):
-        """ returns the string representations of all key/value pairs that aren't normally defined. """
+        """ returns the string representations of all key/value pairs that aren't normally defined.
+        NOTE: this seems generally useful!
+        
+        """
         # Dump all arguments into parameters.
         out_list = []
         for key, value in self.__dict__.items():
@@ -129,7 +142,13 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
                 return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
 
     def str_for_display(self, is_2D):
-        """ For rendering in a title, etc """
+        """ For rendering in a title, etc
+        
+        #TODO 2023-07-21 16:35: - [ ] The np.printoptions doesn't affect the values that are returned from `extras_string = ', '.join(self._unlisted_parameter_strings())`
+        We end up with '(speedThresh_10.00, gridBin_2.00, smooth_2.00, frateThresh_1.00)grid_bin_bounds_((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))' (too many sig-figs on the output grid_bin_bounds)
+        
+        """
+        
         with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
             extras_string = ', '.join(self._unlisted_parameter_strings())
             if is_2D:
@@ -266,13 +285,17 @@ class PfnDMixin(SimplePrintable):
 
     @safely_accepts_kwargs
     def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=None, spikes_alpha=None, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None,
-        should_include_trajectory=True, should_include_spikes=True, should_include_labels=True):
+        should_include_trajectory=True, should_include_spikes=True, should_include_labels=True, use_filtered_positions=False, use_pandas_plotting=False):
         """ Builds one subplot for each dimension of the position data
         Updated to work with both 1D and 2D Placefields
 
         should_include_trajectory:bool - if False, will not try to plot the animal's trajectory/position
+            NOTE: Draws the spike_positions actually instead of the continuously sampled animal position
+
         should_include_labels:bool - whether the plot should include text labels, like the title, axes labels, etc
         should_include_spikes:bool - if False, will not try to plot points for spikes
+        use_pandas_plotting:bool = False
+        use_filtered_positions:bool = False # If True, uses only the filtered positions (which are missing the end caps) and the default a.plot(...) results in connected lines which look bad.
 
         """
         if ax is None:
@@ -283,16 +306,41 @@ class PfnDMixin(SimplePrintable):
             ax = [ax]
 
         # plot trajectories
+        pos_df = self.position.to_dataframe()
+        
+        # self.x, self.y contain filtered positions, pos_df's columns contain all positions.
+        if not use_pandas_plotting: # don't need to worry about 't' for pandas plotting, we'll just use the one in the dataframe.
+            if use_filtered_positions:
+                t = self.t
+            else:
+                t = pos_df.t.to_numpy()
+
         if self.ndim < 2:
-            variable_array = [self.x]
+            if not use_pandas_plotting:
+                if use_filtered_positions:
+                    variable_array = [self.x]
+                else:
+                    variable_array = [pos_df.x.to_numpy()]
+            else:
+                variable_array = ['x']
             label_array = ["X position (cm)"]
         else:
-            variable_array = [self.x, self.y]
+            if not use_pandas_plotting:
+                if use_filtered_positions:
+                    variable_array = [self.x, self.y]
+                else:
+                    variable_array = [pos_df.x.to_numpy(), pos_df.y.to_numpy()]
+            else:
+                variable_array = ['x', 'y']
             label_array = ["X position (cm)", "Y position (cm)"]
 
         for a, pos, ylabel in zip(ax, variable_array, label_array):
             if should_include_trajectory:
-                a.plot(self.t, pos, **(position_plot_kwargs or {}))
+                if not use_pandas_plotting:
+                    a.plot(t, pos, **(position_plot_kwargs or {}))
+                else:
+                    pos_df.plot(x='t', y=pos, ax=a, legend=False, **(position_plot_kwargs or {})) # changed to pandas.plot because the filtered positions were missing the end caps, and the default a.plot(...) resulted in connected lines which looked bad.
+
             if should_include_labels:
                 a.set_xlabel("Time (seconds)")
                 a.set_ylabel(ylabel)
@@ -303,7 +351,7 @@ class PfnDMixin(SimplePrintable):
             if should_include_spikes:
                 # Grab correct spike times/positions
                 if speed_thresh:
-                    spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t
+                    spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t # TODO: these don't exist
                 else:
                     spk_pos_, spk_t_ = self.spk_pos, self.spk_t
 
@@ -330,6 +378,7 @@ class PfnDMixin(SimplePrintable):
                 for a, pos in zip(ax, spk_pos_[cellind]):
                     # WARNING: if spike_plot_kwargs contains the 'markerfacecolor' key, it's value will override plot's color= argument, so the specified spikes_color will be ignored.
                     a.plot(spk_t_[cellind], pos, color=spikes_color_RGBA, **(spike_plot_kwargs or {})) # , color=[*spikes_color, spikes_alpha]
+                    #TODO 2023-09-06 02:23: - [ ] Note that without extra `spike_plot_kwargs` this plots spikes as connected lines without markers which is nearly always wrong.
 
             # Put info on title
             if should_include_labels:
@@ -501,15 +550,17 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing.
 
+
+        
 @define(slots=False)
-class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. 
 
         It always computes two place maps with and without speed thresholds.
 
         Parameters
         ----------
-        spikes_df: pd.Dahistorical_snapshotstaFrame
+        spikes_df: pd.DataFrame
         position : core.Position
         epochs : core.Epoch
             specifies the list of epochs to include.
@@ -562,7 +613,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         return cls(spikes_df=spikes_df, position=position, epochs=epochs,
             config=PlacefieldComputationParameters(speed_thresh=speed_thresh, grid_bin=grid_bin, grid_bin_bounds=grid_bin_bounds, smooth=smooth, frate_thresh=frate_thresh),
             setup_on_init=setup_on_init, compute_on_init=compute_on_init, position_srate=position.sampling_rate)
-
 
 
     def setup(self, position: Position, spikes_df, epochs: Epoch, debug_print=False):
@@ -640,6 +690,7 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
             else:
                 # Use grid_bin_bounds:
                 if ((self.config.grid_bin_bounds[0] is None) or (self.config.grid_bin_bounds[1] is None)):
+                    print(f'WARN: computing pf2D with set self.config.grid_bin_bounds but one of the compoenents is None! self.config.grid_bin_bounds: {self.config.grid_bin_bounds}.\n\trecomputing from positions and ignoring set grid_bin_bounds!')
                     grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
                 else:
                     print(f'using self.config.grid_bin_bounds: {self.config.grid_bin_bounds}')
@@ -742,6 +793,13 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
 
+    # PeakLocationRepresentingMixin conformances:
+    @property
+    def PeakLocationRepresentingMixin_peak_curves_variable(self) -> np.array:
+        """ the variable that the peaks are calculated and returned for """
+        return self.ratemap.PeakLocationRepresentingMixin_peak_curves_variable
+    
+
 
     @property
     def t(self):
@@ -768,9 +826,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         else:
             return self.filtered_pos_df.speed.to_numpy()
 
-
-
-
     @property
     def xbin_centers(self):
         return self.xbin[:-1] + np.diff(self.xbin) / 2
@@ -778,8 +833,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     @property
     def ybin_centers(self):
         return self.ybin[:-1] + np.diff(self.ybin) / 2
-
-
 
     @property
     def filtered_spikes_df(self):
@@ -921,7 +974,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
     def to_1D_maximum_projection(self) -> "PfND":
         return PfND.build_1D_maximum_projection(self)
 
-
     @classmethod
     def build_1D_maximum_projection(cls, pf2D: "PfND") -> "PfND":
         """ builds a 1D ratemap from a 2D ratemap
@@ -950,8 +1002,6 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
         new_pf1D = cls._drop_extra_position_info(new_pf1D)
         # ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=pf2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(pf2D.neuron_ids), neuron_extended_ids=deepcopy(pf2D.neuron_extended_ids), metadata=pf2D.metadata)
         return new_pf1D
-
-
 
     def str_for_filename(self, prefix_string=''):
         if self.ndim <= 1:
@@ -1095,6 +1145,84 @@ class PfND(NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixi
                 pf._filtered_pos_df.dropna(axis=0, how='any', subset=['binned_x'], inplace=True) # dropped NaN values
         return pf
 
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pfnd_obj: PfND = long_one_step_decoder_1D.pf
+            _pfnd_obj.to_hdf(hdf5_output_path, key='test_pfnd')
+        """
+    
+        self.position.to_hdf(file_path=file_path, key=f'{key}/pos')
+        if self.epochs is not None:
+            self.epochs.to_hdf(file_path=file_path, key=f'{key}/epochs') #TODO 2023-07-30 11:13: - [ ] What if self.epochs is None?
+        else:
+            # if self.epochs is None
+            pass
+        self.spikes_df.spikes.to_hdf(file_path, key=f'{key}/spikes')
+        self.ratemap.to_hdf(file_path, key=f'{key}/ratemap')
+
+        # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
+        with h5py.File(file_path, 'r+') as f:
+            ## Unfortunately, you cannot directly assign a dictionary to the attrs attribute of an h5py group or dataset. The attrs attribute is an instance of a special class that behaves like a dictionary in some ways but not in others. You must assign attributes individually
+            group = f[key]
+            group.attrs['position_srate'] = self.position_srate
+            group.attrs['ndim'] = self.ndim
+
+            # can't just set the dict directly
+            # group.attrs['config'] = str(self.config.to_dict())  # Store as string if it's a complex object
+            # Manually set the config attributes
+            config_dict = self.config.to_dict()
+            group.attrs['config/speed_thresh'] = config_dict['speed_thresh']
+            group.attrs['config/grid_bin'] = config_dict['grid_bin']
+            group.attrs['config/grid_bin_bounds'] = config_dict['grid_bin_bounds']
+            group.attrs['config/smooth'] = config_dict['smooth']
+            group.attrs['config/frate_thresh'] = config_dict['frate_thresh']
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "PfND":
+        """ Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pfnd_obj = PfND.read_hdf(hdf5_output_path, key='test_pfnd')
+            _reread_pfnd_obj
+        """
+        # Read DataFrames using pandas
+        position = Position.read_hdf(file_path, key=f'{key}/pos')
+        try:
+            epochs = Epoch.read_hdf(file_path, key=f'{key}/epochs')
+        except KeyError as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key.  'No object named test_pfnd/epochs in the file'
+            epochs = None
+        except Exception as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key
+            print(f'Unhandled exception {e}')
+            raise e
+        
+        spikes_df = SpikesAccessor.read_hdf(file_path, key=f'{key}/spikes')
+
+        # Open the file with h5py to read attributes
+        with h5py.File(file_path, 'r') as f:
+            group = f[key]
+            position_srate = group.attrs['position_srate']
+            ndim = group.attrs['ndim'] # Assuming you'll use it somewhere else if needed
+
+            # Read the config attributes
+            config_dict = {
+                'speed_thresh': group.attrs['config/speed_thresh'],
+                'grid_bin': tuple(group.attrs['config/grid_bin']),
+                'grid_bin_bounds': tuple(group.attrs['config/grid_bin_bounds']),
+                'smooth': tuple(group.attrs['config/smooth']),
+                'frate_thresh': group.attrs['config/frate_thresh']
+            }
+
+        # Create a PlacefieldComputationParameters object from the config_dict
+        config = PlacefieldComputationParameters(**config_dict)
+
+        # Reconstruct the object using the from_config_values class method
+        return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
+    
 
 # ==================================================================================================================== #
 # Global Placefield Computation Functions                                                                              #

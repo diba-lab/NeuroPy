@@ -2,12 +2,23 @@ from importlib import metadata
 import warnings
 from warnings import warn
 import numpy as np
+from nptyping import NDArray
 import pandas as pd
+import portion as P # Required for interval search: portion~=2.3.0
+
+from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable, DataFrameInitializable
 from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin, TimeColumnAliasesProtocol
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, deduplicate_epochs # for EpochsAccessor's .get_non_overlapping_df()
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
+
+""" 
+from neuropy.core.epoch import NamedTimerange, EpochsAccessor, Epoch
+
+"""
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
     """ A simple named period of time with a known start and end time """
     def __init__(self, name, start_end_times):
@@ -45,11 +56,14 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     
     _time_column_name_synonyms = {"start":{'begin','start_t'},
             "stop":['end','stop_t'],
-            "label":['name', 'id', 'flat_replay_idx']
+            "label":['name', 'id', 'flat_replay_idx','lap_id']
         }
+    
+
+    _required_column_names = ['start', 'stop', 'label', 'duration']
 
     def __init__(self, pandas_obj):
-        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict=self._time_column_name_synonyms) 
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict=self._time_column_name_synonyms)       #@IgnoreException 
         pandas_obj = self._validate(pandas_obj)
         self._obj = pandas_obj
         self._obj = self._obj.sort_values(by=["start"]) # sorts all values in ascending order
@@ -62,7 +76,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
     @classmethod
     def _validate(cls, obj):
-        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('neuron_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
         return obj # important! Must return the modified obj to be assigned (since its columns were altered by renaming
 
     @property
@@ -73,6 +87,11 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     @property
     def starts(self):
         return self._obj.start.values
+
+    @property
+    def midtimes(self): # -> NDArray
+        """ since each epoch is given by a (start, stop) time, the midtimes are the center of this epoch. """
+        return self._obj.start.values + ((self._obj.stop.values - self._obj.start.values)/2.0)
 
     @property
     def stops(self):
@@ -117,30 +136,57 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     def labels(self):
         return self._obj.label.values
 
+
+    @property
+    def extra_data_column_names(self):
+        """Any additional columns in the dataframe beyond those that exist by default. """
+        return list(set(self._obj.columns) - set(self._required_column_names))
+        
+    @property
+    def extra_data_dataframe(self) -> pd.DataFrame:
+        """The subset of the dataframe containing additional information in its columns beyond that what is required. """
+        return self._obj[self.extra_data_column_names]
+
     def as_array(self):
         return self._obj[["start", "stop"]].to_numpy()
 
     def get_unique_labels(self):
         return np.unique(self.labels)
 
+    def get_start_stop_tuples_list(self):
+        """ returns a list of (start, stop) tuples. """
+        return list(zip(self.starts, self.stops))
+
     def get_valid_df(self):
         """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
         return self._obj.copy()
 
     ## Handling overlapping
-    def get_non_overlapping_df(self, debug_print=False):
+    def get_non_overlapping_df(self, debug_print=False) -> pd.DataFrame:
         """ Returns a dataframe with overlapping epochs removed. """
         ## 2023-02-23 - PortionInterval approach to ensuring uniqueness:
         from neuropy.utils.efficient_interval_search import convert_PortionInterval_to_epochs_df, _convert_start_end_tuples_list_to_PortionInterval
+        ## Capture dataframe properties beyond just the start/stop times:
+        
+        # _intermedia_start_end_tuples_list = self.get_start_stop_tuples_list()
+        _intermediate_portions_interval: P.Interval = _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
+        filtered_epochs_df = convert_PortionInterval_to_epochs_df(_intermediate_portions_interval)
+        # is_epoch_included = np.array([(a_tuple.start, a_tuple.stop) in _intermedia_start_end_tuples_list for a_tuple in list(filtered_epochs_df.itertuples(index=False))])
+
+        
         if debug_print:
-            before_num_rows = self.n_epochs        
-            filtered_epochs = convert_PortionInterval_to_epochs_df(_convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops)))
-            after_num_rows = np.shape(filtered_epochs)[0]
+            before_num_rows = self.n_epochs
+            filtered_epochs_df = convert_PortionInterval_to_epochs_df(_intermediate_portions_interval)
+            after_num_rows = np.shape(filtered_epochs_df)[0]
             changed_num_rows = after_num_rows - before_num_rows
             print(f'Dataframe Changed from {before_num_rows} -> {after_num_rows} ({changed_num_rows = })')
-            return filtered_epochs
+            return filtered_epochs_df
         else:
-            return convert_PortionInterval_to_epochs_df(_convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops)))
+            
+            
+            return filtered_epochs_df
+
+
 
     def get_epochs_longer_than(self, minimum_duration, debug_print=False):
         """ returns a copy of the dataframe contining only epochs longer than the specified minimum_duration. """
@@ -189,7 +235,10 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
 
 
-class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
+class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
+    """ An Epoch object holds one ore more periods of time (marked by start/end timestamps) along with their corresponding metadata.
+
+    """
     def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
@@ -228,6 +277,12 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         return self.stops - self.starts
 
     @property
+    def midtimes(self): # NDArray
+        """ since each epoch is given by a (start, stop) time, the midtimes are the center of this epoch. """
+        return self._df.epochs.midtimes
+
+
+    @property
     def n_epochs(self):
         return self._df.epochs.n_epochs
     @property
@@ -240,13 +295,6 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def get_named_timerange(self, epoch_name):
         return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
 
-    def to_dict(self, recurrsively=False):
-        d = {"epochs": self._df, "metadata": self.metadata}
-        return d
-
-    def to_dataframe(self):
-        df = self._df.copy()
-        return df
 
     @property
     def metadata(self):
@@ -255,7 +303,6 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     @metadata.setter
     def metadata(self, metadata):
         """metadata compatibility"""
-
         self._metadata = metadata
 
     def _check_epochs(self, epochs):
@@ -386,14 +433,10 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
                 
         return curr_epochs
 
-
-
     def to_dict(self, recurrsively=False):
-        return {
-            "epochs": self._df,
-            "metadata": self._metadata,
-        }
-
+        d = {"epochs": self._df, "metadata": self._metadata}
+        return d
+    
     @staticmethod
     def from_dict(d: dict):
         return Epoch(d["epochs"], metadata=d["metadata"])
@@ -508,6 +551,7 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
         return np.histogram(mid_times, bins=bins)[0]
 
     def to_neuroscope(self, ext="PHO"):
+        """ exports to a Neuroscope compatable .evt file. """
         assert self.filename is not None
         out_filepath = self.filename.with_suffix(f".{ext}.evt")
         with out_filepath.open("w") as a:
@@ -529,3 +573,60 @@ class Epoch(StartStopTimesMixin, TimeSlicableObjectProtocol, DataWriter):
     def get_non_overlapping(self, debug_print=False):
         """ Returns a copy with overlapping epochs removed. """
         return Epoch(epochs=self._df.epochs.get_non_overlapping_df(debug_print=debug_print), metadata=self.metadata)
+    
+
+    # HDF5 Serialization _________________________________________________________________________________________________ #
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pos_obj: Position = long_one_step_decoder_1D.pf.position
+            _pos_obj.to_hdf(hdf5_output_path, key='pos')
+        """
+        _df = self.to_dataframe()
+        _df.to_hdf(path_or_buf=file_path, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
+        return
+    
+        # # create_group
+        # a_key = Path(key)
+        # with tb.open_file(file_path, mode='r+') as f:
+        #     # group = f.create_group(str(a_key.parent), a_key.name, title='epochs.', createparents=True)
+        #     group = f.get_node(str(a_key.parent))
+        #     # group = f[key]
+        #     table = f.create_table(group, a_key.name, EpochTable, "Epochs")
+        #     # Serialization
+        #     for i, t_start, t_stop, a_label in zip(np.arange(self.n_epochs), self.starts, self.stops, self.labels):
+        #         row = table.row
+        #         row['t_start'] = t_start
+        #         row['t_end'] = t_stop  # Provide an appropriate session identifier here
+        #         row['label'] = str(a_label)
+        #         row.append()
+                
+        #     table.flush()
+        #     # Metadata:
+        #     group.attrs['t_start'] = self.t_start
+        #     group.attrs['t_stop'] = self.t_stop
+        #     group.attrs['n_epochs'] = self.n_epochs
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "Epoch":
+        """  Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pos_obj = Epoch.read_hdf(hdf5_output_path, key='pos')
+            _reread_pos_obj
+        """
+        _df = pd.read_hdf(file_path, key=key, **kwargs)
+        return cls(_df, metadata=None) # TODO: recover metadata
+
+
+    # DataFrameInitializable Conformances ________________________________________________________________________________ #
+    
+    def to_dataframe(self):
+        df = self._df.copy()
+        return df
+    
+    @classmethod
+    def from_dataframe(cls, df):
+        return cls(df)

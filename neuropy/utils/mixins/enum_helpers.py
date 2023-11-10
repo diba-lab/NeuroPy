@@ -45,6 +45,60 @@ from enum import Enum
         FileProgressAction.build_member_value_dict(['from','to',':']) # {<FileProgressAction.LOADING: 'Loading'>: 'from', <FileProgressAction.SAVING: 'Saving'>: 'to', <FileProgressAction.GENERIC: 'Generic'>: ':'}
 
 """
+
+class StringLiteralComparableEnum(Enum):
+    """Enables comparison and equivalence with its literal values. Gets around class reloading issues with autoreloading comparisons failing after types have been updated.
+    
+    
+    Usage:
+    
+    from neuropy.utils.mixins.enum_helpers import StringLiteralComparableEnum
+    
+    # Define your custom enum type:
+    class UnitColoringMode(StringLiteralComparableEnum):
+        PRESERVE_FRAGILE_LINEAR_NEURON_IDXS = "preserve_fragile_linear_neuron_IDXs"
+        COLOR_BY_INDEX_ORDER = "color_by_index_order"
+        
+    test1 = UnitColoringMode.PRESERVE_FRAGILE_LINEAR_NEURON_IDXS
+    test2 = UnitColoringMode.COLOR_BY_INDEX_ORDER
+
+    assert isinstance(test1.value, str), f"Value of enum must be string"
+    assert test1.value == "preserve_fragile_linear_neuron_IDXs"
+    assert test1 != test2
+    assert test1 == "preserve_fragile_linear_neuron_IDXs"
+    assert test1 == "preserve_fragile_linear_NEURON_IDXs"
+    assert test1 != "color_by_index_order" # compare to wrong value
+    assert test1 != "a_fake_value" # compare to fake value
+
+    """
+    # PRESERVE_FRAGILE_LINEAR_NEURON_IDXS = "preserve_fragile_linear_neuron_IDXs"
+    # COLOR_BY_INDEX_ORDER = "color_by_index_order"
+    
+    def __hash__(self):
+        """ custom hash function that allows use in dictionary just based off of the value and not the object instance. """
+        return hash(self.value)
+    
+    def __eq__(self, other) -> bool:
+        """Overrides the default implementation to allow equality with string literals by value or name """
+        if isinstance(other, str):
+             # if the other is a string, return true if either name or value match
+            return (other.casefold() == self.value.casefold()) or (other.casefold() == self.name.casefold())
+        elif hasattr(other, 'value'):
+            assert isinstance(other.value, str)
+            return (other.value.casefold() == self.value.casefold())
+        elif hasattr(other, 'name'):
+            assert isinstance(other.name, str)
+            return (other.name.casefold() == self.name.casefold())
+        else:
+            return super(StringLiteralComparableEnum, self).__eq__(other)
+            # return super().__eq__(other)
+            # raise TypeError
+        
+        # elif isinstance(other, type(self)):
+        #     # return super().__eq__(other) # Use the standard equality if it's of the same type
+        #     return Enum.__eq__(self, other)
+
+
 class ExtendedEnum(Enum):
     """ Allows Inheritors to list their members, values, and names as lists
 

@@ -2,6 +2,7 @@ import types
 from collections import namedtuple
 from enum import Enum, IntEnum, auto, unique
 from itertools import islice
+from typing import Tuple
 import numpy as np
 import pandas as pd
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
@@ -10,6 +11,8 @@ import collections
 import _collections_abc as cabc
 import abc
 
+from datetime import datetime
+from enum import unique, Enum
 
 
 
@@ -175,6 +178,35 @@ def shuffle_ids(neuron_ids, seed:int=1337):
     return neuron_ids[shuffle_IDXs], shuffle_IDXs
 
 
+
+def build_shuffled_ids(neuron_ids, num_shuffles: int = 1000, seed:int=1337, debug_print=False) -> Tuple[np.ndarray, np.ndarray]:
+	""" Builds `num_shuffles` of the neuron_ids and returns both shuffled_aclus and shuffled_IDXs
+	
+	Uses numpy 2023-10-20 best practices for random number generation.
+	
+	Shuffled.
+    
+    Returns:
+        shuffled_aclus.shape # .shape: (num_shuffles, n_neurons)
+        shuffled_IDXs.shape # .shape: (num_shuffles, n_neurons)
+        
+	"""
+	rng = np.random.default_rng(seed=seed)
+	
+	shuffled_IDXs = np.tile(np.arange(len(neuron_ids)), (num_shuffles, 1)) # not shuffled yet, just duplicated because shuffling a multidim array only occurs along the first axis.
+	shuffled_aclus = np.tile(neuron_ids, (num_shuffles, 1)) # not shuffled yet, just duplicated because shuffling a multidim array only occurs along the first axis.
+	for i in np.arange(num_shuffles):
+		# shuffle in place
+		rng.permuted(shuffled_IDXs[i], axis=0, out=shuffled_IDXs[i])
+		shuffled_aclus[i,:] = shuffled_aclus[i,:][shuffled_IDXs[i]] # sort the row's aclus by the shuffled indicies
+
+	if debug_print:
+		# shuffled_aclus.shape # .shape: (num_shuffles, n_neurons)
+		print(f'shuffled_IDXs.shape: {np.shape(shuffled_IDXs)}')
+	return shuffled_aclus, shuffled_IDXs
+
+
+
 # ==================================================================================================================== #
 # Dictionary Helpers                                                                                                   #
 # ==================================================================================================================== #
@@ -235,7 +267,7 @@ def safe_item(arr: np.ndarray, *args, default=None):
         safe_item(np.array([]), default=-1) # -1
     """
     try:
-        return arr.item(*args)
+        return arr.item(*args)  #@IgnoreException 
     except ValueError as e:
         return default
 
@@ -317,13 +349,14 @@ def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, 
     
     
     By default lookup_properties_map_df can be obtained from curr_active_pipeline.sess.neurons._extended_neuron_properties_df and has the columns:
-        ['aclu', 'qclu', 'cell_type', 'shank', 'cluster']
+        ['aclu', 'qclu', 'neuron_type', 'shank', 'cluster']
     Which will be added to the spikes_df
     
     WARNING: the df will be unsorted after this operation, and you'll need to sort it again if you want it sorted
     
     
     Usage:
+        from neuropy.utils.misc import add_explicit_dataframe_columns_from_lookup_df
         curr_active_pipeline.sess.flattened_spiketrains._spikes_df = add_explicit_dataframe_columns_from_lookup_df(curr_active_pipeline.sess.spikes_df, curr_active_pipeline.sess.neurons._extended_neuron_properties_df)
         curr_active_pipeline.sess.spikes_df.sort_values(by=['t_seconds'], inplace=True) # Need to re-sort by timestamps once done
         curr_active_pipeline.sess.spikes_df
@@ -337,3 +370,45 @@ def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, 
     # df = pd.merge(subset_neurons_properties_df, df, on=join_column_name, how='outer', suffixes=('_neurons_properties', '_spikes_df'))
     return pd.merge(df, subset_neurons_properties_df, on=join_column_name, how='left', suffixes=('_neurons_properties', '_spikes_df'), copy=False) # avoids copying if possible
 
+
+# ==================================================================================================================== #
+# Date/Time Helpers                                                                                                    #
+# ==================================================================================================================== #
+
+@unique
+class DateTimeFormat(Enum):
+    """Converts between datetime and string
+    
+    Usage:
+    
+        from neuropy.utils.misc import DateTimeFormat
+        
+        now = datetime.now()
+
+        # Convert datetime to string
+        s = DateTimeFormat.WHOLE_SECONDS.datetime_to_string(now)
+        print(s)
+
+        # Convert string back to datetime
+        dt = DateTimeFormat.WHOLE_SECONDS.string_to_datetime(s)
+        print(dt)
+
+    """
+    WHOLE_SECONDS = "%Y-%m-%dT%H-%M-%S" # Format the date and time in ISO 8601 format, without fractional seconds
+    FRACTIONAL_SECONDS = "%Y-%m-%dT%H-%M-%S.%f" # Format the date and time in ISO 8601 format, but replace the ':' (which is illegal in filenames) with '-'
+
+    def datetime_to_string(self, dt: datetime) -> str:
+        return dt.strftime(self.value)
+
+    def string_to_datetime(self, s: str) -> datetime:
+        return datetime.strptime(s, self.value)
+
+    @property
+    def now_string(self) -> str:
+        """Get the current date and time as an appropriately formatted string
+        Usage:
+            from neuropy.utils.misc import DateTimeFormat
+            DateTimeFormat.WHOLE_SECONDS.now_string
+        """
+        return self.datetime_to_string(datetime.now())
+        

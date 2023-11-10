@@ -43,8 +43,8 @@ class DataSessionPanelMixin:
         # # tabs = pn.Tabs(('epochs',epochs_df_widget), ('laps',laps_df_widget), ('position',position_df_widget), dynamic=True)
         # # neurons_plot = plot_raster(sess.neurons, color='jet',add_vert_jitter=True)
         spikes_df = deepcopy(sess.spikes_df)
-        #@ workaround to permit display of the Enum-typed 'cell_type' column. Otherwise we get a JSON-encodable error:
-        spikes_df.loc[:, 'cell_type'] = np.array([a_type.name for a_type in spikes_df['cell_type'].values])
+        #@ workaround to permit display of the Enum-typed 'neuron_type' column. Otherwise we get a JSON-encodable error:
+        spikes_df.loc[:, 'neuron_type'] = np.array([a_type.name for a_type in spikes_df['neuron_type'].values])
         spikes_df_widget = pn.Column(pn.widgets.StaticText(name='spikes_df', value=f'Spikes {_print_df_shape(spikes_df)} (flattened spiketrains)'), 
                                     pn.widgets.Tabulator(spikes_df, name='spikes_df', pagination='remote', page_size=max_page_items, hidden_columns=[], disabled=True))
 

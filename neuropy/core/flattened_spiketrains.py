@@ -7,16 +7,18 @@ from neuropy.utils.misc import safe_pandas_get_group
 module_logger = logging.getLogger('com.PhoHale.neuropy') # create logger
 import numpy as np
 import pandas as pd
+import h5py
 from copy import deepcopy
 
-from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple, NeuronType
 from neuropy.utils.mixins.binning_helpers import BinningInfo # for add_binned_time_column
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
-from .neurons import NeuronType
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 
 @pd.api.extensions.register_dataframe_accessor("spikes")
@@ -30,9 +32,16 @@ class SpikesAccessor(TimeSlicedMixin):
 
     @staticmethod
     def _validate(obj):
-        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('cell_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """       
-        if "aclu" not in obj.columns or "cell_type" not in obj.columns:
-            raise AttributeError("Must have unit id column 'aclu' and 'cell_type' column.")
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('neuron_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """
+        # Rename column 'cell_type' to 'neuron_type'
+        if "aclu" not in obj.columns:
+            raise AttributeError(f"Must have unit id column 'aclu'. obj.columns: {list(obj.columns)}")
+        if "neuron_type" not in obj.columns:
+            if "cell_type" in obj.columns:
+                print(f'WARN: SpikesAccessor._validate(...): renaming "cell_type" column to "neuron_type".')
+                obj.rename(columns={'cell_type': 'neuron_type'}, inplace=True)
+            else:
+                raise AttributeError(f"Must have unit id column 'aclu' and 'neuron_type' column. obj.columns: {list(obj.columns)}")
         if "flat_spike_idx" not in obj.columns:
             raise AttributeError("Must have 'flat_spike_idx' column.")
         if "t" not in obj.columns and "t_seconds" not in obj.columns and "t_rel_seconds" not in obj.columns:
@@ -56,7 +65,6 @@ class SpikesAccessor(TimeSlicedMixin):
             module_logger.warning(f"\t time variable changed from '{original_time_variable_name}' to '{new_time_variable_name}'.")
             print('\t time variable changed!')
         
-
     @property
     def times(self):
         """ convenience property to access the times of the spikes in the dataframe 
@@ -69,7 +77,6 @@ class SpikesAccessor(TimeSlicedMixin):
         """ return the unique cell identifiers (given by the unique values of the 'aclu' column) for this DataFrame """
         unique_aclus = np.unique(self._obj['aclu'].values)
         return unique_aclus
-    
     
     @property
     def neuron_probe_tuple_ids(self):
@@ -97,11 +104,16 @@ class SpikesAccessor(TimeSlicedMixin):
             included_neuron_ids = self.neuron_ids
         return [safe_pandas_get_group(self._obj.groupby('aclu'), neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
     
+    def sliced_by_neuron_id(self, included_neuron_ids):
+        """ gets the slice of spikes with the specified `included_neuron_ids` """
+        if included_neuron_ids is None:
+            included_neuron_ids = self.neuron_ids
+        return self._obj[self._obj['aclu'].isin(included_neuron_ids)] ## restrict to only the shared aclus for both short and long
+        
     def get_unit_spiketrains(self, included_neuron_ids=None):
         """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
         return np.asarray([a_unit_spikes_df[self.time_variable_name].to_numpy() for a_unit_spikes_df in self.get_split_by_unit(included_neuron_ids=included_neuron_ids)])
         
-
     def sliced_by_neuron_type(self, query_neuron_type):
         """ returns a copy of self._obj filtered by the specified query_neuron_type, only returning neurons that match.
             e.g. query_neuron_type = NeuronType.PYRAMIDAL 
@@ -117,11 +129,27 @@ class SpikesAccessor(TimeSlicedMixin):
         except Exception as e:
             raise e
         
-        # Compare via .shortClassName for both query_neuron_type and self._obj.cell_type
-        inclusion_mask = np.isin(np.array([a_type.shortClassName for a_type in self._obj.cell_type]), [query_neuron_type.shortClassName])
+        # Compare via .shortClassName for both query_neuron_type and self._obj.neuron_type
+        inclusion_mask = np.isin(np.array([a_type.shortClassName for a_type in self._obj.neuron_type]), [query_neuron_type.shortClassName])
         return self._obj.loc[inclusion_mask, :].copy()
-        # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.cell_type]), [query_neuron_type.shortClassName])]
+        # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.neuron_type]), [query_neuron_type.shortClassName])]
         
+    def extract_unique_neuron_identities(self):
+        """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
+        selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type']
+        unique_rows_df = self._obj[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu. 
+        assert len(unique_rows_df) == self.n_neurons, f"if this were false that would suggest that there are multiple entries for aclus. n_neurons: {self.n_neurons}, {len(unique_rows_df) =}"
+        return unique_rows_df
+
+        # # Extract the selected columns as NumPy arrays
+        # aclu_array = unique_rows_df['aclu'].values
+        # shank_array = unique_rows_df['shank'].values
+        # cluster_array = unique_rows_df['cluster'].values
+        # qclu_array = unique_rows_df['qclu'].values
+        # neuron_type_array = unique_rows_df['neuron_type'].values
+        # neuron_types_enum_array = np.array([neuronTypesEnum[a_type.hdfcodingClassName] for a_type in neuron_type_array]) # convert NeuronTypes to neuronTypesEnum
+        
+
 
     # ==================================================================================================================== #
     # Additive Mutating Functions: Adds or Update Columns in the Dataframe                                                 #
@@ -226,7 +254,8 @@ class SpikesAccessor(TimeSlicedMixin):
         
         """
         spike_timestamp_column_name = self.time_variable_name # 't_rel_seconds'
-        if not (np.shape(time_window_edges)[0] < np.shape(self._obj)[0]):
+        # if not (np.shape(time_window_edges)[0] < np.shape(self._obj)[0]): # 2023-10-05 - This was the condition that was evaluated despite it contradicting the verbally written description below "spikes_df[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])} should be less than time_window_edges: {np.shape(time_window_edges)"
+        if not (np.shape(self._obj[spike_timestamp_column_name])[0] < np.shape(time_window_edges)[0]): # 2023-10-05 - This was the condition that was evaluated despite it contradicting the verbally written description below "spikes_df[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])} should be less than time_window_edges: {np.shape(time_window_edges)"
             print('WARNING: PREVIOUSLY ASSERT: ')
             print(f'\t spikes_df[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!') # 2023-03-06 - I no longer know why this should be the case.... more spikes than time windows?
             # assert np.shape(time_window_edges)[0] < np.shape(self._obj)[0], f'self._obj[time_variable_name]: {np.shape(self._obj[time_variable_name])} should be less than time_window_edges: {np.shape(time_window_edges)}!'
@@ -240,11 +269,75 @@ class SpikesAccessor(TimeSlicedMixin):
         self._obj['binned_time'] = pd.cut(self._obj[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
         return self._obj
 
-    
+    def adding_lap_identity_column(self, laps_epoch_df, epoch_id_key_name:str='new_lap_IDX'):
+        """ Adds the lap IDX column to the spikes df from a set of lap epochs.
+
+            spikes: curr_active_pipeline.sess.spikes_df
+            adds column 'new_lap_IDX' to spikes df.
+            
+            # Created Columns:
+                'new_lap_IDX'
+
+        """
+        if epoch_id_key_name in self._obj.columns:
+            print(f'column "{epoch_id_key_name}" already exists in df! Skipping recomputation.')
+            return
+        else:
+            from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
+            from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+
+            spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
+            self._obj[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
+            self._obj = add_epochs_id_identity(self._obj, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            return self._obj
 
 
 
-class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path 
+        Usage:
+
+        .spikes.to_hdf(
+        """
+        _spikes_df = deepcopy(self._obj)
+        # Convert the 'neuron_type' column of the dataframe to the categorical type if needed
+        cat_type = NeuronType.get_pandas_categories_type()
+        if _spikes_df["neuron_type"].dtype != cat_type:
+            # If this type check ever becomes a problem and we want a more liberal constraint, All instances of CategoricalDtype compare equal to the string 'category'.
+            _spikes_df["neuron_type"] = _spikes_df["neuron_type"].apply(lambda x: x.hdfcodingClassName).astype(cat_type) # NeuronType can't seem to be cast directly to the new categorical type, it results in the column being filled with NaNs. Instead cast to string first.
+
+        # Store DataFrame using pandas
+        with pd.HDFStore(file_path) as store:
+            _spikes_df.to_hdf(store, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
+
+        # Open the file with h5py to add attributes
+        with h5py.File(file_path, 'r+') as f:
+            _ds = f[key]
+            _ds.attrs['time_variable_name'] = self.time_variable_name
+            _ds.attrs['n_neurons'] = self.n_neurons
+            # You can add more attributes here as needed
+            # _ds.attrs['neuron_ids'] = self.neuron_ids
+            # _ds.attrs['neuron_probe_tuple_ids'] = self.neuron_probe_tuple_ids
+
+
+       
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> pd.DataFrame:
+        """  Reads the data from the key in the hdf5 file at file_path         
+        # TODO 2023-07-30 13:05: - [ ] interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+            - UPDATE: I think adding `.astype(str)` to the end of the conversion resolves it and makes the type the same as it started. Still not sure if it would be better to leave it a categorical because I think it's more space efficient and better than it started anyway.
+        """
+        _spikes_df = pd.read_hdf(file_path, key=key, **kwargs)
+        # Convert the 'neuron_type' column back to its original type (e.g., a custom class NeuronType)
+        # .astype(object)
+
+        _spikes_df["neuron_type"] = _spikes_df["neuron_type"].apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+        
+        return _spikes_df
+
+
+
+class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlicableObjectProtocol, TimeSlicableObjectProtocol, DataWriter):
     """Class to hold flattened spikes for all cells"""
     # flattened_sort_indicies: allow you to sort any naively flattened array (such as position info) using naively_flattened_variable[self.flattened_sort_indicies]
     def __init__(self, spikes_df: pd.DataFrame, time_variable_name = 't_rel_seconds', t_start=0.0, metadata=None):
@@ -254,15 +347,6 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         self.t_start = t_start
         self.metadata = metadata
         
-    # @staticmethod
-    # def from_separate_flattened_variables(flattened_sort_indicies: np.ndarray, flattened_spike_identities: np.ndarray,
-    #     flattened_spike_times: np.ndarray, t_start=0.0, metadata=None):
-    #     self.flattened_sort_indicies = flattened_sort_indicies
-    #     self.flattened_spike_identities = flattened_spike_identities
-    #     self.flattened_spike_times = flattened_spike_times
-        
-    #     'qclu'
-
     @property
     def spikes_df(self):
         """The spikes_df property."""
@@ -297,13 +381,10 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
     def from_dict(d: dict):
         return FlattenedSpiketrains(d["spikes_df"], t_start=d.get('t_start',0.0), time_variable_name=d.get('time_variable_name','t_rel_seconds'), metadata=d.get('metadata',None))
     
-    
-    
     def to_dataframe(self):
         df = self._spikes_df.copy()
         # df['t_start'] = self.t_start
         return df
-
 
     def time_slice(self, t_start=None, t_stop=None):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
@@ -329,7 +410,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
             print('error!')
             return []
         flattened_spiketrains = deepcopy(self)
-        included_df = flattened_spiketrains.spikes_df[(flattened_spiketrains.spikes_df.cell_type == query_neuron_type)]
+        included_df = flattened_spiketrains.spikes_df[(flattened_spiketrains.spikes_df.neuron_type == query_neuron_type)]
         return FlattenedSpiketrains(included_df, t_start=flattened_spiketrains.t_start, metadata=flattened_spiketrains.metadata)
             
     # ConcatenationInitializable protocol:
@@ -346,8 +427,6 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         new_df = pd.concat([obj.to_dataframe() for obj in objList])
         return FlattenedSpiketrains(new_df, t_start=new_t_start, metadata=objList[0].metadata)
         
-        
-        
     @staticmethod
     def interpolate_spike_positions(spikes_df, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None, spike_timestamp_column_name='t_rel_seconds'):
         spikes_df['x'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_x)
@@ -357,8 +436,6 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         if position_speeds is not None:
             spikes_df['speed'] = np.interp(spikes_df[spike_timestamp_column_name], position_sampled_times, position_speeds)
         return spikes_df
-    
-    
 
     @staticmethod
     def build_spike_dataframe(active_session, timestamp_scale_factor=(1/1E4), spike_timestamp_column_name='t_rel_seconds', progress_tracing=True):
@@ -401,7 +478,7 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
                 'unit_id': np.array([int(active_session.neurons.reverse_cellID_index_map[original_cellID]) for original_cellID in flattened_spike_identities[flattened_sort_indicies]]),
                 'shank': flattened_spike_shank_identities[flattened_sort_indicies],
                 'intra_unit_spike_idx': flattened_spike_linear_unit_spike_idx[flattened_sort_indicies],
-                'cell_type': flattened_spike_types[flattened_sort_indicies]
+                'neuron_type': flattened_spike_types[flattened_sort_indicies]
                 }
             )
         
@@ -410,4 +487,21 @@ class FlattenedSpiketrains(ConcatenationInitializable, NeuronUnitSlicableObjectP
         # Renaming {'shank_id':'shank', 'flattened_spike_linear_unit_spike_idx':'intra_unit_spike_idx'}
         return spikes_df
 
-        
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path """
+        self.to_dataframe().spikes.to_hdf(file_path, key=key, **kwargs) # calls the .spikes accessor's .to_hdf(...) fcn above
+
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "FlattenedSpiketrains":
+        """  Reads the data from the key in the hdf5 file at file_path """
+        with h5py.File(file_path, 'r+') as f:
+            _ds = f[key]
+            time_variable_name = _ds.attrs['time_variable_name']
+            n_neurons = _ds.attrs['n_neurons']
+            
+        return cls(spikes_df=SpikesAccessor.read_hdf(file_path, key=key, **kwargs), time_variable_name=time_variable_name) # TODO: should recover: `, t_start=0.0, metadata=None`
+
+
+    

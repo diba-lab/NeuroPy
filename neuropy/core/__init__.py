@@ -1,7 +1,8 @@
 from .epoch import Epoch
 from .position import Position
 from .datawriter import DataWriter
-from .neurons import NeuronType, Neurons, BinnedSpiketrain, Mua
+from .neurons import Neurons, BinnedSpiketrain, Mua
+from .neuron_identities import NeuronType
 from .probe import Shank, Probe, ProbeGroup
 from .signal import Signal
 from .ratemap import Ratemap

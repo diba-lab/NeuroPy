@@ -1,4 +1,3 @@
-import traceback
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -188,11 +187,11 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         ## spikes_cell_info_out_dict: neuron properties
         flat_cell_ids = all_vars.spikes.spikes_cell_info_out_dict.aclu
         flat_cell_ids = np.array(flat_cell_ids)
-        cell_type = NeuronType.from_qclu_series(qclu_Series=all_vars.spikes.spikes_cell_info_out_dict.qclu)
+        neuron_type = NeuronType.from_qclu_series(qclu_Series=all_vars.spikes.spikes_cell_info_out_dict.qclu)
         shank_ids = all_vars.spikes.spikes_cell_info_out_dict.shank
         cluster_ids = all_vars.spikes.spikes_cell_info_out_dict.cluster # NOT USED
         
-        _test_neurons_properties_df = pd.DataFrame({'aclu': flat_cell_ids, 'qclu': all_vars.spikes.spikes_cell_info_out_dict.qclu, 'cell_type': cell_type, 'shank': shank_ids, 'cluster': cluster_ids})
+        _test_neurons_properties_df = pd.DataFrame({'aclu': flat_cell_ids, 'qclu': all_vars.spikes.spikes_cell_info_out_dict.qclu, 'neuron_type': neuron_type, 'shank': shank_ids, 'cluster': cluster_ids})
         _test_neurons_properties_df[['aclu','qclu','shank','cluster']] = _test_neurons_properties_df[['aclu','qclu','shank','cluster']].astype('int') # convert integer calumns to correct datatype
         ## Spike trains:
         spiketrains = np.array(all_vars.spikes.spike_list, dtype='object')
@@ -208,7 +207,7 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
         session.neurons = Neurons(spiketrains, t_stop, t_start=0,
             sampling_rate=dat_sampling_rate, # session.recinfo.dat_sampling_rate
             neuron_ids=flat_cell_ids,
-            neuron_type=cell_type,
+            neuron_type=neuron_type,
             shank_ids=shank_ids,
             extended_neuron_properties_df=_test_neurons_properties_df
         )

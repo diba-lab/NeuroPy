@@ -6,6 +6,8 @@ import sys, os
 from pathlib import Path
 from copy import deepcopy
 
+from neuropy.core.epoch import Epoch
+
 # Add Neuropy to the path as needed
 tests_folder = Path(os.path.dirname(__file__))
 
@@ -21,11 +23,13 @@ finally:
     from neuropy.core import Position, Neurons
     from neuropy.analyses.placefields import PlacefieldComputationParameters
     from neuropy.analyses.placefields import PfND
+    from neuropy.core.neuron_identities import NeuronType
+    from neuropy.core.flattened_spiketrains import SpikesAccessor, FlattenedSpiketrains
     from neuropy.utils.debug_helpers import debug_print_placefield, debug_print_subsession_neuron_differences
     from neuropy.utils.debug_helpers import debug_print_ratemap, debug_print_spike_counts, debug_plot_2d_binning, compare_placefields_info
     from neuropy.utils.debug_helpers import parameter_sweeps, _plot_parameter_sweep
     from neuropy.utils.debug_helpers import print_aligned_columns
-
+    
 def _compute_parameter_sweep(spikes_df, active_pos, all_param_sweep_options: dict) -> dict:
     """ Computes the PfNDs for all the swept parameters (combinations of grid_bin, smooth, etc)
     
@@ -68,10 +72,21 @@ class TestPlacefieldsMethods(unittest.TestCase):
         self.spikes_df = pd.read_hdf(finalized_testing_file, key=f'{sess_identifier_key}/spikes_df')
         active_pos_df = pd.read_hdf(finalized_testing_file, key=f'{sess_identifier_key}/pos_df')
         self.active_pos = active_pos_df.position.to_Position_obj() # convert back to a full position object
+        self.epochs = None # Epoch(...) # Create an Epoch object as needed
+        
+        # Create a PfND object
+        self.config = PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=(2, 2), grid_bin_bounds=((29.16, 261.7), (130.23, 150.99)), smooth=(2.0, 2.0), frate_thresh=1.0)
+        self.pfnd = PfND(self.spikes_df, self.active_pos, self.epochs, config=self.config, position_srate=self.active_pos.sampling_rate)
+        self.hdf_tests_file = 'test_pfnd.h5'
+
+
 
     def tearDown(self):
-        pass
-        
+        # Clean up the test file
+        if os.path.exists(self.hdf_tests_file):
+            os.remove(self.hdf_tests_file)
+
+
     def assertMonotonicallyDecreasing(self, a_list):
         """ Assert that the list is monotonically decreasing """
         self.assertTrue(all(a_list[i] >= a_list[i+1] for i in range(len(a_list)-1)))
@@ -188,6 +203,53 @@ class TestPlacefieldsMethods(unittest.TestCase):
         # self.assertTrue(hash(obj1) == hash(obj2), f'Two objects with the same values should be equal, but they are not!')
         # self.assertTrue(obj1 == obj2, f'Two objects with the same values should be equal, but they are not!')
         # hash(obj1): 2090320457320539818, hash(obj2): 2090320457320539818!
+
+
+    def test_to_hdf(self):
+        # Write to HDF5
+        self.pfnd.to_hdf(self.hdf_tests_file, 'test_pfnd')
+
+        # Read back the DataFrames
+        read_position = Position.read_hdf(self.hdf_tests_file, 'test_pfnd/pos')
+        try:
+            read_epochs = Epoch.read_hdf(self.hdf_tests_file, 'test_pfnd/epochs')
+        except KeyError as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key.  'No object named test_pfnd/epochs in the file'
+            read_epochs = None
+        except Exception as e:
+            # epochs can be None, in which case the serialized object will not contain the f'{key}/epochs' key
+            print(f'Unhandled exception {e}')
+            raise e
+
+        read_spikes = SpikesAccessor.read_hdf(self.hdf_tests_file, 'test_pfnd/spikes')
+        # Check that the data matches the original
+        pd.testing.assert_frame_equal(read_position.df, self.active_pos.df)
+        pd.testing.assert_frame_equal(read_spikes, self.spikes_df) # AssertionError: Attributes of DataFrame.iloc[:, 14] (column name="cell_type") are different
+        if read_epochs is None:
+            self.assertIsNone(self.epochs)
+        else:
+            pd.testing.assert_frame_equal(read_epochs, self.epochs)
+        # Add checks for epochs and spikes as needed
+
+    def test_read_hdf(self):
+        # Write to HDF5
+        self.pfnd.to_hdf(self.hdf_tests_file, 'test_pfnd')
+
+        # Read back the PfND object
+        read_pfnd = PfND.read_hdf(self.hdf_tests_file, 'test_pfnd')
+
+        # Check that the data matches the original
+        pd.testing.assert_frame_equal(read_pfnd.position.df, self.active_pos.df) # almost equal but datatype of column different
+        pd.testing.assert_frame_equal(read_pfnd.spikes_df, self.spikes_df) # AssertionError: Attributes of DataFrame.iloc[:, 14] (column name="cell_type") are different
+        if read_pfnd.epochs is None:
+            self.assertIsNone(self.epochs)
+        else:
+            pd.testing.assert_frame_equal(read_pfnd.epochs, self.epochs)
+            
+        # Add checks for epochs and config as needed
+        #TODO 2023-07-30 11:34: - [ ] Partially tested, need to test `read_pfnd.config``
+
+
 
 if __name__ == '__main__':
     unittest.main()

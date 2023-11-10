@@ -1,24 +1,25 @@
-import traceback
+from copy import deepcopy
 import numpy as np
 import pandas as pd
+from typing import Dict, List, Optional
 from pathlib import Path
 from neuropy.analyses.placefields import PlacefieldComputationParameters
 from neuropy.core.epoch import NamedTimerange
-from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass
+from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatBaseRegisteredClass, find_local_session_paths
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec
+from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, ParametersContainer
 
 # For specific load functions:
 from neuropy.core import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
 from neuropy.utils.load_exported import import_mat_file
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 
-from neuropy.analyses.laps import estimate_session_laps # for estimation_session_laps
+from neuropy.analyses.laps import estimate_session_laps, build_lap_computation_epochs # for estimation_session_laps
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping # Used for adding laps in KDiba mode
 from neuropy.utils.dynamic_container import DynamicContainer
 from neuropy.utils.result_context import IdentifyingContext
-
+from neuropy.core.user_annotations import UserAnnotationsManager
 
 class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass):
     """
@@ -120,43 +121,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     ## Create a dictionary of overrides that have been specified manually for a given session:
     # Used in `build_lap_only_short_long_bin_aligned_computation_configs`
-    _specific_session_override_dict = { 
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((29.16, 261.70), (130.23, 150.99))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):{'grid_bin_bounds':((22.397021260868584, 245.6584673739576), (133.66465594522782, 155.97244934208123))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):{'grid_bin_bounds':((28.36, 244.82), (138.74, 156.39))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):{'grid_bin_bounds':(((29.088604852961407, 251.70402561515647), (138.496638485457, 154.30675703402517)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):{'grid_bin_bounds':(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):{'grid_bin_bounds':((28.54313873072426, 255.54313873072425), (-56.2405385510412, -12.237798967230454))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):{'grid_bin_bounds':(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):{'grid_bin_bounds':(((36.47611374385336, 246.658598426423), (134.75608863422366, 149.10512838805013)))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6'):{'grid_bin_bounds':(((34.889907585004366, 250.88049171752402), (131.38802948402946, 148.80548955773958)))},
-        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47'):{'grid_bin_bounds':(((37.58127153781621, 248.7032779553949), (133.5550653393467, 147.88514770982718)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47'):{'grid_bin_bounds':(((26.23480758754316, 249.30607830191923), (130.58181353748455, 153.36300919999059)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1'):{'grid_bin_bounds':(((31.470464455344967, 252.05028043482017), (128.05945067500747, 150.3229156741395)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40'):{'grid_bin_bounds':(((29.637787747400818, 244.6377877474008), (138.47834488369824, 155.0993015545914)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12'):{'grid_bin_bounds':(((27.16098236570231, 249.70986567911666), (106.81005068995495, 118.74413456592755)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'):{'grid_bin_bounds':(((28.84138997640293, 259.56043988873074), (101.90256273413083, 118.33845994931318)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38'):{'grid_bin_bounds':(((21.01014932647431, 250.0101493264743), (92.34934413366932, 128.1552287735411)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46'):{'grid_bin_bounds':(((17.270839996578303, 259.97986762679335), (94.26725170377283, 131.3621243061284)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59'):{'grid_bin_bounds':(((30.511181558838498, 247.5111815588389), (106.97411662767412, 146.12444016982818)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24'):{'grid_bin_bounds':(((30.473731136762368, 250.59478046470133), (105.10585244511995, 149.36442051808177)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'):{'grid_bin_bounds':(((27.439671363238585, 252.43967136323857), (106.37372678405141, 149.37372678405143)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15'):{'grid_bin_bounds':(((25.118453388111003, 253.3770388211908), (106.67602982073078, 145.67602982073078)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7'):{'grid_bin_bounds':(((22.47237613669028, 247.4723761366903), (109.8597911774777, 148.96242871522395)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40'):{'grid_bin_bounds':(((27.10059856429566, 249.16997904433555), (104.99819196992492, 148.0743732909197)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2'):{'grid_bin_bounds':(((19.0172498755827, 255.42277198494864), (110.04725120825609, 146.9523233129975)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55'):{'grid_bin_bounds':(((12.844282158261015, 249.81408485606906), (107.18107171696062, 147.5733884981106)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50'):{'grid_bin_bounds':(((29.04362374788327, 248.04362374788326), (104.87398380095135, 145.87398380095135)))},
-        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13'):{'grid_bin_bounds':(((14.219834349211556, 256.8892365192059), (104.62582591329034, 144.76901436952045)))},
-        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'):dict(grid_bin_bounds=(((26.927879930920472, 253.7869451377655), (129.2279041328145, 152.59317191760715)))),
-        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'):dict(grid_bin_bounds=(((20.551685242617875, 249.52142297024744), (136.6282885482392, 154.9308054334688)))),
-        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'):dict(grid_bin_bounds=(((22.2851382680749, 246.39985985110218), (133.85711719213543, 152.81579979839964)))),
-        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'):dict(grid_bin_bounds=(((24.27436551166163, 254.60064907635376), (136.60434348821698, 150.5038133052293)))),
-    }
-    
+    @classmethod
+    def get_specific_session_override_dict(cls) -> dict:
+        return UserAnnotationsManager.get_hardcoded_specific_session_override_dict()
+
 
     @classmethod
     def get_known_data_session_type_properties(cls, override_basepath=None):
@@ -176,14 +144,31 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         print(f'POSTLOAD_estimate_laps_and_replays()...')
         
         # 2023-05-16 - Laps conformance function (TODO 2023-05-16 - factor out?)
-        lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+        # lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+
+        lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
+        assert lap_estimation_parameters is not None
+
+        use_direction_dependent_laps: bool = lap_estimation_parameters.pop('use_direction_dependent_laps', True)
         sess.replace_session_laps_with_estimates(**lap_estimation_parameters, should_plot_laps_2d=False) # , time_variable_name=None
+        ## add `use_direction_dependent_laps` back in:
+        lap_estimation_parameters.use_direction_dependent_laps = use_direction_dependent_laps
+
         ## Apply the laps as the limiting computation epochs:
         # computation_config.pf_params.computation_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0)
+        if use_direction_dependent_laps:
+            print(f'.POSTLOAD_estimate_laps_and_replays(...): WARN: {use_direction_dependent_laps}')
+            # TODO: I think this is okay here.
 
+
+        # Get the non-lap periods using PortionInterval's complement method:
+        non_running_periods = Epoch.from_PortionInterval(sess.laps.as_epoch_obj().to_PortionInterval().complement()) # TODO 2023-05-24- Truncate to session .t_start, .t_stop as currently includes infinity, but it works fine.
+        
 
         # ## TODO 2023-05-19 - FIX SLOPPY PBE HANDLING
-        PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.300) # NewPaper's Parameters        
+        PBE_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.PBEs
+        assert PBE_estimation_parameters is not None
+        PBE_estimation_parameters.require_intersecting_epoch = non_running_periods # 2023-10-06 - Require PBEs to occur during the non-running periods, REQUIRED BY KAMRAN contrary to my idea of what PBE is.
         
         new_pbe_epochs = sess.compute_pbe_epochs(sess, active_parameters=PBE_estimation_parameters)
         sess.pbe = new_pbe_epochs
@@ -191,13 +176,15 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         # 2023-05-16 - Replace loaded replays (which are bad) with estimated ones:
         
-        # Get the non-lap periods using PortionInterval's complement method:
-        non_running_periods = Epoch.from_PortionInterval(sess.laps.as_epoch_obj().to_PortionInterval().complement()) # TODO 2023-05-24- Truncate to session .t_start, .t_stop as currently includes infinity, but it works fine.
-        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        # replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=sess.ripple, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
-        replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=non_running_periods, min_epoch_included_duration=0.06, max_epoch_included_duration=None, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=1.0, min_num_unique_aclu_inclusions=5)
+        
         
         # num_pre = session.replay.
+        replay_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.replays
+        assert replay_estimation_parameters is not None
+        ## Update the parameters with the session-specific values that couldn't be determined until after the session was loaded:
+        replay_estimation_parameters.require_intersecting_epoch = non_running_periods
+        replay_estimation_parameters.min_inclusion_fr_active_thresh = 1.0
+        replay_estimation_parameters.min_num_unique_aclu_inclusions = 5
         sess.replace_session_replays_with_estimates(**replay_estimation_parameters)
         
         # ### Get both laps and existing replays as PortionIntervals to check for overlaps:
@@ -211,12 +198,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         # TODO 2023-05-22: Write the parameters somewhere:
         replays = sess.replay.epochs.to_PortionInterval()
-        sess.config.preprocessing_parameters = DynamicContainer(epoch_estimation_parameters=DynamicContainer.init_from_dict({
-            'laps': lap_estimation_parameters,
-            'PBEs': PBE_estimation_parameters,
-            'replays': replay_estimation_parameters
-        }))
 
+        ## This is the inverse approach of the new method, which loads the parameters from `sess.config.preprocessing_parameters`
+        # sess.config.preprocessing_parameters = DynamicContainer(epoch_estimation_parameters=DynamicContainer.init_from_dict({
+        #     'laps': lap_estimation_parameters,
+        #     'PBEs': PBE_estimation_parameters,
+        #     'replays': replay_estimation_parameters
+        # }))
 
         return sess
 
@@ -278,75 +266,87 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         """ sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
 
-        # # Build the new laps first:
-        # sess = estimate_session_laps(sess)
-
-        # ## Lap-restricted computation epochs:
-        # is_non_overlapping_lap = get_non_overlapping_epochs(sess.laps.to_dataframe()[['start','stop']].to_numpy())
-        # only_good_laps_df = sess.laps.to_dataframe()[is_non_overlapping_lap]
-        # sess.laps = Laps(only_good_laps_df) # replace the laps object with the filtered one
-        # lap_specific_epochs = sess.laps.as_epoch_obj()
-        lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
-        any_lap_specific_epochs = lap_specific_epochs
-        # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
-        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
-        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
-        
-        # build_lap_only_computation_configs
+        ## Lap-restricted computation epochs:
+        lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
+        assert lap_estimation_parameters is not None
+        use_direction_dependent_laps: bool = lap_estimation_parameters['use_direction_dependent_laps'] # whether to split the laps into left and right directions
+        # print(f'use_direction_dependent_laps: {use_direction_dependent_laps}')
+        desired_computation_epochs = build_lap_computation_epochs(sess, use_direction_dependent_laps=use_direction_dependent_laps)
 
         # Lap-restricted computation epochs:
-        for i in np.arange(len(active_session_computation_configs)):
-            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
+        print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
+        final_active_session_computation_configs = []
         
-        return active_session_computation_configs
+        # if len(active_session_computation_configs) < len(desired_computation_epochs):
+        # Clone the configs for each epoch
+        for a_restricted_lap_epoch in desired_computation_epochs:
+            # for each lap to be used as a computation epoch:        
+            for i in np.arange(len(active_session_computation_configs)):
+                curr_config = deepcopy(active_session_computation_configs[i])
+                curr_config.pf_params.computation_epochs = a_restricted_lap_epoch # add the laps epochs to all of the computation configs.
+                final_active_session_computation_configs.append(curr_config)
+        
+        print(f'\tlen(final_active_session_computation_configs): {len(final_active_session_computation_configs)}')
+        return final_active_session_computation_configs
     
-
-
     @classmethod
     def build_lap_only_short_long_bin_aligned_computation_configs(cls, sess, **kwargs):
         """ 2023-05-16 - sets the computation intervals to only be performed on the laps """
         active_session_computation_configs = DataSessionFormatBaseRegisteredClass.build_default_computation_configs(sess, **kwargs)
-
-
         
-        
+        # Need one computation config for each lap (even/odd)
+        debug_print = kwargs.get('debug_print', False)
+        if debug_print:
+            print(f'build_lap_only_short_long_bin_aligned_computation_configs(...):')
 
         ## Lap-restricted computation epochs:
-        # Strangely many of the laps are overlapping. 82-laps in `sess.laps.as_epoch_obj()`, 77 in `sess.laps.as_epoch_obj().get_non_overlapping()`
-        lap_specific_epochs = sess.laps.as_epoch_obj().get_non_overlapping().filtered_by_duration(1.0, 30.0) # laps specifically for use in the placefields with non-overlapping, duration, constraints: the lap must be at least 1 second long and at most 30 seconds long
-        # any_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(len(sess.laps.lap_id))])
-        any_lap_specific_epochs = lap_specific_epochs
-        # even_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(0, len(sess.laps.lap_id), 2)])
-        # odd_lap_specific_epochs = lap_specific_epochs.label_slice(lap_specific_epochs.labels[np.arange(1, len(sess.laps.lap_id), 2)])
+        lap_estimation_parameters = sess.config.preprocessing_parameters.epoch_estimation_parameters.laps
+        assert lap_estimation_parameters is not None
+        use_direction_dependent_laps: bool = lap_estimation_parameters.get('use_direction_dependent_laps', False) # whether to split the laps into left and right directions
+        # print(f'use_direction_dependent_laps: {use_direction_dependent_laps}')
+        desired_computation_epochs = build_lap_computation_epochs(sess, use_direction_dependent_laps=use_direction_dependent_laps)
 
-        override_dict = cls._specific_session_override_dict.get(sess.get_context(), {})
+        ## Get specific grid_bin_bounds overrides from the `cls._specific_session_override_dict`
+        override_dict = cls.get_specific_session_override_dict().get(sess.get_context(), {})
         if override_dict.get('grid_bin_bounds', None) is not None:
             grid_bin_bounds = override_dict['grid_bin_bounds']
         else:
             # no overrides present
-            pos_df = sess.position.to_dataframe().copy()
-            if not 'lap' in pos_df.columns:
-                pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
-            laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
-            laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
-            print(f'laps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
-            grid_bin_bounds = laps_only_grid_bin_bounds
-            # ## Determine the grid_bin_bounds from the long session:
-            # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
-            # # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
-            # DO INTERACTIVE MODE:
-            # grid_bin_bounds = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input=True)
-            # print(f'grid_bin_bounds: {grid_bin_bounds}')
-            # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
+            raise NotImplementedError
+            # pos_df = sess.position.to_dataframe().copy()
+            # if not 'lap' in pos_df.columns:
+            #     pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
+            # laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
+            # laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
+            # print(f'\tlaps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
+            # grid_bin_bounds = laps_only_grid_bin_bounds
+            # # ## Determine the grid_bin_bounds from the long session:
+            # # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
+            # # # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
+            # # DO INTERACTIVE MODE:
+            # # grid_bin_bounds = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input=True)
+            # # print(f'grid_bin_bounds: {grid_bin_bounds}')
+            # # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
 
         # Lap-restricted computation epochs:
-        for i in np.arange(len(active_session_computation_configs)):
-            # active_session_computation_configs[i].pf_params.time_bin_size = 0.025
-            active_session_computation_configs[i].pf_params.grid_bin = (2, 2) # (2cm x 2cm)
-            active_session_computation_configs[i].pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
-            active_session_computation_configs[i].pf_params.computation_epochs = any_lap_specific_epochs # add the laps epochs to all of the computation configs.
+        if debug_print:
+            print(f'\tlen(active_session_computation_configs): {len(active_session_computation_configs)}')
+        final_active_session_computation_configs = []
+        
+        # if len(active_session_computation_configs) < len(desired_computation_epochs):
+        # Clone the configs for each epoch
+        for a_restricted_lap_epoch in desired_computation_epochs:
+            # for each lap to be used as a computation epoch:        
+            for i in np.arange(len(active_session_computation_configs)):
+                curr_config = deepcopy(active_session_computation_configs[i])
+                # curr_config.pf_params.time_bin_size = 0.025
+                curr_config.pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
+                curr_config.pf_params.computation_epochs = a_restricted_lap_epoch # add the laps epochs to all of the computation configs.
+                final_active_session_computation_configs.append(curr_config)
 
-        return active_session_computation_configs
+        if debug_print:    
+            print(f'\tlen(final_active_session_computation_configs): {len(final_active_session_computation_configs)}')
+        return final_active_session_computation_configs
 
     
     
@@ -411,7 +411,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # IIdata.mat file Position and Epoch:
         session = cls.__default_kdiba_exported_load_mats(session.basepath, session.name, session, time_variable_name=active_time_variable_name)
         
-        ## .spikeII.mat file:
+        ## .spikeII.mat file: 
+        # provides spikes `spikes_df`, `flat_spikes_out_dict`
         try:
             spikes_df, flat_spikes_out_dict = cls.__default_kdiba_pho_exported_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
         except FileNotFoundError as e:
@@ -419,6 +420,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             spikes_df, flat_spikes_out_dict = cls.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
             
         except Exception as e:
+            import traceback
             # print('e: {}.\n Trying to fall back to original .spikeII.mat file...'.format(e))
             track = traceback.format_exc()
             print(track)
@@ -460,6 +462,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             pass
         
         ## Neurons (by Cell):
+        # the `session.neurons` Neurons object which it builds from the `spikes_df` and `flat_spikes_out_dict` 
         session = cls.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(session.filePrefix.with_suffix(".probegroup.npy"))
         
@@ -473,6 +476,53 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         return session, loaded_file_record_list
  
+
+    @classmethod
+    def build_session_basedirs_dict(cls, global_data_root_parent_path, debug_print=False) -> Dict[IdentifyingContext, Path]:
+        """ generates a dict of session_ctx:basedir. Hardcoded for the KDIBA sessions.
+        
+        Does not check for existance of the basedirs
+
+        History: 2023-09-21 - Extracted from `pyphoplacecellanalysis.General.Batch.runBatch.run_diba_batch`
+        
+        """
+        if not isinstance(global_data_root_parent_path, Path):
+            global_data_root_parent_path = Path(global_data_root_parent_path).resolve()
+            
+        active_data_mode_name = cls._session_class_name
+        local_session_root_parent_context = IdentifyingContext(format_name=active_data_mode_name) # , animal_name='', configuration_name='one', session_name=self.session_name
+        local_session_root_parent_path = global_data_root_parent_path.joinpath('KDIBA')
+
+        animal_names = ['gor01', 'vvp01', 'pin01']
+        experiment_names_lists = [['one', 'two'], ['one', 'two'], ['one']] # there is no 'two' for animal 'pin01'
+        exclude_lists = [['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused'], [], [], [], ['redundant','showclus','sleep','tmaze']]
+
+        output_session_basedir_dict = {}
+        for animal_name, an_experiment_names_list, exclude_list in zip(animal_names, experiment_names_lists, exclude_lists):
+            for an_experiment_name in an_experiment_names_list:
+                local_session_parent_context = local_session_root_parent_context.adding_context(collision_prefix='animal', animal=animal_name, exper_name=an_experiment_name)
+                local_session_parent_path = local_session_root_parent_path.joinpath(local_session_parent_context.animal, local_session_parent_context.exper_name)
+                local_session_paths_list, local_session_names_list =  find_local_session_paths(local_session_parent_path, exclude_list=exclude_list, debug_print=debug_print)
+
+                if debug_print:
+                    print(f'local_session_paths_list: {local_session_paths_list}')
+                    print(f'local_session_names_list: {local_session_names_list}')
+
+                ## Build session contexts list:
+                local_session_contexts_list = [local_session_parent_context.adding_context(collision_prefix='sess', session_name=a_name) for a_name in local_session_names_list] # [IdentifyingContext<('kdiba', 'gor01', 'one', '2006-6-07_11-26-53')>, ..., IdentifyingContext<('kdiba', 'gor01', 'one', '2006-6-13_14-42-6')>]
+
+                # {a_ctx:a_path for a_ctx, a_path in zip(local_session_contexts_list, local_session_paths_list if a_ctx)}
+                output_session_basedir_dict.update(dict(zip(local_session_contexts_list, local_session_paths_list)))
+
+                # ## Initialize `session_batch_status` with the NOT_STARTED status if it doesn't already have a different status
+                # for curr_session_basedir, curr_session_context in zip(local_session_paths_list, local_session_contexts_list):
+                # 	# basedir might be different (e.g. on different platforms), but context should be the same
+                    
+
+        ## end for
+        return output_session_basedir_dict
+
+
     # ---------------------------------------------------------------------------- #
     #                     Extended Computation/Loading Methods                     #
     # ---------------------------------------------------------------------------- #
@@ -483,6 +533,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     @staticmethod
     def _default_compute_linear_position_if_needed(session, force_recompute=True):
+        """
+        # -[ ] TODO ISSUE 2023-06-05: `lin_pos` is apparently messed up when loaded from old files. 
+        """
+        
+
         # this is not general, this is only used for this particular flat kind of file:
         from neuropy.utils.position_util import RegularizationApproach # for `_default_compute_linear_position_if_needed`
 
@@ -584,16 +639,28 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # return the session with the upadated member variables
         return session
     
-    
+    @classmethod
+    def _spikes_df_post_process(cls, spikes_df):
+        """ Converts the ['theta', 'ripple', 'ph'] columns into the correct type and renames them to ["is_theta", "is_ripple", "theta_phase_radians"].
+            factors out reused code from __default_kdiba_pho_exported_spikeII_load_mat and __default_kdiba_spikeII_load_mat"""
+        # Convert and rename the 'theta' and 'ripple' variables which contain a zero or one indicating whether that activity (theta-activity or ripple-activity) is present for each spikes.
+        spikes_df[['theta', 'ripple']] = spikes_df[['theta', 'ripple']].astype('bool') # convert boolean calumns to correct datatype
+        spikes_df = spikes_df.rename(columns={"theta": "is_theta", "ripple": "is_ripple"})
+        # Extract the theta phase in radians:
+        spikes_df = spikes_df.rename(columns={"ph": "theta_phase_radians"})
+        spikes_df[['theta_phase_radians']] = spikes_df[['theta_phase_radians']].astype('float') 
+        return spikes_df
+
     @classmethod
     def __default_kdiba_pho_exported_spikeII_load_mat(cls, sess, timestamp_scale_factor=1):
+        """ loads the spikes from the .mat exported by the script: `IIDataMat_Export_ToPython_2022_08_01.m` """
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikes.mat'.format(sess.session_name))
         if not spike_mat_file.is_file():
             print('ERROR: file {} does not exist!'.format(spike_mat_file))
             raise FileNotFoundError
         flat_spikes_mat_file = import_mat_file(mat_import_file=spike_mat_file)
         flat_spikes_data = flat_spikes_mat_file['spike']
-        mat_variables_to_extract = ['t','t_seconds','t_rel_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id']
+        mat_variables_to_extract = ['t','t_seconds','t_rel_seconds', 'shank', 'cluster', 'aclu', 'qclu','x','y','speed','traj','lap','maze_relative_lap', 'maze_id', 'theta', 'ripple', 'ph']
         num_mat_variables = len(mat_variables_to_extract)
         flat_spikes_out_dict = dict()
         for i in np.arange(num_mat_variables):
@@ -609,8 +676,10 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # print(flat_spikes_out_dict)
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
         spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap','maze_relative_lap', 'maze_id']].astype('int') # convert integer calumns to correct datatype
-        
-        spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
+
+        spikes_df = cls._spikes_df_post_process(spikes_df)
+
+        spikes_df['neuron_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
         # add times in seconds both to the dict and the spikes_df under a new key:
         # flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
         # spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
@@ -702,7 +771,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         flat_spikes_data = flat_spikes_mat_file['spike']
         # print("type is: ",type(flat_spikes_data)) # type is:  <class 'numpy.ndarray'>
         # print("dtype is: ", flat_spikes_data.dtype) # dtype is:  [('t', 'O'), ('shank', 'O'), ('cluster', 'O'), ('aclu', 'O'), ('qclu', 'O'), ('cluinfo', 'O'), ('x', 'O'), ('y', 'O'), ('speed', 'O'), ('traj', 'O'), ('lap', 'O'), ('gamma2', 'O'), ('amp2', 'O'), ('ph', 'O'), ('amp', 'O'), ('gamma', 'O'), ('gammaS', 'O'), ('gammaM', 'O'), ('gammaE', 'O'), ('gamma2S', 'O'), ('gamma2M', 'O'), ('gamma2E', 'O'), ('theta', 'O'), ('ripple', 'O')]
-        mat_variables_to_extract = ['t', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap']
+        mat_variables_to_extract = ['t', 'shank', 'cluster', 'aclu', 'qclu', 'cluinfo','x','y','speed','traj','lap', 'theta', 'ripple', 'ph']
         num_mat_variables = len(mat_variables_to_extract)
         flat_spikes_out_dict = dict()
         for i in np.arange(num_mat_variables):
@@ -715,13 +784,16 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 flat_spikes_out_dict[curr_var_name] = flat_spikes_data[curr_var_name][0,0].flatten()
         spikes_df = pd.DataFrame(flat_spikes_out_dict) # 1014937 rows × 11 columns
         spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']].astype('int') # convert integer calumns to correct datatype
-        spikes_df['cell_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
+        spikes_df['neuron_type'] = NeuronType.from_qclu_series(qclu_Series=spikes_df['qclu'])
         # add times in seconds both to the dict and the spikes_df under a new key:
         flat_spikes_out_dict['t_seconds'] = flat_spikes_out_dict['t'] * timestamp_scale_factor
         spikes_df['t_seconds'] = spikes_df['t'] * timestamp_scale_factor
         # spikes_df['qclu']
         spikes_df['flat_spike_idx'] = np.array(spikes_df.index)
         spikes_df[['flat_spike_idx']] = spikes_df[['flat_spike_idx']].astype('int') # convert integer calumns to correct datatype
+
+        spikes_df = cls._spikes_df_post_process(spikes_df)
+
         return spikes_df, flat_spikes_out_dict 
 
     @classmethod
@@ -819,6 +891,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 
     @classmethod
     def __default_kdiba_spikeII_compute_neurons(cls, session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
+        """ adds the `session.neurons` Neurons object which it builds from the `spikes_df` and `flat_spikes_out_dict` """
         ## Get unique cell ids to enable grouping flattened results by cell:
         unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
         flat_cell_ids = [int(cell_id) for cell_id in unique_cell_ids]
@@ -829,7 +902,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         spiketrains = list()
         shank_ids = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
         cell_quality = np.zeros([num_unique_cell_ids, ]) # (108,) Array of float64
-        cell_type = list() # (108,) Array of float64
+        neuron_type = list() # (108,) Array of float64
 
         for i in np.arange(num_unique_cell_ids):
             curr_cell_id = flat_cell_ids[i] # actual cell ID
@@ -838,16 +911,16 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             spiketrains.append(curr_cell_dataframe[time_variable_name].to_numpy())
             shank_ids[i] = curr_cell_dataframe['shank'].to_numpy()[0] # get the first shank identifier, which should be the same for all of this curr_cell_id
             cell_quality[i] = curr_cell_dataframe['qclu'].mean() # should be the same for all instances of curr_cell_id, but use mean just to make sure
-            cell_type.append(curr_cell_dataframe['cell_type'].to_numpy()[0])
+            neuron_type.append(curr_cell_dataframe['neuron_type'].to_numpy()[0])
 
         spiketrains = np.array(spiketrains, dtype='object')
         t_stop = np.max(flat_spikes_out_dict[time_variable_name])
         flat_cell_ids = np.array(flat_cell_ids)
-        cell_type = np.array(cell_type)
+        neuron_type = np.array(neuron_type)
         session.neurons = Neurons(spiketrains, t_stop, t_start=0,
             sampling_rate=session.recinfo.dat_sampling_rate,
             neuron_ids=flat_cell_ids,
-            neuron_type=cell_type,
+            neuron_type=neuron_type,
             shank_ids=shank_ids
         )
         ## Ensure we have the 'fragile_linear_neuron_IDX' field, and if not, compute it        

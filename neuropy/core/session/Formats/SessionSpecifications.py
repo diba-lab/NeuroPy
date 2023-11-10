@@ -1,28 +1,15 @@
 from dataclasses import dataclass
-from typing import Callable
+from attrs import define, field, Factory
+from typing import Callable, List, Dict, Optional
 import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
-
-
-# Local imports:
-## Core:
-# from .datawriter import DataWriter
-# from .neurons import NeuronType, Neurons, BinnedSpiketrain, Mua
-# from .probe import ProbeGroup
-# from .position import Position
-# from .epoch import Epoch #, NamedTimerange
-# from .signal import Signal
-# from .laps import Laps
-# from .flattened_spiketrains import FlattenedSpiketrains
-
-# from .. import DataWriter, NeuronType, Neurons, BinnedSpiketrain, Mua, ProbeGroup, Position, Epoch, Signal, Laps, FlattenedSpiketrains
-
 from neuropy.core.session.dataSession import DataSession
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 from neuropy.utils.result_context import IdentifyingContext
+
 
 @dataclass
 class SessionFileSpec:
@@ -51,9 +38,7 @@ class SessionFileSpec:
         if overrideBasename is not None:
             self.suggestedBaseName = overrideBasename
         return parent_path.joinpath(self.filename)
-   
- 
- 
+
 
 class SessionFolderSpecError(Exception):
     """ An exception raised when a session folder spec requirement fails """
@@ -63,8 +48,6 @@ class SessionFolderSpecError(Exception):
     def __str__(self):
         return self.message
 
- 
- 
 class RequiredFileError(SessionFolderSpecError):
     """ An exception raised when a required file is missing """
     def __init__(self, message, missing_file_spec):
@@ -81,7 +64,7 @@ class RequiredValidationFailedError(SessionFolderSpecError):
     def __str__(self):
         return self.message
     
-    
+
 class SessionFolderSpec():
     """ Documents the required and optional files for a given session format """
     def __init__(self, required = [], optional = [], additional_validation_requirements=[]) -> None:
@@ -152,12 +135,37 @@ class SessionFolderSpec():
 # ])
 
 
+@define(slots=False)
+class ParametersContainer:
+    epoch_estimation_parameters: dict
+
+
+
+
+@define(slots=False, repr=False, str=False)
 class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     """A simple data structure that holds the information specifying a data session, such as the basepath, session_spec, and session_name
     
+    TODO 2023-10-23 - Upgrade to attrs class
     
     """
+    basepath: Path = field()
+    session_spec: SessionFolderSpec = field()
+    session_name: str = field()
+    session_context: IdentifyingContext = field()
+    format_name: str = field()
+    preprocessing_parameters: ParametersContainer = field()
+
     
+    # Derived properties:
+    absolute_start_timestamp: float = field(init=False, default=603785.852737)
+    position_sampling_rate_Hz: float = field(init=False, default=29.96977250291495) 
+
+    is_resolved: bool = field(init=False, default=False)
+    resolved_required_filespecs_dict: dict = field(default=Factory(dict), init=False)
+    resolved_optional_filespecs_dict: dict = field(default=Factory(dict), init=False)
+
+
     @property
     def resolved_required_file_specs(self):
         """The resolved_required_file_specs property."""
@@ -168,22 +176,30 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         """The resolved_required_file_specs property."""
         return {a_filepath:(lambda sess, filepath=a_filepath: a_spec.session_load_callback(filepath, sess)) for a_filepath, a_spec in self.resolved_optional_filespecs_dict.items()}
     
-    
-    def __init__(self, basepath, session_spec, session_name, session_context, format_name):
-        """[summary]
-        Args:
-            basepath (pathlib.Path): [description].
-            session_spec (SessionFolderSpec): used to load the files
-            session_name (str, optional): [description].
-            session_format_name (str): the name of the known session format, or 'custom'. Can be returned using .get_session_format_name()
-        """
-        self.format_name = format_name
-        self.basepath = basepath
-        self.session_name = session_name
-        # Session spec:
-        self.session_spec=session_spec
-        self.session_context = session_context
+
+    def __attrs_post_init__(self):
+        # Computed variables:
         self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
+
+
+
+    # def __init__(self, basepath, session_spec, session_name, session_context, format_name, preprocessing_parameters):
+    #     """[summary]
+    #     Args:
+    #         basepath (pathlib.Path): [description].
+    #         session_spec (SessionFolderSpec): used to load the files
+    #         session_name (str, optional): [description].
+    #         session_format_name (str): the name of the known session format, or 'custom'. Can be returned using .get_session_format_name()
+    #     """
+    #     self.format_name = format_name
+    #     self.basepath = basepath
+    #     self.session_name = session_name
+    #     # Session spec:
+    #     self.session_spec=session_spec
+    #     self.session_context = session_context
+    #     self.preprocessing_parameters = preprocessing_parameters
+        
+    #     self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
         
 
     def validate(self):

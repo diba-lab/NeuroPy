@@ -3,8 +3,9 @@ from __future__ import annotations # otherwise have to do type like 'Ratemap'
 from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
 import numpy as np
+import contextlib
 
-
+import matplotlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
@@ -15,7 +16,7 @@ from matplotlib.widgets import SpanSelector
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple
 from neuropy.plotting.figure import compute_figure_size_pixels, compute_figure_size_inches # needed for _determine_best_placefield_2D_layout(...)'s internal _perform_compute_required_figure_sizes(...) function
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from neuropy.core.neuron_identities import PlotStringBrevityModeEnum # needed for _build_neuron_identity_label
 if TYPE_CHECKING:
     from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple # needed for _build_neuron_identity_label
@@ -535,6 +536,139 @@ def fit_both_axes(ax_lhs, ax_rhs):
     return (fitting_xbounds, fitting_ybounds)
 
 
+# ==================================================================================================================== #
+# Advanced Text Helpers via `flexitext` library                                                                        #
+# ==================================================================================================================== #
+from attrs import define, field
+from flexitext import flexitext ## flexitext is an advanced text library used in `FormattedFigureText`
+
+@define(slots=False)
+class FigureMargins:
+    top_margin: float = 0.8
+    left_margin: float = 0.15
+    right_margin: float = 0.85 # (1.0-0.15)
+    bottom_margin: float = 0.150
+
+    
+    
+
+# left_margin: float = 0.090
+# right_margin: float = 0.91 # (1.0-0.090)
+
+
+# left_margin: float = 0.090
+# right_margin: float = 0.91 # (1.0-0.090)
+
+@define(slots=False)
+class FormattedFigureText:
+    """ builds flexitext matplotlib figure title and footers 
+
+    Consistent color scheme:
+        Long: Red
+        Short: Blue
+
+        Context footer is along the bottom of the figure in gray.
+
+
+    Usage:
+        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+        # `flexitext` version:
+        text_formatter = FormattedFigureText()
+        plt.title('')
+        plt.suptitle('')
+        text_formatter.setup_margins(fig)
+
+        ## Need to extract the track name ('maze1') for the title in this plot. 
+        track_name = active_context.get_description(subset_includelist=['filter_name'], separator=' | ') # 'maze1'
+        # TODO: do we want to convert this into "long" or "short"?
+        header_text_obj = flexitext(text_formatter.left_margin, text_formatter.top_margin, f'<size:22><weight:bold>{track_name}</> replay|laps <weight:bold>firing rate</></>', va="bottom", xycoords="figure fraction")
+        footer_text_obj = flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
+
+
+    """
+    # fig.subplots_adjust(top=top_margin, left=left_margin, bottom=bottom_margin)
+
+    margins: FigureMargins = field(factory=FigureMargins)
+
+    @property
+    def top_margin(self):
+        return self.margins.top_margin
+    @top_margin.setter
+    def top_margin(self, value):
+        self.margins.top_margin = value
+
+    @property
+    def left_margin(self):
+        return self.margins.left_margin
+    @left_margin.setter
+    def left_margin(self, value):
+        self.margins.left_margin = value
+
+    @property
+    def right_margin(self):
+        return self.margins.right_margin
+    @right_margin.setter
+    def right_margin(self, value):
+        self.margins.right_margin = value
+
+    @property
+    def bottom_margin(self):
+        return self.margins.bottom_margin
+    @bottom_margin.setter
+    def bottom_margin(self, value):
+        self.margins.bottom_margin = value
+
+    @classmethod
+    def _build_formatted_title_string(cls, epochs_name) -> str:
+        """ buidls the two line colored string figure's footer that is passed into `flexitext`.
+        """
+        return (f"<size:22><weight:bold>{epochs_name}</> Firing Rates\n"
+                "<size:14>for the "
+                "<color:crimson, weight:bold>Long</>/<color:royalblue, weight:bold>Short</> eXclusive Cells on each track</></>"
+                )
+
+    @classmethod
+    def _build_footer_string(cls, active_context) -> str:
+        """ buidls the dim, grey string for the figure's footer that is passed into `flexitext`.
+        Usage:
+            footer_text_obj = flexitext((left_margin*0.1), (bottom_margin*0.25), cls._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+        """
+        first_portion_sess_ctxt_str = active_context.get_description(subset_includelist=['format_name', 'animal', 'exper_name'], separator=' | ')
+        session_name_sess_ctxt_str = active_context.get_description(subset_includelist=['session_name'], separator=' | ') # 2006-6-08_14-26-15
+        return (f"<color:silver, size:10>{first_portion_sess_ctxt_str} | <weight:bold>{session_name_sess_ctxt_str}</></>")
+
+    def setup_margins(self, fig, **kwargs):
+        top_margin, left_margin, right_margin, bottom_margin = kwargs.get('top_margin', self.top_margin), kwargs.get('left_margin', self.left_margin), kwargs.get('right_margin', self.right_margin), kwargs.get('bottom_margin', self.bottom_margin)
+        fig.subplots_adjust(top=top_margin, left=left_margin, right=right_margin, bottom=bottom_margin) # perform the adjustment on the figure
+
+    def add_flexitext_context_footer(self, active_context, override_left_margin_multipler:float=0.1, override_bottom_margin_multiplier:float=0.25):
+        """ adds the default footer  """
+        return flexitext((self.left_margin*float(override_left_margin_multipler)), (self.bottom_margin*float(override_bottom_margin_multiplier)), self._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
+
+
+    def add_flexitext(self, fig, active_context, **kwargs):
+        self.setup_margins(fig, **kwargs)
+        # Add flexitext
+        top_margin, left_margin, bottom_margin = kwargs.get('top_margin', self.top_margin), kwargs.get('left_margin', self.left_margin), kwargs.get('bottom_margin', self.bottom_margin)
+        title_text_obj = flexitext(left_margin, top_margin, 'long ($L$)|short($S$) firing rate indicies', va="bottom", xycoords="figure fraction")
+        footer_text_obj = flexitext((self.left_margin*0.1), (self.bottom_margin*0.25), self._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+        return title_text_obj, footer_text_obj
+
+
+    @classmethod
+    def clear_basic_titles(self, fig):
+        """ clears the basic title and suptitle in preparation for the flexitext version. """
+        plt.figure(fig)
+        plt.title('')
+        plt.suptitle('')
+        
+
+
 
 
 
@@ -574,6 +708,8 @@ def plot_position_curves_figure(position_obj, include_velocity=True, include_acc
     ax0.set_ylabel('pos_x')
     out_axes_list.append(ax0)
     
+    prev_axis = ax0
+
     if include_velocity:
         ax1 = fig.add_subplot(gs[1])
         # ax1.plot(position_obj.time, pos_df['velocity_x'], 'grey')
@@ -582,6 +718,9 @@ def plot_position_curves_figure(position_obj, include_velocity=True, include_acc
         ax1.set_ylabel('Velocity_x')
         ax0.set_xticklabels([]) # this is intensionally ax[i-1], as we want to disable the tick labels on above plots        
         out_axes_list.append(ax1)
+        # share x axis
+        ax1.sharex(prev_axis)
+        prev_axis = ax1
 
     if include_accel:  
         ax2 = fig.add_subplot(gs[2])
@@ -592,10 +731,13 @@ def plot_position_curves_figure(position_obj, include_velocity=True, include_acc
         ax2.set_ylabel('Higher Order Terms')
         ax1.set_xticklabels([]) # this is intensionally ax[i-1], as we want to disable the tick labels on above plots
         out_axes_list.append(ax2)
-    
+        # share x axis
+        ax2.sharex(prev_axis)
+        prev_axis = ax2
+
     # Shared:
     # ax0.get_shared_x_axes().join(ax0, ax1)
-    ax0.get_shared_x_axes().join(*out_axes_list)
+    # ax0.get_shared_x_axes().join(*out_axes_list) # this was removed for some reason! AttributeError: 'GrouperView' object has no attribute 'join'
     ax0.set_xticklabels([])
     ax0.set_xlim([position_obj.time[0], position_obj.time[-1]])
 
@@ -625,7 +767,7 @@ def _subfn_build_epoch_region_label(xy, text, ax, **labels_kwargs):
     return ax.text(xy[0], y, text, **({'ha': 'center', 'va': 'top', 'family': 'sans-serif', 'size': 14, 'rotation': 0} | labels_kwargs)) # va="top" places it inside the box if it's aligned to the top
 
 # @function_attributes(short_name='draw_epoch_regions', tags=['epoch','matplotlib','helper'], input_requires=[], output_provides=[], uses=['BrokenBarHCollection'], used_by=[], creation_date='2023-03-28 14:23')
-def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors=("black",), alpha=0.25, labels_kwargs=None, defer_render=False, debug_print=False):
+def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors=("black",), alpha=0.25, labels_kwargs=None, defer_render=False, debug_print=False, **kwargs):
     """ plots epoch rectangles with customizable color, edgecolor, and labels on an existing matplotlib axis
     2022-12-14
 
@@ -687,7 +829,7 @@ def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors
     curr_span_height = curr_span_ymax-curr_span_ymin
     # xrange: list of (float, float) The sequence of (left-edge-position, width) pairs for each bar.
     # yrange: (lower-edge, height) 
-    epochs_collection = BrokenBarHCollection(xranges=epoch_tuples, yrange=(curr_span_ymin, curr_span_height), facecolor=facecolor, alpha=alpha, edgecolors=edgecolors, linewidths=(1,)) # , offset_transform=curr_ax.transData
+    epochs_collection = BrokenBarHCollection(xranges=epoch_tuples, yrange=(curr_span_ymin, curr_span_height), facecolor=facecolor, alpha=alpha, edgecolors=edgecolors, linewidths=(1,), **kwargs) # , offset_transform=curr_ax.transData
     if debug_print:
         print(f'(curr_span_ymin, curr_span_ymax): ({curr_span_ymin}, {curr_span_ymax}), epoch_tuples: {epoch_tuples}')
     curr_ax.add_collection(epochs_collection)
@@ -708,7 +850,7 @@ def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
     """
     fig, out_axes_list = plot_position_curves_figure(position_obj, include_velocity=True, include_accel=False, figsize=(24, 10))
     for ax in out_axes_list:
-        laps_epochs_collection, laps_epoch_labels = draw_epoch_regions(epoch_obj, ax, facecolor=('red','green'), edgecolors='black', labels_kwargs={'y_offset': -16.0, 'size':8, 'rotation':90}, defer_render=False, debug_print=False)
+        laps_epochs_collection, laps_epoch_labels = draw_epoch_regions(epoch_obj, ax, facecolor=[(255, 0, 0), (0, 255, 0)], edgecolors=(0,0,0), labels_kwargs={'y_offset': -16.0, 'size':8, 'rotation':90}, defer_render=False, debug_print=False)
     fig.show()
     return fig, out_axes_list
 
@@ -717,77 +859,146 @@ def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
 # 2023-05-09 Misc Utility Functions                                                                                    #
 # ==================================================================================================================== #
 
+from matplotlib.figure import Figure # used in `MatplotlibFigureExtractors`
 
-
-def extract_figure_properties(fig):
-    """ UNTESTED, UNFINISHED
-    Extracts styles, formatting, and set options from a matplotlib Figure object.
-    Returns a dictionary with the following keys:
-        - 'title': the Figure title (if any)
-        - 'xlabel': the label for the x-axis (if any)
-        - 'ylabel': the label for the y-axis (if any)
-        - 'xlim': the limits for the x-axis (if any)
-        - 'ylim': the limits for the y-axis (if any)
-        - 'xscale': the scale for the x-axis (if any)
-        - 'yscale': the scale for the y-axis (if any)
-        - 'legend': the properties of the legend (if any)
-        - 'grid': the properties of the grid (if any)
-        
-    TO ADD:
-        -   fig.get_figwidth()
-            fig.get_figheight()
-            # fig.set_figheight()
-
-            print(f'fig.get_figwidth(): {fig.get_figwidth()}\nfig.get_figheight(): {fig.get_figheight()}')
-
-
-        
-        Usage:        
-            curr_fig = plt.gcf()
-            curr_fig = out.figures[0]
-            curr_fig_properties = extract_figure_properties(curr_fig)
-            curr_fig_properties
-
+class MatplotlibFigureExtractors:
+    """ 2023-06-26 - Unfinished class that aims to extract matplotlib.figure properties and settings.
+    Usage:
+        from neuropy.utils.matplotlib_helpers import MatplotlibFigureExtractors
+    
     """
-    properties = {}
-    
-    # Extract title
-    properties['title'] = fig._suptitle.get_text() if fig._suptitle else None
-    
-    # Extract axis labels and limits
-    for ax in fig.get_axes():
-        if ax.get_label() == 'x':
-            properties['xlabel'] = ax.get_xlabel()
-            properties['xlim'] = ax.get_xlim()
-            properties['xscale'] = ax.get_xscale()
-        elif ax.get_label() == 'y':
-            properties['ylabel'] = ax.get_ylabel()
-            properties['ylim'] = ax.get_ylim()
-            properties['yscale'] = ax.get_yscale()
-    
-    # Extract legend properties
-    if hasattr(fig, 'legend_'):
-        legend = fig.legend_
-        if legend:
-            properties['legend'] = {
-                'title': legend.get_title().get_text(),
-                'labels': [t.get_text() for t in legend.get_texts()],
-                'loc': legend._loc,
-                'frameon': legend.get_frame_on(),
-            }
-    
-    # Extract grid properties
-    first_ax = fig.axes[0]
-    grid = first_ax.get_gridlines()[0] if first_ax.get_gridlines() else None
-    if grid:
-        properties['grid'] = {
-            'color': grid.get_color(),
-            'linestyle': grid.get_linestyle(),
-            'linewidth': grid.get_linewidth(),
-        }
-    
-    return properties
+    @staticmethod
+    def extract_figure_properties(fig):
+        """ UNTESTED, UNFINISHED
+        Extracts styles, formatting, and set options from a matplotlib Figure object.
+        Returns a dictionary with the following keys:
+            - 'title': the Figure title (if any)
+            - 'xlabel': the label for the x-axis (if any)
+            - 'ylabel': the label for the y-axis (if any)
+            - 'xlim': the limits for the x-axis (if any)
+            - 'ylim': the limits for the y-axis (if any)
+            - 'xscale': the scale for the x-axis (if any)
+            - 'yscale': the scale for the y-axis (if any)
+            - 'legend': the properties of the legend (if any)
+            - 'grid': the properties of the grid (if any)
+            
+        TO ADD:
+            -   fig.get_figwidth()
+                fig.get_figheight()
+                # fig.set_figheight()
 
+                print(f'fig.get_figwidth(): {fig.get_figwidth()}\nfig.get_figheight(): {fig.get_figheight()}')
+
+
+            
+            Usage:        
+                curr_fig = plt.gcf()
+                curr_fig = out.figures[0]
+                curr_fig_properties = extract_figure_properties(curr_fig)
+                curr_fig_properties
+
+        """
+        properties = {}
+        
+        # Extract title
+        properties['title'] = fig._suptitle.get_text() if fig._suptitle else None
+        
+        # Extract axis labels and limits
+        for ax in fig.get_axes():
+            if ax.get_label() == 'x':
+                properties['xlabel'] = ax.get_xlabel()
+                properties['xlim'] = ax.get_xlim()
+                properties['xscale'] = ax.get_xscale()
+            elif ax.get_label() == 'y':
+                properties['ylabel'] = ax.get_ylabel()
+                properties['ylim'] = ax.get_ylim()
+                properties['yscale'] = ax.get_yscale()
+        
+        # Extract legend properties
+        if hasattr(fig, 'legend_'):
+            legend = fig.legend_
+            if legend:
+                properties['legend'] = {
+                    'title': legend.get_title().get_text(),
+                    'labels': [t.get_text() for t in legend.get_texts()],
+                    'loc': legend._loc,
+                    'frameon': legend.get_frame_on(),
+                }
+        
+        # Extract grid properties
+        first_ax = fig.axes[0]
+        grid = first_ax.get_gridlines()[0] if first_ax.get_gridlines() else None
+        if grid:
+            properties['grid'] = {
+                'color': grid.get_color(),
+                'linestyle': grid.get_linestyle(),
+                'linewidth': grid.get_linewidth(),
+            }
+        
+        return properties
+
+    @classmethod
+    def extract_fig_suptitle(cls, fig: Figure):
+        """To get the figure's suptitle Text object: https://stackoverflow.com/questions/48917631/matplotlib-how-to-return-figure-suptitle
+
+        Usage:
+            from matplotlib.figure import Figure
+            from neuropy.utils.matplotlib_helpers import MatplotlibFigureExtractors
+
+            sup, suptitle_string = MatplotlibFigureExtractors.extract_fig_suptitle(fig)
+            suptitle_string
+
+        """
+        sup = fig._suptitle # Text(0.5, 0.98, 'kdiba/gor01/one/2006-6-08_14-26-15/long_short_firing_rate_indicies/display_long_short_laps')
+        if sup is not None:
+            suptitle_string: str = sup._text # 'kdiba/gor01/one/2006-6-08_14-26-15/long_short_firing_rate_indicies/display_long_short_laps'
+        else: 
+            suptitle_string = None
+            
+        return sup, suptitle_string
+
+    @classmethod
+    def extract_titles(cls, fig: Optional[Figure]=None):
+        """ 
+        # Call the function to extract titles
+            captured_titles = extract_titles()
+            print(captured_titles)
+        """
+        fig = fig or (plt.gcf())
+        titles = {}
+        
+        # Get the window title
+        # fig.canvas.manager # .set_window_title(title_string) # sets the window's title
+        
+
+        # titles['window_title'] = fig.canvas.manager.window.title()
+
+        
+        # titles['window_title'] = plt.gcf().canvas.get_window_title()
+        try:
+            titles['window_title'] = fig.canvas.manager.window.windowTitle()
+        except AttributeError as e:
+            try:
+                titles['window_title'] = fig.canvas.get_window_title() # try this one
+            except Exception as e:
+                try:
+                    titles['window_title'] = f"{fig.number or ''}"
+                except Exception as e:
+                    raise e # unhandled exception
+        except Exception as e:
+            raise e
+        
+        # Get the suptitle
+        suptitle = fig._suptitle.get_text() if fig._suptitle else None
+        titles['suptitle'] = suptitle
+        
+        # Get the titles of each axis
+        axes = fig.get_axes()
+        for i, ax in enumerate(axes):
+            title = ax.get_title()
+            titles[f'axis_title_{i+1}'] = title
+        
+        return titles
 
 # ==================================================================================================================== #
 # 2023-06-05 Interactive Selection Helpers                                                                             #
@@ -907,6 +1118,7 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
     else:
         extents = None
         
+    initial_extents = extents  # Store the initial extents
     # ax = axs[0]
     # props = dict(facecolor='blue', alpha=0.5)
     props=None
@@ -921,7 +1133,11 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
             extents = (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
             selector.extents = extents
             
-    return selector, set_extents
+    def reset_extents():
+        """Reset the selector to the initial extents. Captures `initial_extents`."""
+        selector.extents = initial_extents
+        
+    return selector, set_extents, reset_extents
 
 
 # grid_bin_bounds updating versions __________________________________________________________________________________ #
@@ -952,27 +1168,46 @@ def interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze
     range_selector, set_extents = add_range_selector(fig, ax, orientation="horizontal", initial_selection=grid_bin_bounds_1D, on_selection_changed=_on_range_changed)
     return fig, ax, range_selector, set_extents
 
+
 def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input:bool=True, should_apply_updates_to_pipeline=True):
     """ allows the user to interactively select the grid_bin_bounds for the pf2D
-    
+    Uses:
+        plot_occupancy, add_rectangular_selector
+
+
     Usage:
         from neuropy.utils.matplotlib_helpers import interactive_select_grid_bin_bounds_2D
-        fig, ax, rect_selector, set_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
+        fig, ax, rect_selector, set_extents, reset_extents = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze')
     """
     # from neuropy.utils.matplotlib_helpers import add_rectangular_selector # interactive_select_grid_bin_bounds_2D
     computation_result = curr_active_pipeline.computation_results[epoch_name]
     grid_bin_bounds = computation_result.computation_config['pf_params'].grid_bin_bounds
     epoch_context = curr_active_pipeline.filtered_contexts[epoch_name]
-                     
-    fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name]) 
+                    
+    fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name], active_context=epoch_context) 
 
-    rect_selector, set_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+    rect_selector, set_extents, reset_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+    
+    # Add a close event handler to break the while loop when the figure is manually closed
+    was_closed = False
+    def on_close(event):
+        nonlocal was_closed
+        was_closed = True
+    fig.canvas.mpl_connect('close_event', on_close)
+    
+    # Add a key press event handler to reset the selector when 'r' is pressed
+    def on_key_press(event):
+        if event.key == 'r':
+            print(f'resetting extents.')
+            reset_extents()
+    fig.canvas.mpl_connect('key_press_event', on_key_press)
     
     def _on_update_grid_bin_bounds(new_grid_bin_bounds):
         """ called to update the grid_bin_bounds for all filtered_epochs with the new values (new_grid_bin_bounds) 
         Captures: `curr_active_pipeline`
         """
         print(f'_on_update_grid_bin_bounds(new_grid_bin_bounds: {new_grid_bin_bounds})')
+        # does it also need to update session or anything?
         for epoch_name, computation_result in curr_active_pipeline.computation_results.items():
             computation_result.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
                 
@@ -981,6 +1216,10 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
         # hold plot until a keyboard key is pressed
         keyboardClick = False
         while keyboardClick != True:
+            if was_closed:
+                # Figure was manually closed, break the loop
+                print(f'Figure was manually closed, break the loop.')
+                break
             keyboardClick = plt.waitforbuttonpress() # plt.waitforbuttonpress() exits the inactive state as soon as either a key is pressed or the Mouse is clicked. However, the function returns True if a keyboard key was pressed and False if a Mouse was clicked
             if keyboardClick:
                 # Button was pressed
@@ -1002,9 +1241,338 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
                 #     plt.close()
                 #     return grid_bin_bounds
     else:
-        return fig, ax, rect_selector, set_extents
+        return fig, ax, rect_selector, set_extents, reset_extents
 
 
+# Title Helpers ______________________________________________________________________________________________________ #
+def perform_update_title_subtitle(fig, ax, title_string:Optional[str], subtitle_string:Optional[str], active_context=None, use_flexitext_titles=False):
+    """ Only updates the title/subtitle if the value is not None
+    
+    Usage:
+    
+    from neuropy.utils.matplotlib_helpers import perform_update_title_subtitle
+    perform_update_title_subtitle(fig=fig_long_pf_1D, ax=ax_long_pf_1D, title_string="TEST - 1D Placemaps", subtitle_string="TEST - SUBTITLE")
+    
+    """
+    if title_string is not None:
+        fig.canvas.manager.set_window_title(title_string) # sets the window's title
+
+    if (active_context is None) or (not use_flexitext_titles):
+        if title_string is not None:
+            fig.suptitle(title_string, fontsize='14', wrap=True)
+        if subtitle_string is not None:
+            ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
+
+        footer_text_obj = None
+    else:
+        from flexitext import flexitext ## flexitext version
+        from neuropy.utils.matplotlib_helpers import FormattedFigureText
+
+        text_formatter = FormattedFigureText()
+        # text_formatter.bottom_margin = 0.0 # No margin on the bottom
+        # text_formatter.top_margin = 0.6 # doesn't change anything. Neither does subplot_adjust
+        text_formatter.setup_margins(fig)
+
+        # ## Header:
+        # # Clear the normal text:
+        # fig.suptitle('')
+        # ax.set_title('')
+        # # header_text_obj = flexitext(text_formatter.left_margin, 0.90, f'<size:22><weight:bold>{title_string}</></>\n<size:10>{subtitle_string}</>', va="bottom", xycoords="figure fraction")
+
+        ## Footer only:
+        if title_string is not None:
+            fig.suptitle(title_string, fontsize='14', wrap=True)
+        if subtitle_string is not None:
+            ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
+
+        footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context, override_left_margin_multipler=0.1, override_bottom_margin_multiplier=0.1) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")
+
+        # label_objects = {'header': header_text_obj, 'footer': footer_text_obj, 'formatter': text_formatter}
+    return footer_text_obj
+
+
+def matplotlib_configuration_update(is_interactive:bool, backend:Optional[str]=None):
+    """Non-Context manager version for configuring Matplotlib interactivity, backend, and toolbar.
+    
+    The context-manager version notabily doesn't work for making the figures visible, I think because when it leaves the context handler the variables assigned within go away and thus the references to the Figures are lost.
+    
+    # Example usage:
+
+        from neuropy.utils.matplotlib_helpers import matplotlib_configuration
+        with matplotlib_configuration(is_interactive=False, backend='AGG'):
+            # Perform non-interactive Matplotlib operations with 'AGG' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode with AGG Backend')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+
+        with matplotlib_configuration(is_interactive=True, backend='Qt5Agg'):
+            # Perform interactive Matplotlib operations with 'Qt5Agg' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Interactive Mode with Qt5Agg Backend')
+            plt.show()  # Display the plot interactively (interactive mode)
+    """
+    if backend is None:
+        if is_interactive:
+            backend='Qt5Agg'
+        else:
+            backend='AGG'
+    # Backup the current rcParams
+    prev_rcParams = matplotlib.rcParams.copy()
+    # Backup the current backend
+    prev_backend = matplotlib.get_backend()
+    # Backup the current interactive mode
+    prev_interactivity = plt.isinteractive()
+    # Backup the current plt.show command:
+    prev_plt_show_command = getattr(plt, "show")
+
+    def _restore_previous_settings_callback():
+        """ restore previous settings when done.
+        
+        Captures: 
+            prev_backend, prev_interactivity, prev_rcParams, prev_plt_show_command
+        """
+        # Restore the previous backend
+        matplotlib.use(prev_backend, force=True)
+        plt.switch_backend(prev_backend)
+        plt.interactive(prev_interactivity)     # Restore the previous interactive mode
+        # Restore the previous rcParams
+        matplotlib.rcParams.clear()
+        matplotlib.rcParams.update(prev_rcParams)
+        setattr(plt, "show", prev_plt_show_command) # restore plt.show()
+
+    try:
+        # Configure toolbar based on interactivity mode
+        if is_interactive:
+            matplotlib.rcParams['toolbar'] = 'toolbar2'
+        else:
+            matplotlib.rcParams['toolbar'] = 'None'
+
+        # Switch to the desired backend
+        matplotlib.use(backend, force=True)
+
+        # Initialize the new backend (if needed)
+        plt.switch_backend(backend)
+
+        # Switch to the desired interactivity mode
+        plt.interactive(is_interactive)
+
+        if not is_interactive:
+            # Non-blocking
+            # setattr(plt, "show", lambda: None)
+            setattr(plt, "show", lambda: print(f'plt.show() was overriden by a call to `matplotlib_configuration_update(...)`'))
+
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}\n Trying to revert settings using `_restore_previous_settings_callback()`...`")
+        _restore_previous_settings_callback()
+        print(f'revert complete.')
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
+
+
+    return _restore_previous_settings_callback
+
+
+
+
+# ==================================================================================================================== #
+# Context Managers for Switching Interactivity and Backend                                                             #
+# ==================================================================================================================== #
+
+
+
+@contextlib.contextmanager
+def matplotlib_backend(backend:str):
+    """Context manager for switching Matplotlib backend and safely restoring it to its previous value when done.
+        # Example usage:
+        with matplotlib_backend('AGG'):
+            # Perform non-interactive Matplotlib operations
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+
+        with matplotlib_backend('Qt5Agg'):
+            # Perform interactive Matplotlib operations
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Interactive Mode')
+            plt.show()  # Display the plot interactively (interactive mode)
+    """
+    # Backup the current backend
+    prev_backend = matplotlib.get_backend()
+    try:
+        # Switch to the desired backend
+        matplotlib.use(backend, force=True)
+
+        # Initialize the new backend (if needed)
+        plt.switch_backend(backend)
+
+        # Yield control back to the caller
+        yield
+        
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}")
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
+    finally:
+        # Restore the previous backend
+        matplotlib.use(prev_backend, force=True)
+        plt.switch_backend(prev_backend)
+
+
+@contextlib.contextmanager
+def matplotlib_interactivity(is_interactive:bool):
+    """Context manager for switching Matplotlib interactivity mode and safely restoring it to its previous value when done.
+
+    # Example usage:
+    with matplotlib_interactivity(is_interactive=False):
+        # Perform non-interactive Matplotlib operations
+        plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Non-interactive Mode')
+        plt.show()  # Display the plot (if desired)
+
+
+    with matplotlib_interactivity(is_interactive=True):
+        # Perform interactive Matplotlib operations
+        plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Interactive Mode')
+        plt.show()  # Display the plot immediately (if desired)
+    """
+    # Backup the current interactive mode
+    prev_interactivity = plt.isinteractive()
+    try:
+        # Switch to the desired interactivity mode
+        plt.interactive(is_interactive)
+
+        # Yield control back to the caller
+        yield
+        
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}")
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
+    finally:
+        # Restore the previous interactive mode
+        plt.interactive(prev_interactivity)
+
+
+@contextlib.contextmanager
+def disable_function_context(obj, fn_name: str):
+    """ Disables a function within a context manager
+
+    https://stackoverflow.com/questions/10388411/possible-to-globally-replace-a-function-with-a-context-manager-in-python
+
+    Could be used for plt.show().
+    ```python
+    
+    from neuropy.utils.matplotlib_helpers import disable_function_context
+    import matplotlib.pyplot as plt
+    with disable_function_context(plt, "show"):
+        run_me(x)
+    
+    """
+    temp = getattr(obj, fn_name)
+    setattr(obj, fn_name, lambda: None)
+    yield
+    setattr(obj, fn_name, temp)
+
+
+
+
+
+@contextlib.contextmanager
+def matplotlib_configuration(is_interactive:bool, backend:Optional[str]=None):
+    """Context manager for configuring Matplotlib interactivity, backend, and toolbar.
+    # Example usage:
+
+        from neuropy.utils.matplotlib_helpers import matplotlib_configuration
+        with matplotlib_configuration(is_interactive=False, backend='AGG'):
+            # Perform non-interactive Matplotlib operations with 'AGG' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode with AGG Backend')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+
+        with matplotlib_configuration(is_interactive=True, backend='Qt5Agg'):
+            # Perform interactive Matplotlib operations with 'Qt5Agg' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Interactive Mode with Qt5Agg Backend')
+            plt.show()  # Display the plot interactively (interactive mode)
+    """
+    if backend is None:
+        if is_interactive:
+            backend='Qt5Agg'
+        else:
+            backend='AGG'
+    # Backup the current rcParams
+    prev_rcParams = matplotlib.rcParams.copy()
+    try:
+        # Configure toolbar based on interactivity mode
+        if is_interactive:
+            matplotlib.rcParams['toolbar'] = 'toolbar2'
+        else:
+            matplotlib.rcParams['toolbar'] = 'None'
+
+        # Enter the backend and interactivity context managers
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(matplotlib_interactivity(is_interactive))
+            stack.enter_context(matplotlib_backend(backend))
+            ## Non-blocking in non-interactive mode:
+            if not is_interactive:
+                stack.enter_context(disable_function_context(plt, "show")) # Non-blocking
+
+            yield
+            
+    except Exception as e:
+        # Exception occurred while switching the backend
+        print(f"An exception occurred: {str(e)}")
+        # You can choose to handle the exception here or re-raise it if needed
+        # If you choose to re-raise, make sure to restore the previous backend before doing so
+        raise
+    
+    finally:
+        # Restore the previous rcParams
+        matplotlib.rcParams.clear()
+        matplotlib.rcParams.update(prev_rcParams)
+
+
+
+@contextlib.contextmanager
+def matplotlib_file_only():
+    """Context manager for configuring Matplotlib to only render to file, using the 'AGG' backend, no interactivity, and no plt.show()
+    # Example usage:
+        from neuropy.utils.matplotlib_helpers import matplotlib_file_only
+        with matplotlib_file_only():
+            # Perform non-interactive Matplotlib operations with 'AGG' backend
+            plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
+            plt.xlabel('X-axis')
+            plt.ylabel('Y-axis')
+            plt.title('Non-interactive Mode with AGG Backend')
+            plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
+    """
+    # Enter the backend and interactivity context managers
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(matplotlib_configuration(is_interactive=False, backend='AGG'))
+        yield
 
 
 

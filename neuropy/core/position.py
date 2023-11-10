@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Sequence, Union
 import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
+import h5py # for to_hdf and read_hdf definitions
 from pandas.core.indexing import IndexingError
 
 import pandas as pd
@@ -10,6 +11,8 @@ from .datawriter import DataWriter
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
 
 """ --- Helper FUNCTIONS """
 def build_position_df_time_window_idx(active_pos_df, curr_active_time_windows, debug_print=False):
@@ -417,7 +420,7 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
 
     
 """ --- """
-class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
+class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
     def __init__(self, pos_df: pd.DataFrame, metadata=None) -> None:
         """[summary]
         Args:
@@ -426,7 +429,6 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
         """
         super().__init__(metadata=metadata)
         self._data = pos_df # set to the laps dataframe
-        # self._data = Position._update_dataframe_computed_vars(self._data) # maybe initialize equivalent for laps
         self._data = self._data.sort_values(by=[self.time_variable_name]) # sorts all values in ascending order
         
     def time_slice_indicies(self, t_start, t_stop):
@@ -561,7 +563,58 @@ class Position(PositionDimDataMixin, PositionComputedDataMixin, ConcatenationIni
             self.t_stop)
         )
          
-         
+    # HDFMixin Conformances ______________________________________________________________________________________________ #
+    def to_hdf(self, file_path, key: str, **kwargs):
+        """ Saves the object to key in the hdf5 file specified by file_path
+        Usage:
+            hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
+            _pos_obj: Position = long_one_step_decoder_1D.pf.position
+            _pos_obj.to_hdf(hdf5_output_path, key='pos')
+        """
+        _df = self.to_dataframe()
+        
+        # Save the DataFrame using pandas
+        # Unable to open/create file '/media/MAX/Data/KDIBA/gor01/one/2006-6-12_15-55-31/output/pipeline_results.h5'
+        with pd.HDFStore(file_path) as store:
+            _df.to_hdf(path_or_buf=store, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
+
+        # Open the file with h5py to add attributes to the dataset
+        with h5py.File(file_path, 'r+') as f:
+            dataset = f[key]
+            metadata = {
+                'time_variable_name': self.time_variable_name,
+                'sampling_rate': self.sampling_rate,
+                't_start': self.t_start,
+                't_stop': self.t_stop,
+            }
+            for k, v in metadata.items():
+                dataset.attrs[k] = v
+
+    @classmethod
+    def read_hdf(cls, file_path, key: str, **kwargs) -> "Position":
+        """ Reads the data from the key in the hdf5 file at file_path
+        Usage:
+            _reread_pos_obj = Position.read_hdf(hdf5_output_path, key='pos')
+            _reread_pos_obj
+        """
+        # Read the DataFrame using pandas
+        pos_df = pd.read_hdf(file_path, key=key)
+
+        # Open the file with h5py to read attributes
+        with h5py.File(file_path, 'r') as f:
+            dataset = f[key]
+            metadata = {
+                'time_variable_name': dataset.attrs['time_variable_name'],
+                'sampling_rate': dataset.attrs['sampling_rate'],
+                't_start': dataset.attrs['t_start'],
+                't_stop': dataset.attrs['t_stop'],
+            }
+
+        # Reconstruct the object using the class constructor
+        _out = cls(pos_df=pos_df, metadata=metadata)
+        _out.filename = file_path # set the filename it was loaded from
+        return _out
+
 
 
 

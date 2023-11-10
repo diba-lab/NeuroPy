@@ -1,12 +1,13 @@
+import re # used in try_extract_date_from_session_name
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
 from neuropy.core.position import Position
 from neuropy.core.session.KnownDataSessionTypeProperties import KnownDataSessionTypeProperties
 from neuropy.core.session.dataSession import DataSession
-from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, SessionConfig
+from neuropy.core.session.Formats.SessionSpecifications import SessionFolderSpec, SessionFileSpec, SessionConfig, ParametersContainer
 
 # For specific load functions:
 from neuropy.core import Mua, Epoch
@@ -22,7 +23,7 @@ from neuropy.utils.result_context import IdentifyingContext
 # 2022-12-07 - Finding Local Session Paths
 # ==================================================================================================================== #
 
-def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_print=True):
+def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_print=False):
     """Finds the local session paths
 
     History: From PendingNotebookCode's 2022-12-07 section - "Finding Local Session Paths"
@@ -76,7 +77,7 @@ def find_local_session_paths(local_session_parent_path, exclude_list=[], debug_p
 
 
 
-class DataSessionFormatRegistryHolder(type):
+class DataSessionFormatRegistryHolder(type): # inheriting from type? Is this right?
     """ a metaclass that automatically registers its conformers as a known loadable data session format.
         
     Usage:
@@ -228,6 +229,24 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         final_configs_dict = dict(epoch_filter_configs_dict, **global_epoch_filter_fn_dict)
         return  final_configs_dict
 
+
+    @classmethod
+    def build_default_preprocessing_parameters(cls, **kwargs) -> ParametersContainer:
+        """ builds the pre-processing parameters. Could get session_spec, basedir, or other info from the caller but usually not a session itself because this is used to build the config prior to the session loading. 
+        
+        Used in: ['cls.build_session']
+        """
+        default_lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True, use_direction_dependent_laps=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+        default_PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.6) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300  
+        default_replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
+
+        preprocessing_parameters = ParametersContainer(epoch_estimation_parameters=DynamicContainer.init_from_dict({
+                    'laps': default_lap_estimation_parameters,
+                    'PBEs': default_PBE_estimation_parameters,
+                    'replays': default_replay_estimation_parameters
+                }))
+        return preprocessing_parameters
+
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
@@ -236,7 +255,6 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
                                                                  'kleinberg_parameters': DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs),
                                                                  'use_progress_bar': False,
                                                                  'debug_print': False}).override(kwargs))
-        
         return [DynamicContainer(pf_params=kwargs['pf_params'], spike_analysis=kwargs['spike_analysis'])]
         # return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
         #                   spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
@@ -249,8 +267,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
         #         PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(128, 128)), smooth=(1.0, 1.0), frate_thresh=0.2, time_bin_size=0.5, computation_epochs = None),
         #        ]
-  
-  
+    
     @classmethod
     def build_active_computation_configs(cls, sess, **kwargs):
         """ defines the main computation configs for each class. This is provided as an alternative to `build_default_computation_configs` because some classes use cls.build_default_computation_configs(...) to get the plain configs, which they then update with different properties. """
@@ -310,7 +327,14 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         basedir = Path(basedir) # basedir WindowsPath('W:/Data/KDIBA/gor01/one/2006-6-07_11-26-53')
         dir_parts = basedir.parts # ('W:\\', 'Data', 'KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')
         # Finds the index of the 'Data' or 'data' (global_data_root) part of the path to include only what's after that.
-        data_index = tuple(map(str.casefold, dir_parts)).index('DATA'.casefold()) # .casefold is equivalent to .lower, but works for unicode characters
+        try:        
+            data_index = tuple(map(str.casefold, dir_parts)).index('DATA'.casefold()) # .casefold is equivalent to .lower, but works for unicode characters
+        except ValueError:
+            # Enables looking for 'FASTDATA' in the path when DATA is not found
+            data_index = tuple(map(str.casefold, dir_parts)).index('FASTDATA'.casefold()) # .casefold is equivalent to .lower, but works for unicode characters
+        except BaseException:
+            raise # unhandled exception
+
         post_data_root_dir_parts = dir_parts[data_index+1:] # ('KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')
         num_parts = len(post_data_root_dir_parts)
         context_keys = cls.get_session_basepath_to_context_parsing_keys()
@@ -321,6 +345,48 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         format_name = cls.get_session_format_name() 
         curr_sess_ctx.format_name = format_name
         return curr_sess_ctx # IdentifyingContext<('KDIBA', 'gor01', 'one', '2006-6-07_11-26-53')>
+
+
+
+    # @classmethod
+    # def try_extract_date_from_session_name(cls, session_name: str): # Optional[Union[pd.Timestamp, NaTType]]
+    #     """ 2023-08-24 - Attempts to determine at least the relative recording date for a given session from the session's name alone.
+    #     From the 'session_name' column in the provided data, we can observe two different formats used to specify the date:
+
+    #     Format 1: Dates with the pattern YYYY-M-D_H-M-S (e.g., "2006-6-07_11-26-53").
+    #     Format 2: Dates with the pattern MM-DD_H-M-S (e.g., "11-02_17-46-44").
+        
+    #     """
+    #     # Remove any non-digit prefixes or suffixes before parsing. Handles 'fet11-01_12-58-54'
+
+    #     # Check for any non-digit prefix
+    #     if re.match(r'^\D+', session_name):
+    #         print(f"WARN: Removed prefix from session_name: {session_name}")
+    #         session_name = re.sub(r'^\D*', '', session_name)
+
+    #     # Check for any non-digit suffix
+    #     if re.search(r'\D+$', session_name):
+    #         print(f"WARN: Removed suffix from session_name: {session_name}")
+    #         session_name = re.sub(r'\D*$', '', session_name)
+
+
+    #     # Try Format 1 (YYYY-M-D_H-M-S)
+    #     date_match1 = re.search(r'\d{4}-\d{1,2}-\d{1,2}_\d{1,2}-\d{1,2}-\d{1,2}', session_name)
+    #     if date_match1:
+    #         date_str1 = date_match1.group().replace('_', ' ')
+    #         return pd.to_datetime(date_str1, format='%Y-%m-%d %H-%M-%S', errors='coerce')
+
+    #     # Try Format 2 (MM-DD_H-M-S)
+    #     date_match2 = re.search(r'\d{1,2}-\d{1,2}_\d{1,2}-\d{1,2}-\d{1,2}', session_name)
+    #     if date_match2:
+    #         date_str2 = "2000-" + session_name.split('_')[0] # Assuming year 2000
+    #         time_str2 = session_name.split('_')[1].replace('-', ':')
+    #         full_str2 = date_str2 + ' ' + time_str2
+    #         return pd.to_datetime(full_str2, format='%Y-%m-%d %H:%M:%S', errors='coerce')
+
+    #     print(f"WARN: Could not parse date from session_name: {session_name} for any known format.")
+    #     return None
+
 
 
     @classmethod
@@ -339,7 +405,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         session_context = cls.parse_session_basepath_to_context(basedir) 
         session_spec = cls.get_session_spec(session_name)
         format_name = cls.get_session_format_name()
-        session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name, session_context=session_context)
+            
+        # get the default preprocessing parameters:
+        preprocessing_parameters = cls.build_default_preprocessing_parameters()                                                    
+        session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name, session_context=session_context, preprocessing_parameters=preprocessing_parameters)
         assert session_config.is_resolved, "active_sess_config could not be resolved!"
         session_obj = DataSession(session_config)
         return session_obj
@@ -407,7 +476,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             else:
                 print(f'\t Failure loading "{session.filePrefix.with_suffix(active_file_suffix)}". Must recompute.\n')
             with ProgressMessagePrinter('spikes_df', 'Computing', 'interpolate_spike_positions columns'):
-                spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=session.position.linear_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
+                if session.position.has_linear_pos:
+                    lin_pos = session.position.linear_pos
+                else:
+                    lin_pos = None
+                spikes_df = FlattenedSpiketrains.interpolate_spike_positions(spikes_df, session.position.time, session.position.x, session.position.y, position_linear_pos=lin_pos, position_speeds=session.position.speed, spike_timestamp_column_name=time_variable_name)
                 session.flattened_spiketrains = FlattenedSpiketrains(spikes_df, time_variable_name=time_variable_name, t_start=0.0)
             
             session.flattened_spiketrains.filename = session.filePrefix.with_suffix(active_file_suffix)
@@ -452,13 +525,12 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # Computes Common Extended properties:
         force_recompute = kwargs.pop('force_recompute', False)
         
-
         ## Ripples:
         try:
             # Externally Computed Ripples (from 'ripple_df.pkl') file:
             # Load `ripple_df.pkl` previously saved:
-            external_computed_ripple_df_filepath = session.basepath.joinpath('ripple_df.pkl')
-            external_computed_ripple_df = pd.read_pickle(external_computed_ripple_df_filepath)
+            external_computed_ripple_filepath = session.basepath.joinpath('ripple_df.pkl')
+            external_computed_ripple_df = pd.read_pickle(external_computed_ripple_filepath)
             # Add the required columns for Epoch(...):
             external_computed_ripple_df['label'] = [str(an_idx) for an_idx in external_computed_ripple_df.index]
             external_computed_ripple_df = external_computed_ripple_df.reset_index(drop=True)
@@ -468,13 +540,14 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             found_datafile = None
 
         if found_datafile is not None:
-            print('Loading success: {}.'.format(external_computed_ripple_df_filepath))
+            print('Loading success: {}.'.format(external_computed_ripple_filepath))
             session.ripple = found_datafile
-            found_datafile.filename = external_computed_ripple_df_filepath
+            found_datafile.filename = external_computed_ripple_filepath
         else:
             ## try the '.ripple.npy' ripples:
             active_file_suffix = '.ripple.npy'
-            found_datafile = Epoch.from_file(fp.with_suffix(active_file_suffix))
+            external_computed_ripple_filepath = fp.with_suffix(active_file_suffix)
+            found_datafile = Epoch.from_file(external_computed_ripple_filepath)
             if found_datafile is not None:
                 print('Loading success: {}.'.format(active_file_suffix))
                 session.ripple = found_datafile
@@ -485,7 +558,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
                 #     session.ripple.save()
             else:
                 # Otherwise both loads failed, perform the fallback computation:
-                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+                if not force_recompute:
+                    print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+                else:
+                    print(f'force_recompute is True, recomputing...')
                 try:
                     session.ripple = DataSession.compute_neurons_ripples(session, save_on_compute=True)
                 except (ValueError, AttributeError) as e:
@@ -500,7 +576,10 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             session.mua = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            if not force_recompute:
+                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            else:
+                print(f'force_recompute is True, recomputing...')
             try:
                 session.mua = DataSession.compute_neurons_mua(session, save_on_compute=True)
             except (ValueError, AttributeError) as e:
@@ -515,9 +594,14 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
             session.pbe = found_datafile
         else:
             # Otherwise load failed, perform the fallback computation
-            print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            if not force_recompute:
+                print('Failure loading {}. Must recompute.\n'.format(active_file_suffix))
+            else:
+                print(f'force_recompute is True, recomputing...')
             try:
-                session.pbe = DataSession.compute_pbe_epochs(session, active_parameters=kwargs.pop('pbe_epoch_detection_params', None), save_on_compute=True)
+                # active_pbe_parameters = kwargs.pop('pbe_epoch_detection_params', session.config.preprocessing_parameters.epoch_estimation_parameters.PBEs)
+                active_pbe_parameters = session.config.preprocessing_parameters.epoch_estimation_parameters.PBEs
+                session.pbe = DataSession.compute_pbe_epochs(session, active_parameters=active_pbe_parameters, save_on_compute=True)
             except (ValueError, AttributeError) as e:
                 print(f'Computation failed with error {e}. Skipping .pbe')
                 session.pbe = None
@@ -525,10 +609,6 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # add PBE information to spikes_df from session.pbe
         cls._default_add_spike_PBEs_if_needed(session)
         cls._default_add_spike_scISIs_if_needed(session)
-
-
-        
-
         # return the session with the upadated member variables
         return session
     

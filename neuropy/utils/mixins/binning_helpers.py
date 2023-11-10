@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 
 from dataclasses import dataclass # for BinningInfo
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 
 def get_bin_centers(bin_edges):
@@ -53,7 +55,6 @@ class BinningContainer(object):
             self.centers = centers
         else:
             self.centers = get_bin_centers(edges)
-            
             
         if edge_info is not None:
             self.edge_info = edge_info
