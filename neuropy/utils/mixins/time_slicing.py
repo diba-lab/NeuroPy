@@ -147,6 +147,8 @@ def _compute_spike_arbitrary_provided_epoch_ids(spk_df, provided_epochs_df, epoc
 def add_epochs_id_identity(spk_df, epochs_df, epoch_id_key_name='temp_epoch_id', epoch_label_column_name='label', override_time_variable_name=None, no_interval_fill_value=np.nan, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
     """ Adds the epoch IDs to each spike in spikes_df as a column named epoch_id_key_name
     
+    NOTE: you can use this for non-spikes dataframes by providing `override_time_variable_name='t'`
+
     Example:
         # add the active_epoch's id to each spike in active_spikes_df to make filtering and grouping easier and more efficient:
         
