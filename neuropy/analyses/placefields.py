@@ -716,6 +716,7 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         # Set animal observed position member variables:
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
             self._filtered_pos_df['speed_smooth'] = gaussian_filter1d(self._filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
+            #TODO 2023-11-10 16:30: - [ ] This seems to only use the 1D speed even for 2D placefields, which could be an issue.
 
         # Add interpolated velocity information to spikes dataframe:
         if 'speed' not in self._filtered_spikes_df.columns:
@@ -730,12 +731,17 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
             self._filtered_spikes_df = self._filtered_spikes_df
         else:
             # threshold by speed
+            print(f'WARN: TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!')
             self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
 
         # TODO: 2023-04-07 - CORRECTNESS ISSUE HERE. Interpolating the positions/speeds to the spikes and then filtering makes it difficult to determine the occupancy of each bin.
             # Kourosh and Kamran both process in terms of time bins.
+
+        #TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!
+
+
 
         ## Binning with Fixed bin size:
         # 2022-12-09 - We want to be able to have both long/short track placefields have the same bins.
