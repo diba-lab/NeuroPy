@@ -385,3 +385,56 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Pe
                 if self.unsmoothed_tuning_maps is not None:
                     group['unsmoothed_tuning_maps'].dims[2].label = 'y'
 
+
+    @classmethod
+    def build_merged_ratemap(cls, lhs: "Ratemap", rhs: "Ratemap", debug_print = True) -> "Ratemap":
+        """ Combine the non-directional PDFs and renormalize to get the directional PDF 
+        
+        Usage:
+        
+            # Inputs: long_LR_pf1D, long_RL_pf1D
+            lhs: Ratemap = deepcopy(long_RL_pf1D.ratemap)
+            rhs: Ratemap = deepcopy(long_RL_pf1D.ratemap)
+            combined_directional_ratemap = Ratemap.build_merged_ratemap(lhs, rhs)
+            combined_directional_ratemap
+        
+        """
+        # Ratemaps have: tuning_curves, occupancy
+        # tuning_curves, unsmoothed_tuning_maps=None, spikes_maps=None, xbin=None, ybin=None, occupancy=None, neuron_ids=None, neuron_extended_ids=None
+
+        assert np.all(lhs.xbin == rhs.xbin)
+        assert np.all(lhs.ybin == rhs.ybin)
+        xbin = lhs.xbin
+        ybin = lhs.ybin
+
+        # neuron_ids and neuron_extended_ids merge and re-sort: ... actually this could create an issue, as cells could be significant in one direction but not the other yeah? Filtering is basically the problem, if a cell isn't significant in one of the two, than its spikes will be filtered from that one and neglected in the whole.
+        assert np.all(lhs.neuron_ids == rhs.neuron_ids), f"currently require identical sets of neurons, could be changed later"
+        neuron_ids = lhs.neuron_ids
+        assert np.all(lhs.neuron_extended_ids == rhs.neuron_extended_ids), f"currently require identical sets of neuron_extended_ids, could be changed later"
+        neuron_extended_ids = lhs.neuron_extended_ids
+
+        # spike_maps and tuning_curves Stack:
+        spikes_maps = np.stack((lhs.spikes_maps, rhs.spikes_maps), axis=-1)
+        tuning_curves = np.stack((lhs.tuning_curves, rhs.tuning_curves), axis=-1)
+        if debug_print:
+            print(f'spikes_maps.shape: {spikes_maps.shape}')
+            print(f'tuning_curves.shape: {tuning_curves.shape}') # (2, 69, 62)
+
+        if lhs.unsmoothed_tuning_maps is not None:
+            assert rhs.unsmoothed_tuning_maps is not None
+            unsmoothed_tuning_maps = np.stack((lhs.unsmoothed_tuning_maps, rhs.unsmoothed_tuning_maps), axis=-1)
+        else:
+            unsmoothed_tuning_maps = None
+                    
+
+        # Occupancy Adds:
+        # occupancy = lhs.occupancy + rhs.occupancy
+
+        ## .... OR does it stack? So we have a conditional occupancy in each direction?
+        occupancy = np.stack((lhs.occupancy, rhs.occupancy), axis=-1)
+
+        if debug_print:
+            print(f'occupancy.shape: {occupancy.shape}')
+
+        combined_directional_ratemap = Ratemap(tuning_curves=tuning_curves, unsmoothed_tuning_maps=unsmoothed_tuning_maps, spikes_maps=spikes_maps, xbin=xbin, ybin=ybin, occupancy=occupancy, neuron_ids=neuron_ids, neuron_extended_ids=neuron_extended_ids, metadata=lhs.metadata)
+        return combined_directional_ratemap
