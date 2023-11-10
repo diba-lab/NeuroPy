@@ -539,6 +539,68 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
 
 
+
+
+class PlacefieldND(PfnConfigMixin, PfnDMixin):
+    # 2023-11-10 ChatGPT-3 Generalized Implementation, UNTESTED
+    
+    @staticmethod
+    def _compute_occupancy(position, bins, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
+        num_pos_samples_unsmoothed_occupancy, edges = np.histogramdd(position, bins=bins)
+        
+        if smooth is not None and any(s > 0.0 for s in smooth):
+            num_pos_samples_occupancy = gaussian_filter(num_pos_samples_unsmoothed_occupancy, sigma=smooth)
+        else:
+            num_pos_samples_occupancy = num_pos_samples_unsmoothed_occupancy
+        
+        if should_return_num_pos_samples_occupancy:
+            return num_pos_samples_occupancy, num_pos_samples_unsmoothed_occupancy, edges
+        else:
+            seconds_unsmoothed_occupancy, normalized_unsmoothed_occupancy = _normalized_occupancy(num_pos_samples_unsmoothed_occupancy, position_srate=position_srate)
+            seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
+            return seconds_occupancy, seconds_unsmoothed_occupancy, edges
+
+    @staticmethod
+    def _compute_spikes_map(spikes, bins, smooth):
+        unsmoothed_spikes_map = np.histogramdd(spikes, bins=bins)[0]
+        
+        if smooth is not None and any(s > 0.0 for s in smooth):
+            spikes_map = gaussian_filter(unsmoothed_spikes_map, sigma=smooth)
+        else:
+            spikes_map = unsmoothed_spikes_map
+        
+        return spikes_map, unsmoothed_spikes_map
+
+    @staticmethod
+    def _compute_tuning_map(spikes, bins, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
+        if not PfnDMixin.should_smooth_spikes_map:
+            smoothing_widths_spikes_map = None
+        else:
+            smoothing_widths_spikes_map = smooth
+        
+        spikes_map, unsmoothed_spikes_map = PlacefieldND._compute_spikes_map(spikes, bins, smoothing_widths_spikes_map)
+
+        occupancy[occupancy == 0.0] = np.nan
+        never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy
+        never_smoothed_occupancy_weighted_tuning_map = np.nan_to_num(never_smoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0)
+        unsmoothed_occupancy_weighted_tuning_map = spikes_map / occupancy
+        unsmoothed_occupancy_weighted_tuning_map = np.nan_to_num(unsmoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0)
+        occupancy[np.isnan(occupancy)] = 0.0
+
+        if PfnDMixin.should_smooth_final_tuning_map and (smooth is not None and any(s > 0.0 for s in smooth)):
+            occupancy_weighted_tuning_map = gaussian_filter(unsmoothed_occupancy_weighted_tuning_map, sigma=smooth)
+        else:
+            occupancy_weighted_tuning_map = unsmoothed_occupancy_weighted_tuning_map
+
+        if should_also_return_intermediate_spikes_map:
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map, spikes_map, unsmoothed_spikes_map
+        else:
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
+
+
+
+
+
 # First, interested in answering the question "where did the animal spend its time on the track" to assess the relative frequency of events that occur in a given region. If the animal spends a lot of time in a certain region,
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
     # this can be done by either binning (lumping close position points together based on a standardized grid), neighborhooding, or continuous smearing.
