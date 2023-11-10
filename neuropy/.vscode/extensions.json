@@ -1,6 +1,7 @@
 {
 	"recommendations": [
 		"ms-python.vscode-pylance",
-		"orepor.color-tabs-vscode-ext"
+		"orepor.color-tabs-vscode-ext",
+		"buenon.scratchpads"
 	]
 }
