@@ -55,7 +55,8 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
     array_items_threshold:int = 5
     
 
-    def __init__(self, speed_thresh=3, grid_bin=2, grid_bin_bounds=None, smooth=2, frate_thresh=1, **kwargs):
+
+    def __init__(self, speed_thresh=3, grid_bin=2, grid_bin_bounds=None, smooth=2, frate_thresh=1, is_directional=False, **kwargs):
         self.speed_thresh = speed_thresh
         if not isinstance(grid_bin, (tuple, list)):
             grid_bin = (grid_bin, grid_bin) # make it into a 2 element tuple
@@ -67,6 +68,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
             smooth = (smooth, smooth) # make it into a 2 element tuple
         self.smooth = smooth
         self.frate_thresh = frate_thresh
+        self.is_directional = is_directional
 
         # Dump all arguments into parameters.
         for key, value in kwargs.items():
@@ -433,7 +435,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
             return seconds_occupancy, seconds_unsmoothed_occupancy, xedges
 
-
     @staticmethod
     def _compute_spikes_map(spk_x, xbin, smooth):
         unsmoothed_spikes_map = np.histogram(spk_x, bins=xbin)[0]
@@ -451,9 +452,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             smooth_spikes_map = smooth
         spikes_map, unsmoothed_spikes_map = Pf1D._compute_spikes_map(spk_x, xbin, smooth_spikes_map)
 
-        # never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # completely unsmoothed tuning map
-        # occupancy_weighted_tuning_map = spikes_map / occupancy # tuning map that hasn't yet been smoothed but uses the potentially smoothed spikes_map
-
         ## Copied from Pf2D._compute_tuning_map to handle zero occupancy locations:
         occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
         never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
@@ -461,7 +459,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         unsmoothed_occupancy_weighted_tuning_map = spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         unsmoothed_occupancy_weighted_tuning_map = np.nan_to_num(unsmoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
         occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
-
 
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and (smooth > 0.0)):
             occupancy_weighted_tuning_map = gaussian_filter1d(unsmoothed_occupancy_weighted_tuning_map, sigma=smooth)
@@ -473,8 +470,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         else:
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
 
-    def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=1, smooth=1, ):
-        raise DeprecationWarning
 
 
 
@@ -543,8 +538,6 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         else:
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
 
-    def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1), ):
-        raise DeprecationWarning
 
 # First, interested in answering the question "where did the animal spend its time on the track" to assess the relative frequency of events that occur in a given region. If the animal spends a lot of time in a certain region,
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
