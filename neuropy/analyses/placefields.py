@@ -557,7 +557,7 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
 
         Parameters
         ----------
-        spikes_df: pd.Dahistorical_snapshotstaFrame
+        spikes_df: pd.DataFrame
         position : core.Position
         epochs : core.Epoch
             specifies the list of epochs to include.
