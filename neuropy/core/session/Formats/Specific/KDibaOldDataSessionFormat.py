@@ -341,8 +341,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 curr_config = deepcopy(active_session_computation_configs[i])
                 # curr_config.pf_params.time_bin_size = 0.025
                 curr_config.pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
-                curr_config.pf_params.computation_epochs = a_restricted_lap_epoch # add the laps epochs to all of the computation configs.
+                curr_config.pf_params.computation_epochs = deepcopy(a_restricted_lap_epoch) # add the laps epochs to all of the computation configs.
                 final_active_session_computation_configs.append(curr_config)
+                
 
         if debug_print:    
             print(f'\tlen(final_active_session_computation_configs): {len(final_active_session_computation_configs)}')
@@ -746,7 +747,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                                 # 'epoch_id': flat_var_out_dict['replay_epoch_ids'],
                                 # 'rel_id': flat_var_out_dict['epoch_rel_replay_ids'],
                                 'start': flat_var_out_dict['start_t_seconds'],
-                                'end': flat_var_out_dict['end_t_seconds'],
+                                'stop': flat_var_out_dict['end_t_seconds'],
                                 'replay_r': flat_var_out_dict['replay_r'],
                                 'replay_p': flat_var_out_dict['replay_p'],
                                 'template_id': flat_var_out_dict['replay_template_id'],
@@ -754,7 +755,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         replay_df['flat_replay_idx'] = np.array(replay_df.index) # Add the flat index column
         replay_df[['flat_replay_idx', 'template_id']] = replay_df[['flat_replay_idx', 'template_id']].astype('int') # convert integer calumns to correct datatype
-        replay_df['duration'] = replay_df['end'] - replay_df['start']
+        replay_df['duration'] = replay_df['stop'] - replay_df['start']
         session.replay = replay_df # Assign the replay to the session's .replay object
         return session, replay_df
     

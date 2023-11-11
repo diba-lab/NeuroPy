@@ -27,6 +27,7 @@ from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
+from neuropy.utils.mixins.time_slicing import add_epochs_id_identity # for building direction pf's positions
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin
     
@@ -55,7 +56,8 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
     array_items_threshold:int = 5
     
 
-    def __init__(self, speed_thresh=3, grid_bin=2, grid_bin_bounds=None, smooth=2, frate_thresh=1, **kwargs):
+
+    def __init__(self, speed_thresh=3, grid_bin=2, grid_bin_bounds=None, smooth=2, frate_thresh=1, is_directional=False, **kwargs):
         self.speed_thresh = speed_thresh
         if not isinstance(grid_bin, (tuple, list)):
             grid_bin = (grid_bin, grid_bin) # make it into a 2 element tuple
@@ -67,6 +69,7 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
             smooth = (smooth, smooth) # make it into a 2 element tuple
         self.smooth = smooth
         self.frate_thresh = frate_thresh
+        self.is_directional = is_directional
 
         # Dump all arguments into parameters.
         for key, value in kwargs.items():
@@ -433,7 +436,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
             return seconds_occupancy, seconds_unsmoothed_occupancy, xedges
 
-
     @staticmethod
     def _compute_spikes_map(spk_x, xbin, smooth):
         unsmoothed_spikes_map = np.histogram(spk_x, bins=xbin)[0]
@@ -451,9 +453,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
             smooth_spikes_map = smooth
         spikes_map, unsmoothed_spikes_map = Pf1D._compute_spikes_map(spk_x, xbin, smooth_spikes_map)
 
-        # never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # completely unsmoothed tuning map
-        # occupancy_weighted_tuning_map = spikes_map / occupancy # tuning map that hasn't yet been smoothed but uses the potentially smoothed spikes_map
-
         ## Copied from Pf2D._compute_tuning_map to handle zero occupancy locations:
         occupancy[occupancy == 0.0] = np.nan # pre-set the zero occupancy locations to NaN to avoid a warning in the next step. They'll be replaced with zero afterwards anyway
         never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
@@ -461,7 +460,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         unsmoothed_occupancy_weighted_tuning_map = spikes_map / occupancy # dividing by positions with zero occupancy result in a warning and the result being set to NaN. Set to 0.0 instead.
         unsmoothed_occupancy_weighted_tuning_map = np.nan_to_num(unsmoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0) # set any NaN values to 0.0, as this is the correct weighted occupancy
         occupancy[np.isnan(occupancy)] = 0.0 # restore these entries back to zero
-
 
         if PfnDMixin.should_smooth_final_tuning_map and ((smooth is not None) and (smooth > 0.0)):
             occupancy_weighted_tuning_map = gaussian_filter1d(unsmoothed_occupancy_weighted_tuning_map, sigma=smooth)
@@ -473,8 +471,6 @@ class Pf1D(PfnConfigMixin, PfnDMixin):
         else:
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
 
-    def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=1, smooth=1, ):
-        raise DeprecationWarning
 
 
 
@@ -543,8 +539,68 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
         else:
             return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
 
-    def __init__(self, neurons: Neurons, position: Position, epochs: Epoch = None, frate_thresh=1, speed_thresh=5, grid_bin=(1,1), smooth=(1,1), ):
-        raise DeprecationWarning
+
+
+
+class PlacefieldND(PfnConfigMixin, PfnDMixin):
+    # 2023-11-10 ChatGPT-3 Generalized Implementation, UNTESTED
+    
+    @staticmethod
+    def _compute_occupancy(position, bins, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
+        num_pos_samples_unsmoothed_occupancy, edges = np.histogramdd(position, bins=bins)
+        
+        if smooth is not None and any(s > 0.0 for s in smooth):
+            num_pos_samples_occupancy = gaussian_filter(num_pos_samples_unsmoothed_occupancy, sigma=smooth)
+        else:
+            num_pos_samples_occupancy = num_pos_samples_unsmoothed_occupancy
+        
+        if should_return_num_pos_samples_occupancy:
+            return num_pos_samples_occupancy, num_pos_samples_unsmoothed_occupancy, edges
+        else:
+            seconds_unsmoothed_occupancy, normalized_unsmoothed_occupancy = _normalized_occupancy(num_pos_samples_unsmoothed_occupancy, position_srate=position_srate)
+            seconds_occupancy, normalized_occupancy = _normalized_occupancy(num_pos_samples_occupancy, position_srate=position_srate)
+            return seconds_occupancy, seconds_unsmoothed_occupancy, edges
+
+    @staticmethod
+    def _compute_spikes_map(spikes, bins, smooth):
+        unsmoothed_spikes_map = np.histogramdd(spikes, bins=bins)[0]
+        
+        if smooth is not None and any(s > 0.0 for s in smooth):
+            spikes_map = gaussian_filter(unsmoothed_spikes_map, sigma=smooth)
+        else:
+            spikes_map = unsmoothed_spikes_map
+        
+        return spikes_map, unsmoothed_spikes_map
+
+    @staticmethod
+    def _compute_tuning_map(spikes, bins, occupancy, smooth, should_also_return_intermediate_spikes_map=False):
+        if not PfnDMixin.should_smooth_spikes_map:
+            smoothing_widths_spikes_map = None
+        else:
+            smoothing_widths_spikes_map = smooth
+        
+        spikes_map, unsmoothed_spikes_map = PlacefieldND._compute_spikes_map(spikes, bins, smoothing_widths_spikes_map)
+
+        occupancy[occupancy == 0.0] = np.nan
+        never_smoothed_occupancy_weighted_tuning_map = unsmoothed_spikes_map / occupancy
+        never_smoothed_occupancy_weighted_tuning_map = np.nan_to_num(never_smoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0)
+        unsmoothed_occupancy_weighted_tuning_map = spikes_map / occupancy
+        unsmoothed_occupancy_weighted_tuning_map = np.nan_to_num(unsmoothed_occupancy_weighted_tuning_map, copy=True, nan=0.0)
+        occupancy[np.isnan(occupancy)] = 0.0
+
+        if PfnDMixin.should_smooth_final_tuning_map and (smooth is not None and any(s > 0.0 for s in smooth)):
+            occupancy_weighted_tuning_map = gaussian_filter(unsmoothed_occupancy_weighted_tuning_map, sigma=smooth)
+        else:
+            occupancy_weighted_tuning_map = unsmoothed_occupancy_weighted_tuning_map
+
+        if should_also_return_intermediate_spikes_map:
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map, spikes_map, unsmoothed_spikes_map
+        else:
+            return occupancy_weighted_tuning_map, never_smoothed_occupancy_weighted_tuning_map
+
+
+
+
 
 # First, interested in answering the question "where did the animal spend its time on the track" to assess the relative frequency of events that occur in a given region. If the animal spends a lot of time in a certain region,
 # it's more likely that any cell, not just the ones that hold it as a valid place field, will fire there.
@@ -661,6 +717,7 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         # Set animal observed position member variables:
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
             self._filtered_pos_df['speed_smooth'] = gaussian_filter1d(self._filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
+            #TODO 2023-11-10 16:30: - [ ] This seems to only use the 1D speed even for 2D placefields, which could be an issue.
 
         # Add interpolated velocity information to spikes dataframe:
         if 'speed' not in self._filtered_spikes_df.columns:
@@ -675,12 +732,17 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
             self._filtered_spikes_df = self._filtered_spikes_df
         else:
             # threshold by speed
+            print(f'WARN: TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!')
             self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
 
         # TODO: 2023-04-07 - CORRECTNESS ISSUE HERE. Interpolating the positions/speeds to the spikes and then filtering makes it difficult to determine the occupancy of each bin.
             # Kourosh and Kamran both process in terms of time bins.
+
+        #TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!
+
+
 
         ## Binning with Fixed bin size:
         # 2022-12-09 - We want to be able to have both long/short track placefields have the same bins.
@@ -1223,6 +1285,90 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         # Reconstruct the object using the from_config_values class method
         return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
     
+
+    @classmethod
+    def build_pseduo_2D_directional_placefield_positions(cls, *directional_1D_decoder_list) -> Position:
+        """ 2023-11-10 - builds the positions for the directional 1D decoders into a pseudo 2D decoder
+        ## HACK: this adds the two directions of two separate 1D placefields into a stack with a pseudo-y dimension (with two bins):
+        ## WARNING: the animal will "teleport" between y-coordinates between the RL/LR laps. This will mean that all velocity_y, or vector-based velocity calculations (that use both x and y) are going to be messed up.
+        """
+        # positions merge:
+        position = Position(pd.concat([a_decoder.position.to_dataframe() for a_decoder in directional_1D_decoder_list]).drop_duplicates().sort_values('t'))
+        position.df['y'] = 0.0
+        ## Add the epoch ids to each spike so we can easily filter on them:
+        for i, a_decoder in enumerate(directional_1D_decoder_list):        
+            epoch_id_string: str = f'decoder_{i}_epoch_id'
+            position.df = add_epochs_id_identity(position.df, a_decoder.epochs.to_dataframe(), epoch_id_key_name=epoch_id_string, epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name='t')
+            position.df.loc[(position.df[epoch_id_string] != -1), 'y'] = float(i+1)
+
+        return position
+        
+
+    @classmethod
+    def build_merged_directional_placefields(cls, *directional_1D_decoder_list, debug_print = True) -> "PfND": # , lhs: "PfND", rhs: "PfND"
+        """ 2023-11-10 - Combine the non-directional PDFs and renormalize to get the directional PDF:
+         
+        Usage:
+            from neuropy.analyses.placefields import PfND
+
+            ## Combine the non-directional PDFs and renormalize to get the directional PDF:
+            # Inputs: long_LR_pf1D, long_RL_pf1D
+            merged_pf1D = PfND.build_merged_directional_placefields(deepcopy(long_LR_pf1D), deepcopy(long_RL_pf1D), debug_print = True)
+            merged_pf1D 
+
+        """
+        
+        from neuropy.analyses.placefields import PlacefieldComputationParameters
+
+        assert len(directional_1D_decoder_list) > 0
+        lhs = directional_1D_decoder_list[0] # first decoder
+        remaining_decoder_list = directional_1D_decoder_list[1:]
+
+        for rhs in remaining_decoder_list:
+            assert np.all(lhs.xbin == rhs.xbin)
+            assert np.all(lhs.ybin == rhs.ybin)
+        xbin = lhs.xbin
+        ybin = lhs.ybin
+        for rhs in remaining_decoder_list:
+            assert np.all(lhs.ndim == rhs.ndim)
+        ndim = lhs.ndim
+        new_pseduo_ndim = ndim + 1
+        new_pseudo_num_ybins: int = len(directional_1D_decoder_list) # number of y-bins we'll need
+        if debug_print:
+            print(f'ndim: {ndim}, new_pseduo_ndim: {new_pseduo_ndim}\n\tnew_pseudo_num_ybins: {new_pseudo_num_ybins}')
+            
+        assert ndim == 1, f"currently only works for ndim == 1 but ndim: {ndim}! ybin will need to be changed to zbin for higher-order than 1D initial decoders."
+        ybin = np.arange(new_pseudo_num_ybins + 1) # [0, 1, 2] because they are the edges of the bins
+        if debug_print:
+            print(f'ybin: {ybin}')
+        for rhs in remaining_decoder_list:
+            assert np.isclose(lhs.position_srate, rhs.position_srate)
+        position_srate = lhs.position_srate
+
+        ## Pre-computation variables:
+        # These variables below are pre-computation variables and are used by `PfND.compute()` to actually build the ratemaps and filtered versions. They aren't quite right as is.
+        # epochs are merged:
+        epochs: Epoch = Epoch(pd.concat([a_decoder.epochs.to_dataframe() for a_decoder in directional_1D_decoder_list], verify_integrity=True).sort_values(['start', 'stop']))
+        
+        # spikes_df are merged:
+        time_variable_name:str = lhs.spikes_df.spikes.time_variable_name
+        spikes_df = pd.concat([a_decoder.spikes_df for a_decoder in directional_1D_decoder_list]).drop_duplicates().sort_values([time_variable_name, 'aclu'])
+
+        # positions merge:
+        position = cls.build_pseduo_2D_directional_placefield_positions(*directional_1D_decoder_list)
+        
+        # Make the needed modifications to the config so spatial smoothing isn't used on the pseduo-y dimension:
+        # config: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.607897707662558), 'grid_bin_bounds': ((29.16, 261.7), (130.23, 150.99)), 'smooth': (2.0, 2.0), 'frate_thresh': 1.0};>
+        config = deepcopy(lhs.config)
+        config.is_directional = True
+        config.grid_bin = (*config.grid_bin[:ndim], 1.0) # bin size is exactly one (because there will be two pseduo-dimensions)
+        config.smooth = (*config.smooth[:ndim], 0.0) # do not allow smooth along the pseduo-y direction
+        config.grid_bin_bounds = (*config.grid_bin_bounds[:ndim], (0, new_pseudo_num_ybins))
+        config # result: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.0), 'grid_bin_bounds': ((29.16, 261.7), (0, 2)), 'smooth': (2.0, None), 'frate_thresh': 1.0, 'is_directional': True};>
+        merged_pf = PfND(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin) # , ybin=
+        return merged_pf
+
+
 
 # ==================================================================================================================== #
 # Global Placefield Computation Functions                                                                              #
