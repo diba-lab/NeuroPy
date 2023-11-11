@@ -341,8 +341,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 curr_config = deepcopy(active_session_computation_configs[i])
                 # curr_config.pf_params.time_bin_size = 0.025
                 curr_config.pf_params.grid_bin_bounds = grid_bin_bounds # same bounds for all
-                curr_config.pf_params.computation_epochs = a_restricted_lap_epoch # add the laps epochs to all of the computation configs.
+                curr_config.pf_params.computation_epochs = deepcopy(a_restricted_lap_epoch) # add the laps epochs to all of the computation configs.
                 final_active_session_computation_configs.append(curr_config)
+                
 
         if debug_print:    
             print(f'\tlen(final_active_session_computation_configs): {len(final_active_session_computation_configs)}')
