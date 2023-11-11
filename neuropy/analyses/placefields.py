@@ -1285,9 +1285,10 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         # Reconstruct the object using the from_config_values class method
         return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
     
+
     @classmethod
     def build_pseduo_2D_directional_placefield_positions(cls, *directional_1D_decoder_list) -> Position:
-        """ 
+        """ 2023-11-10 - builds the positions for the directional 1D decoders into a pseudo 2D decoder
         ## HACK: this adds the two directions of two separate 1D placefields into a stack with a pseudo-y dimension (with two bins):
         ## WARNING: the animal will "teleport" between y-coordinates between the RL/LR laps. This will mean that all velocity_y, or vector-based velocity calculations (that use both x and y) are going to be messed up.
         """
@@ -1305,8 +1306,8 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
 
     @classmethod
     def build_merged_directional_placefields(cls, *directional_1D_decoder_list, debug_print = True) -> "PfND": # , lhs: "PfND", rhs: "PfND"
-        """ Combine the non-directional PDFs and renormalize to get the directional PDF:
-
+        """ 2023-11-10 - Combine the non-directional PDFs and renormalize to get the directional PDF:
+         
         Usage:
             from neuropy.analyses.placefields import PfND
 
@@ -1356,16 +1357,6 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         # positions merge:
         position = cls.build_pseduo_2D_directional_placefield_positions(*directional_1D_decoder_list)
         
-        # position = Position(pd.concat([lhs.position.to_dataframe(), rhs.position.to_dataframe()]).drop_duplicates().sort_values('t')) # Note that this would be expected to be an ND+1 position if we approximate using two rows
-        # ## HACK: this adds the two directions of two separate 1D placefields into a stack with a pseudo-y dimension (with two bins):
-        # ## WARNING: the animal will "teleport" between y-coordinates between the RL/LR laps. This will mean that all velocity_y, or vector-based velocity calculations (that use both x and y) are going to be messed up.
-        # position.df['y'] = 0.0
-        # ## Add the epoch ids to each spike so we can easily filter on them:
-        # position.df = add_epochs_id_identity(position.df, lhs.epochs.to_dataframe(), epoch_id_key_name='lhs_epoch_id', epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name='t')
-        # position.df = add_epochs_id_identity(position.df, rhs.epochs.to_dataframe(), epoch_id_key_name='rhs_epoch_id', epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name='t')
-        # position.df.loc[(position.df['lhs_epoch_id'] != -1), 'y'] = 1.0
-        # position.df.loc[(position.df['rhs_epoch_id'] != -1), 'y'] = 2.0
-
         # Make the needed modifications to the config so spatial smoothing isn't used on the pseduo-y dimension:
         # config: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.607897707662558), 'grid_bin_bounds': ((29.16, 261.7), (130.23, 150.99)), 'smooth': (2.0, 2.0), 'frate_thresh': 1.0};>
         config = deepcopy(lhs.config)
