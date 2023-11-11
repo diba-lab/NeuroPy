@@ -42,6 +42,12 @@ class BinningContainer(object):
     edge_info: BinningInfo
     center_info: BinningInfo
     
+    @property
+    def num_bins(self) -> int:
+        return self.center_info.num_bins
+        # return len(self.centers)`
+
+
     def __init__(self, edges: Optional[np.ndarray]=None, centers: Optional[np.ndarray]=None, edge_info: Optional[BinningInfo]=None, center_info: Optional[BinningInfo]=None):
         super(BinningContainer, self).__init__()
         assert (edges is not None) or (centers is not None) # Require either centers or edges to be provided
