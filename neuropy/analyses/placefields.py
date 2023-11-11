@@ -1341,7 +1341,7 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         if debug_print:
             print(f'ybin: {ybin}')
         for rhs in remaining_decoder_list:
-            assert (lhs.position_srate == rhs.position_srate)
+            assert np.isclose(lhs.position_srate, rhs.position_srate)
         position_srate = lhs.position_srate
 
         ## Pre-computation variables:
