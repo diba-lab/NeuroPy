@@ -746,7 +746,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                                 # 'epoch_id': flat_var_out_dict['replay_epoch_ids'],
                                 # 'rel_id': flat_var_out_dict['epoch_rel_replay_ids'],
                                 'start': flat_var_out_dict['start_t_seconds'],
-                                'end': flat_var_out_dict['end_t_seconds'],
+                                'stop': flat_var_out_dict['end_t_seconds'],
                                 'replay_r': flat_var_out_dict['replay_r'],
                                 'replay_p': flat_var_out_dict['replay_p'],
                                 'template_id': flat_var_out_dict['replay_template_id'],
@@ -754,7 +754,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         replay_df['flat_replay_idx'] = np.array(replay_df.index) # Add the flat index column
         replay_df[['flat_replay_idx', 'template_id']] = replay_df[['flat_replay_idx', 'template_id']].astype('int') # convert integer calumns to correct datatype
-        replay_df['duration'] = replay_df['end'] - replay_df['start']
+        replay_df['duration'] = replay_df['stop'] - replay_df['start']
         session.replay = replay_df # Assign the replay to the session's .replay object
         return session, replay_df
     

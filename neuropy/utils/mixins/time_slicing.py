@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Optional
 import numpy as np
 import pandas as pd
 from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior, determine_event_interval_identity, determine_event_interval_is_included # numba acceleration
@@ -66,13 +67,16 @@ class TimeColumnAliasesProtocol:
     }
 
     @classmethod
-    def renaming_synonym_columns_if_needed(cls, df: pd.DataFrame, required_columns_synonym_dict: dict) -> pd.DataFrame:
+    def renaming_synonym_columns_if_needed(cls, df: pd.DataFrame, required_columns_synonym_dict: Optional[dict]=None) -> pd.DataFrame:
         """ if the required columns (as specified in _time_column_name_synonyms's keys are missing, search for synonyms and replace the synonym columns with the preferred column name.
 
         Usage:
             obj = cls.renaming_synonym_columns_if_needed(obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "stop":['end','stop_t']})
 
         """
+        if required_columns_synonym_dict is None:
+            required_columns_synonym_dict = cls._time_column_name_synonyms
+            
         for preferred_column_name, replacement_set in required_columns_synonym_dict.items():
             if preferred_column_name not in df.columns:
                 # try to rename based on synonyms
@@ -93,7 +97,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     """ Allows general epochs represented as Pandas DataFrames to be easily time-sliced and manipulated along with their accompanying data without making a custom class. """
 
     def __init__(self, pandas_obj):
-        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "end":['stop','stop_t']}) # @IgnoreException 
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "stop":['end','stop_t']}) # @IgnoreException 
         self._validate(pandas_obj)
         self._obj = pandas_obj
 
@@ -101,7 +105,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     def _validate(cls, obj):
         """ verify there are the appropriate time columns to slice on """
         if "start" not in obj.columns or "end" not in obj.columns:
-            raise AttributeError("Must have temporal data columns named 'start' and 'end' that represent the start and ends of the epochs.")
+            raise AttributeError("Must have temporal data columns named 'start' and 'stop' that represent the start and ends of the epochs.")
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start=None, t_stop=None):
@@ -110,7 +114,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
         
         # Approach copied from Laps object's time_slice(...) function
         included_df = deepcopy(self._obj)
-        included_indicies = (((self._obj.start >= t_start) & (self._obj.start <= t_stop)) & ((self._obj.end >= t_start) & (self._obj.end <= t_stop)))
+        included_indicies = (((self._obj.start >= t_start) & (self._obj.start <= t_stop)) & ((self._obj.stop >= t_start) & (self._obj.stop <= t_stop)))
         included_df = included_df[included_indicies].reset_index(drop=True)
         return included_df
     
