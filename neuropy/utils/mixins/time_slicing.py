@@ -104,7 +104,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     @classmethod
     def _validate(cls, obj):
         """ verify there are the appropriate time columns to slice on """
-        if "start" not in obj.columns or "end" not in obj.columns:
+        if "start" not in obj.columns or "stop" not in obj.columns:
             raise AttributeError("Must have temporal data columns named 'start' and 'stop' that represent the start and ends of the epochs.")
 
     # for TimeSlicableObjectProtocol:
