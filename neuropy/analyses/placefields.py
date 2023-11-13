@@ -543,8 +543,41 @@ class Pf2D(PfnConfigMixin, PfnDMixin):
 
 
 class PlacefieldND(PfnConfigMixin, PfnDMixin):
-    # 2023-11-10 ChatGPT-3 Generalized Implementation, UNTESTED
-    
+    """ 2023-11-10 ChatGPT-3 Generalized Implementation, UNTESTED
+    # 1D:
+    def _compute_occupancy(x, xbin, position_srate, smooth, should_return_num_pos_samples_occupancy=False)
+    def _compute_spikes_map(spk_x, xbin, smooth)
+    def _compute_tuning_map(spk_x, xbin, occupancy, smooth, should_also_return_intermediate_spikes_map=False)
+
+    # 2D:
+    def _compute_occupancy(x, y, xbin, ybin, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
+    def _compute_spikes_map(spk_x, spk_y, xbin, ybin, smooth)
+    def _compute_tuning_map(spk_x, spk_y, xbin, ybin, occupancy, smooth, should_also_return_intermediate_spikes_map=False)
+
+    # 3D:
+    position_args: x, y, z
+    bin_args: xbin, ybin, zbin
+    spike_args: spk_x, spk_y, spk_z
+    def _compute_occupancy(x, y, z, xbin, ybin, zbin, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
+    def _compute_spikes_map(spk_x, spk_y, spk_z, xbin, ybin, zbin, smooth)
+    def _compute_tuning_map(spk_x, spk_y, spk_z, xbin, ybin, zbin, occupancy, smooth, should_also_return_intermediate_spikes_map=False)
+
+
+    # N-D
+    position_args: x, y, z
+    bin_args: xbin, ybin, zbin
+    spike_args: spk_x, spk_y, spk_z
+    def _compute_occupancy(x, y, z, xbin, ybin, zbin, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
+    def _compute_spikes_map(spk_x, spk_y, spk_z, xbin, ybin, zbin, smooth)
+    def _compute_tuning_map(spk_x, spk_y, spk_z, xbin, ybin, zbin, occupancy, smooth, should_also_return_intermediate_spikes_map=False)
+
+
+    from neuropy.analyses.placefields import Pf1D, Pf2D, PlacefieldND
+
+
+    """
+
+
     @staticmethod
     def _compute_occupancy(position, bins, position_srate, smooth, should_return_num_pos_samples_occupancy=False):
         num_pos_samples_unsmoothed_occupancy, edges = np.histogramdd(position, bins=bins)
