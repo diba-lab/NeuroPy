@@ -100,25 +100,42 @@ class Laps(Epoch):
 
         even_global_laps_df = even_global_laps_epochs.to_dataframe()
         odd_global_laps_df = odd_global_laps_epochs.to_dataframe()
-
-        # intersecting_epochs = Epoch.from_PortionInterval(even_global_laps.to_PortionInterval().intersection(odd_global_laps.to_PortionInterval()))
-        intersecting_portion = even_laps_portion.intersection(odd_laps_portion)
-        intersecting_epochs = Epoch.from_PortionInterval(intersecting_portion)
-
-        n_epochs_with_changes = intersecting_epochs.n_epochs
-        if debug_print:
-            print(f'intersecting_epochs: {intersecting_epochs}')
-
-
+        
         ## Find the stop times in the even_laps
         # Get whichever starts earlier
-        assert even_global_laps_df.epochs.t_start < odd_global_laps_df.epochs.t_start, f"even laps should start before odd laps. even_global_laps_df.epochs.t_start: {even_global_laps_df.epochs.t_start}, odd_global_laps_df.epochs.t_start: {odd_global_laps_df.epochs.t_start}"
-        even_epochs_with_changes = np.where(np.isin(even_global_laps_df.stop, intersecting_epochs.stops)) # recovers the indicies of the epochs that changed, index into the even array, e.g. (array([33, 37], dtype=int64),)
-        global_laps_end_change_indicies = even_global_laps._df.index[even_epochs_with_changes] # get the original indicies for use in the non even/odd split laps object, e.g. Int64Index([66, 74], dtype='int64')
+        # sets: global_laps_end_change_indicies, desired_stops
+        if (even_global_laps_df.epochs.t_start < odd_global_laps_df.epochs.t_start):
+            assert even_global_laps_df.epochs.t_start < odd_global_laps_df.epochs.t_start, f"even laps should start before odd laps. even_global_laps_df.epochs.t_start: {even_global_laps_df.epochs.t_start}, odd_global_laps_df.epochs.t_start: {odd_global_laps_df.epochs.t_start}"
+            intersecting_portion = even_laps_portion.intersection(odd_laps_portion)
+            intersecting_epochs = Epoch.from_PortionInterval(intersecting_portion)
+            n_epochs_with_changes = intersecting_epochs.n_epochs
+            even_epochs_with_changes = np.where(np.isin(even_global_laps_df.stop, intersecting_epochs.stops)) # recovers the indicies of the epochs that changed, index into the even array, e.g. (array([33, 37], dtype=int64),)
+            global_laps_end_change_indicies = even_global_laps._df.index[even_epochs_with_changes] # get the original indicies for use in the non even/odd split laps object, e.g. Int64Index([66, 74], dtype='int64')
 
-        ## Replace the lap's current stop with the start of the intersection less a little wiggle room:
-        desired_stops = intersecting_epochs.starts - safe_trim_delta
-        
+            ## Replace the lap's current stop with the start of the intersection less a little wiggle room:
+            desired_stops = intersecting_epochs.starts - safe_trim_delta
+        else:
+            # even_global_laps_df.epochs.t_start < odd_global_laps_df.epochs.t_start
+            # opposite: (odd first)
+            intersecting_portion = odd_laps_portion.intersection(even_laps_portion)
+            intersecting_epochs = Epoch.from_PortionInterval(intersecting_portion)
+            n_epochs_with_changes = intersecting_epochs.n_epochs
+
+            odd_epochs_with_changes = np.where(np.isin(odd_global_laps_df.stop, intersecting_epochs.stops)) # recovers the indicies of the epochs that changed, index into the even array, e.g. (array([33, 37], dtype=int64),)
+            global_laps_end_change_indicies = odd_global_laps._df.index[odd_epochs_with_changes] # get the original indicies for use in the non even/odd split laps object, e.g. Int64Index([66, 74], dtype='int64')
+
+            ## Replace the lap's current stop with the start of the intersection less a little wiggle room:
+            desired_stops = intersecting_epochs.starts - safe_trim_delta
+
+
+        if debug_print:
+            print(f'intersecting_epochs: {intersecting_epochs}')            
+
+
+
+
+
+
         # prev-values:
         # 66    1901.413540
         # 74    2002.917111
