@@ -209,7 +209,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         # TODO time_slice should also include partial epochs falling in between the timepoints
         df = self._obj.copy() 
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        df = df[(df["start"] >= t_start) & (df["start"] <= t_stop)].reset_index(drop=True)
+        df = df[(df["start"] >= t_start) & (df["start"] < t_stop)].reset_index(drop=True) # 2023-11-13 - changed to `(df["start"] < t_stop)` from `(df["start"] <= t_stop)` because in the equals case the resulting included interval would be zero duration.
         return df
         
     def label_slice(self, label):
