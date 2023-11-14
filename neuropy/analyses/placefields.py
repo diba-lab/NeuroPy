@@ -720,6 +720,8 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
 
             self.xbin, self.ybin, self.bin_info
         """
+        use_modern_speed_threshold_filtering_preserving_occupancy: bool = True
+
         # Set the dimensionality of the PfND object from the position's dimensionality
         self.ndim = position.ndim
         self.position_srate = position.sampling_rate
@@ -748,34 +750,57 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         self._filtered_pos_df.dropna(axis=0, how='any', subset=pos_non_NA_column_labels, inplace=True) # dropped NaN values
 
         # Set animal observed position member variables:
-        if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
+        speed_column_name: str = 'speed'
+        if ((self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0))):
             self._filtered_pos_df['speed_smooth'] = gaussian_filter1d(self._filtered_pos_df.speed.to_numpy(), sigma=self.config.smooth[0])
             #TODO 2023-11-10 16:30: - [ ] This seems to only use the 1D speed even for 2D placefields, which could be an issue.
-
-        # Add interpolated velocity information to spikes dataframe:
-        if 'speed' not in self._filtered_spikes_df.columns:
-            self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.filtered_pos_df.t.to_numpy(), self.speed) ## NOTE: self.speed is either the regular ['speed'] column of the position_df OR the 'speed_smooth'] column if self.should_smooth_speed  is True
+            speed_column_name: str = 'speed_smooth'
 
         # Filter for speed:
         if debug_print:
             print(f'pre speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
+        
+        if use_modern_speed_threshold_filtering_preserving_occupancy:
+            # 2023-11-14 - Modern Occupancy-safe speed filtering:
+            epochs_df = deepcopy(epochs.to_dataframe())
+            speed_filtered_epochs_df = PfND.filtered_by_speed(epochs_df, position_df=self._filtered_pos_df, speed_thresh=self.config.speed_thresh, speed_column_override_name=speed_column_name, debug_print=False)
+            if speed_filtered_epochs_df is not None:
+                # filter the spikes_df:
+                self._filtered_spikes_df = spk_df.spikes.time_sliced(speed_filtered_epochs_df.epochs.starts, speed_filtered_epochs_df.epochs.stops)
+                # filter the pos_df:
+                self._filtered_pos_df = pos_df.position.time_sliced(speed_filtered_epochs_df.epochs.starts, speed_filtered_epochs_df.epochs.stops) # 5378 rows × 18 columns
 
-        if self.config.speed_thresh is None:
-            # No speed thresholding, all speeds allowed
-            self._filtered_spikes_df = self._filtered_spikes_df
+            epochs = Epoch(speed_filtered_epochs_df)
+
+            # Add interpolated velocity information to spikes dataframe (just for compatibility):
+            if 'speed' not in self._filtered_spikes_df.columns:
+                self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.filtered_pos_df.t.to_numpy(), self.speed) ## NOTE: self.speed is either the regular ['speed'] column of the position_df OR the 'speed_smooth'] column if self.should_smooth_speed  is True
+
+
         else:
-            # threshold by speed
-            print(f'WARN: TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!')
-            self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
+            # Pre-2023-11-14 - Speed Threshold Filtering, this doesn't appropriately preserve occupancy since just the spikes are filtered.
+            # TODO: 2023-04-07 - CORRECTNESS ISSUE HERE. Interpolating the positions/speeds to the spikes and then filtering makes it difficult to determine the occupancy of each bin.
+                # Kourosh and Kamran both process in terms of time bins.
+
+            #TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!
+
+            # Add interpolated velocity information to spikes dataframe:
+            if 'speed' not in self._filtered_spikes_df.columns:
+                self._filtered_spikes_df['speed'] = np.interp(self._filtered_spikes_df[spikes_df.spikes.time_variable_name].to_numpy(), self.filtered_pos_df.t.to_numpy(), self.speed) ## NOTE: self.speed is either the regular ['speed'] column of the position_df OR the 'speed_smooth'] column if self.should_smooth_speed  is True
+
+            if self.config.speed_thresh is None:
+                # No speed thresholding, all speeds allowed
+                self._filtered_spikes_df = self._filtered_spikes_df
+            else:
+                # threshold by speed
+                print(f'WARN: TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!')
+                self._filtered_spikes_df = self._filtered_spikes_df[self._filtered_spikes_df['speed'] > self.config.speed_thresh]
+
+
         if debug_print:
             print(f'post speed filtering: {np.shape(self._filtered_spikes_df)[0]} spikes.')
 
-        # TODO: 2023-04-07 - CORRECTNESS ISSUE HERE. Interpolating the positions/speeds to the spikes and then filtering makes it difficult to determine the occupancy of each bin.
-            # Kourosh and Kamran both process in terms of time bins.
-
-        #TODO 2023-11-10 16:31 CORRECTNESS ISSUE: - [ ] When we filter on the speed_thresh and remove the spikes, we must also remove the time below this threshold from consideration!
-
-
+        
 
         ## Binning with Fixed bin size:
         # 2022-12-09 - We want to be able to have both long/short track placefields have the same bins.
@@ -1097,6 +1122,64 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         new_pf1D = cls._drop_extra_position_info(new_pf1D)
         # ratemap_1D = Ratemap(ratemap_1D_tuning_curves, unsmoothed_tuning_maps=ratemap_1D_unsmoothed_tuning_maps, spikes_maps=ratemap_1D_spikes_maps, xbin=pf2D.xbin, ybin=None, occupancy=ratemap_1D_occupancy, neuron_ids=deepcopy(pf2D.neuron_ids), neuron_extended_ids=deepcopy(pf2D.neuron_extended_ids), metadata=pf2D.metadata)
         return new_pf1D
+
+
+
+
+    @classmethod
+    def filtered_by_speed(cls, epochs_df: pd.DataFrame, position_df: pd.DataFrame, speed_thresh: Optional[float], speed_column_override_name:Optional[str]=None, debug_print:bool=False):
+        """ Filters the position_df by speed and epoch_df correctly, so we can get actual occupancy.
+        2023-11-14 - 
+        
+        
+        speed_thresh = a_decoder.config.speed_thresh # 10.0
+        position_df = a_decoder.position.to_dataframe()
+        
+        
+        """
+        from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+
+        if debug_print:
+            pre_filtering_duration = epochs_df.duration.sum()
+            print(f'pre_filtering_duration: {pre_filtering_duration}') # 135.73698799998965
+
+        epoch_id_string: str = f'decoder_epoch_id'
+        position_df = add_epochs_id_identity(position_df, epochs_df, epoch_id_key_name=epoch_id_string, epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name='t')
+        # drop the -1 indicies because they are below the speed:
+        position_df = position_df[position_df[epoch_id_string] != -1] # Drop all non-included spikes
+                
+        if debug_print:
+            n_pre_filtered_samples = len(position_df)
+            print(f'n_pre_filtered_samples: {n_pre_filtered_samples}')
+
+        if speed_thresh is not None:
+            if speed_column_override_name is None:
+                speed_column_name = 'speed'
+            else:
+                speed_column_name = speed_column_override_name
+            position_df = position_df[position_df[speed_column_name] < speed_thresh] # filter the samples by speed_thresh
+        else:
+            pass # position_df is just itself
+        # Performed 3 aggregations grouped on column: 'decoder_epoch_id'
+        speed_filtered_epochs_df = position_df.groupby(['decoder_epoch_id']).agg(t_first=('t', 'first'), t_last=('t', 'last'), t_count=('t', 'count')).reset_index()
+        # Rename column 't_first' to 'start'
+        speed_filtered_epochs_df = speed_filtered_epochs_df.rename(columns={'t_first': 'start'})
+        # Rename column 't_last' to 'stop'
+        speed_filtered_epochs_df = speed_filtered_epochs_df.rename(columns={'t_last': 'stop'})
+        # Rename column 'decoder_epoch_id' to 'label'
+        speed_filtered_epochs_df = speed_filtered_epochs_df.rename(columns={'decoder_epoch_id': 'label'})
+        # Rename column 't_count' to 'n_samples'
+        speed_filtered_epochs_df = speed_filtered_epochs_df.rename(columns={'t_count': 'n_samples'})
+        speed_filtered_epochs_df['duration'] = speed_filtered_epochs_df['stop'] - speed_filtered_epochs_df['start']
+        
+        if debug_print:    
+            post_filtering_duration = speed_filtered_epochs_df.duration.sum()
+            print(f'post_filtering_duration: {post_filtering_duration}') # 130.96321400045417
+        return speed_filtered_epochs_df
+
+
+
+
 
     def str_for_filename(self, prefix_string=''):
         if self.ndim <= 1:
