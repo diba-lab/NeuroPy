@@ -1381,7 +1381,7 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         ## Pre-computation variables:
         # These variables below are pre-computation variables and are used by `PfND.compute()` to actually build the ratemaps and filtered versions. They aren't quite right as is.
         # epochs are merged:
-        epochs: Epoch = Epoch(pd.concat([a_decoder.epochs.to_dataframe() for a_decoder in directional_1D_decoder_list], verify_integrity=True).sort_values(['start', 'stop']))
+        epochs: Epoch = Epoch(pd.concat([a_decoder.epochs.to_dataframe() for a_decoder in directional_1D_decoder_list], ignore_index=True, verify_integrity=True).sort_values(['start', 'stop']))
         
         # spikes_df are merged:
         time_variable_name:str = lhs.spikes_df.spikes.time_variable_name
