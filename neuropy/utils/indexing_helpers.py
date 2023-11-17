@@ -47,3 +47,11 @@ def find_desired_sort_indicies(extant_arr, desired_sort_arr):
     assert len(sort_idxs) == len(extant_arr), f"need to have one new_all_aclus_sort_indicies value for each neuron_id"
     assert np.all(extant_arr[sort_idxs] == desired_sort_arr), f"must sort: extant_arr[sort_idxs]: {extant_arr[sort_idxs]}\n desired_sort_arr: {desired_sort_arr}"
     return sort_idxs, desired_sort_arr
+
+
+def union_of_arrays(*arrays) -> np.array:
+    """ 
+    from neuropy.utils.indexing_helpers import union_of_arrays
+    
+    """
+    return np.unique(np.concatenate(arrays))
