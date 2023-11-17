@@ -281,7 +281,7 @@ class SpikesAccessor(TimeSlicedMixin):
         """
         if epoch_id_key_name in self._obj.columns:
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping recomputation.')
-            return
+            return self._obj
         else:
             from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
             from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
@@ -290,6 +290,32 @@ class SpikesAccessor(TimeSlicedMixin):
             self._obj[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
             self._obj = add_epochs_id_identity(self._obj, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
             return self._obj
+
+
+
+
+    def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None):
+        """ Adds the arbitrary column with name epoch_id_key_name to the dataframe.
+
+            spikes: curr_active_pipeline.sess.spikes_df
+            adds column epoch_id_key_name to spikes df.
+            
+            # Created Columns:
+                epoch_id_key_name
+
+        """
+        if epoch_id_key_name in self._obj.columns:
+            print(f'column "{epoch_id_key_name}" already exists in df! Skipping adding intervals.')
+            return self._obj
+        else:
+            from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
+            from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+
+            spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
+            self._obj[epoch_id_key_name] = -1 # initialize the column to -1
+            self._obj = add_epochs_id_identity(self._obj, epochs_df=epochs, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=epoch_label_column_name, no_interval_fill_value=-1, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            return self._obj
+
 
 
 
