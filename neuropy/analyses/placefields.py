@@ -813,7 +813,8 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
                     print(f'WARN: computing pf2D with set self.config.grid_bin_bounds but one of the compoenents is None! self.config.grid_bin_bounds: {self.config.grid_bin_bounds}.\n\trecomputing from positions and ignoring set grid_bin_bounds!')
                     grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), self.filtered_pos_df.y.to_numpy())
                 else:
-                    print(f'using self.config.grid_bin_bounds: {self.config.grid_bin_bounds}')
+                    if debug_print:
+                        print(f'using self.config.grid_bin_bounds: {self.config.grid_bin_bounds}')
                     grid_bin_bounds = self.config.grid_bin_bounds
             x_range, y_range = grid_bin_bounds # unpack grid_bin_bounds
 
@@ -823,7 +824,8 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
             if self.config.grid_bin_bounds_1D is None:
                 grid_bin_bounds_1D = PlacefieldComputationParameters.compute_grid_bin_bounds(self.filtered_pos_df.x.to_numpy(), None)[0]
             else:
-                print(f'using self.config.grid_bin_bounds_1D: {self.config.grid_bin_bounds_1D}')
+                if debug_print:
+                    print(f'using self.config.grid_bin_bounds_1D: {self.config.grid_bin_bounds_1D}')
                 grid_bin_bounds_1D = self.config.grid_bin_bounds_1D
             x_range = grid_bin_bounds_1D
             self.xbin, self.ybin, self.bin_info = PfND._bin_pos_nD(x_range, None, bin_size=self.config.grid_bin) # bin_size mode
