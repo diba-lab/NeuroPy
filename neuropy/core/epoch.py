@@ -459,7 +459,7 @@ class Epoch(DataWriter):
                 labels[((bin_loc[indx_bool] - 1) / 2).astype("int")],
             )
         else:
-            return indx_bool, t, labels[indx_bool]
+            return indx_bool, t, labels[bin_loc], bin_loc
 
     def delete_in_between(self, t1, t2):
         epochs_df = self.to_dataframe()[["start", "stop", "label"]]
