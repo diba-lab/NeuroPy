@@ -1411,14 +1411,14 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         ## WARNING: the animal will "teleport" between y-coordinates between the RL/LR laps. This will mean that all velocity_y, or vector-based velocity calculations (that use both x and y) are going to be messed up.
         """
         # positions merge:
-        position = Position(pd.concat([a_decoder.position.to_dataframe() for a_decoder in directional_1D_decoder_list]).drop_duplicates().sort_values('t'))
-        position.df['y'] = 0.0
+        position = Position(pd.concat([a_decoder.position.to_dataframe() for a_decoder in directional_1D_decoder_list]).sort_values('t').drop_duplicates(subset=['t'], inplace=False))
+        position.df['y'] = -1.0 # was 0.0, but we iterate through the whole list, so this would skip zero
         ## Add the epoch ids to each spike so we can easily filter on them:
         for i, a_decoder in enumerate(directional_1D_decoder_list):        
             epoch_id_string: str = f'decoder_{i}_epoch_id'
             position.df = add_epochs_id_identity(position.df, a_decoder.epochs.to_dataframe(), epoch_id_key_name=epoch_id_string, epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name='t')
             position.df.loc[(position.df[epoch_id_string] != -1), 'y'] = float(i+1)
-
+        # TODO: so the valid y-values should be [1, ..., len(directional_1D_decoder_list)]
         return position
         
 
@@ -1470,7 +1470,7 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         
         # spikes_df are merged:
         time_variable_name:str = lhs.spikes_df.spikes.time_variable_name
-        spikes_df = pd.concat([a_decoder.spikes_df for a_decoder in directional_1D_decoder_list]).drop_duplicates().sort_values([time_variable_name, 'aclu'])
+        spikes_df = pd.concat([a_decoder.spikes_df for a_decoder in directional_1D_decoder_list]).sort_values([time_variable_name, 'aclu']).drop_duplicates(subset=[time_variable_name, 'aclu'], inplace=False) # make sure this drops duplicates in (time_variable_name, 'aclu')
 
         # positions merge:
         position = cls.build_pseduo_2D_directional_placefield_positions(*directional_1D_decoder_list)

@@ -24,9 +24,9 @@
   ],
   "ignore": [
     "**/.venv",
+    "**/docs_sphinx",
     "src/oldstuff"
   ],
-
   "defineConstant": {
     "DEBUG": true
   },
