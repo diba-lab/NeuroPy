@@ -430,13 +430,15 @@ class Epoch(DataWriter):
 
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1], labels_arr)
 
-    def contains(self, t):
+    def contains(self, t, return_closest: bool = False):
         """Check if timepoints lie within epochs, must be non-overlapping epochs
 
         Parameters
         ----------
         t : array
             timepoints in seconds
+        return_closest: bool
+            True = return closest epoch before to all points in t even if t is outside epoch
 
         Returns
         -------
@@ -450,11 +452,14 @@ class Epoch(DataWriter):
         bin_loc = np.digitize(t, self.flatten())
         indx_bool = bin_loc % 2 == 1
 
-        return (
-            indx_bool,
-            t[indx_bool],
-            labels[((bin_loc[indx_bool] - 1) / 2).astype("int")],
-        )
+        if not return_closest:
+            return (
+                indx_bool,
+                t[indx_bool],
+                labels[((bin_loc[indx_bool] - 1) / 2).astype("int")],
+            )
+        else:
+            return indx_bool, t, labels[indx_bool]
 
     def delete_in_between(self, t1, t2):
         epochs_df = self.to_dataframe()[["start", "stop", "label"]]
