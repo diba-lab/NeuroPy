@@ -62,8 +62,9 @@ def detect_tone(
     smooth_window: float = 0.05,
     thresh: float = 5,
     tone_length: float = 0.5,
-    tone_label:str = "start_tone",
+    tone_label: str = "start_tone",
     plot_check: bool = True,
+    return_stop: bool = False,
 ):
     """Detect USV start tone - typically a 0.5 sec 500Hz pure tone"""
     """NRK todo: load in with a downsample. From https://stackoverflow.com/questions/30619740/downsampling-wav-audio-file
@@ -117,7 +118,19 @@ def detect_tone(
         ax.set_xlabel("Time (sec)")
         ax.set_ylabel("Smoothed power ratio")
 
-    return Epoch({"start": tone_cands[:, 0], "stop": tone_cands[:, 1], "label": tone_label})
+    if not return_stop:
+        return Epoch({"start": tone_cands[:, 0], "stop": tone_cands[:, 1], "label": tone_label})
+    else:
+        return Epoch({"start": tone_cands[:, 0], "stop": tone_cands[:, 1], "label": tone_label}), audio_sig.t_stop
+
+
+def load_wav(filename, sr_ds=17750):
+    """Load in a wav file after downsampling"""
+
+    Audiodata, fs = librosa.load(filename, sr=sr_ds)
+    audio_sig = Signal(Audiodata, fs)
+
+    return audio_sig
 
 
 if __name__ == "__main__":
