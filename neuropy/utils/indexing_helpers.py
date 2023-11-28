@@ -1,4 +1,6 @@
+from typing import Dict, List, Optional, Tuple
 import numpy as np
+from functools import reduce # intersection_of_arrays, union_of_arrays
 
 
 def flatten(A):
@@ -49,14 +51,32 @@ def find_desired_sort_indicies(extant_arr, desired_sort_arr):
     return sort_idxs, desired_sort_arr
 
 
+
+# ==================================================================================================================== #
+# Multi-list Operators                                                                                                 #
+# ==================================================================================================================== #
+
 def union_of_arrays(*arrays) -> np.array:
     """ 
     from neuropy.utils.indexing_helpers import union_of_arrays
     
     """
-    return np.unique(np.concatenate(arrays))
+    return np.unique(np.concatenate(arrays)) # note that np.unique SORTS the items
+    # return reduce(np.union1d, tuple(arrays)) # should be equivalent
 
 
+def intersection_of_arrays(*arrays) -> np.array:
+    """ 
+    from neuropy.utils.indexing_helpers import union_of_arrays
+    
+    """
+    return reduce(np.intersect1d, tuple(arrays))
+
+
+
+# ==================================================================================================================== #
+# Sorting/Joint-sorting                                                                                                #
+# ==================================================================================================================== #
 
 # @function_attributes(short_name=None, tags=['sort', 'neuron_ID', 'neuron_IDX', 'pfs'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-11-28 00:59', related_items=[])
 def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists):
