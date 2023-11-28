@@ -109,7 +109,7 @@ def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists):
     assert len(neuron_IDs_lists) == len(sortable_values_lists), f"value lists must be the same length"
     if (len(neuron_IDs_lists) == 0):
         return sorted_lists
-    assert [len(neuron_ids) == len(sortable_values) for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists)], f"all items must be the same length."
+    assert np.all([len(neuron_ids) == len(sortable_values) for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists)]), f"all items must be the same length."
     
     sortable_neuron_id_dicts = [dict(zip(neuron_ids, sortable_values)) for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists)]
     assert len(neuron_IDs_lists) == len(sortable_neuron_id_dicts)
