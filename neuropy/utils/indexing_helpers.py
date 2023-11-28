@@ -62,43 +62,53 @@ def union_of_arrays(*arrays) -> np.array:
 def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists):
     """ builds up a list of `sorted_lists` 
 
+    Given a list of neuron_IDs (usually aclus) and equal-sized lists containing values which to sort the lists of neuron_IDs, returns the list of incrementally sorted neuron_IDs. e.g.:
+
+
     Inputs: neuron_IDs_lists, sortable_values_lists
 
     Usage:
         from neuropy.utils.indexing_helpers import paired_incremental_sorting
 
+        neuron_IDs_lists = [a_decoder.neuron_IDs for a_decoder in decoders_dict.values()] # [A, B, C, D, ...]
+        sortable_values_lists = [np.argmax(a_decoder.pf.ratemap.normalized_tuning_curves, axis=1) for a_decoder in decoders_dict.values()]
+        sorted_neuron_IDs_lists = paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists)
+        sort_helper_original_neuron_id_to_IDX_dicts = [dict(zip(neuron_ids, np.arange(len(neuron_ids)))) for neuron_ids in neuron_IDs_lists] # just maps each neuron_id in the list to a fragile_linear_IDX 
+
+        # `sort_helper_neuron_id_to_sort_IDX_dicts` dictionaries in the appropriate order (sorted order) with appropriate indexes. Its .values() can be used to index into things originally indexed with aclus.
+        sort_helper_neuron_id_to_sort_IDX_dicts = [{aclu:a_sort_helper_neuron_id_to_IDX_map[aclu] for aclu in sorted_neuron_ids} for a_sort_helper_neuron_id_to_IDX_map, sorted_neuron_ids in zip(sort_helper_original_neuron_id_to_IDX_dicts, sorted_neuron_IDs_lists)]
+        # sorted_pf_tuning_curves = [a_decoder.pf.ratemap.pdf_normalized_tuning_curves[a_sort_list, :] for a_decoder, a_sort_list in zip(decoders_dict.values(), sorted_neuron_IDs_lists)]
+
+        sorted_pf_tuning_curves = [a_decoder.pf.ratemap.pdf_normalized_tuning_curves[np.array(list(a_sort_helper_neuron_id_to_IDX_dict.values())), :] for a_decoder, a_sort_helper_neuron_id_to_IDX_dict in zip(decoders_dict.values(), sort_helper_neuron_id_to_sort_IDX_dicts)]
+
+
     """
 
-    # Good but doesn't maintain order:
     sorted_lists = []
-    # union_accumulator = set([])
     union_accumulator = []
-    # for neuron_ids in neuron_IDs_lists:
-
-
-    assert len(neuron_IDs_lists) == len(sortable_values_lists)
+    assert len(neuron_IDs_lists) == len(sortable_values_lists), f"value lists must be the same length"
+    if (len(neuron_IDs_lists) == 0):
+        return sorted_lists
+    assert [len(neuron_ids) == len(sortable_values) for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists)], f"all items must be the same length."
     
-
     sortable_neuron_id_dicts = [dict(zip(neuron_ids, sortable_values)) for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists)]
-
-    # for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists):
+    assert len(neuron_IDs_lists) == len(sortable_neuron_id_dicts)
     for a_sortable_neuron_id_dict in sortable_neuron_id_dicts:
         # neuron_ids, sortable_values
         prev_sorted_neuron_ids = [aclu for aclu in union_accumulator if aclu in a_sortable_neuron_id_dict.keys()] # loop through the accumulator
         # novel_sorted_neuron_ids = [aclu for aclu in a_sortable_neuron_id_dict.keys() if aclu not in union_accumulator] # doesn't sort them, passes them unsorted as-is
-
         novel_sorted_neuron_id_dicts = {aclu:sort_v for aclu, sort_v in a_sortable_neuron_id_dict.items() if aclu not in union_accumulator} # subset based on value not being in union_accumulator
         # Sort them now as needed:
         novel_sorted_neuron_id_dicts = dict(sorted(novel_sorted_neuron_id_dicts.items(), key=lambda item: item[1]))
         # Convert them into a list as expected now that they're sorted based on values:
         novel_sorted_neuron_ids	= list(novel_sorted_neuron_id_dicts.keys())
-        curr_sorted_list = [*prev_sorted_neuron_ids, *novel_sorted_neuron_ids]
+        curr_sorted_list = np.array([*prev_sorted_neuron_ids, *novel_sorted_neuron_ids])
         sorted_lists.append(curr_sorted_list)
-        # union_accumulator.update(neuron_ids)
-        # union_accumulator.extend(neuron_ids)
         union_accumulator.extend(novel_sorted_neuron_ids) # by only adding the novel elements at each step, we should accumulate a list only consisting of the novel elements from each step.
         # prune the duplicates here, it should operate like a set.
 
+    assert [len(neuron_ids) == len(sorted_neuron_ids) for neuron_ids, sorted_neuron_ids in zip(neuron_IDs_lists, sorted_lists)], f"all items must be the same length."
+    
     return sorted_lists
 
 
