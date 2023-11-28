@@ -11,7 +11,16 @@ from attrs import field, Factory, fields, fields_dict, asdict
 
 """ 
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.AttrsClassHelpers import keys_only_repr
+
 """
+
+def keys_only_repr(instance):
+    """ specifies that this field only prints its .keys(), not its values. """
+    if (isinstance(instance, dict) or hasattr(instance, 'keys')):
+        return f"keys={list(instance.keys())}"
+    return repr(instance)
+
 
 @unique
 class HDF_SerializationType(Enum):
