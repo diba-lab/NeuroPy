@@ -5,9 +5,9 @@ def flatten(A):
     """ safely flattens lists of lists without flattening top-level strings also. 
     https://stackoverflow.com/questions/17864466/flatten-a-list-of-strings-and-lists-of-strings-and-lists-in-python
 
-	Usage:
+    Usage:
 
-		from neuropy.utils.indexing_helpers import flatten
+        from neuropy.utils.indexing_helpers import flatten
 
     Example:
         list(flatten(['format_name', ('animal','exper_name', 'session_name')] ))
@@ -55,3 +55,50 @@ def union_of_arrays(*arrays) -> np.array:
     
     """
     return np.unique(np.concatenate(arrays))
+
+
+
+# @function_attributes(short_name=None, tags=['sort', 'neuron_ID', 'neuron_IDX', 'pfs'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-11-28 00:59', related_items=[])
+def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists):
+    """ builds up a list of `sorted_lists` 
+
+    Inputs: neuron_IDs_lists, sortable_values_lists
+
+    Usage:
+        from neuropy.utils.indexing_helpers import paired_incremental_sorting
+
+    """
+
+    # Good but doesn't maintain order:
+    sorted_lists = []
+    # union_accumulator = set([])
+    union_accumulator = []
+    # for neuron_ids in neuron_IDs_lists:
+
+
+    assert len(neuron_IDs_lists) == len(sortable_values_lists)
+    
+
+    sortable_neuron_id_dicts = [dict(zip(neuron_ids, sortable_values)) for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists)]
+
+    # for neuron_ids, sortable_values in zip(neuron_IDs_lists, sortable_values_lists):
+    for a_sortable_neuron_id_dict in sortable_neuron_id_dicts:
+        # neuron_ids, sortable_values
+        prev_sorted_neuron_ids = [aclu for aclu in union_accumulator if aclu in a_sortable_neuron_id_dict.keys()] # loop through the accumulator
+        # novel_sorted_neuron_ids = [aclu for aclu in a_sortable_neuron_id_dict.keys() if aclu not in union_accumulator] # doesn't sort them, passes them unsorted as-is
+
+        novel_sorted_neuron_id_dicts = {aclu:sort_v for aclu, sort_v in a_sortable_neuron_id_dict.items() if aclu not in union_accumulator} # subset based on value not being in union_accumulator
+        # Sort them now as needed:
+        novel_sorted_neuron_id_dicts = dict(sorted(novel_sorted_neuron_id_dicts.items(), key=lambda item: item[1]))
+        # Convert them into a list as expected now that they're sorted based on values:
+        novel_sorted_neuron_ids	= list(novel_sorted_neuron_id_dicts.keys())
+        curr_sorted_list = [*prev_sorted_neuron_ids, *novel_sorted_neuron_ids]
+        sorted_lists.append(curr_sorted_list)
+        # union_accumulator.update(neuron_ids)
+        # union_accumulator.extend(neuron_ids)
+        union_accumulator.extend(novel_sorted_neuron_ids) # by only adding the novel elements at each step, we should accumulate a list only consisting of the novel elements from each step.
+        # prune the duplicates here, it should operate like a set.
+
+    return sorted_lists
+
+
