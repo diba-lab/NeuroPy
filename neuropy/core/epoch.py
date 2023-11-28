@@ -607,20 +607,6 @@ class Epoch(DataWriter):
         self.starts
         self.stops
         print(f"Buffer of {buffer_sec} added before/after each epoch")
-
-
-def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple or list):
-    """Extend each epoch by buffer_sec before/after start/stop of each epoch"""
-    if type(buffer_sec) in [int, float]:
-        buffer_sec = (buffer_sec, buffer_sec)
-    else:
-        assert len(buffer_sec) == 2
-
-    epoch_df["start"] -= buffer_sec[0]
-    epoch_df["stop"] += buffer_sec[1]
-
-    return epoch_df
-
     @staticmethod
     def from_peaks(arr: np.ndarray, thresh, length, sep=0, boundary=0, fs=1):
         hmin, hmax = _unpack_args(thresh)  # does not need fs
@@ -714,6 +700,17 @@ def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple o
 
         return time_bool.astype("bool")
 
+def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple or list):
+    """Extend each epoch by buffer_sec before/after start/stop of each epoch"""
+    if type(buffer_sec) in [int, float]:
+        buffer_sec = (buffer_sec, buffer_sec)
+    else:
+        assert len(buffer_sec) == 2
+
+    epoch_df["start"] -= buffer_sec[0]
+    epoch_df["stop"] += buffer_sec[1]
+
+    return epoch_df
 
 if __name__ == "__main__":
     art_file = "/data3/Trace_FC/Recording_Rats/Finn2/2023_05_06_habituation1/Finn2_habituation1_denoised.art_epochs.npy"
