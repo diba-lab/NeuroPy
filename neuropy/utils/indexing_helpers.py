@@ -84,7 +84,6 @@ def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists):
 
     Given a list of neuron_IDs (usually aclus) and equal-sized lists containing values which to sort the lists of neuron_IDs, returns the list of incrementally sorted neuron_IDs. e.g.:
 
-
     Inputs: neuron_IDs_lists, sortable_values_lists
 
     Usage:
