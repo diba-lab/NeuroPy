@@ -1436,4 +1436,10 @@ def plot_miniscope_noise(
 
 
 if __name__ == "__main__":
-    pass
+    import DataPaths.subjects as subjects
+    sess = subjects.sd.ratKday1[0]
+    post = sess.paradigm["post"].flatten()
+    period = [post[0] + 5 * 3600, post[0] + 6 * 3600]
+    chan = sess.best_channels.slow_wave
+    lfp = sess.eegfile.get_signal(chan, *period)
+    irasa(lfp.traces.squeeze(), lfp.sampling_rate, band=(1, 100), return_fit=True)
