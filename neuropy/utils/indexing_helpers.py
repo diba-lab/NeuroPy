@@ -33,7 +33,7 @@ def find_desired_sort_indicies(extant_arr, desired_sort_arr):
     
     Usage:
         from neuropy.utils.indexing_helpers import find_desired_sort_indicies
-        new_all_aclus_sort_indicies = find_desired_sort_indicies(active_2d_plot.neuron_ids, all_sorted_aclus)
+        new_all_aclus_sort_indicies, desired_sort_arr = find_desired_sort_indicies(active_2d_plot.neuron_ids, all_sorted_aclus)
         assert len(new_all_aclus_sort_indicies) == len(active_2d_plot.neuron_ids), f"need to have one new_all_aclus_sort_indicies value for each neuron_id"
         assert np.all(active_2d_plot.neuron_ids[new_all_aclus_sort_indicies] == all_sorted_aclus), f"must sort "
         new_all_aclus_sort_indicies
