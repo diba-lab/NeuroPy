@@ -560,6 +560,8 @@ class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
 
         ## Post 2023-07-31 - Excluding "double fields" qclues on Kamran's request
 
+        
+        ## #TODO 2023-12-07 12:22: - [ ] Kamran wants me to exclude [6, 7]
 
         """
         _out_map = dict() # start with an empty dict
