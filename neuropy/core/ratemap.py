@@ -138,12 +138,12 @@ class Ratemap(DataWriter):
 
     @property
     def x_binsize(self):
-        return np.diff(self.x_coords)[0]
+        return np.diff(self.x_coords())[0]
 
     @property
     def y_binsize(self):
         if self.y is not None:
-            return np.diff(self.y_coords)[0]
+            return np.diff(self.y_coords())[0]
 
     @property
     def n_neurons(self):
