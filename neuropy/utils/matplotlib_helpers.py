@@ -571,8 +571,7 @@ class FormattedFigureText:
 
 
     Usage:
-        from neuropy.utils.matplotlib_helpers import FormattedFigureText
-
+        
         from neuropy.utils.matplotlib_helpers import FormattedFigureText
 
         # `flexitext` version:

@@ -360,7 +360,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         return Epoch(epochs=self._df.epochs.filtered_by_duration(min_duration, max_duration), metadata=self.metadata)
 
     @classmethod
-    def filter_epochs(cls, curr_epochs, pos_df:pd.DataFrame=None, spikes_df:pd.DataFrame=None, require_intersecting_epoch:"Epoch"=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6,
+    def filter_epochs(cls, curr_epochs, pos_df:Optional[pd.DataFrame]=None, spikes_df:pd.DataFrame=None, require_intersecting_epoch:"Epoch"=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6,
         maximum_speed_thresh=2.0, min_inclusion_fr_active_thresh=2.0, min_num_unique_aclu_inclusions=3, debug_print=False) -> "Epoch":
         """filters the provided replay epochs by specified constraints.
 
@@ -412,7 +412,8 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
             warn(f'curr_epochs already empty prior to any filtering')
 
         # Filter by duration bounds:
-        curr_epochs = curr_epochs.filtered_by_duration(min_duration=min_epoch_included_duration, max_duration=max_epoch_included_duration)
+        if (min_epoch_included_duration is not None) or (max_epoch_included_duration is not None):
+            curr_epochs = curr_epochs.filtered_by_duration(min_duration=min_epoch_included_duration, max_duration=max_epoch_included_duration)
 
         # Filter *_replays_Interval by requiring them to be below the speed:
         if maximum_speed_thresh is not None:

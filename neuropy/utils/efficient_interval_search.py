@@ -655,6 +655,7 @@ def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclu
     dense_epoch_split_frs_mat = np.vstack([np.array(a_dense_fr_dict.values()) for a_dense_fr_dict in dense_epoch_split_frs]) # .shape: (n_epochs, n_cells). The columns represent the aclus in `all_aclus` for each row (which represents an epoch)
     
     ## Apply any filters:
+    min_inclusion_fr_active_thresh = min_inclusion_fr_active_thresh or 0.0 # default to 0.0 fr requirement
     is_cell_active_in_epoch_mat = dense_epoch_split_frs_mat > min_inclusion_fr_active_thresh # (n_epochs, n_cells)
     # num_cells_included_in_epoch_mat: the num unique cells included in each epoch that mean the min_inclusion_fr_active_thresh criteria. Should have one value per epoch of interest.
     num_cells_active_in_epoch_mat = np.sum(is_cell_active_in_epoch_mat, 1)
