@@ -562,16 +562,18 @@ class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
 
         
         ## #TODO 2023-12-07 12:22: - [ ] Kamran wants me to exclude [6, 7]
+        #TODO 2023-12-07 20:59: - [ ] Updated to only include [1,2,4,9] as pyramidal
 
         """
         _out_map = dict() # start with an empty dict
         for i in np.arange(10):
             _out_map[i] = "cont" # initialize all to 'contaminated'/noisy
-        for i in [1,2,4,6,7,9]:
+        # for i in [1,2,4,6,7,9]:
+        #     _out_map[i] = 'pyr' # pyramidal
+        for i in [1,2,4,9]:
             _out_map[i] = 'pyr' # pyramidal
         _out_map[5] = "intr" # interneurons
         return _out_map
-
 
 
     @classmethod
