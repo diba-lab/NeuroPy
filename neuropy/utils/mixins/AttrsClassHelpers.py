@@ -16,10 +16,40 @@ from neuropy.utils.mixins.AttrsClassHelpers import keys_only_repr
 """
 
 def keys_only_repr(instance):
-    """ specifies that this field only prints its .keys(), not its values. """
+    """ specifies that this field only prints its .keys(), not its values.
+    
+    # Usage (within attrs class):
+        computed_data: Optional[DynamicParameters] = serialized_field(default=None, repr=keys_only_repr)
+        accumulated_errors: Optional[DynamicParameters] = non_serialized_field(default=Factory(DynamicParameters), is_computable=True, repr=keys_only_repr)
+    
+    """
     if (isinstance(instance, dict) or hasattr(instance, 'keys')):
         return f"keys={list(instance.keys())}"
     return repr(instance)
+
+
+## Custom __repr__ for attrs-classes:
+
+# def __repr__(self):
+#     """ 
+#     TrackTemplates(long_LR_decoder: pyphoplacecellanalysis.Analysis.Decoder.reconstruction.BasePositionDecoder,
+#         long_RL_decoder: pyphoplacecellanalysis.Analysis.Decoder.reconstruction.BasePositionDecoder,
+#         short_LR_decoder: pyphoplacecellanalysis.Analysis.Decoder.reconstruction.BasePositionDecoder,
+#         short_RL_decoder: pyphoplacecellanalysis.Analysis.Decoder.reconstruction.BasePositionDecoder,
+#         shared_LR_aclus_only_neuron_IDs: numpy.ndarray,
+#         is_good_LR_aclus: NoneType,
+#         shared_RL_aclus_only_neuron_IDs: numpy.ndarray,
+#         is_good_RL_aclus: NoneType,
+#         decoder_LR_pf_peak_ranks_list: list,
+#         decoder_RL_pf_peak_ranks_list: list
+#     )
+#     """
+#     # content = ", ".join( [f"{a.name}={v!r}" for a in self.__attrs_attrs__ if (v := getattr(self, a.name)) != a.default] )
+#     # content = ", ".join([f"{a.name}:{strip_type_str_to_classname(type(getattr(self, a.name)))}" for a in self.__attrs_attrs__])
+#     content = ",\n\t".join([f"{a.name}: {strip_type_str_to_classname(type(getattr(self, a.name)))}" for a in self.__attrs_attrs__])
+#     # content = ", ".join([f"{a.name}" for a in self.__attrs_attrs__]) # 'TrackTemplates(long_LR_decoder, long_RL_decoder, short_LR_decoder, short_RL_decoder, shared_LR_aclus_only_neuron_IDs, is_good_LR_aclus, shared_RL_aclus_only_neuron_IDs, is_good_RL_aclus, decoder_LR_pf_peak_ranks_list, decoder_RL_pf_peak_ranks_list)'
+#     return f"{type(self).__name__}({content}\n)"
+
 
 
 @unique
