@@ -399,8 +399,11 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
     # Main Methods _______________________________________________________________________________________________________ #
 
     
-    def to_hdf(self, file_path, key: str, debug_print=False, **kwargs):
+    def to_hdf(self, file_path, key: str, debug_print=False, enable_hdf_testing_mode:bool=False, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
+        enable_hdf_testing_mode: bool - default False - if True, errors are not thrown for the first field that cannot be serialized, and instead all are attempted to see which ones work.
+        
+    
         Usage:
             hdf5_output_path: Path = curr_active_pipeline.get_output_path().joinpath('test_data.h5')
             _pfnd_obj: PfND = long_one_step_decoder_1D.pf
@@ -409,7 +412,6 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
         
         # file_mode:str = kwargs.get('file_mode', 'w') # default to overwrite
         file_mode:str = kwargs.get('file_mode', 'a') # default to append
-        
         
         if not attrs.has(type(self)):
             raise NotImplementedError # implementor must override!
@@ -438,7 +440,10 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
 
 
         # print(f'_temp_obj_dict: {_active_obj_values_dict}')
-        # for a_field in hdf_fields:
+        if enable_hdf_testing_mode:
+            unserializable_fields = {}
+
+
         for a_field_name, a_value in _active_obj_dataset_values_dict.items():
             a_field_attr = active_hdf_dataset_fields_dict[a_field_name]
             if debug_print:
@@ -446,7 +451,7 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             a_field_key:str = f'{key}/{a_field_attr.name}'
             if debug_print:
                 print(f'\ta_field_key: {a_field_key}')
-                
+            
             is_custom_serializable:bool = False
             try:
                 is_custom_serializable = a_field_attr.type.is_hdf_serializable()
@@ -456,7 +461,6 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
             except Exception as e:
                 raise e # unhandled exception!!
         
-
             custom_serialization_fn = a_field_attr.metadata.get('custom_serialization_fn', None) # (lambda f, k, v: a_value)
             if custom_serialization_fn is not None:
                 # use the custom serialization function:
@@ -474,7 +478,6 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                     if debug_print:
                         print(f'\t field not custom serializable! a_field_attr.type: {a_field_attr.type}.')                    
                         print(f'WARNING: {a_field_key} is not custom serializable, but we will try HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value) with the value. Will raise a NotImplementedException if this fails.')
-
 
                     # if the user set the "is_hdf_handled_custom" field, it will be handled in the overriden .to_hdf(...)
                     is_handled_in_overriden_to_hdf = a_field_attr.metadata.get('is_hdf_handled_custom', None) or False
@@ -498,14 +501,27 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
                                             sub_field_key:str = f"{a_field_key}/{attribute}"
                                             HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=sub_field_key, value=a_value, file_mode=file_mode)
                                 else:
-                                    raise NotImplementedError # really not implemented
+                                    if enable_hdf_testing_mode:
+                                        print(f'NotImplementedError("a_field_attr: {a_field_attr} could not be serialized with value a_value: {a_value} because it could not be converted to a dict via any known method")')
+                                        unserializable_fields[a_field_attr] = f"a_field_attr: {a_field_attr} could not be serialized with value a_value: {a_value} because it could not be converted to a dict via any known method"
+                                    else:
+                                        raise NotImplementedError(f"a_field_attr: {a_field_attr} could not be serialized with value a_value: {a_value} because it could not be converted to a dict via any known method") # really not implemented
+
+                                    
                             else:
                                 # _ALLOW_GLOBAL_NESTED_EXPANSION is not allowed.
-                                raise NotImplementedError
+                                if enable_hdf_testing_mode:
+                                    print(f'NotImplementedError("a_field_attr: {a_field_attr} could not be serialized and _ALLOW_GLOBAL_NESTED_EXPANSION is not allowed.")')
+                                    unserializable_fields[a_field_attr] = f"a_field_attr: {a_field_attr} could not be serialized and _ALLOW_GLOBAL_NESTED_EXPANSION is not allowed." # NotImplementedError(f"a_field_attr: {a_field_attr} could not be serialized and _ALLOW_GLOBAL_NESTED_EXPANSION is not allowed.")
+                                else:
+                                    raise NotImplementedError(f"a_field_attr: {a_field_attr} could not be serialized and _ALLOW_GLOBAL_NESTED_EXPANSION is not allowed.")
 
                         except Exception as e:
                             # Unhandled exception
-                            raise e
+                            if enable_hdf_testing_mode:
+                                unserializable_fields[a_field_attr] = e
+                            else:
+                                raise e
 
                     else:
                         if debug_print:
