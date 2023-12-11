@@ -166,6 +166,7 @@ def plot_placefield_occupancy(active_epoch_placefields, fig=None, ax=None, **kwa
             only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
         im = occupancy_ax.pcolorfast(xbin, ybin, np.rot90(np.fliplr(only_visited_occupancy)), cmap="jet", vmin=0.0)  # rot90(flipud... is necessary to match plotRaw configuration.
         occupancy_ax.set_title('Custom Occupancy')
+        occupancy_ax.set_aspect('equal', adjustable=None)
         occupancy_cbar = occupancy_fig.colorbar(im, ax=occupancy_ax, location='right')
         occupancy_cbar.minorticks_on()
         return occupancy_fig, occupancy_ax
