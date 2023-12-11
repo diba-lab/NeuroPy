@@ -181,8 +181,37 @@ class HDF_Converter:
     @staticmethod
     def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
         """ value: dict-like """
-        for sub_k, sub_v in value.items():
-            f[f'{key}/{sub_k}'] = sub_v
+        if isinstance(f, h5py.File):
+            for sub_k, sub_v in value.items():
+                f[f'{key}/{sub_k}'] = sub_v
+        else:
+            with h5py.File(f, "a") as f:
+                for sub_k, sub_v in value.items():
+                    f[f'{key}/{sub_k}'] = sub_v
+
+
+    # @staticmethod
+    # def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
+    #     """ value: dict-like """
+    #     # if isinstance(f, h5py.File):
+    #     with h5py.File(f, "a") as f:
+    #         for sub_k, sub_v in value.items():
+    #             f[f'{key}/{sub_k}'] = sub_v
+
+    #         # with f.create_group(key) as g:
+    #         #     for sub_k, sub_v in value.items():
+    #         #         g[f'{key}/{sub_k}'] = sub_v
+
+    # @staticmethod
+    # def _convert_optional_ndarray_to_hdf_attrs_fn(f, key: str, value):
+    #     """ value: dict-like """
+    #     # if isinstance(f, h5py.File):
+    #     with h5py.File(f, "a") as f:
+    #         if value is not None:
+    #             f[f'{key}'] = value
+    #         else:
+    #             f[f'{key}'] = np.ndarray([])
+
 
     # @staticmethod
     # def _convert_Path_dict_to_hdf_attrs_fn(f, key: str, value):
