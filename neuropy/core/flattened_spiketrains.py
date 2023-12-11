@@ -104,7 +104,7 @@ class SpikesAccessor(TimeSlicedMixin):
             included_neuron_ids = self.neuron_ids
         return [safe_pandas_get_group(self._obj.groupby('aclu'), neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
     
-    def sliced_by_neuron_id(self, included_neuron_ids):
+    def sliced_by_neuron_id(self, included_neuron_ids) -> pd.DataFrame:
         """ gets the slice of spikes with the specified `included_neuron_ids` """
         if included_neuron_ids is None:
             included_neuron_ids = self.neuron_ids
@@ -114,7 +114,7 @@ class SpikesAccessor(TimeSlicedMixin):
         """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
         return np.asarray([a_unit_spikes_df[self.time_variable_name].to_numpy() for a_unit_spikes_df in self.get_split_by_unit(included_neuron_ids=included_neuron_ids)])
         
-    def sliced_by_neuron_type(self, query_neuron_type):
+    def sliced_by_neuron_type(self, query_neuron_type) -> pd.DataFrame:
         """ returns a copy of self._obj filtered by the specified query_neuron_type, only returning neurons that match.
             e.g. query_neuron_type = NeuronType.PYRAMIDAL 
                 or query_neuron_type = 'PYRAMIDAL' 
@@ -134,6 +134,18 @@ class SpikesAccessor(TimeSlicedMixin):
         return self._obj.loc[inclusion_mask, :].copy()
         # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.neuron_type]), [query_neuron_type.shortClassName])]
         
+
+    def sliced_by_neuron_qclu(self, included_qclu_values=[1,2,4,9]) -> pd.DataFrame:
+        """ returns a copy of self._obj filtered by the specified included_qclu_values, only returning neurons that match.
+
+        """
+        inclusion_mask = np.isin(np.array(self._obj.qclu), included_qclu_values)
+        return self._obj.loc[inclusion_mask, :].copy()
+
+
+
+
+
     def extract_unique_neuron_identities(self):
         """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
         selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type']
