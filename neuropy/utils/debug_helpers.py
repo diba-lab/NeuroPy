@@ -257,7 +257,7 @@ def parameter_sweeps(**kwargs):
     """ Returns every unique combination of the passed in parameters. Superior to cartesian_product as it preserves the labels (returning a flat list of dicts) and accepts more than 2 inputs.
     
     Usage:
-        from IsolatedSpike3DEnv.NeuroPy.neuropy.utils.debug_helpers import parameter_sweeps
+        from neuropy.utils.debug_helpers import parameter_sweeps
         all_param_sweep_options, param_sweep_option_n_values = parameter_sweeps(smooth=[(None, None), (0.5, 0.5), (1.0, 1.0), (2.0, 2.0), (5.0, 5.0)], grid_bin=[(1,1),(5,5),(10,10)])
         >> all_param_sweep_options:  [{'smooth': (None, None), 'grid_bin': (1, 1)}, {'smooth': (None, None), 'grid_bin': (5, 5)}, {'smooth': (None, None), 'grid_bin': (10, 10)},
         {'smooth': (0.5, 0.5), 'grid_bin': (1, 1)},  {'smooth': (0.5, 0.5), 'grid_bin': (5, 5)},  {'smooth': (0.5, 0.5), 'grid_bin': (10, 10)},
