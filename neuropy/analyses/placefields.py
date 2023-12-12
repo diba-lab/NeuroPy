@@ -1409,6 +1409,11 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         """ 2023-11-10 - builds the positions for the directional 1D decoders into a pseudo 2D decoder
         ## HACK: this adds the two directions of two separate 1D placefields into a stack with a pseudo-y dimension (with two bins):
         ## WARNING: the animal will "teleport" between y-coordinates between the RL/LR laps. This will mean that all velocity_y, or vector-based velocity calculations (that use both x and y) are going to be messed up.
+        
+        First decoder is assigned virtual y-positions: 1.0
+        Second decoder is assigned virtual y-positions: 2.0,
+        etc.
+        
         """
         # positions merge:
         position = Position(pd.concat([a_decoder.position.to_dataframe() for a_decoder in directional_1D_decoder_list]).sort_values('t').drop_duplicates(subset=['t'], inplace=False))
@@ -1426,6 +1431,10 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
     def build_merged_directional_placefields(cls, *directional_1D_decoder_list, debug_print = True) -> "PfND": # , lhs: "PfND", rhs: "PfND"
         """ 2023-11-10 - Combine the non-directional PDFs and renormalize to get the directional PDF:
          
+        First decoder is assigned virtual y-positions: 1.0
+        Second decoder is assigned virtual y-positions: 2.0,
+        etc.
+        
         Usage:
             from neuropy.analyses.placefields import PfND
 
@@ -1482,7 +1491,7 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         config.grid_bin = (*config.grid_bin[:ndim], 1.0) # bin size is exactly one (because there will be two pseduo-dimensions)
         config.smooth = (*config.smooth[:ndim], 0.0) # do not allow smooth along the pseduo-y direction
         config.grid_bin_bounds = (*config.grid_bin_bounds[:ndim], (0, new_pseudo_num_ybins))
-        config # result: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.0), 'grid_bin_bounds': ((29.16, 261.7), (0, 2)), 'smooth': (2.0, None), 'frate_thresh': 1.0, 'is_directional': True};>
+        # config # result: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.0), 'grid_bin_bounds': ((29.16, 261.7), (0, 2)), 'smooth': (2.0, None), 'frate_thresh': 1.0, 'is_directional': True};>
         merged_pf = PfND(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin) # , ybin=
         return merged_pf
 
