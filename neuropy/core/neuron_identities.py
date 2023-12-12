@@ -327,7 +327,8 @@ class NeuronIdentityAccessingMixin:
 # Display and Render Helpers                                                                                           #
 # ==================================================================================================================== #
 
-class PlotStringBrevityModeEnum(Enum):
+@unique
+class PlotStringBrevityModeEnum(HDF_Converter.HDFConvertableEnum, Enum):
     """An enum of different modes that specify how verbose/brief the rendered strings should be on a given plot.
     More verbose means longer ouptuts with fewer abbreviations. For very brief modes, less important elements may be omitted entirely
     """
@@ -410,6 +411,33 @@ class PlotStringBrevityModeEnum(Enum):
         else:
             return True
         
+    @property
+    def hdfcodingClassName(self) -> str:
+        return PlotStringBrevityModeEnum.hdf_coding_ClassNames()[self.value]
+
+    # Static properties
+    @classmethod
+    def hdf_coding_ClassNames(cls):
+        return np.array(['VERBOSE','DEFAULT','CONCISE','MINIMAL','NONE'])
+    
+
+    # HDFConvertableEnum Conformances ____________________________________________________________________________________ #
+    @classmethod
+    def get_pandas_categories_type(cls) -> CategoricalDtype:
+        return CategoricalDtype(categories=list(cls.hdf_coding_ClassNames()), ordered=True)
+
+    @classmethod
+    def convert_to_hdf(cls, value) -> str:
+        return value.hdfcodingClassName
+
+    @classmethod
+    def from_hdf_coding_string(cls, string_value: str) -> "PlotStringBrevityModeEnum":
+        string_value = string_value.lower()
+        itemindex = np.where(cls.hdf_coding_ClassNames()==string_value)
+        return PlotStringBrevityModeEnum(itemindex[0])
+    
+
+    
 
 ## Plotting Colors:
 def build_units_colormap(neuron_ids):
@@ -609,9 +637,6 @@ class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
         string_value = string_value.lower()
         itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
         return NeuronType(itemindex[0])
-
-
-
 
 
     @classmethod
