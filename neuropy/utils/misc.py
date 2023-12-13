@@ -2,7 +2,7 @@ import types
 from collections import namedtuple
 from enum import Enum, IntEnum, auto, unique
 from itertools import islice
-from typing import Tuple
+from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
@@ -158,7 +158,7 @@ def copy_if_not_none(val):
     else:
         return None
     
-def shuffle_ids(neuron_ids, seed:int=1337):
+def shuffle_ids(neuron_ids, seed:Optional[int]=None):
     """ Shuffles the neuron_ids list, and returns the shuffled list and the shuffle indicies. The shuffle indicies can be used to shuffle other lists in the same way. 
 
     Input:
@@ -179,7 +179,7 @@ def shuffle_ids(neuron_ids, seed:int=1337):
 
 
 
-def build_shuffled_ids(neuron_ids, num_shuffles: int = 1000, seed:int=1337, debug_print=False) -> Tuple[np.ndarray, np.ndarray]:
+def build_shuffled_ids(neuron_ids, num_shuffles: int = 1000, seed:Optional[int]=None, debug_print=False) -> Tuple[np.ndarray, np.ndarray]:
 	""" Builds `num_shuffles` of the neuron_ids and returns both shuffled_aclus and shuffled_IDXs
 	
 	Uses numpy 2023-10-20 best practices for random number generation.
@@ -190,6 +190,13 @@ def build_shuffled_ids(neuron_ids, num_shuffles: int = 1000, seed:int=1337, debu
         shuffled_aclus.shape # .shape: (num_shuffles, n_neurons)
         shuffled_IDXs.shape # .shape: (num_shuffles, n_neurons)
         
+        
+    Usage:
+        from neuropy.utils.misc import build_shuffled_ids
+
+        num_shuffles = 1000
+        shuffled_aclus, shuffled_IDXs = build_shuffled_ids(shared_aclus_only_neuron_IDs, num_shuffles=num_shuffles, seed=1337) # .shape: ((num_shuffles, n_neurons), (num_shuffles, n_neurons))
+
 	"""
 	rng = np.random.default_rng(seed=seed)
 	
