@@ -30,7 +30,6 @@ def plot_epochs(
     [type]
         [description]
     """
-
     if isinstance(epochs, pd.DataFrame):
         epochs = Epoch(epochs)
 
@@ -47,9 +46,10 @@ def plot_epochs(
     elif isinstance(colors, dict):
         colors = [colors[label] for label in epochs.labels]
 
-    if epochs.has_labels:
+    if epochs.has_labels or (len(epochs.to_dataframe().label) > 1):
         labels = epochs.labels
-        unique_labels = np.unique(epochs.labels)
+        # unique_labels = np.unique(epochs.labels)
+        unique_labels = epochs.to_dataframe().label.unique()
         n_labels = len(unique_labels)
 
         if labels_order is not None:
