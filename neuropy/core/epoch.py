@@ -5,7 +5,7 @@ from .datawriter import DataWriter
 from pathlib import Path
 import scipy.signal as sg
 import typing
-from copy import deepcopy
+from copy import deepcopy, copy
 
 
 def _unpack_args(values, fs=1):
@@ -47,8 +47,18 @@ class Epoch(DataWriter):
         assert (
             pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
         ), "epochs should at least have columns/keys with names: start, stop, label"
-        epochs.loc[:, "label"] = epochs["label"].astype("str")
+
+        ## Make sure labels are formatted correctly as strings.
+        # Note that the following would be MUCH simpler but throws a "SettingWithCopyWarning"
+        # so we have to add the convoluted code below to avoid it
+        # epochs.loc[:, "label"] = epochs.loc[:, "label"].astype("str")
+        epochs_labels_str = copy(epochs["label"].astype("str"))
+        epochs = epochs.drop(columns="label", inplace=False)  # this also throws a warning if used with inplace=True
+        epochs.loc[:, "label"] = epochs_labels_str
+
+        # Sort
         epochs = epochs.sort_values(by=["start"]).reset_index(drop=True)
+
         return epochs.copy()
 
     @property
