@@ -506,7 +506,7 @@ class Epoch(DataWriter):
         return Epoch(epochs_df)
 
     def proportion_by_label(self, t_start=None, t_stop=None, ignore_gaps=False):
-        """Get porportion of time for each label type
+        """Get proportion of time for each label type
 
         Parameters
         ----------
@@ -514,6 +514,7 @@ class Epoch(DataWriter):
             start time in seconds, by default None
         t_stop : float, optional
             stop time in seconds, by default None
+        ignore_gaps: will return None if set and there is no epoch in the time period selected.
 
         Returns
         -------
@@ -559,7 +560,7 @@ class Epoch(DataWriter):
         Returns
         -------
         dict
-            dictionary contating duration of each unique label
+            dictionary containing duration of each unique label
         """
         labels = self.labels
         durations = self.durations
