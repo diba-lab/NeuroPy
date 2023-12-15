@@ -505,7 +505,7 @@ class Epoch(DataWriter):
         epochs_df = pd.concat([epochs_df, flank_start, flank_stop], ignore_index=True)
         return Epoch(epochs_df)
 
-    def proportion_by_label(self, t_start=None, t_stop=None):
+    def proportion_by_label(self, t_start=None, t_stop=None, ignore_gaps=False):
         """Get porportion of time for each label type
 
         Parameters
@@ -529,25 +529,29 @@ class Epoch(DataWriter):
 
         ep = self._epochs.copy()
         ep = ep[(ep.stop > t_start) & (ep.start < t_stop)].reset_index(drop=True)
+        if not ignore_gaps:
+            assert ep.shape[0] > 0, "cannot have empty time gaps between epoch labels with ignore_gaps=False"
+        elif ignore_gaps and (ep.shape[0] > 0):
+            if ep["start"].iloc[0] < t_start:
+                ep.at[0, "start"] = t_start
 
-        if ep["start"].iloc[0] < t_start:
-            ep.at[0, "start"] = t_start
+            if ep["stop"].iloc[-1] > t_stop:
+                ep.at[ep.index[-1], "stop"] = t_stop
 
-        if ep["stop"].iloc[-1] > t_stop:
-            ep.at[ep.index[-1], "stop"] = t_stop
+            ep["duration"] = ep.stop - ep.start
 
-        ep["duration"] = ep.stop - ep.start
+            ep_group = ep.groupby("label").sum(numeric_only=True).duration / duration
 
-        ep_group = ep.groupby("label").sum().duration / duration
+            label_proportion = {}
+            for label in self.get_unique_labels():
+                label_proportion[label] = 0.0
 
-        label_proportion = {}
-        for label in self.get_unique_labels():
-            label_proportion[label] = 0.0
+            for state in ep_group.index.values:
+                label_proportion[state] = ep_group[state]
 
-        for state in ep_group.index.values:
-            label_proportion[state] = ep_group[state]
-
-        return label_proportion
+            return label_proportion
+        else:
+            return None
 
     def durations_by_label(self):
         """Return total duration for each unique label
