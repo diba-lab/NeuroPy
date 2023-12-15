@@ -571,6 +571,43 @@ class Epoch(DataWriter):
 
         return label_durations
 
+    def resample_labeled_epochs(self, res, t_start=None, t_stop=None, merge_neighbors=True):
+        """Resample epochs to different size blocks using a winner take all method to assign
+        a label name. e.g. if the first 100-second epoch is 40% quiet wake, 50% REM, and 10% NREM
+        it would get labeled as REM.  Pretty slow, even slower with merge_neighbors=True
+
+        :param: res: block size in seconds
+        :param: t_start: start time in seconds, default = start of first epoch
+        :param: t_stop : stop time in seconds, default = stop of last epoch
+        :param merge_neighbors: combine adjacent epochs of the same label, default=True"""
+
+        if t_start is None:
+            t_start = self.starts[0]
+        elif t_start < self.starts[0]:
+            t_start = self.starts[0]
+            print('t_start < start time of first epoch, reassigned to match first epoch start time')
+
+        if t_stop is None:
+            t_stop = self.stops[-1]
+        if t_stop > self.stops[-1]:
+            t_stop = self.stops[-1]
+            print('t_stop > stop time of first epoch, reassigned to match last epoch stop time')
+        bins = np.arange(t_start, t_stop + res, res)
+        start_rs = bins[:-1]
+        stop_rs = bins[1:]
+        label_rs = []
+        for start, stop in zip(start_rs, stop_rs):
+            props = self.proportion_by_label(start, stop, ignore_gaps=True)
+            label_add = list(props.keys())[np.argmax(list(props.values()))] if props is not None else ""
+            label_rs.append(label_add)
+        # except AssertionError:  # Append nothing if gap found in epochs
+        #     label_rs.append("")
+
+        epoch_rs = Epoch(pd.DataFrame({"start": start_rs, "stop": stop_rs, "label": label_rs}))
+        epoch_rs = epoch_rs.merge_neighbors() if merge_neighbors else epoch_rs
+
+        return epoch_rs
+
     def count(self, t_start=None, t_stop=None, binsize=300):
         if t_start is None:
             t_start = 0
