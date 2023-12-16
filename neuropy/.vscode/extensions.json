@@ -3,6 +3,7 @@
 		"ms-python.vscode-pylance",
 		"orepor.color-tabs-vscode-ext",
 		"buenon.scratchpads",
-		"geddski.macros"
+		"geddski.macros",
+		"ryuta46.multi-command"
 	]
 }
