@@ -7,7 +7,7 @@ from scipy import stats
 
 
 def plot_epochs(
-    epochs: Epoch, labels_order=None, colors="Set3", alpha=1, collapsed=False, ax=None
+    epochs: Epoch, labels_order=None, colors="Set3", alpha=1, collapsed=False, colorby="label", ax=None
 ):
     """Plots epochs on a given axis, with different style of plotting
 
@@ -21,8 +21,10 @@ def plot_epochs(
         [description], by default 0.5
     ymax : float, optional
         [description], by default 0.55
-    color : str, optional
-        [description], by default "gray"
+    color : str or dict, optional
+        [description], by default "gray", if dict = {"value1": color, "value2": color2}
+        where value1, value2, ... are values in the column defined by colorby param
+    colorby: str, column in epochs to map colors to
     collapsed:
 
     Returns
@@ -33,7 +35,7 @@ def plot_epochs(
     if isinstance(epochs, pd.DataFrame):
         epochs = Epoch(epochs)
 
-    assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
+    # assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
 
     n_epochs = epochs.n_epochs
 
@@ -44,7 +46,7 @@ def plot_epochs(
         except:
             colors = [colors] * n_epochs
     elif isinstance(colors, dict):
-        colors = [colors[label] for label in epochs.labels]
+        colors = [colors[label] for label in epochs.to_dataframe()[colorby]]
 
     if epochs.has_labels or (len(epochs.to_dataframe().label) > 1):
         labels = epochs.labels
