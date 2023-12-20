@@ -11,14 +11,11 @@ from neuropy.utils import mathutil
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin, HDF_Converter
-from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin
+from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin, ContinuousPeakLocationRepresentingMixin
 from . import DataWriter
 
-def compute_placefield_center_of_mass_coord_indicies(tuning_curves: NDArray) -> NDArray:
-    """ returns the coordinates (index-space, not track-position space) of the center of mass for each of the tuning_curves. """
-    return np.squeeze(np.array([ndimage.center_of_mass(x) for x in tuning_curves]))
 
-class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, DataWriter):
+class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, DataWriter):
     """A Ratemap holds information about each unit's firing rate across binned positions. 
         In addition, it also holds (tuning curves).
         
@@ -170,24 +167,6 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Pe
         expected_f_squared = np.array([np.nanmean(a_tuning_curve**2) for a_tuning_curve in self.unsmoothed_tuning_maps]) # .shape
         return (expected_f**2) / expected_f_squared # sparcity.shape # (n_neurons,)
 
-    @property
-    def peak_tuning_curve_center_of_mass_bin_coordinates(self) -> NDArray:
-        """ returns the coordinates (in bin-index space) of the center of mass of each of the tuning curves."""
-        return compute_placefield_center_of_mass_coord_indicies(self.pdf_normalized_tuning_curves) # in coordinate (index) space
-    
-    
-    @property
-    def peak_tuning_curve_center_of_masses(self) -> NDArray:
-        """ returns the locations of the center of mass of each of the tuning curves."""
-        tuning_curve_CoM_coordinates = self.peak_tuning_curve_center_of_mass_bin_coordinates # in coordinate (index) space
-        assert self.ndim == 1, f"tuning-curve CoM currently only implemented for 1D ratemap."
-        xbin = self.xbin.copy()
-        xbin_edge_labels = np.arange(len(xbin)) # the index range spanning all x-bins
-        assert np.all(np.diff(xbin) > 0), f"requires monotonically increasing bins"
-        assert np.allclose(np.diff(xbin), np.full_like(np.diff(xbin), np.diff(xbin)[0])), f'Requres equally spaced bins'
-        tuning_curve_CoM_positions = np.interp(tuning_curve_CoM_coordinates, xp=xbin_edge_labels, fp=xbin) # in position space
-        return tuning_curve_CoM_positions
-    
 
     # Other ______________________________________________________________________________________________________________ #
 
