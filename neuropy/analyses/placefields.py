@@ -4,6 +4,7 @@ from attrs import define, fields, filters, asdict, astuple
 import h5py
 import time
 import matplotlib.pyplot as plt
+from nptyping import NDArray
 import numpy as np
 from matplotlib.gridspec import GridSpec
 import pandas as pd
@@ -29,7 +30,7 @@ from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
 from neuropy.utils.mixins.time_slicing import add_epochs_id_identity # for building direction pf's positions
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
-from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin
+from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin, ContinuousPeakLocationRepresentingMixin
     
 
 # from .. import core
@@ -642,7 +643,7 @@ class PlacefieldND(PfnConfigMixin, PfnDMixin):
 
         
 @define(slots=False)
-class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. 
 
         It always computes two place maps with and without speed thresholds.
@@ -915,33 +916,38 @@ class PfND(HDFMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProt
         self.ratemap_spiketrains = self._peak_frate_filter_function(spk_t)
         self.ratemap_spiketrains_pos = self._peak_frate_filter_function(spk_pos)
 
-    # PeakLocationRepresentingMixin conformances:
+    # PeakLocationRepresentingMixin + ContinuousPeakLocationRepresentingMixin conformances:
     @property
-    def PeakLocationRepresentingMixin_peak_curves_variable(self) -> np.array:
+    def PeakLocationRepresentingMixin_peak_curves_variable(self) -> NDArray:
         """ the variable that the peaks are calculated and returned for """
         return self.ratemap.PeakLocationRepresentingMixin_peak_curves_variable
+    
+    @property
+    def ContinuousPeakLocationRepresentingMixin_peak_curves_variable(self) -> NDArray:
+        """ the variable that the peaks are calculated and returned for """
+        return self.ratemap.ContinuousPeakLocationRepresentingMixin_peak_curves_variable
     
 
 
     @property
-    def t(self):
+    def t(self) -> NDArray:
         """The position timestamps property."""
         return self.filtered_pos_df.t.to_numpy()
 
     @property
-    def x(self):
+    def x(self) -> NDArray:
         """The position timestamps property."""
         return self.filtered_pos_df.x.to_numpy()
 
     @property
-    def y(self):
+    def y(self) -> Optional[NDArray]:
         """The position timestamps property."""
         if (self.ndim > 1):
             return self.filtered_pos_df.y.to_numpy()
         else:
             return None
     @property
-    def speed(self):
+    def speed(self) -> NDArray:
         """The position timestamps property."""
         if (self.should_smooth_speed and (self.config.smooth is not None) and (self.config.smooth[0] > 0.0)):
             return self.filtered_pos_df.speed_smooth.to_numpy()
