@@ -655,8 +655,11 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         # .eegfile
         try:
             session.eegfile = BinarysignalIO(filepath, n_channels=session.recinfo.n_channels, sampling_rate=session.recinfo.eeg_sampling_rate)
-        except ValueError:
+        except (ValueError, FileNotFoundError):
             print('session.recinfo.eeg_filename exists ({}) but file cannot be loaded in the appropriate format. Skipping. \n'.format(filepath))
+            session.eegfile = None
+        except (FileNotFoundError):
+            print('session.recinfo.eeg_filename does not exist or is not accessible ({}). Skipping. \n'.format(filepath))
             session.eegfile = None
         return session
 
