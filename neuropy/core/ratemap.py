@@ -168,6 +168,33 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         return (expected_f**2) / expected_f_squared # sparcity.shape # (n_neurons,)
 
 
+
+    def compute_tuning_curve_modes(self):
+        """ 2023-12-19 - Uses `scipy.signal.find_peaks to find the number of peaks or ("modes") for each of the cells in the ratemap. 
+        Can detect bimodal (or multi-modal) placefields.
+        
+        Depends on:
+            self.tuning_curves
+        
+        Returns:
+            aclu_n_peaks_dict: Dict[int, int] - A mapping between aclu:n_tuning_curve_modes
+        Usage:    
+            active_ratemap = deepcopy(long_LR_pf1D.ratemap)
+            peaks_dict, aclu_n_peaks_dict, unimodal_peaks_dict = compute_tuning_curve_modes(active_ratemap)
+            aclu_n_peaks_dict # {2: 4, 5: 4, 7: 2, 8: 2, 9: 2, 10: 5, 17: 2, 24: 2, 25: 3, 26: 1, 31: 3, 32: 5, 34: 2, 35: 1, 36: 2, 37: 2, 41: 4, 45: 3, 48: 4, 49: 4, 50: 4, 51: 3, 53: 5, 54: 3, 55: 5, 56: 4, 57: 4, 58: 5, 59: 3, 61: 4, 62: 3, 63: 4, 64: 4, 66: 3, 67: 4, 68: 2, 69: 2, 71: 3, 73: 3, 74: 3, 75: 5, 76: 5, 78: 3, 81: 3, 82: 1, 83: 4, 84: 4, 86: 3, 87: 3, 88: 4, 89: 3, 90: 3, 92: 4, 93: 4, 96: 2, 97: 4, 98: 5, 100: 4, 102: 7, 107: 1, 108: 5, 109: 2}
+
+        """
+        from scipy.signal import find_peaks
+        
+        active_tuning_curves = deepcopy(self.tuning_curves)
+        # active_ratemap.tuning_curves.shape # (73, 56) - (n_neurons, n_pos_bins)
+        peaks_list = [find_peaks(active_tuning_curves[i,:])[0] for i in np.arange(self.n_neurons)] # [0] outside the find_peaks function gets the location of the peak
+        peaks_dict = dict(zip(self.neuron_ids, peaks_list))
+        aclu_n_peaks_dict = {k:len(v) for k,v in peaks_dict.items()} # number of peaks ("models" for each aclu)
+        unimodal_peaks_dict = {k:v for k,v in peaks_dict.items() if len(v) < 2}
+        return peaks_dict, aclu_n_peaks_dict, unimodal_peaks_dict
+
+
     # Other ______________________________________________________________________________________________________________ #
 
     def __getitem__(self, i) -> "Ratemap":
