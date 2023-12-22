@@ -46,7 +46,8 @@ def plot_epochs(
         except:
             colors = [colors] * n_epochs
     elif isinstance(colors, dict):
-        colors = [colors[label] for label in epochs.to_dataframe()[colorby]]
+        # Define colors, sending those not in the colors dict to white
+        colors = [colors[label] if label in colors.keys() else "#ffffff" for label in epochs.to_dataframe()[colorby]]
 
     if epochs.has_labels or (len(epochs.to_dataframe().label) > 1):
         labels = epochs.labels
