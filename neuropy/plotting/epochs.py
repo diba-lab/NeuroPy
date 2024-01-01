@@ -55,11 +55,22 @@ def plot_epochs(
         unique_labels = epochs.to_dataframe().label.unique()
         n_labels = len(unique_labels)
 
+        # Update to order labels correctly
         if labels_order is not None:
-            assert np.array_equal(
-                np.sort(labels_order), np.sort(unique_labels)
-            ), "labels_order does not match with epochs labels"
-            unique_labels = labels_order
+            # assert np.array_equal(
+            #     np.sort(labels_order), np.sort(unique_labels)
+            # ), "labels_order does not match with epochs labels"
+
+            # Make sure all labels are in labels_order
+
+            # This code might be necessary, keep for potential debugging
+            # if np.array_equal(np.sort(labels_order), np.sort(unique_labels)) or \
+            #         np.all([label in labels_order for label in unique_labels]):
+            if np.all([label in labels_order for label in unique_labels]):
+                unique_labels = labels_order
+                n_labels = len(unique_labels)
+            else:
+                assert False, "labels_order does not match with epochs labels"
 
         dh = 1 if collapsed else 1 / n_labels
         y_min = np.zeros(len(epochs))
@@ -75,11 +86,12 @@ def plot_epochs(
             epoch.start,
             epoch.stop,
             y_min[i],
-            y_min[i] + dh,
+            y_min[  i] + dh,
             facecolor=colors[i],
             edgecolor=None,
             alpha=alpha,
         )
+        ax.set_ylim([0, 1])
 
     return ax
 
