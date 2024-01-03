@@ -114,6 +114,59 @@ class NumpyHelpers:
             # return all(np.all(np.array_equiv(reference_array, an_arr) for an_arr in list_of_arrays[1:])) # the outer 'all(...)' is required, otherwise it returns a generator object like: `<generator object NumpyHelpers.all_array_equiv.<locals>.<genexpr> at 0x00000128E0482AC0>`
 
     @classmethod
+    def assert_all_array_generic(cls, pairwise_numpy_assert_fn, list_of_arrays: List[NDArray], **kwargs):
+        """ A n-element generalization of a specified pairwise np.testing.assert* function such as `np.testing.assert_array_equal` or `np.testing.assert_allclose`
+
+        TODO: doesn't really work yet
+
+        msg: a use-provided assert message
+        
+
+        
+        Usage:
+
+            list_of_arrays = list(xbins.values())
+            NumpyHelpers.assert_all_array_generic(np.testing.assert_array_equal, list_of_arrays=list_of_arrays, msg=f'test message')
+            NumpyHelpers.assert_all_array_generic(np.testing.assert_array_equal, list_of_arrays=list(neuron_ids.values()), msg=f'test message')
+
+        """
+        msg = kwargs.pop('msg', None)
+        # Input type checking
+        if not np.all(isinstance(arr, np.ndarray) for arr in list_of_arrays):
+            raise ValueError("All elements in 'list_of_arrays' must be NumPy arrays.")        
+    
+        if len(list_of_arrays) == 0:
+            return # empty arrays are all equal
+        elif len(list_of_arrays) == 1:
+            # if only a single array, make sure it's not accidentally passed in incorrect
+            reference_array = list_of_arrays[0] # Use the first array as a reference for comparison
+            assert isinstance(reference_array, np.ndarray)
+            return # as long as imput is intended, always True
+        
+        else:
+            ## It has more than two elements:
+            reference_array = list_of_arrays[0] # Use the first array as a reference for comparison
+            # Check equivalence for each array in the list
+            for an_arr in list_of_arrays[1:]:
+                try:
+                    pairwise_numpy_assert_fn(reference_array, an_arr, **kwargs) 
+                except AssertionError as e:
+                    # print(f'e: {e}, e.args: {e.args}')
+                    # msg = kwargs.get("msg", None)
+                    if msg is not None:
+                        e.args = (msg,) + e.args
+                        # e.args = ':'.join(e.args) # join as a single string 
+                        
+                    # print(f'e: {e},\n e.args: {e.args},\n msg: {msg or ""}\n')
+                    # print(f'e.args: {":".join(e.args)}')
+                    raise e
+                
+            # return np.all([pairwise_numpy_assert_fn(reference_array, an_arr, *args, **kwargs) for an_arr in list_of_arrays[1:]]) # can be used without the list comprehension just as a generator if you use all(...) instead.
+            # return all(np.all(np.array_equiv(reference_array, an_arr) for an_arr in list_of_arrays[1:])) # the outer 'all(...)' is required, otherwise it returns a generator object like: `<generator object NumpyHelpers.all_array_equiv.<locals>.<genexpr> at 0x00000128E0482AC0>`
+
+
+
+    @classmethod
     def all_array_equal(cls, list_of_arrays: List[NDArray], equal_nan=True) -> bool:
         """ A n-element generalization of `np.array_equal`
         Usage:
