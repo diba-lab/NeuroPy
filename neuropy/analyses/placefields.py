@@ -1434,7 +1434,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         
 
     @classmethod
-    def build_merged_directional_placefields(cls, *directional_1D_decoder_list, debug_print = True) -> "PfND": # , lhs: "PfND", rhs: "PfND"
+    def _DEP_build_merged_directional_placefields(cls, *directional_1D_decoder_list, debug_print = True) -> "PfND": # , lhs: "PfND", rhs: "PfND"
         """ 2023-11-10 - Combine the non-directional PDFs and renormalize to get the directional PDF:
          
         First decoder is assigned virtual y-positions: 1.0
@@ -1501,6 +1501,164 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         merged_pf = PfND(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin) # , ybin=
         return merged_pf
 
+
+    @classmethod
+    def build_merged_directional_placefields(cls, input_unidirectional_decoder_dict, debug_print = True) -> "PfND": # , lhs: "PfND", rhs: "PfND"
+        """ 2024-01-02 - Combine the non-directional PDFs and renormalize to get the directional PDF:
+
+        Builds a manually merged directional pf from a dict of pf1Ds (one for each direction)
+
+        First decoder is assigned virtual y-positions: 1.0
+        Second decoder is assigned virtual y-positions: 2.0,
+        etc.
+        
+        Usage:
+            from neuropy.analyses.placefields import PfND
+
+            ## Combine the non-directional PDFs and renormalize to get the directional PDF:
+            # Inputs: long_LR_pf1D, long_RL_pf1D
+            merged_pf1D = PfND.build_merged_directional_placefields(deepcopy(long_LR_pf1D), deepcopy(long_RL_pf1D), debug_print = True)
+            merged_pf1D 
+
+        """
+            
+        from neuropy.utils.indexing_helpers import union_of_arrays
+        from neuropy.core.ratemap import Ratemap
+
+
+        def _subfn_manual_pdf_merge_directional_pf1Ds(input_unidirectional_decoder_dict, debug_print):
+            ## Reset to no frate filter so the same cells are included for each decoder
+            unidirectional_decoder_dict = deepcopy(input_unidirectional_decoder_dict)
+            
+            for a_decoder_name, a_decoder in unidirectional_decoder_dict.items():
+                # a_filter_reset_decoder = deepcopy(a_decoder)
+                original_num_neurons: int = a_decoder.ratemap.n_neurons
+                if debug_print:
+                    print(f'original_num_neurons: {original_num_neurons}')
+                a_decoder.config.frate_thresh = 0.0
+                a_decoder.compute()
+                post_filter_clear_num_neurons: int = a_decoder.ratemap.n_neurons
+                if debug_print:
+                    print(f'post_filter_clear_num_neurons: {post_filter_clear_num_neurons}')
+                
+            unidirectional_ratemap_dict = {k:v.ratemap for k, v in unidirectional_decoder_dict.items()}
+
+
+            xbins = {k:v.xbin for k, v in unidirectional_ratemap_dict.items()}
+            neuron_ids = {k:v.neuron_ids for k, v in unidirectional_ratemap_dict.items()}
+            pdf_normalized_tuning_curves = {k:v.pdf_normalized_tuning_curves for k, v in unidirectional_ratemap_dict.items()}
+            occupancy_dict = {k:v.occupancy for k, v in unidirectional_ratemap_dict.items()}
+
+
+            at_least_one_decoder_neuron_ids = union_of_arrays(*list(neuron_ids.values()))
+            at_least_one_decoder_n_neurons = len(at_least_one_decoder_neuron_ids)
+            at_least_one_decoder_neuron_ids_index_dict = dict(zip(at_least_one_decoder_neuron_ids, np.arange(len(at_least_one_decoder_neuron_ids))))
+            at_least_one_decoder_neuron_extended_ids = {aclu:None for aclu, v in at_least_one_decoder_neuron_ids_index_dict.items()} # initialize to empty for each aclu
+            
+            # at_least_one_decoder_pdf_normalized_tuning_curves_dict = {}
+            at_least_one_decoder_all_results_dict = {}
+
+
+            for a_decoder_name, a_ratemap in unidirectional_ratemap_dict.items():
+                n_xbin_centers = np.shape(a_ratemap.xbin_centers)[0]
+                
+                ## Just builds the pdf_normalized_tuning_curves for this decoder with the correct size (including zeros for neuron_ids not present in this ratemap:
+                if debug_print:
+                    print(f'at_least_one_decoder_n_neurons: {at_least_one_decoder_n_neurons}')
+                    print(f'n_xbin_centers: {n_xbin_centers}')
+                a_ratemap_full_spikes_maps = np.full((at_least_one_decoder_n_neurons, n_xbin_centers), fill_value=0)
+                a_ratemap_full_unsmoothed_tuning_curves = np.full((at_least_one_decoder_n_neurons, n_xbin_centers), fill_value=0.0)
+                
+                a_ratemap_full_tuning_curves = np.full((at_least_one_decoder_n_neurons, n_xbin_centers), fill_value=0.0)
+                a_ratemap_full_pdf_normalized_tuning_curves = np.full((at_least_one_decoder_n_neurons, n_xbin_centers), fill_value=0.0)
+                
+                for aclu, aclu_extended_id, spikes_map, unsmoothed_tuning_map, tuning_curve, pdf_norm_curve in zip(a_ratemap.neuron_ids, a_ratemap.neuron_extended_ids, a_ratemap.spikes_maps, a_ratemap.unsmoothed_tuning_maps, a_ratemap.tuning_curves, a_ratemap.pdf_normalized_tuning_curves):
+                    curr_fragile_IDX = at_least_one_decoder_neuron_ids_index_dict[aclu]
+                    
+                    a_ratemap_full_spikes_maps[curr_fragile_IDX, :] = spikes_map
+                    a_ratemap_full_unsmoothed_tuning_curves[curr_fragile_IDX, :] = unsmoothed_tuning_map
+                    a_ratemap_full_tuning_curves[curr_fragile_IDX, :] = tuning_curve
+                    a_ratemap_full_pdf_normalized_tuning_curves[curr_fragile_IDX, :] = pdf_norm_curve
+                    
+                    if at_least_one_decoder_neuron_extended_ids[aclu] is None:
+                        # use this ratemaps neuron_extended_id for this aclu
+                        at_least_one_decoder_neuron_extended_ids[aclu] = aclu_extended_id # a_ratemap.neuron_extended_ids[a_ratemap_relative_aclu_fragile_linear_idx]
+                    
+                # at_least_one_decoder_pdf_normalized_tuning_curves_dict[a_decoder_name] = a_ratemap_full_pdf_normalized_tuning_curves
+                at_least_one_decoder_all_results_dict[a_decoder_name] = {'spikes_maps': a_ratemap_full_spikes_maps, 'unsmoothed_tuning_maps': a_ratemap_full_unsmoothed_tuning_curves, 'tuning_curves': a_ratemap_full_tuning_curves,
+                                                                        'pdf_normalized_tuning_curves': a_ratemap_full_pdf_normalized_tuning_curves}    # , 'a_ratemap_full_spikes_maps': a_ratemap_full_spikes_maps
+
+            return unidirectional_decoder_dict, unidirectional_ratemap_dict, at_least_one_decoder_all_results_dict, at_least_one_decoder_neuron_ids, at_least_one_decoder_neuron_extended_ids
+
+
+        # BEGIN MAIN FUNCTION BODY ___________________________________________________________________________________________ #
+
+        directional_1D_decoder_dict, unidirectional_ratemap_dict, at_least_one_decoder_all_results_dict, at_least_one_decoder_neuron_ids, at_least_one_decoder_neuron_extended_ids = _subfn_manual_pdf_merge_directional_pf1Ds(input_unidirectional_decoder_dict, debug_print=debug_print)
+        directional_1D_decoder_list = list(directional_1D_decoder_dict.values())
+        
+        assert len(directional_1D_decoder_list) > 0
+        lhs = directional_1D_decoder_list[0] # first decoder
+        remaining_decoder_list = directional_1D_decoder_list[1:]
+
+        for rhs in remaining_decoder_list:
+            assert np.all(lhs.xbin == rhs.xbin)
+            assert np.all(lhs.ybin == rhs.ybin)
+        xbin = lhs.xbin
+        ybin = lhs.ybin
+        for rhs in remaining_decoder_list:
+            assert np.all(lhs.ndim == rhs.ndim)
+        ndim = lhs.ndim
+        new_pseduo_ndim = ndim + 1
+        new_pseudo_num_ybins: int = len(directional_1D_decoder_list) # number of y-bins we'll need
+        if debug_print:
+            print(f'ndim: {ndim}, new_pseduo_ndim: {new_pseduo_ndim}\n\tnew_pseudo_num_ybins: {new_pseudo_num_ybins}')
+            
+        assert ndim == 1, f"currently only works for ndim == 1 but ndim: {ndim}! ybin will need to be changed to zbin for higher-order than 1D initial decoders."
+        ybin = np.arange(new_pseudo_num_ybins + 1) # [0, 1, 2] because they are the edges of the bins
+        if debug_print:
+            print(f'ybin: {ybin}')
+        for rhs in remaining_decoder_list:
+            assert np.isclose(lhs.position_srate, rhs.position_srate, 0.01)
+        position_srate = lhs.position_srate
+
+        # stacked_pdf = np.stack(list(at_least_one_decoder_pdf_normalized_tuning_curves_dict.values()), axis=-1) # .shape (n_neurons, n_xbins, n_ybins): (80, 62, 2)
+        
+        # stacked_results_dict = {np.stack(list(at_least_one_decoder_all_results_dict.values()), axis=-1) for k,v in at_least_one_decoder_all_results_dict.items()} # .shape (n_neurons, n_xbins, n_ybins): (80, 62, 2)
+
+        stacked_results_dict = {a_value_key:np.stack([v[a_value_key] for v in list(at_least_one_decoder_all_results_dict.values())], axis=-1) for a_value_key in ['tuning_curves', 'unsmoothed_tuning_maps', 'spikes_maps']}
+        stacked_occupancy = np.stack([v.occupancy for k, v in directional_1D_decoder_dict.items()], axis=-1) # .shape: (62, 2)
+
+        # normalized_stacked_pdf = stacked_pdf / np.sum(stacked_pdf, axis=-1, keepdims=True)
+        # normalized_stacked_pdf
+
+        new_ratemap = Ratemap(tuning_curves=stacked_results_dict['tuning_curves'], unsmoothed_tuning_maps=stacked_results_dict['unsmoothed_tuning_maps'], spikes_maps=stacked_results_dict['spikes_maps'],
+                            xbin=xbin, ybin=ybin, occupancy=stacked_occupancy, neuron_ids=at_least_one_decoder_neuron_ids, neuron_extended_ids=list(at_least_one_decoder_neuron_extended_ids.values()))
+        
+        ## Pre-computation variables:
+        # These variables below are pre-computation variables and are used by `PfND.compute()` to actually build the ratemaps and filtered versions. They aren't quite right as is.
+        # epochs are merged:
+        # epochs: Epoch = Epoch(pd.concat([a_decoder.epochs.to_dataframe() for a_decoder in directional_1D_decoder_list], ignore_index=True, verify_integrity=True).sort_values(['start', 'stop']))
+        
+        # spikes_df are merged:
+        time_variable_name:str = lhs.spikes_df.spikes.time_variable_name
+        # spikes_df = pd.concat([a_decoder.spikes_df for a_decoder in directional_1D_decoder_list]).sort_values([time_variable_name, 'aclu']).drop_duplicates(subset=[time_variable_name, 'aclu'], inplace=False) # make sure this drops duplicates in (time_variable_name, 'aclu')
+
+        # positions merge:
+        # position = cls.build_pseduo_2D_directional_placefield_positions(*directional_1D_decoder_list)
+        
+        # Make the needed modifications to the config so spatial smoothing isn't used on the pseduo-y dimension:
+        # config: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.607897707662558), 'grid_bin_bounds': ((29.16, 261.7), (130.23, 150.99)), 'smooth': (2.0, 2.0), 'frate_thresh': 1.0};>
+        config = deepcopy(lhs.config)
+        config.is_directional = True
+        config.grid_bin = (*config.grid_bin[:ndim], 1.0) # bin size is exactly one (because there will be two pseduo-dimensions)
+        config.smooth = (*config.smooth[:ndim], 0.0) # do not allow smooth along the pseduo-y direction
+        config.grid_bin_bounds = (*config.grid_bin_bounds[:ndim], (0, new_pseudo_num_ybins))
+        # config # result: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.0), 'grid_bin_bounds': ((29.16, 261.7), (0, 2)), 'smooth': (2.0, None), 'frate_thresh': 1.0, 'is_directional': True};>
+        merged_pf = PfND(spikes_df=None, position=None, epochs=None, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin,
+                    setup_on_init=False, compute_on_init=False) # , ybin=
+        merged_pf._ratemap = new_ratemap
+        
+        return merged_pf
 
 
 # ==================================================================================================================== #
