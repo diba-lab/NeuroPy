@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional, Tuple
+from nptyping import NDArray
 import numpy as np
 from functools import reduce # intersection_of_arrays, union_of_arrays
 
@@ -72,6 +73,80 @@ def intersection_of_arrays(*arrays) -> np.array:
     """
     return reduce(np.intersect1d, tuple(arrays))
 
+
+# ==================================================================================================================== #
+# Numpy NDArrays                                                                                                       #
+# ==================================================================================================================== #
+
+class NumpyHelpers:
+    """ various extensions and generalizations for numpy arrays 
+    
+    from neuropy.utils.indexing_helpers import NumpyHelpers
+
+
+    """
+    @classmethod
+    def all_array_generic(cls, pairwise_numpy_fn, list_of_arrays: List[NDArray], **kwargs) -> bool:
+        """ A n-element generalization of a specified pairwise numpy function such as `np.array_equiv`
+        Usage:
+        
+            list_of_arrays = list(xbins.values())
+            NumpyHelpers.all_array_generic(list_of_arrays=list_of_arrays)
+
+        """
+        # Input type checking
+        if not np.all(isinstance(arr, np.ndarray) for arr in list_of_arrays):
+            raise ValueError("All elements in 'list_of_arrays' must be NumPy arrays.")        
+    
+        if len(list_of_arrays) == 0:
+            return True # empty arrays are all equal
+        elif len(list_of_arrays) == 1:
+            # if only a single array, make sure it's not accidentally passed in incorrect
+            reference_array = list_of_arrays[0] # Use the first array as a reference for comparison
+            assert isinstance(reference_array, np.ndarray)
+            return True # as long as imput is intended, always True
+        
+        else:
+            ## It has more than two elements:
+            reference_array = list_of_arrays[0] # Use the first array as a reference for comparison
+            # Check equivalence for each array in the list
+            return np.all([pairwise_numpy_fn(reference_array, an_arr, **kwargs) for an_arr in list_of_arrays[1:]]) # can be used without the list comprehension just as a generator if you use all(...) instead.
+            # return all(np.all(np.array_equiv(reference_array, an_arr) for an_arr in list_of_arrays[1:])) # the outer 'all(...)' is required, otherwise it returns a generator object like: `<generator object NumpyHelpers.all_array_equiv.<locals>.<genexpr> at 0x00000128E0482AC0>`
+
+    @classmethod
+    def all_array_equal(cls, list_of_arrays: List[NDArray], equal_nan=True) -> bool:
+        """ A n-element generalization of `np.array_equal`
+        Usage:
+        
+            list_of_arrays = list(xbins.values())
+            NumpyHelpers.all_array_equal(list_of_arrays=list_of_arrays)
+
+        """
+        return cls.all_array_generic(np.array_equal, list_of_arrays=list_of_arrays, equal_nan=equal_nan)
+    
+    @classmethod
+    def all_array_equiv(cls, list_of_arrays: List[NDArray]) -> bool:
+        """ A n-element generalization of `np.array_equiv`
+        Usage:
+        
+            list_of_arrays = list(xbins.values())
+            NumpyHelpers.all_array_equiv(list_of_arrays=list_of_arrays)
+
+        """
+        return cls.all_array_generic(np.array_equiv, list_of_arrays=list_of_arrays)
+
+
+    @classmethod
+    def all_allclose(cls, list_of_arrays: List[NDArray], rtol:float=1.e-5, atol:float=1.e-8, equal_nan:bool=True) -> bool:
+        """ A n-element generalization of `np.allclose`
+        Usage:
+        
+            list_of_arrays = list(xbins.values())
+            NumpyHelpers.all_allclose(list_of_arrays=list_of_arrays)
+
+        """
+        return cls.all_array_generic(np.allclose, list_of_arrays=list_of_arrays, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    
 
 
 # ==================================================================================================================== #
