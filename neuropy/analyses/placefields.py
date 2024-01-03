@@ -1654,7 +1654,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         config.smooth = (*config.smooth[:ndim], 0.0) # do not allow smooth along the pseduo-y direction
         config.grid_bin_bounds = (*config.grid_bin_bounds[:ndim], (0, new_pseudo_num_ybins))
         # config # result: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.0), 'grid_bin_bounds': ((29.16, 261.7), (0, 2)), 'smooth': (2.0, None), 'frate_thresh': 1.0, 'is_directional': True};>
-        merged_pf = PfND(spikes_df=None, position=None, epochs=None, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin,
+        merged_pf = PfND(spikes_df=None, position=None, epochs=None, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin, ndim=new_pseduo_ndim,
                     setup_on_init=False, compute_on_init=False) # , ybin=
         merged_pf._ratemap = new_ratemap
         
