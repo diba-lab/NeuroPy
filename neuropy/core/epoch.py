@@ -764,6 +764,24 @@ def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple o
 
     return epoch_df
 
+
+def get_epoch_overlap_duration(epochs1: Epoch, epochs2: Epoch):
+    """Calculate time of overlapping epochs"""
+    e_array1 = epochs1.to_dataframe().loc[:, ["start", "stop"]].values
+    e_array2 = epochs2.to_dataframe().loc[:, ["start", "stop"]].values
+    overlaps = []
+    for e1 in e_array1:
+        for e2 in e_array2:
+            overlaps.append(getOverlap(e1, e2))
+
+    return np.array(overlaps).sum()
+
+
+def getOverlap(a, b):
+    """From https://stackoverflow.com/questions/2953967/built-in-function-for-computing-overlap-in-python"""
+    return max(0, min(a[1], b[1]) - max(a[0], b[0]))
+
+
 if __name__ == "__main__":
     art_file = "/data3/Trace_FC/Recording_Rats/Finn2/2023_05_06_habituation1/Finn2_habituation1_denoised.art_epochs.npy"
     art_epochs = Epoch(epochs=None, file=art_file)
