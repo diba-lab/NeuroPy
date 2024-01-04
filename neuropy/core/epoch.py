@@ -402,7 +402,7 @@ class Epoch(DataWriter):
 
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1])
 
-    def merge_neighbors(self):
+    def merge_neighbors(self, max_epoch_sep=1e-6):
         """Epochs of same label and common boundary will be merged. For example,
         [1,2] and [2,3] --> [1,3]
 
@@ -411,7 +411,7 @@ class Epoch(DataWriter):
         core.Epoch
             epochs after merging neigbours sharing same label and boundary
         """
-        ep_times, ep_stops, ep_labels = (self.starts, self.stops, self.labels)
+        ep_times, ep_stops, ep_labels = (deepcopy(self.starts), deepcopy(self.stops), deepcopy(self.labels))
         ep_durations = self.durations
 
         ind_delete = []
@@ -420,7 +420,7 @@ class Epoch(DataWriter):
             for i in range(len(inds) - 1):
                 # if two sequentially adjacent epochs with the same label
                 # overlap or have less than 1 microsecond separation, merge them
-                if ep_times[inds[i + 1]] - ep_stops[inds[i]] < 1e-6:
+                if ((inds[i+1] - inds[i]) == 1) & ((ep_times[inds[i + 1]] - ep_stops[inds[i]]) < max_epoch_sep):
                     # stretch the second epoch to cover the range of both epochs
                     ep_times[inds[i + 1]] = min(
                         ep_times[inds[i]], ep_times[inds[i + 1]]
