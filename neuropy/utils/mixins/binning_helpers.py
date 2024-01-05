@@ -1,10 +1,20 @@
 from typing import Optional
 import numpy as np
+from nptyping import NDArray
 import pandas as pd
 
 from dataclasses import dataclass # for BinningInfo
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+
+def find_minimum_time_bin_duration(epoch_durations: NDArray) -> float:
+    """ determines the minimum time bin size that can be used to bin epochs with the provided durations
+    Usage:
+        from neuropy.utils.mixins.binning_helpers import find_minimum_time_bin_duration
+        min_possible_time_bin_size: float = find_minimum_time_bin_duration(global_replays['duration'].to_numpy())
+        min_possible_time_bin_size
+    """
+    return float(int((np.nanmin(epoch_durations)/2.0) * 1000) / 1000.0) # rounded_down_value: ensure that the size is rounded down
 
 
 def get_bin_centers(bin_edges):
