@@ -409,7 +409,7 @@ class Epoch(DataWriter):
         Returns
         -------
         core.Epoch
-            epochs after merging neigbours sharing same label and boundary
+            epochs after merging neighbours sharing same label and boundary
         """
         ep_times, ep_stops, ep_labels = (deepcopy(self.starts), deepcopy(self.stops), deepcopy(self.labels))
         ep_durations = self.durations
