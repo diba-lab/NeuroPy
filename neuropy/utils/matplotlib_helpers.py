@@ -1575,3 +1575,15 @@ def matplotlib_file_only():
 
 
 
+def resize_window_to_inches(window, width_inches, height_inches, dpi=96):
+    """ takes a matplotlib figure size (specified in inches) and the figure dpi to compute the matching pixel size. # If you render a matplotlib figure in a pyqt5 backend window, you can appropriately set the size of this window using this function.
+
+    # Example usage:
+        # Assuming you have a QMainWindow instance named 'main_window'
+        size=(5,12)
+        resize_window_to_inches(mw.window(), *size)
+
+    """
+    width_pixels = int(width_inches * dpi)
+    height_pixels = int(height_inches * dpi)
+    window.resize(width_pixels, height_pixels)
