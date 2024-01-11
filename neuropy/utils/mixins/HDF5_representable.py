@@ -128,6 +128,59 @@ class MyClass(DeserializationMixin):
 # HDF Conversion Helpers                                                                                               #
 # ==================================================================================================================== #
 
+
+
+class HDFConvertableEnum:
+    """ indicates conformers should be converted to an HDF-enumeration if they are used as a dataframe column. 
+    
+    TODO: see notes on
+    
+    NESTED TYPES CAN'T BE PICKED, so I"m moving this out
+    
+    .apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
+    
+    """
+    @classmethod
+    def get_pandas_categories_type(cls) -> Type:
+        raise NotImplementedError("Subclasses must implement this method")
+    
+    @classmethod
+    def convert_to_hdf(cls, value) -> str:
+        raise NotImplementedError("Subclasses must implement this method")
+
+    @classmethod
+    def from_hdf_coding_string(cls, string_value: str) -> "HDFConvertableEnum":
+        raise NotImplementedError("Subclasses must implement this method")
+
+    @classmethod
+    def convert_dataframe_columns_for_hdf(cls, df: pd.DataFrame) -> pd.DataFrame:
+        """ Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed """
+        # [col for col in df.columns if issubclass(type(df[col].iloc[0]), HDFConvertableEnum)]
+        convertable_cols = [col for col in df.columns if (hasattr(type(df[col].iloc[0]), 'get_pandas_categories_type') and hasattr(type(df[col].iloc[0]), 'convert_to_hdf'))] # this works, ['track_membership', 'neuron_type']
+
+        for col in convertable_cols:
+            col_type = type(df[col].iloc[0])
+            cat_type = col_type.get_pandas_categories_type()
+            if df[col].dtype != cat_type:
+                df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
+                
+        return df
+    
+    @classmethod
+    def restore_hdf_dataframe_column_original_type(cls, df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+        """ Restores the original type to the specified column (column_name) in the dataframe after loading from an HDF5 file.
+        
+        Usage:
+            
+        """
+        assert column_name in df.columns
+        df[column_name] = df[column_name].apply(cls.from_hdf_coding_string)
+        return df
+
+
+
+
+
 class HDF_Converter:
     """ holds static functions that convert specific types to an HDF compatible datatype. 
 
@@ -139,73 +192,6 @@ class HDF_Converter:
     """
     
     
-
-    class HDFConvertableEnum:
-        """ indicates conformers should be converted to an HDF-enumeration if they are used as a dataframe column. 
-        
-        TODO: see notes on
-        
-        .apply(lambda x: NeuronType.from_hdf_coding_string(x)).astype(object) #.astype(str) # interestingly this leaves the dtype of this column as 'category' still, but _spikes_df["neuron_type"].to_numpy() returns the correct array of objects... this is better than it started before saving, but not the same. 
-        
-        """
-        @classmethod
-        def get_pandas_categories_type(cls) -> Type:
-            raise NotImplementedError("Subclasses must implement this method")
-        
-        @classmethod
-        def convert_to_hdf(cls, value) -> str:
-            raise NotImplementedError("Subclasses must implement this method")
-
-        @classmethod
-        def from_hdf_coding_string(cls, string_value: str) -> "HDF_Converter.HDFConvertableEnum":
-            raise NotImplementedError("Subclasses must implement this method")
-
-        @classmethod
-        def convert_dataframe_columns_for_hdf(cls, df: pd.DataFrame) -> pd.DataFrame:
-            """ Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed """
-            # [col for col in df.columns if issubclass(type(df[col].iloc[0]), HDF_Converter.HDFConvertableEnum)]
-            convertable_cols = [col for col in df.columns if (hasattr(type(df[col].iloc[0]), 'get_pandas_categories_type') and hasattr(type(df[col].iloc[0]), 'convert_to_hdf'))] # this works, ['track_membership', 'neuron_type']
-
-            # [df[col].apply(type(df[col].iloc[0]).convert_to_hdf).astype(type(df[col].iloc[0]).get_pandas_categories_type()) for col in convertable_cols]
-
-            for col in convertable_cols:
-                col_type = type(df[col].iloc[0])
-                cat_type = col_type.get_pandas_categories_type()
-                if df[col].dtype != cat_type:
-                    df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
-
-            # for col in df.columns:
-            #     col_type = type(df[col].iloc[0])
-            #     if issubclass(col_type, HDF_Converter.HDFConvertableEnum): # could use cls
-            #         # could check for attributes ('get_pandas_categories_type', 'convert_to_hdf') instead of using issubclass 
-            #         cat_type = col_type.get_pandas_categories_type()
-            #         if df[col].dtype != cat_type:
-            #             df[col] = df[col].apply(col_type.convert_to_hdf).astype(cat_type)
-            return df
-        
-        @classmethod
-        def restore_hdf_dataframe_column_original_type(cls, df: pd.DataFrame, column_name: str) -> pd.DataFrame:
-            """ Restores the original type to the specified column (column_name) in the dataframe after loading from an HDF5 file.
-            
-            Usage:
-                
-            """
-            assert column_name in df.columns
-            df[column_name] = df[column_name].apply(cls.from_hdf_coding_string)
-            return df
-
-
-        # @classmethod
-        # def convert_from_hdf_dataframe_to_original_types(cls, df: pd.DataFrame) -> pd.DataFrame:
-        #     """ Convert any HDF5-compatible categorical dataframe columns back to their original Enum types after loading from an HDF5 file. """
-        #     for col in df.columns:
-        #         col_type = type(df[col].cat.categories[0]) # Retrieve the type of the first category
-        #         if issubclass(col_type, HDF_Converter.HDFConvertableEnum):
-        #             df[col] = df[col].apply(col_type.from_hdf_coding_string)
-        #     return df
-
-
-
     # Static Conversion Functions ________________________________________________________________________________________ #
     
 
@@ -287,7 +273,7 @@ class HDF_Converter:
         neuron_indexed_df['neuron_uid'] = [f"{session_ctxt_key}|{aclu}" for aclu in sess_specific_aclus]
 
         # Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed
-        neuron_indexed_df = HDF_Converter.HDFConvertableEnum.convert_dataframe_columns_for_hdf(neuron_indexed_df)
+        neuron_indexed_df = HDFConvertableEnum.convert_dataframe_columns_for_hdf(neuron_indexed_df)
 
         return neuron_indexed_df
 
@@ -475,7 +461,6 @@ class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
         # print(f'_temp_obj_dict: {_active_obj_values_dict}')
         if enable_hdf_testing_mode:
             unserializable_fields = {}
-
 
         for a_field_name, a_value in _active_obj_dataset_values_dict.items():
             a_field_attr = active_hdf_dataset_fields_dict[a_field_name]

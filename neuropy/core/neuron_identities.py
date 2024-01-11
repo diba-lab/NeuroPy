@@ -15,7 +15,7 @@ from tables import (
 )
 import h5py
 
-from neuropy.utils.mixins.HDF5_representable import HDF_Converter
+from neuropy.utils.mixins.HDF5_representable import HDF_Converter, HDFConvertableEnum
 from neuropy.utils.mixins.print_helpers import SimplePrintable
 from neuropy.utils.colors_util import get_neuron_colors
 from matplotlib.colors import ListedColormap
@@ -328,7 +328,7 @@ class NeuronIdentityAccessingMixin:
 # ==================================================================================================================== #
 
 @unique
-class PlotStringBrevityModeEnum(HDF_Converter.HDFConvertableEnum, Enum):
+class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
     """An enum of different modes that specify how verbose/brief the rendered strings should be on a given plot.
     More verbose means longer ouptuts with fewer abbreviations. For very brief modes, less important elements may be omitted entirely
     """
@@ -494,7 +494,7 @@ class NeuronIdentitiesDisplayerMixin:
 
 @total_ordering
 @unique
-class NeuronType(HDF_Converter.HDFConvertableEnum, Enum):
+class NeuronType(HDFConvertableEnum, Enum):
     """
     Kamran 2023-07-18:
         cluq=[1,2,4,9] all passed.
