@@ -1,7 +1,8 @@
 from functools import wraps, partial
 from pathlib import Path
 from copy import deepcopy
-from typing import Sequence, Union, Type, Optional, List, Dict
+from typing import Sequence, Union, Type, Optional, List, Dict, Callable
+from attrs import define, field, Factory
 import numpy as np
 import pandas as pd
 import h5py # for to_hdf and read_hdf definitions
@@ -21,6 +22,38 @@ from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, po
 
         
 """
+
+
+
+@define(slots=False, repr=False)
+class HDFSerializationRegister:
+	""" 2024-01-10 - A dramatically simplified HDF serialization type handler that avoids all of the hard crap and just allows users to register conversion functions directly for items of different types
+	
+	a_register = HDFSerializationRegister()
+
+	a_register.converion_registery[pd.DataFrame] = lambda x, *hdf_args, **hdf_kwargs: x.to_hdf(*hdf_args, **hdf_kwargs)
+	a_register.converion_registery[Epoch] = lambda x, *hdf_args, **hdf_kwargs: x.to_dataframe().to_hdf(*hdf_args, **hdf_kwargs)
+
+
+	# works!
+	a_register.to_hdf(directional_merged_decoders_result.all_directional_laps_filter_epochs_decoder_result.filter_epochs, 'output/all_directional_laps_filter_epochs_decoder_result-filter_epochs.hdf', 'filter_epochs')
+
+
+	"""
+	converion_registery: Dict[Type, Callable] = field(default=Factory(dict))
+
+	def to_hdf(self, v, *hdf_args, **hdf_kwargs):
+		found_conversion_fn = self.converion_registery.get(type(v), None)
+		if found_conversion_fn is None:
+			print(f'could not find conversion function for v of type {type(v)} in registery.')
+			return None
+		
+		return found_conversion_fn(v, *hdf_args, **hdf_kwargs) # call the function with value directly
+		# return found_conversion_fn
+
+
+
+
 
 # Deserialization ____________________________________________________________________________________________________ #
 
