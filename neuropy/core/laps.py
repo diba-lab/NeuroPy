@@ -213,7 +213,68 @@ class Laps(Epoch):
         
         laps_df['label'] = laps_df['lap_id'].astype('str') # add the string "label" column
         return laps_df
-     
+
+
+    @classmethod
+    def _compute_lap_dir_from_smoothed_velocity(cls, laps_df: pd.DataFrame, global_session) -> pd.DataFrame:
+        """ 2024-01-17 - uses the smoothed velocity to determine the proper lap direction
+
+        Adds Columns to laps_df: ['is_LR_dir']
+        
+        for LR_dir, values become more positive with time
+
+        global_session = deepcopy(curr_active_pipeline.filtered_sessions[global_epoch_name])
+        global_laps = compute_lap_dir_from_smoothed_velocity(global_session)
+        global_laps
+
+        """
+        n_laps = np.shape(laps_df)[0]
+        global_pos = global_session.position
+        global_pos.compute_higher_order_derivatives()
+        global_pos.compute_smoothed_position_info()
+        
+        pos_df: pd.DataFrame = global_pos.to_dataframe()
+        pos_df['lap'].unique()
+
+        # Filter rows based on column: 'lap'
+        pos_df = pos_df[pos_df['lap'].notna()]
+        # Performed 1 aggregation grouped on column: 'lap'
+        is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
+        laps_df['is_LR_dir'] = is_LR_dir # ValueError: Length of values (80) does not match length of index (82)
+        # global_laps._df['direction_consistency'] = 0.0
+        assert np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
+        return laps_df
+    
+
+    @classmethod
+    def _update_dataframe_maze_id_if_needed(cls, laps_df: pd.DataFrame, t_start:float, t_delta:float, t_end:float) -> pd.DataFrame:
+        """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
+
+        Usage:
+            from neuropy.core.session.dataSession import Laps
+
+            t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+            laps_obj: Laps = curr_active_pipeline.sess.laps
+            laps_df = laps_obj.to_dataframe()
+            laps_df = Laps._update_dataframe_maze_id_if_needed(laps_df, t_start, t_delta, t_end)
+            laps_df
+
+        """
+        laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')
+        if 'maze_id' in laps_df.columns:
+            laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
+        else:
+            # Create the maze_id column:
+            laps_df['maze_id'] = np.full_like(laps_df['lap_id'].to_numpy(), -1) # all -1 to start
+            # laps_df.loc[(laps_df.start.to_numpy() >= t_start), 'maze_id'] = 0 # first epoch
+            # laps_df.loc[(laps_df.start.to_numpy() >= t_delta), 'maze_id'] = 1 # second epoch, post delta
+            laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_start), (laps_df.stop.to_numpy() <= t_delta))), 'maze_id'] = 0 # first epoch
+            laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_delta), (laps_df.stop.to_numpy() <= t_end))), 'maze_id'] = 1 # second epoch, post delta
+            laps_df['maze_id'] = laps_df['maze_id'].astype('int')
+
+        return laps_df
+    
+
     @classmethod
     def build_dataframe(cls, mat_file_loaded_dict: dict, time_variable_name='t_rel_seconds', absolute_start_timestamp=None):
         laps_df = pd.DataFrame(mat_file_loaded_dict) # 1014937 rows × 11 columns
