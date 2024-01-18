@@ -209,7 +209,6 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         `sess.laps`
 
     """
-        
 
     # backup the extant laps object to prepare for the new one:
     if should_backup_extant_laps_obj:
