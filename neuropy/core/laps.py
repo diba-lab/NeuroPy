@@ -266,8 +266,6 @@ class Laps(Epoch):
         else:
             # Create the maze_id column:
             laps_df['maze_id'] = np.full_like(laps_df['lap_id'].to_numpy(), -1) # all -1 to start
-            # laps_df.loc[(laps_df.start.to_numpy() >= t_start), 'maze_id'] = 0 # first epoch
-            # laps_df.loc[(laps_df.start.to_numpy() >= t_delta), 'maze_id'] = 1 # second epoch, post delta
             laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_start), (laps_df.stop.to_numpy() <= t_delta))), 'maze_id'] = 0 # first epoch
             laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_delta), (laps_df.stop.to_numpy() <= t_end))), 'maze_id'] = 1 # second epoch, post delta
             laps_df['maze_id'] = laps_df['maze_id'].astype('int')
