@@ -1,13 +1,16 @@
 from copy import deepcopy
+from typing import Optional, Union
 import numpy as np
 import pandas as pd
 from pandas.core.frame import DataFrame
 from neuropy.core.epoch import Epoch
-from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
+from neuropy.core import Position
+from neuropy.core.session.dataSession import DataSession
 
+from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 from neuropy.utils.mixins.print_helpers import SimplePrintable
+
 from .datawriter import DataWriter
-from neuropy.core.epoch import Epoch
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, deduplicate_epochs # for EpochsAccessor's .get_non_overlapping_df()
@@ -192,31 +195,9 @@ class Laps(Epoch):
     def trimmed_to_non_overlapping(self) -> "Laps":
         return Laps.trim_overlapping_laps(self)[0]
 
-    @classmethod
-    def _update_dataframe_computed_vars(cls, laps_df: pd.DataFrame):
-        # laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
-        laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')
-        if 'maze_id' in laps_df.columns:
-            laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
-        if set(['start_spike_index','end_spike_index']).issubset(laps_df.columns):
-            laps_df[['start_spike_index', 'end_spike_index']] = laps_df[['start_spike_index', 'end_spike_index']].astype('int')
-            laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index'] # builds 'num_spikes'
-    
-        if 'lap_dir' in laps_df.columns:
-            laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')        
-            
-        else:
-            # compute the lap_dir if that field doesn't exist:
-            laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
-            laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
-            laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')
-        
-        laps_df['label'] = laps_df['lap_id'].astype('str') # add the string "label" column
-        return laps_df
-
 
     @classmethod
-    def _compute_lap_dir_from_smoothed_velocity(cls, laps_df: pd.DataFrame, global_session) -> pd.DataFrame:
+    def _compute_lap_dir_from_smoothed_velocity(cls, laps_df: pd.DataFrame, global_session: Union[Position, DataSession]) -> pd.DataFrame:
         """ 2024-01-17 - uses the smoothed velocity to determine the proper lap direction
 
         Adds Columns to laps_df: ['is_LR_dir']
@@ -229,7 +210,10 @@ class Laps(Epoch):
 
         """
         n_laps = np.shape(laps_df)[0]
-        global_pos = global_session.position
+        if not isinstance(global_session, Position):
+            # Extract the position from the passed in session.
+            global_pos = global_session.position
+            
         global_pos.compute_higher_order_derivatives()
         global_pos.compute_smoothed_position_info()
         
@@ -274,9 +258,50 @@ class Laps(Epoch):
     
 
     @classmethod
-    def build_dataframe(cls, mat_file_loaded_dict: dict, time_variable_name='t_rel_seconds', absolute_start_timestamp=None):
+    def _update_dataframe_computed_vars(cls, laps_df: pd.DataFrame,
+                         t_start:Optional[float]=None, t_delta:Optional[float]=None, t_end:Optional[float]=None, # for _update_dataframe_maze_id_if_needed
+                         global_session: Optional[Union[Position, DataSession]]=None, # for _compute_lap_dir_from_smoothed_velocity
+                         ):
+        # laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
+        laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')
+
+        if ((t_start is not None) and (t_delta is not None) and (t_end is not None)):
+            # computes 'track_id' from t_start, t_delta, and t_end where t_delta corresponds to the transition point (track change).
+            laps_df = cls._update_dataframe_maze_id_if_needed(laps_df=laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end)
+
+    
+        if 'maze_id' in laps_df.columns:
+            laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
+        if set(['start_spike_index','end_spike_index']).issubset(laps_df.columns):
+            laps_df[['start_spike_index', 'end_spike_index']] = laps_df[['start_spike_index', 'end_spike_index']].astype('int')
+            laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index'] # builds 'num_spikes'
+    
+        if 'lap_dir' not in laps_df.columns:
+            # compute the lap_dir if that field doesn't exist:
+            if global_session is not None:
+                ## computes proper 'lap_dir' column
+                laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session)
+            else:
+                # No global_session or position passed, using old even/odd 'lap_dir' determination.            
+                print(f"WARNING: No global_session or position passed, using old even/odd 'lap_dir' determination.")
+                laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
+                laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
+
+        # Either way, ensure that the lap_dir is an 'int' column.
+        laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')
+        
+        laps_df['label'] = laps_df['lap_id'].astype('str') # add the string "label" column
+        return laps_df
+
+
+    @classmethod
+    def build_dataframe(cls, mat_file_loaded_dict: dict, time_variable_name='t_rel_seconds', absolute_start_timestamp=None,
+                         t_start:Optional[float]=None, t_delta:Optional[float]=None, t_end:Optional[float]=None, # for _update_dataframe_maze_id_if_needed
+                         global_session: Optional[Union[Position, DataSession]]=None, # for _compute_lap_dir_from_smoothed_velocity
+                         ):
         laps_df = pd.DataFrame(mat_file_loaded_dict) # 1014937 rows × 11 columns
-        laps_df = Laps._update_dataframe_computed_vars(laps_df)
+        laps_df = Laps._update_dataframe_computed_vars(laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end, global_session=global_session)
+        
         # Build output Laps object to add to session
         print('setting laps object.')
         if time_variable_name == 't_seconds':
@@ -295,6 +320,7 @@ class Laps(Epoch):
         # finally assign the 'start' and 'stop' time columns to the appropriate variable
         laps_df[['start','stop']] = t_variable # assign the active t_variable to the start & end columns of the DataFrame
         return laps_df
+
 
     @classmethod
     def from_estimated_laps(cls, pos_t_rel_seconds, desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs, debug_print=True):
