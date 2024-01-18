@@ -1,11 +1,16 @@
+from __future__ import annotations # prevents having to specify types for typehinting as strings
+from typing import TYPE_CHECKING
+
 from copy import deepcopy
 from typing import Optional, Union
 import numpy as np
 import pandas as pd
 from pandas.core.frame import DataFrame
 from neuropy.core.epoch import Epoch
-from neuropy.core import Position
-from neuropy.core.session.dataSession import DataSession
+
+if TYPE_CHECKING:
+    from neuropy.core import Position
+    from neuropy.core.session.dataSession import DataSession
 
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 from neuropy.utils.mixins.print_helpers import SimplePrintable
