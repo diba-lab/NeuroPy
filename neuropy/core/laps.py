@@ -214,6 +214,8 @@ class Laps(Epoch):
         global_laps
 
         """
+        from neuropy.core.position import Position
+        
         n_laps = np.shape(laps_df)[0]
         if not isinstance(global_session, Position):
             # Extract the position from the passed in session.
