@@ -283,11 +283,13 @@ class Laps(Epoch):
             laps_df[['start_spike_index', 'end_spike_index']] = laps_df[['start_spike_index', 'end_spike_index']].astype('int')
             laps_df['num_spikes'] = laps_df['end_spike_index'] - laps_df['start_spike_index'] # builds 'num_spikes'
     
-        if 'lap_dir' not in laps_df.columns:
+        if (('lap_dir' not in laps_df.columns) or ('is_LR_dir' not in laps_df.columns)):
             # compute the lap_dir if that field doesn't exist:
             if global_session is not None:
-                ## computes proper 'lap_dir' column
-                laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session)
+                ## computes proper 'is_LR_dir' and 'lap_dir' columns:
+                laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session) # adds 'is_LR_dir'
+                # if 'lap_dir' not in laps_df.columns:
+                #     laps_df['lap_dir'] = laps_df['is_LR_dir']
             else:
                 # No global_session or position passed, using old even/odd 'lap_dir' determination.            
                 print(f"WARNING: No global_session or position passed, using old even/odd 'lap_dir' determination.")
