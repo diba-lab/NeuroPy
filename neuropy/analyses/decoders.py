@@ -209,7 +209,7 @@ def column_shift(arr, shifts=None):
     return arr[rows_indx, columns_indx]
 
 
-def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[core.Epoch, pd.DataFrame], bin_size=0.01, slideby=None, export_time_bins:bool=False, included_neuron_ids=None, debug_print:bool=False):
+def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[core.Epoch, pd.DataFrame], bin_size=0.01, slideby=None, export_time_bins:bool=False, included_neuron_ids=None, debug_print:bool=False, use_single_time_bin_per_epoch: bool=False):
     """Binning events and calculating spike counts
 
     Args:
@@ -220,7 +220,8 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         export_time_bins (bool, optional): If True returns a list of the actual time bin centers for each epoch in time_bins. Defaults to False.
         included_neuron_ids (bool, optional): Only relevent if using a spikes_df for the neurons input. Ensures there is one spiketrain built for each neuron in included_neuron_ids, even if there are no spikes.
         debug_print (bool, optional): _description_. Defaults to False.
-
+        use_single_time_bin_per_epoch (bool, optional): If True, a single time bin is used per epoch instead of using the provided `bin_size`. This means that each epoch will have exactly one bin, but it will be variablely-sized depending on the epoch's duration. Defaults to false.
+        
     Raises:
         NotImplementedError: _description_
         NotImplementedError: _description_
@@ -233,8 +234,9 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
     Usage:
     
         spkcount, nbins, time_bin_containers_list = 
-    """
+        
     
+    """        
     # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
     if isinstance(neurons, core.Neurons):
         spiketrains = neurons.spiketrains
@@ -287,32 +289,56 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
     # spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
 
     for i, epoch in enumerate(epoch_df.itertuples()):
-        # first dividing in 1ms
-        bins = np.arange(epoch.start, epoch.stop, 0.001)
+        if use_single_time_bin_per_epoch:
+            bins = np.array([epoch.start, epoch.stop])
+        else:
+            # fixed time-bin duration -> variable num time bins per epoch depending on epoch length    
+            # first dividing in 1ms
+            bins = np.arange(epoch.start, epoch.stop, 0.001)
+            
         spkcount_ = np.asarray(
             [np.histogram(_, bins=bins)[0] for _ in spiketrains]
         )
         if debug_print:
             print(f'i: {i}, epoch: [{epoch.start}, {epoch.stop}], bins: {np.shape(bins)}, np.shape(spkcount_): {np.shape(spkcount_)}')
-        slide_view = np.lib.stride_tricks.sliding_window_view(spkcount_, window_shape, axis=1)[:, :: int(slideby * 1000), :].sum(axis=2)
+        
 
-        nbins[i] = slide_view.shape[1]
+        if use_single_time_bin_per_epoch:
+            slide_view = spkcount_  # In this case, your spike count stays as it is
+            nbins[i] = 1 # always 1 bin. #TODO 2024-01-19 04:45: - [ ] What is slide_view and do I need it?
+        else:
+            slide_view = np.lib.stride_tricks.sliding_window_view(spkcount_, window_shape, axis=1)[:, :: int(slideby * 1000), :].sum(axis=2)
+            nbins[i] = slide_view.shape[1]
+        
         if export_time_bins:
             if debug_print:
                 print(f'nbins[i]: {nbins[i]}') # nbins: 20716
             
-            reduced_slide_by_amount = int(slideby * 1000)
-            reduced_time_bin_edges = bins[:: reduced_slide_by_amount] # equivalent to bins[np.arange(0, num_bad_time_bins, reduced_slide_by_amount, dtype=int)]
-            # reduced_time_bins: only the FULL number of bin *edges*
-            # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
-            bin_container = BinningContainer(edges=reduced_time_bin_edges)
-            reduced_time_bin_centers = bin_container.centers
+            if use_single_time_bin_per_epoch:
+                # For single bin case, the bin edges are just the epoch start and stop times
+                reduced_time_bin_edges = bins
+                bin_container = BinningContainer(edges=reduced_time_bin_edges)
+                # And the bin center is just the middle of the epoch
+                reduced_time_bin_centers = np.asarray([(epoch.start + epoch.stop) / 2])
+            else:
+                reduced_slide_by_amount = int(slideby * 1000)
+                reduced_time_bin_edges = bins[:: reduced_slide_by_amount] 
+                bin_container = BinningContainer(edges=reduced_time_bin_edges)
+                reduced_time_bin_centers = bin_container.centers
             
+            # reduced_slide_by_amount = int(slideby * 1000)
+            # reduced_time_bin_edges = bins[:: reduced_slide_by_amount] # equivalent to bins[np.arange(0, num_bad_time_bins, reduced_slide_by_amount, dtype=int)]
+            # # reduced_time_bins: only the FULL number of bin *edges*
+            # # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
+            # bin_container = BinningContainer(edges=reduced_time_bin_edges)
+            # reduced_time_bin_centers = bin_container.centers
+
             # reduced_time_bin_centers = get_bin_centers(reduced_time_bin_edges) # get the centers of each bin. The length should be the same as nbins
             if debug_print:
                 num_bad_time_bins = len(bins)
                 print(f'num_bad_time_bins: {num_bad_time_bins}')
-                print(f'reduced_slide_by_amount: {reduced_slide_by_amount}')
+                if not use_single_time_bin_per_epoch:
+                    print(f'reduced_slide_by_amount: {reduced_slide_by_amount}')
                 print(f'reduced_time_bin_edges.shape: {reduced_time_bin_edges.shape}') # reduced_time_bin_edges.shape: (20717,)
                 print(f'reduced_time_bin_centers.shape: {reduced_time_bin_centers.shape}') # reduced_time_bin_centers.shape: (20716,)
 
