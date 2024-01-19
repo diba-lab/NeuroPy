@@ -14,7 +14,7 @@ from neuropy.analyses.placefields import PfND
 
 from .. import core
 
-from neuropy.utils.mixins.binning_helpers import BinningContainer # for epochs_spkcount getting the correct time bins
+from neuropy.utils.mixins.binning_helpers import BinningContainer, BinningInfo # for epochs_spkcount getting the correct time bins
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
@@ -266,12 +266,16 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
 
     nbins = np.zeros(n_epochs, dtype="int")
 
-    window_shape  = int(bin_size * 1000) # Ah, forces integer binsizes!
+    
     if slideby is None:
         slideby = bin_size
-        
     if debug_print:
-        print(f'window_shape: {window_shape}, slideby: {slideby}')
+        print(f'slideby: {slideby}')
+
+    if not use_single_time_bin_per_epoch:
+        window_shape  = int(bin_size * 1000) # Ah, forces integer binsizes!
+        if debug_print:
+            print(f'window_shape: {window_shape}')
 
     # ----- little faster but requires epochs to be non-overlapping ------
     # bins_epochs = []
@@ -302,7 +306,6 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         if debug_print:
             print(f'i: {i}, epoch: [{epoch.start}, {epoch.stop}], bins: {np.shape(bins)}, np.shape(spkcount_): {np.shape(spkcount_)}')
         
-
         if use_single_time_bin_per_epoch:
             slide_view = spkcount_  # In this case, your spike count stays as it is
             nbins[i] = 1 # always 1 bin. #TODO 2024-01-19 04:45: - [ ] What is slide_view and do I need it?
@@ -314,26 +317,29 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
             if debug_print:
                 print(f'nbins[i]: {nbins[i]}') # nbins: 20716
             
+            # reduced_time_bins: only the FULL number of bin *edges*
+            # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
             if use_single_time_bin_per_epoch:
                 # For single bin case, the bin edges are just the epoch start and stop times
                 reduced_time_bin_edges = bins
-                bin_container = BinningContainer(edges=reduced_time_bin_edges)
                 # And the bin center is just the middle of the epoch
                 reduced_time_bin_centers = np.asarray([(epoch.start + epoch.stop) / 2])
+                actual_window_size = float(epoch.stop - epoch.start) # the actual (variable) bin size
+                
+                center_info = BinningInfo(reduced_time_bin_edges, actual_window_size, len(reduced_time_bin_centers), np.arange(len(reduced_time_bin_centers)))
+                # center_info = BinningContainer.build_center_binning_info(reduced_time_bin_centers, reduced_time_bin_edges) # the second argument (edge_extents) is just the edges
+                bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers,
+                    center_info=center_info,
+                ) # have to manually provide center_info because it doesn't work with two or less entries.
+                
             else:
                 reduced_slide_by_amount = int(slideby * 1000)
                 reduced_time_bin_edges = bins[:: reduced_slide_by_amount] 
                 bin_container = BinningContainer(edges=reduced_time_bin_edges)
                 reduced_time_bin_centers = bin_container.centers
             
-            # reduced_slide_by_amount = int(slideby * 1000)
-            # reduced_time_bin_edges = bins[:: reduced_slide_by_amount] # equivalent to bins[np.arange(0, num_bad_time_bins, reduced_slide_by_amount, dtype=int)]
-            # # reduced_time_bins: only the FULL number of bin *edges*
-            # # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
-            # bin_container = BinningContainer(edges=reduced_time_bin_edges)
-            # reduced_time_bin_centers = bin_container.centers
 
-            # reduced_time_bin_centers = get_bin_centers(reduced_time_bin_edges) # get the centers of each bin. The length should be the same as nbins
+            
             if debug_print:
                 num_bad_time_bins = len(bins)
                 print(f'num_bad_time_bins: {num_bad_time_bins}')
