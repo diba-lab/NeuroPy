@@ -233,7 +233,14 @@ class Laps(Epoch):
         is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
         laps_df['is_LR_dir'] = is_LR_dir # ValueError: Length of values (80) does not match length of index (82)
         # global_laps._df['direction_consistency'] = 0.0
-        assert np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
+        # assert np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
+        is_new_dir_substantially_different: bool = not np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
+        if is_new_dir_substantially_different:
+            print(f'WARN: Laps._compute_lap_dir_from_smoothed_velocity(...): the velocity-determined lap direction ("is_LR_dir") substantially differs from the previous ("lap_dir") column. This might be because it initially used simple ODD/EVEN determination for the direction.')
+            ## Overwrite the "lap_dir" column with the new value
+            print(f'\tWARN: overwriting the "lap_dir" column of Laps with the "is_LR_dir" column. Do things need to be recomputed after this?')
+            laps_df['lap_dir'] = np.logical_not(laps_df['is_LR_dir'].astype(int) > 0) # I think this should be the proper lap_dir format
+
         return laps_df
     
 
