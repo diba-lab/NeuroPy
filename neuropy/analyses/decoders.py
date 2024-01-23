@@ -328,16 +328,23 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                 
                 center_info = BinningInfo(reduced_time_bin_edges, actual_window_size, len(reduced_time_bin_centers), np.arange(len(reduced_time_bin_centers)))
                 # center_info = BinningContainer.build_center_binning_info(reduced_time_bin_centers, reduced_time_bin_edges) # the second argument (edge_extents) is just the edges
-                bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers,
-                    center_info=center_info,
-                ) # have to manually provide center_info because it doesn't work with two or less entries.
+                bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info) # have to manually provide center_info because it doesn't work with two or less entries.
                 
             else:
                 reduced_slide_by_amount = int(slideby * 1000)
-                reduced_time_bin_edges = bins[:: reduced_slide_by_amount] 
-                bin_container = BinningContainer(edges=reduced_time_bin_edges)
-                reduced_time_bin_centers = bin_container.centers
-            
+                reduced_time_bin_edges = bins[:: reduced_slide_by_amount]
+                try:
+                    bin_container = BinningContainer(edges=reduced_time_bin_edges)
+                    reduced_time_bin_centers = bin_container.centers                
+                except AssertionError:
+                    # AssertionError: centers must be of at least length 2 to re-derive center_info, but it is of length 1. centers: [3.48527]
+                    reduced_time_bin_edges = bins
+                    # And the bin center is just the middle of the epoch
+                    reduced_time_bin_centers = np.asarray([(reduced_time_bin_edges[0] + reduced_time_bin_edges[1]) / 2])
+                    actual_window_size = float(reduced_time_bin_edges[1] - reduced_time_bin_edges[0]) # the actual (variable) bin size
+                    center_info = BinningInfo(reduced_time_bin_edges, actual_window_size, len(reduced_time_bin_centers), np.arange(len(reduced_time_bin_centers)))
+                    # center_info = BinningContainer.build_center_binning_info(reduced_time_bin_centers, reduced_time_bin_edges) # the second argument (edge_extents) is just the edges
+                    bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info) # have to manually provide center_info because it doesn't work with two or less entries.
 
             
             if debug_print:
