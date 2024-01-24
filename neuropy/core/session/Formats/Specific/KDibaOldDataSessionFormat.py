@@ -875,7 +875,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # Build output Laps object to add to session
         print('setting laps object.')
         
-        session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
+        # session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time) # why replaced here? 2024-01-24 commented out
         
         flat_var_out_dict = {'lap_id':lap_id,'maze_id':lap_maze_id,
                              'start_spike_index':np.array(laps_first_spike_instances.flat_spike_idx.values), 'end_spike_index': np.array(laps_last_spike_instances.flat_spike_idx.values),
