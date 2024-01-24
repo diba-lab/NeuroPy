@@ -277,8 +277,10 @@ class Laps(Epoch):
         from neuropy.core.position import Position
         
         n_laps = np.shape(laps_df)[0]
-        if not isinstance(global_session, Position):
-            # Extract the position from the passed in session.
+        if isinstance(global_session, Position):
+            global_pos = global_session # passed variable is already a Position object
+        else:
+            # passed variable is hopefully a DataSession: Extract the position from the passed in session.
             global_pos = global_session.position
             
         global_pos.compute_higher_order_derivatives()

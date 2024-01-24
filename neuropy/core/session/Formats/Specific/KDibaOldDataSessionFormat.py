@@ -887,6 +887,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         # session.laps = Laps(lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time)
         
+        session.laps.update_lap_dir_from_smoothed_velocity(session) # added 2024-01-24 
+        # session.laps.update_maze_id_if_needed(
+
         # return lap_id, laps_spike_counts, lap_start_stop_flat_idx, lap_start_stop_time
         return session, spikes_df
                 
