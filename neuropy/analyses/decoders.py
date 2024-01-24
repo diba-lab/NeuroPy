@@ -306,11 +306,12 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         if debug_print:
             print(f'i: {i}, epoch: [{epoch.start}, {epoch.stop}], bins: {np.shape(bins)}, np.shape(spkcount_): {np.shape(spkcount_)}')
         
-        if use_single_time_bin_per_epoch:
+        # the 2nd condition ((window_shape > spkcount_.shape[1])) prevents ValueError: window shape cannot be larger than input array shape spkcount_.shape: (80,60), window_shape: 75
+        if (use_single_time_bin_per_epoch or (window_shape > spkcount_.shape[1])): 
             slide_view = spkcount_  # In this case, your spike count stays as it is
             nbins[i] = 1 # always 1 bin. #TODO 2024-01-19 04:45: - [ ] What is slide_view and do I need it?
-        else:
-            slide_view = np.lib.stride_tricks.sliding_window_view(spkcount_, window_shape, axis=1)[:, :: int(slideby * 1000), :].sum(axis=2)
+        else:        
+            slide_view = np.lib.stride_tricks.sliding_window_view(spkcount_, window_shape, axis=1)[:, :: int(slideby * 1000), :].sum(axis=2) # ValueError: window shape cannot be larger than input array shape spkcount_.shape: (80,60), window_shape: 75
             nbins[i] = slide_view.shape[1]
         
         if export_time_bins:
