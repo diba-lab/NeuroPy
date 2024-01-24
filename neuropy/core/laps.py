@@ -76,7 +76,84 @@ class Laps(Epoch):
         sliced_copy = deepcopy(self) # get copy of the dataframe
         sliced_copy._data = sliced_copy._data[np.isin(sliced_copy.lap_id, lap_ids)]
         return sliced_copy
+
+    def update_maze_id_if_needed(self, t_start:float, t_delta:float, t_end:float) -> None:
+        """ adds the 'maze_id' column to the internal dataframe if needed.
+        t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+        laps_obj: Laps = curr_active_pipeline.sess.laps
+        laps_obj.update_maze_id_if_needed(t_start, t_delta, t_end)
+        laps_df = laps_obj.to_dataframe()
+        laps_df
         
+        
+        """
+        self._df = Laps._update_dataframe_maze_id_if_needed(self._df, t_start, t_delta, t_end, replace_existing=True)
+
+    def update_lap_dir_from_smoothed_velocity(self, pos_input: Union[Position, DataSession]) -> None:
+        # compute_lap_dir_from_smoothed_velocity
+        # global_session = deepcopy(curr_active_pipeline.filtered_sessions[global_epoch_name])
+        self._df = self._compute_lap_dir_from_smoothed_velocity(self._df, pos_input, replace_existing=True)
+        
+    def filter_to_valid(self) -> "Laps":
+        laps_epoch_obj: Epoch = deepcopy(self).as_epoch_obj()
+        original_laps_epoch_df = laps_epoch_obj.to_dataframe()        
+        filtered_laps_epoch_df = Laps.ensure_valid_laps_epochs_df(original_laps_epoch_df)
+        return Laps(filtered_laps_epoch_df, metadata=self.metadata)
+
+    def trimmed_to_non_overlapping(self) -> "Laps":
+        return Laps.trim_overlapping_laps(self)[0]
+
+    def to_dataframe(self):
+        return self._data
+
+    def get_lap_flat_indicies(self, lap_id):
+        return self._data.loc[lap_id, ['start_spike_index', 'end_spike_index']].to_numpy()
+
+    def get_lap_times(self, lap_id):
+        return self._data.loc[lap_id, ['start', 'stop']].to_numpy()
+    
+    def as_epoch_obj(self):
+        """ Converts into a core.Epoch object containing the time periods """
+        return Epoch(self.to_dataframe())
+
+    @staticmethod
+    def from_dict(d: dict):
+        return Laps((d.get('_df', None) or d.get('_data', None)), metadata = d.get('metadata', None))
+        # return Laps(d['_data'], metadata = d.get('metadata', None))
+        
+    def to_dict(self):
+        return self.__dict__
+    
+    #TODO: #WM: Test this, it's not done! It should filter out the laps that occur outside of the start/end times that 
+    def time_slice(self, t_start=None, t_stop=None):
+        # raise NotImplementedError
+        laps_obj = deepcopy(self)
+        included_indicies = (((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop)) & ((laps_obj._data.stop >= t_start) & (laps_obj._data.stop <= t_stop)))
+        included_df = laps_obj._data[included_indicies]
+        # included_df = laps_obj._data[((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop))]
+        return Laps(included_df, metadata=laps_obj.metadata)
+        
+
+     ## For serialization/pickling:
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        # del state['file']
+        return state
+
+    def __setstate__(self, state):
+        # Restore instance attributes (i.e., _mapping and _keys_at_init).
+        # for backwards compatibility with pre-Epoch baseclass versions of Laps loaded from pickle
+        if '_df' not in state:
+            assert '_data' in state
+            state['_df'] = state.pop('_data', None)
+
+        self.__dict__.update(state)
+            
+
+    # ==================================================================================================================== #
+    # Class Methods                                                                                                        #
+    # ==================================================================================================================== #
 
     @classmethod
     def trim_overlapping_laps(cls, global_laps: "Laps", debug_print=False) -> "Laps":
@@ -135,14 +212,8 @@ class Laps(Epoch):
             ## Replace the lap's current stop with the start of the intersection less a little wiggle room:
             desired_stops = intersecting_epochs.starts - safe_trim_delta
 
-
         if debug_print:
             print(f'intersecting_epochs: {intersecting_epochs}')            
-
-
-
-
-
 
         # prev-values:
         # 66    1901.413540
@@ -164,8 +235,6 @@ class Laps(Epoch):
     @classmethod
     def ensure_valid_laps_epochs_df(cls, original_laps_epoch_df: pd.DataFrame, rebuild_lap_id_columns=True) -> pd.DataFrame:
         """ De-duplicates, sorts, and filters by duration any potential laps
-
-
         
         laps_epoch_obj: Epoch = deepcopy(global_laps).as_epoch_obj()
         original_laps_epoch_df = laps_epoch_obj.to_dataframe()        
@@ -191,18 +260,9 @@ class Laps(Epoch):
 
         return laps_epoch_df # Epoch(laps_epoch_df, metadata=laps_epoch_obj.metadata)
 
-    def filter_to_valid(self) -> "Laps":
-        laps_epoch_obj: Epoch = deepcopy(self).as_epoch_obj()
-        original_laps_epoch_df = laps_epoch_obj.to_dataframe()        
-        filtered_laps_epoch_df = Laps.ensure_valid_laps_epochs_df(original_laps_epoch_df)
-        return Laps(filtered_laps_epoch_df, metadata=self.metadata)
-
-    def trimmed_to_non_overlapping(self) -> "Laps":
-        return Laps.trim_overlapping_laps(self)[0]
-
 
     @classmethod
-    def _compute_lap_dir_from_smoothed_velocity(cls, laps_df: pd.DataFrame, global_session: Union[Position, DataSession]) -> pd.DataFrame:
+    def _compute_lap_dir_from_smoothed_velocity(cls, laps_df: pd.DataFrame, global_session: Union[Position, DataSession], replace_existing:bool=True) -> pd.DataFrame:
         """ 2024-01-17 - uses the smoothed velocity to determine the proper lap direction
 
         Adds Columns to laps_df: ['is_LR_dir']
@@ -235,17 +295,20 @@ class Laps(Epoch):
         # global_laps._df['direction_consistency'] = 0.0
         # assert np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
         is_new_dir_substantially_different: bool = not np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
-        if is_new_dir_substantially_different:
+        if (is_new_dir_substantially_different):
             print(f'WARN: Laps._compute_lap_dir_from_smoothed_velocity(...): the velocity-determined lap direction ("is_LR_dir") substantially differs from the previous ("lap_dir") column. This might be because it initially used simple ODD/EVEN determination for the direction.')
-            ## Overwrite the "lap_dir" column with the new value
-            print(f'\tWARN: overwriting the "lap_dir" column of Laps with the "is_LR_dir" column. Do things need to be recomputed after this?')
-            laps_df['lap_dir'] = np.logical_not(laps_df['is_LR_dir'].astype(int) > 0) # I think this should be the proper lap_dir format
+            if replace_existing:
+                ## Overwrite the "lap_dir" column with the new value
+                print(f'\tWARN: overwriting the "lap_dir" column of Laps with the "is_LR_dir" column. Do things need to be recomputed after this?')
+                laps_df['lap_dir'] = np.logical_not(laps_df['is_LR_dir'].astype(int) > 0) # I think this should be the proper lap_dir format
+            else:
+                print(f'\tlap_dir substantially differs but replace_existing=False, so not updating.')
 
         return laps_df
     
 
     @classmethod
-    def _update_dataframe_maze_id_if_needed(cls, laps_df: pd.DataFrame, t_start:float, t_delta:float, t_end:float) -> pd.DataFrame:
+    def _update_dataframe_maze_id_if_needed(cls, laps_df: pd.DataFrame, t_start:float, t_delta:float, t_end:float, replace_existing:bool=True) -> pd.DataFrame:
         """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
 
         Usage:
@@ -259,31 +322,30 @@ class Laps(Epoch):
 
         """
         laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')
-        if 'maze_id' in laps_df.columns:
-            laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
-        else:
+        is_missing_column: bool = ('maze_id' not in laps_df.columns)
+        if (is_missing_column or replace_existing):
             # Create the maze_id column:
             laps_df['maze_id'] = np.full_like(laps_df['lap_id'].to_numpy(), -1) # all -1 to start
             laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_start), (laps_df.stop.to_numpy() <= t_delta))), 'maze_id'] = 0 # first epoch
             laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_delta), (laps_df.stop.to_numpy() <= t_end))), 'maze_id'] = 1 # second epoch, post delta
-            laps_df['maze_id'] = laps_df['maze_id'].astype('int')
-
+            laps_df['maze_id'] = laps_df['maze_id'].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
+        else:
+            # already exists and we shouldn't overwrite it:
+            laps_df[['maze_id']] = laps_df[['maze_id']].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
         return laps_df
     
-
     @classmethod
     def _update_dataframe_computed_vars(cls, laps_df: pd.DataFrame,
                          t_start:Optional[float]=None, t_delta:Optional[float]=None, t_end:Optional[float]=None, # for _update_dataframe_maze_id_if_needed
                          global_session: Optional[Union[Position, DataSession]]=None, # for _compute_lap_dir_from_smoothed_velocity
-                         ):
+                         replace_existing:bool=True):
         # laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
         laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')
 
         if ((t_start is not None) and (t_delta is not None) and (t_end is not None)):
             # computes 'track_id' from t_start, t_delta, and t_end where t_delta corresponds to the transition point (track change).
-            laps_df = cls._update_dataframe_maze_id_if_needed(laps_df=laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end)
+            laps_df = cls._update_dataframe_maze_id_if_needed(laps_df=laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=True)
 
-    
         if 'maze_id' in laps_df.columns:
             laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
         if set(['start_spike_index','end_spike_index']).issubset(laps_df.columns):
@@ -294,7 +356,7 @@ class Laps(Epoch):
             # compute the lap_dir if that field doesn't exist:
             if global_session is not None:
                 ## computes proper 'is_LR_dir' and 'lap_dir' columns:
-                laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session) # adds 'is_LR_dir'
+                laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session, replace_existing=True) # adds 'is_LR_dir'
                 # if 'lap_dir' not in laps_df.columns:
                 #     laps_df['lap_dir'] = laps_df['is_LR_dir']
             else:
@@ -302,6 +364,11 @@ class Laps(Epoch):
                 print(f"WARNING: No global_session or position passed, using old even/odd 'lap_dir' determination.")
                 laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
                 laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
+                
+        elif (replace_existing and (global_session is not None)):
+            laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session, replace_existing=True) # adds 'is_LR_dir'
+        else:
+            pass
 
         # Either way, ensure that the lap_dir is an 'int' column.
         laps_df['lap_dir'] = laps_df['lap_dir'].astype('int')
@@ -316,7 +383,7 @@ class Laps(Epoch):
                          global_session: Optional[Union[Position, DataSession]]=None, # for _compute_lap_dir_from_smoothed_velocity
                          ):
         laps_df = pd.DataFrame(mat_file_loaded_dict) # 1014937 rows × 11 columns
-        laps_df = Laps._update_dataframe_computed_vars(laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end, global_session=global_session)
+        laps_df = Laps._update_dataframe_computed_vars(laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end, global_session=global_session, replace_existing=True)
         
         # Build output Laps object to add to session
         print('setting laps object.')
@@ -420,50 +487,3 @@ class Laps(Epoch):
     @classmethod
     def from_dataframe(cls, df):
         return cls(df)
-
-    def to_dataframe(self):
-        return self._data
-
-    def get_lap_flat_indicies(self, lap_id):
-        return self._data.loc[lap_id, ['start_spike_index', 'end_spike_index']].to_numpy()
-
-    def get_lap_times(self, lap_id):
-        return self._data.loc[lap_id, ['start', 'stop']].to_numpy()
-    
-    def as_epoch_obj(self):
-        """ Converts into a core.Epoch object containing the time periods """
-        return Epoch(self.to_dataframe())
-
-    @staticmethod
-    def from_dict(d: dict):
-        return Laps((d.get('_df', None) or d.get('_data', None)), metadata = d.get('metadata', None))
-        # return Laps(d['_data'], metadata = d.get('metadata', None))
-        
-    def to_dict(self):
-        return self.__dict__
-    
-    #TODO: #WM: Test this, it's not done! It should filter out the laps that occur outside of the start/end times that 
-    def time_slice(self, t_start=None, t_stop=None):
-        # raise NotImplementedError
-        laps_obj = deepcopy(self)
-        included_indicies = (((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop)) & ((laps_obj._data.stop >= t_start) & (laps_obj._data.stop <= t_stop)))
-        included_df = laps_obj._data[included_indicies]
-        # included_df = laps_obj._data[((laps_obj._data.start >= t_start) & (laps_obj._data.start <= t_stop))]
-        return Laps(included_df, metadata=laps_obj.metadata)
-        
-
-     ## For serialization/pickling:
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # Remove the unpicklable entries.
-        # del state['file']
-        return state
-
-    def __setstate__(self, state):
-        # Restore instance attributes (i.e., _mapping and _keys_at_init).
-        # for backwards compatibility with pre-Epoch baseclass versions of Laps loaded from pickle
-        if '_df' not in state:
-            assert '_data' in state
-            state['_df'] = state.pop('_data', None)
-
-        self.__dict__.update(state)
