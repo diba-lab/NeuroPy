@@ -8,13 +8,17 @@ from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, s
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 def find_minimum_time_bin_duration(epoch_durations: NDArray) -> float:
-    """ determines the minimum time bin size that can be used to bin epochs with the provided durations
+    """ determines the minimum time bin size that can be used to bin epochs with the provided durations.
+    2024-01-25 - Used to require that the epoch was divisible into at least two bins. With my updated code it can handle the case where it's divisible into a single bin.
+    
     Usage:
         from neuropy.utils.mixins.binning_helpers import find_minimum_time_bin_duration
         min_possible_time_bin_size: float = find_minimum_time_bin_duration(global_replays['duration'].to_numpy())
         min_possible_time_bin_size
     """
-    return float(int((np.nanmin(epoch_durations)/2.0) * 1000) / 1000.0) # rounded_down_value: ensure that the size is rounded down
+    # return float(int((np.nanmin(epoch_durations)/2.0) * 1000) / 1000.0) # rounded_down_value: ensure that the size is rounded down
+    return float(int((np.nanmin(epoch_durations)/1.0) * 1000) / 1000.0) # rounded_down_value: ensure that the size is rounded down
+
 
 
 def get_bin_centers(bin_edges):
