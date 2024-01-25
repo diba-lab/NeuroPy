@@ -236,6 +236,12 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         spkcount, nbins, time_bin_containers_list = 
         
     
+        
+    Extra:
+    
+        If the epoch is shorter than the bin_size the time_bins returned should be the edges of the epoch
+        
+        
     """        
     # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
     if isinstance(neurons, core.Neurons):
@@ -293,6 +299,8 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
     # spkcount = np.delete(spkcount, del_columns.astype(int), axis=1)
 
     for i, epoch in enumerate(epoch_df.itertuples()):
+        #TODO 2024-01-25 16:52: - [ ] It seems that when the epoch duration is shorter than the bin size we should impose the same bins as the single-time-bin-per-epoch case, but idk what to do with the slideby.
+        # Something like: if (use_single_time_bin_per_epoch or (window_shape > spkcount_.shape[1])): 
         if use_single_time_bin_per_epoch:
             bins = np.array([epoch.start, epoch.stop])
         else:
@@ -336,7 +344,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                 reduced_time_bin_edges = bins[:: reduced_slide_by_amount]
                 try:
                     bin_container = BinningContainer(edges=reduced_time_bin_edges)
-                    reduced_time_bin_centers = bin_container.centers                
+                    reduced_time_bin_centers = bin_container.centers
                 except AssertionError:
                     # AssertionError: centers must be of at least length 2 to re-derive center_info, but it is of length 1. centers: [3.48527]
                     reduced_time_bin_edges = bins
