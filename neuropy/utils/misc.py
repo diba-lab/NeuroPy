@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from collections.abc import Iterable
+from itertools import chain
 
 
 def find_nearest(array, value):
@@ -34,10 +35,16 @@ def get_interval(period, nwindows):
     return interval
 
 
-def flatten(xs):
+def flatten(list_in):
+    """Flatten a ragged list of different sized lists into one continuous list.
+    Unlike `flatten_all` this only flattens the top level."""
+    return list(chain.from_iterable(list_in))
+
+def flatten_all(xs):
+    """Completely flattens an iterable of iterables into one long generator"""
     for x in xs:
         if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
-            yield from flatten(x)
+            yield from flatten_all(x)
         else:
             yield x
 
