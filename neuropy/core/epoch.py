@@ -163,6 +163,9 @@ class Epoch(DataWriter):
             data = self._epochs[self._epochs["label"] == i].copy()
         # elif all(isinstance(_, str) for _ in i):
         #     data = self._epochs[self._epochs["label"].isin(i)].copy()
+        elif isinstance(i, list):
+            assert all(isinstance(_, str) for _ in i), "All entries in epochs slicing list must be str"
+            data = self._epochs[[label in i for label in self._epochs["label"]]]
         elif isinstance(i, (int, np.integer)):
             data = self._epochs.iloc[[i]].copy()
         else:
