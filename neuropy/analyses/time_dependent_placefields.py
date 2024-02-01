@@ -366,6 +366,13 @@ class PfND_TimeDependent(PfND):
 
         combined_records_list: can be an Epoch object, a epoch-formatted pd.DataFrame, or a series of tuples to convert into combined_records_list
 
+        Usage:
+            laps_df = deepcopy(global_any_laps_epochs_obj.to_dataframe())
+            laps_df['epoch_type'] = 'lap'
+            laps_df['interval_type_id'] = 666 # 'inter' # vs, 'intra'
+            # laps_records_list = list(laps_df[['epoch_type','start','stop','lap_id']].itertuples(index=False, name='lap'))
+            laps_df
+
         """
         if reset_at_start:
             self.reset() ## Reset completely to start
