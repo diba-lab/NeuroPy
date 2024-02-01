@@ -326,7 +326,7 @@ def bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
             ## Binning with Fixed Bin Sizes:
             mode = 'bin_size'
             if np.isscalar(bin_size):
-                print(f'np.isscalar(bin_size): {bin_size}')
+                # print(f'np.isscalar(bin_size): {bin_size}')
                 bin_size = [bin_size]
                 
             xstep = bin_size[0]
@@ -411,8 +411,11 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
         
         # Now we have the bin values in curr_bins:
         updated_bin_values.append(curr_bins)
-        # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within:    
-        if (curr_dim_binned_col_name not in active_df.columns) and not force_recompute:
+        # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within:
+        needs_update_bin_col: bool = (curr_dim_binned_col_name not in active_df.columns)
+        if (force_recompute or needs_update_bin_col):
+            if debug_print:
+                print(f'\tadding binned column: "{curr_dim_binned_col_name}"')
             active_df[curr_dim_binned_col_name] = pd.cut(active_df[curr_dim_position_col_name].to_numpy(), bins=curr_bins, include_lowest=True, labels=np.arange(start=1, stop=len(curr_bins))) # same shape as the input data 
         
     ## Compatibility with prev implementations:
@@ -430,7 +433,6 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
     else:
         updated_combined_bin_infos['ystep'] = None
         updated_combined_bin_infos['ynum_bins'] = None
-        
         
     return active_df, updated_bin_values, updated_combined_bin_infos
 
