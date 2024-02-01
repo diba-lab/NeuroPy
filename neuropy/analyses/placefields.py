@@ -217,8 +217,8 @@ def _normalized_occupancy(raw_occupancy, position_srate=None):
     # seconds_occupancy = raw_occupancy * dt  # converting to seconds
     seconds_occupancy = raw_occupancy / (float(position_srate) + 1e-16) # converting to seconds
 
-    #
-    normalized_occupancy = raw_occupancy / np.nansum(raw_occupancy) # the normalized occupancy determines the relative number of samples spent in each bin
+    # + 1e-16 is added to prevent `FloatingPointError: invalid value encountered in divide` for 0/0
+    normalized_occupancy = raw_occupancy / (np.nansum(raw_occupancy) + 1e-16) # the normalized occupancy determines the relative number of samples spent in each bin
 
     return seconds_occupancy, normalized_occupancy
 
