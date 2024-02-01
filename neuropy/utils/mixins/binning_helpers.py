@@ -412,7 +412,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
         # Now we have the bin values in curr_bins:
         updated_bin_values.append(curr_bins)
         # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within:    
-        if (curr_dim_binned_col_name not in active_df.columns) and not force_recompute:
+        if force_recompute or (curr_dim_binned_col_name not in active_df.columns):
             active_df[curr_dim_binned_col_name] = pd.cut(active_df[curr_dim_position_col_name].to_numpy(), bins=curr_bins, include_lowest=True, labels=np.arange(start=1, stop=len(curr_bins))) # same shape as the input data 
         
     ## Compatibility with prev implementations:
