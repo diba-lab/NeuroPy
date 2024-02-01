@@ -1103,7 +1103,7 @@ def perform_compute_time_dependent_placefields(active_session_spikes_df, active_
     included_epochs: a Epoch object to filter with, only included epochs are included in the PF calculations
     active_epoch_placefields1D (Pf1D, optional) & active_epoch_placefields2D (Pf2D, optional): allow you to pass already computed Pf1D and Pf2D objects from previous runs and it won't recompute them so long as should_force_recompute_placefields=False, which is useful in interactive Notebooks/scripts
     Usage:
-        active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_placefields(active_epoch_session_Neurons, active_epoch_pos, active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config, should_force_recompute_placefields=True)
+        active_epoch_placefields1D, active_epoch_placefields2D = perform_compute_time_dependent_placefields(active_epoch_session_Neurons, active_epoch_pos, active_epoch_placefields1D, active_epoch_placefields2D, active_config.computation_config, should_force_recompute_placefields=True)
     """
     ## Linearized (1D) Position Placefields:
     if ((active_epoch_placefields1D is None) or should_force_recompute_placefields):
