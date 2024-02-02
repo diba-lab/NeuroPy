@@ -1019,6 +1019,10 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
     def nan_never_visited_occupancy(self):
         return self.ratemap.nan_never_visited_occupancy
     @property
+    def probability_normalized_occupancy(self) -> NDArray:
+        return self.ratemap.probability_normalized_occupancy
+    
+    @property
     def neuron_extended_ids(self):
         """The neuron_extended_ids property."""
         return self.ratemap.neuron_extended_ids

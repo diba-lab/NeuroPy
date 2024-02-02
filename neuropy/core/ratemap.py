@@ -116,6 +116,12 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         """ returns the self.occupancy after replacing all never visited locations, indicated by a zero occupancy, by NaNs for the purpose of building visualizations. """
         return Ratemap.nan_never_visited_locations(self.occupancy)
     
+    @property
+    def probability_normalized_occupancy(self) -> NDArray:
+        """ returns the self.occupancy after converting it to a probability (with each entry between [0.0, 1.0]) by dividing by the sum. """
+        return self.occupancy / np.nansum(self.occupancy)
+        
+    
     # --------------------- Normalization and Scaling Helpers -------------------- #
     @property
     def pdf_normalized_tuning_curves(self):
