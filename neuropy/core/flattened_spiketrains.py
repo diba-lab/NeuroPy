@@ -20,6 +20,7 @@ from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
+_REQUIRE_NEURON_TYPE_COLUMN: bool = False
 
 @pd.api.extensions.register_dataframe_accessor("spikes")
 class SpikesAccessor(TimeSlicedMixin):
@@ -41,7 +42,10 @@ class SpikesAccessor(TimeSlicedMixin):
                 print(f'WARN: SpikesAccessor._validate(...): renaming "cell_type" column to "neuron_type".')
                 obj.rename(columns={'cell_type': 'neuron_type'}, inplace=True)
             else:
-                raise AttributeError(f"Must have unit id column 'aclu' and 'neuron_type' column. obj.columns: {list(obj.columns)}")
+                if _REQUIRE_NEURON_TYPE_COLUMN:
+                    raise AttributeError(f"Must have unit id column 'aclu' and 'neuron_type' column. obj.columns: {list(obj.columns)}")
+                else:
+                    print(f"This used to be an assert but `_REQUIRE_NEURON_TYPE_COLUMN == False, so continuing at your own risk. Missing the 'neuron_type' column. obj.columns: {list(obj.columns)}")
         if "flat_spike_idx" not in obj.columns:
             raise AttributeError("Must have 'flat_spike_idx' column.")
         if "t" not in obj.columns and "t_seconds" not in obj.columns and "t_rel_seconds" not in obj.columns:
