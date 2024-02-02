@@ -91,28 +91,28 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
      
 
     @property
-    def n_neurons(self):
+    def n_neurons(self) -> int:
         return self.tuning_curves.shape[0]
 
     @property
-    def ndim(self):
+    def ndim(self) -> int:
         return self.tuning_curves.ndim - 1
     
     
     @property
-    def normalized_tuning_curves(self):
+    def normalized_tuning_curves(self) -> NDArray:
         return self.pdf_normalized_tuning_curves
         
 
     # ---------------------- occupancy properties -------------------------
     @property
-    def never_visited_occupancy_mask(self):
+    def never_visited_occupancy_mask(self) -> NDArray:
         """ a boolean mask that's True everyhwere the animal has never visited according to self.occupancy, and False everyhwere else. """
         return Ratemap.build_never_visited_mask(self.occupancy)
     
     
     @property
-    def nan_never_visited_occupancy(self):
+    def nan_never_visited_occupancy(self) -> NDArray:
         """ returns the self.occupancy after replacing all never visited locations, indicated by a zero occupancy, by NaNs for the purpose of building visualizations. """
         return Ratemap.nan_never_visited_locations(self.occupancy)
     
