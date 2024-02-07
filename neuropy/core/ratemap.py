@@ -192,7 +192,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
 
 
 
-    def compute_tuning_curve_modes(self) -> Dict[types.aclu_index, int]:
+    def compute_tuning_curve_modes(self, **find_peaks_kwargs) -> Dict[types.aclu_index, int]:
         """ 2023-12-19 - Uses `scipy.signal.find_peaks to find the number of peaks or ("modes") for each of the cells in the ratemap. 
         Can detect bimodal (or multi-modal) placefields.
         
@@ -209,13 +209,17 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         """
         from scipy.signal import find_peaks
         
-        active_tuning_curves = deepcopy(self.tuning_curves)
+        # active_tuning_curves = deepcopy(self.tuning_curves)
+        active_tuning_curves = deepcopy(self.unit_max_tuning_curves) # use the unit-max tuning curves
         # active_ratemap.tuning_curves.shape # (73, 56) - (n_neurons, n_pos_bins)
-        peaks_list = [find_peaks(active_tuning_curves[i,:])[0] for i in np.arange(self.n_neurons)] # [0] outside the find_peaks function gets the location of the peak
-        peaks_dict = dict(zip(self.neuron_ids, peaks_list))
+        find_peaks_kwargs = ({'height': 0.2, 'width': 2} | find_peaks_kwargs) # for raw tuning_curves. height=0.25 requires that the secondary peaks are at least 25% the height of the main peak
+        print(f'find_peaks_kwargs: {find_peaks_kwargs}')
+        peaks_results_list = [find_peaks(active_tuning_curves[i,:], **find_peaks_kwargs) for i in np.arange(self.n_neurons)]
+        peaks_results_dict = dict(zip(self.neuron_ids, peaks_results_list))
+        peaks_dict = {k:v[0] for k,v in peaks_results_dict.items()} # [0] outside the find_peaks function gets the location of the peak
         aclu_n_peaks_dict = {k:len(v) for k,v in peaks_dict.items()} # number of peaks ("models" for each aclu)
         unimodal_peaks_dict = {k:v for k,v in peaks_dict.items() if len(v) < 2}
-        return peaks_dict, aclu_n_peaks_dict, unimodal_peaks_dict
+        return peaks_dict, aclu_n_peaks_dict, unimodal_peaks_dict, peaks_results_dict
 
 
     # Other ______________________________________________________________________________________________________________ #
