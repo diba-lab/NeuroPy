@@ -1,11 +1,11 @@
 from copy import deepcopy
 from warnings import warn
 import numpy as np
+import pandas as pd
 from typing import Dict, List, Tuple, Optional, Callable, Union, Any
 from typing_extensions import TypeAlias
 from nptyping import NDArray
 import neuropy.utils.type_aliases as types
-
 from scipy import ndimage # used for `compute_placefield_center_of_masses`
 import h5py
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
@@ -192,7 +192,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
 
 
 
-    def compute_tuning_curve_modes(self, peak_mode='peaks', **find_peaks_kwargs) -> Dict[types.aclu_index, int]:
+    def compute_tuning_curve_modes(self, peak_mode='peaks', **find_peaks_kwargs) -> Tuple[Dict[types.aclu_index, NDArray], Dict[types.aclu_index, int], pd.DataFrame]:
         """ 2023-12-19 - Uses `scipy.signal.find_peaks to find the number of peaks or ("modes") for each of the cells in the ratemap. 
         Can detect bimodal (or multi-modal) placefields.
         
@@ -207,25 +207,34 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
             aclu_n_peaks_dict # {2: 4, 5: 4, 7: 2, 8: 2, 9: 2, 10: 5, 17: 2, 24: 2, 25: 3, 26: 1, 31: 3, 32: 5, 34: 2, 35: 1, 36: 2, 37: 2, 41: 4, 45: 3, 48: 4, 49: 4, 50: 4, 51: 3, 53: 5, 54: 3, 55: 5, 56: 4, 57: 4, 58: 5, 59: 3, 61: 4, 62: 3, 63: 4, 64: 4, 66: 3, 67: 4, 68: 2, 69: 2, 71: 3, 73: 3, 74: 3, 75: 5, 76: 5, 78: 3, 81: 3, 82: 1, 83: 4, 84: 4, 86: 3, 87: 3, 88: 4, 89: 3, 90: 3, 92: 4, 93: 4, 96: 2, 97: 4, 98: 5, 100: 4, 102: 7, 107: 1, 108: 5, 109: 2}
 
         """
-        from scipy.signal import find_peaks
-        
-        # active_tuning_curves = deepcopy(self.tuning_curves)
-        active_tuning_curves = deepcopy(self.unit_max_tuning_curves) # use the unit-max tuning curves
         # active_ratemap.tuning_curves.shape # (73, 56) - (n_neurons, n_pos_bins)
         find_peaks_kwargs = ({'height': 0.2, 'width': 2} | find_peaks_kwargs) # for raw tuning_curves. height=0.25 requires that the secondary peaks are at least 25% the height of the main peak
         # print(f'find_peaks_kwargs: {find_peaks_kwargs}')        
         peak_positions = self.get_tuning_curve_peak_positions(peak_mode=peak_mode, **find_peaks_kwargs)
-
-        # Manual Findings
-        peaks_results_list = [find_peaks(active_tuning_curves[i,:], **find_peaks_kwargs) for i in np.arange(self.n_neurons)]
-        peaks_results_dict = dict(zip(self.neuron_ids, peaks_results_list))
-        # peaks_dict = {k:v[0] for k,v in peaks_results_dict.items()} # [0] outside the find_peaks function gets the location of the peak
-        
         peaks_dict = dict(zip(self.neuron_ids, peak_positions)) # [0] outside the find_peaks function gets the location of the peak
-        aclu_n_peaks_dict = {k:len(v) for k,v in peaks_dict.items()} # number of peaks ("models" for each aclu)
-        unimodal_peaks_dict = {k:v for k,v in peaks_dict.items() if len(v) < 2}
-        return peaks_dict, aclu_n_peaks_dict, unimodal_peaks_dict, peaks_results_dict
+        
+        peaks_results_df = self.get_tuning_curve_peak_df(peak_mode=peak_mode, **find_peaks_kwargs)
+        aclu_n_peaks_dict: Dict = peaks_results_df.groupby(['aclu']).agg(subpeak_idx_count=('subpeak_idx', 'count')).reset_index().set_index('aclu').to_dict()['subpeak_idx_count'] # number of peaks ("models" for each aclu)        
 
+        # return peaks_dict, aclu_n_peaks_dict, unimodal_peaks_dict, peaks_results_dict
+        return peaks_dict, aclu_n_peaks_dict, peaks_results_df
+    
+
+    # @function_attributes(short_name=None, tags=[''], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-02-07 17:46', related_items=[])
+    def get_tuning_curve_peak_df(self, peak_mode='peaks', **find_peaks_kwargs) -> pd.DataFrame:
+            """ returns a dataframe containing all info about the peaks.
+            
+            Usage:
+            
+                peaks_results_df = active_ratemap.get_tuning_curve_peak_df(height=0.2, width=None)
+                peaks_results_df
+
+            """
+            from pyphocorehelpers.indexing_helpers import reorder_columns
+            peaks_results_df = super().get_tuning_curve_peak_df(peak_mode=peak_mode, **find_peaks_kwargs)
+            peaks_results_df['aclu'] = peaks_results_df.series_idx.map(lambda x: self.neuron_ids[x])
+            peaks_results_df = reorder_columns(peaks_results_df, column_name_desired_index_dict=dict(zip(['aclu'], np.array([0]))))
+            return peaks_results_df
 
     # Other ______________________________________________________________________________________________________________ #
 
