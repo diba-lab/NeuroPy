@@ -1259,7 +1259,7 @@ def perform_update_title_subtitle(fig, ax, title_string:Optional[str], subtitle_
     if (active_context is None) or (not use_flexitext_titles):
         if title_string is not None:
             fig.suptitle(title_string, fontsize='14', wrap=True)
-        if subtitle_string is not None:
+        if (subtitle_string is not None) and (ax is not None):
             ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
 
         footer_text_obj = None
@@ -1281,7 +1281,7 @@ def perform_update_title_subtitle(fig, ax, title_string:Optional[str], subtitle_
         ## Footer only:
         if title_string is not None:
             fig.suptitle(title_string, fontsize='14', wrap=True)
-        if subtitle_string is not None:
+        if (subtitle_string is not None) and (ax is not None):
             ax.set_title(subtitle_string, fontsize='10', wrap=True) # this doesn't appear to be visible, so what is it used for?
 
         footer_text_obj = text_formatter.add_flexitext_context_footer(active_context=active_context, override_left_margin_multipler=0.1, override_bottom_margin_multiplier=0.1) # flexitext((text_formatter.left_margin*0.1), (text_formatter.bottom_margin*0.25), text_formatter._build_footer_string(active_context=active_context), va="top", xycoords="figure fraction")

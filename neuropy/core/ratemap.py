@@ -1,6 +1,7 @@
 from copy import deepcopy
 from warnings import warn
 import numpy as np
+from typings import Dict, List Optional, Tuple
 from nptyping import NDArray
 from scipy import ndimage # used for `compute_placefield_center_of_masses`
 import h5py
@@ -175,7 +176,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
 
 
 
-    def compute_tuning_curve_modes(self):
+    def compute_tuning_curve_modes(self) -> Dict[int, int]:
         """ 2023-12-19 - Uses `scipy.signal.find_peaks to find the number of peaks or ("modes") for each of the cells in the ratemap. 
         Can detect bimodal (or multi-modal) placefields.
         
