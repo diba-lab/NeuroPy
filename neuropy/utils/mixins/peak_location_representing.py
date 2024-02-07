@@ -1,6 +1,7 @@
 from typing import Optional, List, Dict, Tuple, Union
 from nptyping import NDArray
 import numpy as np
+import pandas as pd
 from scipy import ndimage # used for `compute_placefield_center_of_masses`
 
 def compute_placefield_center_of_mass_coord_indicies(tuning_curves: NDArray) -> NDArray:
@@ -82,6 +83,58 @@ class ContinuousPeakLocationRepresentingMixin:
         return compute_placefield_center_of_mass_positions(self.ContinuousPeakLocationRepresentingMixin_peak_curves_variable, xbin=self.xbin, ybin=self.ybin)
     
                 
+
+
+    def get_tuning_curve_peaks_all_info_dict(self, peak_mode='peaks', **find_peaks_kwargs) -> Dict:
+        """ returns the peaks in coordinate bin space 
+
+        peak_mode: str: either ['CoM', 'peaks']
+        find_peaks_kwargs: only used if `peak_mode == 'peaks'`
+
+        """
+        if peak_mode == 'CoM':
+            raise NotImplementedError
+        elif peak_mode == 'peaks':
+            # This mode can return multiple peaks for each aclu:
+            from scipy.signal import find_peaks
+            n_curves: int = np.shape(self.ContinuousPeakLocationRepresentingMixin_peak_curves_variable)[0] # usually n_neurons
+            # Convert to unit max first:
+            unit_max_tuning_curves = np.array([a_tuning_curve / np.nanmax(a_tuning_curve) for a_tuning_curve in self.ContinuousPeakLocationRepresentingMixin_peak_curves_variable])
+            # active_ratemap.tuning_curves.shape # (73, 56) - (n_neurons, n_pos_bins)
+            find_peaks_kwargs = ({'height': 0.2, 'width': 2} | find_peaks_kwargs) # for raw tuning_curves. height=0.25 requires that the secondary peaks are at least 25% the height of the main peak
+            peaks_results_list = [find_peaks(unit_max_tuning_curves[i,:], **find_peaks_kwargs) for i in np.arange(n_curves)]
+            # peaks_coordinates_list = [np.array(a_result[0]) for a_result in peaks_results_list]
+            # peaks_positions_list = [_subfn_compute_general_positions_from_peak_indicies(coordinates, xbin=self.xbin, ybin=self.ybin) for coordinates in peaks_coordinates_list]
+
+            series_idx_list = []
+            peak_values_list = []
+            peak_subpeak_index_list = []
+            peak_info_optional_columns = {'series_idx': [], 'subpeak_idx': [], 'pos': [], 'bin_index': []}
+
+            # for aclu, peaks in peaks_dict.items():
+            for series_idx,(peak_indicies, peak_info_dict) in enumerate(peaks_results_list):
+                curr_peak_bin_coordinates = np.array(peak_indicies)
+                curr_peak_positions = _subfn_compute_general_positions_from_peak_indicies(curr_peak_bin_coordinates, xbin=self.xbin, ybin=self.ybin)
+                peak_info_optional_columns['pos'].extend(curr_peak_positions)
+                for i, a_subpeak in enumerate(curr_peak_bin_coordinates):
+                    peak_info_optional_columns['bin_index'].append(curr_peak_bin_coordinates[i])
+                    for info_k, info_v in peak_info_dict.items():
+                        if info_k not in peak_info_optional_columns:
+                            peak_info_optional_columns[info_k] = []
+                        peak_info_optional_columns[info_k].append(info_v[i])
+
+                    series_idx_list.append(series_idx)
+                    peak_subpeak_index_list.append(i)
+                    peak_values_list.append(a_subpeak)
+
+            peak_info_optional_columns['series_idx'] = np.array(series_idx_list)
+            peak_info_optional_columns['subpeak_idx'] = np.array(peak_subpeak_index_list)
+
+            return peak_info_optional_columns
+        else:
+            raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
+        
+
     def get_tuning_curve_peaks_bin_coordinates(self, peak_mode='peaks', **find_peaks_kwargs) -> Union[List,NDArray]:
         """ returns the peaks in coordinate bin space 
 
@@ -99,13 +152,7 @@ class ContinuousPeakLocationRepresentingMixin:
             unit_max_tuning_curves = np.array([a_tuning_curve / np.nanmax(a_tuning_curve) for a_tuning_curve in self.ContinuousPeakLocationRepresentingMixin_peak_curves_variable])
             # active_ratemap.tuning_curves.shape # (73, 56) - (n_neurons, n_pos_bins)
             find_peaks_kwargs = ({'height': 0.2, 'width': 2} | find_peaks_kwargs) # for raw tuning_curves. height=0.25 requires that the secondary peaks are at least 25% the height of the main peak
-            # print(f'find_peaks_kwargs: {find_peaks_kwargs}')
-            # peaks_results_list = [find_peaks(unit_max_tuning_curves[i,:], **find_peaks_kwargs) for i in np.arange(n_curves)]
             peaks_coordinates_list = [np.array(find_peaks(unit_max_tuning_curves[i,:], **find_peaks_kwargs)[0]) for i in np.arange(n_curves)]
-            # peaks_results_dict = dict(zip(self.neuron_ids, peaks_results_list))
-            # peaks_dict = {k:v[0] for k,v in peaks_results_dict.items()} # [0] outside the find_peaks function gets the location of the peak
-            # aclu_n_peaks_dict = {k:len(v) for k,v in peaks_dict.items()} # number of peaks ("models" for each aclu)
-            # unimodal_peaks_dict = {k:v for k,v in peaks_dict.items() if len(v) < 2}
             return peaks_coordinates_list
         else:
             raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
@@ -128,6 +175,48 @@ class ContinuousPeakLocationRepresentingMixin:
         else:
             raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
     
+    def get_tuning_curve_peak_df(self, peak_mode='peaks', **find_peaks_kwargs) -> pd.DataFrame:
+        """ returns a dataframe containing all info about the peaks.
+        
+        Usage:
+        
+            peaks_results_df = active_ratemap.get_tuning_curve_peak_df(height=0.2, width=None)
+            peaks_results_df['aclu'] = peaks_results_df.series_idx.map(lambda x: active_ratemap.neuron_ids[x]) # Can add in an 'aclu' column like so
+            peaks_results_df
+
+        """
+        if peak_mode == 'CoM':
+            raise NotImplementedError
+        elif peak_mode == 'peaks':
+            return pd.DataFrame(self.get_tuning_curve_peaks_all_info_dict(peak_mode='peaks', **find_peaks_kwargs))
+        else:
+            raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
+    
+    @classmethod
+    def peaks_dict_to_df(cls, peaks_dict: Dict, peaks_results_dict: Dict) -> pd.DataFrame:
+        # peaks_dict, peaks_results_dict
+        aclus_list = []
+        peak_values_list = []
+        peak_subpeak_index_list = []
+        peak_info_optional_columns = {'bin_index': []}
+
+        for aclu, peaks in peaks_dict.items():
+            peak_info_tuple = peaks_results_dict.get(aclu, None)
+            for i, a_subpeak in enumerate(peaks):
+                if peak_info_tuple is not None:
+                    peak_indicies, peak_info_dict = peak_info_tuple
+                    peak_info_optional_columns['bin_index'].append(peak_indicies[i])
+                    for info_k, info_v in peak_info_dict.items():
+                        if info_k not in peak_info_optional_columns:
+                            peak_info_optional_columns[info_k] = []
+                        peak_info_optional_columns[info_k].append(info_v[i])
+
+                aclus_list.append(aclu)
+                peak_subpeak_index_list.append(i)
+                peak_values_list.append(a_subpeak)
+
+        return pd.DataFrame({'aclu': aclus_list, 'peak_position': peak_values_list, 'subpeak_index': peak_subpeak_index_list, **peak_info_optional_columns})
+
 
 class PeakLocationRepresentingMixin:
     """ Implementor provides peaks.
