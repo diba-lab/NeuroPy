@@ -1,8 +1,11 @@
 from copy import deepcopy
 from warnings import warn
 import numpy as np
-from typings import Dict, List Optional, Tuple
+from typing import Dict, List, Tuple, Optional, Callable, Union, Any
+from typing_extensions import TypeAlias
 from nptyping import NDArray
+import neuropy.utils.type_aliases as types
+
 from scipy import ndimage # used for `compute_placefield_center_of_masses`
 import h5py
 from neuropy.core.neuron_identities import NeuronIdentitiesDisplayerMixin
@@ -105,6 +108,19 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         return self.pdf_normalized_tuning_curves
         
 
+    @property
+    def tuning_curves_dict(self) -> Dict[types.aclu_index, NDArray]:
+        """ aclu:tuning_curve_array """
+        return dict(zip(self.neuron_ids, self.tuning_curves))
+    
+    @property
+    def normalized_tuning_curves_dict(self) -> Dict[types.aclu_index, NDArray]:
+        """ aclu:tuning_curve_array """
+        return dict(zip(self.neuron_ids, self.pdf_normalized_tuning_curves))
+        
+        
+    
+    
     # ---------------------- occupancy properties -------------------------
     @property
     def never_visited_occupancy_mask(self) -> NDArray:
@@ -125,25 +141,25 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
     
     # --------------------- Normalization and Scaling Helpers -------------------- #
     @property
-    def pdf_normalized_tuning_curves(self):
+    def pdf_normalized_tuning_curves(self) -> NDArray:
         """ AOC (area-under-curve) normalization for tuning curves. """
         return Ratemap.perform_AOC_normalization(self.tuning_curves)
         
     @property
-    def tuning_curve_peak_firing_rates(self):
+    def tuning_curve_peak_firing_rates(self) -> NDArray:
         """ the non-normalized peak location of each tuning curve. Represents the peak firing rate of that curve. """
         warn('tuning_curve_peak_firing_rates: was accessed, but does not give the actual cell firing rate because of the smoothing. Use Ratemap.tuning_curve_unsmoothed_peak_firing_rates for accurate firing rates in Spikes / Second ')
         return np.array([np.nanmax(a_tuning_curve) for a_tuning_curve in self.tuning_curves])
     
     @property
-    def tuning_curve_unsmoothed_peak_firing_rates(self):
+    def tuning_curve_unsmoothed_peak_firing_rates(self) -> NDArray:
         """ the non-normalized and unsmoothed value of the maximum firing rate at the peak of each tuning curve in NumSpikes/Second. Represents the peak firing rate of that curve. """
         assert self.unsmoothed_tuning_maps is not None, "self.unsmoothed_tuning_maps is None! Did you pass it in while building the Ratemap?"
         return np.array([np.nanmax(a_tuning_curve) for a_tuning_curve in self.unsmoothed_tuning_maps])
     
         
     @property
-    def unit_max_tuning_curves(self):
+    def unit_max_tuning_curves(self) -> NDArray:
         """ tuning curves normalized by scaling their max value down to 1.0.
             The peak of each placefield will have height 1.0.
         """
@@ -155,14 +171,14 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
     
     
     @property
-    def minmax_normalized_tuning_curves(self):
+    def minmax_normalized_tuning_curves(self) -> NDArray:
         """ tuning curves normalized by scaling their min/max values down to the range (0, 1).
             The peak of each placefield will have height 1.0.
         """
         return Ratemap.nanmin_nanmax_scaler(self.tuning_curves)
 
     @property
-    def spatial_sparcity(self) -> np.ndarray:
+    def spatial_sparcity(self) -> NDArray:
         """ computes the sparcity as a measure of spatial selectivity as in Silvia et al. 2015
         
         Sparcity = \frac{ <f>^2 }{ <f^2> }
@@ -176,7 +192,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
 
 
 
-    def compute_tuning_curve_modes(self) -> Dict[int, int]:
+    def compute_tuning_curve_modes(self) -> Dict[types.aclu_index, int]:
         """ 2023-12-19 - Uses `scipy.signal.find_peaks to find the number of peaks or ("modes") for each of the cells in the ratemap. 
         Can detect bimodal (or multi-modal) placefields.
         
@@ -227,7 +243,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         return self[indices]
     
 
-    def get_sort_indicies(self, sortby=None):
+    def get_sort_indicies(self, sortby=None) -> NDArray:
         # curr_tuning_curves = self.normalized_tuning_curves
         # ind = np.unravel_index(np.argsort(curr_tuning_curves, axis=None), curr_tuning_curves.shape)
         

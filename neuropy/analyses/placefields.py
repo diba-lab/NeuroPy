@@ -1,10 +1,13 @@
 from copy import deepcopy
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional
 from attrs import define, fields, filters, asdict, astuple
 import h5py
 import time
 import matplotlib.pyplot as plt
+from typing import Dict, List, Tuple, Optional, Callable, Union, Any
+from typing_extensions import TypeAlias
 from nptyping import NDArray
+import neuropy.utils.type_aliases as types
 import numpy as np
 from matplotlib.gridspec import GridSpec
 import pandas as pd
@@ -1030,6 +1033,22 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
     def neuron_extended_ids(self, value):
         self.ratemap.neuron_extended_ids = value
 
+            
+    @property
+    def tuning_curves_dict(self) -> Dict[types.aclu_index, NDArray]:
+        """ aclu:tuning_curve_array """
+        return self.ratemap.tuning_curves_dict
+    
+    @property
+    def normalized_tuning_curves_dict(self) -> Dict[types.aclu_index, NDArray]:
+        """ aclu:tuning_curve_array """
+        return self.ratemap.normalized_tuning_curves_dict
+    
+    
+        
+    
+        
+        
     ## self.config convinence accessors. Mostly for compatibility with Pf1D and Pf2D
     @property
     def frate_thresh(self):
