@@ -109,20 +109,20 @@ class PlacefieldSnapshot(HDFMixin):
 
 
 def prepare_snapshots_for_export_as_xarray(historical_snapshots: dict, ndim: int=1) -> xr.DataArray:
-	""" exports all snapshots as an xarray """
-	snapshot_t_times = np.array(list(historical_snapshots.keys()), dtype=np.float64)
-	if ndim < 2:
-		pos_dim_labels = ("xbin", )
-	else:
-		pos_dim_labels = ("xbin", "ybin")
+    """ exports all snapshots as an xarray """
+    snapshot_t_times = np.array(list(historical_snapshots.keys()), dtype=np.float64)
+    if ndim < 2:
+        pos_dim_labels = ("xbin", )
+    else:
+        pos_dim_labels = ("xbin", "ybin")
 
-	# occupancy_weighted_tuning_maps_over_time_arr = np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for timestamp_t, placefield_snapshot in self.historical_snapshots.items()]) # Concatenates so that the time is the first dimension
-	occupancy_weighted_tuning_maps_over_time_xr = xr.DataArray(np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for placefield_snapshot in historical_snapshots.values()]), dims=("snapshot_t", "neuron_idx", *pos_dim_labels), name="tuning_maps", coords={'snapshot_t': snapshot_t_times}) # , coords={"x": [10, 20]}
-	occupancy_weighted_tuning_maps_over_time_xr.attrs["long_name"] = "occupancy_weighted_tuning_maps"
-	occupancy_weighted_tuning_maps_over_time_xr.attrs["units"] = "spikes/sec"
-	occupancy_weighted_tuning_maps_over_time_xr.attrs["description"] = "The tuning maps for each cell normalized for their occupancy."
-	occupancy_weighted_tuning_maps_over_time_xr.attrs["ndim"] = ndim
-	return occupancy_weighted_tuning_maps_over_time_xr
+    # occupancy_weighted_tuning_maps_over_time_arr = np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for timestamp_t, placefield_snapshot in self.historical_snapshots.items()]) # Concatenates so that the time is the first dimension
+    occupancy_weighted_tuning_maps_over_time_xr = xr.DataArray(np.stack([placefield_snapshot.occupancy_weighted_tuning_maps_matrix for placefield_snapshot in historical_snapshots.values()]), dims=("snapshot_t", "neuron_idx", *pos_dim_labels), name="tuning_maps", coords={'snapshot_t': snapshot_t_times}) # , coords={"x": [10, 20]}
+    occupancy_weighted_tuning_maps_over_time_xr.attrs["long_name"] = "occupancy_weighted_tuning_maps"
+    occupancy_weighted_tuning_maps_over_time_xr.attrs["units"] = "spikes/sec"
+    occupancy_weighted_tuning_maps_over_time_xr.attrs["description"] = "The tuning maps for each cell normalized for their occupancy."
+    occupancy_weighted_tuning_maps_over_time_xr.attrs["ndim"] = ndim
+    return occupancy_weighted_tuning_maps_over_time_xr
 
 
 @define(slots=False, repr=False)
@@ -808,10 +808,16 @@ class PfND_TimeDependent(PfND):
 
             return curr_counts_df, num_position_samples_occupancy
 
-        def _build_bin_spike_counts(active_pf_spikes_df, neuron_ids=included_neuron_IDs, xbin_values=None, ybin_values=None, active_computation_config=active_computation_config):
+        def _build_bin_spike_counts(active_pf_spikes_df, neuron_ids=None, xbin_values=None, ybin_values=None, active_computation_config=active_computation_config):
             ## This version was brought in from PfND.perform_time_range_computation(...):
             # If xbin_values is not None and ybin_values is None, assume 1D
             # if xbin_values is not None and ybin_values is None:
+
+            assert np.all(active_pf_spikes_df.aclu.isin(neuron_ids)), f"active_pf_spikes_df.aclu: {active_pf_spikes_df.aclu.unique()}, neuron_ids: {neuron_ids}"
+            # # Cut spikes_df down to only the neuron_IDs that appear at least in one decoder:
+            # active_pf_spikes_df = active_pf_spikes_df.spikes.sliced_by_neuron_id(neuron_ids)
+            # active_pf_spikes_df, active_aclu_to_fragile_linear_neuron_IDX_dict = active_pf_spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
+            
             if ('y' not in active_pf_spikes_df.columns) or ((xbin_values is not None) and (ybin_values is None)):
                 # Assume 1D:
                 ndim = 1
@@ -828,7 +834,7 @@ class PfND_TimeDependent(PfND):
 
             # bin the dataframe's x and y positions into bins, with binned_x and binned_y containing the index of the bin that the given position is contained within.
             active_pf_spikes_df, out_bins, bin_info = build_df_discretized_binned_position_columns(active_pf_spikes_df.copy(), bin_values=bin_values, binned_column_names=binned_col_names, position_column_names=pos_col_names, active_computation_config=active_computation_config, force_recompute=False, debug_print=False) # removed , position_column_names=pos_col_names, binned_column_names=binned_col_names
-            
+                    
             if ndim == 1:
                 # Assume 1D:
                 xbin = out_bins[0]
@@ -874,6 +880,10 @@ class PfND_TimeDependent(PfND):
         ## Test arbitrarily slicing by first _test_arbitrary_end_time seconds
         active_pf_spikes_df = active_pf_spikes_df.spikes.time_sliced(start_time, end_time)
         active_pf_pos_df = active_pf_pos_df.position.time_sliced(start_time, end_time)
+        
+        active_pf_spikes_df = active_pf_spikes_df.spikes.sliced_by_neuron_id(included_neuron_IDs)
+        active_pf_spikes_df, active_aclu_to_fragile_linear_neuron_IDX_dict = active_pf_spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
+
 
         counts_df, num_position_samples_occupancy = _build_bin_pos_counts(active_pf_pos_df, xbin_values=xbin, ybin_values=ybin, active_computation_config=active_computation_config)
         spikes_counts_df, spikes_map_dict = _build_bin_spike_counts(active_pf_spikes_df, neuron_ids=included_neuron_IDs, xbin_values=xbin, ybin_values=ybin, active_computation_config=active_computation_config)
