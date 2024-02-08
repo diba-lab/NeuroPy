@@ -101,7 +101,9 @@ class PlacefieldSnapshot(HDFMixin):
         """
         copy_snapshot = deepcopy(self)
         copy_snapshot.spikes_maps_matrix = copy_snapshot.spikes_maps_matrix[included_indicies]
-        copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix[included_indicies]
+        if copy_snapshot.smoothed_spikes_maps_matrix is not None:
+            copy_snapshot.smoothed_spikes_maps_matrix = copy_snapshot.smoothed_spikes_maps_matrix[included_indicies]
+            
         copy_snapshot.occupancy_weighted_tuning_maps_matrix = copy_snapshot.occupancy_weighted_tuning_maps_matrix[included_indicies]
         return copy_snapshot
 
