@@ -3,6 +3,7 @@ from pathlib import Path
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+from nptyping import NDArray
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
@@ -18,7 +19,7 @@ from neuropy.utils.mixins.binning_helpers import BinningContainer, BinningInfo #
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
-def radon_transform(arr, nlines=10000, dt=1, dx=1, neighbours=1):
+def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neighbours:int=1):
     """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
 
     from neuropy.analyses.decoders import radon_transform
@@ -64,7 +65,7 @@ def radon_transform(arr, nlines=10000, dt=1, dx=1, neighbours=1):
 
     # exclude stationary events by choosing phi little below 90 degree
     # NOTE: angle of line is given by (90-phi), refer Kloosterman 2012
-    phi = np.random.uniform(low=-np.pi / 2, high=np.pi / 2, size=nlines)
+    phi = np.random.uniform(low=(-np.pi / 2), high=(np.pi / 2), size=nlines)
     diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
     rho = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
 
@@ -152,9 +153,6 @@ def old_radon_transform(arr, nlines=5000):
     slope = -(1 / np.tan(theta[max_line]))
 
     return posterior_sum[max_line], slope
-
-
-
 
 
 def wcorr(arr):
