@@ -310,7 +310,7 @@ class SpikesAccessor(TimeSlicedMixin):
 
 
 
-    def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None, override_time_variable_name=None, no_interval_fill_value=-1):
+    def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None, override_time_variable_name=None, no_interval_fill_value=-1, should_replace_existing_column=False):
         """ Adds the arbitrary column with name epoch_id_key_name to the dataframe.
 
             spikes: curr_active_pipeline.sess.spikes_df
@@ -320,7 +320,7 @@ class SpikesAccessor(TimeSlicedMixin):
                 epoch_id_key_name
 
         """
-        if epoch_id_key_name in self._obj.columns:
+        if (epoch_id_key_name in self._obj.columns) and (not should_replace_existing_column):
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping adding intervals.')
             return self._obj
         else:
