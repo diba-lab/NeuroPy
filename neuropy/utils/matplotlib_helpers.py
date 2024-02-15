@@ -302,7 +302,7 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
 # ==================================================================================================================== #
 # These are the only Matplotlib-specific functions here: add_inner_title(...) and draw_sizebar(...).                              #
 # ==================================================================================================================== #
-def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', text_foreground='k', **kwargs):
+def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', text_foreground='k', font_size=None, **kwargs):
     """used to add a figure title inside the border of the figure (instead of outside)
     """
     from matplotlib.offsetbox import AnchoredText
@@ -314,7 +314,7 @@ def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', text_f
     #     'size': 14,
     #     }
     prop = dict(path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth)],
-                size=plt.rcParams['legend.title_fontsize'], # 'legend.fontsize' is too small
+                size=(font_size or plt.rcParams['legend.title_fontsize']), # 'legend.fontsize' is too small
                 color=text_foreground)
     at = AnchoredText(title, loc=loc, prop=prop, pad=0., borderpad=0.5, frameon=False, **kwargs)
     ax.add_artist(at)
