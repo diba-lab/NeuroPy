@@ -304,8 +304,17 @@ def determine_event_interval_identity(times_arr, start_stop_times_arr, period_id
     assert np.shape(start_stop_times_arr)[0] == np.shape(period_identity_labels)[0], f'np.shape(period_identity_labels)[0] and np.shape(start_stop_times_arr)[0] must be the same, but np.shape(period_identity_labels)[0]: {np.shape(period_identity_labels)[0]} and np.shape(start_stop_times_arr)[0]: {np.shape(start_stop_times_arr)[0]}'
 
     if overlap_behavior.name == OverlappingIntervalsFallbackBehavior.ASSERT_FAIL.name:
-        assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
-        return _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+        from numba import TypingError
+        assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'            
+        try:
+            return _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value) 
+        except TypingError as e:
+            # # Failed in nopython mode pipeline (step: nopython frontend)
+            print(f'WARNING: encountered numba TypingError: {e} on the period_identity_labels: type(period_identity_labels): {type(period_identity_labels)} passed.\nperiod_identity_labels: {period_identity_labels}. \n\tTrying to convert them to int and continue...')
+            period_identity_labels = period_identity_labels.astype('int')
+            return _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value)
+        except Exception as e:
+            raise e
     elif overlap_behavior.name == OverlappingIntervalsFallbackBehavior.FALLBACK_TO_SLOW_SEARCH.name:
         are_intervals_overlapping = not verify_non_overlapping(start_stop_times_arr=start_stop_times_arr)
         if are_intervals_overlapping:
