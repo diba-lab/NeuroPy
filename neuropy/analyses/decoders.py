@@ -93,7 +93,9 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neig
     # converts to real world values
     time_mid, pos_mid = nt * dt / 2, npos * dx / 2
 
-    velocity = dx / (dt * np.tan(best_phi))
+    ## Pho 2024-02-15 - Validated that below matches the original manuscript
+    ## Original:
+    velocity = dx / (dt * np.tan(best_phi)) # 1/np.tan(x) == cot(x)
     intercept = (
         (dx * time_mid) / (dt * np.tan(best_phi))
         + (best_rho / np.sin(best_phi)) * dx
