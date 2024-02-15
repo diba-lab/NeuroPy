@@ -19,7 +19,7 @@ from neuropy.utils.mixins.binning_helpers import BinningContainer, BinningInfo #
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
-def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neighbours:int=1):
+def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neighbours:int=1, enable_return_neighbors_arr=False):
     """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
 
     from neuropy.analyses.decoders import radon_transform
@@ -35,7 +35,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neig
     neighbours : int,
         probability in each bin is replaced by sum of itself and these many 'neighbours' column wise, default 1 neighbour
 
-    NOTE: when returning velcoity the sign is flipped to match with position going from bottom to up
+    NOTE: when returning velocity the sign is flipped to match with position going from bottom to up
 
     Returns
     -------
@@ -101,7 +101,10 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neig
     )
     np.seterr(**old_settings)
 
-    return score, -velocity, intercept
+    if enable_return_neighbors_arr:
+        return score, -velocity, intercept, (neighbours, arr.copy())
+    else:
+        return score, -velocity, intercept
 
 
 def old_radon_transform(arr, nlines=5000):
