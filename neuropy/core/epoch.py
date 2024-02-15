@@ -246,8 +246,13 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
             epochs (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
             metadata (dict, optional): [description]. Defaults to None.
         """
+        if not isinstance(epochs, pd.DataFrame):
+            _epochs_metadata = getattr(epochs, 'metadata', None)
+            metadata = metadata or _epochs_metadata
+            epochs = epochs.to_dataframe() # try to convert to dataframe if the object is an Epoch or other compatible object
+            assert isinstance(epochs, pd.DataFrame)
         super().__init__(metadata=metadata)
-        self._df = epochs.epochs.get_valid_df() # gets already sorted appropriately and everything
+        self._df = epochs.epochs.get_valid_df() # gets already sorted appropriately and everything. epochs.epochs uses the DataFrame accesor
         self._check_epochs(epochs) # check anyway
 
     @property
