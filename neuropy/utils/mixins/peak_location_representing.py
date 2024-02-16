@@ -85,10 +85,11 @@ class ContinuousPeakLocationRepresentingMixin:
                 
 
 
-    def get_tuning_curve_peaks_all_info_dict(self, peak_mode='peaks', **find_peaks_kwargs) -> Dict:
+    def get_tuning_curve_peaks_all_info_dict(self, peak_mode='peaks', enable_sort_subpeaks_by_peak_heights: bool = True, **find_peaks_kwargs) -> Dict:
         """ returns the peaks in coordinate bin space 
 
         peak_mode: str: either ['CoM', 'peaks']
+        enable_sort_subpeaks_by_peak_heights: bool = True: if True, the subpeaks returned are sorted by their height
         find_peaks_kwargs: only used if `peak_mode == 'peaks'`
 
         """
@@ -111,8 +112,21 @@ class ContinuousPeakLocationRepresentingMixin:
             peak_subpeak_index_list = []
             peak_info_optional_columns = {'series_idx': [], 'subpeak_idx': [], 'pos': [], 'bin_index': []}
 
+            # max_num_included_subpeaks: int = 5
+
             # for aclu, peaks in peaks_dict.items():
-            for series_idx,(peak_indicies, peak_info_dict) in enumerate(peaks_results_list):
+            for series_idx, (peak_indicies, peak_info_dict) in enumerate(peaks_results_list):
+                ## Enable sorting each subpeak by height:
+                if enable_sort_subpeaks_by_peak_heights:
+                    peak_heights = np.array(peak_info_dict['peak_heights'])
+                    assert len(peak_heights) == len(peak_indicies)
+                    # Get the indices to sort the array in descending order directly
+                    height_sort_idxs = np.argsort(-peak_heights) # the `-` sign here indicates reversed order
+                    peak_indicies = peak_indicies[height_sort_idxs]
+                    peak_heights = peak_heights[height_sort_idxs]
+                    peak_info_dict = {info_k:np.array(info_v)[height_sort_idxs] for info_k, info_v in peak_info_dict.items()}
+                    ## should now be sorted.
+
                 curr_peak_bin_coordinates = np.array(peak_indicies)
                 curr_peak_positions = _subfn_compute_general_positions_from_peak_indicies(curr_peak_bin_coordinates, xbin=self.xbin, ybin=self.ybin)
                 peak_info_optional_columns['pos'].extend(curr_peak_positions)
@@ -135,10 +149,11 @@ class ContinuousPeakLocationRepresentingMixin:
             raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
         
 
-    def get_tuning_curve_peaks_bin_coordinates(self, peak_mode='peaks', **find_peaks_kwargs) -> Union[List,NDArray]:
+    def get_tuning_curve_peaks_bin_coordinates(self, peak_mode='peaks', enable_sort_subpeaks_by_peak_heights: bool = True, **find_peaks_kwargs) -> Union[List,NDArray]:
         """ returns the peaks in coordinate bin space 
 
         peak_mode: str: either ['CoM', 'peaks']
+        enable_sort_subpeaks_by_peak_heights: bool = True: if True, the subpeaks returned are sorted by their height
         find_peaks_kwargs: only used if `peak_mode == 'peaks'`
 
         """
@@ -152,18 +167,24 @@ class ContinuousPeakLocationRepresentingMixin:
             unit_max_tuning_curves = np.array([a_tuning_curve / np.nanmax(a_tuning_curve) for a_tuning_curve in self.ContinuousPeakLocationRepresentingMixin_peak_curves_variable])
             # active_ratemap.tuning_curves.shape # (73, 56) - (n_neurons, n_pos_bins)
             find_peaks_kwargs = ({'height': 0.2, 'width': 2} | find_peaks_kwargs) # for raw tuning_curves. height=0.25 requires that the secondary peaks are at least 25% the height of the main peak
-            peaks_coordinates_list = [np.array(find_peaks(unit_max_tuning_curves[i,:], **find_peaks_kwargs)[0]) for i in np.arange(n_curves)]
+             
+            if enable_sort_subpeaks_by_peak_heights:
+                peaks_results_list = [find_peaks(unit_max_tuning_curves[i,:], **find_peaks_kwargs) for i in np.arange(n_curves)]
+                peaks_coordinates_list = [np.array(peak_indicies)[np.argsort(-np.array(peak_info_dict['peak_heights']))] for (peak_indicies, peak_info_dict) in peaks_results_list]
+            else:
+                peaks_coordinates_list = [np.array(find_peaks(unit_max_tuning_curves[i,:], **find_peaks_kwargs)[0]) for i in np.arange(n_curves)]
+            
             return peaks_coordinates_list
         else:
             raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
 
 
-    def get_tuning_curve_peak_positions(self, peak_mode='peaks', **find_peaks_kwargs) -> Union[List,NDArray]:
+    def get_tuning_curve_peak_positions(self, peak_mode='peaks', enable_sort_subpeaks_by_peak_heights: bool = True, **find_peaks_kwargs) -> Union[List,NDArray]:
         """ returns the peaks in position space. """
         if peak_mode == 'CoM':
             return self.peak_tuning_curve_center_of_masses
         elif peak_mode == 'peaks':
-            peaks_coordinates_list = self.get_tuning_curve_peaks_bin_coordinates(peak_mode=peak_mode, **find_peaks_kwargs)
+            peaks_coordinates_list = self.get_tuning_curve_peaks_bin_coordinates(peak_mode=peak_mode, enable_sort_subpeaks_by_peak_heights=enable_sort_subpeaks_by_peak_heights, **find_peaks_kwargs)
             # This mode can return multiple peaks for each aclu:
             peaks_positions_list = []
             for coordinates in peaks_coordinates_list:
@@ -175,7 +196,7 @@ class ContinuousPeakLocationRepresentingMixin:
         else:
             raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
     
-    def get_tuning_curve_peak_df(self, peak_mode='peaks', **find_peaks_kwargs) -> pd.DataFrame:
+    def get_tuning_curve_peak_df(self, peak_mode='peaks', enable_sort_subpeaks_by_peak_heights: bool = True, **find_peaks_kwargs) -> pd.DataFrame:
         """ returns a dataframe containing all info about the peaks.
         
         Usage:
@@ -188,7 +209,7 @@ class ContinuousPeakLocationRepresentingMixin:
         if peak_mode == 'CoM':
             raise NotImplementedError
         elif peak_mode == 'peaks':
-            return pd.DataFrame(self.get_tuning_curve_peaks_all_info_dict(peak_mode='peaks', **find_peaks_kwargs))
+            return pd.DataFrame(self.get_tuning_curve_peaks_all_info_dict(peak_mode='peaks', enable_sort_subpeaks_by_peak_heights=enable_sort_subpeaks_by_peak_heights, **find_peaks_kwargs))
         else:
             raise NotImplementedError(f"Unknown peak_mode: '{peak_mode}' specified. Known modes: ['CoM', 'peaks']")
     
