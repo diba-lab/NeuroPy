@@ -339,6 +339,62 @@ def draw_sizebar(ax):
     ax.add_artist(asb)
     
 
+def set_ax_emphasis_color(ax, emphasis_color = 'green', defer_draw:bool=False):
+    """ for the provided axis: changes the spine color, the x/y tick/labels color to the emphasis color. 
+    """
+    # Change the spine color for all spines
+    for spine in ax.spines.values():
+        spine.set_color(emphasis_color)  # Change color to red
+
+    # Set the color of the tick labels
+    for label in ax.get_xticklabels():
+        label.set_color(emphasis_color)
+    for label in ax.get_yticklabels():
+        label.set_color(emphasis_color)
+
+    # Set the color of the axis labels
+    ax.set_xlabel(ax.get_xlabel(), color=emphasis_color)
+    ax.set_ylabel(ax.get_ylabel(), color=emphasis_color)
+
+    ## This works to actually redraw:
+    if not defer_draw:
+        a_fig = ax.get_figure()
+        a_fig.canvas.draw()
+
+    
+
+def add_selection_patch(ax, selection_color = 'green', alpha=0.6, zorder=-1, debug_print=False, defer_draw:bool=False):
+    """ adds a rectangle behind the ax, sticking out to the right side by default.
+    
+    Can be toggled on/off via 
+    `rectangle.set_visible(not rectangle.get_visible())`
+
+    """
+    from matplotlib.patches import Rectangle
+
+    rect_kwargs = dict(color=selection_color, alpha=alpha, zorder=zorder)
+
+    # Get the position of the ax in figure coordinates
+    ax_pos = ax.get_position()
+    if debug_print:
+        print("Bottom-left corner (x0, y0):", ax_pos.x0, ax_pos.y0)
+        print("Width and Height (width, height):", ax_pos.width, ax_pos.height)
+
+    ## Get the figure from the axes:
+    a_fig = ax.get_figure()
+    ## Fill up to the right edge of the figure:
+    selection_rect_width = ax_pos.width + (1.0 - (ax_pos.x1)) * 0.75 # fill 75% of the remaining right margin with the box
+    rectangle = Rectangle((ax_pos.x0, ax_pos.y0), selection_rect_width, ax_pos.height, transform=a_fig.transFigure, **rect_kwargs)
+
+    # Add the rectangle directly to the figure, not to the ax
+    a_fig.add_artist(rectangle)
+    if not defer_draw:
+        a_fig.canvas.draw()
+
+    return rectangle
+        
+
+
 def build_or_reuse_figure(fignum=1, fig=None, fig_idx:int=0, **kwargs):
     """ Reuses a Matplotlib figure if it exists, or creates a new one if needed
     Inputs:
