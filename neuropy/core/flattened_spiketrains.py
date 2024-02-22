@@ -21,6 +21,8 @@ from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, s
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 _REQUIRE_NEURON_TYPE_COLUMN: bool = False
+_REQUIRE_FLAT_SPIKE_INDEX_COLUMN: bool = False
+
 
 @pd.api.extensions.register_dataframe_accessor("spikes")
 class SpikesAccessor(TimeSlicedMixin):
@@ -47,7 +49,10 @@ class SpikesAccessor(TimeSlicedMixin):
                 else:
                     print(f"This used to be an assert but `_REQUIRE_NEURON_TYPE_COLUMN == False, so continuing at your own risk. Missing the 'neuron_type' column. obj.columns: {list(obj.columns)}")
         if "flat_spike_idx" not in obj.columns:
-            raise AttributeError("Must have 'flat_spike_idx' column.")
+            if _REQUIRE_FLAT_SPIKE_INDEX_COLUMN:
+                raise AttributeError(f"Must have 'flat_spike_idx' column.. obj.columns: {list(obj.columns)}")
+            else:
+                print(f"This used to be an assert but `_REQUIRE_FLAT_SPIKE_INDEX_COLUMN == False, so continuing at your own risk. Missing the 'flat_spike_idx' column. obj.columns: {list(obj.columns)}")
         if "t" not in obj.columns and "t_seconds" not in obj.columns and "t_rel_seconds" not in obj.columns:
             raise AttributeError("Must have at least one time column: either 't' and 't_seconds', or 't_rel_seconds'.")
         

@@ -347,7 +347,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         
     # _ipython_key_completions_
     def _repr_pretty_(self, p, cycle):
-        """  just adds non breaking text to the output, p.breakable() either adds a whitespace or breaks here. If you pass it an argument it’s used instead of the default space. 
+        """  just adds non breaking text to the output, p.breakable() either adds a whitespace or breaks here. If you pass it an argument it is used instead of the default space. 
         https://ipython.readthedocs.io/en/stable/api/generated/IPython.lib.pretty.html#module-IPython.lib.pretty
 
         Can test with:
