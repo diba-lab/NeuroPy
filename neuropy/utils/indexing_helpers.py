@@ -360,3 +360,53 @@ def find_nearest_time(df: pd.DataFrame, target_time: float, time_column_name:str
             print(f"The closest start time to {target_time} is {closest_time} at index {closest_index}. Deviating by {matched_time_difference}")
 
     return df, closest_index, closest_time, matched_time_difference
+
+
+def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_name: str='start', max_allowed_deviation: float=0.01, debug_print=False):
+    """
+    Find the nearest time indices for each target time within the specified max_allowed_deviation.
+    """
+    # Ensure the DataFrame is sorted
+    assert time_column_name in df.columns
+    if not df[time_column_name].is_monotonic:
+        if debug_print:
+            print(f'WARNING: The column is not sorted in ascending order. Sorting now...')
+        df = df.sort_values(by=time_column_name, inplace=False)
+
+    # Prepare output Series for closest indices
+    closest_indices = pd.Series(index=target_times, dtype='int')
+    matched_time_differences = pd.Series(index=target_times, dtype='float')
+    
+    # Vectorized search for insertion points
+    insertion_indices = df[time_column_name].searchsorted(target_times)
+    
+    # Process each target time
+    for idx, target_time in np.ndenumerate(target_times):
+        target_idx = idx[0]
+        insertion_index = insertion_indices[target_idx]
+        if insertion_index == 0:
+            closest_index = 0
+        elif insertion_index == len(df):
+            closest_index = len(df) - 1
+        else:
+            prev_time = df[time_column_name].iloc[insertion_index - 1]
+            next_time = df[time_column_name].iloc[insertion_index]
+            closest_index = insertion_index if (next_time - target_time) < (target_time - prev_time) else insertion_index - 1
+        
+        # Now extract the closest time using the index
+        closest_time = df[time_column_name].iloc[closest_index]
+        matched_time_difference = closest_time - target_time
+        
+        # Check if the found time is within the max_allowed_deviation
+        if (max_allowed_deviation is not None) and (abs(matched_time_difference) > max_allowed_deviation):
+            if debug_print:
+                print(f'WARNING: The closest start time to {target_time} ({closest_time} at index {closest_index}) exceeds the max_allowed_deviation of {max_allowed_deviation} (obs. deviation {matched_time_difference}).')
+            matched_time_differences.iloc[target_idx] = np.nan
+            closest_indices.iloc[target_idx] = np.nan  # or use some other sentinel value
+        else:
+            matched_time_differences.iloc[target_idx] = matched_time_difference
+            closest_indices.iloc[target_idx] = closest_index
+            if debug_print:
+                print(f"The closest start time to {target_time} is {closest_time} at index {closest_index}. Deviating by {matched_time_difference}")
+
+    return closest_indices, matched_time_differences
