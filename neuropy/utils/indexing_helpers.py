@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 from nptyping import NDArray
 import numpy as np
+import pandas as pd
 from functools import reduce # intersection_of_arrays, union_of_arrays
 
 
@@ -302,3 +303,60 @@ def paired_individual_sorting(neuron_IDs_lists, sortable_values_lists):
     return sorted_lists
 
 
+
+
+def find_nearest_time(df: pd.DataFrame, target_time: float, time_column_name:str='start', max_allowed_deviation:float=0.01, debug_print=False):
+    """ finds the nearest time in the time_column_name matching the provided target_time
+    
+
+    max_allowed_deviation: if provided, requires the difference between the found time in the dataframe and the target_time to be less than or equal to max_allowed_deviation
+    Usage:
+
+    from neuropy.utils.indexing_helpers import find_nearest_time
+    df = deepcopy(_out_ripple_rasters.active_epochs_df)
+    df, closest_index, closest_time, matched_time_difference = find_nearest_time(df=df, target_time=193.65)
+    df.iloc[closest_index]
+
+    """
+    # Ensure the DataFrame is sorted (if you're not sure it's already sorted)
+    assert time_column_name in df.columns
+    if df[time_column_name].is_monotonic:
+        if debug_print:
+            print('The column is already sorted in ascending order.')
+    else:
+        print(f'WARNING: The column is not sorted in ascending order. Sorting now...')
+        df = df.sort_values(by=time_column_name, inplace=False)
+
+    # Use searchsorted to find the insertion point for the target time
+    insertion_index = df[time_column_name].searchsorted(target_time)
+
+    # Since searchsorted returns the index where the target should be inserted to
+    # maintain order, the closest time could be at this index or the previous index.
+    # We need to compare both to find the nearest time.
+    if insertion_index == 0:
+        # The target_time is smaller than all elements, so closest is the first item
+        closest_index = 0
+    elif insertion_index == len(df):
+        # The target_time is bigger than all elements, so closest is the last item
+        closest_index = len(df) - 1
+    else:
+        # The target_time is between two elements, find the nearest one
+        prev_time = df[time_column_name].iloc[insertion_index - 1]
+        next_time = df[time_column_name].iloc[insertion_index]
+        # Compare the absolute difference to determine which is closer
+        closest_index = insertion_index if (next_time - target_time) < (target_time - prev_time) else insertion_index - 1
+
+    # Now extract the closest time using the index
+    closest_time = df[time_column_name].iloc[closest_index]
+    matched_time_difference = closest_time - target_time
+    if (max_allowed_deviation is not None) and (abs(matched_time_difference) > max_allowed_deviation):
+        # raise an error
+        print(f'WARNING: The closest start time to {target_time} ({closest_time} at index {closest_index}) exceeds the max_allowed_deviation of {max_allowed_deviation} (obs. deviation {matched_time_difference})\n.\t\tReturning None')
+        # None out the found values:
+        closest_index = None
+        closest_time = None
+    else:
+        if debug_print:
+            print(f"The closest start time to {target_time} is {closest_time} at index {closest_index}. Deviating by {matched_time_difference}")
+
+    return df, closest_index, closest_time, matched_time_difference
