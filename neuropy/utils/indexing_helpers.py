@@ -364,7 +364,14 @@ def find_nearest_time(df: pd.DataFrame, target_time: float, time_column_name:str
 
 def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_name: str='start', max_allowed_deviation: float=0.01, debug_print=False):
     """
+    !! Untested !! a ChatGPT GPT4-turbo written find_nearest_times which extends find_nearest_time to multiple target times. 
     Find the nearest time indices for each target time within the specified max_allowed_deviation.
+
+    Usage:
+
+        from neuropy.utils.indexing_helpers import find_nearest_times
+
+        closest_indices, matched_time_differences = find_nearest_times(df=a_df, target_times=arr, time_column_name='start')
     """
     # Ensure the DataFrame is sorted
     assert time_column_name in df.columns
