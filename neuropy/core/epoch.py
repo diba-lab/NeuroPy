@@ -148,7 +148,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """The subset of the dataframe containing additional information in its columns beyond that what is required. """
         return self._obj[self.extra_data_column_names]
 
-    def as_array(self):
+    def as_array(self) -> NDArray:
         return self._obj[["start", "stop"]].to_numpy()
 
     def get_unique_labels(self):
@@ -158,7 +158,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """ returns a list of (start, stop) tuples. """
         return list(zip(self.starts, self.stops))
 
-    def get_valid_df(self):
+    def get_valid_df(self) -> pd.DataFrame:
         """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
         return self._obj.copy()
 
@@ -189,7 +189,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
 
 
-    def get_epochs_longer_than(self, minimum_duration, debug_print=False):
+    def get_epochs_longer_than(self, minimum_duration, debug_print=False) -> pd.DataFrame:
         """ returns a copy of the dataframe contining only epochs longer than the specified minimum_duration. """
         active_filter_epochs = self.get_valid_df()
         if debug_print:
@@ -206,14 +206,14 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             return active_filter_epochs[active_filter_epochs['duration'] >= minimum_duration]
 
     # for TimeSlicableObjectProtocol:
-    def time_slice(self, t_start, t_stop):
+    def time_slice(self, t_start, t_stop) -> pd.DataFrame:
         # TODO time_slice should also include partial epochs falling in between the timepoints
         df = self._obj.copy() 
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         df = df[(df["start"] >= t_start) & (df["start"] < t_stop)].reset_index(drop=True) # 2023-11-13 - changed to `(df["start"] < t_stop)` from `(df["start"] <= t_stop)` because in the equals case the resulting included interval would be zero duration.
         return df
         
-    def label_slice(self, label):
+    def label_slice(self, label) -> pd.DataFrame:
         if isinstance(label, (list, np.ndarray)):
             df = self._obj[np.isin(self._obj["label"], label)].reset_index(drop=True)
         else:
