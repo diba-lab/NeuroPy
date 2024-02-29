@@ -221,6 +221,31 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             df = self._obj[self._obj["label"] == label].reset_index(drop=True)
         return df
 
+    def find_data_indicies_from_epoch_times(self, epoch_times: NDArray) -> NDArray:
+        """ returns the matching data indicies corresponding to the epoch [start, stop] times 
+        epoch_times: S x 2 array of epoch start/end times
+        Returns: (S, ) array of data indicies corresponding to the times.
+
+        Uses:
+            self.plots_data.epoch_slices
+        """
+        epoch_slices_df = self._obj[['start', 'stop']]
+        found_data_indicies = np.nonzero(np.isclose(epoch_slices_df, epoch_times[:, None], atol=1e-3, rtol=1e-3).all(axis=2).any(axis=0))[0]
+        return found_data_indicies
+
+    def matching_epoch_times_slice(self, epoch_times: NDArray) -> pd.DataFrame:
+        """ slices the dataframe to return only the rows that match the epoch_times with some tolerance.
+        
+        Internally calls self.find_data_indicies_from_epoch_times(...)
+
+        """
+        found_data_indicies = self._obj.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times)
+        df = self._obj.iloc[found_data_indicies].copy().reset_index(drop=True)
+        return df
+
+        
+        
+    
     def filtered_by_duration(self, min_duration=None, max_duration=None):
         return self._obj[(self.durations >= (min_duration or 0.0)) & (self.durations <= (max_duration or np.inf))].reset_index(drop=True)
         
