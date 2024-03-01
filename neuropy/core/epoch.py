@@ -229,9 +229,24 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         Uses:
             self.plots_data.epoch_slices
         """
-        epoch_slices_df = self._obj[['start', 'stop']]
-        found_data_indicies = np.nonzero(np.isclose(epoch_slices_df, epoch_times[:, None], atol=1e-3, rtol=1e-3).all(axis=2).any(axis=0))[0]
-        return found_data_indicies
+        if (np.ndim(epoch_times) == 2) and (np.shape(epoch_times)[1] == 2):
+            # start, stop epoch times:          
+            epoch_slices_df = self._obj[['start', 'stop']]
+            found_data_indicies = np.nonzero(np.isclose(epoch_slices_df, epoch_times[:, None], atol=1e-3, rtol=1e-3).all(axis=2).any(axis=0))[0]
+            return found_data_indicies
+        elif (np.ndim(epoch_times) == 1):
+            # start times only
+            epoch_slices_df = self._obj[['start',]]
+
+            ## Perfrom a 1D matching of the epoch start times:
+            ## ORDER MATTERS:
+            elements =  df['ripple_start_t'].to_numpy()
+            test_elements = ripple_weighted_corr_merged_df['ripple_start_t'].to_numpy()
+            return np.nonzero(np.isclose(test_elements[:, None], epoch_slices_df, atol=1e-3).any(axis=1))[0]
+
+            
+        else:
+            raise NotImplementedError
 
     def matching_epoch_times_slice(self, epoch_times: NDArray) -> pd.DataFrame:
         """ slices the dataframe to return only the rows that match the epoch_times with some tolerance.
