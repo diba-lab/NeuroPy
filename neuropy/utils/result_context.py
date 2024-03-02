@@ -129,6 +129,8 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         for name, value in kwargs.items():
             setattr(self, name, value)
         
+    # Comparing/Resolving Functions ______________________________________________________________________________________ #
+
     @classmethod
     def matching(cls, context_iterable: Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]], criteria: Union[Dict[str, Any], "IdentifyingContext"]) -> Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]]:
         """ 
@@ -211,37 +213,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         return unique_values
 
 
-    def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items):
-        """ adds the additional_context_items to self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
-        
-        """
-        for name, value in additional_context_items.items():
-            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            final_name = self.resolve_key(self, name, value, collision_prefix, strategy=strategy)
-            if final_name is not None:
-                # Set the new attr
-                setattr(self, final_name, value)
-        
-        return self
-
-    def adding_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items) -> "IdentifyingContext":
-        """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
-        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
-        
-        """
-        # assert isinstance(collision_prefix, str), f"collision_prefix must be provided as a string! Did you forget to provide it?"
-        duplicate_ctxt = copy.deepcopy(self)
-        
-        for name, value in additional_context_items.items():
-            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
-            final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix, strategy=strategy)
-            if final_name is not None:
-                # Set the new attr
-                setattr(duplicate_ctxt, final_name, value)
-        
-        return duplicate_ctxt
-    
     @staticmethod
     def _get_session_context_keys() -> List[str]:
         return ['format_name','animal','exper_name', 'session_name']
@@ -275,12 +246,53 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             final_name = name
         return final_name
 
+    # Adding/Updating Functions __________________________________________________________________________________________ #
+    
+    def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items):
+        """ adds the additional_context_items to self 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
+        
+        """
+        for name, value in additional_context_items.items():
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            final_name = self.resolve_key(self, name, value, collision_prefix, strategy=strategy)
+            if final_name is not None:
+                # Set the new attr
+                setattr(self, final_name, value)
+        
+        return self
+
+    def adding_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items) -> "IdentifyingContext":
+        """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
+        
+        """
+        # assert isinstance(collision_prefix, str), f"collision_prefix must be provided as a string! Did you forget to provide it?"
+        duplicate_ctxt = copy.deepcopy(self)
+        
+        for name, value in additional_context_items.items():
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix, strategy=strategy)
+            if final_name is not None:
+                # Set the new attr
+                setattr(duplicate_ctxt, final_name, value)
+        
+        return duplicate_ctxt
+    
     # Helper methods that don't require a collision_prefix and employ a fixed strategy. All call self.adding_context(...) with the appropriate arguments:
     def adding_context_if_missing(self, **additional_context_items) -> "IdentifyingContext":
         return self.adding_context(None, strategy=CollisionOutcome.IGNORE_UPDATED, **additional_context_items)
     def overwriting_context(self, **additional_context_items) -> "IdentifyingContext":
         return self.adding_context(None, strategy=CollisionOutcome.REPLACE_EXISTING, **additional_context_items)
 
+    def __add__(self, other) -> "IdentifyingContext":
+        """ Allows adding contexts using the `+` operator
+        """
+        other_dict = convert_to_dictlike(other)
+        return copy.deepcopy(self).overwriting_context(**other_dict)
+
+
+    # Merging Functions __________________________________________________________________________________________________ #
     def merging_context(self, collision_prefix:str, additional_context: "IdentifyingContext") -> "IdentifyingContext":
         """ returns a new IdentifyingContext that results from adding the items in additional_context to a copy of self 
             collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different    
@@ -294,6 +306,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         """
         return self.merging_context(None, other) # due to passing None as the collision context, this will fail if there are collisions
 
+    # String/Printing Functions __________________________________________________________________________________________ #
     def get_description(self, subset_includelist=None, subset_excludelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
         """ returns a simple text descriptor of the context
         
@@ -440,42 +453,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         # print(f"Exiting context: {self}")
         pass
 
-
-    
-    def __add__(self, other) -> "IdentifyingContext":
-        """ Allows adding contexts using the `+` operator
-    
-        """
-        # Verify that other is an instance of IdentifyingContext
-        # if isinstance(other, IdentifyingContext):
-        #     other_dict = other.to_dict()
-        #     # raise NotImplementedError("Can only add IdentifyingContext instances together.")
-        # elif hasattr(other, 'to_dict') and callable(getattr(other, 'to_dict')):
-        #     other_dict = other.to_dict()
-        # elif (hasattr(other, 'items') and callable(getattr(other, 'items'))):
-        #     # Check if 'other' has an 'items' method
-        #     other_dict = other
-        # elif hasattr(other, '__dict__'):
-        #     # Check if 'other' has a '__dict__' property
-        #     other_dict = other.__dict__
-        # else:
-        #     raise NotImplementedError("Object must implement the 'to_dict' or 'items' method to be added.")
-
-        other_dict = convert_to_dictlike(other)
-        return copy.deepcopy(self).overwriting_context(**other_dict)
-
-        # dict_rep = deepcopy(self.to_dict())
-
-        # # Create a copy of the current instance's dictionary
-        # new_context_data = deepcopy(self.__dict__)
-        
-        # # Update the dictionary with fields from the other context that are not None
-        # for key, value in other_dict.items():
-        #     if value is not None:
-        #         new_context_data[key] = value
-        
-        # # Return a new instance of IdentifyingContext with the updated data
-        # return self.__class__(**new_context_data)
 
             
     # ==================================================================================================================== #
