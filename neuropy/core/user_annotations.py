@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 import tables as tb
 from datetime import datetime
+from neuropy.utils.misc import numpyify_array
 from neuropy.utils.result_context import IdentifyingContext
+from neuropy.utils.result_context import IdentifyingContext as Ctx
+
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
@@ -143,9 +146,8 @@ class UserAnnotationsManager(HDFMixin):
             user_anootations
 
         """
-        from neuropy.utils.result_context import IdentifyingContext as Ctx
-        from numpy import array
-        from neuropy.utils.misc import numpyify_array
+        # from neuropy.utils.result_context import IdentifyingContext as Ctx
+        # from numpy import array
 
         user_annotations = {}
 
@@ -253,7 +255,7 @@ class UserAnnotationsManager(HDFMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [ 5, 16, 17, 19, 20]
 
         # Process raw annotations with the helper function
-        for context, sequences in user_annotations:
+        for context, sequences in user_annotations.items():
             user_annotations[context] = numpyify_array(sequences)
 
 
