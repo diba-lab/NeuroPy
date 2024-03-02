@@ -38,6 +38,7 @@ from functools import wraps # used for decorators
 from attrs import define, field, Factory
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from collections import defaultdict
+from neuropy.utils.mixins.diffable import OrderedSet
 
 import pandas as pd # used for find_unique_values
 
@@ -201,18 +202,17 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         'session_name': {'11-02_17-46-44','2006-4-09_16-40-54', '2006-4-09_17-29-30', '2006-4-10_12-25-50', '2006-6-07_16-40-19', '2006-6-08_14-26-15', '2006-6-08_21-16-25', '2006-6-09_1-22-43', '2006-6-09_22-24-40', '2006-6-12_15-55-31', '2006-6-12_16-53-46', 'fet11-01_12-58-54'}
         }
         """
-        unique_values = defaultdict(set)
+        unique_values = defaultdict(OrderedSet) # defaultdict provides a default value when a key is accessed and it doesn't exist. the `(set)` part here defines that the default value should be a new empty `set` type object. default int factory function which returns 0
 
         for ic in context_iterable:
             for key, value in ic.to_dict().items():
-                unique_values[key].add(value)
+                unique_values[key].add(value) # if [key] doesn't exist, a new empty `set` is created before the .add call
 
         # Remove keys that are not shared by all IdentifyingContext objects
-        shared_keys = set.intersection(*(set(ic.to_dict().keys()) for ic in context_iterable))
-        unique_values = {key: values for key, values in unique_values.items() if key in shared_keys}
+        shared_keys = OrderedSet.intersection(*(OrderedSet(ic.to_dict().keys()) for ic in context_iterable))
+        unique_values = {key:list(values) for key, values in unique_values.items() if key in shared_keys}
 
         return unique_values
-
 
     @staticmethod
     def _get_session_context_keys() -> List[str]:
@@ -385,18 +385,20 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
         dict_rep = self.to_dict()
-        member_names_tuple = list(dict_rep.keys())
-        values_tuple = list(dict_rep.values())
+        sorted_dict_rep = dict(sorted(dict_rep.items())) # sort the dict rep's keys so the the comparisons are ultimately independent of order, meaning IdentifyingContext(k1='a', k2='b') == IdentifyingContext(k2='b', k1='a')
+        member_names_tuple = list(sorted_dict_rep.keys())
+        values_tuple = list(sorted_dict_rep.values())
         combined_tuple = tuple(member_names_tuple + values_tuple)
         return hash(combined_tuple)
     
     def __eq__(self, other):
         """Overrides the default implementation"""
         if isinstance(other, IdentifyingContext):
-            return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
+            # return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
+            return dict(sorted(self.to_dict().items())) == dict(sorted(other.to_dict().items())) 
         else:
             raise NotImplementedError
-        return NotImplemented # this part looks like a bug, yeah?
+
     
     @classmethod
     def init_from_dict(cls, a_dict):

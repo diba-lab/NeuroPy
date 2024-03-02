@@ -122,6 +122,15 @@ class TestIdentifyingContext(unittest.TestCase):
         # Assert
         self.assertNotEqual(obj1, obj2)
 
+
+    def test_identity_is_unordered(self):
+        # Arrange
+        obj1 = IdentifyingContext(k1='a', k2='b')
+        obj2 = IdentifyingContext(k2='b', k1='a')
+        # Assert
+        self.assertEqual(obj1, obj2)
+        
+
     def test_identity_by_value_with_same_values(self):
         # Arrange
         obj1 = IdentifyingContext(name="test")
@@ -130,6 +139,12 @@ class TestIdentifyingContext(unittest.TestCase):
         # Assert
         self.assertEqual(obj1, obj2)
 
+
+    def test_dictionary_key_not_ordered(self):
+        """ test that values can be accessed in dict regardless of key order. """
+        a_dict = {IdentifyingContext(k1='a', k2='b'): 'good'}
+        self.assertEqual(a_dict[IdentifyingContext(k2='b', k1='a')], 'good')
+        
 
     def test_query(self):
         # Test 1: Query for a single attribute
