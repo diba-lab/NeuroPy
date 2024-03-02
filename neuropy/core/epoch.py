@@ -16,6 +16,38 @@ from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, s
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 
+def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray, t_column_names=None) -> NDArray:
+    """ returns the matching data indicies corresponding to the epoch [start, stop] times 
+    epoch_times: S x 2 array of epoch start/end times
+    Returns: (S, ) array of data indicies corresponding to the times.
+
+    Uses:
+        from neuropy.core.epoch import find_data_indicies_from_epoch_times
+        self.plots_data.epoch_slices
+    """
+    if (np.ndim(epoch_times) == 2) and (np.shape(epoch_times)[1] == 2):
+        # start, stop epoch times:          
+        if t_column_names is None:
+            t_column_names = ['start', 'stop']
+        epoch_slices_df = a_df[t_column_names]
+        found_data_indicies = np.nonzero(np.isclose(epoch_slices_df, epoch_times[:, None], atol=1e-3, rtol=1e-3).all(axis=2).any(axis=0))[0]
+        return found_data_indicies
+    elif (np.ndim(epoch_times) == 1):
+        if t_column_names is None:
+            t_column_names = ['start',]
+        if len(t_column_names) > 1:
+            t_column_names = [t_column_names[0],]
+        # start times only
+        # epoch_slices_df = a_df[t_column_names]
+
+        ## Perfrom a 1D matching of the epoch start times:
+        ## ORDER MATTERS:
+        # elements =  a_df[t_column_names].to_numpy()
+        elements = epoch_times
+        test_elements = a_df[t_column_names].to_numpy()
+        return np.nonzero(np.isclose(test_elements[:, None], elements, atol=1e-3).any(axis=1))[0]
+
+
 """ 
 from neuropy.core.epoch import NamedTimerange, EpochsAccessor, Epoch
 
@@ -237,7 +269,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         elif (np.ndim(epoch_times) == 1):
             # start times only
             epoch_slices_df = self._obj[['start',]]
-
+            raise NotImplementedError
             ## Perfrom a 1D matching of the epoch start times:
             ## ORDER MATTERS:
             elements =  df['ripple_start_t'].to_numpy()
