@@ -226,12 +226,18 @@ class UserAnnotationsManager(HDFMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [2, 8, 9, 13, 16, 18, 25, 27, 28, 32, 33]
 
         # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [4, 22, 24, 28, 30, 38, 42, 50, 55, 60, 67, 70, 76, 83, 85, 100, 103, 107, 108, 113, 118, 121, 122, 131, 140, 142, 149, 153, 170, 171]
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [2, 7, 11, 17, 20, 22, 30, 34, 38, 39, 41, 43, 47, 49, 55, 59, 60, 69, 70, 75, 77, 80, 83, 85, 86, 100, 107, 110, 113, 114, 115, 118, 120, 121, 122, 126, 130, 131, 138, 140, 142, 149, 157, 160, 168, 170]
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_LR',user_annotation='selections')] = [[380.739, 380.865], [550.845, 551.034], [600.244, 600.768], [1431.7, 1431.87], [2121.38, 2121.72]]
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_RL',user_annotation='selections')] = [[1202.96, 1203.26], [1433.42, 1433.58], [1600.77, 1601.16], [1679.18, 1679.68]]
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_LR',user_annotation='selections')] = [[551.872, 552.328], [565.161, 565.417], [616.348, 616.665], [919.581, 919.692], [1149.57, 1149.8], [1167.82, 1168.17], [1384.71, 1385.01], [1424.02, 1424.22], [1446.52, 1446.65], [1538.1, 1538.48], [1690.72, 1690.82], [1820.96, 1821.29], [1979.72, 1979.86], [1995.48, 1995.95], [2121.38, 2121.72], [2267.05, 2267.41]]
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_RL',user_annotation='selections')] = [[373.508, 373.754], [391.895, 392.163], [600.244, 600.768], [1015.26, 1015.5], [1079.9, 1080.08], [1310.59, 1310.92], [1433.42, 1433.58], [1494.95, 1495.4], [1558.22, 1558.42], [1616.92, 1617.09], [1774.48, 1774.61], [1956.96, 1957.2], [2011.36, 2011.54], [2059.35, 2059.56], [2074.35, 2074.62], [2156.53, 2156.79], [2233.53, 2233.95], [2260.49, 2260.61], [2521.1, 2521.31]]        
+        with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40') as session_ctx:
+            with (session_ctx + IdentifyingContext(display_fn_name='DecodedEpochSlices', user_annotation='selections')) as ctx:
+                with (ctx + IdentifyingContext(epochs='replays')) as ctx:
+                    user_annotations[ctx + Ctx(decoder='long_results_obj')] = [4, 22, 24, 28, 30, 38, 42, 50, 55, 60, 67, 70, 76, 83, 85, 100, 103, 107, 108, 113, 118, 121, 122, 131, 140, 142, 149, 153, 170, 171]
+                    user_annotations[ctx + Ctx(decoder='short_results_obj')] = [2, 7, 11, 17, 20, 22, 30, 34, 38, 39, 41, 43, 47, 49, 55, 59, 60, 69, 70, 75, 77, 80, 83, 85, 86, 100, 107, 110, 113, 114, 115, 118, 120, 121, 122, 126, 130, 131, 138, 140, 142, 149, 157, 160, 168, 170]
+
+                with (ctx + IdentifyingContext(epochs='ripple')) as ctx:
+                    user_annotations[ctx + Ctx(decoder='long_LR')] = [[380.739, 380.865], [550.845, 551.034], [600.244, 600.768], [1431.7, 1431.87], [2121.38, 2121.72]]
+                    user_annotations[ctx + Ctx(decoder='long_RL')] = [[1202.96, 1203.26], [1433.42, 1433.58], [1600.77, 1601.16], [1679.18, 1679.68]]
+                    user_annotations[ctx + Ctx(decoder='short_LR')] = [[551.872, 552.328], [565.161, 565.417], [616.348, 616.665], [919.581, 919.692], [1149.57, 1149.8], [1167.82, 1168.17], [1384.71, 1385.01], [1424.02, 1424.22], [1446.52, 1446.65], [1538.1, 1538.48], [1690.72, 1690.82], [1820.96, 1821.29], [1979.72, 1979.86], [1995.48, 1995.95], [2121.38, 2121.72], [2267.05, 2267.41]]
+                    user_annotations[ctx + Ctx(decoder='short_RL')] = [[373.508, 373.754], [391.895, 392.163], [600.244, 600.768], [1015.26, 1015.5], [1079.9, 1080.08], [1310.59, 1310.92], [1433.42, 1433.58], [1494.95, 1495.4], [1558.22, 1558.42], [1616.92, 1617.09], [1774.48, 1774.61], [1956.96, 1957.2], [2011.36, 2011.54], [2059.35, 2059.56], [2074.35, 2074.62], [2156.53, 2156.79], [2233.53, 2233.95], [2260.49, 2260.61], [2521.1, 2521.31]]
+
 
         # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')
         user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 6, 15, 16, 18]
@@ -240,8 +246,6 @@ class UserAnnotationsManager(HDFMixin):
         # IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [5, 6, 7, 14, 17, 19, 20, 24]
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [5, 6, 19, 20]
-
-
 
 
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [0, 3, 4, 5, 9, 12]
