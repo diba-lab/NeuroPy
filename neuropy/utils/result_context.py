@@ -124,7 +124,8 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
                 
     """
     def __init__(self, **kwargs):
-        super(IdentifyingContext, self).__init__()
+        super(self.__class__, self).__init__()
+        # super(IdentifyingContext, self).__init__()
         ## Sets attributes dnymically:
         for name, value in kwargs.items():
             setattr(self, name, value)
@@ -134,7 +135,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
     @classmethod
     def matching(cls, context_iterable: Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]], criteria: Union[Dict[str, Any], "IdentifyingContext"]) -> Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]]:
         """ 
-        Queries the iterable (either list of dict with IdentifyingContext as keys) and returns the values matching the criteria
+        Queries the iterable (either list or dict with IdentifyingContext as keys) and returns the values matching the criteria
         criteria={'animal': 'vvp01'}
         
         Usage:
