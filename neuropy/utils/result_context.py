@@ -41,6 +41,7 @@ from collections import defaultdict
 
 import pandas as pd # used for find_unique_values
 
+from neuropy.utils.indexing_helpers import convert_to_dictlike
 from neuropy.utils.mixins.diffable import DiffableObject
 from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
 
@@ -128,7 +129,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         for name, value in kwargs.items():
             setattr(self, name, value)
         
-
     @classmethod
     def matching(cls, context_iterable: Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]], criteria: Union[Dict[str, Any], "IdentifyingContext"]) -> Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]]:
         """ 
@@ -153,7 +153,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
 
         return relevant_entries
 
-
     def query(self, criteria: Union[Dict[str, Any], "IdentifyingContext"]) -> bool:
         """
         Checks if the IdentifyingContext instance matches the given criteria.
@@ -173,7 +172,6 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             if not hasattr(self, key) or getattr(self, key) != value:
                 return False
         return True
-
 
     @classmethod
     def find_unique_values(cls, context_iterable: List["IdentifyingContext"]) -> dict:
@@ -395,10 +393,14 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         """ returns a proper subset of self given the incldued/exclude lists. """
         return IdentifyingContext.init_from_dict(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist))
 
-
     # Differencing and Set Operations ____________________________________________________________________________________ #
     def subtracting(self, rhs) -> "IdentifyingContext":
         return self.subtract(self, rhs)
+
+    def __sub__(self, other) -> "IdentifyingContext":
+        """ implements the `-` subtraction operator """
+        return self.subtract(self, other)
+    
 
     @classmethod
     def subtract(cls, lhs, rhs):
@@ -420,6 +422,62 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         self.__dict__.update(state)
         
         
+    # Context manager Methods ____________________________________________________________________________________________ #
+    # """ These methods allow nested usage as a context manager like so:
+    # with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+    #     print(f'ctx: {ctx}')
+    #     inner_ctx = ctx.overwriting_context(epochs='ripple', decoder='short_RL')
+    #     print(f'inner_ctx: {inner_ctx}')
+        
+    # """
+    def __enter__(self):
+        # This is where you can set up any resources if necessary
+        # print(f"Entering context: {self}")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # This is where you clean up resources if necessary
+        # print(f"Exiting context: {self}")
+        pass
+
+
+    
+    def __add__(self, other) -> "IdentifyingContext":
+        """ Allows adding contexts using the `+` operator
+    
+        """
+        # Verify that other is an instance of IdentifyingContext
+        # if isinstance(other, IdentifyingContext):
+        #     other_dict = other.to_dict()
+        #     # raise NotImplementedError("Can only add IdentifyingContext instances together.")
+        # elif hasattr(other, 'to_dict') and callable(getattr(other, 'to_dict')):
+        #     other_dict = other.to_dict()
+        # elif (hasattr(other, 'items') and callable(getattr(other, 'items'))):
+        #     # Check if 'other' has an 'items' method
+        #     other_dict = other
+        # elif hasattr(other, '__dict__'):
+        #     # Check if 'other' has a '__dict__' property
+        #     other_dict = other.__dict__
+        # else:
+        #     raise NotImplementedError("Object must implement the 'to_dict' or 'items' method to be added.")
+
+        other_dict = convert_to_dictlike(other)
+        return copy.deepcopy(self).overwriting_context(**other_dict)
+
+        # dict_rep = deepcopy(self.to_dict())
+
+        # # Create a copy of the current instance's dictionary
+        # new_context_data = deepcopy(self.__dict__)
+        
+        # # Update the dictionary with fields from the other context that are not None
+        # for key, value in other_dict.items():
+        #     if value is not None:
+        #         new_context_data[key] = value
+        
+        # # Return a new instance of IdentifyingContext with the updated data
+        # return self.__class__(**new_context_data)
+
+            
     # ==================================================================================================================== #
     # BADLY PLACED METHODS (TO REFACTOR)                                                                                   #
     # ==================================================================================================================== #
