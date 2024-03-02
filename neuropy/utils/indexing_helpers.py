@@ -417,3 +417,28 @@ def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_n
                 print(f"The closest start time to {target_time} is {closest_time} at index {closest_index}. Deviating by {matched_time_difference}")
 
     return closest_indices, matched_time_differences
+
+
+
+
+
+
+# ==================================================================================================================== #
+# Dictionary Helpers                                                                                                   #
+# ==================================================================================================================== #
+
+def convert_to_dictlike(other) -> Dict:
+    """ try every known trick to get a plain `dict` out of the provided object. """
+    # Verify that other is an instance of IdentifyingContext
+    if isinstance(other, dict):
+        return other
+    elif hasattr(other, 'to_dict') and callable(getattr(other, 'to_dict')):
+        return other.to_dict()
+    # elif (hasattr(other, 'items') and callable(getattr(other, 'items'))):
+    #     # Check if 'other' has an 'items' method, it's "close enough"?
+    #     return other
+    elif hasattr(other, '__dict__'):
+        # Check if 'other' has a '__dict__' property
+        return other.__dict__
+    else:
+        raise NotImplementedError(f"Object other of type: {type(other)} could not be converted to a python dict.\nother: {other}.")

@@ -4,6 +4,7 @@ from enum import Enum, IntEnum, auto, unique
 from itertools import islice
 from typing import Optional, Tuple
 import numpy as np
+from nptyping import NDArray
 import pandas as pd
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
 
@@ -348,7 +349,7 @@ def convert_dataframe_columns_to_datatype_if_possible(df: pd.DataFrame, datatype
         df[subset_extant_columns] = df[subset_extant_columns].astype(a_datatype_name) # convert integer calumns to correct datatype
 
 
-def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, join_column_name='aclu'):
+def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df: pd.DataFrame, join_column_name='aclu') -> pd.DataFrame:
     """ Uses a value (specified by `join_column_name`) in each row of `df` to lookup the appropriate values in `lookup_properties_map_df` to be explicitly added as columns to `df`
     df: a dataframe. Each row has a join_column_name value (e.g. 'aclu')
     
@@ -376,6 +377,21 @@ def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df, 
     ## Merge the result:
     # df = pd.merge(subset_neurons_properties_df, df, on=join_column_name, how='outer', suffixes=('_neurons_properties', '_spikes_df'))
     return pd.merge(df, subset_neurons_properties_df, on=join_column_name, how='left', suffixes=('_neurons_properties', '_spikes_df'), copy=False) # avoids copying if possible
+
+
+def numpyify_array(sequences) -> NDArray:
+    """
+    Convert a list of sequences to a list of NumPy arrays. If the sequence
+    is already a NumPy array, it is left as-is.
+
+    Usage:
+
+    from neuropy.utils.misc import numpyify_array
+
+    
+    """
+    return np.array([np.array(s) if not isinstance(s, np.ndarray) else s for s in sequences])
+
 
 
 # ==================================================================================================================== #
