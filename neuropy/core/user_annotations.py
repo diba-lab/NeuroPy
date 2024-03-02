@@ -143,7 +143,10 @@ class UserAnnotationsManager(HDFMixin):
             user_anootations
 
         """
+        from neuropy.utils.result_context import IdentifyingContext as Ctx
         from numpy import array
+        from neuropy.utils.misc import numpyify_array
+
         user_annotations = {}
 
         ## IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')
@@ -196,12 +199,24 @@ class UserAnnotationsManager(HDFMixin):
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = np.array([3, 13, 16, 18, 19, 20, 23, 24, 27, 28, 36, 38, 40, 43, 44, 47, 48, 52, 55, 64, 65])
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = np.array([3, 10, 13, 16, 18, 19, 24, 27, 28, 36, 40, 43, 44, 47, 48, 50, 55, 60, 64, 65])
         # 2023-07-19 Annotations:
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = np.array([3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99])
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = np.array([5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99])
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_LR',user_annotation='selections')] = np.array([array([132.511, 132.791]), array([149.959, 150.254]), array([1186.9, 1187]), array([1284.18, 1284.29]), array([1302.65, 1302.8]), array([1316.06, 1316.27]), array([1693.34, 1693.48]), array([1725.28, 1725.6])])
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_RL',user_annotation='selections')] = np.array([array([149.959, 150.254]), array([307.08, 307.194]), array([1332.28, 1332.39])])
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_LR',user_annotation='selections')] = np.array([array([132.511, 132.791]), array([571.304, 571.385]), array([1284.18, 1284.29]), array([1302.65, 1302.8]), array([1316.06, 1316.27]), array([1699.23, 1699.36])])
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_RL',user_annotation='selections')] = np.array([array([105.4, 105.563]), array([1302.65, 1302.8]), array([1332.28, 1332.39]), array([1450.89, 1451.02])])
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = np.array([3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99])
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = np.array([5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99])
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_LR',user_annotation='selections')] = np.array([array([132.511, 132.791]), array([149.959, 150.254]), array([1186.9, 1187]), array([1284.18, 1284.29]), array([1302.65, 1302.8]), array([1316.06, 1316.27]), array([1693.34, 1693.48]), array([1725.28, 1725.6])])
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_RL',user_annotation='selections')] = np.array([array([149.959, 150.254]), array([307.08, 307.194]), array([1332.28, 1332.39])])
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_LR',user_annotation='selections')] = np.array([array([132.511, 132.791]), array([571.304, 571.385]), array([1284.18, 1284.29]), array([1302.65, 1302.8]), array([1316.06, 1316.27]), array([1699.23, 1699.36])])
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_RL',user_annotation='selections')] = np.array([array([105.4, 105.563]), array([1302.65, 1302.8]), array([1332.28, 1332.39]), array([1450.89, 1451.02])])
+
+        with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+            with (ctx + IdentifyingContext(epochs='replays')) as ctx:
+                user_annotations[ctx + Ctx(decoder='long_results_obj')] = np.array([3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99])
+                user_annotations[ctx + Ctx(decoder='short_results_obj')] = np.array([5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99])
+
+            with (ctx + IdentifyingContext(epochs='ripple')) as ctx:
+                user_annotations[ctx + Ctx(decoder='long_LR')] = np.array([array([132.511, 132.791]), array([149.959, 150.254]), array([1186.9, 1187]), array([1284.18, 1284.29]), array([1302.65, 1302.8]), array([1316.06, 1316.27]), array([1693.34, 1693.48]), array([1725.28, 1725.6])])
+                user_annotations[ctx + Ctx(decoder='long_RL')] = np.array([array([149.959, 150.254]), array([307.08, 307.194]), array([1332.28, 1332.39])])
+                user_annotations[ctx + Ctx(decoder='short_LR')] = np.array([array([132.511, 132.791]), array([571.304, 571.385]), array([1284.18, 1284.29]), array([1302.65, 1302.8]), array([1316.06, 1316.27]), array([1699.23, 1699.36])])
+                user_annotations[ctx + Ctx(decoder='short_RL')] = np.array([array([105.4, 105.563]), array([1302.65, 1302.8]), array([1332.28, 1332.39]), array([1450.89, 1451.02])])
+
 
 
         # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')
@@ -233,11 +248,13 @@ class UserAnnotationsManager(HDFMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = np.array([3])
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = np.array([3])
 
-
         # 2023-07-21T19-17-02
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = np.array([3, 19])
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = np.array([ 5, 16, 17, 19, 20])
 
+        # Process raw annotations with the helper function
+        for context, sequences in user_annotations:
+            user_annotations[context] = numpyify_array(sequences)
 
 
         return user_annotations
