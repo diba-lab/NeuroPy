@@ -214,6 +214,51 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
 
         return unique_values
 
+    @classmethod
+    def find_longest_common_context(cls, context_iterable: Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]]) -> "IdentifyingContext":
+        """ returns the context common to all entries in the provided iterable. 
+        """
+        unique_values_dict = IdentifyingContext.find_unique_values(context_iterable)
+        non_leaf_unique_values = {k:v[0] for k, v in unique_values_dict.items() if len(v) == 1}
+        common_context = IdentifyingContext(**non_leaf_unique_values)
+        return common_context
+            
+    @classmethod
+    def converting_to_relative_contexts(cls, common_context: "IdentifyingContext", context_iterable: Union[Dict["IdentifyingContext", Any], List["IdentifyingContext"]]):
+        """ returns the iterable contexts relative to the provided common_context
+
+        Useage:
+            unique_values_dict = IdentifyingContext.find_unique_values(context_iterable)
+            non_leaf_unique_values = {k:v[0] for k, v in unique_values_dict.items() if len(v) == 1}
+            common_context = IdentifyingContext(**non_leaf_unique_values)
+        
+            common_context = find_longest_common_context(user_annotations)
+
+            common_context_user_annotations = converting_to_relative_contexts(common_context, user_annotations)
+            common_context_user_annotations
+
+        """
+
+
+        ## Convert to relative contexts
+        # matching_entries = IdentifyingContext.matching(context_iterable, criteria=non_leaf_unique_values)
+
+        if isinstance(context_iterable, list):
+            relative_contexts_list = []
+            for a_ctx in context_iterable:
+                a_relative_context = a_ctx - common_context
+                relative_contexts_list.append(a_relative_context)
+            return relative_contexts_list
+        else:
+            relative_contexts_dict = {}
+            for a_ctx, v in context_iterable.items():
+                a_relative_context = a_ctx - common_context
+                relative_contexts_dict[a_relative_context] = v
+
+            return relative_contexts_dict
+                    
+                    
+                
     @staticmethod
     def _get_session_context_keys() -> List[str]:
         return ['format_name','animal','exper_name', 'session_name']
@@ -341,10 +386,11 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         descriptor_string = separator.join(descriptor_array)
         return descriptor_string
     
-    def get_initialization_code_string(self, subset_includelist=None, subset_excludelist=None) -> str:
+    def get_initialization_code_string(self, subset_includelist=None, subset_excludelist=None, class_name_override=None) -> str:
         """ returns the string that contains valid code to initialize a matching object. """
+        class_name_override = class_name_override or "IdentifyingContext"
         init_args_list_str = ",".join([f"{k}='{v}'" for k,v in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()]) # "format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'"
-        return f"IdentifyingContext({init_args_list_str})" #"IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')"
+        return f"{class_name_override}({init_args_list_str})" #"IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')"
 
     def __str__(self) -> str:
         """ 'kdiba_2006-6-08_14-26-15_maze1_PYR' """
