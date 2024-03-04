@@ -315,12 +315,15 @@ class SpikesAccessor(TimeSlicedMixin):
 
 
 
-    def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None, override_time_variable_name=None, no_interval_fill_value=-1, should_replace_existing_column=False):
+    def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None, override_time_variable_name=None,
+                                      no_interval_fill_value=-1, should_replace_existing_column=False, drop_non_epoch_spikes: bool=False):
         """ Adds the arbitrary column with name epoch_id_key_name to the dataframe.
 
             spikes: curr_active_pipeline.sess.spikes_df
             adds column epoch_id_key_name to spikes df.
             
+            drop_non_epoch_spikes: if True, drops the spikes that don't have a matching epoch after these are determined.
+
             # Created Columns:
                 epoch_id_key_name
 
@@ -333,9 +336,19 @@ class SpikesAccessor(TimeSlicedMixin):
             from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
 
             spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
-            self._obj[epoch_id_key_name] = -1 # initialize the column to -1
+            self._obj[epoch_id_key_name] = no_interval_fill_value # initialize the column to -1
             self._obj = add_epochs_id_identity(self._obj, epochs_df=epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=epoch_label_column_name, no_interval_fill_value=no_interval_fill_value, override_time_variable_name=override_time_variable_name, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
-            return self._obj
+            if drop_non_epoch_spikes:
+                active_spikes_df = self._obj.copy()
+                active_spikes_df.drop(active_spikes_df.loc[active_spikes_df[epoch_id_key_name] == no_interval_fill_value].index, inplace=True)
+                # Sort by columns: 't_rel_seconds' (ascending), 'aclu' (ascending)
+                active_spikes_df = active_spikes_df.sort_values(['t_rel_seconds', 'aclu'])
+                active_spikes_df, active_aclu_to_fragile_linear_neuron_IDX_dict = active_spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
+            else:
+                # return all spikes
+                active_spikes_df = self._obj
+
+            return active_spikes_df
 
 
 
