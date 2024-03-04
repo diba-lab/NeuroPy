@@ -307,6 +307,34 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         from neuropy.utils.efficient_interval_search import _convert_start_end_tuples_list_to_PortionInterval
         return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
 
+    # Column Adding/Updating Methods _____________________________________________________________________________________ #
+    def adding_active_aclus_information(self, spikes_df: pd.DataFrame, epoch_id_key_name: str = 'Probe_Epoch_id', add_unique_aclus_list_column: bool=False) -> pd.DataFrame:
+        """ 
+        adds the columns: ['unique_active_aclus', 'n_unique_aclus'] 
+
+        Usage:
+
+            active_epochs_df = add_active_aclus_information(active_epochs_df, active_spikes_df, add_unique_aclus_list_column=True)
+
+        """
+        active_epochs_df: pd.DataFrame = self._obj.epochs.get_valid_df()
+        
+        # Ensures the appropriate columns are added to spikes_df:
+        # spikes_df = spikes_df.spikes.adding_epochs_identity_column(epochs_df=active_epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
+        #     should_replace_existing_column=False, drop_non_epoch_spikes=True)
+        assert epoch_id_key_name in spikes_df, f"epoch_id_key_name: '{epoch_id_key_name}' is not in spikes_df.columns: {spikes_df.columns}"
+
+        unique_values = np.unique(spikes_df[epoch_id_key_name]) # array([ 0,  1,  2,  3,  4,  7, 11, 12, 13, 14])
+        grouped_df = spikes_df.groupby([epoch_id_key_name]) #  Groups on the specified column.
+        epoch_unique_aclus_dict = {aValue:grouped_df.get_group(aValue).aclu.unique() for aValue in unique_values} # dataframes split for each unique value in the column
+
+        # Convert label column in `active_epochs_df` to same dtype as the unique_values that were found
+        active_epochs_df.label = active_epochs_df.label.astype(unique_values.dtype) ## WARNING: without this line it returns all np.nan results in the created columns!
+        if add_unique_aclus_list_column:
+            active_epochs_df['unique_active_aclus'] = active_epochs_df.label.map(epoch_unique_aclus_dict)
+        epoch_num_unique_aclus_dict = {k:len(v) for k,v in epoch_unique_aclus_dict.items()}
+        active_epochs_df['n_unique_aclus'] = active_epochs_df.label.map(epoch_num_unique_aclus_dict)
+        return active_epochs_df
 
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
     """ An Epoch object holds one ore more periods of time (marked by start/end timestamps) along with their corresponding metadata.
