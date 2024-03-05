@@ -253,18 +253,42 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             df = self._obj[self._obj["label"] == label].reset_index(drop=True)
         return df
 
-    def find_data_indicies_from_epoch_times(self, epoch_times: NDArray) -> NDArray:
+    def find_data_indicies_from_epoch_times(self, epoch_times: NDArray, atol=1e-3, rtol=1e-3) -> NDArray:
         """ returns the matching data indicies corresponding to the epoch [start, stop] times 
         epoch_times: S x 2 array of epoch start/end times
         Returns: (S, ) array of data indicies corresponding to the times.
 
         Uses:
             self.plots_data.epoch_slices
+        
+
+        - [ ] TODO FATAL 2024-03-04 19:55 - This function is incorrect as it can return multiple matches for each passed time due to the tolerance. Unfinished.
         """
         if (np.ndim(epoch_times) == 2) and (np.shape(epoch_times)[1] == 2):
-            # start, stop epoch times:          
+            # start, stop epoch times:
             epoch_slices_df = self._obj[['start', 'stop']]
-            found_data_indicies = np.nonzero(np.isclose(epoch_slices_df, epoch_times[:, None], atol=1e-3, rtol=1e-3).all(axis=2).any(axis=0))[0]
+            # Loop through each pair of epoch_times and find the closest start and end time
+            indices = []
+            for start_time, end_time in epoch_times:
+                # Find the index with the closest start time
+                start_index = epoch_slices_df['start'].sub(start_time).abs().idxmin()
+                # Find the index with the closest end time
+                end_index = epoch_slices_df['stop'].sub(end_time).abs().idxmin()
+                
+                # If the start and end indices are the same, we have a match
+                if start_index == end_index:
+                    ## Good, this is how it should be:
+                    indices.append(start_index)
+                else:
+                    # If not, find which one is closer overall (by comparing the sum of absolute differences to start_time and end_time)
+                    start_diff = epoch_slices_df.iloc[start_index].sub([start_time, end_time]).abs().sum()
+                    end_diff = epoch_slices_df.iloc[end_index].sub([start_time, end_time]).abs().sum()
+                    indices.append(start_index if start_diff <= end_diff else end_index)
+
+            # Return the indices as an ndarray
+            found_data_indicies = np.array(indices)
+            # DETERMINED INVALID 2024-03-04 7:51pm: Can return multiple matches:
+            # found_data_indicies = np.nonzero(np.isclose(epoch_slices_df, epoch_times[:, None], atol=atol, rtol=rtol).all(axis=2).any(axis=0))[0]
             return found_data_indicies
         elif (np.ndim(epoch_times) == 1):
             # start times only
@@ -274,7 +298,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             ## ORDER MATTERS:
             elements =  df['ripple_start_t'].to_numpy()
             test_elements = ripple_weighted_corr_merged_df['ripple_start_t'].to_numpy()
-            return np.nonzero(np.isclose(test_elements[:, None], epoch_slices_df, atol=1e-3).any(axis=1))[0]
+            return np.nonzero(np.isclose(test_elements[:, None], epoch_slices_df, atol=atol).any(axis=1))[0]
 
             
         else:
@@ -335,6 +359,35 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         epoch_num_unique_aclus_dict = {k:len(v) for k,v in epoch_unique_aclus_dict.items()}
         active_epochs_df['n_unique_aclus'] = active_epochs_df.label.map(epoch_num_unique_aclus_dict)
         return active_epochs_df
+
+
+    # def adding_active_aclus_information(self, spikes_df: pd.DataFrame, add_unique_aclus_list_column: bool=False, partition_column_name: str = 'Probe_Epoch_id') -> pd.DataFrame:
+    #     """ 
+    #     adds the columns: ['unique_active_aclus', 'n_unique_aclus'] 
+
+    #     Usage:
+
+    #         active_epochs_df = add_active_aclus_information(active_epochs_df, active_spikes_df, add_unique_aclus_list_column=True)
+
+    #     """
+    #     from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+
+        
+    #     active_epochs_df: pd.DataFrame = self._obj.epochs.get_valid_df()
+    #     unique_values = np.unique(spikes_df[partition_column_name]) # array([ 0,  1,  2,  3,  4,  7, 11, 12, 13, 14])
+    #     grouped_df = spikes_df.groupby([partition_column_name]) #  Groups on the specified column.
+    #     epoch_unique_aclus_dict = {aValue:grouped_df.get_group(aValue).aclu.unique() for aValue in unique_values} # dataframes split for each unique value in the column
+    #     if add_unique_aclus_list_column:
+    #         active_epochs_df['unique_active_aclus'] = active_epochs_df.label.map(epoch_unique_aclus_dict)
+    #     epoch_num_unique_aclus_dict = {k:len(v) for k,v in epoch_unique_aclus_dict.items()}
+    #     active_epochs_df['n_unique_aclus'] = active_epochs_df.label.map(epoch_num_unique_aclus_dict)
+    #     return active_epochs_df
+    
+    # @classmethod
+
+
+
+
 
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
     """ An Epoch object holds one ore more periods of time (marked by start/end timestamps) along with their corresponding metadata.
