@@ -327,6 +327,11 @@ class SpikesAccessor(TimeSlicedMixin):
             # Created Columns:
                 epoch_id_key_name
 
+            Usage:
+                active_spikes_df = active_spikes_df.spikes.adding_epochs_identity_column(epochs_df=active_epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
+                                                                                        no_interval_fill_value=no_interval_fill_value, should_replace_existing_column=True, drop_non_epoch_spikes=True)
+                                                                                        
+
         """
         if (epoch_id_key_name in self._obj.columns) and (not should_replace_existing_column):
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping adding intervals.')
