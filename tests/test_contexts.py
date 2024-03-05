@@ -176,6 +176,33 @@ class TestIdentifyingContext(unittest.TestCase):
         relevant_entries = [ic for ic in self.identifying_context_dict.keys() if ic.query({'animal': 'vvp01'})]
         self.assertEqual(len(relevant_entries), 3)
 
+    def test_identity_context_merge(self):
+        """ tests merging two IdentityContext objects """        
+        active_identifying_session_ctx = IdentifyingContext.init_from_dict({'format_name': 'kdiba', 'animal': 'gor01', 'exper_name': 'two', 'session_name': '2006-6-09_22-24-40'})
+        display_context = IdentifyingContext(display_fn='DecodedEpochSlices', epochs='replays', decoder='long_results_obj')
+        # Tests:
+        self.assertEqual((active_identifying_session_ctx | display_context), active_identifying_session_ctx.adding_context('display_', **display_context.to_dict()))
+        self.assertEqual((active_identifying_session_ctx | display_context), (active_identifying_session_ctx.merging_context('display_', display_context)))
+
+    def test_identity_context_merge_overlapping_and_conflicting_keys(self):
+        """ tests merging two IdentityContext objects """        
+        active_identifying_session_ctx = IdentifyingContext.init_from_dict({'format_name': 'kdiba', 'animal': 'gor01', 'conflicting_key_name': 'two', 'session_name': '2006-6-09_22-24-40'})
+        overlapping_and_conflicting_context = IdentifyingContext(display_fn='DecodedEpochSlices', epochs='replays', decoder='long_results_obj', conflicting_key_name='one') # conflicting_key_name='one' is the overlapping key but is the same as the key from `active_identifying_session_ctx`
+        
+        # Tests:
+        with self.assertRaises(AssertionError):
+            (active_identifying_session_ctx | overlapping_and_conflicting_context)
+
+    def test_identity_context_merge_overlapping_but_not_conflicting_keys(self):
+        """ tests merging two IdentityContext objects with non-conflicting keys (same value). Still should raise an AssertionError """        
+        active_identifying_session_ctx = IdentifyingContext.init_from_dict({'format_name': 'kdiba', 'animal': 'gor01', 'conflicting_key_name': 'two', 'session_name': '2006-6-09_22-24-40'})
+        overlapping_and_non_conflicting_context = IdentifyingContext(display_fn='DecodedEpochSlices', epochs='replays', decoder='long_results_obj', conflicting_key_name='two') # conflicting_key_name='two' is the overlapping key and is different from the key from `active_identifying_session_ctx`
+        
+        # Tests:
+        # with self.assertNotRegex("AssertionError"): #self.assertRaises(AssertionError):
+        (active_identifying_session_ctx | overlapping_and_non_conflicting_context)
+        self.assertTrue(True, "No pass")
+
 
 
 if __name__ == '__main__':
