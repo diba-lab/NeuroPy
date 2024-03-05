@@ -217,10 +217,11 @@ class UserAnnotationsManager(HDFMixin):
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99]
 
             with (ctx + IdentifyingContext(epochs='ripple')) as ctx: 
-                user_annotations[ctx + Ctx(decoder='long_LR')] = [[132.511, 132.791], [149.959, 150.254], [191.609, 191.949], [1186.899, 1186.997], [1284.181, 1284.287], [1302.651, 1302.801], [1316.056, 1316.270], [1693.342, 1693.482], [1725.279, 1725.595]]
+                user_annotations[ctx + Ctx(decoder='long_LR')] = [[132.511, 132.791], [149.959, 150.254], [191.609, 191.949], [251.417, 251.812], [624.226, 624.499], [637.785, 638.182], [1186.899, 1186.997], [1284.181, 1284.287], [1302.651, 1302.801], [1316.056, 1316.270], [1693.342, 1693.482], [1725.279, 1725.595]]
                 user_annotations[ctx + Ctx(decoder='long_RL')] = [[149.959, 150.254], [307.080, 307.194], [1332.283, 1332.395]]
-                user_annotations[ctx + Ctx(decoder='short_LR')] = [[132.511, 132.791], [571.304, 571.385], [1284.181, 1284.287], [1302.651, 1302.801], [1316.056, 1316.270], [1699.225, 1699.357]]
-                user_annotations[ctx + Ctx(decoder='short_RL')] = [[105.400, 105.563], [1302.651, 1302.801], [1332.283, 1332.395], [1450.894, 1451.024]]
+                user_annotations[ctx + Ctx(decoder='short_LR')] = [[132.511, 132.791], [438.267, 438.448], [571.304, 571.385], [1284.181, 1284.287], [1302.651, 1302.801], [1316.056, 1316.270], [1699.225, 1699.357]]
+                user_annotations[ctx + Ctx(decoder='short_RL')] = [[105.400, 105.563], [534.584, 534.939], [564.149, 564.440], [637.785, 638.182], [670.216, 670.418], [1302.651, 1302.801], [1332.283, 1332.395], [1450.894, 1451.024]]
+
 
         # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')
         with Ctx(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
