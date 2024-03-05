@@ -216,13 +216,11 @@ class UserAnnotationsManager(HDFMixin):
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99]
 
-            with (ctx + IdentifyingContext(epochs='ripple')) as ctx:
-                user_annotations[ctx + Ctx(decoder='long_LR')] = [[132.511, 132.791], [149.959, 150.254], [1186.9, 1187], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1693.34, 1693.48], [1725.28, 1725.6]]
-                user_annotations[ctx + Ctx(decoder='long_RL')] = [[149.959, 150.254], [307.08, 307.194], [1332.28, 1332.39]]
-                user_annotations[ctx + Ctx(decoder='short_LR')] = [[132.511, 132.791], [571.304, 571.385], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1699.23, 1699.36]]
-                user_annotations[ctx + Ctx(decoder='short_RL')] = [[105.4, 105.563], [1302.65, 1302.8], [1332.28, 1332.39], [1450.89, 1451.02]]
-
-
+            with (ctx + IdentifyingContext(epochs='ripple')) as ctx: 
+                user_annotations[ctx + Ctx(decoder='long_LR')] = [[132.511, 132.791], [149.959, 150.254], [191.609, 191.949], [1186.899, 1186.997], [1284.181, 1284.287], [1302.651, 1302.801], [1316.056, 1316.270], [1693.342, 1693.482], [1725.279, 1725.595]]
+                user_annotations[ctx + Ctx(decoder='long_RL')] = [[149.959, 150.254], [307.080, 307.194], [1332.283, 1332.395]]
+                user_annotations[ctx + Ctx(decoder='short_LR')] = [[132.511, 132.791], [571.304, 571.385], [1284.181, 1284.287], [1302.651, 1302.801], [1316.056, 1316.270], [1699.225, 1699.357]]
+                user_annotations[ctx + Ctx(decoder='short_RL')] = [[105.400, 105.563], [1302.651, 1302.801], [1332.283, 1332.395], [1450.894, 1451.024]]
 
         # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')
         with Ctx(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
