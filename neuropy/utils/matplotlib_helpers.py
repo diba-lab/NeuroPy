@@ -363,73 +363,73 @@ def set_ax_emphasis_color(ax, emphasis_color = 'green', defer_draw:bool=False):
 
     
 # Add check buttons to toggle axis properties
-def add_check_buttons(fig, button_positions, labels):
-    from matplotlib.widgets import CheckButtons
+# def add_check_buttons(fig, button_positions, labels):
+#     from matplotlib.widgets import CheckButtons
 
-    # Create check buttons
-    # Create an axes for the check button
-    col = (0.95, 0.95, 0.95, 0.6)
-    # col = 'none'
-    check_ax = fig.add_axes(button_positions, facecolor=col)  # This should be a list of positions if multiple buttons are added. E.g. [0.7, 0.05, 0.1, 0.1]
+#     # Create check buttons
+#     # Create an axes for the check button
+#     col = (0.95, 0.95, 0.95, 0.6)
+#     # col = 'none'
+#     check_ax = fig.add_axes(button_positions, facecolor=col)  # This should be a list of positions if multiple buttons are added. E.g. [0.7, 0.05, 0.1, 0.1]
 
-    # check_ax = ax.inset_axes(button_positions, facecolor='none')
+#     # check_ax = ax.inset_axes(button_positions, facecolor='none')
 
-    check = CheckButtons(check_ax, labels, [False]*len(labels)) # , frame_props={'linecolor': None}
-    # for r in check.rectangles:
-    #     r.set_facecolor("red") 
-    #     r.set_edgecolor("w")
-    #     r.set_alpha(0.3)
+#     check = CheckButtons(check_ax, labels, [False]*len(labels)) # , frame_props={'linecolor': None}
+#     # for r in check.rectangles:
+#     #     r.set_facecolor("red") 
+#     #     r.set_edgecolor("w")
+#     #     r.set_alpha(0.3)
 
-    # [ll.set_color("white") for l in check.lines for ll in l]
-    # [ll.set_linewidth(3) for l in check.lines for ll in l]
+#     # [ll.set_color("white") for l in check.lines for ll in l]
+#     # [ll.set_linewidth(3) for l in check.lines for ll in l]
 
-    # [lbl.set_alpha(0.9) for lbl in check.labels]
+#     # [lbl.set_alpha(0.9) for lbl in check.labels]
 
-    # for i, c in enumerate(["r", "b", "g"]):
-    #     check.labels[i].set_color(c)
-    #     check.labels[i].set_alpha(0.7)
+#     # for i, c in enumerate(["r", "b", "g"]):
+#     #     check.labels[i].set_color(c)
+#     #     check.labels[i].set_alpha(0.7)
                 
-    # axis_check_buttons = []
+#     # axis_check_buttons = []
 
-    # # Create CheckButtons for each label, aligning their left edge with x1
-    # for i, label in enumerate(labels):
-    #     # Create an axes for the check button
-    #     check_ax = a_fig.add_axes([ax_pos.x1, button_y_start, button_width, button_height], facecolor='none')
+#     # # Create CheckButtons for each label, aligning their left edge with x1
+#     # for i, label in enumerate(labels):
+#     #     # Create an axes for the check button
+#     #     check_ax = a_fig.add_axes([ax_pos.x1, button_y_start, button_width, button_height], facecolor='none')
         
-    #     # Create the check button with a transparent background
-    #     check = CheckButtons(check_ax, [label], [False])
+#     #     # Create the check button with a transparent background
+#     #     check = CheckButtons(check_ax, [label], [False])
     
-    #     # Remove the background of the CheckButtons axes
-    #     check_ax.patch.set_alpha(0.0) # Make CheckButtons background fully transparent
+#     #     # Remove the background of the CheckButtons axes
+#     #     check_ax.patch.set_alpha(0.0) # Make CheckButtons background fully transparent
         
-    #     # Optionally, adjust the color of the lines for the checkboxes and the text
-    #     for line in check.lines:  # These are the lines that make up the checkmarks
-    #         line.set_color('black')
-    #     for chk_text in check.labels:
-    #         chk_text.set_color('black')  # Set the color of the text labels to black
+#     #     # Optionally, adjust the color of the lines for the checkboxes and the text
+#     #     for line in check.lines:  # These are the lines that make up the checkmarks
+#     #         line.set_color('black')
+#     #     for chk_text in check.labels:
+#     #         chk_text.set_color('black')  # Set the color of the text labels to black
         
-    #     check.label = label  # Custom attribute (if you need it)
-    #     axis_check_buttons.append(check)
+#     #     check.label = label  # Custom attribute (if you need it)
+#     #     axis_check_buttons.append(check)
 
         
-    # Remove the background of the CheckButtons axes
-    # check_ax.patch.set_alpha(0.0) # Make CheckButtons background fully transparent
+#     # Remove the background of the CheckButtons axes
+#     # check_ax.patch.set_alpha(0.0) # Make CheckButtons background fully transparent
     
-    # # Optionally, adjust the color of the lines for the checkboxes and the text
-    # for line in check.lines:  # These are the lines that make up the checkmarks
-    #     line.set_color('black')
-    # for chk_text in check.labels:
-    #     chk_text.set_color('black')  # Set the color of the text labels to black
+#     # # Optionally, adjust the color of the lines for the checkboxes and the text
+#     # for line in check.lines:  # These are the lines that make up the checkmarks
+#     #     line.set_color('black')
+#     # for chk_text in check.labels:
+#     #     chk_text.set_color('black')  # Set the color of the text labels to black
     
-    # Define an event for toggling the properties with check buttons
-    def toggle_label(label):
-        # Here you would toggle the associated property
-        print(f"Property '{label}' toggled")
+#     # Define an event for toggling the properties with check buttons
+#     def toggle_label(label):
+#         # Here you would toggle the associated property
+#         print(f"Property '{label}' toggled")
 
-    # Connect the event handler
-    check.on_clicked(toggle_label)
+#     # Connect the event handler
+#     check.on_clicked(toggle_label)
 
-    return check
+#     return check
         
 
 
@@ -487,12 +487,13 @@ def add_selection_patch(ax, selection_color = 'green', alpha=0.6, zorder=-1, act
         # button_positions = [(button_x_start, (button_y_start - i * button_height), button_width, button_height) for i in range(num_buttons)]
 
         ## Vertical ascending from bottom:
-        single_button_width = (ax_pos.width * 0.9)
+        # single_button_width = (ax_pos.width * 0.9)
+        single_button_width = (ax_pos.width * 0.2)
         single_button_height = (ax_pos.height * 0.6)/float(num_buttons)
         button_x_start = ax_xmid - (float(single_button_width)/2.0) # centered
         button_y_start = ax_pos.y0
-        button_positions = [(button_x_start, (button_y_start + (i * single_button_height)), single_button_width, single_button_height) for i in range(num_buttons)]
-        print(f'button_positions: {button_positions}')
+        # button_positions = [(button_x_start, (button_y_start + (i * single_button_height)), single_button_width, single_button_height) for i in range(num_buttons)]
+        # print(f'button_positions: {button_positions}')
 
         # ## Horizontal stack:
         # single_button_width = (ax_pos.width * 0.9)/float(num_buttons)
@@ -516,6 +517,12 @@ def add_selection_patch(ax, selection_color = 'green', alpha=0.6, zorder=-1, act
 
         
         print(f'action_buttons: {action_buttons}')
+
+        # for i, (a_btn_cfg, a_btn) in enumerate(zip(action_button_configs, action_buttons)):
+        
+        # Connect the event handler
+        # action_buttons.on_clicked(toggle_label)
+        
         # for i, (a_btn_cfg, a_pos) in enumerate(zip(action_button_configs, a_button_positions)):
         #     a_label = a_btn_cfg['name']
 
