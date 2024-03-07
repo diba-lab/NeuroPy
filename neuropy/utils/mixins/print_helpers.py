@@ -1,5 +1,8 @@
 # print_helpers.py
-from typing import Optional, OrderedDict # for OrderedMeta
+import builtins
+from collections import defaultdict
+from typing import Callable, List, Dict, Tuple, Optional, OrderedDict  # for OrderedMeta
+from contextlib import contextmanager
 import numpy as np # for build_formatted_str_from_properties_dict
 from neuropy.utils.misc import is_iterable
 from neuropy.utils.mixins.indexing_helpers import get_dict_subset # for `build_formatted_str_from_properties_dict`
@@ -244,3 +247,47 @@ class MultiItemStringRepresentationMixin:
 def print_array(a: np.array) -> str:
     """ computes an numpy array with the full separators for use in pasting back into code. """
     return np.array2string(a, separator=',')
+
+
+
+
+# # related: `pyphocorehelpers.general_helpers.disable_function_context`
+# @contextmanager
+# def suppress_print_context(suppressed_print_fn_names: Optional[str]=None):
+#     """ UNFINISHED. NOT WORKING.
+#      2024-03-07
+
+#     https://stackoverflow.com/questions/10388411/possible-to-globally-replace-a-function-with-a-context-manager-in-python
+
+#     Usage:
+#         from neuropy.utils.mixins.print_helpers import suppress_print_context
+
+#         with suppress_print_context():
+#             run_me(x)
+
+#     """
+#     raise NotImplementedError()
+#     if suppressed_print_fn_names is None:
+#         # suppressed_print_fn_names = ['print']
+#         suppressed_print_fn_references = {builtins:'print'}
+
+
+#     # suppressed_print_fn_references = {}
+#     _suppressed_print_fn_temps = defaultdict(dict)
+
+#     # Backup and suppress
+#     # for a_print_fn_name in suppressed_print_fn_names:
+#     for a_print_fn_module, a_print_fn_name in suppressed_print_fn_references.items():
+#         # _suppressed_print_fn_temps[a_print_fn_name] = getattr(a_print_fn_module, a_print_fn_name)
+#         _suppressed_print_fn_temps[a_print_fn_module][a_print_fn_name] = getattr(a_print_fn_module, a_print_fn_name)
+#         setattr(a_print_fn_module, a_print_fn_name, lambda *args, **kwargs: None)
+
+#     yield
+
+#     # Restore
+#     # for a_print_fn_name in suppressed_print_fn_names:
+#     for a_print_fn_module, a_module_fn_dict in suppressed_print_fn_references.items():
+#     # for a_print_fn_name, a_print_fn_ref in _suppressed_print_fn_temps.items():
+#         for a_print_fn_name, a_print_fn_ref in a_module_fn_dict.items():
+#             setattr(a_print_fn_module, a_print_fn_name, a_print_fn_ref)
+            
