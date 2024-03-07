@@ -6,7 +6,7 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 from pandas.core.frame import DataFrame
-from neuropy.core.epoch import Epoch
+from neuropy.core.epoch import Epoch, ensure_dataframe
 
 if TYPE_CHECKING:
     from neuropy.core import Position
@@ -84,10 +84,9 @@ class Laps(Epoch):
         laps_obj.update_maze_id_if_needed(t_start, t_delta, t_end)
         laps_df = laps_obj.to_dataframe()
         laps_df
-        
-        
+                
         """
-        self._df = Laps._update_dataframe_maze_id_if_needed(self._df, t_start, t_delta, t_end, replace_existing=True)
+        self._df.epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=True, labels_column_name='lap_id')
 
     def update_lap_dir_from_smoothed_velocity(self, pos_input: Union[Position, DataSession]) -> None:
         # compute_lap_dir_from_smoothed_velocity
@@ -310,35 +309,8 @@ class Laps(Epoch):
     
 
     @classmethod
-    def _update_dataframe_maze_id_if_needed(cls, laps_df: pd.DataFrame, t_start:float, t_delta:float, t_end:float, replace_existing:bool=True) -> pd.DataFrame:
-        """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
-
-        Usage:
-            from neuropy.core.session.dataSession import Laps
-
-            t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
-            laps_obj: Laps = curr_active_pipeline.sess.laps
-            laps_df = laps_obj.to_dataframe()
-            laps_df = Laps._update_dataframe_maze_id_if_needed(laps_df, t_start, t_delta, t_end)
-            laps_df
-
-        """
-        laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')
-        is_missing_column: bool = ('maze_id' not in laps_df.columns)
-        if (is_missing_column or replace_existing):
-            # Create the maze_id column:
-            laps_df['maze_id'] = np.full_like(laps_df['lap_id'].to_numpy(), -1) # all -1 to start
-            laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_start), (laps_df.stop.to_numpy() <= t_delta))), 'maze_id'] = 0 # first epoch
-            laps_df.loc[(np.logical_and((laps_df.start.to_numpy() >= t_delta), (laps_df.stop.to_numpy() <= t_end))), 'maze_id'] = 1 # second epoch, post delta
-            laps_df['maze_id'] = laps_df['maze_id'].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
-        else:
-            # already exists and we shouldn't overwrite it:
-            laps_df[['maze_id']] = laps_df[['maze_id']].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
-        return laps_df
-    
-    @classmethod
     def _update_dataframe_computed_vars(cls, laps_df: pd.DataFrame,
-                         t_start:Optional[float]=None, t_delta:Optional[float]=None, t_end:Optional[float]=None, # for _update_dataframe_maze_id_if_needed
+                         t_start:Optional[float]=None, t_delta:Optional[float]=None, t_end:Optional[float]=None, # for adding_maze_id_if_needed
                          global_session: Optional[Union[Position, DataSession]]=None, # for _compute_lap_dir_from_smoothed_velocity
                          replace_existing:bool=True):
         # laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']] = laps_df[['lap_id','maze_id','start_spike_index', 'end_spike_index']].astype('int')
@@ -346,7 +318,7 @@ class Laps(Epoch):
 
         if ((t_start is not None) and (t_delta is not None) and (t_end is not None)):
             # computes 'track_id' from t_start, t_delta, and t_end where t_delta corresponds to the transition point (track change).
-            laps_df = cls._update_dataframe_maze_id_if_needed(laps_df=laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=True)
+            laps_df = ensure_dataframe(laps_df).epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=True, labels_column_name='lap_id')
 
         if 'maze_id' in laps_df.columns:
             laps_df[['maze_id']] = laps_df[['maze_id']].astype('int')
