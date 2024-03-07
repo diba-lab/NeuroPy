@@ -424,9 +424,6 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         df = self._obj.iloc[found_data_indicies].copy().reset_index(drop=True)
         return df
 
-        
-        
-    
     def filtered_by_duration(self, min_duration=None, max_duration=None):
         return self._obj[(self.durations >= (min_duration or 0.0)) & (self.durations <= (max_duration or np.inf))].reset_index(drop=True)
         
@@ -493,10 +490,35 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     #     active_epochs_df['n_unique_aclus'] = active_epochs_df.label.map(epoch_num_unique_aclus_dict)
     #     return active_epochs_df
     
-    # @classmethod
 
+    def adding_maze_id_if_needed(self, t_start:float, t_delta:float, t_end:float, replace_existing:bool=True, labels_column_name:str='label') -> pd.DataFrame:
+        """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
 
+        Usage:
+            from neuropy.core.session.dataSession import Laps
 
+            t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+            laps_obj: Laps = curr_active_pipeline.sess.laps
+            laps_df = laps_obj.to_dataframe()
+            laps_df = Laps._update_dataframe_maze_id_if_needed(laps_df, t_start, t_delta, t_end)
+            laps_df
+
+        """
+        epochs_df: pd.DataFrame = self._obj.epochs.get_valid_df()
+        # epochs_df = epochs_df.epochs.to_dataframe()
+        epochs_df[[labels_column_name]] = epochs_df[[labels_column_name]].astype('int')
+        is_missing_column: bool = ('maze_id' not in epochs_df.columns)
+        if (is_missing_column or replace_existing):
+            # Create the maze_id column:
+            epochs_df['maze_id'] = np.full_like(epochs_df[labels_column_name].to_numpy(), -1) # all -1 to start
+            epochs_df.loc[(np.logical_and((epochs_df.start.to_numpy() >= t_start), (epochs_df.stop.to_numpy() <= t_delta))), 'maze_id'] = 0 # first epoch
+            epochs_df.loc[(np.logical_and((epochs_df.start.to_numpy() >= t_delta), (epochs_df.stop.to_numpy() <= t_end))), 'maze_id'] = 1 # second epoch, post delta
+            epochs_df['maze_id'] = epochs_df['maze_id'].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
+        else:
+            # already exists and we shouldn't overwrite it:
+            epochs_df[['maze_id']] = epochs_df[['maze_id']].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
+        return epochs_df
+    
 
 
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
