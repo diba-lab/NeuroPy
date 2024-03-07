@@ -313,10 +313,15 @@ def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', stroke
     #     'weight': 'normal',
     #     'size': 14,
     #     }
-    prop = dict(path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth, alpha=stroke_alpha)],
+    # 'ha', 'horizontalalignment', 'va', 'verticalalignment', 
+    text_pop_key_name_list = ('horizontalalignment','verticalalignment','multialignment', 'rotation') # keys to be rmoved from kwargs and added to text_prop_kwargs if present.
+    text_prop_kwargs = kwargs.pop('text_prop_kwargs', {})
+    text_prop_kwargs = text_prop_kwargs | dict(path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth, alpha=stroke_alpha)],
                 size=(font_size or plt.rcParams['legend.title_fontsize']), # 'legend.fontsize' is too small
-                color=text_foreground)
-    at = AnchoredText(title, loc=loc, prop=prop, pad=0., borderpad=0.5, frameon=False, **kwargs)
+                color=text_foreground, 
+                **{k:kwargs.pop(k) for k in text_pop_key_name_list if k in kwargs}, # # kwargs.pop('horizontalalignment', None), kwargs.pop('verticalalignment', None), kwargs.pop('multialignment', None), 
+                )
+    at = AnchoredText(title, loc=loc, prop=text_prop_kwargs, pad=0., borderpad=0.5, frameon=False, **kwargs)
     ax.add_artist(at)
     # Set the alpha value for the text itself
     if text_alpha < 1.0:
