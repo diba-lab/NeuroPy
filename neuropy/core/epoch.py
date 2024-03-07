@@ -339,6 +339,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
         return self._obj.copy()
 
+
     ## Handling overlapping
     def get_non_overlapping_df(self, debug_print=False) -> pd.DataFrame:
         """ Returns a dataframe with overlapping epochs removed. """
@@ -363,8 +364,6 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             
             
             return filtered_epochs_df
-
-
 
     def get_epochs_longer_than(self, minimum_duration, debug_print=False) -> pd.DataFrame:
         """ returns a copy of the dataframe contining only epochs longer than the specified minimum_duration. """
@@ -521,6 +520,18 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     
 
 
+    # ==================================================================================================================== #
+    # `Epoch` object / pd.DataFrame exchangeability                                                                         #
+    # ==================================================================================================================== #
+    def to_dataframe(self) -> pd.DataFrame:
+        """ Ensures code exchangeability of epochs in either `Epoch` object / pd.DataFrame """
+        return self._obj.copy()
+
+    def to_Epoch(self) -> "Epoch":
+        """ Ensures code exchangeability of epochs in either `Epoch` object / pd.DataFrame """
+        return Epoch(self._obj.copy())
+
+
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
     """ An Epoch object holds one ore more periods of time (marked by start/end timestamps) along with their corresponding metadata.
 
@@ -596,6 +607,15 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """metadata compatibility"""
         self._metadata = metadata
 
+        
+    @property
+    def epochs(self) -> "EpochsAccessor":
+        """ a passthrough accessor to the Pandas dataframe `EpochsAccessor` to allow complete pass-thru compatibility with either Epoch or pd.DataFrame versions of epochs.
+        Instead of testing whether it's an `Epoch` object or pd.DataFrame and then converting back and forth, should just be able to pretend it's a dataframe for the most part and use the `some_epochs.epochs.*` properties and methods.
+        """
+        return self._df.epochs
+
+
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
         # epochs.epochs.
@@ -639,7 +659,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
-        return Epoch(epochs=self._df.epochs.time_slice(t_start, t_stop), metadata=self.metadata) # NOTE: drops metadata
+        return Epoch(epochs=self._df.epochs.time_slice(t_start, t_stop), metadata=self.metadata)
         
     def label_slice(self, label):
         return Epoch(epochs=self._df.epochs.label_slice(label), metadata=self.metadata)
@@ -915,10 +935,29 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
     # DataFrameInitializable Conformances ________________________________________________________________________________ #
     
-    def to_dataframe(self):
+    def to_dataframe(self) -> pd.DataFrame:
         df = self._df.copy()
         return df
     
     @classmethod
-    def from_dataframe(cls, df):
+    def from_dataframe(cls, df: pd.DataFrame):
         return cls(df)
+
+
+    # ==================================================================================================================== #
+    # `Epoch` object / pd.DataFrame exchangeability                                                                         #
+    # ==================================================================================================================== #
+    # NOTE: `def to_dataframe(self) -> pd.DataFrame` is defined above
+
+    def to_Epoch(self) -> "Epoch":
+        """ Ensures code exchangeability of epochs in either `Epoch` object / pd.DataFrame """
+        return Epoch(epochs=self._df.copy(), metadata=self.metadata)
+
+
+def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
+    if isinstance(epochs, pd.DataFrame):
+        return epochs
+    else:
+        return epochs.to_dataframe()
+
+
