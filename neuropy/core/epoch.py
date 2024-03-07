@@ -648,12 +648,32 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
 
     def __getitem__(self, slice_):
+        """ Allows pass-thru indexing like it were a numpy array.
+
+        2024-03-07 Potentially more dangerous than helpful.
+
+        having issue whith this being called with pd.Dataframe columns (when assuming a pd.DataFrame epochs format but actually an Epoch object)
+
+        IndexError: only integers, slices (`:`), ellipsis (`...`), numpy.newaxis (`None`) and integer or boolean arrays are valid indices
+               Occurs because `_slice == ['lap_id']` which doesn't pass the first check because it's a list of strings not a string itself
+        Example:
+            Error line `laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')`
+        """
         if isinstance(slice_, str):
             indices = np.where(self.labels == slice_)[0]
             if len(indices) > 1:
                 return np.vstack((self.starts[indices], self.stops[indices])).T
             else:
                 return np.array([self.starts[indices], self.stops[indices]]).squeeze()
+        elif ((slice_ is not None) and (len(slice_) > 0) and isinstance(slice_[0], str)):
+            # a list of strings, probably meant to use a dataframe indexing method
+            # having issue whith this being called with pd.Dataframe columns (when assuming a pd.DataFrame epochs format but actually an Epoch object)
+            # IndexError: only integers, slices (`:`), ellipsis (`...`), numpy.newaxis (`None`) and integer or boolean arrays are valid indices
+            #     Occurs because `_slice == ['lap_id']` which doesn't pass the first check because it's a list of strings not a string itself
+            # Example:
+            #     Error line `laps_df[['lap_id']] = laps_df[['lap_id']].astype('int')`                
+            raise IndexError(f"PHO: you're probably trying to treat the epochs as if they are in the pd.DataFrame format but they are an Epoch object! Use `actual_laps_df = incorrectly_assumed_laps_df.epochs.to_dataframe()` to convert.")
+
         else:
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
 
