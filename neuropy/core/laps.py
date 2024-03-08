@@ -92,7 +92,34 @@ class Laps(Epoch):
         # compute_lap_dir_from_smoothed_velocity
         # global_session = deepcopy(curr_active_pipeline.filtered_sessions[global_epoch_name])
         self._df = self._compute_lap_dir_from_smoothed_velocity(self._df, pos_input, replace_existing=True)
+
+
+    def adding_true_decoder_identifier(self, t_start:float, t_delta:float, t_end:float, labels_column_name:str='lap_id') -> pd.DataFrame:
+        """ adds the 'maze_id' column to the internal dataframe if needed.
+        t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+        laps_obj: Laps = curr_active_pipeline.sess.laps
+        laps_obj.update_maze_id_if_needed(t_start, t_delta, t_end)
+        laps_df = laps_obj.to_dataframe()
+        laps_df
+                
+        """
+        filter_epochs: pd.DataFrame = self._df.epochs.get_valid_df() # ensure_dataframe(filter_epochs).epochs.adding_maze_id_if_needed(t_start, t_delta, t_end, replace_existing=True, labels_column_name=labels_column_name)
+        filter_epochs = filter_epochs.epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=True, labels_column_name=labels_column_name)
+
+        assert 'maze_id' in filter_epochs
+        assert 'lap_dir' in filter_epochs
+        # Creates Columns: 'truth_decoder_name':
+        lap_dir_keys = ['LR', 'RL']
+        maze_id_keys = ['long', 'short']
+        filter_epochs['truth_decoder_name'] = filter_epochs['maze_id'].map(dict(zip(np.arange(len(maze_id_keys)), maze_id_keys))) + '_' + filter_epochs['lap_dir'].map(dict(zip(np.arange(len(lap_dir_keys)), lap_dir_keys)))
+
+        self._df[['maze_id', 'truth_decoder_name']] = filter_epochs[['maze_id', 'truth_decoder_name']] ## modify in-place and return?
+
+        return filter_epochs
         
+
+    
+
     def filter_to_valid(self) -> "Laps":
         laps_epoch_obj: Epoch = deepcopy(self).as_epoch_obj()
         original_laps_epoch_df = laps_epoch_obj.to_dataframe()        
