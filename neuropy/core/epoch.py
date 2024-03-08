@@ -129,7 +129,7 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
                 assert selected_index is not None
                 if atol is not None:
                     ## See how the selecteded index's values diff from the search values
-                    selected_index_diff = epoch_slices_df.iloc[selected_index].sub([start_time, end_time]) #.abs() #.sum()
+                    selected_index_diff = epoch_slices_df.iloc[selected_index].sub([start_time, end_time]) #.abs() #.sum() # IndexError: single positional indexer is out-of-bounds -- selected_index: 319. SHIT. Confirmed it corresponds to df.Index == 319, which is at .iloc[134]
                     exceeds_tolerance: bool = np.any((selected_index_diff.abs() > atol))
                     if exceeds_tolerance:
                         if debug_print:
