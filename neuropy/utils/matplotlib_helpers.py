@@ -458,7 +458,8 @@ def add_selection_patch(ax, selection_color = 'green', alpha=0.6, zorder=-1, act
     ## Get the figure from the axes:
     a_fig = ax.get_figure()
     ## Fill up to the right edge of the figure:
-    selection_rect_width = ax_pos.width + (1.0 - (ax_pos.x1)) * 0.75 # fill 75% of the remaining right margin with the box
+    right_margin = (1.0 - (ax_pos.x1))
+    selection_rect_width = ax_pos.width + (right_margin * 0.75) # fill 75% of the remaining right margin with the box
     rectangle = Rectangle((ax_pos.x0, ax_pos.y0), selection_rect_width, ax_pos.height, transform=a_fig.transFigure, **rect_kwargs)
 
     ax_xmid = (ax_pos.x0 + (ax_pos.width/2.0))
