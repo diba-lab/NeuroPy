@@ -63,8 +63,12 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
         if (ndim == 1):
             for start_time in epoch_times:
                 # Find the index with the closest start time
-                start_index = epoch_slices_df[active_t_column_names[0]].sub(start_time).abs().idxmin()
                 start_index = epoch_slices_df[active_t_column_names[0]].sub(start_time).abs().idxmin() # idxmin returns a .loc index apparently?
+
+                ## Numpy-only version:
+                # start_index: NDArray = np.argmin(epoch_slices_df[active_t_column_names[0]].sub(start_time).abs().to_numpy())
+
+                # start_index = epoch_slices_df[active_t_column_names[0]].sub(start_time).abs().idxmin() 
                 selected_index = start_index
                 
                 ## End if
@@ -75,14 +79,17 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
                 if atol is not None:
                     
                     # Can convert to an actual integer index like this:
-                    # selected_integer_position_index = epoch_slices_df.index.get_loc(selected_index)
-                    
+                    # selected_integer_position_index = epoch_slices_df.index.get_loc(selected_index) # to match with .iloc do this
+                    # selected_index_diff = epoch_slices_df.iloc[selected_integer_position_index].sub(start_time)
+
                     ## See how the selecteded index's values diff from the search values
-                    selected_index_diff = epoch_slices_df.iloc[selected_index].sub(start_time) #.abs() #.sum() # IndexError: single positional indexer is out-of-bounds
+                    selected_index_diff = epoch_slices_df.loc[selected_index].sub(start_time) # IndexError: single positional indexer is out-of-bounds
+
+                    ## Check against tolerance:
                     exceeds_tolerance: bool = np.any((selected_index_diff.abs() > atol))
                     if exceeds_tolerance:
                         if debug_print:
-                            print(f'WARN: CLOSEST FOUND INDEX EXCEEDS TOLERANCE (atol={atol}):\n\tsearch_time: {start_time}, closest: {epoch_slices_df.iloc[selected_index].to_numpy()}, {selected_index_diff}. No matching index was found.')
+                            print(f'WARN: CLOSEST FOUND INDEX EXCEEDS TOLERANCE (atol={atol}):\n\tsearch_time: {start_time}, closest: {epoch_slices_df.loc[selected_index].to_numpy()}, {selected_index_diff}. No matching index was found.')
                         selected_index = np.nan
                         was_index_found = False
 
@@ -134,11 +141,12 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
                 assert selected_index is not None
                 if atol is not None:
                     ## See how the selecteded index's values diff from the search values
-                    selected_index_diff = epoch_slices_df.iloc[selected_index].sub([start_time, end_time]) #.abs() #.sum() # IndexError: single positional indexer is out-of-bounds -- selected_index: 319. SHIT. Confirmed it corresponds to df.Index == 319, which is at .iloc[134]
+                    selected_index_diff = epoch_slices_df.loc[selected_index].sub([start_time, end_time]) # .loc[selected_index] method supposedly compatibile with .idxmin()
+                    # selected_index_diff = epoch_slices_df.iloc[selected_index].sub([start_time, end_time]) #.abs() #.sum() # IndexError: single positional indexer is out-of-bounds -- selected_index: 319. SHIT. Confirmed it corresponds to df.Index == 319, which is at .iloc[134]
                     exceeds_tolerance: bool = np.any((selected_index_diff.abs() > atol))
                     if exceeds_tolerance:
                         if debug_print:
-                            print(f'WARN: CLOSEST FOUND INDEX EXCEEDS TOLERANCE (atol={atol}):\n\tsearch_time: [{start_time}, {end_time}], closest: [{epoch_slices_df.iloc[selected_index].to_numpy()}], diff: [{selected_index_diff.to_numpy()}]. No matching index was found.')
+                            print(f'WARN: CLOSEST FOUND INDEX EXCEEDS TOLERANCE (atol={atol}):\n\tsearch_time: [{start_time}, {end_time}], closest: [{epoch_slices_df.loc[selected_index].to_numpy()}], diff: [{selected_index_diff.to_numpy()}]. No matching index was found.')
                         selected_index = np.nan
                         was_index_found = False
 
@@ -484,7 +492,8 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """
         # , not_found_action='skip_index'
         found_data_indicies = self._obj.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times)
-        df = self._obj.iloc[found_data_indicies].copy().reset_index(drop=True)
+        # df = self._obj.iloc[found_data_indicies].copy().reset_index(drop=True)
+        df = self._obj.loc[found_data_indicies].copy().reset_index(drop=True)
         return df
 
     def filtered_by_duration(self, min_duration=None, max_duration=None):
