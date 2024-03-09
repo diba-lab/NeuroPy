@@ -64,6 +64,7 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
             for start_time in epoch_times:
                 # Find the index with the closest start time
                 start_index = epoch_slices_df[active_t_column_names[0]].sub(start_time).abs().idxmin()
+                start_index = epoch_slices_df[active_t_column_names[0]].sub(start_time).abs().idxmin() # idxmin returns a .loc index apparently?
                 selected_index = start_index
                 
                 ## End if
@@ -72,8 +73,12 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
                 was_index_found: bool = True # true by default
 
                 if atol is not None:
+                    
+                    # Can convert to an actual integer index like this:
+                    # selected_integer_position_index = epoch_slices_df.index.get_loc(selected_index)
+                    
                     ## See how the selecteded index's values diff from the search values
-                    selected_index_diff = epoch_slices_df.iloc[selected_index].sub(start_time) #.abs() #.sum()
+                    selected_index_diff = epoch_slices_df.iloc[selected_index].sub(start_time) #.abs() #.sum() # IndexError: single positional indexer is out-of-bounds
                     exceeds_tolerance: bool = np.any((selected_index_diff.abs() > atol))
                     if exceeds_tolerance:
                         if debug_print:
@@ -189,6 +194,65 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
         raise NotImplementedError(f"not_found_action: {not_found_action}")
 
     return found_data_indicies
+
+
+# def find_data_indicies_from_epoch_times(data_df: pd.DataFrame, epoch_times: NDArray, t_column_names=None, atol: float = 1e-3, not_found_action='skip_index', debug_print=False) -> NDArray:
+#     """ AI-rewrite 2024-03-08 
+#     Returns the matching data indices corresponding to the epoch [start, stop] times.
+
+#     Parameters:
+#     data_df (pd.DataFrame): DataFrame containing the time data.
+#     epoch_times (NDArray): Array of epoch start/stop times with shape (S, 2) for 2D search or (S,) for 1D search.
+#     t_column_names (list, optional): List of column names for start and stop times. Defaults to ['start', 'stop'].
+#     atol (float, optional): Absolute tolerance for matching times. Defaults to 1e-3.
+#     not_found_action (str, optional): Action to take when no matching index is found. Options are 'skip_index' or 'full_nan'. Defaults to 'skip_index'.
+#     debug_print (bool, optional): Whether to print debug messages. Defaults to False.
+
+#     Returns:
+#     NDArray: Array of data indices corresponding to the input epoch times.
+
+#     Raises:
+#     ValueError: If input parameters are invalid.
+#     """
+#     if not_found_action not in ['skip_index', 'full_nan']:
+#         raise ValueError(f"Invalid value for not_found_action: {not_found_action}")
+
+#     if np.ndim(epoch_times) == 2 and np.shape(epoch_times)[1] == 2:
+#         ndim = 2
+#         t_column_names = t_column_names or ['start', 'stop']
+#         if len(t_column_names) != 2:
+#             raise ValueError(f"Expected 2 column names for 2D search, got {len(t_column_names)}")
+#     elif np.ndim(epoch_times) == 1:
+#         ndim = 1
+#         t_column_names = t_column_names or ['start']
+#     else:
+#         raise ValueError(f"Invalid shape for epoch_times: {np.shape(epoch_times)}")
+
+#     num_query_times = np.shape(epoch_times)[0]
+#     epoch_slices_df = data_df[t_column_names]
+
+#     indices = []
+#     for query_time in (epoch_times if ndim == 1 else zip(*epoch_times)):
+#         search_times = np.array(query_time)
+#         diffs = epoch_slices_df.sub(search_times, axis='columns').abs()
+#         min_idx = diffs.sum(axis=1).idxmin()
+#         min_diff = diffs.loc[min_idx].values
+
+#         if np.all(min_diff <= atol):
+#             indices.append(min_idx)
+#         elif debug_print:
+#             print(f'WARN: No matching index found within tolerance (atol={atol}):\n'
+#                   f'\tsearch_time: {search_times}, closest: {epoch_slices_df.loc[min_idx].values}, diff: {min_diff}')
+#             if not_found_action == 'full_nan':
+#                 indices.append(np.nan)
+
+#     indices = np.array(indices)
+#     if not_found_action == 'skip_index':
+#         assert len(indices) <= num_query_times, f"Number of found indices ({len(indices)}) exceeds number of query times ({num_query_times})"
+#     else:
+#         assert len(indices) == num_query_times, f"Number of found indices ({len(indices)}) does not match number of query times ({num_query_times})"
+
+#     return indices
 
 
 
@@ -390,7 +454,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return df
         
     def label_slice(self, label) -> pd.DataFrame:
-        if isinstance(label, (list, np.ndarray)):
+        if isinstance(label, (list, NDArray)):
             df = self._obj[np.isin(self._obj["label"], label)].reset_index(drop=True)
         else:
             assert isinstance(label, str), "label must be string"
