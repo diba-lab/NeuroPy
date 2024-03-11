@@ -341,13 +341,14 @@ def find_nearest_time(df: pd.DataFrame, target_time: float, time_column_name:str
         closest_index = len(df) - 1
     else:
         # The target_time is between two elements, find the nearest one
-        prev_time = df[time_column_name].iloc[insertion_index - 1]
+        prev_time = df[time_column_name].iloc[insertion_index - 1] # @DA#TODO 2024-03-11 17:49: - [ ] Is .iloc okay here under all circumstances?
         next_time = df[time_column_name].iloc[insertion_index]
         # Compare the absolute difference to determine which is closer
         closest_index = insertion_index if (next_time - target_time) < (target_time - prev_time) else insertion_index - 1
 
     # Now extract the closest time using the index
-    closest_time = df[time_column_name].iloc[closest_index]
+    closest_time = df[time_column_name].iloc[closest_index] ## NOTE .iloc here!
+
     matched_time_difference = closest_time - target_time
     if (max_allowed_deviation is not None) and (abs(matched_time_difference) > max_allowed_deviation):
         # raise an error
