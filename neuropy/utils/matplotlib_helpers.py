@@ -303,31 +303,55 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
 # These are the only Matplotlib-specific functions here: add_inner_title(...) and draw_sizebar(...).                              #
 # ==================================================================================================================== #
 def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', stroke_alpha=0.9, text_foreground='k', font_size=None, text_alpha=1.0, **kwargs):
-    """used to add a figure title inside the border of the figure (instead of outside)
     """
+    Add a figure title inside the border of the figure (instead of outside).
+
+    Args:
+        ax (matplotlib.axes.Axes): The axes object where the title should be added.
+        title (str): The title text.
+        loc (str or int): The location code for the title placement.
+        strokewidth (int, optional): The line width for the stroke around the text. Default is 3.
+        stroke_foreground (str, optional): The color for the stroke around the text. Default is 'w' (white).
+        stroke_alpha (float, optional): The alpha value for the stroke. Default is 0.9.
+        text_foreground (str, optional): The color for the text. Default is 'k' (black).
+        font_size (int, optional): The font size for the title text. If not provided, it will use the value from plt.rcParams['legend.title_fontsize'].
+        text_alpha (float, optional): The alpha value for the text itself. Default is 1.0 (opaque).
+        **kwargs: Additional keyword arguments to be passed to AnchoredText.
+
+    Returns:
+        matplotlib.offsetbox.AnchoredText: The AnchoredText object containing the title.
+    """
+    import matplotlib.pyplot as plt
     from matplotlib.offsetbox import AnchoredText
     from matplotlib.patheffects import withStroke
-    # Afont = {'family': 'serif',
-    #     'backgroundcolor': 'blue',
-    #     'color':  'white',
-    #     'weight': 'normal',
-    #     'size': 14,
-    #     }
-    # 'ha', 'horizontalalignment', 'va', 'verticalalignment', 
-    text_pop_key_name_list = ('horizontalalignment','verticalalignment','multialignment', 'rotation') # keys to be rmoved from kwargs and added to text_prop_kwargs if present.
+
+    # List of keys to be removed from kwargs and added to text_prop_kwargs if present
+    text_pop_key_name_list = ('horizontalalignment', 'verticalalignment', 'multialignment', 'rotation', 'fontproperties')
+
+    # Get any text property keyword arguments from kwargs, or use an empty dictionary if not present
     text_prop_kwargs = kwargs.pop('text_prop_kwargs', {})
-    text_prop_kwargs = text_prop_kwargs | dict(path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth, alpha=stroke_alpha)],
-                size=(font_size or plt.rcParams['legend.title_fontsize']), # 'legend.fontsize' is too small
-                color=text_foreground, 
-                **{k:kwargs.pop(k) for k in text_pop_key_name_list if k in kwargs}, # # kwargs.pop('horizontalalignment', None), kwargs.pop('verticalalignment', None), kwargs.pop('multialignment', None), 
-                )
+
+    # Add the path effect for the stroke, font size, text color, and any relevant keyword arguments from text_pop_key_name_list
+    text_prop_kwargs = text_prop_kwargs | dict(
+        path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth, alpha=stroke_alpha)],
+        size=(font_size or plt.rcParams['legend.title_fontsize']),
+        color=text_foreground,
+        **{k: kwargs.pop(k) for k in text_pop_key_name_list if k in kwargs}
+    )
+
+    # Create the AnchoredText object with the specified properties
     at = AnchoredText(title, loc=loc, prop=text_prop_kwargs, pad=0., borderpad=0.5, frameon=False, **kwargs)
     ax.add_artist(at)
-    # Set the alpha value for the text itself
+
+    # Set the alpha value for the text itself, if specified
     if text_alpha < 1.0:
         at.txt._text.set_alpha(text_alpha)
-    return at
 
+    return at
+        
+
+
+    
 ## TODO: Not currently used, but looks like it can add anchored scale/size bars to matplotlib figures pretty easily:
 def draw_sizebar(ax):
     """
