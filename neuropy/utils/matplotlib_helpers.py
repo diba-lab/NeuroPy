@@ -1834,8 +1834,9 @@ def resize_window_to_inches(window, width_inches, height_inches, dpi=96):
 
 
 
-
-
+# ==================================================================================================================== #
+# 2024-03-12 - Multi-color/multi-line labels                                                                           #
+# ==================================================================================================================== #
 
 def value_to_color(value, debug_print=True):
     """
@@ -1873,7 +1874,7 @@ def build_label_value_formatted_text_properties(label: str, value: float):
 
     from neuropy.utils.matplotlib_helpers import build_label_value_formatted_text_properties
 
-    
+
     """
     # Create text areas with different colors and properties
     from matplotlib import font_manager
@@ -1957,3 +1958,79 @@ def build_formatted_label_values_stack(formated_text_list):
     return stack_box
 
     # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False, **text_kwargs, borderpad=0.)
+
+
+
+class AnchoredCustomText(AnchoredOffsetbox):
+    """
+    AnchoredOffsetbox with Text.
+
+    
+    Usage:
+        from typing import Tuple
+        import matplotlib.pyplot as plt
+        from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+        from neuropy.utils.matplotlib_helpers import AnchoredCustomText, build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
+                                
+        # Create a figure and axis
+        fig, ax = plt.subplots()
+        formated_text_list = [("wcorr: ", -0.754),
+                                ("$P_i$: ", 0.052), 
+                                ("pearsonr: ", -0.76),
+                            ]
+
+        text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
+
+        anchored_custom_text = AnchoredCustomText(formated_text_list=formated_text_list, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+        # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+
+        # Add the offset box to the axes
+        ax.add_artist(anchored_custom_text)
+
+        # Display the plot
+        plt.show()
+            
+            
+    """
+
+    def __init__(self, formated_text_list, *, pad=0., borderpad=0., prop=None, **kwargs):
+        """
+        Parameters
+        ----------
+        s : str
+            Text.
+
+        loc : str
+            Location code. See `AnchoredOffsetbox`.
+
+        pad : float, default: 0.4
+            Padding around the text as fraction of the fontsize.
+
+        borderpad : float, default: 0.5
+            Spacing between the offsetbox frame and the *bbox_to_anchor*.
+
+        prop : dict, optional
+            Dictionary of keyword parameters to be passed to the
+            `~matplotlib.text.Text` instance contained inside AnchoredText.
+
+        **kwargs
+            All other parameters are passed to `AnchoredOffsetbox`.
+        """
+        if prop is None:
+            prop = {}
+        badkwargs = {'va', 'verticalalignment'}
+        if badkwargs & set(prop):
+            raise ValueError(
+                'Mixing verticalalignment with AnchoredText is not supported.')
+
+        # self.txtAreaItems = []
+        self.stack_box = build_formatted_label_values_stack(formated_text_list)
+
+        # self.txt = TextArea(s, textprops=prop)
+        # fp = self.txt._text.get_fontproperties()
+        super().__init__(child=self.stack_box, pad=pad, borderpad=borderpad, prop=prop, **kwargs)
+
+
+    def update_text(self, formated_text_list):
+        raise NotImplementedError
+
