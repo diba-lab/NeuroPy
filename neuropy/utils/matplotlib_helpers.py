@@ -2,6 +2,7 @@ from __future__ import annotations # otherwise have to do type like 'Ratemap'
 
 from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
+from matplotlib.offsetbox import AnchoredOffsetbox
 import numpy as np
 import contextlib
 
@@ -1866,7 +1867,7 @@ def value_to_color(value, debug_print=True):
         print(f'saturation_component: {saturation_component}')
         print(f'rgb: {rgb}')
 
-    return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
+    return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
 
 def build_label_value_formatted_text_properties(label: str, value: float):
     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
