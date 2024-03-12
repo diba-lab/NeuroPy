@@ -307,6 +307,19 @@ def split_array(arr: np.ndarray, sub_element_lengths: np.ndarray) -> list:
         start_index += length
     return split_arr
 
+def numpyify_array(sequences) -> NDArray:
+    """
+    Convert a list of sequences to a list of NumPy arrays. If the sequence
+    is already a NumPy array, it is left as-is.
+
+    Usage:
+
+    from neuropy.utils.misc import numpyify_array
+
+    
+    """
+    return np.array([np.array(s) if not isinstance(s, np.ndarray) else s for s in sequences])
+
 
 
 
@@ -378,19 +391,23 @@ def add_explicit_dataframe_columns_from_lookup_df(df, lookup_properties_map_df: 
     # df = pd.merge(subset_neurons_properties_df, df, on=join_column_name, how='outer', suffixes=('_neurons_properties', '_spikes_df'))
     return pd.merge(df, subset_neurons_properties_df, on=join_column_name, how='left', suffixes=('_neurons_properties', '_spikes_df'), copy=False) # avoids copying if possible
 
-
-def numpyify_array(sequences) -> NDArray:
-    """
-    Convert a list of sequences to a list of NumPy arrays. If the sequence
-    is already a NumPy array, it is left as-is.
+def adding_additional_df_columns(original_df: pd.DataFrame, additional_cols_df: pd.DataFrame) -> pd.DataFrame:
+    """ Adds the columns in `additional_cols_df` to `original_df`, horizontally concatenating them without considering either index.
 
     Usage:
+        
+        from neuropy.utils.misc import adding_additional_df_columns
 
-    from neuropy.utils.misc import numpyify_array
+        a_result.filter_epochs = adding_additional_df_columns(original_df=a_result.filter_epochs, additional_cols_df=_out_new_scores[a_name]) # update the filter_epochs with the new columns
 
-    
-    """
-    return np.array([np.array(s) if not isinstance(s, np.ndarray) else s for s in sequences])
+    """     
+    assert np.shape(additional_cols_df)[0] == np.shape(original_df)[0], f"np.shape(additional_cols_df)[0]: {np.shape(additional_cols_df)[0]} != np.shape(original_df)[0]: {np.shape(original_df)[0]}"
+    # For each column in additional_cols_df, add it to original_df
+    for column in additional_cols_df.columns:
+        original_df[column] = additional_cols_df[column].values
+        
+    return original_df
+
 
 
 
