@@ -204,65 +204,6 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
     return found_data_indicies
 
 
-# def find_data_indicies_from_epoch_times(data_df: pd.DataFrame, epoch_times: NDArray, t_column_names=None, atol: float = 1e-3, not_found_action='skip_index', debug_print=False) -> NDArray:
-#     """ AI-rewrite 2024-03-08 
-#     Returns the matching data indices corresponding to the epoch [start, stop] times.
-
-#     Parameters:
-#     data_df (pd.DataFrame): DataFrame containing the time data.
-#     epoch_times (NDArray): Array of epoch start/stop times with shape (S, 2) for 2D search or (S,) for 1D search.
-#     t_column_names (list, optional): List of column names for start and stop times. Defaults to ['start', 'stop'].
-#     atol (float, optional): Absolute tolerance for matching times. Defaults to 1e-3.
-#     not_found_action (str, optional): Action to take when no matching index is found. Options are 'skip_index' or 'full_nan'. Defaults to 'skip_index'.
-#     debug_print (bool, optional): Whether to print debug messages. Defaults to False.
-
-#     Returns:
-#     NDArray: Array of data indices corresponding to the input epoch times.
-
-#     Raises:
-#     ValueError: If input parameters are invalid.
-#     """
-#     if not_found_action not in ['skip_index', 'full_nan']:
-#         raise ValueError(f"Invalid value for not_found_action: {not_found_action}")
-
-#     if np.ndim(epoch_times) == 2 and np.shape(epoch_times)[1] == 2:
-#         ndim = 2
-#         t_column_names = t_column_names or ['start', 'stop']
-#         if len(t_column_names) != 2:
-#             raise ValueError(f"Expected 2 column names for 2D search, got {len(t_column_names)}")
-#     elif np.ndim(epoch_times) == 1:
-#         ndim = 1
-#         t_column_names = t_column_names or ['start']
-#     else:
-#         raise ValueError(f"Invalid shape for epoch_times: {np.shape(epoch_times)}")
-
-#     num_query_times = np.shape(epoch_times)[0]
-#     epoch_slices_df = data_df[t_column_names]
-
-#     indices = []
-#     for query_time in (epoch_times if ndim == 1 else zip(*epoch_times)):
-#         search_times = np.array(query_time)
-#         diffs = epoch_slices_df.sub(search_times, axis='columns').abs()
-#         min_idx = diffs.sum(axis=1).idxmin()
-#         min_diff = diffs.loc[min_idx].values
-
-#         if np.all(min_diff <= atol):
-#             indices.append(min_idx)
-#         elif debug_print:
-#             print(f'WARN: No matching index found within tolerance (atol={atol}):\n'
-#                   f'\tsearch_time: {search_times}, closest: {epoch_slices_df.loc[min_idx].values}, diff: {min_diff}')
-#             if not_found_action == 'full_nan':
-#                 indices.append(np.nan)
-
-#     indices = np.array(indices)
-#     if not_found_action == 'skip_index':
-#         assert len(indices) <= num_query_times, f"Number of found indices ({len(indices)}) exceeds number of query times ({num_query_times})"
-#     else:
-#         assert len(indices) == num_query_times, f"Number of found indices ({len(indices)}) does not match number of query times ({num_query_times})"
-
-#     return indices
-
-
 
 
 """ 
@@ -469,7 +410,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             df = self._obj[self._obj["label"] == label].reset_index(drop=True)
         return df
 
-    def find_data_indicies_from_epoch_times(self, epoch_times: NDArray, atol=1e-3, t_column_names=None) -> NDArray:
+    def find_data_indicies_from_epoch_times(self, epoch_times: NDArray, atol:float=1e-3, t_column_names=None) -> NDArray:
         """ returns the matching data indicies corresponding to the epoch [start, stop] times 
         epoch_times: S x 2 array of epoch start/end times
         Returns: (S, ) array of data indicies corresponding to the times.
@@ -484,14 +425,14 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return find_data_indicies_from_epoch_times(self._obj, epoch_times, t_column_names=t_column_names, atol=atol)
 
             
-    def matching_epoch_times_slice(self, epoch_times: NDArray) -> pd.DataFrame:
+    def matching_epoch_times_slice(self, epoch_times: NDArray, atol:float=1e-3) -> pd.DataFrame:
         """ slices the dataframe to return only the rows that match the epoch_times with some tolerance.
         
         Internally calls self.find_data_indicies_from_epoch_times(...)
 
         """
         # , not_found_action='skip_index'
-        found_data_indicies = self._obj.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times)
+        found_data_indicies = self._obj.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times, atol=atol)
         # df = self._obj.iloc[found_data_indicies].copy().reset_index(drop=True)
         df = self._obj.loc[found_data_indicies].copy().reset_index(drop=True)
         return df
