@@ -1867,6 +1867,29 @@ def value_to_color(value, debug_print=True):
 
     return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
 
+def build_label_value_formatted_text_properties(label: str, value: float):
+    """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
+    Create text areas with different colors and properties
+
+    from neuropy.utils.matplotlib_helpers import build_label_value_formatted_text_properties
+
+    
+    """
+    # Create text areas with different colors and properties
+    from matplotlib import font_manager
+
+    label_text_props = dict(color="black")
+    label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
+    
+    # assert not isinstance(value, str)
+    value = float(value)
+    color = value_to_color(value)
+    value_textprops = dict(color=color, weight="bold")
+    value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
+
+    return label_text_props, value_textprops
+
+
 
 def build_label_value_formatted_text(label: str, value: float):
     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
@@ -1876,21 +1899,24 @@ def build_label_value_formatted_text(label: str, value: float):
     from matplotlib import font_manager
     from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
 
-    label_text_props = dict(color="black")
-    font_prop = font_manager.FontProperties(family='Source Sans Pro', size=9)
-    label_text_props['fontproperties'] = font_prop
-    txtArea_label = TextArea(label, textprops=label_text_props)
+    # label_text_props = dict(color="black")
+    # label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
+    
+    # # assert not isinstance(value, str)
+    # value = float(value)
+    # color = value_to_color(value)
+    # value_textprops = dict(color=color, weight="bold")
+    # value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
 
-    assert not isinstance(value, str)
-    value = float(value)
-    color = value_to_color(value)
-    font_prop = font_manager.FontProperties(family='Source Sans Pro', size=10)
-    textprops = dict(color=color, weight="bold")
-    textprops['fontproperties'] = font_prop
-    # text2 = TextArea(value, textprops=dict(color=color, weight="bold"))
-    txtArea_formatted_value = TextArea(value, textprops=textprops)
+
+    label_text_props, value_textprops = build_label_value_formatted_text_properties(label, value)
+
+    ## Build actual labels:
+    txtArea_label = TextArea(label, textprops=label_text_props)
+    txtArea_formatted_value = TextArea(value, textprops=value_textprops)
     # Combine the text areas horizontally into a single line
     box = HPacker(children=[txtArea_label, txtArea_formatted_value], align="center", pad=0, sep=5)
+
     return box
 
 
@@ -1925,7 +1951,7 @@ def build_formatted_label_values_stack(formated_text_list):
     """
     # Create text areas with different colors and properties
     from matplotlib import font_manager
-    from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+    from matplotlib.offsetbox import TextArea, HPacker, VPacker
 
     stack_box = VPacker(children=[build_label_value_formatted_text(a_label, a_value) for a_label, a_value in formated_text_list], align='right', pad=0, sep=2)
     return stack_box
