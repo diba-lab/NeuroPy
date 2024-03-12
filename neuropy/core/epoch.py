@@ -16,7 +16,7 @@ from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, s
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 
-def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray, t_column_names=None, atol:float=1e-3, not_found_action='skip_index', debug_print=True) -> NDArray:
+def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray, t_column_names=None, atol:float=1e-3, not_found_action='skip_index', debug_print=False) -> NDArray:
     """ returns the matching data indicies corresponding to the epoch [start, stop] times 
     epoch_times: S x 2 array of epoch start/end times
 
@@ -422,7 +422,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
         """
         # find_data_indicies_from_epoch_times(a_df, np.squeeze(any_good_selected_epoch_times[:,0]), t_column_names=['ripple_start_t',])
-        return find_data_indicies_from_epoch_times(self._obj, epoch_times, t_column_names=t_column_names, atol=atol)
+        return find_data_indicies_from_epoch_times(self._obj, epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
 
             
     def matching_epoch_times_slice(self, epoch_times: NDArray, atol:float=1e-3) -> pd.DataFrame:
