@@ -14,7 +14,6 @@ from matplotlib.widgets import SpanSelector
 
 
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple
-from neuropy.plotting.figure import compute_figure_size_pixels, compute_figure_size_inches # needed for _determine_best_placefield_2D_layout(...)'s internal _perform_compute_required_figure_sizes(...) function
 
 from typing import TYPE_CHECKING, Optional
 from neuropy.core.neuron_identities import PlotStringBrevityModeEnum # needed for _build_neuron_identity_label
@@ -157,6 +156,8 @@ def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, sub
                
         
     """
+    from neuropy.plotting.figure import compute_figure_size_pixels, compute_figure_size_inches # needed for _determine_best_placefield_2D_layout(...)'s internal _perform_compute_required_figure_sizes(...) function
+
     def _perform_compute_optimal_paginated_grid_layout(xbin, ybin, included_unit_indicies, subplots:RowColTuple=(40, 3), last_figure_subplots_same_layout=True, debug_print:bool=False):
         if not isinstance(subplots, RowColTuple):
             subplots = RowColTuple(subplots[0], subplots[1])
@@ -1829,3 +1830,104 @@ def resize_window_to_inches(window, width_inches, height_inches, dpi=96):
     width_pixels = int(width_inches * dpi)
     height_pixels = int(height_inches * dpi)
     window.resize(width_pixels, height_pixels)
+
+
+
+
+
+
+
+def value_to_color(value, debug_print=True):
+    """
+    Maps a value between -1.0 and 1.0 to an RGB color code.
+    -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
+    """
+    import colorsys
+
+    magnitude_value: float = np.abs(value)
+    # norm_value: float = map_to_fixed_range(magnitude_value, x_min=0.0, x_max=1.0)
+    saturation_component = magnitude_value
+    # saturation_component = norm_value
+
+    if value <= 0:
+        # Map values from -1.0 to 0.0 to shades of blue
+        # norm = (value + 1) / 2  # Normalize to [0, 1] range
+        rgb = colorsys.hsv_to_rgb(0.67, saturation_component, magnitude_value)  # Blue to dark gray
+    else:
+        # Map values from 0.0 to 1.0 to shades of red
+        # norm = value  # No need to normalize
+        rgb = colorsys.hsv_to_rgb(0.0, saturation_component, magnitude_value)  # Dark gray to red
+
+    if debug_print:
+        print(f'value: {value}')
+        # print(f'norm_value: {norm_value}')
+        print(f'magnitude_value: {magnitude_value}')
+        print(f'saturation_component: {saturation_component}')
+        print(f'rgb: {rgb}')
+
+    return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
+
+
+def build_label_value_formatted_text(label: str, value: float):
+    """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
+    Create text areas with different colors and properties
+    """
+    # Create text areas with different colors and properties
+    from matplotlib import font_manager
+    from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+
+    label_text_props = dict(color="black")
+    font_prop = font_manager.FontProperties(family='Source Sans Pro', size=9)
+    label_text_props['fontproperties'] = font_prop
+    txtArea_label = TextArea(label, textprops=label_text_props)
+
+    assert not isinstance(value, str)
+    value = float(value)
+    color = value_to_color(value)
+    font_prop = font_manager.FontProperties(family='Source Sans Pro', size=10)
+    textprops = dict(color=color, weight="bold")
+    textprops['fontproperties'] = font_prop
+    # text2 = TextArea(value, textprops=dict(color=color, weight="bold"))
+    txtArea_formatted_value = TextArea(value, textprops=textprops)
+    # Combine the text areas horizontally into a single line
+    box = HPacker(children=[txtArea_label, txtArea_formatted_value], align="center", pad=0, sep=5)
+    return box
+
+
+def build_formatted_label_values_stack(formated_text_list):
+    """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
+
+    Usage:
+        import matplotlib.pyplot as plt
+        from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+        from neuropy.utils.matplotlib_helpers import build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
+
+        # Create a figure and axis
+        fig, ax = plt.subplots()
+        formated_text_list = [("wcorr: ", -0.754),
+                                ("$P_i$: ", 0.052), 
+                                ("pearsonr: ", -0.76),
+                            ]
+
+        stack_box = build_formatted_label_values_stack(formated_text_list)
+
+        text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
+
+        anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+
+        # Add the offset box to the axes
+        ax.add_artist(anchored_box)
+
+        # Display the plot
+        plt.show()
+
+
+    """
+    # Create text areas with different colors and properties
+    from matplotlib import font_manager
+    from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+
+    stack_box = VPacker(children=[build_label_value_formatted_text(a_label, a_value) for a_label, a_value in formated_text_list], align='right', pad=0, sep=2)
+    return stack_box
+
+    # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False, **text_kwargs, borderpad=0.)
