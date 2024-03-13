@@ -6,9 +6,12 @@ from matplotlib.offsetbox import AnchoredOffsetbox
 import numpy as np
 import contextlib
 
+from attrs import define, field, Factory
+
 import matplotlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
 from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
 from matplotlib.widgets import RectangleSelector # required for `add_rectangular_selector`
 from matplotlib.widgets import SpanSelector
@@ -1837,6 +1840,12 @@ def resize_window_to_inches(window, width_inches, height_inches, dpi=96):
 # # 2024-03-12 - Multi-color/multi-line labels                                                                           #
 # # ==================================================================================================================== #
 
+## FLEXITEXT-version
+from flexitext import FlexiText, Style
+from flexitext.textgrid import make_text_grid, make_grid
+from flexitext.text import Text as StyledText
+
+
 # def value_to_color(value, debug_print=True):
 #     """
 #     Maps a value between -1.0 and 1.0 to an RGB color code.
@@ -1956,76 +1965,183 @@ def resize_window_to_inches(window, width_inches, height_inches, dpi=96):
 #     # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False, **text_kwargs, borderpad=0.)
 
 
-# class AnchoredCustomText(AnchoredOffsetbox):
-#     """
-#     AnchoredOffsetbox with Text.
+@define(slots=False)
+class ValueFormatter:
+    """ builds text formatting (for example larger values being rendered larger or more red) 
+
+    Usage:
+        a_val_formatter = ValueFormatter()
+        a_val_formatter(0.934)
+    """
+    NONE_fallback_color: str = field(default="#000000") # black
+    nan_fallback_color: str = field(default="#000000") # black
+    out_of_range_fallback_color: str = field(default="#00FF00") # lime green
+
+    def value_to_color(self, value, debug_print=True) -> str:
+        """
+        Maps a value between -1.0 and 1.0 to an RGB color code.
+        -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
+
+        Returns a hex-formatted color string
+
+        #TODO 2024-03-13 09:45: - [ ] Could just use matplotlib colormap or something?
+        """
+        import colorsys
+
+        if value is None:
+            return self.NONE_fallback_color
+        elif np.isnan(value):
+            return self.nan_fallback_color
+        else:
+            # valid color
+            #TODO 2024-03-13 09:44: - [ ] Range bounds between 0-1 implicitly
+            magnitude_value: float = np.abs(value)
+            # norm_value: float = map_to_fixed_range(magnitude_value, x_min=0.0, x_max=1.0)
+            saturation_component = magnitude_value
+            # saturation_component = norm_value
+
+            if value <= 0:
+                # Map values from -1.0 to 0.0 to shades of blue
+                # norm = (value + 1) / 2  # Normalize to [0, 1] range
+                rgb = colorsys.hsv_to_rgb(0.67, saturation_component, magnitude_value)  # Blue to dark gray
+            else:
+                # Map values from 0.0 to 1.0 to shades of red
+                # norm = value  # No need to normalize
+                rgb = colorsys.hsv_to_rgb(0.0, saturation_component, magnitude_value)  # Dark gray to red
+
+            if debug_print:
+                print(f'value: {value}')
+                # print(f'norm_value: {norm_value}')
+                print(f'magnitude_value: {magnitude_value}')
+                print(f'saturation_component: {saturation_component}')
+                print(f'rgb: {rgb}')
+
+            return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
+    
+    def value_to_format_dict(self, value, debug_print=False) -> Dict[str, Any]:
+        """ Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
+
+        Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
+
+        """
+        return {'color': self.value_to_color(value=value, debug_print=debug_print),
+             
+        }
+
+
+
+
+
+
+# @function_attributes(short_name=None, tags=['flexitext', 'matplotlib'], input_requires=[], output_provides=[], uses=['flexitext'], used_by=[], creation_date='2024-03-13 10:44', related_items=['AnchoredCustomText'])
+def parse_and_format_unformatted_values_text(unformatted_text_block: str, key_value_split: str = ":", desired_label_value_sep: str = ": ", a_val_formatter: ValueFormatter=None) -> Tuple[List[StyledText], ValueFormatter]:
+    """ takes a potentially multi-line string containing keys and values like:
+        unformatted_text_block: str = "wcorr: -0.754\n$P_i$: 0.052\npearsonr: -0.76"
+    to produce a list of flexitext.Text objects that contain styled text that can be rendered.
 
     
-#     Usage:
-#         from typing import Tuple
-#         import matplotlib.pyplot as plt
-#         from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
-#         from neuropy.utils.matplotlib_helpers import AnchoredCustomText, build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
+    desired_label_value_sep: str - the desired label/value separator to be rendered in the final string:
+
+    
+    Usage:
+        ## FLEXITEXT-version
+        from flexitext import FlexiText, Style
+        from flexitext.textgrid import make_text_grid, make_grid
+        from flexitext.text import Text as StyledText
+
+        unformatted_text_block: str = "wcorr: -0.754\n$P_i$: 0.052\npearsonr: -0.76"
+        texts: List[StyledText] = parse_and_format_unformatted_values_text(test_test)
+        text_grid: VPacker = make_text_grid(texts, ha="right")
+        text_grid
+
+
+    """
+    if a_val_formatter is None:
+        a_val_formatter = ValueFormatter()
+
+    # splits into new lines first, then splits into (label, value) pairs on the `key_value_split`
+    split_label_value_tuples = [[part.strip() for part in line.split(key_value_split)] for line in unformatted_text_block.splitlines()] # [['wcorr', '-0.754'], ['$P_i$', '0.052'], ['pearsonr', '-0.76']]
+
+    texts: List[StyledText] = []
+    for (label, value) in split_label_value_tuples:
+        flexitext_label_text_props = dict(color="black", name='Source Sans Pro', size=9)
+
+        float_val = float(value)
+        # formatted_val_color: str = a_val_formatter.value_to_color(float_val, debug_print=False)
+        flexitext_value_textprops = a_val_formatter.value_to_format_dict(float_val, debug_print=False) | dict(color='grey', weight="bold", name='Source Sans Pro', size=10) # merge the formatting dict, using the value returned from the formatter preferentially
+        
+        label_formatted_text: StyledText = Style(**flexitext_label_text_props)(label+ desired_label_value_sep)
+        value_formatted_text: StyledText = Style(**flexitext_value_textprops)(value + "\n")
+        texts.append(label_formatted_text)
+        texts.append(value_formatted_text)
+
+    return texts, a_val_formatter
+
+
+# @metadata_attributes(short_name=None, tags=[''], input_requires=[], output_provides=[], uses=['flexitext', 'parse_and_format_unformatted_values_text'], used_by=[], creation_date='2024-03-13 10:45', related_items=[])
+class AnchoredCustomText(AnchoredOffsetbox):
+    """
+    AnchoredOffsetbox with Text.
+
+    
+    Usage:
+        from typing import Tuple
+        import matplotlib.pyplot as plt
+        from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+        from neuropy.utils.matplotlib_helpers import AnchoredCustomText, build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
                                 
-#         # Create a figure and axis
-#         fig, ax = plt.subplots()
-#         formated_text_list = [("wcorr: ", -0.754),
-#                                 ("$P_i$: ", 0.052), 
-#                                 ("pearsonr: ", -0.76),
-#                             ]
+        # Create a figure and axis
+        fig, ax = plt.subplots()
+        formated_text_list = [("wcorr: ", -0.754),
+                                ("$P_i$: ", 0.052), 
+                                ("pearsonr: ", -0.76),
+                            ]
 
-#         text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
+        text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
 
-#         anchored_custom_text = AnchoredCustomText(formated_text_list=formated_text_list, pad=0., frameon=False,**text_kwargs, borderpad=0.)
-#         # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+        anchored_custom_text = AnchoredCustomText(formated_text_list=formated_text_list, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+        # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
 
-#         # Add the offset box to the axes
-#         ax.add_artist(anchored_custom_text)
+        # Add the offset box to the axes
+        ax.add_artist(anchored_custom_text)
 
-#         # Display the plot
-#         plt.show()
+        # Display the plot
+        plt.show()
             
             
-#     """
+    """
 
-#     def __init__(self, formated_text_list, *, pad=0., borderpad=0., prop=None, **kwargs):
-#         """
-#         Parameters
-#         ----------
-#         s : str
-#             Text.
+    def __init__(self, unformatted_text_block: str, custom_value_formatter: Optional[ValueFormatter]=None, **kwargs):
+        """
+        Parameters
+        ----------
+        **kwargs
+            All other parameters are passed to `AnchoredOffsetbox`.
+        """
+        # self.txtAreaItems = []
+        # self.stack_box = build_formatted_label_values_stack(formated_text_list)
+        self._unformatted_text_block = unformatted_text_block
+        self._custom_value_formatter = None
+        self._texts, self._custom_value_formatter = parse_and_format_unformatted_values_text(self._unformatted_text_block, a_val_formatter=custom_value_formatter)
+        self.stack_box: VPacker = make_text_grid(self._texts, ha="right")
 
-#         loc : str
-#             Location code. See `AnchoredOffsetbox`.
-
-#         pad : float, default: 0.4
-#             Padding around the text as fraction of the fontsize.
-
-#         borderpad : float, default: 0.5
-#             Spacing between the offsetbox frame and the *bbox_to_anchor*.
-
-#         prop : dict, optional
-#             Dictionary of keyword parameters to be passed to the
-#             `~matplotlib.text.Text` instance contained inside AnchoredText.
-
-#         **kwargs
-#             All other parameters are passed to `AnchoredOffsetbox`.
-#         """
-#         if prop is None:
-#             prop = {}
-#         badkwargs = {'va', 'verticalalignment'}
-#         if badkwargs & set(prop):
-#             raise ValueError(
-#                 'Mixing verticalalignment with AnchoredText is not supported.')
-
-#         # self.txtAreaItems = []
-#         self.stack_box = build_formatted_label_values_stack(formated_text_list)
-
-#         # self.txt = TextArea(s, textprops=prop)
-#         # fp = self.txt._text.get_fontproperties()
-#         super().__init__(child=self.stack_box, pad=pad, borderpad=borderpad, prop=prop, **kwargs)
+        # self.txt = TextArea(s, textprops=prop)
+        # fp = self.txt._text.get_fontproperties()
+        super().__init__(child=self.stack_box, **kwargs)
 
 
-#     def update_text(self, formated_text_list):
-#         raise NotImplementedError
+    def update_text(self, unformatted_text_block: str):
+        did_text_change = (unformatted_text_block != self._unformatted_text_block)
+        if not did_text_change:
+            print(f'text did not change!')
+            return
+        ## otherwise text did change
+        self._unformatted_text_block = unformatted_text_block
+        self._texts, self._custom_value_formatter = parse_and_format_unformatted_values_text(self._unformatted_text_block, a_val_formatter=self._custom_value_formatter)
+
+        if self.stack_box is not None:
+            self.stack_box.remove() ## remove the old one
+            self.stack_box = None
+        ## Create the new one:
+        self.stack_box: VPacker = make_text_grid(self._texts, ha="right")
 
