@@ -1,5 +1,7 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Union, List, Dict, Set, Any, Optional, OrderedDict  # for OrderedMeta
 from nptyping import NDArray
+from contextlib import contextmanager, ContextDecorator
+
 import numpy as np
 import pandas as pd
 from functools import reduce # intersection_of_arrays, union_of_arrays
@@ -443,3 +445,145 @@ def convert_to_dictlike(other) -> Dict:
         return other.__dict__
     else:
         raise NotImplementedError(f"Object other of type: {type(other)} could not be converted to a python dict.\nother: {other}.")
+
+
+# ==================================================================================================================== #
+#region PandasDataFrameHelpers                                                                                               #
+# ==================================================================================================================== #
+    
+class PandasHelpers:
+    """ various extensions and generalizations for numpy arrays 
+    
+    from neuropy.utils.indexing_helpers import PandasHelpers
+
+
+    """
+    @classmethod
+    def require_columns(cls, dfs: Union[pd.DataFrame, List[pd.DataFrame], Dict[Any, pd.DataFrame]], required_columns: List[str], print_missing_columns: bool = False) -> bool:
+        """
+        Check if all DataFrames in the given container have the required columns.
+        
+        Parameters:
+            dfs: A container that may be a single DataFrame, a list/tuple of DataFrames, or a dictionary with DataFrames as values.
+            required_columns: A list of column names that are required to be present in each DataFrame.
+            print_changes: If True, prints the columns that are missing from each DataFrame.
+        
+        Returns:
+            True if all DataFrames contain all the required columns, otherwise False.
+
+        Usage:
+
+            required_cols = ['missing_column', 'congruent_dir_bins_ratio', 'coverage', 'direction_change_bin_ratio', 'jump', 'laplacian_smoothness', 'longest_sequence_length', 'longest_sequence_length_ratio', 'monotonicity_score', 'sequential_correlation', 'total_congruent_direction_change', 'travel'] # Replace with actual column names you require
+            has_required_columns = PandasHelpers.require_columns({a_name:a_result.filter_epochs for a_name, a_result in filtered_decoder_filter_epochs_decoder_result_dict.items()}, required_cols, print_missing_columns=True)
+            has_required_columns
+            
+
+
+        """
+        def _subfn_check_and_report(df: pd.DataFrame, columns: List[str], identifier: Any = None) -> bool:
+            missing_columns = set(columns).difference(df.columns)
+            has_all_columns = not missing_columns
+            
+            if print_missing_columns and not has_all_columns:
+                df_name = f" (DataFrame Identifier: {identifier})" if identifier else ""
+                print(f"Missing required columns in DataFrame{df_name}: {missing_columns}")
+
+            return has_all_columns
+
+        all_have_all_columns = True
+        
+        if isinstance(dfs, pd.DataFrame):
+            all_have_all_columns = _subfn_check_and_report(dfs, required_columns)
+        elif isinstance(dfs, (list, tuple)):
+            all_have_all_columns = all(_subfn_check_and_report(df, required_columns, i) for i, df in enumerate(dfs))
+        elif isinstance(dfs, dict):
+            all_have_all_columns = all(_subfn_check_and_report(df, required_columns, key) for key, df in dfs.items())
+
+        return all_have_all_columns
+
+
+
+
+class ColumnTracker(ContextDecorator):
+    """A context manager to track changes in the columns of DataFrames.
+
+    The ColumnTracker can handle a single DataFrame, a list or tuple of DataFrames,
+    or a dictionary with DataFrames as values. It prints the new columns added to the
+    DataFrames during the block where the context manager is active.
+
+    Attributes:
+        result_cont: Container (single DataFrame, list/tuple of DataFrames, dict of DataFrames) being monitored.
+        pre_cols: Set or structure containing sets of column names before the block execution.
+        post_cols: Set or structure containing sets of column names after the block execution.
+        added_cols: Set or structure containing sets of added column names after the block execution.
+        all_added_columns: List of all unique added column names across all DataFrames after the block execution.
+
+
+    Usage:
+
+        from pyphocorehelpers.print_helpers import ColumnTracker
+
+        dfs_dict = {a_name:a_result.filter_epochs for a_name, a_result in filtered_decoder_filter_epochs_decoder_result_dict.items()}
+        with ColumnTracker(dfs_dict) as tracker:
+            # Here you perform the operations that might modify the DataFrame columns
+            filtered_decoder_filter_epochs_decoder_result_dict, _out_new_scores = HeuristicReplayScoring.compute_all_heuristic_scores(track_templates=track_templates, a_decoded_filter_epochs_decoder_result_dict=filtered_decoder_filter_epochs_decoder_result_dict)
+
+        # >>> ['longest_sequence_length', 'travel', 'sequential_correlation', 'monotonicity_score', 'jump', 'congruent_dir_bins_ratio', 'total_congruent_direction_change', 'direction_change_bin_ratio', 'longest_sequence_length_ratio', 'laplacian_smoothness', 'coverage']
+
+    """
+
+    def __init__(self, result_cont: Union[pd.DataFrame, List[pd.DataFrame], Dict[Any, pd.DataFrame]]):
+        self.result_cont = result_cont
+        self.pre_cols: Union[Set[str], List[Set[str]], Dict[Any, Set[str]]] = None
+        self.post_cols: Union[Set[str], List[Set[str]], Dict[Any, Set[str]]] = None
+        self.added_cols: Union[Set[str], List[Set[str]], Dict[Any, Set[str]]] = None
+        self.all_added_columns: List[str] = None
+
+    def _record_cols(self, data_structure: Union[pd.DataFrame, List[pd.DataFrame], Dict[Any, pd.DataFrame]]
+                     ) -> Union[Set[str], List[Set[str]], Dict[Any, Set[str]]]:
+        """Record the column names of the provided data structure."""
+        if isinstance(data_structure, pd.DataFrame):
+            return set(data_structure.columns)
+        elif isinstance(data_structure, (list, tuple)):
+            return [set(df.columns) for df in data_structure]
+        elif isinstance(data_structure, dict):
+            return {key: set(value.columns) for key, value in data_structure.items()}
+        else:
+            raise ValueError("Unsupported data structure type.")
+
+    def __enter__(self) -> 'ColumnTracker':
+        """Enter the runtime context related to this object.
+
+        The with statement will bind this method's return value to the target(s)
+        specified in the as clause of the statement, if any.
+        """
+        self.pre_cols = self._record_cols(self.result_cont)
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        """Exit the runtime context and perform any finalization actions."""
+        self.post_cols = self._record_cols(self.result_cont)
+
+        # Calculate added columns
+        if isinstance(self.result_cont, pd.DataFrame):
+            self.added_cols = self.post_cols - self.pre_cols
+            self.all_added_columns = list(self.added_cols)
+        elif isinstance(self.result_cont, (list, tuple)):
+            self.added_cols = [post - pre for post, pre in zip(self.post_cols, self.pre_cols)]
+            self.all_added_columns = np.unique(np.concatenate([list(cols) for cols in self.added_cols])).tolist()
+        elif isinstance(self.result_cont, dict):
+            self.added_cols = {key: self.post_cols[key] - self.pre_cols[key] for key in self.result_cont}
+            all_cols = set()
+            for added in self.added_cols.values():
+                all_cols.update(added)
+            self.all_added_columns = list(all_cols)
+
+        # Print added columns
+        print(f'Added columns:', end='\t')
+        if len(self.all_added_columns) > 0:
+            print(self.all_added_columns)
+        else:
+            print('[] (no columns added)')    
+
+
+#endregion PandasDataFrameHelpers ______________________________________________________________________________________________________ #
