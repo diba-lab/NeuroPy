@@ -688,7 +688,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
     ndim: int = None
     xbin: np.ndarray = None
     ybin: np.ndarray = None
-    bin_info: dict = None
+    bin_info: dict = None # dict with keys: ['mode', 'xstep', 'xnum_bins'] and if 2D ['ystep', 'ynum_bins']
 
     def __attrs_post_init__(self):
         """ called after initializer built by `attrs` library. """
@@ -1045,10 +1045,6 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         return self.ratemap.normalized_tuning_curves_dict
     
     
-        
-    
-        
-        
     ## self.config convinence accessors. Mostly for compatibility with Pf1D and Pf2D
     @property
     def frate_thresh(self):
@@ -1059,6 +1055,36 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         """The speed_thresh property."""
         return self.config.speed_thresh
 
+    @property
+    def pos_bin_size(self) -> Union[float, Tuple[float, float]]:
+        """ extracts pos_bin_size: the size of the x_bin in [cm], from the decoder. 
+        
+        returns a tuple if 2D or a single float if 1D
+
+        """
+            # pos_bin_size: the size of the x_bin in [cm]
+        if self.bin_info is not None:
+            pos_x_bin_size = float(self.bin_info['xstep'])
+            pos_y_bin_size = self.bin_info.get('ystep', None)
+            if pos_y_bin_size is not None:
+                return (pos_x_bin_size, float(pos_y_bin_size))
+            else:
+                # 1D
+                return pos_x_bin_size
+        else:
+            ## if the bin_info is for some reason not accessible, just average the distance between the bin centers.
+            assert (self.xbin_centers is not None) and (len(self.xbin_centers) > 1)
+            pos_x_bin_size = np.diff(self.xbin_centers).mean()
+            if self.ybin_centers is not None:
+                assert (self.ybin_centers is not None) and (len(self.ybin_centers) > 1)
+                pos_y_bin_size = np.diff(self.ybin_centers).mean()
+                return (pos_x_bin_size, float(pos_y_bin_size))
+            else:
+                # 1D
+                return pos_x_bin_size
+
+        
+    
     @property
     def frate_filter_fcn(self):
         """The frate_filter_fcn property."""
@@ -1083,7 +1109,8 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         """The neuron IDs ('aclu' values) that were included after filtering by frate and etc. """
         return self._filtered_spikes_df.spikes.neuron_ids[self.included_neuron_IDXs] ## TODO: these are basically wrong, we should use self.ratemap.neuron_IDs instead!
 
-
+    
+        
 
     # for NeuronUnitSlicableObjectProtocol:
     def get_by_id(self, ids):
