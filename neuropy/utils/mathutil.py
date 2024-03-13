@@ -31,6 +31,35 @@ def min_max_scaler(x, axis=-1):
         x, axis=axis, keepdims=True
     )
 
+
+def bounded(v: float, vmin: float = -np.inf, vmax: float = np.inf) -> float:
+    """Returns the value bounded between two optional lower and upper bounds.
+    It clips to the bounds.
+
+    Usage:
+        from neuropy.utils.mathutil import bounded
+
+        v_bounded = bounded(value, vmin=0.0, vmax=1.0)
+    
+    Usage 2:
+        value = [-150, -65, -0.9, 0, 0.9, 65, 150]
+
+        bounded(value, vmin=0.0, vmax=1.0) # array([0. , 0. , 0. , 0. , 0.9, 1. , 1. ])
+        bounded(value, vmin=-1.0, vmax=1.0) # array([-1. , -1. , -0.9,  0. ,  0.9,  1. ,  1. ])
+
+        
+    """
+    if np.isscalar(v):
+        if np.isnan(v):
+            return np.nan  # Return NaN directly if v is NaN
+        return min(max(v, vmin), vmax)  # No need for numpy functions for scalar
+    
+    # If v is array-like
+    v = np.array(v)
+    v = np.clip(v, vmin, vmax)
+    return v
+
+    
 def map_to_fixed_range(lin_pos, x_min:float=0.0, x_max:float=1.0):
     # Normalize lin_pos to the range [0, 1]
     lin_pos_normalized = (lin_pos - np.nanmin(lin_pos)) / (np.nanmax(lin_pos) - np.nanmin(lin_pos))
