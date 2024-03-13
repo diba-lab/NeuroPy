@@ -15,14 +15,16 @@ from matplotlib.collections import BrokenBarHCollection # for draw_epoch_regions
 from matplotlib.widgets import RectangleSelector # required for `add_rectangular_selector`
 from matplotlib.widgets import SpanSelector
 
-
 from neuropy.utils.misc import AutoNameEnum, compute_paginated_grid_config, RowColTuple
 
-from typing import TYPE_CHECKING, Optional
-from neuropy.core.neuron_identities import PlotStringBrevityModeEnum # needed for _build_neuron_identity_label
+from typing import TYPE_CHECKING, Dict, List, Tuple, Optional, Callable, Union, Any
+from nptyping import NDArray
+
 if TYPE_CHECKING:
+    from neuropy.core.neuron_identities import PlotStringBrevityModeEnum # needed for _build_neuron_identity_label
     from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple # needed for _build_neuron_identity_label
     
+
 
 """ Note that currently the only Matplotlib-specific functions here are add_inner_title(...) and draw_sizebar(...). The rest have general uses! """
 
@@ -100,8 +102,11 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     
     
     
-def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentityTuple=None, brev_mode=PlotStringBrevityModeEnum.CONCISE, formatted_max_value_string=None, use_special_overlayed_title=True):
+def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentityTuple=None, brev_mode: PlotStringBrevityModeEnum=None, formatted_max_value_string=None, use_special_overlayed_title=True):
     """ builds the subplot title for 2D PFs that displays the neuron identity and other important info. """
+    if brev_mode is None:
+        brev_mode = PlotStringBrevityModeEnum.CONCISE
+
     if neuron_extended_id is not None:    
         full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
     else:
