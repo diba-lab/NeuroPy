@@ -1833,205 +1833,199 @@ def resize_window_to_inches(window, width_inches, height_inches, dpi=96):
     window.resize(width_pixels, height_pixels)
 
 
+# # ==================================================================================================================== #
+# # 2024-03-12 - Multi-color/multi-line labels                                                                           #
+# # ==================================================================================================================== #
+
+# def value_to_color(value, debug_print=True):
+#     """
+#     Maps a value between -1.0 and 1.0 to an RGB color code.
+#     -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
+#     """
+#     import colorsys
+
+#     magnitude_value: float = np.abs(value)
+#     # norm_value: float = map_to_fixed_range(magnitude_value, x_min=0.0, x_max=1.0)
+#     saturation_component = magnitude_value
+#     # saturation_component = norm_value
+
+#     if value <= 0:
+#         # Map values from -1.0 to 0.0 to shades of blue
+#         # norm = (value + 1) / 2  # Normalize to [0, 1] range
+#         rgb = colorsys.hsv_to_rgb(0.67, saturation_component, magnitude_value)  # Blue to dark gray
+#     else:
+#         # Map values from 0.0 to 1.0 to shades of red
+#         # norm = value  # No need to normalize
+#         rgb = colorsys.hsv_to_rgb(0.0, saturation_component, magnitude_value)  # Dark gray to red
+
+#     if debug_print:
+#         print(f'value: {value}')
+#         # print(f'norm_value: {norm_value}')
+#         print(f'magnitude_value: {magnitude_value}')
+#         print(f'saturation_component: {saturation_component}')
+#         print(f'rgb: {rgb}')
+
+#     return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
+
+# def build_label_value_formatted_text_properties(label: str, value: float):
+#     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
+#     Create text areas with different colors and properties
+
+#     from neuropy.utils.matplotlib_helpers import build_label_value_formatted_text_properties
 
 
-# ==================================================================================================================== #
-# 2024-03-12 - Multi-color/multi-line labels                                                                           #
-# ==================================================================================================================== #
+#     """
+#     # Create text areas with different colors and properties
+#     from matplotlib import font_manager
 
-def value_to_color(value, debug_print=True):
-    """
-    Maps a value between -1.0 and 1.0 to an RGB color code.
-    -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
-    """
-    import colorsys
-
-    magnitude_value: float = np.abs(value)
-    # norm_value: float = map_to_fixed_range(magnitude_value, x_min=0.0, x_max=1.0)
-    saturation_component = magnitude_value
-    # saturation_component = norm_value
-
-    if value <= 0:
-        # Map values from -1.0 to 0.0 to shades of blue
-        # norm = (value + 1) / 2  # Normalize to [0, 1] range
-        rgb = colorsys.hsv_to_rgb(0.67, saturation_component, magnitude_value)  # Blue to dark gray
-    else:
-        # Map values from 0.0 to 1.0 to shades of red
-        # norm = value  # No need to normalize
-        rgb = colorsys.hsv_to_rgb(0.0, saturation_component, magnitude_value)  # Dark gray to red
-
-    if debug_print:
-        print(f'value: {value}')
-        # print(f'norm_value: {norm_value}')
-        print(f'magnitude_value: {magnitude_value}')
-        print(f'saturation_component: {saturation_component}')
-        print(f'rgb: {rgb}')
-
-    return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
-
-def build_label_value_formatted_text_properties(label: str, value: float):
-    """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
-    Create text areas with different colors and properties
-
-    from neuropy.utils.matplotlib_helpers import build_label_value_formatted_text_properties
-
-
-    """
-    # Create text areas with different colors and properties
-    from matplotlib import font_manager
-
-    label_text_props = dict(color="black")
-    label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
+#     label_text_props = dict(color="black")
+#     label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
     
-    # assert not isinstance(value, str)
-    value = float(value)
-    color = value_to_color(value)
-    value_textprops = dict(color=color, weight="bold")
-    value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
+#     # assert not isinstance(value, str)
+#     value = float(value)
+#     color = value_to_color(value)
+#     value_textprops = dict(color=color, weight="bold")
+#     value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
 
-    return label_text_props, value_textprops
+#     return label_text_props, value_textprops
 
+# def build_label_value_formatted_text(label: str, value: float):
+#     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
+#     Create text areas with different colors and properties
+#     """
+#     # Create text areas with different colors and properties
+#     from matplotlib import font_manager
+#     from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
 
-
-def build_label_value_formatted_text(label: str, value: float):
-    """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
-    Create text areas with different colors and properties
-    """
-    # Create text areas with different colors and properties
-    from matplotlib import font_manager
-    from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
-
-    # label_text_props = dict(color="black")
-    # label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
+#     # label_text_props = dict(color="black")
+#     # label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
     
-    # # assert not isinstance(value, str)
-    # value = float(value)
-    # color = value_to_color(value)
-    # value_textprops = dict(color=color, weight="bold")
-    # value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
+#     # # assert not isinstance(value, str)
+#     # value = float(value)
+#     # color = value_to_color(value)
+#     # value_textprops = dict(color=color, weight="bold")
+#     # value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
 
 
-    label_text_props, value_textprops = build_label_value_formatted_text_properties(label, value)
+#     label_text_props, value_textprops = build_label_value_formatted_text_properties(label, value)
 
-    ## Build actual labels:
-    txtArea_label = TextArea(label, textprops=label_text_props)
-    txtArea_formatted_value = TextArea(value, textprops=value_textprops)
-    # Combine the text areas horizontally into a single line
-    box = HPacker(children=[txtArea_label, txtArea_formatted_value], align="center", pad=0, sep=5)
+#     ## Build actual labels:
+#     txtArea_label = TextArea(label, textprops=label_text_props)
+#     txtArea_formatted_value = TextArea(value, textprops=value_textprops)
+#     # Combine the text areas horizontally into a single line
+#     box = HPacker(children=[txtArea_label, txtArea_formatted_value], align="center", pad=0, sep=5)
 
-    return box
+#     return box
 
+# def build_formatted_label_values_stack(formated_text_list):
+#     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
 
-def build_formatted_label_values_stack(formated_text_list):
-    """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
+#     Usage:
+#         import matplotlib.pyplot as plt
+#         from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+#         from neuropy.utils.matplotlib_helpers import build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
 
-    Usage:
-        import matplotlib.pyplot as plt
-        from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
-        from neuropy.utils.matplotlib_helpers import build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
+#         # Create a figure and axis
+#         fig, ax = plt.subplots()
+#         formated_text_list = [("wcorr: ", -0.754),
+#                                 ("$P_i$: ", 0.052), 
+#                                 ("pearsonr: ", -0.76),
+#                             ]
 
-        # Create a figure and axis
-        fig, ax = plt.subplots()
-        formated_text_list = [("wcorr: ", -0.754),
-                                ("$P_i$: ", 0.052), 
-                                ("pearsonr: ", -0.76),
-                            ]
+#         stack_box = build_formatted_label_values_stack(formated_text_list)
 
-        stack_box = build_formatted_label_values_stack(formated_text_list)
+#         text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
 
-        text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
+#         anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
 
-        anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+#         # Add the offset box to the axes
+#         ax.add_artist(anchored_box)
 
-        # Add the offset box to the axes
-        ax.add_artist(anchored_box)
-
-        # Display the plot
-        plt.show()
-
-
-    """
-    # Create text areas with different colors and properties
-    from matplotlib import font_manager
-    from matplotlib.offsetbox import TextArea, HPacker, VPacker
-
-    stack_box = VPacker(children=[build_label_value_formatted_text(a_label, a_value) for a_label, a_value in formated_text_list], align='right', pad=0, sep=2)
-    return stack_box
-
-    # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False, **text_kwargs, borderpad=0.)
+#         # Display the plot
+#         plt.show()
 
 
+#     """
+#     # Create text areas with different colors and properties
+#     from matplotlib import font_manager
+#     from matplotlib.offsetbox import TextArea, HPacker, VPacker
 
-class AnchoredCustomText(AnchoredOffsetbox):
-    """
-    AnchoredOffsetbox with Text.
+#     stack_box = VPacker(children=[build_label_value_formatted_text(a_label, a_value) for a_label, a_value in formated_text_list], align='right', pad=0, sep=2)
+#     return stack_box
+
+#     # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False, **text_kwargs, borderpad=0.)
+
+
+# class AnchoredCustomText(AnchoredOffsetbox):
+#     """
+#     AnchoredOffsetbox with Text.
 
     
-    Usage:
-        from typing import Tuple
-        import matplotlib.pyplot as plt
-        from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
-        from neuropy.utils.matplotlib_helpers import AnchoredCustomText, build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
+#     Usage:
+#         from typing import Tuple
+#         import matplotlib.pyplot as plt
+#         from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+#         from neuropy.utils.matplotlib_helpers import AnchoredCustomText, build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
                                 
-        # Create a figure and axis
-        fig, ax = plt.subplots()
-        formated_text_list = [("wcorr: ", -0.754),
-                                ("$P_i$: ", 0.052), 
-                                ("pearsonr: ", -0.76),
-                            ]
+#         # Create a figure and axis
+#         fig, ax = plt.subplots()
+#         formated_text_list = [("wcorr: ", -0.754),
+#                                 ("$P_i$: ", 0.052), 
+#                                 ("pearsonr: ", -0.76),
+#                             ]
 
-        text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
+#         text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
 
-        anchored_custom_text = AnchoredCustomText(formated_text_list=formated_text_list, pad=0., frameon=False,**text_kwargs, borderpad=0.)
-        # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+#         anchored_custom_text = AnchoredCustomText(formated_text_list=formated_text_list, pad=0., frameon=False,**text_kwargs, borderpad=0.)
+#         # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
 
-        # Add the offset box to the axes
-        ax.add_artist(anchored_custom_text)
+#         # Add the offset box to the axes
+#         ax.add_artist(anchored_custom_text)
 
-        # Display the plot
-        plt.show()
+#         # Display the plot
+#         plt.show()
             
             
-    """
+#     """
 
-    def __init__(self, formated_text_list, *, pad=0., borderpad=0., prop=None, **kwargs):
-        """
-        Parameters
-        ----------
-        s : str
-            Text.
+#     def __init__(self, formated_text_list, *, pad=0., borderpad=0., prop=None, **kwargs):
+#         """
+#         Parameters
+#         ----------
+#         s : str
+#             Text.
 
-        loc : str
-            Location code. See `AnchoredOffsetbox`.
+#         loc : str
+#             Location code. See `AnchoredOffsetbox`.
 
-        pad : float, default: 0.4
-            Padding around the text as fraction of the fontsize.
+#         pad : float, default: 0.4
+#             Padding around the text as fraction of the fontsize.
 
-        borderpad : float, default: 0.5
-            Spacing between the offsetbox frame and the *bbox_to_anchor*.
+#         borderpad : float, default: 0.5
+#             Spacing between the offsetbox frame and the *bbox_to_anchor*.
 
-        prop : dict, optional
-            Dictionary of keyword parameters to be passed to the
-            `~matplotlib.text.Text` instance contained inside AnchoredText.
+#         prop : dict, optional
+#             Dictionary of keyword parameters to be passed to the
+#             `~matplotlib.text.Text` instance contained inside AnchoredText.
 
-        **kwargs
-            All other parameters are passed to `AnchoredOffsetbox`.
-        """
-        if prop is None:
-            prop = {}
-        badkwargs = {'va', 'verticalalignment'}
-        if badkwargs & set(prop):
-            raise ValueError(
-                'Mixing verticalalignment with AnchoredText is not supported.')
+#         **kwargs
+#             All other parameters are passed to `AnchoredOffsetbox`.
+#         """
+#         if prop is None:
+#             prop = {}
+#         badkwargs = {'va', 'verticalalignment'}
+#         if badkwargs & set(prop):
+#             raise ValueError(
+#                 'Mixing verticalalignment with AnchoredText is not supported.')
 
-        # self.txtAreaItems = []
-        self.stack_box = build_formatted_label_values_stack(formated_text_list)
+#         # self.txtAreaItems = []
+#         self.stack_box = build_formatted_label_values_stack(formated_text_list)
 
-        # self.txt = TextArea(s, textprops=prop)
-        # fp = self.txt._text.get_fontproperties()
-        super().__init__(child=self.stack_box, pad=pad, borderpad=borderpad, prop=prop, **kwargs)
+#         # self.txt = TextArea(s, textprops=prop)
+#         # fp = self.txt._text.get_fontproperties()
+#         super().__init__(child=self.stack_box, pad=pad, borderpad=borderpad, prop=prop, **kwargs)
 
 
-    def update_text(self, formated_text_list):
-        raise NotImplementedError
+#     def update_text(self, formated_text_list):
+#         raise NotImplementedError
 
