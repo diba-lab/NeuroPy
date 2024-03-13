@@ -1975,6 +1975,11 @@ from flexitext.text import Text as StyledText
 
 #     # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False, **text_kwargs, borderpad=0.)
 
+import matplotlib as mpl
+import matplotlib.colors
+from matplotlib import cm
+from neuropy.utils.mathutil import bounded
+
 
 @define(slots=False)
 class ValueFormatter:
@@ -1988,7 +1993,46 @@ class ValueFormatter:
     nan_fallback_color: str = field(default="#000000") # black
     out_of_range_fallback_color: str = field(default="#00FF00") # lime green
 
+    # select a divergent colormap
+    cmap: mpl.colors.Colormap = field(factory=(lambda *args, **kwargs: cm.coolwarm))
+    norm: mpl.colors.Normalize = field(factory=(lambda *args, **kwargs: mpl.colors.Normalize(vmin=-1, vmax=1)))
+    
+    # cmap = matplotlib.cm.get_cmap('Spectral')
+    # cmap = cm.coolwarm
+    # norm = matplotlib.colors.Normalize(vmin=10.0, vmax=20.0)
+
+    def __attrs_post_init__(self):
+        if self.cmap is None:
+            self.cmap = cm.coolwarm
+        self.cmap.set_bad(self.NONE_fallback_color)
+        self.cmap.set_under(self.out_of_range_fallback_color)
+        self.cmap.set_over(self.out_of_range_fallback_color)
+
+
     def value_to_color(self, value, debug_print=True) -> str:
+        """
+        Maps a value between -1.0 and 1.0 to an RGB color code.
+        -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
+
+        Returns a hex-formatted color string
+
+        #TODO 2024-03-13 09:45: - [ ] Could just use matplotlib colormap or something?
+        """
+        if value is None:
+            return self.NONE_fallback_color
+        elif np.isnan(value):
+            return self.nan_fallback_color
+        else:
+            norm_value = self.norm(value)
+            color = self.cmap(norm_value)
+            if debug_print:
+                print(f'value: {value}')
+                print(f'norm_value: {norm_value}')
+                print(f'color: {color}')
+
+            return color
+
+    def blue_grey_red_custom_value_to_color_fn(self, value, debug_print=True) -> str:
         """
         Maps a value between -1.0 and 1.0 to an RGB color code.
         -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
@@ -2006,6 +2050,7 @@ class ValueFormatter:
         else:
             # valid color
             #TODO 2024-03-13 09:44: - [ ] Range bounds between 0-1 implicitly
+            value = bounded(value, vmin=-1.0, vmax=1.0)
             magnitude_value: float = np.abs(value)
             # norm_value: float = map_to_fixed_range(magnitude_value, x_min=0.0, x_max=1.0)
             saturation_component = magnitude_value
@@ -2027,15 +2072,21 @@ class ValueFormatter:
                 print(f'saturation_component: {saturation_component}')
                 print(f'rgb: {rgb}')
 
+            # assert ((rgb[0] <= 1.0) and (rgb[0] >= 0.0))
+            assert np.all((np.array(rgb) <= 1.0) and (np.array(rgb) >= 0.0)), f"rgb: {rgb}, value: {value}"
+            
             return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
     
+            
     def value_to_format_dict(self, value, debug_print=False) -> Dict[str, Any]:
         """ Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
 
         Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
 
         """
-        return {'color': self.value_to_color(value=value, debug_print=debug_print),
+        return {
+            # 'color': self.value_to_color(value=value, debug_print=debug_print),
+            'color': self.blue_grey_red_custom_value_to_color_fn(value=value, debug_print=debug_print),
              
         }
 
