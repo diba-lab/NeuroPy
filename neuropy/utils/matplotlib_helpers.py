@@ -1997,6 +1997,9 @@ class ValueFormatter:
     cmap: mpl.colors.Colormap = field(factory=(lambda *args, **kwargs: cm.coolwarm))
     norm: mpl.colors.Normalize = field(factory=(lambda *args, **kwargs: mpl.colors.Normalize(vmin=-1, vmax=1)))
     
+    coloring_function: Callable = field(default=None)
+
+
     # cmap = matplotlib.cm.get_cmap('Spectral')
     # cmap = cm.coolwarm
     # norm = matplotlib.colors.Normalize(vmin=10.0, vmax=20.0)
@@ -2004,20 +2007,39 @@ class ValueFormatter:
     def __attrs_post_init__(self):
         if self.cmap is None:
             self.cmap = cm.coolwarm
+        if self.norm is None:
+            self.norm = mpl.colors.Normalize(vmin=-1, vmax=1)
+        if self.coloring_function is None:
+            self.coloring_function = self.matplotlib_colormap_value_to_color_fn
         self.cmap.set_bad(self.NONE_fallback_color)
         self.cmap.set_under(self.out_of_range_fallback_color)
         self.cmap.set_over(self.out_of_range_fallback_color)
 
 
     def value_to_color(self, value, debug_print=True) -> str:
+        """ Maps a value between -1.0 and 1.0 to an RGB color code. Returns a hex-formatted color string
         """
-        Maps a value between -1.0 and 1.0 to an RGB color code.
-        -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
+        assert self.coloring_function is not None
+        return self.coloring_function(value, debug_print=debug_print)
+    
+            
+    def value_to_format_dict(self, value, debug_print=False) -> Dict[str, Any]:
+        """ Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
 
-        Returns a hex-formatted color string
+        Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
 
-        #TODO 2024-03-13 09:45: - [ ] Could just use matplotlib colormap or something?
         """
+        return {
+            # 'color': self.value_to_color(value=value, debug_print=debug_print),
+            'color': self.coloring_function(value=value, debug_print=debug_print),
+             
+        }
+    
+    # ==================================================================================================================== #
+    # Specific coloring functions to use for self.coloring_function                                                        #
+    # ==================================================================================================================== #
+    def matplotlib_colormap_value_to_color_fn(self, value, debug_print=True) -> str:
+        """ uses self.cmap and self.norm to format the value. """
         if value is None:
             return self.NONE_fallback_color
         elif np.isnan(value):
@@ -2032,14 +2054,14 @@ class ValueFormatter:
 
             return color
 
+
     def blue_grey_red_custom_value_to_color_fn(self, value, debug_print=True) -> str:
         """
         Maps a value between -1.0 and 1.0 to an RGB color code.
         -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
 
         Returns a hex-formatted color string
-
-        #TODO 2024-03-13 09:45: - [ ] Could just use matplotlib colormap or something?
+        Does not use the matplotlib colormap properties.
         """
         import colorsys
 
@@ -2077,18 +2099,7 @@ class ValueFormatter:
             
             return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
     
-            
-    def value_to_format_dict(self, value, debug_print=False) -> Dict[str, Any]:
-        """ Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
 
-        Returns a formatting dict for rendering the value text suitable for use with flexitext_value_textprops
-
-        """
-        return {
-            # 'color': self.value_to_color(value=value, debug_print=debug_print),
-            'color': self.blue_grey_red_custom_value_to_color_fn(value=value, debug_print=debug_print),
-             
-        }
 
 
 
