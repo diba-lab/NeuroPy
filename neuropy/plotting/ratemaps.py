@@ -24,8 +24,7 @@ if TYPE_CHECKING:
 from neuropy.utils import mathutil
 from neuropy.utils.misc import RowColTuple, safe_item
 from neuropy.utils.colors_util import get_neuron_colors
-from neuropy.utils.matplotlib_helpers import build_or_reuse_figure, _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label
-from neuropy.utils.matplotlib_helpers import perform_update_title_subtitle
+from neuropy.utils.matplotlib_helpers import build_or_reuse_figure, perform_update_title_subtitle, _build_variable_max_value_label, add_inner_title, enumTuningMap2DPlotMode, _build_square_checkerboard_image, enumTuningMap2DPlotVariables, _determine_best_placefield_2D_layout, _scale_current_placefield_to_acceptable_range, _build_neuron_identity_label 
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 from .figure import Fig
 
