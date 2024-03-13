@@ -3,3 +3,5 @@
 /testing_spikes_df.h5
 /testing_spikes_df.pkl
 /neuropy_epochs_testing.h5
+/epoch_slices_df.csv
+/epoch_slices_df.h5
