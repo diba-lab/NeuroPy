@@ -2,10 +2,9 @@ from __future__ import annotations # otherwise have to do type like 'Ratemap'
 
 from enum import Enum, IntEnum, auto, unique
 from collections import namedtuple
-from matplotlib.offsetbox import AnchoredOffsetbox
 import numpy as np
 import contextlib
-
+from copy import deepcopy
 from attrs import define, field, Factory
 
 import matplotlib
@@ -2075,7 +2074,7 @@ def parse_and_format_unformatted_values_text(unformatted_text_block: str, key_va
 
         float_val = float(value)
         # formatted_val_color: str = a_val_formatter.value_to_color(float_val, debug_print=False)
-        flexitext_value_textprops = a_val_formatter.value_to_format_dict(float_val, debug_print=False) | dict(color='grey', weight="bold", name='Source Sans Pro', size=10) # merge the formatting dict, using the value returned from the formatter preferentially
+        flexitext_value_textprops = dict(color='grey', weight="bold", name='Source Sans Pro', size=10) | a_val_formatter.value_to_format_dict(float_val, debug_print=False) # merge the formatting dict, using the value returned from the formatter preferentially
         
         label_formatted_text: StyledText = Style(**flexitext_label_text_props)(label + desired_label_value_sep)
         value_formatted_text: StyledText = Style(**flexitext_value_textprops)(value + "\n")
