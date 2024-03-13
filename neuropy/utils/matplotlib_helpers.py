@@ -2125,30 +2125,57 @@ class AnchoredCustomText(AnchoredOffsetbox):
         **kwargs
             All other parameters are passed to `AnchoredOffsetbox`.
         """
+        text_area_props = kwargs.pop('prop', {})
+
         # self.txtAreaItems = []
         # self.stack_box = build_formatted_label_values_stack(formated_text_list)
         self._unformatted_text_block = unformatted_text_block
-        self._custom_value_formatter = None
+        self._custom_value_formatter = custom_value_formatter
         self._texts, self._custom_value_formatter = parse_and_format_unformatted_values_text(self._unformatted_text_block, a_val_formatter=custom_value_formatter)
         self.stack_box: VPacker = make_text_grid(self._texts, ha="right")
 
+        # first_stack_area = self.stack_box.get_children()[0][0]
+        first_stack_area = self.stack_box.findobj(match=TextArea, include_self=False)[0]
         # self.txt = TextArea(s, textprops=prop)
-        # fp = self.txt._text.get_fontproperties()
-        super().__init__(child=self.stack_box, **kwargs)
+        fp = first_stack_area._text.get_fontproperties() # passed to AnchoredOffsetbox, This is only used as a reference for paddings.
+        super().__init__(child=self.stack_box, prop=fp, **kwargs)
 
 
-    def update_text(self, unformatted_text_block: str):
+
+    @property
+    def text_areas(self) -> List[TextArea]:
+        """The text_areas property."""
+        return self.findobj(match=TextArea, include_self=False)
+
+    @property
+    def text_objs(self) -> List[Text]:
+        """The matplotlib.Text objects. """
+        return [a_text_area._text for a_text_area in self.text_areas]
+
+    def update_text_alpha(self, value: float):
+        for a_text_area in self.text_areas:
+            a_text_area._text.set_alpha(value)
+            
+    def update_text(self, unformatted_text_block: str) -> bool:
+        """ not yet working """
         did_text_change = (unformatted_text_block != self._unformatted_text_block)
+        raise NotImplementedError("just remove from parent and build a new one. `custom_anchored_text.remove()`")
         if not did_text_change:
             print(f'text did not change!')
-            return
+            return False
         ## otherwise text did change
         self._unformatted_text_block = unformatted_text_block
         self._texts, self._custom_value_formatter = parse_and_format_unformatted_values_text(self._unformatted_text_block, a_val_formatter=self._custom_value_formatter)
 
+        ax = deepcopy(self.axes)
+
         if self.stack_box is not None:
-            self.stack_box.remove() ## remove the old one
+            # self.stack_box.remove() ## remove the old one -- can't remove artists
+            self.remove()
             self.stack_box = None
+        
         ## Create the new one:
         self.stack_box: VPacker = make_text_grid(self._texts, ha="right")
+        ax.add_artist(self)
+        return True
 
