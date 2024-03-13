@@ -307,7 +307,7 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
 # ==================================================================================================================== #
 # These are the only Matplotlib-specific functions here: add_inner_title(...) and draw_sizebar(...).                              #
 # ==================================================================================================================== #
-def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', stroke_alpha=0.9, text_foreground='k', font_size=None, text_alpha=1.0, **kwargs):
+def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', stroke_alpha=0.9, text_foreground='k', font_size=None, text_alpha=1.0, use_AnchoredCustomText: bool=False, **kwargs):
     """
     Add a figure title inside the border of the figure (instead of outside).
 
@@ -345,12 +345,19 @@ def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', stroke
     )
 
     # Create the AnchoredText object with the specified properties
-    at = AnchoredText(title, loc=loc, prop=text_prop_kwargs, pad=0., borderpad=0.5, frameon=False, **kwargs)
+    if use_AnchoredCustomText:
+        at = AnchoredCustomText(title, loc=loc, prop=text_prop_kwargs, pad=0., borderpad=0.5, frameon=False, **kwargs)
+    else:
+        at = AnchoredText(title, loc=loc, prop=text_prop_kwargs, pad=0., borderpad=0.5, frameon=False, **kwargs)
+
     ax.add_artist(at)
 
     # Set the alpha value for the text itself, if specified
     if text_alpha < 1.0:
-        at.txt._text.set_alpha(text_alpha)
+        if use_AnchoredCustomText:
+            at.update_text_alpha(text_alpha)
+        else:
+            at.txt._text.set_alpha(text_alpha)
 
     return at
         
@@ -2034,7 +2041,7 @@ class ValueFormatter:
 
 
 # @function_attributes(short_name=None, tags=['flexitext', 'matplotlib'], input_requires=[], output_provides=[], uses=['flexitext'], used_by=[], creation_date='2024-03-13 10:44', related_items=['AnchoredCustomText'])
-def parse_and_format_unformatted_values_text(unformatted_text_block: str, key_value_split: str = ":", desired_label_value_sep: str = ": ", a_val_formatter: ValueFormatter=None) -> Tuple[List[StyledText], ValueFormatter]:
+def parse_and_format_unformatted_values_text(unformatted_text_block: str, key_value_split: str = ":", desired_label_value_sep: str = ": ", a_val_formatter: Optional[ValueFormatter]=None) -> Tuple[List[StyledText], ValueFormatter]:
     """ takes a potentially multi-line string containing keys and values like:
         unformatted_text_block: str = "wcorr: -0.754\n$P_i$: 0.052\npearsonr: -0.76"
     to produce a list of flexitext.Text objects that contain styled text that can be rendered.
@@ -2070,7 +2077,7 @@ def parse_and_format_unformatted_values_text(unformatted_text_block: str, key_va
         # formatted_val_color: str = a_val_formatter.value_to_color(float_val, debug_print=False)
         flexitext_value_textprops = a_val_formatter.value_to_format_dict(float_val, debug_print=False) | dict(color='grey', weight="bold", name='Source Sans Pro', size=10) # merge the formatting dict, using the value returned from the formatter preferentially
         
-        label_formatted_text: StyledText = Style(**flexitext_label_text_props)(label+ desired_label_value_sep)
+        label_formatted_text: StyledText = Style(**flexitext_label_text_props)(label + desired_label_value_sep)
         value_formatted_text: StyledText = Style(**flexitext_value_textprops)(value + "\n")
         texts.append(label_formatted_text)
         texts.append(value_formatted_text)
