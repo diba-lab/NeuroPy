@@ -2095,7 +2095,7 @@ class ValueFormatter:
                 print(f'rgb: {rgb}')
 
             # assert ((rgb[0] <= 1.0) and (rgb[0] >= 0.0))
-            assert np.all((np.array(rgb) <= 1.0) and (np.array(rgb) >= 0.0)), f"rgb: {rgb}, value: {value}"
+            assert (np.all((np.array(rgb) <= 1.0)) and np.all((np.array(rgb) >= 0.0))), f"rgb: {rgb}, value: {value}"
             
             return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
     
