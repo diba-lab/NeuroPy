@@ -180,6 +180,14 @@ class UserAnnotationsManager(HDFMixin):
 
 
 
+        # ==================================================================================================================== #
+        #MARK '2006-6-12_15-55-31'                                                                                                
+        # ==================================================================================================================== #
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+            user_annotations[ctx + Ctx(decoder='long_LR')] = [[735.218, 735.375], [1006.693, 1006.829]]
+            user_annotations[ctx + Ctx(decoder='long_RL')] = [[535.654, 535.812], [540.199, 540.442], [685.390, 685.632], [706.614, 706.937], [712.075, 712.343], [1021.844, 1021.978]]
+            user_annotations[ctx + Ctx(decoder='short_LR')] = [[615.091, 615.238], [735.218, 735.375]]
+            user_annotations[ctx + Ctx(decoder='short_RL')] = [[127.873, 128.242], [153.506, 153.851], [165.036, 165.260], [535.654, 535.812], [540.199, 540.442], [712.075, 712.343], [761.180, 761.553], [892.791, 893.041], [1021.844, 1021.978], [1028.172, 1028.618]]
         user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [10, 11, 12, 17, 18, 22]
         user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [10, 11, 12, 16, 18, 19, 23]
 
@@ -188,15 +196,17 @@ class UserAnnotationsManager(HDFMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [13, 23, 41, 46]
         user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [4, 7, 10, 15, 21, 23, 41]
 
-        # ## TODO:-
+        # ==================================================================================================================== #
+        #MARK '11-02_19-28-0'                                                                                                
+        # ==================================================================================================================== #
         with Ctx(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [2, 6]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [2, 5, 9, 10]
             with (ctx + IdentifyingContext(epochs='ripple')) as ctx:
-                user_annotations[ctx + Ctx(decoder='long_LR')] = [[208.356, 208.523], [693.842, 693.975], [954.574, 954.679]]
+                user_annotations[ctx + Ctx(decoder='long_LR')] = [[208.356, 208.523], [954.574, 954.679]]
                 user_annotations[ctx + Ctx(decoder='long_RL')] = [[224.037, 224.312]]
-                user_annotations[ctx + Ctx(decoder='short_LR')] = [[145.776, 146.022], [198.220, 198.582], [220.041, 220.259], [511.570, 511.874], [865.238, 865.373]]
+                user_annotations[ctx + Ctx(decoder='short_LR')] = [[145.776, 146.022], [198.220, 198.582], [208.356, 208.523], [220.041, 220.259], [511.570, 511.874], [865.238, 865.373]]
                 user_annotations[ctx + Ctx(decoder='short_RL')] = [[191.817, 192.100], [323.147, 323.297]]
                 
         # ## TODO:
@@ -204,7 +214,7 @@ class UserAnnotationsManager(HDFMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 4, 5]
         
         ## ==================================================================================================================== #
-        #MARK fet11-01_12-58-54                                                                                                #
+        #MARK fet11-01_12-58-54                                                                                                
         # ==================================================================================================================== #
         with IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
