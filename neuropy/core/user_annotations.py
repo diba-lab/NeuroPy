@@ -192,9 +192,18 @@ class UserAnnotationsManager(HDFMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [10, 11, 12, 16, 18, 19, 23]
 
 
+        # ==================================================================================================================== #
+        #MARK '11-02_17-46-44'                                                                                                #
+        # ==================================================================================================================== #
         # IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44')
         user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [13, 23, 41, 46]
         user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [4, 7, 10, 15, 21, 23, 41]
+        with Ctx(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+            user_annotations[ctx + Ctx(decoder='long_LR')] = [[1128.687, 1129.087], [1434.460, 1434.643]]
+            user_annotations[ctx + Ctx(decoder='long_RL')] = [[1798.653, 1798.915]]
+            user_annotations[ctx + Ctx(decoder='short_LR')] = [[419.116, 419.338], [538.868, 539.061], [973.037, 973.303], [1100.022, 1100.352], [1182.640, 1182.866]]
+            user_annotations[ctx + Ctx(decoder='short_RL')] = [[403.834, 404.235], [449.090, 449.284], [466.119, 466.660], [702.706, 702.952], [1413.042, 1413.420]]
+
 
         # ==================================================================================================================== #
         #MARK '11-02_19-28-0'                                                                                                
