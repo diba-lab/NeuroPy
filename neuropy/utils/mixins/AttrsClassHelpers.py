@@ -96,10 +96,6 @@ class AttrsBasedClassHelperMixin:
                 found_fields.append(attr_field) # .name
         return found_fields, _fields_matching_query_filter_fn
 
-
-
-
-
     @classmethod
     def get_serialized_fields(cls, serializationType: HDF_SerializationType, serialization_format:str='hdf') -> Tuple[List, Callable]:
         """ general function for getting the list of fields with a certain serializationType as a list of attrs attributes and a filter to select them useful for attrs.asdict(...) filtering. """
@@ -124,9 +120,11 @@ class AttrsBasedClassHelperMixin:
         return cls.get_serialized_fields(serialization_format=serialization_format, serializationType=HDF_SerializationType.ATTRIBUTE)
     
 
+    def to_dict(self) -> Dict:
+        return asdict(self)
+    
 
 
-'tags'
 
 
 # ==================================================================================================================== #
