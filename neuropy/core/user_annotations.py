@@ -218,10 +218,17 @@ class UserAnnotationsManager(HDFMixin):
                 user_annotations[ctx + Ctx(decoder='short_LR')] = [[145.776, 146.022], [198.220, 198.582], [208.356, 208.523], [220.041, 220.259], [511.570, 511.874], [865.238, 865.373]]
                 user_annotations[ctx + Ctx(decoder='short_RL')] = [[191.817, 192.100], [323.147, 323.297]]
                 
-        # ## TODO:
+        # ==================================================================================================================== #
+        #MARK '11-03_12-3-25'                                                                                                
+        # ==================================================================================================================== #
         user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = []
         user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 4, 5]
-        
+        with Ctx(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+            user_annotations[ctx + Ctx(decoder='long_LR')] = []
+            user_annotations[ctx + Ctx(decoder='long_RL')] = []
+            user_annotations[ctx + Ctx(decoder='short_LR')] = [[650.569, 650.759]]
+            user_annotations[ctx + Ctx(decoder='short_RL')] = []
+
         ## ==================================================================================================================== #
         #MARK fet11-01_12-58-54                                                                                                
         # ==================================================================================================================== #
