@@ -723,6 +723,8 @@ class Epoch(DataWriter):
         core.Epoch
             epochs where the arr is high
         """
+        if isinstance(t, pd.Series):  # grab values only
+            t = t.values
         assert np.array_equal(arr, arr.astype(bool)), "Only boolean array accepted"
         int_arr = arr.astype("int")
         pad_arr = np.pad(int_arr, 1)
@@ -732,6 +734,7 @@ class Epoch(DataWriter):
 
         if t is not None:
             assert len(t) == len(arr), "time length should be same as input array"
+
             starts, stops = t[starts], t[stops]
 
         return Epoch.from_array(starts, stops, "high")
