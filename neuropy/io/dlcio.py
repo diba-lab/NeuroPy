@@ -80,6 +80,7 @@ class DLC:
 
         # Initialize other fields
         self.timestamp_type = None
+        self.speed = None
 
     @property
     def SampleRate(self):
@@ -119,10 +120,12 @@ class DLC:
         with open(meta_file, "rb") as f:
             self.meta = load(f)
 
-    def get_timestamps(self, camera_type: str in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2'] = 'optitrack'):
+    def get_timestamps(self, camera_type: str in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2'] = 'optitrack',
+                       exclude_str: str or None = None, include_str: str or None = None):
         """Tries to import timestamps from CSV file from optitrack, if not, infers it from timestamp in filename,
         sample rate, and nframes
         :param camera_type: 'optitrack' looks for optitrack csv file with tracking data, other options look for
+        :params exclude_str, include_str: see MiniscopeIO.load_all_timestamps - can include or exclude folders
         UCLA miniscope webcam files"""
 
         assert camera_type in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2']
@@ -148,7 +151,8 @@ class DLC:
         else:
             mio = MiniscopeIO(self.base_dir)
             webcam_flag = True if camera_type == "ms_webcam" else int(camera_type[-1])
-            self.timestamps = mio.load_all_timestamps(webcam=webcam_flag)
+            self.timestamps = mio.load_all_timestamps(webcam=webcam_flag, exclude_str=exclude_str,
+                                                      include_str=include_str)
 
 
     def to_cm(self):
@@ -191,6 +195,16 @@ class DLC:
             SampleRate=self.SampleRate,
         )
 
+    def get_all_speed(self):
+        """Get speed of all bodyparts"""
+        df_list = []
+        for bodypart in self.bodyparts:
+            df_list.append(pd.DataFrame({bodypart: self.get_speed(bodypart)}))
+
+        self.speed = pd.concat(df_list, axis=1)
+
+        return self.speed
+
     def get_speed(self, bodypart):
         """Get speed of animal"""
         assert self.pos_smooth is not None, "You must smooth data first"
@@ -210,7 +224,7 @@ class DLC:
 
         # Calculate speed
         speed = delta_pos / delta_t
-
+        speed = np.hstack((speed, np.nan))  # add in Nan at end to match pos data shape
         return speed
 
 

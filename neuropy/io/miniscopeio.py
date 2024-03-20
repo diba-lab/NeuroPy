@@ -20,7 +20,8 @@ class MiniscopeIO:
         pass
 
     def load_all_timestamps(
-        self, format="UCLA", webcam: bool or int = False, exclude_str: str = "WebCam", print_included_folders=False
+        self, format="UCLA", webcam: bool or int = False, exclude_str: str = "WebCam",
+            include_str = None, print_included_folders=False
     ):
         """Loads multiple timestamps from multiple videos in the UCLA miniscope software file format
         (folder = ""hh_mm_ss")
@@ -54,6 +55,17 @@ class MiniscopeIO:
             rec_folder2 = []
             for folder in self.rec_folders:
                 if re.search(exclude_str, str(folder)) is None:
+                    if print_included_folders:
+                        print("including folder " + str(folder))
+                    rec_folder2.append(folder)
+            self.rec_folders = rec_folder2
+
+        # Include only folders with "include_str" in their name
+        if include_str is not None:
+            assert exclude_str is None, "cannot combine 'include_str' and 'exclude_str'"
+            rec_folder2 = []
+            for folder in self.rec_folders:
+                if re.search(include_str, str(folder)) is not None:
                     if print_included_folders:
                         print("including folder " + str(folder))
                     rec_folder2.append(folder)
@@ -356,5 +368,7 @@ def euler_from_quaternion(qx, qy, qz, qw):
 
 if __name__ == "__main__":
 
-    parent_folder = '/data2/Psilocybin/Recording_Rats/Finn2'
-    move_files_to_combined_folder(parent_folder, prepend_rec_date=True, copy_during_prepend=True)
+    parent_folder = '/data2/Trace_FC/Recording_Rats/Django/2023_03_08_training'
+    mio = MiniscopeIO(parent_folder)
+    mio.load_all_timestamps(webcam=True, print_included_folders=True)
+
