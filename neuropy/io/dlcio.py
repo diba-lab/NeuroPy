@@ -12,6 +12,8 @@ import re
 from pickle import dump, load
 import scipy.ndimage as simage
 
+from neuropy.io.miniscopeio import MiniscopeIO
+
 from .optitrackio import getStartTime, posfromCSV
 
 
@@ -76,6 +78,9 @@ class DLC:
         # Grab metadata for later access
         self.get_metadata()
 
+        # Initialize other fields
+        self.timestamp_type = None
+
     @property
     def SampleRate(self):
         try:
@@ -114,27 +119,37 @@ class DLC:
         with open(meta_file, "rb") as f:
             self.meta = load(f)
 
-    def get_timestamps(self):
+    def get_timestamps(self, camera_type: str in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2'] = 'optitrack'):
         """Tries to import timestamps from CSV file from optitrack, if not, infers it from timestamp in filename,
-        sample rate, and nframes"""
+        sample rate, and nframes
+        :param camera_type: 'optitrack' looks for optitrack csv file with tracking data, other options look for
+        UCLA miniscope webcam files"""
 
-        opti_file = self.tracking_file.parent / (
-            self.tracking_file.stem[: self.tracking_file.stem.find("-Camera")] + ".csv"
-        )
-        if opti_file.is_file():
-            start_time = getStartTime(opti_file)
-            _, _, _, t = posfromCSV(opti_file)
+        assert camera_type in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2']
+        self.timestamp_type = camera_type
+        if camera_type == 'optitrack':
+            opti_file = self.tracking_file.parent / (
+                self.tracking_file.stem[: self.tracking_file.stem.find("-Camera")] + ".csv"
+            )
+            if opti_file.is_file():
+                start_time = getStartTime(opti_file)
+                _, _, _, t = posfromCSV(opti_file)
 
-            self.timestamps = start_time + pd.to_timedelta(t, unit="sec")
+                self.timestamps = start_time + pd.to_timedelta(t, unit="sec")
+            else:
+                print(
+                    "No Optitrack csv file found, inferring start time from file name. SECOND PRECISION IN START TIME!!!"
+                )
+                start_time = deduce_starttime_from_file(self.tracking_file)
+                time_deltas = pd.to_timedelta(
+                    np.arange(self.nframes) / self.SampleRate, unit="sec"
+                )
+                self.timestamps = start_time + time_deltas
         else:
-            print(
-                "No Optitrack csv file found, inferring start time from file name. SECOND PRECISION IN START TIME!!!"
-            )
-            start_time = deduce_starttime_from_file(self.tracking_file)
-            time_deltas = pd.to_timedelta(
-                np.arange(self.nframes) / self.SampleRate, unit="sec"
-            )
-            self.timestamps = start_time + time_deltas
+            mio = MiniscopeIO(self.base_dir)
+            webcam_flag = True if camera_type == "ms_webcam" else int(camera_type[-1])
+            self.timestamps = mio.load_all_timestamps(webcam=webcam_flag)
+
 
     def to_cm(self):
         """Convert pixels to centimeters in pos_data"""
@@ -175,6 +190,29 @@ class DLC:
             std=std,
             SampleRate=self.SampleRate,
         )
+
+    def get_speed(self, bodypart):
+        """Get speed of animal"""
+        assert self.pos_smooth is not None, "You must smooth data first"
+        assert self.timestamps is not None, "You must get timestamps first"
+        if self.timestamp_type == "optitrack":
+            print('get_speed not yet tested for optitrack data, use with caution')
+
+        # Get position of bodypart
+        data_use = self.pos_smooth[bodypart]
+        x = data_use["x"]
+        y = data_use["y"]
+        total_seconds = (self.timestamps['Timestamps'] - self.timestamps['Timestamps'][0]).dt.total_seconds()
+
+        # Get delta in position and time from frame-to-frame
+        delta_pos = np.sqrt(np.square(np.diff(x)) + np.square(np.diff(y)))
+        delta_t = np.diff(total_seconds)
+
+        # Calculate speed
+        speed = delta_pos / delta_t
+
+        return speed
+
 
     def plot1d(
         self,
