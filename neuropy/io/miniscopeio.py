@@ -266,6 +266,7 @@ def load_orientation(rec_folder, corrupted_videos=None):
 def move_files_to_combined_folder(
     parent_folder,
     re_pattern="**/My_V4_Miniscope/*.avi",
+    prepend_rec_date=False,
     prepend_rec_time=True,
     copy_during_prepend=False,
 ):
@@ -295,9 +296,18 @@ def move_files_to_combined_folder(
                 [file.parent for file in movie_files]
             )  # get unique folder names
             for folder in folder_names:
+
+                # Prepend time of day
                 prepend_time_from_folder_to_file(
                     folder, ext=re_pattern.split(".")[-1], copy=copy_during_prepend
                 )
+
+                # Prepend recording date
+                if prepend_rec_date:
+                    prepend_time_from_folder_to_file(
+                        folder, ext=re_pattern.split(".")[-1], copy=False,
+                        time_str="[0-9]{4}_[0-9]{2}_[0-9]{2}$",
+                    )
 
         # Finally, get updated file names
         movie_files = sorted(parent_folder.glob(re_pattern))
@@ -345,7 +355,6 @@ def euler_from_quaternion(qx, qy, qz, qw):
 
 
 if __name__ == "__main__":
-    dir_use = '/data/Nat/Trace_FC/Recording_Rats/Django/2023_03_08_training'
-    mio_dj = MiniscopeIO(dir_use)
-    mio_dj.load_all_timestamps(webcam=True, exclude_str="My_V4_Miniscope")
 
+    parent_folder = '/data2/Psilocybin/Recording_Rats/Finn2'
+    move_files_to_combined_folder(parent_folder, prepend_rec_date=True, copy_during_prepend=True)
