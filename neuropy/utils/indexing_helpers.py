@@ -589,7 +589,29 @@ class PandasHelpers:
             raise NotImplementedError
         
 
+    @classmethod
+    def safe_pandas_get_group(cls, dataframe_group, key):
+        """ returns an empty dataframe if the key isn't found in the group."""
+        if key in dataframe_group.groups.keys():
+            return dataframe_group.get_group(key)
+        else:
+            original_df = dataframe_group.obj
+            return original_df.drop(original_df.index)
 
+
+    @classmethod
+    def safe_concat(cls, df_concat_list: Union[List[pd.DataFrame], Dict[Any, pd.DataFrame]], **pd_concat_kwargs) -> Optional[pd.DataFrame]:
+        """ returns an empty dataframe if the key isn't found in the group."""
+        if len(df_concat_list) > 0:
+            if isinstance(df_concat_list, dict):
+                df_concat_list = list(df_concat_list.values())
+            out_concat_df: pd.DataFrame = pd.concat(df_concat_list, **pd_concat_kwargs)
+        else:
+            out_concat_df = None # empty df would be better
+        return out_concat_df
+
+
+    
 class ColumnTracker(ContextDecorator):
     """A context manager to track changes in the columns of DataFrames.
 
