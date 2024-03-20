@@ -501,7 +501,93 @@ class PandasHelpers:
 
         return all_have_all_columns
 
+    @classmethod
+    def reordering_columns(cls, df: pd.DataFrame, column_name_desired_index_dict: Dict[str, int]) -> pd.DataFrame:
+        """Reorders specified columns in a DataFrame while preserving other columns.
+        
+        Pure: Does not modify the df
 
+        Args:
+            df (pd.DataFrame): The DataFrame to reorder.
+            column_name_desired_index_dict (Dict[str, int]): A dictionary where keys are column names
+                to reorder and values are their desired indices in the reordered DataFrame.
+
+        Returns:
+            pd.DataFrame: The DataFrame with specified columns reordered while preserving remaining columns.
+
+        Raises:
+            ValueError: If any column in the dictionary is not present in the DataFrame.
+            
+            
+        Usage:
+        
+            from neuropy.utils.indexing_helpers import PandasHelpers
+            dict(zip(['Long_LR_evidence', 'Long_RL_evidence', 'Short_LR_evidence', 'Short_RL_evidence'], np.arange(4)+4))
+            PandasHelpers.reorder_columns(merged_complete_epoch_stats_df, column_name_desired_index_dict=dict(zip(['Long_LR_evidence', 'Long_RL_evidence', 'Short_LR_evidence', 'Short_RL_evidence'], np.arange(4)+4)))
+            
+            ## Move the "height" columns to the end
+            result_df = PandasHelpers.reorder_columns(result_df, column_name_desired_index_dict=dict(zip(list(filter(lambda column: column.endswith('_peak_heights'), result_df.columns)), np.arange(len(result_df.columns)-4, len(result_df.columns)))))
+            result_df
+                    
+        """
+        # Validate column names
+        missing_columns = set(column_name_desired_index_dict.keys()) - set(df.columns)
+        if missing_columns:
+            raise ValueError(f"Columns {missing_columns} not found in the DataFrame.")
+
+        # Ensure desired indices are unique and within range
+        desired_indices = column_name_desired_index_dict.values()
+        if len(set(desired_indices)) != len(desired_indices) or any(index < 0 or index >= len(df.columns) for index in desired_indices):
+            raise ValueError("Desired indices must be unique and within the range of existing columns.")
+
+        # Create a list of columns to reorder
+        reordered_columns_desired_index_dict: Dict[str, int] = {column_name:desired_index for column_name, desired_index in sorted(column_name_desired_index_dict.items(), key=lambda item: item[1])}
+        # print(reordered_columns_desired_index_dict)
+        
+        # # Reorder specified columns while preserving remaining columns
+        remaining_columns = [col for col in df.columns if col not in column_name_desired_index_dict]
+        
+        reordered_columns_list: List[str] = remaining_columns.copy()
+        for item_to_insert, desired_index in reordered_columns_desired_index_dict.items():    
+            reordered_columns_list.insert(desired_index, item_to_insert)
+            
+        # print(reordered_columns_list)
+        reordered_df = df[reordered_columns_list]
+        return reordered_df
+
+    @classmethod
+    def reordering_columns_relative(cls, df: pd.DataFrame, column_names: list[str], relative_mode='end') -> pd.DataFrame:
+        """Reorders specified columns in a DataFrame while preserving other columns.
+        
+        Pure: Does not modify the df
+
+        Args:
+            df (pd.DataFrame): The DataFrame to reorder.
+            column_name_desired_index_dict (Dict[str, int]): A dictionary where keys are column names
+                to reorder and values are their desired indices in the reordered DataFrame.
+
+        Returns:
+            pd.DataFrame: The DataFrame with specified columns reordered while preserving remaining columns.
+
+        Raises:
+            ValueError: If any column in the dictionary is not present in the DataFrame.
+            
+            
+        Usage:
+        
+            ffrom neuropy.utils.indexing_helpers import PandasHelpers
+            
+            ## Move the "height" columns to the end
+            result_df = PandasHelpers.reordering_columns_relative(result_df, column_names=list(filter(lambda column: column.endswith('_peak_heights'), existing_columns)), relative_mode='end')
+            result_df
+                    
+        """
+        if relative_mode == 'end':
+            existing_columns = list(df.columns)
+            return cls.reordering_columns(df, column_name_desired_index_dict=dict(zip(column_names, np.arange(len(existing_columns)-4, len(existing_columns)))))
+        else:
+            raise NotImplementedError
+        
 
 
 class ColumnTracker(ContextDecorator):
