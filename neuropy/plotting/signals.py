@@ -48,6 +48,7 @@ def plot_spectrogram(
         sxx = gaussian_filter(sxx, sigma=sigma)
     if std_sxx is None:  # Calculate standard deviation if needed for plotting purposes.
         std_sxx = np.std(sxx)
+    mean_sxx = np.mean(sxx)
     # time = np.linspace(time[0], time[1], sxx.shape[1])
     # freq = np.linspace(freq[0], freq[1], sxx.shape[0])
 
@@ -56,13 +57,13 @@ def plot_spectrogram(
 
     # ---------- plotting ----------------
     if legacy:
-
+        print('test')
         def plotspec(n_std, freq_lim):
             """Plots data fine but doesn't preserve time and frequency info on axes"""
             ax.imshow(
                 sxx,
                 cmap=cmap,
-                vmax=n_std * std_sxx,
+                vmax= mean_sxx + n_std * std_sxx,
                 rasterized=True,
                 origin="lower",
                 extent=[time_lims[0], time_lims[-1], freq_lims[0], freq_lims[-1]],
@@ -76,6 +77,7 @@ def plot_spectrogram(
 
         # ---- updating plotting values for interaction ------------
         if widget:
+            print('test2')
             ipywidgets.interact(
                 plotspec,
                 n_std=ipywidgets.FloatSlider(
@@ -101,7 +103,7 @@ def plot_spectrogram(
                 spec_use.freqs,
                 spec_use.traces,
                 cmap=cmap,
-                vmax=n_std * std_sxx,
+                vmax=mean_sxx + n_std * std_sxx,
                 rasterized=True,
             )
             ax.set_ylim(freq)
