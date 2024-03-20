@@ -237,6 +237,7 @@ def detect_ripple_epochs(
     sigma=0.0125,
     ignore_epochs: Epoch = None,
     ripple_channel: int or list = None,
+    return_power: bool = False,
 ):
     # TODO chewing artifact frequency (>300 Hz) or emg based rejection of ripple epochs
 
@@ -291,10 +292,18 @@ def detect_ripple_epochs(
         fs=signal.sampling_rate,
         sigma=sigma,
         ignore_times=ignore_times,
+        return_power=return_power,
     )
-    epochs = epochs.shift(dt=signal.t_start)
-    epochs.metadata = dict(channels=selected_chans)
-    return epochs
+
+    if not return_power:
+        epochs = epochs.shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chans)
+        return epochs
+    else:
+        ripple_power = epochs[1]
+        epochs = epochs[0].shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chans)
+        return epochs, ripple_power
 
 
 def detect_sharpwave_epochs(
