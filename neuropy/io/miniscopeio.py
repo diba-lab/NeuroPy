@@ -16,16 +16,18 @@ class MiniscopeIO:
         self.basedir = Path(basedir)
         self.times_all = None
         self.orient_all = None
+        self.webcam_times_all = {}
         pass
 
     def load_all_timestamps(
-        self, format="UCLA", exclude_str: str = "WebCam", print_included_folders=False
+        self, format="UCLA", webcam: bool or int = False, exclude_str: str = "WebCam", print_included_folders=False
     ):
         """Loads multiple timestamps from multiple videos in the UCLA miniscope software file format
         (folder = ""hh_mm_ss")
 
         :param format: str, either 'UCLA' (default) to use the UCLA miniscope folder format or a regex if you are
         using a different folder naming convention.
+        :param webcam see "load_timestamps" function
         :param exclude_str: exclude any folders containing this string from being loaded in.
         :param print_included_folders: bool, True = prints folders included in generating timestamps, useful
         for debugging mismatches in nframes, default=False
@@ -61,13 +63,19 @@ class MiniscopeIO:
         times_list = []
         for rec_folder in self.rec_folders:
             times_temp, _, _, _ = load_timestamps(
-                rec_folder, corrupted_videos="from_file"
+                rec_folder, webcam=webcam, corrupted_videos="from_file"
             )
             times_list.append(times_temp)
 
-        self.times_all = pd.concat(times_list)
+        if not webcam:
+            self.times_all = pd.concat(times_list)
 
-        return self.times_all
+            return self.times_all
+        else:
+            self.webcam_number = webcam
+            self.webcam_times_all = pd.concat(times_list)
+
+            return self.webcam_times_all
 
     def load_all_orientation(self, format="UCLA", exclude_str: str = "WebCam"):
         """Loads head orientation data from multiple videos in the UCLA miniscope
@@ -131,11 +139,12 @@ def get_recording_metadata(rec_folder: pathlib.Path):
 
 
 def load_timestamps(
-    rec_folder, corrupted_videos=None, print_success=False, print_corrupt_success=True
+    rec_folder, webcam: False or True or int = False, corrupted_videos=None, print_success=False, print_corrupt_success=True
 ):
     """Loads in timestamps corresponding to all videos in rec_folder.
 
     :param rec_folder: str or path
+    :param webcam: if True load "My_WebCam", if int load that # Webcam, e.g. 1 = 'My_WebCam1'
     :param corrupted_videos: (default) list of indices of corrupted files (e.g. [4, 6] would mean the 5th and 7th videos
     were corrupted and should be skipped - their timestamps will be omitted from the output.
     'from_file' will automatically grab any video indices provided as a csv file named 'corrupted_videos.csv'
@@ -150,6 +159,10 @@ def load_timestamps(
 
     # Grab metadata
     rec_metadata, vid_metadata, vid_folder = get_recording_metadata(rec_folder)
+
+    if webcam:
+        folder_name = Path("My_WebCam" if isinstance(webcam, bool) else f"My_WebCam{webcam}")
+        vid_folder = vid_folder.parent / folder_name
 
     # Derive start_time from rec_metadata
     rec_start = rec_metadata["recordingStartTime"]
@@ -332,5 +345,7 @@ def euler_from_quaternion(qx, qy, qz, qw):
 
 
 if __name__ == "__main__":
-    parent_folder = "/data2/Trace_FC/Recording_Rats/Rose/2022_06_20_habituation1"
-    move_files_to_combined_folder(parent_folder)
+    dir_use = '/data/Nat/Trace_FC/Recording_Rats/Django/2023_03_08_training'
+    mio_dj = MiniscopeIO(dir_use)
+    mio_dj.load_all_timestamps(webcam=True, exclude_str="My_V4_Miniscope")
+
