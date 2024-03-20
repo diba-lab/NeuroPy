@@ -186,7 +186,7 @@ class Spectrogram(core.Signal):
         event_times,
         buffer_sec=(0.5, 0.5),
         ignore_epochs: core.Epoch = None,
-        print_ignored_frames: bool = True,
+        print_ignored_frames: bool = False,
     ):
         """Get peri-event mean spectrogram.
 
