@@ -123,7 +123,7 @@ def _detect_freq_band_epochs(
 
 def detect_hpc_delta_wave_epochs(
     signal: Signal,
-    freq_band=(0.5, 4),
+    freq_band=(0.2, 5),
     min_dur=0.15,
     max_dur=0.5,
     ignore_epochs: Epoch = None,
@@ -223,6 +223,72 @@ def detect_hpc_delta_wave_epochs(
     params = {"freq_band": freq_band, "channel": signal.channel_id}
 
     return Epoch(epochs=epochs, metadata=params)
+
+
+def detect_beta_epochs(
+    signal: Signal,
+    probegroup: ProbeGroup = None,
+    freq_band=(15, 40),
+    thresh=(0, 0.5),
+    mindur=0.25,
+    maxdur=5,
+    mergedist=0.5,
+    sigma=0.125,
+    edge_cutoff=-0.25,
+    ignore_epochs: Epoch = None,
+    return_power=False,
+):
+    if probegroup is None:
+        selected_chan = signal.channel_id
+        traces = signal.traces
+    else:
+        if isinstance(probegroup, np.ndarray):
+            changrps = np.array(probegroup, dtype="object")
+        if isinstance(probegroup, ProbeGroup):
+            changrps = probegroup.get_connected_channels(groupby="shank")
+        channel_ids = np.concatenate(changrps).astype("int")
+
+        duration = signal.duration
+        t1, t2 = signal.t_start, signal.t_start + np.min([duration, 3600])
+        signal_slice = signal.time_slice(channel_id=channel_ids, t_start=t1, t_stop=t2)
+        hil_stat = signal_process.hilbert_amplitude_stat(
+            signal_slice.traces,
+            freq_band=freq_band,
+            fs=signal.sampling_rate,
+            statistic="mean",
+        )
+        selected_chan = channel_ids[np.argmax(hil_stat)].reshape(-1)
+        traces = signal.time_slice(channel_id=selected_chan).traces.reshape(1, -1)
+
+    print(f"Best channel for beta: {selected_chan}")
+    if ignore_epochs is not None:
+        ignore_times = ignore_epochs.as_array()
+    else:
+        ignore_times = None
+
+    epochs = _detect_freq_band_epochs(
+        signals=traces,
+        freq_band=freq_band,
+        thresh=thresh,
+        mindur=mindur,
+        maxdur=maxdur,
+        mergedist=mergedist,
+        fs=signal.sampling_rate,
+        ignore_times=ignore_times,
+        sigma=sigma,
+        edge_cutoff=edge_cutoff,
+        return_power=return_power,
+    )
+
+    if not return_power:
+        epochs = epochs.shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs
+    else:
+        beta_power = epochs[1]
+        epochs = epochs[0].shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs, beta_power
 
 
 def detect_ripple_epochs(
@@ -514,13 +580,16 @@ class Gamma:
     def get_peak_intervals(
         self,
         lfp,
-        band=(25, 50),
+        band=(40, 80),
         lowthresh=0,
         highthresh=1,
         minDistance=300,
         minDuration=125,
+        return_amplitude=False,
+
     ):
-        """Returns strong theta lfp. If it has multiple channels, then strong theta periods are calculated from that channel which has highest area under the curve in the theta frequency band. Parameters are applied on z-scored lfp.
+        """Returns strong theta lfp. If it has multiple channels, then strong theta periods are calculated from that
+        channel which has highest area under the curve in the theta frequency band. Parameters are applied on z-scored lfp.
 
         Parameters
         ----------
@@ -554,10 +623,12 @@ class Gamma:
             minDistance=minDistance,
             minDuration=minDuration,
         )
+        if not return_amplitude:
+            return peakevents
+        else:
+            return peakevents, gamma_amp
 
-        return peakevents
-
-    def csd(self, period, refchan, chans, band=(25, 50), window=1250):
+    def csd(self, period, refchan, chans, band=(40, 80), window=1250):
         """Calculating current source density using laplacian method
 
         Parameters
