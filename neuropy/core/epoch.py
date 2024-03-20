@@ -460,6 +460,7 @@ class Epoch(DataWriter):
         """
 
         assert self.is_overlapping == False, "Epochs must be non overlapping"
+        assert isinstance(t, np.ndarray), "t must be a numpy.ndarray"
 
         labels = self.labels
         bin_loc = np.digitize(t, self.flatten())
