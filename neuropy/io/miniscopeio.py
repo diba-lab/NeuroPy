@@ -173,7 +173,13 @@ def load_timestamps(
     rec_metadata, vid_metadata, vid_folder = get_recording_metadata(rec_folder)
 
     if webcam:
-        folder_name = Path("My_WebCam" if isinstance(webcam, bool) else f"My_WebCam{webcam}")
+        if isinstance(webcam, bool):
+            folder_name = "My_WebCam"  # Path("My_WebCam")
+        elif webcam == 1:
+            folder_name = "My_First_Webcam"
+        elif webcam == 2:
+            folder_name = "My_Second_Webcam"
+        # folder_name = Path("My_WebCam" if isinstance(webcam, bool) else f"My_WebCam{webcam}")
         vid_folder = vid_folder.parent / folder_name
 
     # Derive start_time from rec_metadata
