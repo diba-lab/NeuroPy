@@ -43,6 +43,9 @@ def plot_spectrogram(
         legacy = False
         spec = sxx
         sxx = spec.traces
+        assert time_lims[0] >= spec.t_start, "time_lims[0] must be greater than or equal to t_start in input Spectrogram"
+        assert time_lims[1] <= spec.t_stop, "time_lims[1] must be less than or equal to t_start in input Spectrogram"
+
 
     if sigma is not None:
         sxx = gaussian_filter(sxx, sigma=sigma)
@@ -57,7 +60,6 @@ def plot_spectrogram(
 
     # ---------- plotting ----------------
     if legacy:
-        print('test')
         def plotspec(n_std, freq_lim):
             """Plots data fine but doesn't preserve time and frequency info on axes"""
             ax.imshow(
