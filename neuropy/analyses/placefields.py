@@ -12,7 +12,7 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 import pandas as pd
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, interpolation
-from neuropy.core.epoch import Epoch
+from neuropy.core.epoch import Epoch, ensure_dataframe
 from neuropy.core.neurons import Neurons
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
@@ -1113,7 +1113,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         
 
     # for NeuronUnitSlicableObjectProtocol:
-    def get_by_id(self, ids):
+    def get_by_id(self, ids) -> "PfND":
         """Implementors return a copy of themselves with neuron_ids equal to ids
             Needs to update: copy_pf._filtered_spikes_df, copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, 
         """
@@ -1124,6 +1124,17 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         copy_pf.compute() # does recompute, updating: copy_pf.ratemap, copy_pf.ratemap_spiketrains, copy_pf.ratemap_spiketrains_pos, and more. TODO EFFICIENCY 2023-03-02 - This is overkill and I could filter the tuning_curves and etc directly, but this is easier for now. 
         return copy_pf
 
+
+    def replacing_computation_epochs(self, epochs: Union[Epoch, pd.Dataframe]) -> "PfND":
+        """Implementors return a copy of themselves with their computation epochs replaced by the provided ones. The existing epochs are unrelated and do not need to be related to the new ones.
+        """
+        new_epochs_obj: Epoch = Epoch(ensure_dataframe(deepcopy(epochs)).epochs.get_valid_df()).get_non_overlapping()
+        copy_epoch_replaced_pf1D = deepcopy(self)
+        return PfND(spikes_df=copy_epoch_replaced_pf1D.spikes_df, position=copy_epoch_replaced_pf1D.position, epochs=new_epochs_obj, config=deepcopy(copy_epoch_replaced_pf1D.config), compute_on_init=True)
+
+
+    
+        
     def conform_to_position_bins(self, target_pf, force_recompute=False):
         """ Allow overriding PfND's bins:
             # 2022-12-09 - We want to be able to have both long/short track placefields have the same spatial bins.
