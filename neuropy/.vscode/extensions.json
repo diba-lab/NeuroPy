@@ -4,6 +4,11 @@
 		"orepor.color-tabs-vscode-ext",
 		"buenon.scratchpads",
 		"geddski.macros",
-		"ryuta46.multi-command"
+        "ryuta46.multi-command",
+        "phohale.custom-text-transform",
+        "vscode-icons-team.vscode-icons",
+        "johnw42.pathslasher",
+        "pkief.material-icon-theme",
+        "grimmer.vscode-back-forward-button"
 	]
 }
