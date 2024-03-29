@@ -447,7 +447,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         from neuropy.utils.efficient_interval_search import convert_PortionInterval_to_epochs_df
         return convert_PortionInterval_to_epochs_df(portion_interval)
 
-    def to_PortionInterval(self):
+    def to_PortionInterval(self): # -> "P.Interval"
         from neuropy.utils.efficient_interval_search import _convert_start_end_tuples_list_to_PortionInterval
         return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
 
