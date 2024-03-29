@@ -1125,7 +1125,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         return copy_pf
 
 
-    def replacing_computation_epochs(self, epochs: Union[Epoch, pd.Dataframe]) -> "PfND":
+    def replacing_computation_epochs(self, epochs: Union[Epoch, pd.DataFrame]) -> "PfND":
         """Implementors return a copy of themselves with their computation epochs replaced by the provided ones. The existing epochs are unrelated and do not need to be related to the new ones.
         """
         new_epochs_obj: Epoch = Epoch(ensure_dataframe(deepcopy(epochs)).epochs.get_valid_df()).get_non_overlapping()
