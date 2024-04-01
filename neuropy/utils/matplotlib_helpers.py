@@ -1077,26 +1077,80 @@ def draw_epoch_regions(epoch_obj, curr_ax, facecolor=('green','red'), edgecolors
 
     """
     # epoch_obj
+    def _subfn_perform_plot_epochs(an_epoch_tuples, an_ax):
+        curr_span_ymin = an_ax.get_ylim()[0]
+        curr_span_ymax = an_ax.get_ylim()[1]
+        curr_span_height = curr_span_ymax - curr_span_ymin
+        # xrange: list of (float, float) The sequence of (left-edge-position, width) pairs for each bar.
+        # yrange: (lower-edge, height) 
+        epochs_collection = BrokenBarHCollection(xranges=an_epoch_tuples, yrange=(curr_span_ymin, curr_span_height), facecolor=facecolor, alpha=alpha, edgecolors=edgecolors, linewidths=(1,), **kwargs) # , offset_transform=curr_ax.transData
+        if debug_print:
+            print(f'(curr_span_ymin, curr_span_ymax): ({curr_span_ymin}, {curr_span_ymax}), an_epoch_tuples: {an_epoch_tuples}')
+        an_ax.add_collection(epochs_collection)
+        return epochs_collection
+        
 
     epoch_tuples = [(start_t, width_duration) for start_t, width_duration in zip(epoch_obj.starts, epoch_obj.durations)] # [(0.0, 1211.5580800310709), (1211.5580800310709, 882.3397767931456)]
     epoch_mid_t = [a_tuple[0]+(0.5*a_tuple[1]) for a_tuple in epoch_tuples] # used for labels
+    num_epochs: int = len(epoch_tuples)
 
-    curr_span_ymin = curr_ax.get_ylim()[0]
-    curr_span_ymax = curr_ax.get_ylim()[1]
-    curr_span_height = curr_span_ymax-curr_span_ymin
-    # xrange: list of (float, float) The sequence of (left-edge-position, width) pairs for each bar.
-    # yrange: (lower-edge, height) 
-    epochs_collection = BrokenBarHCollection(xranges=epoch_tuples, yrange=(curr_span_ymin, curr_span_height), facecolor=facecolor, alpha=alpha, edgecolors=edgecolors, linewidths=(1,), **kwargs) # , offset_transform=curr_ax.transData
-    if debug_print:
-        print(f'(curr_span_ymin, curr_span_ymax): ({curr_span_ymin}, {curr_span_ymax}), epoch_tuples: {epoch_tuples}')
-    curr_ax.add_collection(epochs_collection)
-    if labels_kwargs is not None:
-        epoch_labels = [_subfn_build_epoch_region_label((a_mid_t, curr_span_ymax), a_label, curr_ax, **labels_kwargs) for a_label, a_mid_t in zip(epoch_obj.labels, epoch_mid_t)]
+
+    if isinstance(curr_ax.get_ylim()[0], tuple):
+        ## strange case for brokenaxes
+        a_ylim_tuple = curr_ax.get_ylim()[0]
+        curr_span_ymin = a_ylim_tuple[0]
+        curr_span_ymax = a_ylim_tuple[1]
+
+        ## num xlims:
+        # num_brokenaxes: int = len(curr_ax.get_ylim())
+        num_brokenaxes: int = len(curr_ax.axs)
+        assert num_epochs == num_brokenaxes, f"num_epochs: {num_epochs} != num_brokenaxes: {num_brokenaxes}"
+
+        epoch_collection_list = [] # a list
+        # epoch_labels_list = [] # a list
+        for i, an_ax in enumerate(curr_ax.axs):
+            # can plot on a single axis:
+            epochs_collection = _subfn_perform_plot_epochs(an_epoch_tuples=[epoch_tuples[i]], an_ax=an_ax) # single element lists, ValueError: Can not reset the axes.  You are probably trying to re-use an artist in more than one Axes which is not supported
+            # epochs_collection = _subfn_perform_plot_epochs(an_epoch_tuples=[epoch_tuples[i]], an_ax=curr_ax.big_ax) # same single (big axis: curr_ax.big_ax)
+            epoch_collection_list.append(epochs_collection)
+        
+            # epoch_mid_t = [epoch_mid_t[i]]
+
+            # if labels_kwargs is not None:
+            #     epoch_labels = [_subfn_build_epoch_region_label((a_mid_t, curr_span_ymax), a_label, an_ax, **labels_kwargs) for a_label, a_mid_t in zip(epoch_obj.labels, epoch_mid_t)]
+            # else:
+            #     epoch_labels = None
+            # epoch_labels_list.append(epoch_labels)
+        # END FOR curr_ax.axs
+            
+        if labels_kwargs is not None:
+            epoch_labels = [_subfn_build_epoch_region_label((a_mid_t, curr_span_ymax), a_label, curr_ax.big_ax, **labels_kwargs) for a_label, a_mid_t in zip(epoch_obj.labels, epoch_mid_t)]
+        else:
+            epoch_labels = None
+            
+        if not defer_render:
+            curr_ax.get_figure().canvas.draw()
+
+        return epoch_collection_list, epoch_labels
+
+
     else:
-        epoch_labels = None
-    if not defer_render:
-        curr_ax.get_figure().canvas.draw()
-    return epochs_collection, epoch_labels
+
+        # can plot on a single axis:
+        epochs_collection = _subfn_perform_plot_epochs(an_epoch_tuples=epoch_tuples, an_ax=curr_ax)
+        if labels_kwargs is not None:
+            a_ylim_tuple = curr_ax.get_ylim()
+            curr_span_ymin = a_ylim_tuple[0]
+            curr_span_ymax = a_ylim_tuple[1]
+            epoch_labels = [_subfn_build_epoch_region_label((a_mid_t, curr_span_ymax), a_label, curr_ax, **labels_kwargs) for a_label, a_mid_t in zip(epoch_obj.labels, epoch_mid_t)]
+        else:
+            epoch_labels = None
+        
+
+        if not defer_render:
+            curr_ax.get_figure().canvas.draw()
+
+        return epochs_collection, epoch_labels
 
 
 def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj):
