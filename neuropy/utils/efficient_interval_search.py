@@ -421,8 +421,8 @@ def deduplicate_epochs(epochs_df, agressive_deduplicate:bool=True):
 # `portion`-based interval search and operations                                                                       #
 # ==================================================================================================================== #
 
-def _convert_start_end_tuples_list_to_PortionInterval(start_end_tuples_list) -> P.Interval:
-    return P.from_data([(P.CLOSED, start, stop, P.CLOSED) for start, stop in start_end_tuples_list])
+def _convert_start_end_tuples_list_to_PortionInterval(start_end_tuples_list, **P_Interval_kwargs) -> P.Interval:
+    return P.from_data([(P.CLOSED, start, stop, P.CLOSED) for start, stop in start_end_tuples_list], **P_Interval_kwargs)
 
 def _convert_PortionInterval_to_4uples_list(interval: P.Interval):
     return P.to_data(interval)
@@ -452,12 +452,13 @@ def convert_PortionInterval_to_Epoch_obj(interval: P.Interval):
     from neuropy.core.epoch import Epoch # import here to avoid circular import
     return Epoch(epochs=convert_PortionInterval_to_epochs_df(interval))
 
-def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj) -> P.Interval:
+def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj, **P_Interval_kwargs) -> P.Interval:
     """ build an Interval object version
     Usage:
         combined_interval_obj = convert_Epoch_obj_to_PortionInterval_obj(long_replays_intervals)
     """
-    return _convert_start_end_tuples_list_to_PortionInterval(zip(epoch_obj.starts, epoch_obj.stops))
+    P_Interval_kwargs = {'merge_on_adjacent': False, 'enable_auto_simplification': False} | P_Interval_kwargs
+    return _convert_start_end_tuples_list_to_PortionInterval(zip(epoch_obj.starts, epoch_obj.stops), **P_Interval_kwargs)
 
 # # to_string/from_string:
 # P.to_string(long_replays_intervals)

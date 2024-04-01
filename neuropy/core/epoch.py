@@ -352,20 +352,39 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
         return self._obj.copy()
 
+    # @classmethod
+    # def _mergable(cls, a, b):
+    #     """ 
+    #     NOT YET IMPLEMENTED. Based off of Portion's mergable operation with intent to extend to Epochs.
 
+    #     """
+    #     # a - a single period in time
+    #     # b - a single potentially overlapping period in time
+    #     a_start, a_end = a # unwrap
+    #     b_start, b_end = b # unwrap
+    #     ## Check their lower bounds first
+
+    #     ## Check their upper bounds for overlap
+
+    
+    
+        
     ## Handling overlapping
     def get_non_overlapping_df(self, debug_print=False) -> pd.DataFrame:
         """ Returns a dataframe with overlapping epochs removed. """
         ## 2023-02-23 - PortionInterval approach to ensuring uniqueness:
         from neuropy.utils.efficient_interval_search import convert_PortionInterval_to_epochs_df, _convert_start_end_tuples_list_to_PortionInterval
         ## Capture dataframe properties beyond just the start/stop times:
-        
+        P_Interval_kwargs = {'merge_on_adjacent': False, 'enable_auto_simplification': True}
+
+        ## Post-2024-04-01 13:11: - [ ] with auto-simplification disabled and such:
+        # P_Interval_kwargs = {'merge_on_adjacent': False, 'enable_auto_simplification': False}
+
         # _intermedia_start_end_tuples_list = self.get_start_stop_tuples_list()
         _intermediate_portions_interval: P.Interval = _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
         filtered_epochs_df = convert_PortionInterval_to_epochs_df(_intermediate_portions_interval)
         # is_epoch_included = np.array([(a_tuple.start, a_tuple.stop) in _intermedia_start_end_tuples_list for a_tuple in list(filtered_epochs_df.itertuples(index=False))])
 
-        
         if debug_print:
             before_num_rows = self.n_epochs
             filtered_epochs_df = convert_PortionInterval_to_epochs_df(_intermediate_portions_interval)
@@ -374,8 +393,6 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             print(f'Dataframe Changed from {before_num_rows} -> {after_num_rows} ({changed_num_rows = })')
             return filtered_epochs_df
         else:
-            
-            
             return filtered_epochs_df
 
     def get_epochs_longer_than(self, minimum_duration, debug_print=False) -> pd.DataFrame:
