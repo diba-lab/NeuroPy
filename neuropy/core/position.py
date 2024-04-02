@@ -15,7 +15,7 @@ from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, po
 
 
 """ --- Helper FUNCTIONS """
-def build_position_df_time_window_idx(active_pos_df, curr_active_time_windows, debug_print=False):
+def build_position_df_time_window_idx(active_pos_df: pd.DataFrame, curr_active_time_windows, debug_print=False):
     """ adds the time_window_idx column to the active_pos_df
     Usage:
         curr_active_time_windows = np.array(pho_custom_decoder.active_time_windows)
@@ -33,7 +33,7 @@ def build_position_df_time_window_idx(active_pos_df, curr_active_time_windows, d
     return active_pos_df
 
 
-def build_position_df_resampled_to_time_windows(active_pos_df, time_bin_size=0.02):
+def build_position_df_resampled_to_time_windows(active_pos_df: pd.DataFrame, time_bin_size=0.02):
     """ Note that this returns a TimedeltaIndexResampler, not a dataframe proper. To get the real dataframe call .nearest() on output.
 
     Usage:
@@ -43,7 +43,10 @@ def build_position_df_resampled_to_time_windows(active_pos_df, time_bin_size=0.0
     position_time_delta = pd.to_timedelta(active_pos_df[active_pos_df.position.time_variable_name], unit="sec")
     active_pos_df['time_delta_sec'] = position_time_delta
     active_pos_df = active_pos_df.set_index('time_delta_sec')
-    window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S', base=0)#.nearest() # '0.02S' 0.02 second bins
+    # window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S', base=0)#.nearest() # '0.02S' 0.02 second bins
+    window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S') # , origin='start'
+    # What happened to the `base` parameter in Pandas v2? I used to `window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S', base=0)` and now I get `TypeError: resample() got an unexpected keyword argument 'base'`
+
     return window_resampled_pos_df
 
 
