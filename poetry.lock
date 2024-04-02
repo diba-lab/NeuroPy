@@ -1471,13 +1471,17 @@ version = "0.2.0"
 description = "Draw styled text in Matplotlib"
 optional = false
 python-versions = ">=3.6"
-files = [
-    {file = "flexitext-0.2.0-py3-none-any.whl", hash = "sha256:4a25e3efd3c2708c457e928da3ec7f58786516b796e6ce8738420584fd64fb35"},
-    {file = "flexitext-0.2.0.tar.gz", hash = "sha256:5a27898bffbab4b0e8f34247b35ed401bd42cc969597d7c21b7509620edebdf5"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 matplotlib = ">=3.4"
+
+[package.source]
+type = "git"
+url = "https://github.com/CommanderPho/flexitext.git"
+reference = "main"
+resolved_reference = "8cd274c8cb97fe6f32ca56b3c792ae97eb4cc521"
 
 [[package]]
 name = "flufl-lock"
@@ -3650,20 +3654,24 @@ test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=7.4)", "pytest-co
 
 [[package]]
 name = "portion"
-version = "2.4.2"
+version = "2.4.3"
 description = "Python data structure and operations for intervals"
 optional = false
-python-versions = "~= 3.7"
-files = [
-    {file = "portion-2.4.2-py3-none-any.whl", hash = "sha256:17f0388d7df3488313ac527d8da9542d2c1329dfefb8793a77ad2dfc97596051"},
-    {file = "portion-2.4.2.tar.gz", hash = "sha256:5289b40d98959b16b3f6927781678935d3df1b7c14947f5d7778e5e04dd9a065"},
-]
+python-versions = "~= 3.8"
+files = []
+develop = false
 
 [package.dependencies]
 sortedcontainers = ">=2.2,<3.0"
 
 [package.extras]
 test = ["black (>=21.8b)", "coverage (>=6.0,<7.0)", "pytest (>=7.0,<8.0)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/CommanderPho/portion.git"
+reference = "HEAD"
+resolved_reference = "d2497756daa215d4897b4cc0223b6fd5db8abcce"
 
 [[package]]
 name = "pox"
@@ -5552,4 +5560,4 @@ gui = ["tqdm"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "4da81f404538c5e818fdf1eb9ebcfb259ef997b9e2bd9e49ff9904b70daf0d2b"
+content-hash = "623dd459930a5273e5ee1f7fd60a051f6aba49e510a53041d38bde0a24e7263a"
