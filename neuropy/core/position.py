@@ -43,8 +43,8 @@ def build_position_df_resampled_to_time_windows(active_pos_df: pd.DataFrame, tim
     position_time_delta = pd.to_timedelta(active_pos_df[active_pos_df.position.time_variable_name], unit="sec")
     active_pos_df['time_delta_sec'] = position_time_delta
     active_pos_df = active_pos_df.set_index('time_delta_sec')
-    # window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S', base=0)#.nearest() # '0.02S' 0.02 second bins
-    window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S') # , origin='start'
+    window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S', base=0) #.nearest() # '0.02S' 0.02 second bins
+    # window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S') # , origin='start'
     # What happened to the `base` parameter in Pandas v2? I used to `window_resampled_pos_df = active_pos_df.resample(f'{time_bin_size}S', base=0)` and now I get `TypeError: resample() got an unexpected keyword argument 'base'`
 
     return window_resampled_pos_df
