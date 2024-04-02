@@ -305,7 +305,7 @@ def determine_event_interval_identity(times_arr, start_stop_times_arr, period_id
 
     if overlap_behavior.name == OverlappingIntervalsFallbackBehavior.ASSERT_FAIL.name:
         from numba import TypingError
-        assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'            
+        assert verify_non_overlapping(start_stop_times_arr=start_stop_times_arr), 'Intervals in start_stop_times_arr must be non-overlapping'
         try:
             return _compiled_searchsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=no_interval_fill_value) 
         except TypingError as e:
