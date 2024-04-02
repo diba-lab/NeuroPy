@@ -86,8 +86,11 @@ class Laps(Epoch):
         laps_df
                 
         """
-        self._df.epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=True, labels_column_name='lap_id')
+        updated_df = self._df.epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=True, labels_column_name='lap_id')
+        self._df = updated_df
+        return None
 
+                
     def update_lap_dir_from_smoothed_velocity(self, pos_input: Union[Position, DataSession]) -> None:
         # compute_lap_dir_from_smoothed_velocity
         # global_session = deepcopy(curr_active_pipeline.filtered_sessions[global_epoch_name])
