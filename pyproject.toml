@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "neuropy"
-version = "0.0.8"
+version = "0.0.9"
 description = "package is primarily developed for hippocampal recordings, but can also be used for general ephys data."
 authors = ["Bapun Giri <bapung@umich.edu>", "Pho Hale <halechr@umich.edu>", "Nat Kinsky <nkinsky@umich.edu>"]
 license = "GPL License"
@@ -13,7 +13,7 @@ python-benedict = "^0.28.3"
 h5py = "^3.8.0"
 numpy = "^1.20"
 scipy = "^1.6"
-pandas = ">=2.2.0,<3" # "1.5.3" # "^2.1.0"
+pandas = "1.5.3"
 joblib = "^1.2.0"
 hmmlearn = "^0.2.8"
 scikit-learn = "^1.2.1"
