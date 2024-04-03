@@ -6,6 +6,74 @@ import numpy as np
 import pandas as pd
 from functools import reduce # intersection_of_arrays, union_of_arrays
 
+from typing import Iterable, TypeVar
+
+T = TypeVar('T')
+
+def collapse_if_identical(iterable: Iterable[T], return_original_on_failure: bool = False) -> Optional[Iterable[T]]:
+    """
+    Collapse an iterable to its first item if all items in the iterable are identical.
+    If not all items are identical and 'return_original_on_failure' is True, the original
+    iterable is returned as much collapsed as possible; otherwise, None is returned.
+
+    Parameters
+    ----------
+    iterable : Iterable[T]
+        An iterable containing items of any type (denoted by T).
+    return_original_on_failure : bool, default=False
+        If True, return the original iterable when it's not collapsible. If False, return None.
+
+    Returns
+    -------
+    Optional[Iterable[T]]
+        The first item of the iterable if all items are identical, or if 'return_original_on_failure'
+        is set to True, the original iterable is returned when items are not identical. Otherwise, None
+        is returned.
+
+    Raises
+    ------
+    StopIteration
+        If the provided iterable is empty, a StopIteration exception is raised internally
+        and caught by the function to return None or the original iterable.
+        
+    Examples
+    --------
+    from neuropy.utils.indexing_helpers import collapse_if_identical
+    
+    >>> identical_items = ["a", "a", "a"]
+    >>> collapse_if_identical(identical_items)
+    "a"
+    
+    >>> non_identical_items = ["a", "b", "a"]
+    >>> collapse_if_identical(non_identical_items)
+    None
+    
+    >>> collapse_if_identical(non_identical_items, return_original_on_failure=True)
+    ["a", "b", "a"]
+    
+    >>> empty_iterable = []
+    >>> collapse_if_identical(empty_iterable)
+    None
+    """
+    # Get an iterator for the iterable
+    iterator = iter(iterable)
+    
+    try:
+        # Get the first item for comparison
+        first_item = next(iterator)
+    except StopIteration:
+        # If the iterable is empty, nothing to compare, return None or the original iterable
+        return None if not return_original_on_failure else iterable
+    
+    # Check if all subsequent items in the iterator are equal to the first
+    collapsed = all(item == first_item for item in iterator)
+    if collapsed:
+        # All items are the same, return the item
+        return first_item
+
+    # Since the collapse failed, determine the return value
+    return iterable if return_original_on_failure else None
+
 
 def flatten(A):
     """ safely flattens lists of lists without flattening top-level strings also. 
