@@ -95,7 +95,8 @@ class Laps(Epoch):
         # compute_lap_dir_from_smoothed_velocity
         # global_session = deepcopy(curr_active_pipeline.filtered_sessions[global_epoch_name])
         self._df = self._compute_lap_dir_from_smoothed_velocity(self._df, pos_input, replace_existing=True)
-
+        assert 'is_LR_dir' in self._df.columns, f"'is_LR_dir' is stiil missing even after adding it?!?"
+    
 
     def adding_true_decoder_identifier(self, t_start:float, t_delta:float, t_end:float, labels_column_name:str='lap_id') -> pd.DataFrame:
         """ adds the 'maze_id' column to the internal dataframe if needed.
