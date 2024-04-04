@@ -91,20 +91,34 @@ class BinarysignalIO:
     def __setstate__(self, state):
         # Restore instance attributes (i.e., filename and lineno).
         self.__dict__.update(state)
+        # self.source_file = _raw_traces
         if (not self.source_file.exists()):
             original_source_file: Path = self.source_file.resolve()
-            relative_source_file: Path = original_source_file.relative_to('/media/MAX/Data')
-            new_root: Path = Path('/media/halechr/MAX/Data').resolve()
-            if new_root.exists():
-                proposed_new_source_path = new_root.joinpath(relative_source_file).resolve()
-                if proposed_new_source_path.exists():
-                    print(f'updated source_file with {proposed_new_source_path}')
-                    self.source_file = proposed_new_source_path
+            try:
+                relative_source_file: Path = original_source_file.relative_to('/media/MAX/Data') # ValueError: '/nfs/turbo/umms-kdiba/Data/KDIBA/gor01/two/2006-6-07_16-40-19/2006-6-07_16-40-19.eeg' is not in the subpath of '/media/MAX/Data' OR one path is relative and the other is absolute.
+                new_root: Path = Path('/media/halechr/MAX/Data').resolve()
+                if new_root.exists():
+                    proposed_new_source_path = new_root.joinpath(relative_source_file).resolve()
+                    if proposed_new_source_path.exists():
+                        print(f'updated source_file with {proposed_new_source_path}')
+                        self.source_file = proposed_new_source_path
+
+                # Re-load the raw traces from file on load from the saved properties. The same file must exist, meaning this solution isn't portable.
+                self._raw_traces = (
+                    np.memmap(self.source_file, dtype=self.dtype, mode="r").reshape(-1, self.n_channels).T
+                ) # FileNotFoundError - FileNotFoundError: [Errno 2] No such file or directory: '/media/MAX/Data/KDIBA/gor01/one/2006-6-09_1-22-43/2006-6-09_1-22-43.eeg'
                 
+            except (ValueError, ) as e:
+                print(f'failed to get the memory mapped file with err: {e}')
+                # ## try to get the relative path:
+                # data_split_parts = original_source_file.as_posix().split('Data/') # ['/nfs/turbo/umms-kdiba/', 'KDIBA/gor01/two/2006-6-07_16-40-19/2006-6-07_16-40-19.eeg']
+                # original_data_root = Path(data_split_parts[0], 'Data').resolve() #
+                # relative_source_file: Path = original_source_file.relative_to(original_data_root)
+                # relative_source_file
+                self._raw_traces = None
+                pass 
                 
-        # Re-load the raw traces from file on load from the saved properties. The same file must exist, meaning this solution isn't portable.
-        self._raw_traces = (
-            np.memmap(self.source_file, dtype=self.dtype, mode="r").reshape(-1, self.n_channels).T
-        ) # FileNotFoundError - FileNotFoundError: [Errno 2] No such file or directory: '/media/MAX/Data/KDIBA/gor01/one/2006-6-09_1-22-43/2006-6-09_1-22-43.eeg'
+
+
         
 
