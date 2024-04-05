@@ -1,4 +1,42 @@
 import numpy as np
+from typing import Dict, List, Tuple, Optional, Callable, Union, Any
+import attrs # used in `UnpackableMixin`
+from attrs import astuple # used in `UnpackableMixin`
+
+
+class UnpackableMixin:
+    """ Conforming classes will be unpackable like a tuple object.
+    Must be an attrs @define class or override `__iter__(self)` manually.
+
+    Usage:
+
+        from neuropy.utils.mixins.indexing_helpers import UnpackableMixin
+        from attrs import asdict, astuple, define, field, Factory
+    
+        # Define a simple attrs class that's better than a namedtuple and unpackable:
+        MeasuredDecodedPositionComparison = attrs.make_class("MeasuredDecodedPositionComparison", {k:field() for k in ("measured_positions_dfs_list", "decoded_positions_df_list", "decoded_measured_diff_df")}, bases=(UnpackableMixin, object,))
+
+        
+
+    """
+    def UnpackableMixin_unpacking_excludes(self) -> Optional[List]:
+        """ Items to be excluded from unpacking. 
+        """
+        # return [self.__attrs_attrs__.is_global, self.__attrs_attrs__.ripple_most_likely_result_tuple, self.__attrs_attrs__.laps_most_likely_result_tuple, self.__attrs_attrs__.minimum_inclusion_fr_Hz]
+        return None
+
+    def __iter__(self):
+        """ allows unpacking. See https://stackoverflow.com/questions/37837520/implement-packing-unpacking-in-an-object """
+        # return iter(astuple(self)) # deep unpacking causes problems
+        unpacking_excludes = self.UnpackableMixin_unpacking_excludes()
+        if (unpacking_excludes is not None) and (len(unpacking_excludes) > 0):
+            # unpack all but the filter object:
+            return iter(attrs.astuple(self, filter=attrs.filters.exclude(*self.UnpackableMixin_unpacking_excludes()))) #  'is_global'
+        else:
+            # no filter:
+            return iter(attrs.astuple(self))
+
+
 
 def interleave_elements(start_points, end_points, debug_print:bool=False):
     """ Given two equal sized arrays, produces an output array of double that size that contains elements of start_points interleaved with elements of end_points
