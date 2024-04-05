@@ -669,7 +669,13 @@ class PandasHelpers:
 
     @classmethod
     def safe_concat(cls, df_concat_list: Union[List[pd.DataFrame], Dict[Any, pd.DataFrame]], **pd_concat_kwargs) -> Optional[pd.DataFrame]:
-        """ returns an empty dataframe if the key isn't found in the group."""
+        """ returns an empty dataframe if the key isn't found in the group.
+        Usage:
+            from neuropy.utils.indexing_helpers import PandasHelpers
+
+            PandasHelpers.safe_concat
+            
+        """
         if len(df_concat_list) > 0:
             if isinstance(df_concat_list, dict):
                 df_concat_list = list(df_concat_list.values())
