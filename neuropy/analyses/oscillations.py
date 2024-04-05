@@ -28,7 +28,7 @@ def _detect_freq_band_epochs(
         low and high threshold for detection
     mindur : float, optional
         minimum duration of epoch
-    maxdur : float, optiona
+    maxdur : float, optional
     chans : list
         channels used for epoch detection, if None then chooses best chans
     """
@@ -41,6 +41,8 @@ def _detect_freq_band_epochs(
     # Because here one shank is selected per shank, based on visualization:
     # mean: very conservative in cases where some shanks may not have that strong ripple
     # max: works well but may have ocassional false positives
+
+    # First, bandpass the signal in the range of interest
     power = np.zeros(signals.shape[1])
     for sig in signals:
         yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
@@ -48,9 +50,10 @@ def _detect_freq_band_epochs(
         # zscsignal[sig_i] = zsc_chan
         power += np.abs(signal_process.hilbertfast(yf))
 
-    # mean and smooth
+    # Second, take the mean and smooth the signal with a sigma wide gaussian kernel
     power = smooth(power / signals.shape[0])
 
+    # Third, exclude any noisy periods due to motion or other artifact
     # ---------setting noisy periods zero --------
     if ignore_times is not None:
         assert ignore_times.ndim == 2, "ignore_times should be 2 dimensional array"
@@ -65,9 +68,12 @@ def _detect_freq_band_epochs(
         noisy_frames = noisy_frames[noisy_frames < len(power)]
         power[noisy_frames] = 0
 
+    # Fourth, identify candidate epochs above edge_cutoff threshold
     # ---- thresholding and detection ------
     power = stats.zscore(power)
     power_thresh = np.where(power >= edge_cutoff, power, 0)
+
+    # Fifth, refine candidate epochs to periods between lowthresh and highthresh
     peaks, props = sg.find_peaks(
         power_thresh, height=[lowthresh, highthresh], prominence=0
     )
@@ -75,6 +81,7 @@ def _detect_freq_band_epochs(
     peaks_power = power_thresh[peaks]
 
     # ----- merge overlapping epochs ------
+    # Last, merge any epochs that overlap into one longer epoch
     n_epochs = len(starts)
     ind_delete = []
     for i in range(n_epochs - 1):
