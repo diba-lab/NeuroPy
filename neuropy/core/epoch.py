@@ -533,7 +533,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
             laps_obj: Laps = curr_active_pipeline.sess.laps
             laps_df = laps_obj.to_dataframe()
-            laps_df = Laps._update_dataframe_maze_id_if_needed(laps_df, t_start, t_delta, t_end)
+            laps_df = laps_df.epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end)
             laps_df
 
         """
