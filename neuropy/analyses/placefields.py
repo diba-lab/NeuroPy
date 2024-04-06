@@ -1564,7 +1564,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
 
 
     @classmethod
-    def build_merged_directional_placefields(cls, input_unidirectional_decoder_dict, debug_print = True) -> "PfND": # , lhs: "PfND", rhs: "PfND"
+    def build_merged_directional_placefields(cls, input_unidirectional_decoder_dict, debug_print = True) -> "PfND":
         """ 2024-01-02 - Combine the non-directional PDFs and renormalize to get the directional PDF:
 
         Builds a manually merged directional pf from a dict of pf1Ds (one for each direction)
@@ -1572,6 +1572,9 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         First decoder is assigned virtual y-positions: 1.0
         Second decoder is assigned virtual y-positions: 2.0,
         etc.
+
+
+        @#TODO 2024-04-05 22:20: - [ ] The returned combined PfND is missing its `spikes_df`, `filtered_spikes_df` properties making `.get_by_id(...)` not work at all. Also `.extended_neuron_ids` is a list instead of a NDArray, making indexing into that fail in certain places.
         
         Usage:
             from neuropy.analyses.placefields import PfND
@@ -1693,7 +1696,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         # normalized_stacked_pdf
 
         new_ratemap = Ratemap(tuning_curves=stacked_results_dict['tuning_curves'], unsmoothed_tuning_maps=stacked_results_dict['unsmoothed_tuning_maps'], spikes_maps=stacked_results_dict['spikes_maps'],
-                            xbin=xbin, ybin=ybin, occupancy=stacked_occupancy, neuron_ids=at_least_one_decoder_neuron_ids, neuron_extended_ids=list(at_least_one_decoder_neuron_extended_ids.values()))
+                            xbin=xbin, ybin=ybin, occupancy=stacked_occupancy, neuron_ids=at_least_one_decoder_neuron_ids, neuron_extended_ids=list(at_least_one_decoder_neuron_extended_ids.values())) # #TODO 2024-04-05 22:17: - [ ] This is where the ratemap's neuron_extended_ids is becoming a list
         
         ## Pre-computation variables:
         # These variables below are pre-computation variables and are used by `PfND.compute()` to actually build the ratemaps and filtered versions. They aren't quite right as is.
@@ -1716,7 +1719,7 @@ class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepres
         config.grid_bin_bounds = (*config.grid_bin_bounds[:ndim], (0, new_pseudo_num_ybins))
         # config # result: <PlacefieldComputationParameters: {'speed_thresh': 10.0, 'grid_bin': (3.793023081021702, 1.0), 'grid_bin_bounds': ((29.16, 261.7), (0, 2)), 'smooth': (2.0, None), 'frate_thresh': 1.0, 'is_directional': True};>
         merged_pf = PfND(spikes_df=None, position=None, epochs=None, config=config, position_srate=position_srate, xbin=xbin, ybin=ybin, ndim=new_pseduo_ndim,
-                    setup_on_init=False, compute_on_init=False) # , ybin=
+                    setup_on_init=False, compute_on_init=False) # , ybin=  #TODO 2024-04-05 22:19: - [ ] This is where the `spikes_df` (and thus `_filtered_spikes_df`) is being set to None
         merged_pf._ratemap = new_ratemap
         
         return merged_pf
