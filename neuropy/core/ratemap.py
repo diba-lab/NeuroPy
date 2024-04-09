@@ -133,6 +133,19 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         """ returns the self.occupancy after replacing all never visited locations, indicated by a zero occupancy, by NaNs for the purpose of building visualizations. """
         return Ratemap.nan_never_visited_locations(self.occupancy)
     
+    # @property
+    # def visited_occupancy_mask(self) -> NDArray:
+    #     """ a boolean mask that's True everyhwere the animal has visited according to self.occupancy, and False everyhwere else. """
+    #     return Ratemap.build_visited_mask(self.occupancy)
+    
+    @property
+    def visited_occupancy_mask(self) -> NDArray:
+        """ returns the self.occupancy after replacing replaces all visited locations with a fixed value (1.0) and leaves all unvisited locations a zero occupancy. """
+        return Ratemap.visited_locations_mask(self.occupancy)
+    
+
+
+
     @property
     def probability_normalized_occupancy(self) -> NDArray:
         """ returns the self.occupancy after converting it to a probability (with each entry between [0.0, 1.0]) by dividing by the sum. """
@@ -350,16 +363,29 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
 
  
     @staticmethod           
-    def build_never_visited_mask(occupancy):
+    def build_never_visited_mask(occupancy: NDArray) -> NDArray:
         """ returns a mask of never visited locations for the provided occupancy """
         return (occupancy == 0) # return locations with zero occupancy
 
     @staticmethod
-    def nan_never_visited_locations(occupancy):
+    def nan_never_visited_locations(occupancy: NDArray) -> NDArray:
         """ replaces all never visited locations, indicated by a zero occupancy, by NaNs for the purpose of building visualizations. """
         nan_never_visited_occupancy = occupancy.copy()
         nan_never_visited_occupancy[nan_never_visited_occupancy == 0] = np.nan # all locations with zeros, replace them with NaNs
         return nan_never_visited_occupancy
+    
+    @staticmethod           
+    def build_visited_mask(occupancy: NDArray) -> NDArray:
+        """ returns a mask of never visited locations for the provided occupancy """
+        return (occupancy > 0.0) # return locations with zero occupancy
+    
+    @staticmethod
+    def visited_locations_mask(occupancy: NDArray) -> NDArray:
+        """ replaces all visited locations with a fixed value (1.0) and leaves all unvisited locations a zero occupancy """
+        masked_nonzero_occupancy = occupancy.copy()
+        masked_nonzero_occupancy[masked_nonzero_occupancy > 0.0] = 1.0 # all locations with zeros, replace them with NaNs
+        return masked_nonzero_occupancy
+
 
     @classmethod
     def build_1D_maximum_projection(cls, ratemap_2D: "Ratemap") -> "Ratemap":

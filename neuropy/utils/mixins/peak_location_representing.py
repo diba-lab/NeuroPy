@@ -40,7 +40,11 @@ def _subfn_compute_general_positions_from_peak_indicies(peak_coordinate_indicies
 
 
 def compute_placefield_center_of_mass_positions(tuning_curves: NDArray, xbin: NDArray, ybin: Optional[NDArray]=None) -> NDArray:
-    """ returns the locations of the center of mass for each of the tuning_curves. """
+    """ returns the locations of the center of mass for each of the tuning_curves.
+    
+    from neuropy.utils.mixins.peak_location_representing import compute_placefield_center_of_mass_positions
+
+    """
     tuning_curve_CoM_coordinates = compute_placefield_center_of_mass_coord_indicies(tuning_curves)
     
     if ybin is not None:
