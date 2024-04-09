@@ -95,8 +95,16 @@ def flatten(A):
     return rt
 
 
+def unwrap_single_item(lst):
+    """ if the item contains at least one item, return it, otherwise return None.
+
+    from neuropy.utils.indexing_helpers import unwrap_single_item
 
 
+    """
+    return lst[0] if len(lst) == 1 else None
+
+        
 def find_desired_sort_indicies(extant_arr, desired_sort_arr):
     """ Finds the set of sort indicies that can be applied to extant_arr s.t.
         (extant_arr[out_sort_idxs] == desired_sort_arr)
