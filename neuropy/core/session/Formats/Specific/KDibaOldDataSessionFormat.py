@@ -617,7 +617,41 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
         microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
         num_samples = len(t)
+
+        # if ['short_xlim', 'long_xlim', 'pix2cm', 'x_midpoint']
         
+        # x_midpoint = position_mat_file['x_midpoint'].item()
+        # short_xlim = position_mat_file['short_xlim'].squeeze() # 10 x 63192
+        # long_xlim = position_mat_file['long_xlim'].squeeze() # 10 x 63192
+
+        if 'pix2cm' in position_mat_file:
+            pix2cm = position_mat_file['pix2cm'].item()
+            if pix2cm is not None:
+                session.config.pix2cm = pix2cm
+
+        if 'x_midpoint' in position_mat_file:
+            x_midpoint = position_mat_file['x_midpoint'].item()
+            if x_midpoint is not None:
+                session.config.x_midpoint = x_midpoint
+
+        loadable_xlim_keys = ['long_xlim', 'short_xlim']
+
+        for a_loadable_xlim_key in loadable_xlim_keys:
+            if a_loadable_xlim_key in position_mat_file:
+                an_xlim = position_mat_file[a_loadable_xlim_key].squeeze()
+                if an_xlim is not None:
+                    session.config[a_loadable_xlim_key] = an_xlim
+
+
+
+        # % Get xlim bounds:
+        # short_xlim = active_IIdata.new_xlim(1,:) .* active_IIdata.pix2cm;
+        # long_xlim = active_IIdata.new_xlim(3,:) .* active_IIdata.pix2cm;
+
+        # pix2cm = active_IIdata.pix2cm;
+        # x_midpoint = active_IIdata.new_xmid(:,1) .* active_IIdata.pix2cm;
+
+
         if time_variable_name == 't_rel_seconds':
             t_rel = position_mat_file['timestamps_rel'].squeeze()
             # t_rel = t - t[0] # relative to start of position file timestamps
@@ -642,6 +676,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # return the session with the upadated member variables
         return session
     
+
     @classmethod
     def _spikes_df_post_process(cls, spikes_df):
         """ Converts the ['theta', 'ripple', 'ph'] columns into the correct type and renames them to ["is_theta", "is_ripple", "theta_phase_radians"].
