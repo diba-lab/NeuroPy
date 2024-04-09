@@ -603,13 +603,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             if x_midpoint is not None:
                 session.config.x_midpoint = x_midpoint
 
-        loadable_xlim_keys = ['long_xlim', 'short_xlim']
+        loadable_alim_keys = ['long_xlim', 'short_xlim', 'long_ylim', 'short_ylim']
 
-        for a_loadable_xlim_key in loadable_xlim_keys:
-            if a_loadable_xlim_key in position_mat_file:
-                an_xlim = position_mat_file[a_loadable_xlim_key].squeeze()
-                if an_xlim is not None:
-                    session.config.loaded_track_limits[a_loadable_xlim_key] = an_xlim
+        for a_loadable_alim_key in loadable_alim_keys:
+            if a_loadable_alim_key in position_mat_file:
+                an_alim = position_mat_file[a_loadable_alim_key].squeeze()
+                if an_alim is not None:
+                    session.config.loaded_track_limits[a_loadable_alim_key] = an_alim
 
 
 
