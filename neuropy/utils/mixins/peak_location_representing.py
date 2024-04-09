@@ -61,6 +61,35 @@ def compute_placefield_center_of_mass_positions(tuning_curves: NDArray, xbin: ND
     return tuning_curve_CoM_positions
 
 
+
+def compute_occupancy_center_of_mass_positions(occupancy: NDArray, xbin: NDArray, ybin: Optional[NDArray]=None) -> NDArray:
+    """ returns the locations of the center of mass for the occupancy.
+    Usage:
+        from neuropy.utils.mixins.peak_location_representing import compute_occupancy_center_of_mass_positions
+
+        occupancy = deepcopy(long_pf2D.occupancy) # occupancy.shape # (60, 15)
+        xbin = deepcopy(long_pf2D.xbin)
+        ybin = deepcopy(long_pf2D.ybin)
+        occupancy_CoM_positions = compute_occupancy_center_of_mass_positions(occupancy, xbin=long_pf2D.xbin, ybin=long_pf2D.ybin)
+        occupancy_CoM_positions
+
+    """
+    occupancy_CoM_coordinates = np.squeeze(np.array(ndimage.center_of_mass(occupancy)))
+
+    if ybin is not None:
+        # 2D Case
+        # assert np.ndim(occupancy_CoM_coordinates) == 2, f"{np.shape(occupancy_CoM_coordinates)} is not 2D?"
+        assert np.shape(occupancy_CoM_coordinates)[0] == 2, f"np.shape(occupancy_CoM_coordinates): {np.shape(occupancy_CoM_coordinates)} is not 2D?"
+        occupancy_CoM_positions = _subfn_compute_general_positions_from_peak_indicies(np.atleast_2d(occupancy_CoM_coordinates), xbin=xbin, ybin=ybin) # in position space
+    else:
+        # 1D Case
+        occupancy_CoM_positions = _subfn_compute_general_positions_from_peak_indicies(np.atleast_1d(occupancy_CoM_coordinates), xbin=xbin) # in position space
+
+    occupancy_CoM_positions = np.squeeze(occupancy_CoM_positions)
+    # occupancy_CoM_coordinates = np.squeeze(occupancy_CoM_coordinates)
+    return occupancy_CoM_positions
+
+
 class ContinuousPeakLocationRepresentingMixin:
     """ Implementors provides peaks in position-space (e.g. a location on the maze) which are computed from a `ContinuousPeakLocationRepresentingMixin_peak_curves_variable` it provides, such as the turning curves.
         
