@@ -85,7 +85,9 @@ class BinarysignalIO:
         # method to avoid modifying the original state.
         state = self.__dict__.copy()
         # Remove the unpicklable entries.
-        del state['_raw_traces']
+        if '_raw_traces' in state:
+	        del state['_raw_traces']
+            
         return state
 
     def __setstate__(self, state):
