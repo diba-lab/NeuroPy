@@ -410,15 +410,15 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 loaded_file_record_list.append(file_path)
 
         # IIdata.mat file Position and Epoch:
-        session = cls.__default_kdiba_exported_load_mats(session.basepath, session.name, session, time_variable_name=active_time_variable_name)
+        session = cls._default_kdiba_exported_load_mats(session.basepath, session.name, session, time_variable_name=active_time_variable_name)
         
         ## .spikeII.mat file: 
         # provides spikes `spikes_df`, `flat_spikes_out_dict`
         try:
-            spikes_df, flat_spikes_out_dict = cls.__default_kdiba_pho_exported_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
+            spikes_df, flat_spikes_out_dict = cls._default_kdiba_pho_exported_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
         except FileNotFoundError as e:
             print(f'FileNotFoundError: {e}.\n Trying to fall back to original .spikeII.mat file...')
-            spikes_df, flat_spikes_out_dict = cls.__default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
+            spikes_df, flat_spikes_out_dict = cls._default_kdiba_spikeII_load_mat(session, timestamp_scale_factor=timestamp_scale_factor)
             
         except Exception as e:
             import traceback
@@ -441,11 +441,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         ## Laps:
         try:
-            session, laps_df = cls.__default_kdiba_spikeII_load_laps_vars(session, time_variable_name=active_time_variable_name)
+            session, laps_df = cls._default_kdiba_spikeII_load_laps_vars(session, time_variable_name=active_time_variable_name)
         except Exception as e:
             # raise e
             print(f'session.laps could not be loaded from .spikes.mat due to error {e}. Computing.')
-            session, spikes_df = cls.__default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
+            session, spikes_df = cls._default_kdiba_spikeII_compute_laps_vars(session, spikes_df, active_time_variable_name)
         else:
             # Successful!
             print('session.laps loaded successfully!')
@@ -456,7 +456,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         ## Replays:
         try:
-            session, replays_df = cls.__default_kdiba_spikeII_load_replays_vars(session, time_variable_name=active_time_variable_name)
+            session, replays_df = cls._default_kdiba_spikeII_load_replays_vars(session, time_variable_name=active_time_variable_name)
         except Exception as e:
             print(f'session.replays could not be loaded from .replay_info.mat due to error {e}. Skipping (will be unavailable)')
         else:
@@ -466,7 +466,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         
         ## Neurons (by Cell):
         # the `session.neurons` Neurons object which it builds from the `spikes_df` and `flat_spikes_out_dict` 
-        session = cls.__default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
+        session = cls._default_kdiba_spikeII_compute_neurons(session, spikes_df, flat_spikes_out_dict, active_time_variable_name)
         session.probegroup = ProbeGroup.from_file(session.filePrefix.with_suffix(".probegroup.npy"))
         
         # add the flat spikes to the session so they don't have to be recomputed:
@@ -625,7 +625,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
 
     @classmethod
-    def __default_kdiba_exported_load_mats(cls, basepath, session_name, session, time_variable_name='t_seconds'):
+    def _default_kdiba_exported_load_mats(cls, basepath, session_name, session, time_variable_name='t_seconds'):
         """ Loads the *.epochs_info.mat & *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
             Adds the Epoch and Position information to the session, and returns the updated Session object
         """
@@ -706,7 +706,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return spikes_df
 
     @classmethod
-    def __default_kdiba_pho_exported_spikeII_load_mat(cls, sess, timestamp_scale_factor=1):
+    def _default_kdiba_pho_exported_spikeII_load_mat(cls, sess, timestamp_scale_factor=1):
         """ loads the spikes from the .mat exported by the script: `IIDataMat_Export_ToPython_2022_08_01.m` """
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikes.mat'.format(sess.session_name))
         if not spike_mat_file.is_file():
@@ -743,7 +743,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return spikes_df, flat_spikes_out_dict 
     
     @classmethod
-    def __default_kdiba_spikeII_load_laps_vars(cls, session, time_variable_name='t_seconds'):
+    def _default_kdiba_spikeII_load_laps_vars(cls, session, time_variable_name='t_seconds'):
         """ 
             time_variable_name = 't_seconds'
             sess, laps_df = __default_kdiba_spikeII_load_laps_vars(sess, time_variable_name=time_variable_name)
@@ -766,7 +766,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
     
     @classmethod
-    def __default_kdiba_spikeII_load_replays_vars(cls, session, time_variable_name='t_seconds'):
+    def _default_kdiba_spikeII_load_replays_vars(cls, session, time_variable_name='t_seconds'):
         """ Loads the replays exported from the 'IIDataMat_Export_ToPython_2022_08_01.m' matlab script that produces a '*.replay_info.mat' file.
             Adds session.replay to the session.
         
@@ -815,7 +815,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
     
 
     @classmethod
-    def __default_kdiba_spikeII_load_mat(cls, sess, timestamp_scale_factor=(1/1E4)):
+    def _default_kdiba_spikeII_load_mat(cls, sess, timestamp_scale_factor=(1/1E4)):
         spike_mat_file = Path(sess.basepath).joinpath('{}.spikeII.mat'.format(sess.session_name))
         if not spike_mat_file.is_file():
             print('ERROR: file {} does not exist!'.format(spike_mat_file))
@@ -851,7 +851,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return spikes_df, flat_spikes_out_dict 
 
     @classmethod
-    def __default_kdiba_spikeII_compute_laps_vars(cls, session, spikes_df, time_variable_name='t_seconds'):
+    def _default_kdiba_spikeII_compute_laps_vars(cls, session, spikes_df, time_variable_name='t_seconds'):
         """ Attempts to compute the Laps object from the loaded spikesII spikes, which have a 'lap' column.
         time_variable_name: (str) either 't' or 't_seconds', indicates which time variable to return in 'lap_start_stop_time'
         """
@@ -946,7 +946,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return session, spikes_df
                 
     @classmethod
-    def __default_kdiba_spikeII_compute_neurons(cls, session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
+    def _default_kdiba_spikeII_compute_neurons(cls, session, spikes_df, flat_spikes_out_dict, time_variable_name='t_seconds'):
         """ adds the `session.neurons` Neurons object which it builds from the `spikes_df` and `flat_spikes_out_dict` """
         ## Get unique cell ids to enable grouping flattened results by cell:
         unique_cell_ids = np.unique(flat_spikes_out_dict['aclu'])
@@ -989,7 +989,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return session
 
     @classmethod
-    def __default_kdiba_RippleDatabase_load_mat(cls, session):
+    def _default_kdiba_RippleDatabase_load_mat(cls, session):
         """ UNUSED """
         ## Get laps in/out
         session_ripple_mat_file_path = Path(session.basepath).joinpath('{}.RippleDatabase.mat'.format(session.name))
