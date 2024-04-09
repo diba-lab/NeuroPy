@@ -572,14 +572,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # return the session with the upadated member variables
         return session
     
-
     @classmethod
-    def _default_kdiba_exported_load_position_info_mat(cls, basepath, session_name, session):
-        """ Loads the *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
-            Adds the Epoch and Position information to the session, and returns the updated Session object
-        """
-        ## Position Data loaded and zeroed to the same session_absolute_start_timestamp, which starts before the first timestamp in 't':
-        session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
+    def perform_load_position_info_mat(cls, session_position_mat_file_path: Path, session: DataSession) -> DataSession:
+        """ must conform to `[Path, DataSession], DataSession` """
+        from neuropy.utils.load_exported import import_mat_file
+        assert session_position_mat_file_path.exists(), f"session_position_mat_file_path: '{session_position_mat_file_path}' does not exist!"
+
         position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
 
         # if ['short_xlim', 'long_xlim', 'pix2cm', 'x_midpoint']
@@ -611,17 +609,19 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 if an_alim is not None:
                     session.config.loaded_track_limits[a_loadable_alim_key] = an_alim
 
-
-
-        # % Get xlim bounds:
-        # short_xlim = active_IIdata.new_xlim(1,:) .* active_IIdata.pix2cm;
-        # long_xlim = active_IIdata.new_xlim(3,:) .* active_IIdata.pix2cm;
-
-        # pix2cm = active_IIdata.pix2cm;
-        # x_midpoint = active_IIdata.new_xmid(:,1) .* active_IIdata.pix2cm;
-
         # return the session with the upadated member variables
         return session
+
+
+
+    @classmethod
+    def _default_kdiba_exported_load_position_info_mat(cls, basepath, session_name, session):
+        """ Loads the *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
+            Adds the Epoch and Position information to the session, and returns the updated Session object
+        """
+        ## Position Data loaded and zeroed to the same session_absolute_start_timestamp, which starts before the first timestamp in 't':
+        session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
+        return cls.perform_load_position_info_mat(session_position_mat_file_path=session_position_mat_file_path, session=session)
     
 
     @classmethod

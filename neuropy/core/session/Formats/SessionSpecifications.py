@@ -185,26 +185,6 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
 
 
-
-    # def __init__(self, basepath, session_spec, session_name, session_context, format_name, preprocessing_parameters):
-    #     """[summary]
-    #     Args:
-    #         basepath (pathlib.Path): [description].
-    #         session_spec (SessionFolderSpec): used to load the files
-    #         session_name (str, optional): [description].
-    #         session_format_name (str): the name of the known session format, or 'custom'. Can be returned using .get_session_format_name()
-    #     """
-    #     self.format_name = format_name
-    #     self.basepath = basepath
-    #     self.session_name = session_name
-    #     # Session spec:
-    #     self.session_spec=session_spec
-    #     self.session_context = session_context
-    #     self.preprocessing_parameters = preprocessing_parameters
-        
-    #     self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
-        
-
     def validate(self):
         """ re-validates the self.session_spec items and updates the resolved dicts """
         self.is_resolved, self.resolved_required_filespecs_dict, self.resolved_optional_filespecs_dict = self.session_spec.validate(self.basepath)
