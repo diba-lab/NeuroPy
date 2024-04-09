@@ -572,57 +572,26 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             # return the session with the upadated member variables
         return session
     
-    
-    
+
     @classmethod
-    def __default_kdiba_exported_load_mats(cls, basepath, session_name, session, time_variable_name='t_seconds'):
-        """ Loads the *.epochs_info.mat & *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
+    def _default_kdiba_exported_load_position_info_mat(cls, basepath, session_name, session):
+        """ Loads the *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
             Adds the Epoch and Position information to the session, and returns the updated Session object
         """
-        # Loads a IIdata.mat file that contains position and epoch information for the session
-                
-        # parent_dir = Path(basepath).parent() # the directory above the individual session folder
-        # session_all_dataII_mat_file_path = Path(parent_dir).joinpath('IIdata.mat') # get the IIdata.mat in the parent directory
-        # position_all_dataII_mat_file = import_mat_file(mat_import_file=session_all_dataII_mat_file_path)        
-        
-        ## Epoch Data is loaded first so we can define timestamps relative to the absolute start timestamp
-        session_epochs_mat_file_path = Path(basepath).joinpath('{}.epochs_info.mat'.format(session_name))
-        epochs_mat_file = import_mat_file(mat_import_file=session_epochs_mat_file_path)
-        # ['epoch_data','microseconds_to_seconds_conversion_factor']
-        epoch_data_array = epochs_mat_file['epoch_data'] # 
-        n_epochs = np.shape(epoch_data_array)[0]
-        
-        session_absolute_start_timestamp = epoch_data_array[0,0].item()
-        session.config.absolute_start_timestamp = epoch_data_array[0,0].item()
-
-
-        if time_variable_name == 't_rel_seconds':
-            epoch_data_array_rel = epoch_data_array - session_absolute_start_timestamp # convert to relative by subtracting the first timestamp
-            epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0].item(), epoch_data_array_rel[0,1].item()],'stop':[epoch_data_array_rel[1,0].item(), epoch_data_array_rel[1,1].item()],'label':['maze1','maze2']}) # Use the epochs starting at session_absolute_start_timestamp (meaning the first epoch starts at 0.0
-            session.paradigm = Epoch(epochs=epochs_df_rel)
-        elif time_variable_name == 't_seconds':
-            epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
-            session.paradigm = Epoch(epochs=epochs_df)            
-        else:
-            raise ValueError
-        
         ## Position Data loaded and zeroed to the same session_absolute_start_timestamp, which starts before the first timestamp in 't':
         session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
         position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
-        # ['microseconds_to_seconds_conversion_factor','samplingRate', 'timestamps', 'x', 'y']
-        t = position_mat_file['timestamps'].squeeze() # 1, 63192        
-        
-        x = position_mat_file['x'].squeeze() # 10 x 63192
-        y = position_mat_file['y'].squeeze() # 10 x 63192
-        position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
-        microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
-        num_samples = len(t)
 
         # if ['short_xlim', 'long_xlim', 'pix2cm', 'x_midpoint']
-        
-        # x_midpoint = position_mat_file['x_midpoint'].item()
-        # short_xlim = position_mat_file['short_xlim'].squeeze() # 10 x 63192
-        # long_xlim = position_mat_file['long_xlim'].squeeze() # 10 x 63192
+        if 'samplingRate' in position_mat_file:
+            position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
+            if position_sampling_rate_Hz is not None:
+                session.config.position_sampling_rate_Hz = position_sampling_rate_Hz
+
+        if 'microseconds_to_seconds_conversion_factor' in position_mat_file:
+            microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
+            if microseconds_to_seconds_conversion_factor is not None:
+                session.config.microseconds_to_seconds_conversion_factor = microseconds_to_seconds_conversion_factor
 
         if 'pix2cm' in position_mat_file:
             pix2cm = position_mat_file['pix2cm'].item()
@@ -651,6 +620,52 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # pix2cm = active_IIdata.pix2cm;
         # x_midpoint = active_IIdata.new_xmid(:,1) .* active_IIdata.pix2cm;
 
+        # return the session with the upadated member variables
+        return session
+    
+
+    @classmethod
+    def __default_kdiba_exported_load_mats(cls, basepath, session_name, session, time_variable_name='t_seconds'):
+        """ Loads the *.epochs_info.mat & *.position_info.mat files that are exported by Pho Hale's 2021-11-28 Matlab script
+            Adds the Epoch and Position information to the session, and returns the updated Session object
+        """
+        # Loads a IIdata.mat file that contains position and epoch information for the session
+                
+        # parent_dir = Path(basepath).parent() # the directory above the individual session folder
+        # session_all_dataII_mat_file_path = Path(parent_dir).joinpath('IIdata.mat') # get the IIdata.mat in the parent directory
+        # position_all_dataII_mat_file = import_mat_file(mat_import_file=session_all_dataII_mat_file_path)        
+        
+        ## Epoch Data is loaded first so we can define timestamps relative to the absolute start timestamp
+        session_epochs_mat_file_path = Path(basepath).joinpath('{}.epochs_info.mat'.format(session_name))
+        epochs_mat_file = import_mat_file(mat_import_file=session_epochs_mat_file_path)
+        # ['epoch_data','microseconds_to_seconds_conversion_factor']
+        epoch_data_array = epochs_mat_file['epoch_data'] # 
+        n_epochs = np.shape(epoch_data_array)[0]
+        
+        session_absolute_start_timestamp = epoch_data_array[0,0].item()
+        session.config.absolute_start_timestamp = epoch_data_array[0,0].item()
+
+        if time_variable_name == 't_rel_seconds':
+            epoch_data_array_rel = epoch_data_array - session_absolute_start_timestamp # convert to relative by subtracting the first timestamp
+            epochs_df_rel = pd.DataFrame({'start':[epoch_data_array_rel[0,0].item(), epoch_data_array_rel[0,1].item()],'stop':[epoch_data_array_rel[1,0].item(), epoch_data_array_rel[1,1].item()],'label':['maze1','maze2']}) # Use the epochs starting at session_absolute_start_timestamp (meaning the first epoch starts at 0.0
+            session.paradigm = Epoch(epochs=epochs_df_rel)
+        elif time_variable_name == 't_seconds':
+            epochs_df = pd.DataFrame({'start':[epoch_data_array[0,0].item(), epoch_data_array[0,1].item()],'stop':[epoch_data_array[1,0].item(), epoch_data_array[1,1].item()],'label':['maze1','maze2']})
+            session.paradigm = Epoch(epochs=epochs_df)            
+        else:
+            raise ValueError
+        
+        ## Position Data loaded and zeroed to the same session_absolute_start_timestamp, which starts before the first timestamp in 't':
+        session_position_mat_file_path = Path(basepath).joinpath('{}.position_info.mat'.format(session_name))
+        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
+        # ['microseconds_to_seconds_conversion_factor','samplingRate', 'timestamps', 'x', 'y']
+        t = position_mat_file['timestamps'].squeeze() # 1, 63192        
+        
+        x = position_mat_file['x'].squeeze() # 10 x 63192
+        y = position_mat_file['y'].squeeze() # 10 x 63192
+        # position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777
+        # microseconds_to_seconds_conversion_factor = position_mat_file['microseconds_to_seconds_conversion_factor'].item()
+        # num_samples = len(t)
 
         if time_variable_name == 't_rel_seconds':
             t_rel = position_mat_file['timestamps_rel'].squeeze()
@@ -665,8 +680,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         else:
             raise ValueError
         
-        
-        session.config.position_sampling_rate_Hz = position_sampling_rate_Hz
+
+        session = cls._default_kdiba_exported_load_position_info_mat(basepath=basepath, session_name=session_name, session=session)
+        # session.config.position_sampling_rate_Hz = position_sampling_rate_Hz
         # session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
         session.position = Position.from_separate_arrays(t_rel, x, y)
         

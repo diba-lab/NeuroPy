@@ -156,18 +156,17 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     format_name: str = field()
     preprocessing_parameters: ParametersContainer = field()
 
-    
     # Derived properties:
-    absolute_start_timestamp: float = field(init=False, default=603785.852737)
-    position_sampling_rate_Hz: float = field(init=False, default=29.96977250291495) 
+    absolute_start_timestamp: float = field(default=603785.852737) # init=False, 
+    position_sampling_rate_Hz: float = field(default=29.96977250291495) # init=False, 
 
-    pix2cm: float = field(init=False, default=287.7697841726619)
-    x_midpoint: float = field(init=False, default=143.8848920863310)
-    loaded_track_limits: dict = field(default=Factory(dict), init=False)
+    pix2cm: float = field(default=287.7697841726619) # init=False, 
+    x_midpoint: float = field(default=143.8848920863310)
+    loaded_track_limits: dict = field(default=Factory(dict))
 
-    is_resolved: bool = field(init=False, default=False)
-    resolved_required_filespecs_dict: dict = field(default=Factory(dict), init=False)
-    resolved_optional_filespecs_dict: dict = field(default=Factory(dict), init=False)
+    is_resolved: bool = field(default=False) # init=False, 
+    resolved_required_filespecs_dict: dict = field(default=Factory(dict)) # , init=False
+    resolved_optional_filespecs_dict: dict = field(default=Factory(dict)) # , init=False
 
 
     @property
@@ -259,7 +258,6 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
         return state
 
     def __setstate__(self, state):
-
         # Restore instance attributes (i.e., _mapping and _keys_at_init).
         # print(f'SessionConfig.__setstate__(state: {state})')
         if 'session_context' not in state:
@@ -270,6 +268,10 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
             active_data_mode_registered_class = DataSessionFormatRegistryHolder.get_registry_data_session_type_class_name_dict()[state['format_name']]
             state['session_context'] = active_data_mode_registered_class.parse_session_basepath_to_context(state['basepath'])
 
+        if 'loaded_track_limits' not in state:
+            state['loaded_track_limits'] = dict()
+        
+        
         self.__dict__.update(state)
         
 
