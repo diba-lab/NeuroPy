@@ -640,7 +640,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             if a_loadable_xlim_key in position_mat_file:
                 an_xlim = position_mat_file[a_loadable_xlim_key].squeeze()
                 if an_xlim is not None:
-                    session.config[a_loadable_xlim_key] = an_xlim
+                    session.config.loaded_track_limits[a_loadable_xlim_key] = an_xlim
 
 
 

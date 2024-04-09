@@ -161,6 +161,10 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     absolute_start_timestamp: float = field(init=False, default=603785.852737)
     position_sampling_rate_Hz: float = field(init=False, default=29.96977250291495) 
 
+    pix2cm: float = field(init=False, default=287.7697841726619)
+    x_midpoint: float = field(init=False, default=143.8848920863310)
+    loaded_track_limits: dict = field(default=Factory(dict), init=False)
+
     is_resolved: bool = field(init=False, default=False)
     resolved_required_filespecs_dict: dict = field(default=Factory(dict), init=False)
     resolved_optional_filespecs_dict: dict = field(default=Factory(dict), init=False)
@@ -208,10 +212,13 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
 
 
     def to_dict(self):
-        out_dict = {a_key:str(a_value) for a_key, a_value in self.__dict__.items() if a_key in ['format_name', 'basepath', 'session_name', 'session_context', 'absolute_start_timestamp', 'position_sampling_rate_Hz']}
+        out_dict = {a_key:str(a_value) for a_key, a_value in self.__dict__.items() if a_key in ['format_name', 'basepath', 'session_name', 'session_context', 'absolute_start_timestamp', 'position_sampling_rate_Hz', 'pix2cm', 'x_midpoint']}
         # need to flatten: 'resolved_required_filespecs_dict', 'resolved_optional_filespecs_dict':
         out_dict['resolved_required_filespecs_dict'] = [str(a_path) for a_path in self.resolved_required_file_specs.keys()]
         out_dict['resolved_optional_filespecs_dict'] = [str(a_path) for a_path in self.resolved_optional_file_specs.keys()]
+
+        out_dict['loaded_track_limits'] = {str(k):v for k,v in self.loaded_track_limits.items()}
+
         return out_dict
     
     # Context and Description ____________________________________________________________________________________________ #
