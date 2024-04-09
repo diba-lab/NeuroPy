@@ -605,6 +605,45 @@ def build_or_reuse_figure(fignum=1, fig=None, fig_idx:int=0, **kwargs):
         fig: a Matplotlib figure object
 
     History: factored out of `plot_ratemap_2D`
+
+    Usage:
+        from neuropy.utils.matplotlib_helpers import build_or_reuse_figure
+        
+    Example 1:
+        ## Figure Setup:
+        fig = build_or_reuse_figure(fignum=kwargs.pop('fignum', None), fig=kwargs.pop('fig', None), fig_idx=kwargs.pop('fig_idx', 0), figsize=kwargs.pop('figsize', (10, 4)), dpi=kwargs.pop('dpi', None), constrained_layout=True) # , clear=True
+        subfigs = fig.subfigures(actual_num_subfigures, 1, wspace=0.07)
+        ##########################
+
+    Example 2:
+        
+        if fignum is None:
+            if f := plt.get_fignums():
+                fignum = f[-1] + 1
+            else:
+                fignum = 1
+
+        ## Figure Setup:
+        if ax is None:
+            fig = build_or_reuse_figure(fignum=fignum, fig=fig, fig_idx=0, figsize=(12, 4.2), dpi=None, clear=True, tight_layout=False)
+            gs = GridSpec(1, 1, figure=fig)
+
+            if use_brokenaxes_method:
+                # `brokenaxes` method: DOES NOT YET WORK!
+                from brokenaxes import brokenaxes ## Main brokenaxes import 
+                pad_size: float = 0.1
+                # [(a_tuple.start, a_tuple.stop) for a_tuple in a_test_epoch_df.itertuples(index=False, name="EpochTuple")]
+                lap_start_stop_tuples_list = [((a_tuple.start - pad_size), (a_tuple.stop + pad_size)) for a_tuple in ensure_dataframe(laps_Epoch_obj).itertuples(index=False, name="EpochTuple")]
+                # ax = brokenaxes(xlims=((0, .1), (.4, .7)), ylims=((-1, .7), (.79, 1)), hspace=.05, subplot_spec=gs[0])
+                ax = brokenaxes(xlims=lap_start_stop_tuples_list, hspace=.05, subplot_spec=gs[0])
+            else:
+                ax = plt.subplot(gs[0])
+
+        else:
+            # otherwise get the figure from the passed axis
+            fig = ax.get_figure()
+                    
+            
     """
     if fignum is None:
         if f := plt.get_fignums():
