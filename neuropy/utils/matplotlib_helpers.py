@@ -1419,7 +1419,7 @@ def add_range_selector(fig, ax, initial_selection=None, orientation="horizontal"
             
     return selector, set_extents
 
-def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_changed=None) -> RectangleSelector:
+def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_changed=None, selection_rect_props=None, **kwargs) -> RectangleSelector:
     """ 2023-05-16 - adds an interactive rectangular selector to an existing matplotlib figure/ax.
     
     Usage:
@@ -1471,8 +1471,10 @@ def add_rectangular_selector(fig, ax, initial_selection=None, on_selection_chang
     initial_extents = extents  # Store the initial extents
     # ax = axs[0]
     # props = dict(facecolor='blue', alpha=0.5)
-    props=None
-    selector = RectangleSelector(ax, select_callback, useblit=True, button=[1, 3], minspanx=5, minspany=5, spancoords='data', interactive=True, ignore_event_outside=True, props=props) # spancoords='pixels', button=[1, 3]: disable middle button 
+    if selection_rect_props is None:
+        selection_rect_props = None
+    selector = RectangleSelector(ax, select_callback, props=selection_rect_props, **({'useblit': True, 'button': [1, 3], 'minspanx': 5, 'minspany': 5, 'spancoords': 'data', 'interactive': True, 'ignore_event_outside': True} | kwargs)) # spancoords='pixels', button=[1, 3]: disable middle button 
+    # useblit=True, button=[1, 3], minspanx=5, minspany=5, spancoords='data', interactive=True, ignore_event_outside=True
     if extents is not None:
         selector.extents = extents
     # fig.canvas.mpl_connect('key_press_event', toggle_selector)
@@ -1519,7 +1521,7 @@ def interactive_select_grid_bin_bounds_1D(curr_active_pipeline, epoch_name='maze
     return fig, ax, range_selector, set_extents
 
 
-def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input:bool=True, should_apply_updates_to_pipeline=True):
+def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input:bool=True, should_apply_updates_to_pipeline=True, selection_rect_props=None, **kwargs):
     """ allows the user to interactively select the grid_bin_bounds for the pf2D
     Uses:
         plot_occupancy, add_rectangular_selector
@@ -1536,7 +1538,7 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
                     
     fig, ax = computation_result.computed_data.pf2D.plot_occupancy(identifier_details_list=[epoch_name], active_context=epoch_context) 
 
-    rect_selector, set_extents, reset_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds) # (24.82, 257.88), (125.52, 149.19)
+    rect_selector, set_extents, reset_extents = add_rectangular_selector(fig, ax, initial_selection=grid_bin_bounds, selection_rect_props=selection_rect_props, **kwargs) # (24.82, 257.88), (125.52, 149.19)
     
     # Add a close event handler to break the while loop when the figure is manually closed
     was_closed = False
