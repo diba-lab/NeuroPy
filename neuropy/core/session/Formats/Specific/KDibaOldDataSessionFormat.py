@@ -628,6 +628,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
 
+        # updated_config_dict = cls.perform_load_position_info_mat(session_position_mat_file_path=session_position_mat_file_path, session.config.to_dict())
+        # session.config.__dict__.update(updated_config_dict) ## update given the values
+        
         # if ['short_xlim', 'long_xlim', 'pix2cm', 'x_midpoint']
         if 'samplingRate' in position_mat_file:
             position_sampling_rate_Hz = position_mat_file['samplingRate'].item() # In Hz, returns 29.969777

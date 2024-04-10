@@ -160,6 +160,8 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     absolute_start_timestamp: float = field(default=603785.852737) # init=False, 
     position_sampling_rate_Hz: float = field(default=29.96977250291495) # init=False, 
 
+    microseconds_to_seconds_conversion_factor: float = field(default=1e-06)
+
     pix2cm: float = field(default=287.7697841726619) # init=False, 
     x_midpoint: float = field(default=143.8848920863310)
     loaded_track_limits: dict = field(default=Factory(dict))
