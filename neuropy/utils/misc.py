@@ -404,7 +404,12 @@ def adding_additional_df_columns(original_df: pd.DataFrame, additional_cols_df: 
     assert np.shape(additional_cols_df)[0] == np.shape(original_df)[0], f"np.shape(additional_cols_df)[0]: {np.shape(additional_cols_df)[0]} != np.shape(original_df)[0]: {np.shape(original_df)[0]}"
     # For each column in additional_cols_df, add it to original_df
     for column in additional_cols_df.columns:
-        original_df[column] = additional_cols_df[column].values
+        if not isinstance(original_df, pd.DataFrame):
+            original_df._df[column] = additional_cols_df[column].values # Assume an Epoch, set the internal df
+        else:
+            # just set the column
+            original_df[column] = additional_cols_df[column].values # TypeError: 'Epoch' object does not support item assignment
+        
         
     return original_df
 

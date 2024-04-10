@@ -681,6 +681,18 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         return f"Epoch[{len(self.starts)}]({self.starts[0]:.1f}-{self.stops[-1]:.1f})" #
 
 
+    @property
+    def __array_interface__(self):
+        """ wraps the internal dataframe's `__array_interface__` which Pandas uses to provide numpy with information about dataframes such as np.shape(a_df) info.
+        Allows np.shape(an_epoch_obj) to work.
+
+        """
+        # Get the numpy array's __array_interface__ from the DataFrame's values
+        # The .to_numpy() method explicitly converts the DataFrame to a NumPy array
+        return self._df.to_numpy().__array_interface__
+        # return self._df.__array_interface__
+
+
     def __getitem__(self, slice_):
         """ Allows pass-thru indexing like it were a numpy array.
 
@@ -699,7 +711,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
                 return np.vstack((self.starts[indices], self.stops[indices])).T
             else:
                 return np.array([self.starts[indices], self.stops[indices]]).squeeze()
-        elif ((slice_ is not None) and (len(slice_) > 0) and isinstance(slice_[0], str)):
+        elif ((slice_ is not None) and (len(slice_) > 0) and isinstance(slice_[0], str)): # TypeError: object of type 'int' has no len()
             # a list of strings, probably meant to use a dataframe indexing method
             # having issue whith this being called with pd.Dataframe columns (when assuming a pd.DataFrame epochs format but actually an Epoch object)
             # IndexError: only integers, slices (`:`), ellipsis (`...`), numpy.newaxis (`None`) and integer or boolean arrays are valid indices
