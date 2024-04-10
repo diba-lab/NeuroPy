@@ -36,6 +36,11 @@ class UnpackableMixin:
             # no filter:
             return iter(attrs.astuple(self))
 
+    def __len__(self) -> int:
+        # length is the number of tuple attributes to unpack
+        return len(tuple(self.__iter__()))
+
+
 
 
 def interleave_elements(start_points, end_points, debug_print:bool=False):
