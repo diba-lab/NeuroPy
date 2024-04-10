@@ -365,11 +365,15 @@ class Laps(Epoch):
                 # if 'lap_dir' not in laps_df.columns:
                 #     laps_df['lap_dir'] = laps_df['is_LR_dir']
             else:
-                # No global_session or position passed, using old even/odd 'lap_dir' determination.            
-                print(f"WARNING: No global_session or position passed, using old even/odd 'lap_dir' determination.")
-                laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
-                laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
-                
+                # No global_session or position passed, using old even/odd 'lap_dir' determination.
+                if (('lap_dir' not in laps_df) or replace_existing):
+                    if (('lap_dir' in laps_df) and replace_existing):
+                        print(f"WARNING: No global_session or position passed but replace_existing == True!\n\tWould replace existing 'lap_dir' column: {laps_df['lap_dir']} using old even/odd 'lap_dir' determination.")
+                    else:
+                        print(f"WARNING: No global_session or position passed but there is no existing 'lap_dir' column, using old even/odd 'lap_dir' determination.")
+                    laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
+                    laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
+                    
         elif (replace_existing and (global_session is not None)):
             laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session, replace_existing=True) # adds 'is_LR_dir'
         else:
