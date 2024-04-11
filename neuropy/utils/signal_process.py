@@ -103,14 +103,92 @@ class Spectrogram(core.Signal):
         spect_sum = self.traces.sum(axis=0)
         return (stats.zscore(spect_sum) >= thresh) | (spect_sum <= 0)
 
-    def get_pe_mean_spec(
+    def get_pe_spec(
         self,
         event_times,
         buffer_sec=(0.5, 0.5),
         ignore_epochs: core.Epoch = None,
         print_ignored_frames: bool = True,
     ):
-        """Get peri-event mean spectrogram
+        """Get peri-event spectrogram for every event.
+
+        Parameters
+        ----------
+        event_times: ndarray of floats times of each event in seconds, will be time 0 in mean spectrogram
+
+        buffer_sec: tuple of floats defining amount of time before/after event to grab.
+
+        ignore_epochs: core.Epoch class of epochs to ignore when calculating mean spectrogram
+
+        Returns
+        -------
+        spec: nfreq x nbins x nevents array containing spectrogram for each event
+              ranging from -buffer_sec[0] to buffer_sec[1]"""
+
+        event_times = event_times.squeeze()
+        assert event_times.ndim == 1, "event_times must be broadcastable to ndim=1"
+
+        # Should not be necessary, keep ls - just in case
+        # Keep only events within time limits of recording, retaining any nans
+        epoch_start_stops = event_times[:, None] + np.multiply(buffer_sec, (-1, 1))
+        keep_bool = (epoch_start_stops[:, 0] > self.t_start) & (
+            epoch_start_stops[:, 1] < self.t_stop
+        )
+        nan_bool = np.isnan(event_times)
+        keep_bool = keep_bool | nan_bool
+        if np.sum(keep_bool) < len(event_times):
+            event_times = event_times[keep_bool]
+            print(
+                f"Events {np.where(~keep_bool)[0]} are outside of data range and were dropped"
+            )
+
+        sxx_list = []
+        ntime_bins = int(np.ceil(np.sum(buffer_sec) * self.sampling_rate))
+        for t_event in event_times:
+            if not np.isnan(t_event):
+                start_time = t_event - buffer_sec[0]
+                stop_time = t_event + buffer_sec[1]
+                wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
+
+                # Add/remove one frame at end if array size doesn't match expected number of time bins
+                if len(wvlet_temp.time) != ntime_bins:
+                    if len(wvlet_temp.time) == (ntime_bins + 1):
+                        stop_time -= 0.5 / self.sampling_rate
+                    elif len(wvlet_temp.time) == (ntime_bins - 1):
+                        stop_time += 0.5 / self.sampling_rate
+                    else:
+                        print("Error - time bins off by more than 1")
+                    wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
+                sxx_temp = wvlet_temp.traces
+
+                # Ignore times if specified - these are likely already NaN in the spectrogram
+                if ignore_epochs is not None:
+                    time_bins = np.linspace(start_time, stop_time, ntime_bins)
+                    ignore_bool, ignore_times, _ = ignore_epochs.contains(time_bins)
+
+                    # Display ignored frames
+                    if np.sum(ignore_bool) > 0:
+                        sxx_temp[:, ignore_bool] = np.nan
+                        if print_ignored_frames:
+                            print(
+                                f"{np.sum(ignore_bool)} frames between {ignore_times.min():.1F} and {ignore_times.max():.1F} ignored (sent to nan)"
+                            )
+
+            else:  # Fill in with nans if event is missing
+                wvlet_temp = self.time_slice(t_start=1, t_stop=1 + np.sum(buffer_sec))
+                sxx_temp = np.ones_like(wvlet_temp.traces) * np.nan
+            sxx_list.append(sxx_temp)
+
+        return np.stack(sxx_list, axis=2)
+
+    def get_pe_mean_spec(
+        self,
+        event_times,
+        buffer_sec=(0.5, 0.5),
+        ignore_epochs: core.Epoch = None,
+        print_ignored_frames: bool = False,
+    ):
+        """Get peri-event mean spectrogram.
 
         Parameters
         ----------
@@ -125,53 +203,13 @@ class Spectrogram(core.Signal):
         Spectrogram class with traces = mean spectrogram and times ranging from -buffer_sec[0] to buffer_sec[1]
         """
 
-        event_times = event_times.squeeze()
-        assert event_times.ndim == 1, "event_times must be broadcastable to ndim=1"
-
-        # Keep only events within time limits of recording
-        epoch_start_stops = event_times[:, None] + np.multiply(buffer_sec, (-1, 1))
-        keep_bool = (epoch_start_stops[:, 0] > self.t_start) & (
-            epoch_start_stops[:, 1] < self.t_stop
+        # Get spectrogram for each event
+        sxx_by_event = self.get_pe_spec(
+            event_times, buffer_sec, ignore_epochs, print_ignored_frames
         )
-        if np.sum(keep_bool) < len(event_times):
-            event_times = event_times[keep_bool]
-            print(
-                f"Events {np.where(~keep_bool)[0]} are outside of data range and were dropped"
-            )
 
-        sxx_list = []
-        ntime_bins = int(np.ceil(np.sum(buffer_sec) * self.sampling_rate))
-        for t_event in event_times:
-            start_time = t_event - buffer_sec[0]
-            stop_time = t_event + buffer_sec[1]
-            wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
-
-            # Add/remove one frame at end if array size doesn't match expected number of time bins
-            if len(wvlet_temp.time) != ntime_bins:
-                if len(wvlet_temp.time) == (ntime_bins + 1):
-                    stop_time -= 0.5 / self.sampling_rate
-                elif len(wvlet_temp.time) == (ntime_bins - 1):
-                    stop_time += 0.5 / self.sampling_rate
-                else:
-                    print("Error - time bins off by more than 1")
-                wvlet_temp = self.time_slice(t_start=start_time, t_stop=stop_time)
-            sxx_temp = wvlet_temp.traces
-
-            # Ignore times if specified - these are likely already NaN in the spectrogram
-            if ignore_epochs is not None:
-                time_bins = np.linspace(start_time, stop_time, ntime_bins)
-                ignore_bool, ignore_times, _ = ignore_epochs.contains(time_bins)
-
-                # Display ignored frames
-                if np.sum(ignore_bool) > 0:
-                    sxx_temp[:, ignore_bool] = np.nan
-                    if print_ignored_frames:
-                        print(
-                            f"{np.sum(ignore_bool)} frames between {ignore_times.min():.1F} and {ignore_times.max():.1F} ignored (sent to nan)"
-                        )
-            sxx_list.append(sxx_temp)
-
-        sxx_mean = np.nanmean(np.stack(sxx_list, axis=2), axis=2)
+        # Take the mean
+        sxx_mean = np.nanmean(sxx_by_event, axis=2)
 
         return Spectrogram(
             sxx_mean,
@@ -1398,4 +1436,10 @@ def plot_miniscope_noise(
 
 
 if __name__ == "__main__":
-    pass
+    import DataPaths.subjects as subjects
+    sess = subjects.sd.ratKday1[0]
+    post = sess.paradigm["post"].flatten()
+    period = [post[0] + 5 * 3600, post[0] + 6 * 3600]
+    chan = sess.best_channels.slow_wave
+    lfp = sess.eegfile.get_signal(chan, *period)
+    irasa(lfp.traces.squeeze(), lfp.sampling_rate, band=(1, 100), return_fit=True)

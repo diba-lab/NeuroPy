@@ -1,6 +1,6 @@
 ﻿"""Class to deal with DeepLabCut data"""
 
-from .movie import tracking_movie, deduce_starttime_from_file
+from neuropy.io.movie import tracking_movie, deduce_starttime_from_file
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -12,7 +12,9 @@ import re
 from pickle import dump, load
 import scipy.ndimage as simage
 
-from .optitrackio import getStartTime, posfromCSV
+from neuropy.io.miniscopeio import MiniscopeIO
+
+from neuropy.io.optitrackio import getStartTime, posfromCSV
 
 
 class DLC:
@@ -50,91 +52,142 @@ class DLC:
         # Pull out only the specific file you want if specified with a search_str above, otherwise grab first one only!
         # NRK todo: use walrus operator here to check and make sure output file list len == 1?
         if search_str is not None:
-            self.tracking_file = Path(
-                get_matching_files(tracking_files, match_str=search_str)[0]
+            self.tracking_files = Path(
+                get_matching_files(tracking_files, match_str=search_str)
             )
 
         else:
-            self.tracking_file = Path(tracking_files[0])
-            self.movie_file = self.tracking_file.with_suffix(movie_type)
-        print("Using tracking file " + str(self.tracking_file))
+            self.tracking_files = [Path(file) for file in tracking_files]
+            self.movie_files = [tracking_file.with_suffix(movie_type) for tracking_file in self.tracking_files]
+
+        self.movies = []
+        # self.nframes = self.nframes
+        # self.SampleRate = []
+        self.timestamps = []
+
+        pos_list, scorernames = [], []
+        for idf, file in enumerate(self.tracking_files):
+            print(f"Using tracking file #{idf+1}: {str(file)}")
+            # Import position data as-is
+            pos_data = import_tracking_data(file)
+            scorername = get_scorername(pos_data)
+            scorernames.append(scorername)
+            # Now grab the data for the scorer identified above - easier access later!
+            pos_data = pos_data[scorername]
+            pos_list.append(pos_data)
+        self.pos_data = pd.concat(pos_list, axis=0)
         self.pix2cm = pix2cm
 
-        # First import position data as-is
-        pos_data = import_tracking_data(self.tracking_file)
-
         # Assume you've only run one scorer and that bodyparts are the same for all files
-        self.scorername = get_scorername(pos_data)
+        self.scorernames = scorername
         self.bodyparts = get_bodyparts(pos_data)
 
-        # Now grab the data for the scorer identified above - easier access later!
-        self.pos_data = pos_data[self.scorername]
+        # # Now grab the data for the scorer identified above - easier access later!
+        # self.pos_data = pos_data[self.scorername]
 
         # Now convert from pixels to centimeters
         self.to_cm()
 
         # Grab metadata for later access
+        self.meta = []
         self.get_metadata()
+        self.nframes = self.get_nframes()
+        self.SampleRate = self.get_SampleRate()
 
-    @property
-    def SampleRate(self):
-        try:
-            SampleRate = self.meta["data"]["fps"]
-        except KeyError:  # try to import from movie directly
+        # Initialize other fields
+        self.timestamp_type = None
+        self.speed = None
+
+    def get_SampleRate(self):
+        """Get mean sample rate across all movies"""
+        SampleRate = []
+        for idm, movie_file in enumerate(self.movie_files):
+            try:
+                SampleRate.append(self.meta[idm]["data"]["fps"])
+                meta_found = True
+            except KeyError:  # try to import from movie directly
+                meta_found = False
             # Initialize movie
-            if self.movie_file.is_file():
-                self.movie = tracking_movie(self.movie_file)
-                SampleRate = self.movie.get_sample_rate()
-            else:
-                SampleRate = None
+                if movie_file.is_file():
+                    self.movies[idm] = tracking_movie(movie_file)
+                    SampleRate.append(self.movies[idm].get_sample_rate())
+                else:
+                    SampleRate.append(None)
+
+        SampleRate = np.mean(SampleRate)
+        if not meta_found:
+            print("No metadata found - taking mean sample rate from all raw movies in self.movie_files")
+        if idm > 0:
+            print("Multiple videos found - taking mean sample rate from all videos")
 
         return SampleRate
 
-    @property
-    def nframes(self):
-        try:
-            nframes = self.meta["data"]["nframes"]
-        except KeyError:  # try to import from movie directly
-            # Initialize movie
-            if self.movie_file.is_file():
-                self.movie = tracking_movie(self.movie_file)
-                nframes = self.movie.get_nframes()
-            else:
-                nframes = None
+    def get_nframes(self):
+
+        nframes = []
+        for idm, movie_file in enumerate(self.movie_files):
+            try:
+                nframes.append(self.meta[idm]["data"]["nframes"])
+                meta_found = True
+            except KeyError:  # try to import from movie directly
+                meta_found = False
+                # Initialize movie
+                if movie_file.is_file():
+                    self.movies[idm] = tracking_movie(movie_file)
+                    nframes.append(self.movies[idm].get_nframes())
+                else:
+                    nframes.append(None)
+
+        if not meta_found:
+            print("No metadata found - getting nframes directly from all raw movies in self.movie_files")
 
         return nframes
 
     def get_metadata(self):
         """Load in meta-data corresponding to tracking file"""
+        self.meta = []
+        for tracking_file in self.tracking_files:
+            meta_file = tracking_file.parent / (tracking_file.stem + "_meta.pickle")
 
-        meta_file = self.tracking_file.parent / (
-            self.tracking_file.stem + "_meta.pickle"
-        )
+            with open(meta_file, "rb") as f:
+                self.meta.append(load(f))
 
-        with open(meta_file, "rb") as f:
-            self.meta = load(f)
-
-    def get_timestamps(self):
+    def get_timestamps(self, camera_type: str in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2'] = 'optitrack',
+                       exclude_str: str or None = None, include_str: str or None = None):
         """Tries to import timestamps from CSV file from optitrack, if not, infers it from timestamp in filename,
-        sample rate, and nframes"""
+        sample rate, and nframes
+        :param camera_type: 'optitrack' looks for optitrack csv file with tracking data, other options look for
+        :params exclude_str, include_str: see MiniscopeIO.load_all_timestamps - can include or exclude folders
+        UCLA miniscope webcam files"""
 
-        opti_file = self.tracking_file.parent / (
-            self.tracking_file.stem[: self.tracking_file.stem.find("-Camera")] + ".csv"
-        )
-        if opti_file.is_file():
-            start_time = getStartTime(opti_file)
-            _, _, _, t = posfromCSV(opti_file)
+        assert camera_type in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2']
+        self.timestamp_type = camera_type
+        self.timestamps = []
+        if camera_type == 'optitrack':
+            for idt, tracking_file in enumerate(self.tracking_files):
+                opti_file = tracking_file.parent / (
+                    tracking_file.stem[: tracking_file.stem.find("-Camera")] + ".csv"
+                )
+                if opti_file.is_file():
+                    start_time = getStartTime(opti_file)
+                    _, _, _, t = posfromCSV(opti_file)
 
-            self.timestamps = start_time + pd.to_timedelta(t, unit="sec")
+                    self.timestamps.append(start_time + pd.to_timedelta(t, unit="sec"))
+                else:
+                    print(f"No Optitrack csv file found at {tracking_file.stem}.")
+                    print("Inferring start time from file name. SECOND PRECISION IN START TIME!!!")
+                    start_time = deduce_starttime_from_file(tracking_file)
+                    time_deltas = pd.to_timedelta(
+                        np.arange(self.nframes[idt]) / self.SampleRate, unit="sec"
+                    )
+                    self.timestamps.append(start_time + time_deltas)
+            self.timestamps = pd.concat(self.timestamps, axis=0)
         else:
-            print(
-                "No Optitrack csv file found, inferring start time from file name. SECOND PRECISION IN START TIME!!!"
-            )
-            start_time = deduce_starttime_from_file(self.tracking_file)
-            time_deltas = pd.to_timedelta(
-                np.arange(self.nframes) / self.SampleRate, unit="sec"
-            )
-            self.timestamps = start_time + time_deltas
+            mio = MiniscopeIO(self.base_dir)
+            webcam_flag = True if camera_type == "ms_webcam" else int(camera_type[-1])
+            self.timestamps = mio.load_all_timestamps(webcam=webcam_flag, exclude_str=exclude_str,
+                                                      include_str=include_str)
+
 
     def to_cm(self):
         """Convert pixels to centimeters in pos_data"""
@@ -175,6 +228,39 @@ class DLC:
             std=std,
             SampleRate=self.SampleRate,
         )
+
+    def get_all_speed(self):
+        """Get speed of all bodyparts"""
+        df_list = []
+        for bodypart in self.bodyparts:
+            df_list.append(pd.DataFrame({bodypart: self.get_speed(bodypart)}))
+
+        self.speed = pd.concat(df_list, axis=1)
+
+        return self.speed
+
+    def get_speed(self, bodypart):
+        """Get speed of animal"""
+        assert self.pos_smooth is not None, "You must smooth data first"
+        assert self.timestamps is not None, "You must get timestamps first"
+        if self.timestamp_type == "optitrack":
+            print('get_speed not yet tested for optitrack data, use with caution')
+
+        # Get position of bodypart
+        data_use = self.pos_smooth[bodypart]
+        x = data_use["x"]
+        y = data_use["y"]
+        total_seconds = (self.timestamps.reset_index()['Timestamps'] - self.timestamps.reset_index()['Timestamps'][0]).dt.total_seconds()
+
+        # Get delta in position and time from frame-to-frame
+        delta_pos = np.sqrt(np.square(np.diff(x)) + np.square(np.diff(y)))
+        delta_t = np.diff(total_seconds)
+
+        # Calculate speed
+        speed = delta_pos / delta_t
+        speed = np.hstack((speed, np.nan))  # add in Nan at end to match pos data shape
+        return speed
+
 
     def plot1d(
         self,
@@ -477,11 +563,18 @@ def plot_2d(
 
 
 if __name__ == "__main__":
-    dlc = DLC(
-        "/data2/Trace_FC/Pilot1/Rat700/2021_02_22_habituation",
-        search_str="Camera 1",
-        pix2cm=0.13,
-    )
-    dlc.smooth_pos()
-    dlc.get_freezing_epochs()
+    # dlc_path = '/data2/Trace_FC/Recording_Rats/Finn2/2023_05_08_training'
+    # dlc_path = '/data2/Trace_FC/Recording_Rats/Han/2022_08_03_training'
+    dlc_path = '/data2/Trace_FC/Recording_Rats/Rose/2022_06_22_training'
+    arena_side_pix = 60  # Keep this
+    arena_side_cm = 25.4  # Update this after measuring!!!
+    pix2cm = arena_side_cm / arena_side_pix
+
+    # Read in DLC data
+    dlc = DLC(dlc_path, pix2cm=pix2cm)
+
+    # Smooth position, get timestamps, and get speed
+    dlc.get_timestamps('ms_webcam', include_str="/2_training/")
+    dlc.smooth_pos(bodyparts=["crown_middle", "back_middle"])
+    dlc.get_all_speed()
     pass

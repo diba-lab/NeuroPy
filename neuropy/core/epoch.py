@@ -5,6 +5,7 @@ from .datawriter import DataWriter
 from pathlib import Path
 import scipy.signal as sg
 import typing
+from copy import deepcopy, copy
 
 
 def _unpack_args(values, fs=1):
@@ -46,8 +47,18 @@ class Epoch(DataWriter):
         assert (
             pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
         ), "epochs should at least have columns/keys with names: start, stop, label"
-        epochs.loc[:, "label"] = epochs["label"].astype("str")
+
+        ## Make sure labels are formatted correctly as strings.
+        # Note that the following would be MUCH simpler but throws a "SettingWithCopyWarning"
+        # so we have to add the convoluted code below to avoid it
+        # epochs.loc[:, "label"] = epochs.loc[:, "label"].astype("str")
+        epochs_labels_str = copy(epochs["label"].astype("str"))
+        epochs = epochs.drop(columns="label", inplace=False)  # this also throws a warning if used with inplace=True
+        epochs.loc[:, "label"] = epochs_labels_str
+
+        # Sort
         epochs = epochs.sort_values(by=["start"]).reset_index(drop=True)
+
         return epochs.copy()
 
     @property
@@ -105,6 +116,15 @@ class Epoch(DataWriter):
         else:
             return self.__add__(Epoch(comb_df))
 
+    def add_epoch_by_index(self, index, start, stop, label=""):
+        assert np.mod(index, 1) > 0, "index must be a non-integer, e.g. -0.5 or 11.5"
+        epochs_df = deepcopy(self._epochs)
+        line = pd.DataFrame(
+            {"start": start, "stop": stop, "label": label}, index=[index]
+        )
+        epochs_df = pd.concat((epochs_df, line), ignore_index=False)
+        self._epochs = epochs_df.sort_index().reset_index(drop=True)
+
     def shift(self, dt):
         epochs = self._epochs.copy()
         epochs[["start", "stop"]] += dt
@@ -143,6 +163,9 @@ class Epoch(DataWriter):
             data = self._epochs[self._epochs["label"] == i].copy()
         # elif all(isinstance(_, str) for _ in i):
         #     data = self._epochs[self._epochs["label"].isin(i)].copy()
+        elif isinstance(i, list):
+            assert all(isinstance(_, str) for _ in i), "All entries in epochs slicing list must be str"
+            data = self._epochs[[label in i for label in self._epochs["label"]]]
         elif isinstance(i, (int, np.integer)):
             data = self._epochs.iloc[[i]].copy()
         else:
@@ -382,16 +405,16 @@ class Epoch(DataWriter):
 
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1])
 
-    def merge_neighbors(self):
+    def merge_neighbors(self, max_epoch_sep=1e-6):
         """Epochs of same label and common boundary will be merged. For example,
         [1,2] and [2,3] --> [1,3]
 
         Returns
         -------
         core.Epoch
-            epochs after merging neigbours sharing same label and boundary
+            epochs after merging neighbours sharing same label and boundary
         """
-        ep_times, ep_stops, ep_labels = (self.starts, self.stops, self.labels)
+        ep_times, ep_stops, ep_labels = (deepcopy(self.starts), deepcopy(self.stops), deepcopy(self.labels))
         ep_durations = self.durations
 
         ind_delete = []
@@ -400,7 +423,7 @@ class Epoch(DataWriter):
             for i in range(len(inds) - 1):
                 # if two sequentially adjacent epochs with the same label
                 # overlap or have less than 1 microsecond separation, merge them
-                if ep_times[inds[i + 1]] - ep_stops[inds[i]] < 1e-6:
+                if ((inds[i+1] - inds[i]) == 1) & ((ep_times[inds[i + 1]] - ep_stops[inds[i]]) < max_epoch_sep):
                     # stretch the second epoch to cover the range of both epochs
                     ep_times[inds[i + 1]] = min(
                         ep_times[inds[i]], ep_times[inds[i + 1]]
@@ -420,13 +443,15 @@ class Epoch(DataWriter):
 
         return Epoch.from_array(epochs_arr[:, 0], epochs_arr[:, 1], labels_arr)
 
-    def contains(self, t):
+    def contains(self, t, return_closest: bool = False):
         """Check if timepoints lie within epochs, must be non-overlapping epochs
 
         Parameters
         ----------
         t : array
             timepoints in seconds
+        return_closest: bool
+            True = return closest epoch before to all points in t even if t is outside epoch
 
         Returns
         -------
@@ -435,16 +460,20 @@ class Epoch(DataWriter):
         """
 
         assert self.is_overlapping == False, "Epochs must be non overlapping"
+        assert isinstance(t, np.ndarray), "t must be a numpy.ndarray"
 
         labels = self.labels
         bin_loc = np.digitize(t, self.flatten())
         indx_bool = bin_loc % 2 == 1
 
-        return (
-            indx_bool,
-            t[indx_bool],
-            labels[((bin_loc[indx_bool] - 1) / 2).astype("int")],
-        )
+        if not return_closest:
+            return (
+                indx_bool,
+                t[indx_bool],
+                labels[((bin_loc[indx_bool] - 1) / 2).astype("int")],
+            )
+        else:
+            return indx_bool, t, labels[bin_loc], bin_loc
 
     def delete_in_between(self, t1, t2):
         epochs_df = self.to_dataframe()[["start", "stop", "label"]]
@@ -480,8 +509,8 @@ class Epoch(DataWriter):
         epochs_df = pd.concat([epochs_df, flank_start, flank_stop], ignore_index=True)
         return Epoch(epochs_df)
 
-    def proportion_by_label(self, t_start=None, t_stop=None):
-        """Get porportion of time for each label type
+    def proportion_by_label(self, t_start=None, t_stop=None, ignore_gaps=False):
+        """Get proportion of time for each label type
 
         Parameters
         ----------
@@ -489,6 +518,7 @@ class Epoch(DataWriter):
             start time in seconds, by default None
         t_stop : float, optional
             stop time in seconds, by default None
+        ignore_gaps: will return None if set and there is no epoch in the time period selected.
 
         Returns
         -------
@@ -504,25 +534,29 @@ class Epoch(DataWriter):
 
         ep = self._epochs.copy()
         ep = ep[(ep.stop > t_start) & (ep.start < t_stop)].reset_index(drop=True)
+        if not ignore_gaps:
+            assert ep.shape[0] > 0, "cannot have empty time gaps between epoch labels with ignore_gaps=False"
+        elif ignore_gaps and (ep.shape[0] > 0):
+            if ep["start"].iloc[0] < t_start:
+                ep.at[0, "start"] = t_start
 
-        if ep["start"].iloc[0] < t_start:
-            ep.at[0, "start"] = t_start
+            if ep["stop"].iloc[-1] > t_stop:
+                ep.at[ep.index[-1], "stop"] = t_stop
 
-        if ep["stop"].iloc[-1] > t_stop:
-            ep.at[ep.index[-1], "stop"] = t_stop
+            ep["duration"] = ep.stop - ep.start
 
-        ep["duration"] = ep.stop - ep.start
+            ep_group = ep.groupby("label").sum(numeric_only=True).duration / duration
 
-        ep_group = ep.groupby("label").sum().duration / duration
+            label_proportion = {}
+            for label in self.get_unique_labels():
+                label_proportion[label] = 0.0
 
-        label_proportion = {}
-        for label in self.get_unique_labels():
-            label_proportion[label] = 0.0
+            for state in ep_group.index.values:
+                label_proportion[state] = ep_group[state]
 
-        for state in ep_group.index.values:
-            label_proportion[state] = ep_group[state]
-
-        return label_proportion
+            return label_proportion
+        else:
+            return None
 
     def durations_by_label(self):
         """Return total duration for each unique label
@@ -530,7 +564,7 @@ class Epoch(DataWriter):
         Returns
         -------
         dict
-            dictionary contating duration of each unique label
+            dictionary containing duration of each unique label
         """
         labels = self.labels
         durations = self.durations
@@ -540,6 +574,43 @@ class Epoch(DataWriter):
             label_durations[label] = durations[labels == label].sum()
 
         return label_durations
+
+    def resample_labeled_epochs(self, res, t_start=None, t_stop=None, merge_neighbors=True):
+        """Resample epochs to different size blocks using a winner take all method to assign
+        a label name. e.g. if the first 100-second epoch is 40% quiet wake, 50% REM, and 10% NREM
+        it would get labeled as REM.  Pretty slow, even slower with merge_neighbors=True
+
+        :param: res: block size in seconds
+        :param: t_start: start time in seconds, default = start of first epoch
+        :param: t_stop : stop time in seconds, default = stop of last epoch
+        :param merge_neighbors: combine adjacent epochs of the same label, default=True"""
+
+        if t_start is None:
+            t_start = self.starts[0]
+        elif t_start < self.starts[0]:
+            t_start = self.starts[0]
+            print('t_start < start time of first epoch, reassigned to match first epoch start time')
+
+        if t_stop is None:
+            t_stop = self.stops[-1]
+        if t_stop > self.stops[-1]:
+            t_stop = self.stops[-1]
+            print('t_stop > stop time of first epoch, reassigned to match last epoch stop time')
+        bins = np.arange(t_start, t_stop + res, res)
+        start_rs = bins[:-1]
+        stop_rs = bins[1:]
+        label_rs = []
+        for start, stop in zip(start_rs, stop_rs):
+            props = self.proportion_by_label(start, stop, ignore_gaps=True)
+            label_add = list(props.keys())[np.argmax(list(props.values()))] if props is not None else ""
+            label_rs.append(label_add)
+        # except AssertionError:  # Append nothing if gap found in epochs
+        #     label_rs.append("")
+
+        epoch_rs = Epoch(pd.DataFrame({"start": start_rs, "stop": stop_rs, "label": label_rs}))
+        epoch_rs = epoch_rs.merge_neighbors() if merge_neighbors else epoch_rs
+
+        return epoch_rs
 
     def count(self, t_start=None, t_stop=None, binsize=300):
         if t_start is None:
@@ -592,20 +663,6 @@ class Epoch(DataWriter):
         self.starts
         self.stops
         print(f"Buffer of {buffer_sec} added before/after each epoch")
-
-
-def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple or list):
-    """Extend each epoch by buffer_sec before/after start/stop of each epoch"""
-    if type(buffer_sec) in [int, float]:
-        buffer_sec = (buffer_sec, buffer_sec)
-    else:
-        assert len(buffer_sec) == 2
-
-    epoch_df["start"] -= buffer_sec[0]
-    epoch_df["stop"] += buffer_sec[1]
-
-    return epoch_df
-
     @staticmethod
     def from_peaks(arr: np.ndarray, thresh, length, sep=0, boundary=0, fs=1):
         hmin, hmax = _unpack_args(thresh)  # does not need fs
@@ -666,6 +723,8 @@ def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple o
         core.Epoch
             epochs where the arr is high
         """
+        if isinstance(t, pd.Series):  # grab values only
+            t = t.values
         assert np.array_equal(arr, arr.astype(bool)), "Only boolean array accepted"
         int_arr = arr.astype("int")
         pad_arr = np.pad(int_arr, 1)
@@ -675,6 +734,7 @@ def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple o
 
         if t is not None:
             assert len(t) == len(arr), "time length should be same as input array"
+
             starts, stops = t[starts], t[stops]
 
         return Epoch.from_array(starts, stops, "high")
@@ -698,6 +758,35 @@ def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple o
             time_bool[np.where((t >= e[0]) & (t <= e[1]))[0]] = 1
 
         return time_bool.astype("bool")
+
+def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple or list):
+    """Extend each epoch by buffer_sec before/after start/stop of each epoch"""
+    if type(buffer_sec) in [int, float]:
+        buffer_sec = (buffer_sec, buffer_sec)
+    else:
+        assert len(buffer_sec) == 2
+
+    epoch_df["start"] -= buffer_sec[0]
+    epoch_df["stop"] += buffer_sec[1]
+
+    return epoch_df
+
+
+def get_epoch_overlap_duration(epochs1: Epoch, epochs2: Epoch):
+    """Calculate time of overlapping epochs"""
+    e_array1 = epochs1.to_dataframe().loc[:, ["start", "stop"]].values
+    e_array2 = epochs2.to_dataframe().loc[:, ["start", "stop"]].values
+    overlaps = []
+    for e1 in e_array1:
+        for e2 in e_array2:
+            overlaps.append(getOverlap(e1, e2))
+
+    return np.array(overlaps).sum()
+
+
+def getOverlap(a, b):
+    """From https://stackoverflow.com/questions/2953967/built-in-function-for-computing-overlap-in-python"""
+    return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
 
 if __name__ == "__main__":

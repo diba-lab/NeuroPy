@@ -14,6 +14,7 @@ def plot_spectrogram(
     cmap="jet",
     sigma=None,
     std_sxx=None,
+    widget=True,
 ):
     """Generating spectrogram plot for given channel
 
@@ -29,6 +30,8 @@ def plot_spectrogram(
         overlap between windows, by default 2
     ax : [obj], optional
         if none generates a new figure, by default None
+    widget: [bool], optional
+        enable use of sliders for adjust clim and zooming in on a frequency range
     """
 
     # Figure out if using legacy functionality or updated
@@ -40,11 +43,15 @@ def plot_spectrogram(
         legacy = False
         spec = sxx
         sxx = spec.traces
+        assert time_lims[0] >= spec.t_start, "time_lims[0] must be greater than or equal to t_start in input Spectrogram"
+        assert time_lims[1] <= spec.t_stop, "time_lims[1] must be less than or equal to t_start in input Spectrogram"
+
 
     if sigma is not None:
         sxx = gaussian_filter(sxx, sigma=sigma)
     if std_sxx is None:  # Calculate standard deviation if needed for plotting purposes.
         std_sxx = np.std(sxx)
+    mean_sxx = np.mean(sxx)
     # time = np.linspace(time[0], time[1], sxx.shape[1])
     # freq = np.linspace(freq[0], freq[1], sxx.shape[0])
 
@@ -53,13 +60,12 @@ def plot_spectrogram(
 
     # ---------- plotting ----------------
     if legacy:
-
         def plotspec(n_std, freq_lim):
             """Plots data fine but doesn't preserve time and frequency info on axes"""
             ax.imshow(
                 sxx,
                 cmap=cmap,
-                vmax=n_std * std_sxx,
+                vmax= mean_sxx + n_std * std_sxx,
                 rasterized=True,
                 origin="lower",
                 extent=[time_lims[0], time_lims[-1], freq_lims[0], freq_lims[-1]],
@@ -72,30 +78,34 @@ def plot_spectrogram(
         ax.set_ylabel("Frequency (Hz)")
 
         # ---- updating plotting values for interaction ------------
-        ipywidgets.interact(
-            plotspec,
-            n_std=ipywidgets.FloatSlider(
-                value=6,
-                min=0.1,
-                max=30,
-                step=0.1,
-                description="Clim :",
-            ),
-            freq_lim=ipywidgets.IntRangeSlider(
-                value=freq_lims, min=0, max=625, step=1, description="Freq. range:"
-            ),
-        )
+        if widget:
+            print('test2')
+            ipywidgets.interact(
+                plotspec,
+                n_std=ipywidgets.FloatSlider(
+                    value=6,
+                    min=0.1,
+                    max=30,
+                    step=0.1,
+                    description="Clim :",
+                ),
+                freq_lim=ipywidgets.IntRangeSlider(
+                    value=freq_lims, min=0, max=625, step=1, description="Freq. range:"
+                ),
+            )
+        else:
+            plotspec(6, freq_lims)
     else:
 
         def plotspec(n_std, freq):
             """Plots data from Spectrogram class and preserves time and frequency info on axes"""
             spec_use = spec.time_slice(t_start=time_lims[0], t_stop=time_lims[1])
-            ax.pcolormesh(
+            ax.pcolorfast(
                 spec_use.time,
                 spec_use.freqs,
                 spec_use.traces,
                 cmap=cmap,
-                vmax=n_std * std_sxx,
+                vmax=mean_sxx + n_std * std_sxx,
                 rasterized=True,
             )
             ax.set_ylim(freq)
@@ -105,19 +115,23 @@ def plot_spectrogram(
         ax.set_ylabel("Frequency (Hz)")
 
         # ---- updating plotting values for interaction ------------
-        ipywidgets.interact(
-            plotspec,
-            n_std=ipywidgets.FloatSlider(
-                value=6,
-                min=0.1,
-                max=30,
-                step=0.1,
-                description="Clim :",
-            ),
-            freq=ipywidgets.IntRangeSlider(
-                value=freq_lims, min=0, max=625, step=1, description="Freq. range:"
-            ),
-        )
+        if widget:
+            ipywidgets.interact(
+                plotspec,
+                n_std=ipywidgets.FloatSlider(
+                    value=6,
+                    min=0.1,
+                    max=30,
+                    step=0.1,
+                    description="Clim :",
+                ),
+                freq=ipywidgets.IntRangeSlider(
+                    value=freq_lims, min=0, max=625, step=1, description="Freq. range:"
+                ),
+            )
+        else:
+            plotspec(6, freq_lims)
+
     return ax
 
 

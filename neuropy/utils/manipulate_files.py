@@ -24,7 +24,7 @@ def get_record_time_from_pathname(
             ext = "*." + ext
     dir = Path(folder)
     files = sorted(dir.glob("**/" + ext))
-    folder_dates = []
+    folder_times = []
 
     # Iterate through all parent folders and find the one matching your time_str
     for file in files:
@@ -33,18 +33,19 @@ def get_record_time_from_pathname(
             match_obj = re.match(time_str, fold)
             if match_obj is not None:
                 dir_date.append(match_obj.group(0))
+                break  # Except for loop for that folder now that you found its time!
         try:
             assert (
                 len(dir_date) == 1
             ), "time_str you entered returns too many or no matches"
         except AssertionError:
             pass
-        folder_dates.extend(dir_date)
+        folder_times.extend(dir_date)
 
-    if len(files) != len(folder_dates):
-        print("Obtained fewer dates than files, double-check")
+    if len(files) != len(folder_times):
+        print("Obtained fewer times than files, double-check")
 
-    return files, folder_dates
+    return files, folder_times
 
 
 def prepend_time_from_folder_to_file(
@@ -58,13 +59,13 @@ def prepend_time_from_folder_to_file(
 
     ## NRK todo: add in user prompt if copy=True entered!!!
     # Get names to prepend
-    files, folder_dates = get_record_time_from_pathname(folder, ext, time_str)
+    files, folder_times = get_record_time_from_pathname(folder, ext, time_str)
     assert len(files) == len(
-        folder_dates
+        folder_times
     ), "#files does not match #folders, check time_str and try again"
 
     success = 0
-    for file, date in zip(files, folder_dates):
+    for file, date in zip(files, folder_times):
         new_name = file.with_name(f"{date}_{file.name}")
         if copy:
             shutil.copy(str(file), new_name)
@@ -92,6 +93,7 @@ def save_notebook(
     base_dir: str or Path,
     save_name: str or None = None,
     save_prepend: str or None = None,
+    save_append: str or None = None,
 ):
     """Save a jupyter notebook to base directory noted. Make sure you save it beforehand! (Autosave should take care
     of this, but please check.
@@ -101,14 +103,16 @@ def save_notebook(
 
     assert isinstance(save_name, (str, type(None)))
     assert isinstance(save_prepend, (str, type(None)))
+    assert isinstance(save_append, (str, type(None)))
 
     # Assemble/get save_name variables
     nb_fname = ipynbname.name() if save_name is None else save_name
     nb_path = Path(base_dir)
     save_prepend = "" if save_prepend is None else save_prepend
+    save_append = "" if save_append is None else save_append
 
     # Create savename and save file
-    nb_copy_savename = nb_path / f"{save_prepend}{nb_fname}.ipynb"
+    nb_copy_savename = nb_path / f"{save_prepend}{nb_fname}{save_append}.ipynb"
     shutil.copy(str(ipynbname.path()), str(nb_copy_savename))
 
     # Spit it out for confirmation

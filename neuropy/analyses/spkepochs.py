@@ -7,7 +7,8 @@ from .. import core
 
 
 def detect_off_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
-    """Detects OFF periods using multiunit activity. During these epochs neurons stop almost stop firing. These off periods were reported by Vyazovskiy et al. 2011 in cortex for sleep deprived animals.
+    """Detects OFF periods using multiunit activity. During these epochs neurons stop almost stop firing.
+    These off periods were reported by Vyazovskiy et al. 2011 in cortex for sleep deprived animals.
 
     Parameters
     ----------

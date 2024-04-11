@@ -232,7 +232,7 @@ class Decode1d:
         """Estimates position within each bin"""
 
         tuning_curves = self.ratemap.tuning_curves
-        bincntr = self.ratemap.x
+        bincntr = self.ratemap.x_coords()
 
         if self.epochs is not None:
             spkcount, nbins = self.neurons.get_spikes_in_epochs(

@@ -9,7 +9,7 @@ class ProcessData:
         basepath = Path(basepath)
         self.basepath = basepath
         xml_files = sorted(basepath.glob("*.xml"))
-        assert len(xml_files) == 1, "Found more than one .xml file"
+        assert len(xml_files) == 1, "Found fewer/more than one .xml file"
 
         fp = xml_files[0].with_suffix("")
         self.filePrefix = fp

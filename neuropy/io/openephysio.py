@@ -12,6 +12,21 @@ from dateutil import tz
 import matplotlib.pyplot as plt
 
 
+class OESyncIO:
+    """Class to synchronize external data sources to Open-Ephys recordings."""
+    def __init__(self, basepath) -> None:
+        pass
+
+    def rough_align_w_datetime(self):
+        """Perform a rough first-pass alignment of recordings using datetimes"""
+        pass
+
+    def align_w_TTL(self):
+        """Align TTLs in OE with external timestamps.
+
+        :return pd.DataFrame OR np.array with OE timestamps matching external TTL events"""
+        pass
+
 def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit"):
     """Get microsecond time second precision start time from Pho/Timestamp plugin"""
 

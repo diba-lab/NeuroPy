@@ -28,7 +28,7 @@ def _detect_freq_band_epochs(
         low and high threshold for detection
     mindur : float, optional
         minimum duration of epoch
-    maxdur : float, optiona
+    maxdur : float, optional
     chans : list
         channels used for epoch detection, if None then chooses best chans
     """
@@ -41,6 +41,8 @@ def _detect_freq_band_epochs(
     # Because here one shank is selected per shank, based on visualization:
     # mean: very conservative in cases where some shanks may not have that strong ripple
     # max: works well but may have ocassional false positives
+
+    # First, bandpass the signal in the range of interest
     power = np.zeros(signals.shape[1])
     for sig in signals:
         yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
@@ -48,9 +50,10 @@ def _detect_freq_band_epochs(
         # zscsignal[sig_i] = zsc_chan
         power += np.abs(signal_process.hilbertfast(yf))
 
-    # mean and smooth
+    # Second, take the mean and smooth the signal with a sigma wide gaussian kernel
     power = smooth(power / signals.shape[0])
 
+    # Third, exclude any noisy periods due to motion or other artifact
     # ---------setting noisy periods zero --------
     if ignore_times is not None:
         assert ignore_times.ndim == 2, "ignore_times should be 2 dimensional array"
@@ -65,9 +68,12 @@ def _detect_freq_band_epochs(
         noisy_frames = noisy_frames[noisy_frames < len(power)]
         power[noisy_frames] = 0
 
+    # Fourth, identify candidate epochs above edge_cutoff threshold
     # ---- thresholding and detection ------
     power = stats.zscore(power)
     power_thresh = np.where(power >= edge_cutoff, power, 0)
+
+    # Fifth, refine candidate epochs to periods between lowthresh and highthresh
     peaks, props = sg.find_peaks(
         power_thresh, height=[lowthresh, highthresh], prominence=0
     )
@@ -75,6 +81,7 @@ def _detect_freq_band_epochs(
     peaks_power = power_thresh[peaks]
 
     # ----- merge overlapping epochs ------
+    # Last, merge any epochs that overlap into one longer epoch
     n_epochs = len(starts)
     ind_delete = []
     for i in range(n_epochs - 1):
@@ -123,7 +130,7 @@ def _detect_freq_band_epochs(
 
 def detect_hpc_delta_wave_epochs(
     signal: Signal,
-    freq_band=(0.5, 4),
+    freq_band=(0.2, 5),
     min_dur=0.15,
     max_dur=0.5,
     ignore_epochs: Epoch = None,
@@ -225,6 +232,72 @@ def detect_hpc_delta_wave_epochs(
     return Epoch(epochs=epochs, metadata=params)
 
 
+def detect_beta_epochs(
+    signal: Signal,
+    probegroup: ProbeGroup = None,
+    freq_band=(15, 40),
+    thresh=(0, 0.5),
+    mindur=0.25,
+    maxdur=5,
+    mergedist=0.5,
+    sigma=0.125,
+    edge_cutoff=-0.25,
+    ignore_epochs: Epoch = None,
+    return_power=False,
+):
+    if probegroup is None:
+        selected_chan = signal.channel_id
+        traces = signal.traces
+    else:
+        if isinstance(probegroup, np.ndarray):
+            changrps = np.array(probegroup, dtype="object")
+        if isinstance(probegroup, ProbeGroup):
+            changrps = probegroup.get_connected_channels(groupby="shank")
+        channel_ids = np.concatenate(changrps).astype("int")
+
+        duration = signal.duration
+        t1, t2 = signal.t_start, signal.t_start + np.min([duration, 3600])
+        signal_slice = signal.time_slice(channel_id=channel_ids, t_start=t1, t_stop=t2)
+        hil_stat = signal_process.hilbert_amplitude_stat(
+            signal_slice.traces,
+            freq_band=freq_band,
+            fs=signal.sampling_rate,
+            statistic="mean",
+        )
+        selected_chan = channel_ids[np.argmax(hil_stat)].reshape(-1)
+        traces = signal.time_slice(channel_id=selected_chan).traces.reshape(1, -1)
+
+    print(f"Best channel for beta: {selected_chan}")
+    if ignore_epochs is not None:
+        ignore_times = ignore_epochs.as_array()
+    else:
+        ignore_times = None
+
+    epochs = _detect_freq_band_epochs(
+        signals=traces,
+        freq_band=freq_band,
+        thresh=thresh,
+        mindur=mindur,
+        maxdur=maxdur,
+        mergedist=mergedist,
+        fs=signal.sampling_rate,
+        ignore_times=ignore_times,
+        sigma=sigma,
+        edge_cutoff=edge_cutoff,
+        return_power=return_power,
+    )
+
+    if not return_power:
+        epochs = epochs.shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs
+    else:
+        beta_power = epochs[1]
+        epochs = epochs[0].shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chan)
+        return epochs, beta_power
+
+
 def detect_ripple_epochs(
     signal: Signal,
     probegroup: ProbeGroup = None,
@@ -237,6 +310,7 @@ def detect_ripple_epochs(
     sigma=0.0125,
     ignore_epochs: Epoch = None,
     ripple_channel: int or list = None,
+    return_power: bool = False,
 ):
     # TODO chewing artifact frequency (>300 Hz) or emg based rejection of ripple epochs
 
@@ -291,10 +365,18 @@ def detect_ripple_epochs(
         fs=signal.sampling_rate,
         sigma=sigma,
         ignore_times=ignore_times,
+        return_power=return_power,
     )
-    epochs = epochs.shift(dt=signal.t_start)
-    epochs.metadata = dict(channels=selected_chans)
-    return epochs
+
+    if not return_power:
+        epochs = epochs.shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chans)
+        return epochs
+    else:
+        ripple_power = epochs[1]
+        epochs = epochs[0].shift(dt=signal.t_start)
+        epochs.metadata = dict(channels=selected_chans)
+        return epochs, ripple_power
 
 
 def detect_sharpwave_epochs(
@@ -505,13 +587,16 @@ class Gamma:
     def get_peak_intervals(
         self,
         lfp,
-        band=(25, 50),
+        band=(40, 80),
         lowthresh=0,
         highthresh=1,
         minDistance=300,
         minDuration=125,
+        return_amplitude=False,
+
     ):
-        """Returns strong theta lfp. If it has multiple channels, then strong theta periods are calculated from that channel which has highest area under the curve in the theta frequency band. Parameters are applied on z-scored lfp.
+        """Returns strong theta lfp. If it has multiple channels, then strong theta periods are calculated from that
+        channel which has highest area under the curve in the theta frequency band. Parameters are applied on z-scored lfp.
 
         Parameters
         ----------
@@ -545,10 +630,12 @@ class Gamma:
             minDistance=minDistance,
             minDuration=minDuration,
         )
+        if not return_amplitude:
+            return peakevents
+        else:
+            return peakevents, gamma_amp
 
-        return peakevents
-
-    def csd(self, period, refchan, chans, band=(25, 50), window=1250):
+    def csd(self, period, refchan, chans, band=(40, 80), window=1250):
         """Calculating current source density using laplacian method
 
         Parameters
