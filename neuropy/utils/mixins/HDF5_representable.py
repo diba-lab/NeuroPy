@@ -133,6 +133,8 @@ class MyClass(DeserializationMixin):
 class HDFConvertableEnum:
     """ indicates conformers should be converted to an HDF-enumeration if they are used as a dataframe column. 
     
+    from neuropy.utils.mixins.HDF5_representable import HDFConvertableEnum
+    
     TODO: see notes on
     
     NESTED TYPES CAN'T BE PICKED, so I"m moving this out
@@ -154,7 +156,21 @@ class HDFConvertableEnum:
 
     @classmethod
     def convert_dataframe_columns_for_hdf(cls, df: pd.DataFrame) -> pd.DataFrame:
-        """ Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed """
+        """ Convert any Enum-typed dataframe columns to the HDF5-compatible categorical type if needed 
+        
+        NOTE: works to fix errors with custom enum-type columns in DataWrangler too.
+            As an alternative to:
+                plot_neuron_replay_stats_df['track_membership'] = pd.Categorical(plot_neuron_replay_stats_df['track_membership'].map(lambda x: SplitPartitionMembership.convert_to_hdf(x)), ordered=True) # Fixes that column for DataWrangler
+                plot_neuron_replay_stats_df['neuron_type'] = pd.Categorical(plot_neuron_replay_stats_df['neuron_type'].map(lambda x: NeuronType.convert_to_hdf(x)), ordered=True)
+
+                       
+        Usage:
+            from neuropy.utils.mixins.HDF5_representable import HDFConvertableEnum
+    
+            plot_neuron_replay_stats_df = HDFConvertableEnum.convert_dataframe_columns_for_hdf(plot_neuron_replay_stats_df)
+            plot_neuron_replay_stats_df
+            
+        """
         # [col for col in df.columns if issubclass(type(df[col].iloc[0]), HDFConvertableEnum)]
         convertable_cols = [col for col in df.columns if (hasattr(type(df[col].iloc[0]), 'get_pandas_categories_type') and hasattr(type(df[col].iloc[0]), 'convert_to_hdf'))] # this works, ['track_membership', 'neuron_type']
 
@@ -169,9 +185,10 @@ class HDFConvertableEnum:
     @classmethod
     def restore_hdf_dataframe_column_original_type(cls, df: pd.DataFrame, column_name: str) -> pd.DataFrame:
         """ Restores the original type to the specified column (column_name) in the dataframe after loading from an HDF5 file.
-        
+    
         Usage:
-            
+
+                    
         """
         assert column_name in df.columns
         df[column_name] = df[column_name].apply(cls.from_hdf_coding_string)
