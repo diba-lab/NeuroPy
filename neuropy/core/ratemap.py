@@ -359,7 +359,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
             return _test_2D_AOC_normalized_pdf
         else:
             print(f'tuning_curves_ndim: {tuning_curves_ndim} not implemented!')
-            raise NotImplementedError
+            raise NotImplementedError(f'tuning_curves_ndim: {tuning_curves_ndim} not implemented!')
 
  
     @staticmethod           
