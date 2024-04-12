@@ -40,7 +40,7 @@ portion = {git = "https://github.com/CommanderPho/portion.git"}
 flexitext = {git = "https://github.com/CommanderPho/flexitext.git", rev = "main"}
 
 [tool.poetry.group.dev.dependencies]
-pip = "^23.0"
+pip = "^24.0"
 ipdb = "^0.13.11"
 dvc = {version = "^2.52.0", extras = ["gdrive"], optional = false}
 
