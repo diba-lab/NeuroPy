@@ -36,6 +36,10 @@ class Epoch(DataWriter):
 
         self._epochs = self._validate(epochs)
 
+    def replace_start_with_t_start_eeg(self):
+        if hasattr(self, 'data'):
+            self.data['start'] = self.data['t_start_eeg']
+
     def _validate(self, epochs):
         if isinstance(epochs, dict):
             try:
