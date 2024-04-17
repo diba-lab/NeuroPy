@@ -6,24 +6,25 @@ import zarr
 
 from neuropy.core.ca_neurons import CaNeurons
 from neuropy.io.miniscopeio import MiniscopeIO
-from neuropy.utils.misc import flatten
+from neuropy.utils.misc import flatten, flatten_all
 
 
 class MinianIO:
     def __init__(
         self,
-        dirname: str or None = None,
+        minian_dir: str or None = None,
         basedir: str or None = None,
         ignore_time_mismatch: bool = False,
     ) -> None:
-        self.basedir = Path(basedir)
+        self.basedir = Path(basedir) if basedir is not None else None
+        self.minian_dir = Path(minian_dir) if minian_dir is not None else None
         # Try to autodetect minian folder - must specify basedir
-        if dirname is None:
+        if minian_dir is None:
             assert (
-                len(dirname := sorted(self.basedir.glob("**/minian"))) == 1
+                len(minian_dir := sorted(Path(basedir).glob("**/minian"))) == 1
             ), "More than one minian folder found, fill in directory manually"
-            dirname = Path(dirname[0])
-        self.minian_dir = Path(dirname)
+            minian_dir = Path(minian_dir[0])
+        self.minian_dir = Path(minian_dir)
 
         # Infer base directory name from minian folder
         if self.basedir is None:
@@ -149,7 +150,7 @@ class MinianIO:
                 keep_uid.extend(self.curated_neurons[keep_type])
 
                 # Flatten list in case you have nested lists
-                keep_uid_flat = [_ for _ in flatten(keep_uid)]
+                keep_uid_flat = [_ for _ in flatten_all(keep_uid)]
                 if keep_uid_flat != keep_uid:
                     print(
                         "Had to flatten list of units to keep - check to make sure you aren't un-merging units!"
@@ -277,17 +278,5 @@ def check_integrity(var_list, fix: str or bool in [False, "min_size"] = "min_siz
 
 
 if __name__ == "__main__":
-    from tracefc.io.session_directory import get_session_dir
-
-    animal = "Jyn"
-    session = "Training"
-
-    # Get session directory
-    sesh_dir = get_session_dir(animal, session)
-
-    # Load in ca imaging data from minian
-    minian = MinianIO(basedir=sesh_dir)
-
-    # Keep only good neurons
-    caneurons = minian.trim_neurons(keep=["good", "maybe_interneurons"], trim=None)
-    # caneurons.plot_rois_with_min_proj()
+    basedir = '/data3/Psilocybin/Recording_Rats/Finn/2022_02_15_saline1'
+    MinianIO(basedir=basedir)
