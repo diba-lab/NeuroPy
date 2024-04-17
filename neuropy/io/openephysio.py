@@ -183,6 +183,7 @@ def get_timestamp_files(
     """
 
     timestamps_list = sorted(basepath.glob("**/*timestamps.npy"))
+    assert len(timestamps_list) > 0, "No timestamps.npy files found, check if files exist and if appropriate inputs are being used"
     continuous_bool = ["continuous" in str(file_name) for file_name in timestamps_list]
     TTL_bool = ["TTL" in str(file_name) for file_name in timestamps_list]
     sync_bool = ["synchronized" in str(file_name) for file_name in timestamps_list]
