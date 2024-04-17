@@ -1,6 +1,7 @@
 from neuropy.core.datawriter import DataWriter
 from pathlib import Path
 import neuropy.io.openephysio as oeio
+from neuropy.core.session import ProcessData
 from neuropy.io.binarysignalio import BinarysignalIO
 from neuropy.io.neuroscopeio import NeuroscopeIO
 
