@@ -161,7 +161,9 @@ def old_radon_transform(arr, nlines=5000):
 
 
 def wcorr(arr):
-    """weighted correlation"""
+    """weighted correlation
+    Encountering issue when nx == 1, as in there is only one time bin, in which the wcorr doesn't make any sense.
+    """
     nx, ny = arr.shape[1], arr.shape[0]
     y_mat = np.tile(np.arange(ny)[:, np.newaxis], (1, nx))
     x_mat = np.tile(np.arange(nx), (ny, 1))
