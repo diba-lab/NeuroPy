@@ -37,7 +37,7 @@ class Laps(Epoch):
         """
         super().__init__(laps, metadata=metadata)
         # self._data = laps # set to the laps dataframe
-        self._df = Laps._update_dataframe_computed_vars(self._df)
+        self._df = Laps._update_dataframe_computed_vars(self._df, replace_existing=False) ## DO NOT allow replacement of the good epochs with the bad ones.
         self._df = self._df.sort_values(by=['start']) # sorts all values in ascending order
 
     @property
@@ -322,7 +322,12 @@ class Laps(Epoch):
         # Filter rows based on column: 'lap'
         pos_df = pos_df[pos_df['lap'].notna()]
         # Performed 1 aggregation grouped on column: 'lap'
+        # is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
         is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
+        
+        
+        ## THIS IS DEFINITIONAL. HOW CAN IT BE WRONG?
+
         laps_df['is_LR_dir'] = is_LR_dir # ValueError: Length of values (80) does not match length of index (82)
         # global_laps._df['direction_consistency'] = 0.0
         # assert np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
@@ -332,7 +337,10 @@ class Laps(Epoch):
             if replace_existing:
                 ## Overwrite the "lap_dir" column with the new value
                 print(f'\tWARN: overwriting the "lap_dir" column of Laps with the "is_LR_dir" column. Do things need to be recomputed after this?')
-                laps_df['lap_dir'] = np.logical_not(laps_df['is_LR_dir'].astype(int) > 0) # I think this should be the proper lap_dir format
+                # laps_df['lap_dir'] = np.logical_not(laps_df['is_LR_dir'].astype(int) > 0) # I think this should be the proper lap_dir format
+                # 'lap_dir': {LR: 0, RL: 1}
+                is_RL_dir = np.logical_not(laps_df['is_LR_dir'])
+                laps_df['lap_dir'] = is_RL_dir.astype(int) # 1 for RL, 0 for LR    
             else:
                 print(f'\tlap_dir substantially differs but replace_existing=False, so not updating.')
 
@@ -371,8 +379,9 @@ class Laps(Epoch):
                         print(f"WARNING: No global_session or position passed but replace_existing == True!\n\tWould replace existing 'lap_dir' column: {laps_df['lap_dir']} using old even/odd 'lap_dir' determination.")
                     else:
                         print(f"WARNING: No global_session or position passed but there is no existing 'lap_dir' column, using old even/odd 'lap_dir' determination.")
-                    laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
-                    laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
+                    raise NotImplementedError(f"THIS SHOULD NEVER HAPPEN ANYMORE, HOW IS IT?")
+                    # laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
+                    # laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
                     
         elif (replace_existing and (global_session is not None)):
             laps_df = cls._compute_lap_dir_from_smoothed_velocity(laps_df=laps_df, global_session=global_session, replace_existing=True) # adds 'is_LR_dir'
