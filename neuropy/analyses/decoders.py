@@ -307,11 +307,11 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         #TODO 2024-01-25 16:52: - [ ] It seems that when the epoch duration is shorter than the bin size we should impose the same bins as the single-time-bin-per-epoch case, but idk what to do with the slideby.
         # Something like: if (use_single_time_bin_per_epoch or (window_shape > spkcount_.shape[1])): 
         if use_single_time_bin_per_epoch:
-            bins = np.array([epoch.start, epoch.stop])
+            bins = np.array([epoch.start, epoch.stop]) # NOTE: not subdivided
         else:
             # fixed time-bin duration -> variable num time bins per epoch depending on epoch length    
             # first dividing in 1ms
-            bins = np.arange(epoch.start, epoch.stop, 0.001)
+            bins = np.arange(epoch.start, epoch.stop, 0.001) # subdivided by 1ms, so way more bins here than we'd expect for either bin_centers or bin_edges
             
         spkcount_ = np.asarray(
             [np.histogram(_, bins=bins)[0] for _ in spiketrains]
@@ -346,7 +346,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                 
             else:
                 reduced_slide_by_amount = int(slideby * 1000)
-                reduced_time_bin_edges = bins[:: reduced_slide_by_amount]
+                reduced_time_bin_edges = bins[:: reduced_slide_by_amount] # WTH does this notation mean?
                 try:
                     bin_container = BinningContainer(edges=reduced_time_bin_edges)
                     reduced_time_bin_centers = bin_container.centers
