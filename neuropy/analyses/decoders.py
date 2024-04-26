@@ -19,7 +19,7 @@ from neuropy.utils.mixins.binning_helpers import BinningContainer, BinningInfo #
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 
-def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neighbours:int=1, enable_return_neighbors_arr=False):
+def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_neighbours:int=1, enable_return_neighbors_arr=False):
     """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
 
     from neuropy.analyses.decoders import radon_transform
@@ -32,7 +32,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neig
         time binsize in seconds, only used for velocity/intercept calculation
     dx : float
         position binsize in cm, only used for velocity/intercept calculation
-    neighbours : int,
+    n_neighbours : int,
         probability in each bin is replaced by sum of itself and these many 'neighbours' column wise, default 1 neighbour
 
     NOTE: when returning velocity the sign is flipped to match with position going from bottom to up
@@ -50,36 +50,36 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neig
     ----------
     1) Kloosterman et al. 2012
     """
-    t = np.arange(arr.shape[1])
-    nt = len(t)
-    tmid = (nt + 1) / 2 - 1
+    t = np.arange(arr.shape[1]) # t: time indicies
+    n_t: int = len(t)
+    tmid = (n_t + 1) / 2 - 1
 
-    pos = np.arange(arr.shape[0])
-    npos = len(pos)
-    pmid = (npos + 1) / 2 - 1
+    pos = np.arange(arr.shape[0]) # pos: position bin indicies
+    n_pos: int = len(pos)
+    p_mid = (n_pos + 1) / 2 - 1
 
     # using convolution to sum neighbours
     arr = np.apply_along_axis(
-        np.convolve, axis=0, arr=arr, v=np.ones(2 * neighbours + 1), mode="same"
+        np.convolve, axis=0, arr=arr, v=np.ones(2 * n_neighbours + 1), mode="same"
     )
 
     # exclude stationary events by choosing phi little below 90 degree
     # NOTE: angle of line is given by (90-phi), refer Kloosterman 2012
     phi = np.random.uniform(low=(-np.pi / 2), high=(np.pi / 2), size=nlines)
-    diag_len = np.sqrt((nt - 1) ** 2 + (npos - 1) ** 2)
+    diag_len: float = np.sqrt((n_t - 1) ** 2 + (n_pos - 1) ** 2)
     rho = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
 
-    rho_mat = np.tile(rho, (nt, 1)).T
-    phi_mat = np.tile(phi, (nt, 1)).T
+    rho_mat = np.tile(rho, (n_t, 1)).T
+    phi_mat = np.tile(phi, (n_t, 1)).T
     t_mat = np.tile(t, (nlines, 1))
-    posterior = np.zeros((nlines, nt))
+    posterior = np.zeros((nlines, n_t))
 
-    y_line = ((rho_mat - (t_mat - tmid) * np.cos(phi_mat)) / np.sin(phi_mat)) + pmid
+    y_line = ((rho_mat - (t_mat - tmid) * np.cos(phi_mat)) / np.sin(phi_mat)) + p_mid
     y_line = np.rint(y_line).astype("int")
 
     # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
-    t_out = np.where((y_line < 0) | (y_line > npos - 1))
-    t_in = np.where((y_line >= 0) & (y_line <= npos - 1))
+    t_out = np.where((y_line < 0) | (y_line > n_pos - 1))
+    t_in = np.where((y_line >= 0) & (y_line <= n_pos - 1))
     posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
     posterior[t_in] = arr[y_line[t_in], t_in[1]]
 
@@ -91,7 +91,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neig
     best_phi, best_rho = phi[best_line], rho[best_line]
 
     # converts to real world values
-    time_mid, pos_mid = nt * dt / 2, npos * dx / 2
+    time_mid, pos_mid = n_t * dt / 2, n_pos * dx / 2
 
     ## Pho 2024-02-15 - Validated that below matches the original manuscript
     ## Original:
@@ -104,7 +104,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, neig
     np.seterr(**old_settings)
 
     if enable_return_neighbors_arr:
-        return score, -velocity, intercept, (neighbours, arr.copy())
+        return score, -velocity, intercept, (n_neighbours, arr.copy())
     else:
         return score, -velocity, intercept
 
