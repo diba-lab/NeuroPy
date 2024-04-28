@@ -18,6 +18,33 @@ from .. import core
 from neuropy.utils.mixins.binning_helpers import BinningContainer, BinningInfo # for epochs_spkcount getting the correct time bins
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
+from attrs import define, field, Factory
+
+@define(slots=False)
+class RadonTransformDebugValue:
+    t: NDArray = field()
+    n_t: int = field()
+    tmid: float = field()
+
+    pos: NDArray = field()
+    n_pos: int = field()
+    tmid: float = field()
+
+    y_line: NDArray = field()
+    t_out: NDArray = field()
+    t_in: NDArray = field()
+
+
+    posterior_mean: NDArray = field()
+    best_line: NDArray = field()
+    best_phi: NDArray = field()
+    best_rho: NDArray = field()
+
+    ## real world
+    time_mid: NDArray = field()
+    pos_mid: NDArray = field()
+
+
 
 def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_neighbours:int=1, enable_return_neighbors_arr=False):
     """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
@@ -104,7 +131,8 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     np.seterr(**old_settings)
 
     if enable_return_neighbors_arr:
-        return score, -velocity, intercept, (n_neighbours, arr.copy())
+        debug_info = RadonTransformDebugValue(t=t, n_t=n_t, tmid=tmid, pos=pos, n_pos=n_pos, y_line=y_line, t_out=t_out, t_in=t_in, posterior_mean=posterior_mean, best_line=best_line, best_phi=best_phi, best_rho=best_rho, time_mid=time_mid, pos_mid=pos_mid)
+        return score, -velocity, intercept, (n_neighbours, arr.copy(), debug_info)
     else:
         return score, -velocity, intercept
 
