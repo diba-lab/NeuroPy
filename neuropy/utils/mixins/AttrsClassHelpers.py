@@ -124,6 +124,29 @@ class AttrsBasedClassHelperMixin:
         return asdict(self)
     
 
+    @classmethod
+    def _test_find_fields_by_shape_metadata(cls, desired_keys_subset=None):
+        """ tries to get all the fields that match the shape criteria. Not completely implemented, but seems to work.
+        
+        indices_fields_n_epochs = [field.name for field in class_fields if hasattr(field.metadata, 'shape') and field.metadata['shape'][0] == 'n_epochs']
+        # # Get the values at epoch_IDX from a particular instance `active_result`:
+        # epoch_IDX: int = 0
+        # # values = [getattr(active_result, field)[epoch_IDX] for field in indices_fields_n_epochs]
+        # # values = [getattr(active_result, field) for field in indices_fields_n_epochs]
+        # values_dict = {field:getattr(active_result, field)[epoch_IDX] for field in indices_fields_n_epochs if field in desired_keys}
+        # values_dict
+
+        Usage:
+            desired_keys_subset = ['most_likely_positions_list', 'p_x_given_n_list', 'marginal_x_list', 'marginal_y_list', 'most_likely_position_indicies_list', 'nbins', 'time_bin_containers', 'time_bin_edges']
+        
+
+        """
+        class_fields = cls.__attrs_attrs__
+        # indices_fields_n_epochs = [field.name for field in class_fields if hasattr(field.metadata, 'shape') and field.metadata['shape'][0] == 'n_epochs']
+        indices_fields_n_epochs = [field.name for field in class_fields if 'shape' in field.metadata and field.metadata['shape'][0] == 'n_epochs']
+        # print(f'indices_fields_n_epochs: {indices_fields_n_epochs}') # ['most_likely_positions_list', 'p_x_given_n_list', 'marginal_x_list', 'marginal_y_list', 'most_likely_position_indicies_list', 'spkcount', 'nbins', 'time_bin_containers', 'time_bin_edges', 'epoch_description_list']
+        # desired_keys = ['most_likely_positions_list', 'p_x_given_n_list', 'marginal_x_list', 'marginal_y_list', 'most_likely_position_indicies_list', 'nbins', 'time_bin_containers', 'time_bin_edges']
+        return [a_field for a_field in indices_fields_n_epochs if a_field in desired_keys]
 
 
 
