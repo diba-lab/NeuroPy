@@ -121,7 +121,7 @@ def convert_PortionInterval_to_Epoch_obj(interval: P.Interval): # -> Epoch:
     """
     ...
 
-def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj) -> P.Interval:
+def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj, **P_Interval_kwargs) -> P.Interval:
     """ build an Interval object version
     Usage:
         combined_interval_obj = convert_Epoch_obj_to_PortionInterval_obj(long_replays_intervals)

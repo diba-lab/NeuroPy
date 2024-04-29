@@ -142,7 +142,7 @@ class DynamicContainer(DiffableObject, MutableMapping):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
         ...
     
-    def diff(self, other_object): # -> set[Any]:
+    def diff(self, other_object): # -> Set[Any]:
         ...
     
     def to_dict(self): # -> dict[Any, Any]:

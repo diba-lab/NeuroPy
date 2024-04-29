@@ -8,43 +8,43 @@ from .. import core
 
 class filter_sig:
     @staticmethod
-    def bandpass(signal, hf, lf, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def bandpass(signal, hf, lf, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def highpass(signal, cutoff, fs=..., order=..., ax=...): # -> NDArray[Any]:
+    def highpass(signal, cutoff, fs=..., order=..., ax=...): # -> NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def lowpass(signal, cutoff, fs=..., order=..., ax=...): # -> NDArray[Any]:
+    def lowpass(signal, cutoff, fs=..., order=..., ax=...): # -> NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def delta(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def delta(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def theta(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def theta(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def spindle(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def spindle(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def slowgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def slowgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def mediumgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def mediumgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def fastgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def fastgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
     @staticmethod
-    def ripple(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any]:
+    def ripple(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
         ...
     
 
@@ -56,39 +56,39 @@ class SpectrogramBands:
     def __init__(self, signal: core.Signal, window: float = ..., overlap=..., smooth=..., multitaper=..., norm_sig=...) -> None:
         ...
     
-    def get_band_power(self, f1=..., f2=...):
+    def get_band_power(self, f1=..., f2=...): # -> Any:
         ...
     
     @property
-    def delta(self):
+    def delta(self): # -> Any:
         ...
     
     @property
-    def deltaplus(self):
+    def deltaplus(self): # -> Any:
         ...
     
     @property
-    def theta(self):
+    def theta(self): # -> Any:
         ...
     
     @property
-    def spindle(self):
+    def spindle(self): # -> Any:
         ...
     
     @property
-    def gamma(self):
+    def gamma(self): # -> Any:
         ...
     
     @property
-    def ripple(self):
+    def ripple(self): # -> Any:
         ...
     
     @property
-    def theta_delta_ratio(self):
+    def theta_delta_ratio(self): # -> Any:
         ...
     
     @property
-    def theta_deltaplus_ratio(self):
+    def theta_deltaplus_ratio(self): # -> Any:
         ...
     
     def plotSpect(self, ax=..., freqRange=...): # -> None:
