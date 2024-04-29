@@ -311,6 +311,48 @@ def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis
 # ==================================================================================================================== #
 # These are the only Matplotlib-specific functions here: add_inner_title(...) and draw_sizebar(...).                              #
 # ==================================================================================================================== #
+
+# @function_attributes(short_name=None, tags=['matplotlib', 'margin', 'layout', 'constrained_layout'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-04-29 08:16', related_items=[])
+def set_margins(fig, left=0, right=0, top=0, bottom=0, is_in_inches: bool=False):
+    """Set figure margins as [left, right, top, bottom] in inches
+    from the edges of the figure.
+    
+
+    You can set the rectangle that the layout engine operates within. See the rect parameter for each engine at https://matplotlib.org/stable/api/layout_engine_api.html.
+    It's unfortunately not a very friendly part of the API, especially because TightLayoutEngine and ConstrainedLayoutEngine have different semantics for rect: TightLayoutEngine uses rect = (left, bottom, right, top) and ConstrainedLayoutEngine uses rect = (left, bottom, width, height).
+
+    Usage:
+        
+        from neuropy.utils.matplotlib_helpers import set_margins
+        
+        #your margins were [0.2, 0.8, 0.2, 0.8] in figure coordinates
+        #which are 0.2*11 and 0.2*8.5 in inches from the edge
+        set_margins(a_fig, top=0.2) # [0.2*11, 0.2*11, 0.2*8.5, 0.2*8.5]
+            
+    
+    """
+    if is_in_inches:
+        width, height = fig.get_size_inches()
+        #convert to figure coordinates:
+        left, right = left/width, 1-right/width
+        bottom, top = bottom/height, 1-top/height
+    else:
+        # already in figure coordinates
+        pass
+    
+    #get the layout engine and convert to its desired format
+    engine = fig.get_layout_engine()
+    if isinstance(engine, matplotlib.layout_engine.TightLayoutEngine):
+        rect = (left, bottom, right, top)
+    elif isinstance(engine, matplotlib.layout_engine.ConstrainedLayoutEngine):
+        rect = (left, bottom, right-left, top-bottom)
+    else:
+        raise RuntimeError('Cannot adjust margins of unsupported layout engine')
+    #set and recompute the layout
+    engine.set(rect=rect)
+    engine.execute(fig)
+
+
 def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', stroke_alpha=0.9, text_foreground='k', font_size=None, text_alpha=1.0, use_AnchoredCustomText: bool=False, **kwargs):
     """
     Add a figure title inside the border of the figure (instead of outside).
@@ -942,7 +984,13 @@ class FormattedFigureText:
 
     def setup_margins(self, fig, **kwargs):
         top_margin, left_margin, right_margin, bottom_margin = kwargs.get('top_margin', self.top_margin), kwargs.get('left_margin', self.left_margin), kwargs.get('right_margin', self.right_margin), kwargs.get('bottom_margin', self.bottom_margin)
-        fig.subplots_adjust(top=top_margin, left=left_margin, right=right_margin, bottom=bottom_margin) # perform the adjustment on the figure
+
+        if fig.get_layout_engine().adjust_compatible:
+            fig.subplots_adjust(top=top_margin, left=left_margin, right=right_margin, bottom=bottom_margin) # perform the adjustment on the figure
+        else:
+            # new function works for 'constrained' and 'tight' layouts
+            set_margins(fig, top=top_margin, left=left_margin, right=right_margin, bottom=bottom_margin) # perform the adjustment on the figure
+    
 
     def add_flexitext_context_footer(self, active_context, override_left_margin_multipler:float=0.1, override_bottom_margin_multiplier:float=0.25):
         """ adds the default footer  """
