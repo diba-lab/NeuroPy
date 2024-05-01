@@ -1,6 +1,6 @@
 from __future__ import annotations # prevents having to specify types for typehinting as strings
 from typing import TYPE_CHECKING
-
+from warnings import warn
 from copy import deepcopy
 from typing import Optional, Union
 import numpy as np
@@ -324,8 +324,10 @@ class Laps(Epoch):
         # Performed 1 aggregation grouped on column: 'lap'
         # is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
         is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
+
+        # could potentially improve by finding velocity only over a certain threshold, or looking at the direction of the peak velocity.
         
-        
+
         ## THIS IS DEFINITIONAL. HOW CAN IT BE WRONG?
 
         laps_df['is_LR_dir'] = is_LR_dir # ValueError: Length of values (80) does not match length of index (82)
@@ -379,7 +381,12 @@ class Laps(Epoch):
                         print(f"WARNING: No global_session or position passed but replace_existing == True!\n\tWould replace existing 'lap_dir' column: {laps_df['lap_dir']} using old even/odd 'lap_dir' determination.")
                     else:
                         print(f"WARNING: No global_session or position passed but there is no existing 'lap_dir' column, using old even/odd 'lap_dir' determination.")
-                    raise NotImplementedError(f"THIS SHOULD NEVER HAPPEN ANYMORE, HOW IS IT?")
+
+                    # raise NotImplementedError(f"THIS SHOULD NEVER HAPPEN ANYMORE, HOW IS IT?")
+                    warn(f"THIS SHOULD NEVER HAPPEN ANYMORE, HOW IS IT?")
+                    laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
+                    laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
+                    
                     # laps_df['lap_dir'] = np.full_like(laps_df['lap_id'].to_numpy(), -1)
                     # laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_dir'] = np.mod(laps_df.loc[np.logical_not(np.isnan(laps_df.lap_id.to_numpy())), 'lap_id'], 2)
                     
