@@ -119,8 +119,7 @@ class SessionFolderSpec():
                 
             for an_optional_filepath, a_file_spec in resolved_optional_filespecs_dict.items():
                 if not an_optional_filepath.exists():
-                    # print('WARNING: Optional File: {} does not exist.'.format(an_optional_file))
-                    warnings.warn(f'WARNING: Optional File: {an_optional_filepath} does not exist. Continuing without it.')
+                    print(f'WARNING: Optional File: "{an_optional_filepath}" does not exist. Continuing without it.')
                     
             meets_spec = True # otherwise it exists
             
