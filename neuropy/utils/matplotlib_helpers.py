@@ -985,7 +985,8 @@ class FormattedFigureText:
     def setup_margins(self, fig, **kwargs):
         top_margin, left_margin, right_margin, bottom_margin = kwargs.get('top_margin', self.top_margin), kwargs.get('left_margin', self.left_margin), kwargs.get('right_margin', self.right_margin), kwargs.get('bottom_margin', self.bottom_margin)
 
-        if fig.get_layout_engine().adjust_compatible:
+        layout_engine = fig.get_layout_engine()
+        if (layout_engine is None) or (fig.get_layout_engine().adjust_compatible):
             fig.subplots_adjust(top=top_margin, left=left_margin, right=right_margin, bottom=bottom_margin) # perform the adjustment on the figure
         else:
             # new function works for 'constrained' and 'tight' layouts
