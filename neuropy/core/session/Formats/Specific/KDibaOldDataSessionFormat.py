@@ -912,7 +912,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # spikes_df = spikes_df[(spikes_df.lap != -1)] # 229887 rows × 13 columns
         # neg_one_indicies = np.argwhere((spikes_df.lap != -1))
         spikes_df['maze_relative_lap'] = spikes_df.loc[:, 'lap'] # the old lap is now called the maze-relative lap        
-        spikes_df['maze_id'] = np.full_like(spikes_df.lap, np.nan)
+        spikes_df['maze_id'] = np.full_like(spikes_df.lap, np.nan) # observed that this isn't super right
         lap_ids = spikes_df.lap.to_numpy()
         
         # neg_one_indicies = np.argwhere(lap_ids == -1)
