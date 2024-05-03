@@ -97,7 +97,7 @@ class AttrsBasedClassHelperMixin:
         return found_fields, _fields_matching_query_filter_fn
 
     @classmethod
-    def get_serialized_fields(cls, serializationType: HDF_SerializationType, serialization_format:str='hdf') -> Tuple[List, Callable]:
+    def get_serialized_fields(cls, serializationType: "HDF_SerializationType", serialization_format:str='hdf') -> Tuple[List, Callable]:
         """ general function for getting the list of fields with a certain serializationType as a list of attrs attributes and a filter to select them useful for attrs.asdict(...) filtering. """
         def _serialized_attribute_fields_filter_fn(an_attr, attr_value):
             """ return attributes only if they have serialization.{serialization_format} in their shape metadata. Captures `serialization_format` and `serializationType`. """

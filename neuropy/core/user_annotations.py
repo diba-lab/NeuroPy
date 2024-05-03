@@ -55,7 +55,7 @@ class SessionCellExclusivityRecord:
 
 
 @custom_define(slots=False)
-class UserAnnotationsManager(HDFMixin):
+class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
     """ class for holding User Annotations of the data. Performed interactive by the user, and then saved to disk for later use. An example are the selected replays to be used as examples. 
     
     Usage:

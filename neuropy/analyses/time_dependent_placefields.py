@@ -28,7 +28,7 @@ from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, po
 
 
 @custom_define(slots=False, repr=False)
-class PlacefieldSnapshot(HDFMixin):
+class PlacefieldSnapshot(HDFMixin, AttrsBasedClassHelperMixin):
     """Holds a snapshot in time for `PfND_TimeDependent`
 
     raw_occupancy_map: num_position_samples_occupancy

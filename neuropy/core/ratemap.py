@@ -14,7 +14,7 @@ from neuropy.plotting.mixins.ratemap_mixins import RatemapPlottingMixin
 from neuropy.utils import mathutil
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
-from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin, HDF_Converter
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDFMixin, HDF_Converter
 from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin, ContinuousPeakLocationRepresentingMixin
 from . import DataWriter
 
