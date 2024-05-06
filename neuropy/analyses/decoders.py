@@ -80,22 +80,33 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     ----------
     1) Kloosterman et al. 2012
     """
+    if t0 is None:
+        t0 = 0.0
+
+    if x0 is None:
+        x0 = 0.0
+        
     # if time_bin_centers is None:
     #     time_bin_centers = np.arange(arr.shape[1]) # index from [0, ... (NT-1)]
     # else:
     #     assert len(time_bin_centers) == np.shape(arr)[1]
     
-    t = np.arange(arr.shape[1]) # t: time indicies
+    ci: NDArray = np.arange(arr.shape[1]) # ci: time indicies
+    t: NDArray = (ci*float(dt)) + t0 # t: time indicies
     n_t: int = len(t)
     # ci_mid = (n_t + 1) / 2 - 1 # index space
-    ci_mid = (float(n_t) / 2.0) # index space
-    time_mid = ((float(n_t) * dt) / 2.0) # real space
+    ci_mid: float = (float(n_t) / 2.0) # index space
+    # time_mid = ((float(n_t) * dt) / 2.0) # real space
+    time_mid: float = (t[-1] + t[0]) / 2.0 # real space
 
-    pos = np.arange(arr.shape[0]) # pos: position bin indicies
+    # pos = np.arange(arr.shape[0]) # pos: position bin indicies
+    ri: NDArray = np.arange(arr.shape[0]) # pos: position bin indicies
+    pos: NDArray = (ri*float(dx)) + x0 # pos: position bin indicies
     n_pos: int = len(pos)
     # ri_mid = (n_pos + 1) / 2 - 1 # index space
-    ri_mid = (float(n_pos) / 2.0) # index space
-    pos_mid = ((float(n_pos) * dx) / 2.0) # real space
+    ri_mid: float = (float(n_pos) / 2.0) # index space
+    # pos_mid = ((float(n_pos) * dx) / 2.0) # real space
+    pos_mid: float = ((float(pos[-1]) + float(pos[0])) / 2.0) # real space
 
     diag_len: float = np.sqrt((n_t - 1) ** 2 + (n_pos - 1) ** 2)
 
@@ -111,10 +122,13 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
 
     rho_mat = np.tile(rho, (n_t, 1)).T
     phi_mat = np.tile(phi, (n_t, 1)).T
+    
+    ci_mat = np.tile(ci, (nlines, 1))
     t_mat = np.tile(t, (nlines, 1))
     posterior = np.zeros((nlines, n_t))
 
-    y_line = ((rho_mat - (t_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid # (t_mat - ci_mid): makes it not matter whether absolute time bins or time bin indicies were used here:
+    # y_line = ((rho_mat - (ci_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid # (t_mat - ci_mid): makes it not matter whether absolute time bins or time bin indicies were used here:
+    y_line = ((rho_mat - (t_mat - time_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid
     y_line = np.rint(y_line).astype("int")
 
     # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
