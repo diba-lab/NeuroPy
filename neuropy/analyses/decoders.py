@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -24,29 +24,32 @@ from attrs import define, field, Factory
 class RadonTransformDebugValue:
     t: NDArray = field()
     n_t: int = field()
-    tmid: float = field()
+    ci_mid: float = field()
 
     pos: NDArray = field()
     n_pos: int = field()
-    tmid: float = field()
+    ri_mid: float = field()
 
     y_line: NDArray = field()
     t_out: NDArray = field()
     t_in: NDArray = field()
 
-
     posterior_mean: NDArray = field()
-    best_line: NDArray = field()
-    best_phi: NDArray = field()
-    best_rho: NDArray = field()
-
+    best_line_idx: int = field()
+    best_phi: float = field()
+    best_rho: float = field()
+    
     ## real world
-    time_mid: NDArray = field()
-    pos_mid: NDArray = field()
+    time_mid: float = field()
+    pos_mid: float = field()
+
+    @property
+    def best_y_line(self) -> NDArray:
+        """The best_y_line property."""
+        return np.squeeze(self.y_line[self.best_line_idx, :])
 
 
-
-def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_neighbours:int=1, enable_return_neighbors_arr=False):
+def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_neighbours:int=1, enable_return_neighbors_arr=False, t0: Optional[float]=None, x0: Optional[float]=None):
     """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
 
     from neuropy.analyses.decoders import radon_transform
@@ -77,13 +80,24 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     ----------
     1) Kloosterman et al. 2012
     """
+    # if time_bin_centers is None:
+    #     time_bin_centers = np.arange(arr.shape[1]) # index from [0, ... (NT-1)]
+    # else:
+    #     assert len(time_bin_centers) == np.shape(arr)[1]
+    
     t = np.arange(arr.shape[1]) # t: time indicies
     n_t: int = len(t)
-    tmid = (n_t + 1) / 2 - 1
+    # ci_mid = (n_t + 1) / 2 - 1 # index space
+    ci_mid = (float(n_t) / 2.0) # index space
+    time_mid = ((float(n_t) * dt) / 2.0) # real space
 
     pos = np.arange(arr.shape[0]) # pos: position bin indicies
     n_pos: int = len(pos)
-    p_mid = (n_pos + 1) / 2 - 1
+    # ri_mid = (n_pos + 1) / 2 - 1 # index space
+    ri_mid = (float(n_pos) / 2.0) # index space
+    pos_mid = ((float(n_pos) * dx) / 2.0) # real space
+
+    diag_len: float = np.sqrt((n_t - 1) ** 2 + (n_pos - 1) ** 2)
 
     # using convolution to sum neighbours
     arr = np.apply_along_axis(
@@ -93,7 +107,6 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     # exclude stationary events by choosing phi little below 90 degree
     # NOTE: angle of line is given by (90-phi), refer Kloosterman 2012
     phi = np.random.uniform(low=(-np.pi / 2), high=(np.pi / 2), size=nlines)
-    diag_len: float = np.sqrt((n_t - 1) ** 2 + (n_pos - 1) ** 2)
     rho = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
 
     rho_mat = np.tile(rho, (n_t, 1)).T
@@ -101,7 +114,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     t_mat = np.tile(t, (nlines, 1))
     posterior = np.zeros((nlines, n_t))
 
-    y_line = ((rho_mat - (t_mat - tmid) * np.cos(phi_mat)) / np.sin(phi_mat)) + p_mid
+    y_line = ((rho_mat - (t_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid # (t_mat - ci_mid): makes it not matter whether absolute time bins or time bin indicies were used here:
     y_line = np.rint(y_line).astype("int")
 
     # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
@@ -113,12 +126,12 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     old_settings = np.seterr(all="ignore")
     posterior_mean = np.nanmean(posterior, axis=1)
 
-    best_line = np.argmax(posterior_mean)
-    score = posterior_mean[best_line]
-    best_phi, best_rho = phi[best_line], rho[best_line]
+    best_line_idx: int = np.argmax(posterior_mean)
+    score = posterior_mean[best_line_idx]
+    best_phi = phi[best_line_idx]
+    best_rho = rho[best_line_idx]
 
     # converts to real world values
-    time_mid, pos_mid = n_t * dt / 2, n_pos * dx / 2
 
     ## Pho 2024-02-15 - Validated that below matches the original manuscript
     ## Original:
@@ -131,7 +144,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     np.seterr(**old_settings)
 
     if enable_return_neighbors_arr:
-        debug_info = RadonTransformDebugValue(t=t, n_t=n_t, tmid=tmid, pos=pos, n_pos=n_pos, y_line=y_line, t_out=t_out, t_in=t_in, posterior_mean=posterior_mean, best_line=best_line, best_phi=best_phi, best_rho=best_rho, time_mid=time_mid, pos_mid=pos_mid)
+        debug_info = RadonTransformDebugValue(t=t, n_t=n_t, ci_mid=ci_mid, pos=pos, n_pos=n_pos, ri_mid=ri_mid, y_line=y_line, t_out=t_out, t_in=t_in, posterior_mean=posterior_mean, best_line_idx=best_line_idx, best_phi=best_phi, best_rho=best_rho, time_mid=time_mid, pos_mid=pos_mid)
         return score, -velocity, intercept, (n_neighbours, arr.copy(), debug_info)
     else:
         return score, -velocity, intercept
