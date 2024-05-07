@@ -646,7 +646,7 @@ class PlacefieldND(PfnConfigMixin, PfnDMixin):
 
         
 @define(slots=False)
-class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. 
 
         It always computes two place maps with and without speed thresholds.

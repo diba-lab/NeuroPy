@@ -419,9 +419,24 @@ class HDF_Converter:
 _ALLOW_GLOBAL_NESTED_EXPANSION:bool = False
 # _ALLOW_GLOBAL_NESTED_EXPANSION:bool = True
 
-class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
+class HDF_SerializationMixin:
     """
     Inherits `get_serialized_dataset_fields` from AttrsBasedClassHelperMixin
+
+    Used to be
+        class HDF_SerializationMixin(AttrsBasedClassHelperMixin):
+    but this didn't work and was found to be the source of the pickling issues. 
+
+    Now I'll need to trace everything and find:
+
+        AttrsBasedClassHelperMixin
+
+        
+
+    2. Actual attrs classes that didn't inherity from AttrsBasedClassHelperMixin because it would be redundant with their conformance to HDFMixin or HDF_SerializationMixin. Now they'll need to directly conform to `AttrsBasedClassHelperMixin` as well
+    3. Some non-attrs classes that didn't provide a custom .to_hdf(...) function but happened to have it work anyway will need to have their custom .to_hdf(...) re-written.
+    
+
     """
     
     @classmethod

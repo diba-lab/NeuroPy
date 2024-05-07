@@ -18,7 +18,7 @@ from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableO
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
-from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDFMixin
 
 _REQUIRE_NEURON_TYPE_COLUMN: bool = False
 _REQUIRE_FLAT_SPIKE_INDEX_COLUMN: bool = False

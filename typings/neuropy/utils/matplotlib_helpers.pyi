@@ -64,6 +64,26 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     OCCUPANCY = ...
 
 
+def set_margins(fig, left=..., right=..., top=..., bottom=..., is_in_inches: bool = ...): # -> None:
+    """Set figure margins as [left, right, top, bottom] in inches
+    from the edges of the figure.
+    
+
+    You can set the rectangle that the layout engine operates within. See the rect parameter for each engine at https://matplotlib.org/stable/api/layout_engine_api.html.
+    It's unfortunately not a very friendly part of the API, especially because TightLayoutEngine and ConstrainedLayoutEngine have different semantics for rect: TightLayoutEngine uses rect = (left, bottom, right, top) and ConstrainedLayoutEngine uses rect = (left, bottom, width, height).
+
+    Usage:
+        
+        from neuropy.utils.matplotlib_helpers import set_margins
+        
+        #your margins were [0.2, 0.8, 0.2, 0.8] in figure coordinates
+        #which are 0.2*11 and 0.2*8.5 in inches from the edge
+        set_margins(a_fig, top=0.2) # [0.2*11, 0.2*11, 0.2*8.5, 0.2*8.5]
+            
+    
+    """
+    ...
+
 def add_inner_title(ax, title, loc, strokewidth=..., stroke_foreground=..., stroke_alpha=..., text_foreground=..., font_size=..., text_alpha=..., use_AnchoredCustomText: bool = ..., **kwargs): # -> AnchoredCustomText | AnchoredText:
     """
     Add a figure title inside the border of the figure (instead of outside).

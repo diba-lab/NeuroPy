@@ -11,6 +11,7 @@ from nptyping import NDArray
 from neuropy.core.epoch import Epoch
 from neuropy.core.position import Position
 from neuropy.core.ratemap import Ratemap
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin
 from neuropy.utils.mixins.HDF5_representable import HDFMixin
 from neuropy.plotting.mixins.placemap_mixins import PfnDPlottingMixin
 from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin
@@ -186,7 +187,7 @@ class PlacefieldND(PfnConfigMixin, PfnDMixin):
 
 
 @define(slots=False)
-class PfND(HDFMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
+class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresentingMixin, PeakLocationRepresentingMixin, NeuronUnitSlicableObjectProtocol, BinnedPositionsMixin, PfnConfigMixin, PfnDMixin, PfnDPlottingMixin):
     """Represents a collection of placefields over binned,  N-dimensional space. 
 
         It always computes two place maps with and without speed thresholds.

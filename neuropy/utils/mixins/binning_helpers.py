@@ -4,8 +4,6 @@ from nptyping import NDArray
 import pandas as pd
 
 from dataclasses import dataclass # for BinningInfo
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
-from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
 def find_minimum_time_bin_duration(epoch_durations: NDArray) -> float:
     """ determines the minimum time bin size that can be used to bin epochs with the provided durations.

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -13,40 +13,190 @@ from scipy.special import factorial
 
 from neuropy.analyses.placefields import PfND
 
-from .. import core
+from neuropy import core
+# from .. import core
 
 from neuropy.utils.mixins.binning_helpers import BinningContainer, BinningInfo # for epochs_spkcount getting the correct time bins
 from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix # for Decode2d reverse transformations from flat points
 
 from attrs import define, field, Factory
 
+class RadonTransformComputation:
+    """
+    Helpers for radon transform:
+
+    from neuropy.analyses.decoders import RadonTransformComputation
+
+    """
+    @classmethod
+    def phi(cls, velocity, time_bin_size, pos_bin_size):
+        # speed = np.abs(velocity)
+        # sign = np.sign(velocity)
+        # return sign * np.arctan(speed * time_bin_size / pos_bin_size)
+        return np.arctan(velocity * time_bin_size / pos_bin_size)
+    
+    @classmethod
+    def rho(cls, icpt, t_mid, x_mid, velocity, time_bin_size, pos_bin_size):
+        phi = cls.phi(velocity=velocity, time_bin_size=time_bin_size, pos_bin_size=pos_bin_size)
+        return ((icpt + (velocity * t_mid) - x_mid)/pos_bin_size) * np.sin(phi)
+    
+
+
+
+    ## Conversion functions:
+    @classmethod
+    def convert_real_space_x_to_index_space_ri(cls, ri_mid, x_mid, pos_bin_size):
+        convert_real_space_x_to_index_space_ri = lambda x: (((x - x_mid)/pos_bin_size) + ri_mid)
+        return convert_real_space_x_to_index_space_ri
+
+    @classmethod
+    def convert_real_time_t_to_index_time_ci(cls, ci_mid, t_mid, time_bin_size):
+        convert_real_time_t_to_index_time_ci = lambda t: (((t - t_mid)/time_bin_size) + ci_mid)
+        return convert_real_time_t_to_index_time_ci
+
+    
+
+
+
+    # Used in `radon_transform` __________________________________________________________________________________________ #
+    @classmethod
+    def velocity(cls, phi, time_bin_size, pos_bin_size):
+        return pos_bin_size / (time_bin_size * np.tan(phi)) # 1/np.tan(x) == cot(x)
+    
+    @classmethod
+    def intercept(cls, phi, rho, t_mid, x_mid, time_bin_size, pos_bin_size):
+        """
+            t_mid, x_mid: the continuous-time versions
+        """
+        return (
+            (pos_bin_size * t_mid) / (time_bin_size * np.tan(phi))
+            + (rho / np.sin(phi)) * pos_bin_size
+            + x_mid
+        )
+
+    @classmethod
+    def y_line_idxs(cls, phi, rho, ci_mid, ri_mid, ci_mat=None):
+        """ 
+        returns a lambda function that takes `ci_mat`
+        y_line_idxs_fn = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, ci_mid=ci_mid, ri_mid=ri_mid)
+        y_line_idxs = y_line_idxs_fn(ci_mat=ci_mat)
+
+        ---
+
+        y_line_idxs = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, ci_mid=ci_mid, ri_mid=ri_mid, ci_mat=ci_mat)
+
+        """
+        if ci_mat is None:
+            # return a lambda function:
+            return lambda ci_mat: np.rint(((rho - (ci_mat - ci_mid) * np.cos(phi)) / np.sin(phi)) + ri_mid).astype("int")
+        else:
+            # return the literal
+            return np.rint(((rho - (ci_mat - ci_mid) * np.cos(phi)) / np.sin(phi)) + ri_mid).astype("int") 
+    
+    @classmethod
+    def y_line(cls, phi, rho, t_mid, x_mid, t_mat=None):
+        """
+        
+        y_line = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, t_mid=t_mid, x_mid=x_mid, t_mat=t_mat)
+        """
+        if t_mat is None:
+            # return a lambda function:
+            return lambda t: np.rint(((rho - (t - t_mid) * np.cos(phi)) / np.sin(phi)) + x_mid).astype("int")
+        else:
+            # return the literal
+            return np.rint(((rho - (t_mat - t_mid) * np.cos(phi)) / np.sin(phi)) + x_mid).astype("int") 
+
+
+        # y_line = ((rho_mat - (ci_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid # (t_mat - ci_mid): makes it not matter whether absolute time bins or time bin indicies were used here:
+        y_line = ((rho - (t_mat - t_mid) * np.cos(phi)) / np.sin(phi)) + x_mid
+        return np.rint(y_line).astype("int") # (5000, 6) - (nlines, n_t)
+
+
+    @classmethod
+    def compute_score(cls, arr: NDArray, y_line_idxs: NDArray, nlines: int, n_neighbours:int):
+        assert np.ndim(arr) >= 2
+        n_pos, n_t = np.shape(arr)
+
+        # using convolution to sum neighbours
+        arr = np.apply_along_axis(
+            np.convolve, axis=0, arr=arr, v=np.ones(2 * n_neighbours + 1), mode="same"
+        )
+
+        posterior = np.zeros((nlines, n_t)) # allocate output posterior
+
+        # n_pos = np.shape(arr)[0]
+        y_line_idxs = np.rint(y_line_idxs).astype("int")
+        # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
+        t_out = np.where((y_line_idxs < 0) | (y_line_idxs > (n_pos - 1)))
+        t_in = np.where((y_line_idxs >= 0) & (y_line_idxs <= (n_pos - 1)))
+        posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
+        posterior[t_in] = arr[y_line_idxs[t_in], t_in[1]]
+
+        # old_settings = np.seterr(all="ignore")
+        posterior_mean = np.nanmean(posterior, axis=1)
+
+        best_line_idx: int = np.argmax(posterior_mean)
+        score = posterior_mean[best_line_idx]
+
+        # np.seterr(**old_settings)
+        return score, best_line_idx, (posterior, posterior_mean, y_line_idxs, (t_in, t_out))
+
+
+
 @define(slots=False)
 class RadonTransformDebugValue:
     t: NDArray = field()
     n_t: int = field()
-    tmid: float = field()
+    ci_mid: float = field()
 
     pos: NDArray = field()
     n_pos: int = field()
-    tmid: float = field()
+    ri_mid: float = field()
 
+    diag_len: float = field()
+
+    y_line_idxs: NDArray = field()
     y_line: NDArray = field()
     t_out: NDArray = field()
     t_in: NDArray = field()
 
-
+    posterior: NDArray = field()
     posterior_mean: NDArray = field()
-    best_line: NDArray = field()
-    best_phi: NDArray = field()
-    best_rho: NDArray = field()
-
+    best_line_idx: int = field()
+    best_phi: float = field()
+    best_rho: float = field()
+    
     ## real world
-    time_mid: NDArray = field()
-    pos_mid: NDArray = field()
+    time_mid: float = field()
+    pos_mid: float = field()
+
+    # @property
+    # def n_t(self) -> int:
+    #     return len(self.t)
+    @property
+    def ci(self) -> NDArray:
+        """ ci: time indicies """
+        return np.arange(self.n_t)
+
+    # @property
+    # def n_pos(self) -> int:
+    #     return len(self.pos)
+    @property
+    def ri(self) -> NDArray:
+        return np.arange(self.n_pos) # pos: position bin indicies
+
+    @property
+    def best_y_line(self) -> NDArray:
+        """The best_y_line property."""
+        return np.squeeze(self.y_line[self.best_line_idx, :])
+
+    @property
+    def best_y_line_idxs(self) -> NDArray:
+        """The best_y_line property."""
+        return np.squeeze(self.y_line_idxs[self.best_line_idx, :])
 
 
-
-def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_neighbours:int=1, enable_return_neighbors_arr=False):
+def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_neighbours:int=1, enable_return_neighbors_arr=False, t0: Optional[float]=None, x0: Optional[float]=None):
     """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
 
     from neuropy.analyses.decoders import radon_transform
@@ -77,61 +227,105 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     ----------
     1) Kloosterman et al. 2012
     """
-    t = np.arange(arr.shape[1]) # t: time indicies
+    if t0 is None:
+        t0 = 0.0
+
+    if x0 is None:
+        x0 = 0.0
+        
+    # if time_bin_centers is None:
+    #     time_bin_centers = np.arange(arr.shape[1]) # index from [0, ... (NT-1)]
+    # else:
+    #     assert len(time_bin_centers) == np.shape(arr)[1]
+    
+    ci: NDArray = np.arange(arr.shape[1]) # ci: time indicies
+    t: NDArray = (ci*float(dt)) + t0 # t: time indicies
     n_t: int = len(t)
-    tmid = (n_t + 1) / 2 - 1
+    # ci_mid = (n_t + 1) / 2 - 1 # index space
+    ci_mid: float = (float(n_t) / 2.0) # index space
+    # time_mid = ((float(n_t) * dt) / 2.0) # real space
+    time_mid: float = (t[-1] + t[0]) / 2.0 # real space
 
-    pos = np.arange(arr.shape[0]) # pos: position bin indicies
+    # pos = np.arange(arr.shape[0]) # pos: position bin indicies
+    ri: NDArray = np.arange(arr.shape[0]) # pos: position bin indicies
+    pos: NDArray = (ri*float(dx)) + x0 # pos: position bin indicies
     n_pos: int = len(pos)
-    p_mid = (n_pos + 1) / 2 - 1
+    # ri_mid = (n_pos + 1) / 2 - 1 # index space
+    ri_mid: float = (float(n_pos) / 2.0) # index space
+    # pos_mid = ((float(n_pos) * dx) / 2.0) # real space
+    pos_mid: float = ((float(pos[-1]) + float(pos[0])) / 2.0) # real space
 
-    # using convolution to sum neighbours
-    arr = np.apply_along_axis(
-        np.convolve, axis=0, arr=arr, v=np.ones(2 * n_neighbours + 1), mode="same"
-    )
+    diag_len: float = np.sqrt((n_t - 1) ** 2 + (n_pos - 1) ** 2)
+
+    # # using convolution to sum neighbours
+    # arr = np.apply_along_axis(
+    #     np.convolve, axis=0, arr=arr, v=np.ones(2 * n_neighbours + 1), mode="same"
+    # )
 
     # exclude stationary events by choosing phi little below 90 degree
     # NOTE: angle of line is given by (90-phi), refer Kloosterman 2012
-    phi = np.random.uniform(low=(-np.pi / 2), high=(np.pi / 2), size=nlines)
-    diag_len: float = np.sqrt((n_t - 1) ** 2 + (n_pos - 1) ** 2)
-    rho = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines)
+    phi = np.random.uniform(low=(-np.pi / 2), high=(np.pi / 2), size=nlines) # (nlines, )
+    rho = np.random.uniform(low=-diag_len / 2, high=diag_len / 2, size=nlines) # (nlines, )
 
     rho_mat = np.tile(rho, (n_t, 1)).T
     phi_mat = np.tile(phi, (n_t, 1)).T
+    
+    ci_mat = np.tile(ci, (nlines, 1))
     t_mat = np.tile(t, (nlines, 1))
-    posterior = np.zeros((nlines, n_t))
+    # posterior = np.zeros((nlines, n_t))
 
-    y_line = ((rho_mat - (t_mat - tmid) * np.cos(phi_mat)) / np.sin(phi_mat)) + p_mid
-    y_line = np.rint(y_line).astype("int")
+    # y_line = ((rho_mat - (ci_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid # (t_mat - ci_mid): makes it not matter whether absolute time bins or time bin indicies were used here:
+    # y_line_idxs = ((rho_mat - (ci_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid
+    # y_line_idxs = np.rint(y_line_idxs).astype("int")
 
-    # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
-    t_out = np.where((y_line < 0) | (y_line > n_pos - 1))
-    t_in = np.where((y_line >= 0) & (y_line <= n_pos - 1))
-    posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
-    posterior[t_in] = arr[y_line[t_in], t_in[1]]
+    y_line_idxs = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, ci_mid=ci_mid, ri_mid=ri_mid, ci_mat=ci_mat) # (5000, 6) - (nlines, n_t)
+    y_line = RadonTransformComputation.y_line(phi=phi_mat, rho=rho_mat, t_mid=time_mid, x_mid=pos_mid, t_mat=t_mat)
+
+    # y_line = ((rho_mat - (t_mat - time_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid ## 2024-05-07 - This seemed to be working, but it shouldn't be.
+
+    # y_line = ((rho_mat - (t_mat - time_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + pos_mid
+    # y_line = np.rint(y_line).astype("int") # (5000, 6) - (nlines, n_t)
+
+    # # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
+    # t_out = np.where((y_line < 0) | (y_line > n_pos - 1))
+    # t_in = np.where((y_line >= 0) & (y_line <= n_pos - 1))
+    # posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
+    # posterior[t_in] = arr[y_line[t_in], t_in[1]]
 
     old_settings = np.seterr(all="ignore")
-    posterior_mean = np.nanmean(posterior, axis=1)
+    # posterior_mean = np.nanmean(posterior, axis=1)
 
-    best_line = np.argmax(posterior_mean)
-    score = posterior_mean[best_line]
-    best_phi, best_rho = phi[best_line], rho[best_line]
+    # best_line_idx: int = np.argmax(posterior_mean)
+    # score = posterior_mean[best_line_idx]
 
+    # score, best_line_idx, (posterior, posterior_mean, y_line, (t_in, t_out)) = RadonTransformComputation.compute_score(arr=arr, y_line=y_line, nlines=nlines, n_neighbours=n_neighbours)
+
+    score, best_line_idx, (posterior, posterior_mean, y_line_idxs, (t_in, t_out)) = RadonTransformComputation.compute_score(arr=arr, y_line_idxs=y_line_idxs, nlines=nlines, n_neighbours=n_neighbours)
+    best_phi = phi[best_line_idx]
+    best_rho = rho[best_line_idx]
+    best_y_line_idxs = np.squeeze(y_line_idxs[best_line_idx, :]) # (n_t, )
+    best_y_line = np.squeeze(y_line[best_line_idx, :]) # (n_t, )
     # converts to real world values
-    time_mid, pos_mid = n_t * dt / 2, n_pos * dx / 2
 
     ## Pho 2024-02-15 - Validated that below matches the original manuscript
     ## Original:
-    velocity = dx / (dt * np.tan(best_phi)) # 1/np.tan(x) == cot(x)
-    intercept = (
-        (dx * time_mid) / (dt * np.tan(best_phi))
-        + (best_rho / np.sin(best_phi)) * dx
-        + pos_mid
-    )
+    # velocity = dx / (dt * np.tan(best_phi)) # 1/np.tan(x) == cot(x)
+    # intercept = (
+    #     (dx * time_mid) / (dt * np.tan(best_phi))
+    #     + (best_rho / np.sin(best_phi)) * dx
+    #     + pos_mid
+    # )
+    velocity = RadonTransformComputation.velocity(phi=best_phi, time_bin_size=dt, pos_bin_size=dx)
+    intercept = RadonTransformComputation.intercept(phi=best_phi, rho=best_rho, t_mid=time_mid, x_mid=pos_mid, time_bin_size=dt, pos_bin_size=dx)
+
     np.seterr(**old_settings)
 
     if enable_return_neighbors_arr:
-        debug_info = RadonTransformDebugValue(t=t, n_t=n_t, tmid=tmid, pos=pos, n_pos=n_pos, y_line=y_line, t_out=t_out, t_in=t_in, posterior_mean=posterior_mean, best_line=best_line, best_phi=best_phi, best_rho=best_rho, time_mid=time_mid, pos_mid=pos_mid)
+        debug_info = RadonTransformDebugValue(t=t, n_t=n_t, ci_mid=ci_mid, time_mid=time_mid, 
+            pos=pos, n_pos=n_pos, ri_mid=ri_mid, pos_mid=pos_mid,
+            diag_len=diag_len, y_line_idxs=y_line_idxs, y_line=y_line, t_out=t_out, t_in=t_in, posterior=posterior, posterior_mean=posterior_mean,
+            best_line_idx=best_line_idx, best_phi=best_phi, best_rho=best_rho,
+         )
         return score, -velocity, intercept, (n_neighbours, arr.copy(), debug_info)
     else:
         return score, -velocity, intercept
