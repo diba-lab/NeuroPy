@@ -156,7 +156,7 @@ class RadonTransformDebugValue:
     diag_len: float = field()
 
     y_line_idxs: NDArray = field()
-    y_line: NDArray = field()
+    y_line: NDArray = field() # these come back with all elements the same for a given line index? like [73, 73, 73, 73, 73, 73]
     t_out: NDArray = field()
     t_in: NDArray = field()
 
@@ -239,7 +239,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     #     assert len(time_bin_centers) == np.shape(arr)[1]
     
     ci: NDArray = np.arange(arr.shape[1]) # ci: time indicies
-    t: NDArray = (ci*float(dt)) + t0 # t: time indicies
+    t: NDArray = (ci*float(dt)) + t0 # t: time bins in real seconds. When t0 is provided, these appear to be good.
     n_t: int = len(t)
     # ci_mid = (n_t + 1) / 2 - 1 # index space
     ci_mid: float = (float(n_t) / 2.0) # index space
@@ -257,10 +257,6 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
 
     diag_len: float = np.sqrt((n_t - 1) ** 2 + (n_pos - 1) ** 2)
 
-    # # using convolution to sum neighbours
-    # arr = np.apply_along_axis(
-    #     np.convolve, axis=0, arr=arr, v=np.ones(2 * n_neighbours + 1), mode="same"
-    # )
 
     # exclude stationary events by choosing phi little below 90 degree
     # NOTE: angle of line is given by (90-phi), refer Kloosterman 2012
@@ -272,7 +268,6 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     
     ci_mat = np.tile(ci, (nlines, 1))
     t_mat = np.tile(t, (nlines, 1))
-    # posterior = np.zeros((nlines, n_t))
 
     # y_line = ((rho_mat - (ci_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid # (t_mat - ci_mid): makes it not matter whether absolute time bins or time bin indicies were used here:
     # y_line_idxs = ((rho_mat - (ci_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid
@@ -285,12 +280,6 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
 
     # y_line = ((rho_mat - (t_mat - time_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + pos_mid
     # y_line = np.rint(y_line).astype("int") # (5000, 6) - (nlines, n_t)
-
-    # # if line falls outside of array in a given bin, replace that with median posterior value of that bin across all positions
-    # t_out = np.where((y_line < 0) | (y_line > n_pos - 1))
-    # t_in = np.where((y_line >= 0) & (y_line <= n_pos - 1))
-    # posterior[t_out] = np.median(arr[:, t_out[1]], axis=0)
-    # posterior[t_in] = arr[y_line[t_in], t_in[1]]
 
     old_settings = np.seterr(all="ignore")
     # posterior_mean = np.nanmean(posterior, axis=1)
