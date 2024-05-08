@@ -51,11 +51,14 @@ class RadonTransformComputation:
     # Used in `radon_transform` __________________________________________________________________________________________ #
     @classmethod
     def velocity(cls, phi, time_bin_size, pos_bin_size):
+        """ Not working.
+        
+        """
         return pos_bin_size / (time_bin_size * np.tan(phi)) # 1/np.tan(x) == cot(x)
     
     @classmethod
     def intercept(cls, phi, rho, t_mid, x_mid, time_bin_size, pos_bin_size):
-        """
+        """ Not working.
             t_mid, x_mid: the continuous-time versions
         """
         return (
@@ -238,7 +241,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
 
     # pos = np.arange(arr.shape[0]) # pos: position bin indicies
     ri: NDArray = np.arange(arr.shape[0]) # pos: position bin indicies
-    pos: NDArray = (ri*float(dx)) + x0 # pos: position bin indicies
+    pos: NDArray = (ri*float(dx)) + x0 # pos: position bin centers. When x0 is provided these perfeclty match `xbin_centers`
     n_pos: int = len(pos)
     # ri_mid = (n_pos + 1) / 2 - 1 # index space
     ri_mid: float = (float(n_pos) / 2.0) # index space
@@ -263,8 +266,8 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     # y_line_idxs = ((rho_mat - (ci_mat - ci_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid
     # y_line_idxs = np.rint(y_line_idxs).astype("int")
 
-    y_line_idxs = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, ci_mid=ci_mid, ri_mid=ri_mid, ci_mat=ci_mat) # (5000, 6) - (nlines, n_t)
-    y_line = RadonTransformComputation.y_line(phi=phi_mat, rho=rho_mat, t_mid=time_mid, x_mid=pos_mid, t_mat=t_mat)
+    y_line_idxs = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, ci_mid=ci_mid, ri_mid=ri_mid, ci_mat=ci_mat) # (5000, 6) - (nlines, n_t) - note that the indicies returned can be actually outside the matrix bounds - e.g. negative (not python-wrapping index negative) or larger than the number of position bins
+    y_line = RadonTransformComputation.y_line(phi=phi_mat, rho=rho_mat, t_mid=time_mid, x_mid=pos_mid, t_mat=t_mat) # seemingly incorrect
 
     # y_line = ((rho_mat - (t_mat - time_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + ri_mid ## 2024-05-07 - This seemed to be working, but it shouldn't be.
 
@@ -282,17 +285,39 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     score, best_line_idx, (posterior, posterior_mean, y_line_idxs, (t_in, t_out)) = RadonTransformComputation.compute_score(arr=arr, y_line_idxs=y_line_idxs, nlines=nlines, n_neighbours=n_neighbours)
     best_phi = phi[best_line_idx]
     best_rho = rho[best_line_idx]
-    best_y_line_idxs = np.squeeze(y_line_idxs[best_line_idx, :]) # (n_t, )
-    best_y_line = np.squeeze(y_line[best_line_idx, :]) # (n_t, )
+    best_y_line_idxs = np.squeeze(y_line_idxs[best_line_idx, :]) # (n_t, ) - confirmed to be correct
+    # best_y_line = np.squeeze(y_line[best_line_idx, :]) # (n_t, ) # incorrect
     # converts to real world values
 
     ## Pho 2024-02-15 - Validated that below matches the original manuscript
-    velocity = RadonTransformComputation.velocity(phi=best_phi, time_bin_size=dt, pos_bin_size=dx)
-    intercept = RadonTransformComputation.intercept(phi=best_phi, rho=best_rho, t_mid=time_mid, x_mid=pos_mid, time_bin_size=dt, pos_bin_size=dx)
+    # velocity = RadonTransformComputation.velocity(phi=best_phi, time_bin_size=dt, pos_bin_size=dx)
+    # intercept = RadonTransformComputation.intercept(phi=best_phi, rho=best_rho, t_mid=time_mid, x_mid=pos_mid, time_bin_size=dt, pos_bin_size=dx)
+
+    ## Compute the correct intercept and velocity/slope from the debug line which seems to be correct:
+    is_inside_matrix = np.logical_and((best_y_line_idxs >= 0), (best_y_line_idxs < n_pos))
+    inside_matrix_only_best_y_line_idxs = best_y_line_idxs[is_inside_matrix]
+    inside_matrix_only_t = t[is_inside_matrix]
+    best_inside_y_line = np.array([pos[an_idx] for an_idx in inside_matrix_only_best_y_line_idxs])    
+    velocity = (best_inside_y_line[-1]-best_inside_y_line[0])/(inside_matrix_only_t[-1]-inside_matrix_only_t[0])
+    intercept = best_inside_y_line[0]-(velocity * inside_matrix_only_t[0])
+    
+    # best_y_line = np.array([pos[an_idx] for an_idx in best_y_line_idxs]) # (n_t, )
+
+    # y_line = np.interp(t, xp=np.squeeze(inside_matrix_only_t), fp=np.squeeze(inside_matrix_only_best_y_line_idxs))
+
+
+    # inside_only: (-48.92679149792471, 4450.167735614992)
+    # best_y_line_segment = np.array([float(x0), (float(x0) + float(dx))])
+    # t_segment = np.array([float(t0), float(t0)+float(dt)])
+    # velocity = (best_y_line_segment[-1]-best_y_line_segment[0])/(t_segment[-1]-t_segment[0])
+    # intercept = best_y_line_segment[0]-(velocity * t_segment[0]) # (19.027085582525963, -1566.9703125223657)
 
     np.seterr(**old_settings)
 
     if enable_return_neighbors_arr:
+        ## compute the real y_line for the debug value:
+        y_line = (velocity * t) + intercept
+
         debug_info = RadonTransformDebugValue(t=t, n_t=n_t, ci_mid=ci_mid, time_mid=time_mid, 
             pos=pos, n_pos=n_pos, ri_mid=ri_mid, pos_mid=pos_mid,
             diag_len=diag_len, y_line_idxs=y_line_idxs, y_line=y_line, t_out=t_out, t_in=t_in, posterior=posterior, posterior_mean=posterior_mean,
