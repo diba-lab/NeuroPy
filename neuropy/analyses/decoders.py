@@ -30,9 +30,6 @@ class RadonTransformComputation:
     """
     @classmethod
     def phi(cls, velocity, time_bin_size, pos_bin_size):
-        # speed = np.abs(velocity)
-        # sign = np.sign(velocity)
-        # return sign * np.arctan(speed * time_bin_size / pos_bin_size)
         return np.arctan(velocity * time_bin_size / pos_bin_size)
     
     @classmethod
@@ -40,10 +37,7 @@ class RadonTransformComputation:
         phi = cls.phi(velocity=velocity, time_bin_size=time_bin_size, pos_bin_size=pos_bin_size)
         return ((icpt + (velocity * t_mid) - x_mid)/pos_bin_size) * np.sin(phi)
     
-
-
-
-    ## Conversion functions:
+    # Conversion functions: ______________________________________________________________________________________________ #
     @classmethod
     def convert_real_space_x_to_index_space_ri(cls, ri_mid, x_mid, pos_bin_size):
         convert_real_space_x_to_index_space_ri = lambda x: (((x - x_mid)/pos_bin_size) + ri_mid)
@@ -53,10 +47,6 @@ class RadonTransformComputation:
     def convert_real_time_t_to_index_time_ci(cls, ci_mid, t_mid, time_bin_size):
         convert_real_time_t_to_index_time_ci = lambda t: (((t - t_mid)/time_bin_size) + ci_mid)
         return convert_real_time_t_to_index_time_ci
-
-    
-
-
 
     # Used in `radon_transform` __________________________________________________________________________________________ #
     @classmethod
@@ -297,13 +287,6 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     # converts to real world values
 
     ## Pho 2024-02-15 - Validated that below matches the original manuscript
-    ## Original:
-    # velocity = dx / (dt * np.tan(best_phi)) # 1/np.tan(x) == cot(x)
-    # intercept = (
-    #     (dx * time_mid) / (dt * np.tan(best_phi))
-    #     + (best_rho / np.sin(best_phi)) * dx
-    #     + pos_mid
-    # )
     velocity = RadonTransformComputation.velocity(phi=best_phi, time_bin_size=dt, pos_bin_size=dx)
     intercept = RadonTransformComputation.intercept(phi=best_phi, rho=best_rho, t_mid=time_mid, x_mid=pos_mid, time_bin_size=dt, pos_bin_size=dx)
 
