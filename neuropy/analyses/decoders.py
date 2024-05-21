@@ -274,45 +274,46 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
     # y_line = ((rho_mat - (t_mat - time_mid) * np.cos(phi_mat)) / np.sin(phi_mat)) + pos_mid
     # y_line = np.rint(y_line).astype("int") # (5000, 6) - (nlines, n_t)
 
-    old_settings = np.seterr(all="ignore")
-    # posterior_mean = np.nanmean(posterior, axis=1)
+    # old_settings = np.seterr(all="ignore")
+    with np.errstate(all="ignore"):
+        # posterior_mean = np.nanmean(posterior, axis=1)
 
-    # best_line_idx: int = np.argmax(posterior_mean)
-    # score = posterior_mean[best_line_idx]
+        # best_line_idx: int = np.argmax(posterior_mean)
+        # score = posterior_mean[best_line_idx]
 
-    # score, best_line_idx, (posterior, posterior_mean, y_line, (t_in, t_out)) = RadonTransformComputation.compute_score(arr=arr, y_line=y_line, nlines=nlines, n_neighbours=n_neighbours)
+        # score, best_line_idx, (posterior, posterior_mean, y_line, (t_in, t_out)) = RadonTransformComputation.compute_score(arr=arr, y_line=y_line, nlines=nlines, n_neighbours=n_neighbours)
 
-    score, best_line_idx, (posterior, posterior_mean, y_line_idxs, (t_in, t_out)) = RadonTransformComputation.compute_score(arr=arr, y_line_idxs=y_line_idxs, nlines=nlines, n_neighbours=n_neighbours)
-    best_phi = phi[best_line_idx]
-    best_rho = rho[best_line_idx]
-    best_y_line_idxs = np.squeeze(y_line_idxs[best_line_idx, :]) # (n_t, ) - confirmed to be correct
-    # best_y_line = np.squeeze(y_line[best_line_idx, :]) # (n_t, ) # incorrect
-    # converts to real world values
+        score, best_line_idx, (posterior, posterior_mean, y_line_idxs, (t_in, t_out)) = RadonTransformComputation.compute_score(arr=arr, y_line_idxs=y_line_idxs, nlines=nlines, n_neighbours=n_neighbours)
+        best_phi = phi[best_line_idx]
+        best_rho = rho[best_line_idx]
+        best_y_line_idxs = np.squeeze(y_line_idxs[best_line_idx, :]) # (n_t, ) - confirmed to be correct
+        # best_y_line = np.squeeze(y_line[best_line_idx, :]) # (n_t, ) # incorrect
+        # converts to real world values
 
-    ## Pho 2024-02-15 - Validated that below matches the original manuscript
-    # velocity = RadonTransformComputation.velocity(phi=best_phi, time_bin_size=dt, pos_bin_size=dx)
-    # intercept = RadonTransformComputation.intercept(phi=best_phi, rho=best_rho, t_mid=time_mid, x_mid=pos_mid, time_bin_size=dt, pos_bin_size=dx)
+        ## Pho 2024-02-15 - Validated that below matches the original manuscript
+        # velocity = RadonTransformComputation.velocity(phi=best_phi, time_bin_size=dt, pos_bin_size=dx)
+        # intercept = RadonTransformComputation.intercept(phi=best_phi, rho=best_rho, t_mid=time_mid, x_mid=pos_mid, time_bin_size=dt, pos_bin_size=dx)
 
-    ## Compute the correct intercept and velocity/slope from the debug line which seems to be correct:
-    is_inside_matrix = np.logical_and((best_y_line_idxs >= 0), (best_y_line_idxs < n_pos))
-    inside_matrix_only_best_y_line_idxs = best_y_line_idxs[is_inside_matrix]
-    inside_matrix_only_t = t[is_inside_matrix]
-    best_inside_y_line = np.array([pos[an_idx] for an_idx in inside_matrix_only_best_y_line_idxs])    
-    velocity = (best_inside_y_line[-1]-best_inside_y_line[0])/(inside_matrix_only_t[-1]-inside_matrix_only_t[0])
-    intercept = best_inside_y_line[0]-(velocity * inside_matrix_only_t[0])
-    
-    # best_y_line = np.array([pos[an_idx] for an_idx in best_y_line_idxs]) # (n_t, )
+        ## Compute the correct intercept and velocity/slope from the debug line which seems to be correct:
+        is_inside_matrix = np.logical_and((best_y_line_idxs >= 0), (best_y_line_idxs < n_pos))
+        inside_matrix_only_best_y_line_idxs = best_y_line_idxs[is_inside_matrix]
+        inside_matrix_only_t = t[is_inside_matrix]
+        best_inside_y_line = np.array([pos[an_idx] for an_idx in inside_matrix_only_best_y_line_idxs])    
+        velocity = (best_inside_y_line[-1]-best_inside_y_line[0])/(inside_matrix_only_t[-1]-inside_matrix_only_t[0])
+        intercept = best_inside_y_line[0]-(velocity * inside_matrix_only_t[0])
+        
+        # best_y_line = np.array([pos[an_idx] for an_idx in best_y_line_idxs]) # (n_t, )
 
-    # y_line = np.interp(t, xp=np.squeeze(inside_matrix_only_t), fp=np.squeeze(inside_matrix_only_best_y_line_idxs))
+        # y_line = np.interp(t, xp=np.squeeze(inside_matrix_only_t), fp=np.squeeze(inside_matrix_only_best_y_line_idxs))
 
 
-    # inside_only: (-48.92679149792471, 4450.167735614992)
-    # best_y_line_segment = np.array([float(x0), (float(x0) + float(dx))])
-    # t_segment = np.array([float(t0), float(t0)+float(dt)])
-    # velocity = (best_y_line_segment[-1]-best_y_line_segment[0])/(t_segment[-1]-t_segment[0])
-    # intercept = best_y_line_segment[0]-(velocity * t_segment[0]) # (19.027085582525963, -1566.9703125223657)
+        # inside_only: (-48.92679149792471, 4450.167735614992)
+        # best_y_line_segment = np.array([float(x0), (float(x0) + float(dx))])
+        # t_segment = np.array([float(t0), float(t0)+float(dt)])
+        # velocity = (best_y_line_segment[-1]-best_y_line_segment[0])/(t_segment[-1]-t_segment[0])
+        # intercept = best_y_line_segment[0]-(velocity * t_segment[0]) # (19.027085582525963, -1566.9703125223657)
 
-    np.seterr(**old_settings)
+    # np.seterr(**old_settings)
 
     if enable_return_neighbors_arr:
         ## compute the real y_line for the debug value:
