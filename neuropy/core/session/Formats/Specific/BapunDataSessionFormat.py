@@ -170,7 +170,7 @@ class BapunDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass
             
             session.position.filename = session.filePrefix.with_suffix(".position.npy")
             # print('Saving updated position results to {}...'.format(session.position.filename))
-            with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
+            with ProgressMessagePrinter(session.position.filename, action='Saving', contents_description='updated position results'):
                 session.position.save()
             # print('done.\n')
         else:

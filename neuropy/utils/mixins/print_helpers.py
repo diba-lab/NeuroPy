@@ -95,7 +95,7 @@ def print_file_progress_message(filepath, action: str, contents_description: str
         action (str): [description]
         contents_description (str): [description]
     """
-    #  print_file_progress_message(ripple_epochs.filename, action='Computing', contents_description='mua results') # replaces: print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
+    #  print_file_progress_message(ripple_epochs.filename, 'Saving', 'mua results') # replaces: print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
     parsed_action_type = FileProgressAction.init(action)
     out_string: str = f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...' # like "Loading flattened_spike_identities results from path" or "Computing flattened_spike_identities results from path"
     hasPath: bool = parsed_action_type.hasPath ## not yet used

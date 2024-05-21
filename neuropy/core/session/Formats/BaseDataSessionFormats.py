@@ -489,7 +489,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
                 print(f'\t force_recompute is True! Forcing recomputation of {active_file_suffix}\n')
             else:
                 print(f'\t Failure loading "{session.filePrefix.with_suffix(active_file_suffix)}". Must recompute.\n')
-            with ProgressMessagePrinter('spikes_df', 'Computing', 'interpolate_spike_positions columns'):
+            with ProgressMessagePrinter('spikes_df', action='Computing', contents_description='interpolate_spike_positions columns'):
                 if session.position.has_linear_pos:
                     lin_pos = session.position.linear_pos
                 else:
@@ -508,13 +508,13 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
     
     @classmethod
     def _default_add_spike_PBEs_if_needed(cls, session):
-        with ProgressMessagePrinter('spikes_df', 'Computing', 'spikes_df PBEs column'):
+        with ProgressMessagePrinter('spikes_df', action='Computing', contents_description='spikes_df PBEs column'):
             updated_spk_df = session.compute_spikes_PBEs()
         return session
     
     @classmethod
     def _default_add_spike_scISIs_if_needed(cls, session):
-        with ProgressMessagePrinter('spikes_df', 'Computing', 'added spike scISI column'):
+        with ProgressMessagePrinter('spikes_df', action='Computing', contents_description='added spike scISI column'):
             updated_spk_df = session.spikes_df.spikes.add_same_cell_ISI_column()
         return session
     
@@ -567,8 +567,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
                 session.ripple = found_datafile
                 # ## TODO: overwrite the '.ripple.npy' version?
                 # session.ripple.filename = session.filePrefix.with_suffix('.ripple.npy')
-                # # print_file_progress_message(ripple_epochs.filename, 'Saving', 'ripple epochs')
-                # with ProgressMessagePrinter(session.ripple.filename, 'Saving', 'ripple epochs'):
+                # # print_file_progress_message(ripple_epochs.filename, action='Saving', contents_description='ripple epochs')
+                # with ProgressMessagePrinter(session.ripple.filename, action='Saving', contents_description='ripple epochs'):
                 #     session.ripple.save()
             else:
                 # Otherwise both loads failed, perform the fallback computation:

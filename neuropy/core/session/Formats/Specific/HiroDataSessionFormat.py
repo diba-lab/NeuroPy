@@ -522,7 +522,7 @@ class HiroDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredClass)
                 # Only re-save after re-computation
                 session.position.filename = session.filePrefix.with_suffix(active_file_suffix)
                 # print('Saving updated position results to {}...'.format(session.position.filename), end='')
-                with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
+                with ProgressMessagePrinter(session.position.filename, action='Saving', contents_description='updated position results'):
                     session.position.save()
             # print('\t done.\n')
         else:

@@ -147,7 +147,7 @@ class RachelDataSessionFormat(BapunDataSessionFormatRegisteredClass):
         #     session.position.linear_pos[acitve_epoch_timeslice_indicies1] = linearized_positions_maze1.traces
         #     session.position.filename = session.filePrefix.with_suffix(".position.npy")
         #     # print('Saving updated position results to {}...'.format(session.position.filename))
-        #     with ProgressMessagePrinter(session.position.filename, 'Saving', 'updated position results'):
+        #     with ProgressMessagePrinter(session.position.filename, action='Saving', contents_description='updated position results'):
         #         session.position.save()
         #     # print('done.\n')
         # else:

@@ -517,16 +517,16 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
         
         """
         
-        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_identities'):
+        with ProgressMessagePrinter('build_spike_dataframe(...)', action='Computing', contents_description='flattened_spike_identities'):
             flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
     
-        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_types'):
+        with ProgressMessagePrinter('build_spike_dataframe(...)', action='Computing', contents_description='flattened_spike_types'):
             flattened_spike_types = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_type[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_type for each spike that belongs to that neuron
-        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_shank_identities'):
+        with ProgressMessagePrinter('build_spike_dataframe(...)', action='Computing', contents_description='flattened_spike_shank_identities'):
             flattened_spike_shank_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.shank_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
-        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_linear_unit_spike_idx'):
+        with ProgressMessagePrinter('build_spike_dataframe(...)', action='Computing', contents_description='flattened_spike_linear_unit_spike_idx'):
             flattened_spike_linear_unit_spike_idx = np.concatenate([np.arange(active_session.neurons.n_spikes[i]) for i in np.arange(active_session.neurons.n_neurons)]) # gives the index that would be needed to index into a given spike's position within its unit's spiketrain.
-        with ProgressMessagePrinter('build_spike_dataframe(...)', 'Computing', 'flattened_spike_times'):
+        with ProgressMessagePrinter('build_spike_dataframe(...)', action='Computing', contents_description='flattened_spike_times'):
             flattened_spike_times = np.concatenate(active_session.neurons.spiketrains)
         
         # All these flattened arrays start off just concatenated with all the results for the first unit, and then the next, etc. They aren't sorted. flattened_sort_indicies are used to sort them.

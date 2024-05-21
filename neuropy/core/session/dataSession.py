@@ -333,7 +333,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         ripple_epochs = oscillations.detect_ripple_epochs(signal, session.probegroup)
         if save_on_compute:
             ripple_epochs.filename = session.filePrefix.with_suffix('.ripple.npy')
-            with ProgressMessagePrinter(ripple_epochs.filename, 'Saving', 'ripple epochs'):
+            with ProgressMessagePrinter(ripple_epochs.filename, action='Saving', contents_description='ripple epochs'):
                 ripple_epochs.save()
         return ripple_epochs
     # sess.ripple = compute_neurons_ripples(sess)
@@ -345,7 +345,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         mua = session.neurons.get_mua()
         if save_on_compute:
             mua.filename = session.filePrefix.with_suffix(".mua.npy")
-            with ProgressMessagePrinter(mua.filename, 'Saving', 'mua results'):
+            with ProgressMessagePrinter(mua.filename, action='Saving', contents_description='mua results'):
                 mua.save()
         return mua    
     # sess.mua = compute_neurons_mua(sess) # Set the .mua field on the session object once complete
@@ -378,7 +378,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
 
         if save_on_compute:
             new_pbe_epochs.filename = session.filePrefix.with_suffix('.pbe.npy')
-            with ProgressMessagePrinter(new_pbe_epochs.filename, 'Saving', 'pbe results'):
+            with ProgressMessagePrinter(new_pbe_epochs.filename, action='Saving', contents_description='pbe results'):
                 new_pbe_epochs.save()
         return new_pbe_epochs
     # sess.pbe = compute_pbe_epochs(sess)

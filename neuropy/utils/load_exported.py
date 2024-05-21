@@ -10,7 +10,7 @@ from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 
 
 def import_mat_file(mat_import_file='data/RoyMaze1/positionAnalysis.mat'):
-    with ProgressMessagePrinter(mat_import_file, 'Loading', 'matlab import file'):
+    with ProgressMessagePrinter(mat_import_file, action='Loading', contents_description='matlab import file'):
         data = hdf5storage.loadmat(mat_import_file, appendmat=False)
     return data
 
