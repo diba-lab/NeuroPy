@@ -99,7 +99,7 @@ def print_file_progress_message(filepath, action: str, contents_description: str
     parsed_action_type = FileProgressAction.init(action)
     out_string: str = f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...' # like "Loading flattened_spike_identities results from path" or "Computing flattened_spike_identities results from path"
     hasPath: bool = parsed_action_type.hasPath ## not yet used
-    if (filepath is not None) and (len(filepath) > 0):
+    if (filepath is not None) and (len(str(filepath)) > 0):
         # add filepath to string
         out_string = f'{out_string} {str(filepath)}' # like "Loading flattened_spike_identities results from path"
 
