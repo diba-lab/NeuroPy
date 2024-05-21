@@ -53,6 +53,7 @@ class FileProgressAction(ExtendedEnum):
     """
     LOADING = "Loading"
     SAVING = "Saving"
+    COMPUTING = "Computing"
     GENERIC = "Generic"
 
     @classmethod
@@ -61,17 +62,29 @@ class FileProgressAction(ExtendedEnum):
         return ExtendedEnum.init(name=name, value=value, fallback_value=(fallback_value or cls.GENERIC))
 
     @property
-    def actionVerb(self):
+    def actionVerb(self) -> str:
         return FileProgressAction.actionVerbsList()[self]
+    
+    @property
+    def hasPath(self) -> bool:
+        return FileProgressAction.hasPathList()[self]
+
 
     # Static properties
     @classmethod
     def actionVerbsList(cls):
-        return cls.build_member_value_dict(['from','to',':'])
+        return cls.build_member_value_dict(['from','to','',':'])
+    
+    @classmethod
+    def hasPathList(cls):
+        return cls.build_member_value_dict([True,True,False,True])
+
+    
     
 
-def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=' ', returns_string=False):
-    """[summary]
+def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=' ', returns_string: bool=False) -> Optional[str]:
+    """Prints a specific progress message related to an action (e.g. loading/saving) performed on a filepath
+
         
         print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
         ripple_epochs.save()
@@ -82,18 +95,35 @@ def print_file_progress_message(filepath, action: str, contents_description: str
         action (str): [description]
         contents_description (str): [description]
     """
-    #  print_file_progress_message(ripple_epochs.filename, 'Saving', 'mua results') # replaces: print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
+    #  print_file_progress_message(ripple_epochs.filename, action='Computing', contents_description='mua results') # replaces: print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
     parsed_action_type = FileProgressAction.init(action)
+    out_string: str = f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...' # like "Loading flattened_spike_identities results from path" or "Computing flattened_spike_identities results from path"
+    hasPath: bool = parsed_action_type.hasPath ## not yet used
+    if (filepath is not None) and (len(filepath) > 0):
+        # add filepath to string
+        out_string = f'{out_string} {str(filepath)}' # like "Loading flattened_spike_identities results from path"
+
+    out_string = f"{out_string}..."
+
+    print(out_string, end=print_line_ending) # always print
+        
     if returns_string:
-        out_string = f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...'
-        print(out_string, end=print_line_ending)
         return f'{out_string}{print_line_ending}'
     else:
-        print(f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...', end=print_line_ending)
-    
+        return None
     
 class ProgressMessagePrinter(object):
-    def __init__(self, filepath, action: str, contents_description: str, print_line_ending=' ', finished_message='done.', returns_string=False):
+    """ a context-handler that wraps an action such as loading/saving a file or a computation and prints (optionally properlly indendented) messages at its start and completion. 
+        
+    Usage:
+        from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
+    
+        with ProgressMessagePrinter('build_spike_dataframe(...)', action='Computing', contents_description='flattened_spike_identities'):
+            flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+    
+    """
+    
+    def __init__(self, filepath, action: str, contents_description: str, print_line_ending:str=' ', finished_message:str='done.', returns_string:bool=False):
         self.filepath = filepath
         self.action = action
         self.contents_description = contents_description
