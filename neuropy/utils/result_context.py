@@ -40,6 +40,7 @@ from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#
 from collections import defaultdict
 from neuropy.utils.mixins.diffable import OrderedSet
 
+import numpy as np
 import pandas as pd # used for find_unique_values
 
 from neuropy.utils.indexing_helpers import convert_to_dictlike
@@ -881,3 +882,99 @@ def providing_context(**additional_context_kwargs):
 #         self.computation_configuration = computation_configuration
     
     
+
+@define(slots=False)
+class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
+    """ a class that extends IdentifyingContext to enable application-specific rendering of contexts.
+    
+    Primarily provides: `get_specific_purpose_description`
+
+    """
+    display_dict: Dict = field()
+
+
+    @classmethod
+    def init_from_context(cls, a_context: IdentifyingContext, display_dict=None) -> "DisplaySpecifyingIdentifyingContext":
+        kwargs = copy.deepcopy(a_context.to_dict())
+        if display_dict is None:
+            display_dict = {}
+        # _new_instance =  cls(**kwargs, display_dict=display_dict)
+        _new_instance =  cls(display_dict=display_dict)
+        # Set own attributes
+        for name, value in kwargs.items():
+            setattr(_new_instance, name, value)
+
+        return _new_instance
+
+
+
+    # String/Printing Functions __________________________________________________________________________________________ #
+    def get_specific_purpose_description(self, specific_purpose:str, subset_includelist=None, subset_excludelist=None)-> Optional[str]:
+        """ returns a simple text descriptor of the context
+        
+        specific_purpose: str - the specific purpose name to get the formatted description of
+        
+        replace_separator_in_property_names: str = replaces occurances of the separator with the str specified for the included property names. has no effect if include_property_names=False
+        key_value_separator: Optional[str] = if None, uses the same separator between key{}value as used between items.
+        
+        Outputs:
+            a str like 'sess_kdiba_2006-6-07_11-26-53'
+        """
+        if specific_purpose == 'flexitext_footer':
+            if np.all(self.has_keys(['format_name', 'animal', 'exper_name'])):
+                first_portion_sess_ctxt_str = self.get_description(subset_includelist=['format_name', 'animal', 'exper_name'], separator=' | ')
+                session_name_sess_ctxt_str = self.get_description(subset_includelist=['session_name'], separator=' | ') # 2006-6-08_14-26-15
+                return (f"<color:silver, size:10>{first_portion_sess_ctxt_str} | <weight:bold>{session_name_sess_ctxt_str}</></>")
+            else:
+                # all keys
+                bad_values_dict = {k:v for k, v in self.to_dict().items() if ((v is None) or (len(str(v)) == 0))}
+                bad_values_keys = list(bad_values_dict.keys())
+                subset_excludelist = ((subset_excludelist or []) + bad_values_keys) # exclude any keys that are bad (such as None/ zero-length/ etc)
+                # good_values_dict = {k:v for k, v in self.to_dict().items() if ((v is not None) and (len(str(v)) > 0))}
+                # good_values_keys = list(good_values_dict.keys())
+                all_keys_ctxt_str = self.get_description(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist, separator=' | ')
+                return (f"<color:silver, size:10>{all_keys_ctxt_str}</>")
+
+            # return (f"<color:silver, size:10>{first_portion_sess_ctxt_str} | <weight:bold>{session_name_sess_ctxt_str}</></>")
+
+            
+        
+        else:
+            raise NotImplementedError(f'specific_purpose: {specific_purpose} does not match any known purpose.')
+            return None # has no specific purpose
+
+
+
+    # def get_description(self, subset_includelist=None, subset_excludelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
+    #     """ returns a simple text descriptor of the context
+        
+    #     include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
+    #     replace_separator_in_property_names: str = replaces occurances of the separator with the str specified for the included property names. has no effect if include_property_names=False
+    #     key_value_separator: Optional[str] = if None, uses the same separator between key{}value as used between items.
+        
+    #     Outputs:
+    #         a str like 'sess_kdiba_2006-6-07_11-26-53'
+    #     """
+    #     ## Build a session descriptor string:
+    #     if include_property_names:
+    #         if key_value_separator is None:
+    #             key_value_separator = separator # use same separator between key{}value as pairs of items.
+    #         # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
+    #         descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # creates a list of [name, val] list items
+    #         if key_value_separator != separator:
+    #             # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
+    #             descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
+    #         else:
+    #             # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
+    #             descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
+    #     else:
+    #         descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())] # ensures each value is a string
+            
+    #     if prefix_items is not None:
+    #         descriptor_array.extend(prefix_items)
+    #     if suffix_items is not None:
+    #         descriptor_array.extend(suffix_items)
+        
+    #     descriptor_string = separator.join(descriptor_array)
+    #     return descriptor_string
+
