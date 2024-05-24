@@ -255,6 +255,8 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
     def __getitem__(self, i) -> "Ratemap":
         """ Allows accessing via indexing brackets: e.g. `a_ratemap[i]`. Returns a copy of self at the certain indicies """
         _out = deepcopy(self)
+        if not isinstance(_out.neuron_ids, NDArray):
+            _out.neuron_ids = np.array(_out.neuron_ids)
         _out.neuron_ids = _out.neuron_ids[i]
         if _out._neuron_extended_ids is not None:
             if is_iterable(i):
