@@ -16,6 +16,7 @@ from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, s
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDFMixin, HDF_Converter
 from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin, ContinuousPeakLocationRepresentingMixin
+from neuropy.utils.misc import is_iterable
 from . import DataWriter
 
 
@@ -256,7 +257,10 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         _out = deepcopy(self)
         _out.neuron_ids = _out.neuron_ids[i]
         if _out._neuron_extended_ids is not None:
-            _out._neuron_extended_ids = _out._neuron_extended_ids[i]
+            if is_iterable(i):
+                 _out._neuron_extended_ids = [_out._neuron_extended_ids[an_i] for an_i in i]
+            else:
+                _out._neuron_extended_ids = _out._neuron_extended_ids[i]
         
         _out.spikes_maps = _out.spikes_maps[i]
         _out.tuning_curves = _out.tuning_curves[i]
@@ -273,7 +277,6 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         indices = np.isin(self.neuron_ids, ids)
         return self[indices]
     
-
     def get_sort_indicies(self, sortby=None) -> NDArray:
         # curr_tuning_curves = self.normalized_tuning_curves
         # ind = np.unravel_index(np.argsort(curr_tuning_curves, axis=None), curr_tuning_curves.shape)
