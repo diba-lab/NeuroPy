@@ -41,6 +41,10 @@ def is_iterable(value):
         value ([type]): [description]
     Returns:
         [type]: [description]
+    
+    Usage:
+        from neuropy.utils.misc import is_iterable
+
     """
     return isinstance(value, NonStringIterable) # use Alexander McFarlane's solution.
     # return isinstance(value, Iterable) # this version works but neglects classes that are iterable through __getitem__
