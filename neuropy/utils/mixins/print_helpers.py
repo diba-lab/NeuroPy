@@ -96,12 +96,19 @@ def print_file_progress_message(filepath, action: str, contents_description: str
         contents_description (str): [description]
     """
     #  print_file_progress_message(ripple_epochs.filename, 'Saving', 'mua results') # replaces: print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
-    parsed_action_type = FileProgressAction.init(action)
-    out_string: str = f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...' # like "Loading flattened_spike_identities results from path" or "Computing flattened_spike_identities results from path"
+    complex_action: List[str] = action.split(maxsplit=1)
+    valid_action_name: str = complex_action[0]
+    if len(complex_action)>1:
+        complex_action_remainder: str = complex_action[1]
+
+    # action ` action=f"Saving (file mode '{file_mode}')"`
+    parsed_action_type = FileProgressAction.init(valid_action_name)
+    # out_string: str = f'{action} {contents_description} results {parsed_action_type.actionVerb} {str(filepath)}...' # like "Loading flattened_spike_identities results from path" or "Computing flattened_spike_identities results from path"
+    out_string: str = f'{action} {contents_description} results {parsed_action_type.actionVerb}'
     hasPath: bool = parsed_action_type.hasPath ## not yet used
     if (filepath is not None) and (len(str(filepath)) > 0):
         # add filepath to string
-        out_string = f'{out_string} {str(filepath)}' # like "Loading flattened_spike_identities results from path"
+        out_string = f'{out_string} "{str(filepath)}"' # like "Loading flattened_spike_identities results from path"
 
     out_string = f"{out_string}..."
 
