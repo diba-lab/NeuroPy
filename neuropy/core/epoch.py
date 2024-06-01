@@ -59,6 +59,10 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
         assert len(active_t_column_names) == ndim, f"ndim: {ndim}, active_t_column_names: {active_t_column_names}"
         assert not_found_action in ['skip_index', 'full_nan']
 
+        if (ndim == 0):
+            epoch_times = np.atleast_1d(epoch_times)
+            ndim = 1
+
         indices = []
         if (ndim == 1):
             for start_time in epoch_times:
@@ -186,6 +190,17 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
         if len(t_column_names) > 1:
             t_column_names = [t_column_names[0],]
         num_query_times: int = len(epoch_times)
+
+
+    elif (np.ndim(epoch_times) == 0):
+        # single start time only
+        if t_column_names is None:
+            t_column_names = ['start',]
+        if len(t_column_names) > 1:
+            t_column_names = [t_column_names[0],]
+        epoch_times = np.atleast_1d(epoch_times)
+        num_query_times: int = 1
+
     else:
         raise NotImplementedError
 
