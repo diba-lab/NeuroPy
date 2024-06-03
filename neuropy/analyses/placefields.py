@@ -665,7 +665,7 @@ class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresent
 
         # Excluded from serialization: ['_included_thresh_neurons_indx', '_peak_frate_filter_function']
     """
-    spikes_df: pd.DataFrame
+    spikes_df: pd.DataFrame # spikes_df shouldn't ever be updated
     position: Position
     epochs: Epoch = None
     config: PlacefieldComputationParameters = None

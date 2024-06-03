@@ -428,6 +428,9 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop) -> pd.DataFrame:
+        """ trim the epochs down to the provided time range
+        
+        """
         # TODO time_slice should also include partial epochs falling in between the timepoints
         df = self._obj.copy() 
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
