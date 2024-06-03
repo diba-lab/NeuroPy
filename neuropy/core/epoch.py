@@ -460,14 +460,14 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return find_data_indicies_from_epoch_times(self._obj,epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
 
             
-    def matching_epoch_times_slice(self, epoch_times: NDArray, atol:float=1e-3) -> pd.DataFrame:
+    def matching_epoch_times_slice(self, epoch_times: NDArray, atol:float=1e-3, t_column_names=None) -> pd.DataFrame:
         """ slices the dataframe to return only the rows that match the epoch_times with some tolerance.
         
         Internally calls self.find_data_indicies_from_epoch_times(...)
 
         """
         # , not_found_action='skip_index'
-        found_data_indicies = self._obj.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times, atol=atol)
+        found_data_indicies = self._obj.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times, atol=atol, t_column_names=t_column_names)
         # df = self._obj.iloc[found_data_indicies].copy().reset_index(drop=True)
         df = self._obj.loc[found_data_indicies].copy().reset_index(drop=True)
         return df
