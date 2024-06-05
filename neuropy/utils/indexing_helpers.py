@@ -118,6 +118,9 @@ def find_desired_sort_indicies(extant_arr, desired_sort_arr):
         assert np.all(active_2d_plot.neuron_ids[new_all_aclus_sort_indicies] == all_sorted_aclus), f"must sort "
         new_all_aclus_sort_indicies
     """
+    if (len(extant_arr) == 0) or (len(desired_sort_arr) == 0):
+        raise ValueError(f"find_desired_sort_indicies(...): extant_arr or desired_sort_arr is empty! How are we going to find the indicies? : \n\textant_arr: {extant_arr}\n\t desired_sort_arr: {desired_sort_arr}")
+
     missing_aclu_indicies = np.isin(extant_arr, desired_sort_arr, invert=True)
     missing_aclus = extant_arr[missing_aclu_indicies] # array([ 3,  4,  8, 13, 24, 34, 56, 87])
     if len(missing_aclus) > 0:
