@@ -15,7 +15,7 @@ from flexitext.text import Text as StyledText
 if TYPE_CHECKING:
     ...
 Width_Height_Tuple = ...
-def compute_data_extent(xpoints, *other_1d_series): # -> NDArray[float64]:
+def compute_data_extent(xpoints, *other_1d_series):
     """Computes the outer bounds, or "extent" of one or more 1D data series.
 
     Args:
@@ -84,7 +84,7 @@ def set_margins(fig, left=..., right=..., top=..., bottom=..., is_in_inches: boo
     """
     ...
 
-def add_inner_title(ax, title, loc, strokewidth=..., stroke_foreground=..., stroke_alpha=..., text_foreground=..., font_size=..., text_alpha=..., use_AnchoredCustomText: bool = ..., **kwargs): # -> AnchoredCustomText | AnchoredText:
+def add_inner_title(ax, title, loc, strokewidth=..., stroke_foreground=..., stroke_alpha=..., text_foreground=..., font_size=..., text_alpha=..., use_AnchoredCustomText: bool = ..., **kwargs): # -> AnchoredCustomText:
     """
     Add a figure title inside the border of the figure (instead of outside).
 
@@ -117,7 +117,7 @@ def set_ax_emphasis_color(ax, emphasis_color=..., defer_draw: bool = ...): # -> 
     """
     ...
 
-def add_selection_patch(ax, selection_color=..., alpha=..., zorder=..., action_button_configs=..., debug_print=..., defer_draw: bool = ...): # -> tuple[Rectangle, CheckButtons | None]:
+def add_selection_patch(ax, selection_color=..., alpha=..., zorder=..., action_button_configs=..., debug_print=..., defer_draw: bool = ...): # -> tuple[Any, Any | None]:
     """ adds a rectangle behind the ax, sticking out to the right side by default.
     
     Can be toggled on/off via 
@@ -126,7 +126,7 @@ def add_selection_patch(ax, selection_color=..., alpha=..., zorder=..., action_b
     """
     ...
 
-def build_or_reuse_figure(fignum=..., fig=..., fig_idx: int = ..., **kwargs): # -> Figure:
+def build_or_reuse_figure(fignum=..., fig=..., fig_idx: int = ..., **kwargs):
     """ Reuses a Matplotlib figure if it exists, or creates a new one if needed
     Inputs:
         fignum - an int or str that identifies a figure
@@ -313,11 +313,11 @@ class FormattedFigureText:
     def setup_margins(self, fig, **kwargs): # -> None:
         ...
     
-    def add_flexitext_context_footer(self, active_context, override_left_margin_multipler: float = ..., override_bottom_margin_multiplier: float = ...): # -> AnnotationBbox:
+    def add_flexitext_context_footer(self, active_context, override_left_margin_multipler: float = ..., override_bottom_margin_multiplier: float = ...):
         """ adds the default footer  """
         ...
     
-    def add_flexitext(self, fig, active_context, **kwargs): # -> tuple[AnnotationBbox, AnnotationBbox]:
+    def add_flexitext(self, fig, active_context, **kwargs): # -> tuple[Any, Any]:
         ...
     
     @classmethod
@@ -327,11 +327,11 @@ class FormattedFigureText:
     
 
 
-def plot_position_curves_figure(position_obj, include_velocity=..., include_accel=..., figsize=...): # -> tuple[Figure, list[Any]]:
+def plot_position_curves_figure(position_obj, include_velocity=..., include_accel=..., figsize=...): # -> tuple[Any, list[Any]]:
     """ Renders a figure with a position curve and optionally its higher-order derivatives """
     ...
 
-def draw_epoch_regions(epoch_obj, curr_ax, facecolor=..., edgecolors=..., alpha=..., labels_kwargs=..., defer_render=..., debug_print=..., **kwargs): # -> tuple[list[Any], list[Any] | None] | tuple[BrokenBarHCollection, list[Any] | None]:
+def draw_epoch_regions(epoch_obj, curr_ax, facecolor=..., edgecolors=..., alpha=..., labels_kwargs=..., defer_render=..., debug_print=..., **kwargs): # -> tuple[list[Any], list[Any] | None] | tuple[Any, list[Any] | None]:
     """ plots epoch rectangles with customizable color, edgecolor, and labels on an existing matplotlib axis
     2022-12-14
 
@@ -385,7 +385,7 @@ def draw_epoch_regions(epoch_obj, curr_ax, facecolor=..., edgecolors=..., alpha=
     """
     ...
 
-def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj): # -> tuple[Figure, list[Any]]:
+def plot_overlapping_epoch_analysis_diagnoser(position_obj, epoch_obj): # -> tuple[Any, list[Any]]:
     """ builds a MATPLOTLIB figure showing the position and velocity overlayed by the epoch intervals in epoch_obj. Useful for diagnosing overlapping epochs.
     Usage:
         from neuropy.utils.matplotlib_helpers import plot_overlapping_epoch_analysis_diagnoser
@@ -512,7 +512,7 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name=..., 
     """
     ...
 
-def perform_update_title_subtitle(fig, ax, title_string: Optional[str], subtitle_string: Optional[str], active_context=..., use_flexitext_titles=...): # -> AnnotationBbox | None:
+def perform_update_title_subtitle(fig, ax, title_string: Optional[str], subtitle_string: Optional[str], active_context=..., use_flexitext_titles=...): # -> None:
     """ Only updates the title/subtitle if the value is not None
     
     Usage:

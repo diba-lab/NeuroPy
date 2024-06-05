@@ -165,6 +165,9 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         ...
     
     def time_slice(self, t_start, t_stop) -> pd.DataFrame:
+        """ trim the epochs down to the provided time range
+        
+        """
         ...
     
     def label_slice(self, label) -> pd.DataFrame:
@@ -183,7 +186,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """
         ...
     
-    def matching_epoch_times_slice(self, epoch_times: NDArray, atol: float = ...) -> pd.DataFrame:
+    def matching_epoch_times_slice(self, epoch_times: NDArray, atol: float = ..., t_column_names=...) -> pd.DataFrame:
         """ slices the dataframe to return only the rows that match the epoch_times with some tolerance.
         
         Internally calls self.find_data_indicies_from_epoch_times(...)
@@ -195,10 +198,10 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         ...
     
     @classmethod
-    def from_PortionInterval(cls, portion_interval): # -> DataFrame[Any]:
+    def from_PortionInterval(cls, portion_interval):
         ...
     
-    def to_PortionInterval(self): # -> Interval:
+    def to_PortionInterval(self):
         ...
     
     def adding_active_aclus_information(self, spikes_df: pd.DataFrame, epoch_id_key_name: str = ..., add_unique_aclus_list_column: bool = ...) -> pd.DataFrame:
@@ -340,7 +343,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         ...
     
-    def __getitem__(self, slice_): # -> NDArray[Any]:
+    def __getitem__(self, slice_):
         """ Allows pass-thru indexing like it were a numpy array.
 
         2024-03-07 Potentially more dangerous than helpful.
@@ -407,14 +410,14 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def get_proportion_by_label(self, t_start=..., t_stop=...): # -> dict[Any, Any]:
         ...
     
-    def count(self, t_start=..., t_stop=..., binsize=...): # -> NDArray[Any]:
+    def count(self, t_start=..., t_stop=..., binsize=...):
         ...
     
     def to_neuroscope(self, ext=...): # -> Path:
         """ exports to a Neuroscope compatable .evt file. """
         ...
     
-    def as_array(self): # -> ndarray[Any, Any]:
+    def as_array(self):
         ...
     
     @classmethod

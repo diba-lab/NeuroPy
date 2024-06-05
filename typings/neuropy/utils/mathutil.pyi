@@ -69,24 +69,24 @@ def compute_grid_bin_bounds(*args): # -> tuple[Any, ...]:
     """
     ...
 
-def cdf(x, bins): # -> NDArray[Any]:
+def cdf(x, bins):
     """Returns cummulative distribution for x at bins"""
     ...
 
-def partialcorr(x, y, z): # -> Any:
+def partialcorr(x, y, z):
     """
     correlation between x and y , with controlling for z
     """
     ...
 
-def parcorr_mult(x, y, z): # -> tuple[NDArray[float64], NDArray[float64]]:
+def parcorr_mult(x, y, z): # -> tuple[Any, Any]:
     """
     correlation between multidimensional x and y , with controlling for multidimensional z
 
     """
     ...
 
-def parcorr_muglt(x, y, z): # -> tuple[NDArray[float64], NDArray[float64]]:
+def parcorr_muglt(x, y, z): # -> tuple[Any, Any]:
     """
     correlation between multidimensional x and y , with controlling for multidimensional z
 
@@ -104,10 +104,10 @@ def getICA_Assembly(x):
     """
     ...
 
-def threshPeriods(sig, lowthresh=..., highthresh=..., minDistance=..., minDuration=...): # -> NDArray[Any]:
+def threshPeriods(sig, lowthresh=..., highthresh=..., minDistance=..., minDuration=...):
     ...
 
-def contiguous_regions(condition): # -> Any | NDArray[signedinteger[_NBitIntP]]:
+def contiguous_regions(condition):
     """Finds contiguous True regions of the boolean array "condition". Returns
     a 2D array where the first column is the start index of the region and the
     second column is the end index. Taken directly from stackoverflow:
@@ -128,10 +128,10 @@ def contiguous_regions(condition): # -> Any | NDArray[signedinteger[_NBitIntP]]:
     """
     ...
 
-def hmmfit1d(Data, n_comp=..., n_iter=...): # -> NDArray[Any] | None:
+def hmmfit1d(Data, n_comp=..., n_iter=...): # -> None:
     ...
 
-def eventpsth(ref, event, fs, quantparam=..., binsize=..., window=..., nQuantiles=...): # -> ndarray[Any, dtype[Any]] | ndarray[Any, dtype[int32]]:
+def eventpsth(ref, event, fs, quantparam=..., binsize=..., window=..., nQuantiles=...):
     """psth of 'event' with respect to 'ref'
 
     Parameters

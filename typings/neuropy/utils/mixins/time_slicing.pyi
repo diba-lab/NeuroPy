@@ -64,7 +64,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     def __init__(self, pandas_obj) -> None:
         ...
     
-    def time_slice(self, t_start=..., t_stop=...): # -> DataFrame[Any]:
+    def time_slice(self, t_start=..., t_stop=...):
         """ Implementors return a copy of themselves with each of their members sliced at the specified indicies """
         ...
     

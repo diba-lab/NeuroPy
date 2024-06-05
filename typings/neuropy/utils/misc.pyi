@@ -28,6 +28,10 @@ def is_iterable(value): # -> bool:
         value ([type]): [description]
     Returns:
         [type]: [description]
+    
+    Usage:
+        from neuropy.utils.misc import is_iterable
+
     """
     ...
 
@@ -81,7 +85,7 @@ def copy_if_not_none(val): # -> None:
     """ solves the problem of AttributeError: 'NoneType' object has no attribute 'copy', gracefully passing None through if the value is None and copying it otherwise. """
     ...
 
-def shuffle_ids(neuron_ids, seed: Optional[int] = ...): # -> tuple[Any, NDArray[Any]]:
+def shuffle_ids(neuron_ids, seed: Optional[int] = ...): # -> tuple[Any, Any]:
     """ Shuffles the neuron_ids list, and returns the shuffled list and the shuffle indicies. The shuffle indicies can be used to shuffle other lists in the same way. 
 
     Input:

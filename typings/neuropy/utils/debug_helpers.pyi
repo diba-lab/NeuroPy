@@ -75,13 +75,13 @@ def safely_accepts_kwargs(fn): # -> Callable[..., Any]:
 def debug_print_ratemap(ratemap): # -> None:
     ...
 
-def debug_print_placefield(active_epoch_placefield, short=...): # -> DataFrame[Any]:
+def debug_print_placefield(active_epoch_placefield, short=...):
     ...
 
 def debug_print_spike_counts(session): # -> None:
     ...
 
-def debug_plot_2d_binning(xbin, ybin, xbin_center, ybin_center): # -> Figure:
+def debug_plot_2d_binning(xbin, ybin, xbin_center, ybin_center):
     """ Displays the locations of the x & y bins and their center equivalents on a 2D plot
     Usage: 
         fig = debug_plot_2d_binning(active_epoch_placefields2D.ratemap.xbin, active_epoch_placefields2D.ratemap.ybin, active_epoch_placefields2D.ratemap.xbin_centers, active_epoch_placefields2D.ratemap.ybin_centers)

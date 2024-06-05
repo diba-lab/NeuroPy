@@ -46,6 +46,7 @@ class FileProgressAction(ExtendedEnum):
     """
     LOADING = ...
     SAVING = ...
+    COMPUTING = ...
     GENERIC = ...
     @classmethod
     def init(cls, name=..., value=..., fallback_value=...): # -> ExtendedEnum:
@@ -53,17 +54,26 @@ class FileProgressAction(ExtendedEnum):
         ...
     
     @property
-    def actionVerb(self):
+    def actionVerb(self) -> str:
+        ...
+    
+    @property
+    def hasPath(self) -> bool:
         ...
     
     @classmethod
     def actionVerbsList(cls): # -> dict[Any, Any]:
         ...
     
+    @classmethod
+    def hasPathList(cls): # -> dict[Any, Any]:
+        ...
+    
 
 
-def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=..., returns_string=...): # -> str | None:
-    """[summary]
+def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=..., returns_string: bool = ...) -> Optional[str]:
+    """Prints a specific progress message related to an action (e.g. loading/saving) performed on a filepath
+
         
         print('Saving ripple epochs results to {}...'.format(ripple_epochs.filename), end=' ')
         ripple_epochs.save()
@@ -77,7 +87,16 @@ def print_file_progress_message(filepath, action: str, contents_description: str
     ...
 
 class ProgressMessagePrinter:
-    def __init__(self, filepath, action: str, contents_description: str, print_line_ending=..., finished_message=..., returns_string=...) -> None:
+    """ a context-handler that wraps an action such as loading/saving a file or a computation and prints (optionally properlly indendented) messages at its start and completion. 
+        
+    Usage:
+        from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
+    
+        with ProgressMessagePrinter('build_spike_dataframe(...)', action='Computing', contents_description='flattened_spike_identities'):
+            flattened_spike_identities = np.concatenate([np.full((active_session.neurons.n_spikes[i],), active_session.neurons.neuron_ids[i]) for i in np.arange(active_session.neurons.n_neurons)]) # repeat the neuron_id for each spike that belongs to that neuron
+    
+    """
+    def __init__(self, filepath, action: str, contents_description: str, print_line_ending: str = ..., finished_message: str = ..., returns_string: bool = ...) -> None:
         ...
     
     def __enter__(self): # -> None:

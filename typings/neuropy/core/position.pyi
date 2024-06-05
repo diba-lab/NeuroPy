@@ -12,7 +12,7 @@ from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 from neuropy.utils.mixins.HDF5_representable import HDFMixin
 
-def build_position_df_time_window_idx(active_pos_df: pd.DataFrame, curr_active_time_windows, debug_print=...): # -> DataFrame[Any]:
+def build_position_df_time_window_idx(active_pos_df: pd.DataFrame, curr_active_time_windows, debug_print=...):
     """ adds the time_window_idx column to the active_pos_df
     Usage:
         curr_active_time_windows = np.array(pho_custom_decoder.active_time_windows)
@@ -101,7 +101,7 @@ class PositionDimDataMixin:
         ...
     
     @property
-    def ndim(self): # -> bool_:
+    def ndim(self):
         """ returns the count of the spatial columns that the dataframe has """
         ...
     
@@ -128,7 +128,7 @@ class PositionComputedDataMixin:
         """
         ...
     
-    def compute_higher_order_derivatives(self): # -> DataFrame[Any]:
+    def compute_higher_order_derivatives(self):
         """Computes the higher-order positional derivatives for all spatial dimensional components of self.df. Adds the dt, velocity, and acceleration columns
         """
         ...
@@ -141,7 +141,7 @@ class PositionComputedDataMixin:
         """
         ...
     
-    def compute_smoothed_position_info(self, N: int = ..., non_smoothed_column_labels=...): # -> DataFrame[Any]:
+    def compute_smoothed_position_info(self, N: int = ..., non_smoothed_column_labels=...):
         """Computes smoothed position variables and adds them as columns to the internal dataframe
         Args:
             N (int, optional): Number of previous samples to smooth over. Defaults to 20.
@@ -156,7 +156,7 @@ class PositionComputedDataMixin:
         ...
     
     @property
-    def linear_pos(self): # -> ndarray[Any, Any]:
+    def linear_pos(self):
         ...
     
     @linear_pos.setter
@@ -172,27 +172,27 @@ class PositionComputedDataMixin:
         ...
     
     @property
-    def speed(self): # -> ndarray[Any, Any]:
+    def speed(self):
         ...
     
     @property
-    def dt(self): # -> ndarray[Any, Any]:
+    def dt(self):
         ...
     
     @property
-    def velocity_x(self): # -> ndarray[Any, Any]:
+    def velocity_x(self):
         ...
     
     @property
-    def acceleration_x(self): # -> ndarray[Any, Any]:
+    def acceleration_x(self):
         ...
     
     @property
-    def velocity_y(self): # -> ndarray[Any, Any]:
+    def velocity_y(self):
         ...
     
     @property
-    def acceleration_y(self): # -> ndarray[Any, Any]:
+    def acceleration_y(self):
         ...
     
 
@@ -240,7 +240,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
         """
         ...
     
-    def time_slice_indicies(self, t_start, t_stop): # -> Index:
+    def time_slice_indicies(self, t_start, t_stop):
         ...
     
     @classmethod
@@ -254,7 +254,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
         ...
     
     @property
-    def df(self): # -> DataFrame[Any]:
+    def df(self):
         ...
     
     @df.setter
@@ -262,7 +262,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
         ...
     
     @property
-    def sampling_rate(self): # -> floating[Any]:
+    def sampling_rate(self):
         ...
     
     @sampling_rate.setter
@@ -276,7 +276,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
     def from_dict(d): # -> Position:
         ...
     
-    def to_dataframe(self): # -> DataFrame[Any]:
+    def to_dataframe(self):
         ...
     
     def speed_in_epochs(self, epochs: Epoch): # -> None:

@@ -22,11 +22,11 @@ class HDF_SerializationType(Enum):
     DATASET = ...
     ATTRIBUTE = ...
     @property
-    def required_tag(self): # -> Any:
+    def required_tag(self):
         ...
     
     @classmethod
-    def requiredClassTags(cls): # -> NDArray[Any]:
+    def requiredClassTags(cls):
         ...
     
 
@@ -75,4 +75,18 @@ def serialized_field(default: Optional[Any] = ..., is_computable: bool = ..., se
 def serialized_attribute_field(default: Optional[Any] = ..., is_computable: bool = ..., serialization_fn: Optional[Callable] = ..., metadata: Optional[Dict[str, Any]] = ..., **kwargs) -> field:
     """ marks a specific field to be serialized as an HDF5 attribute on the group for this object """
     ...
+
+class SimpleFieldSizesReprMixin:
+    """ Defines the __repr__ for implementors that only renders the implementors fields and their sizes
+
+    from neuropy.utils.mixins.AttrsClassHelpers import SimpleFieldSizesReprMixin
+
+    
+    """
+    def __repr__(self): # -> str:
+        """ 2024-01-11 - Renders only the fields and their sizes
+        """
+        ...
+    
+
 
