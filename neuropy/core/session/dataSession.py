@@ -91,7 +91,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
     #######################################################
     ## Passthru Accessor Properties:
     @property
-    def is_resolved(self):
+    def is_resolved(self) -> bool:
         return self.config.is_resolved
     @property
     def basepath(self):
@@ -143,7 +143,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         return self.paradigm.t_stop
     
     @property
-    def has_replays(self):
+    def has_replays(self) -> bool:
         """The has_replays property."""
         if not hasattr(self, 'replay'):
             return False
@@ -711,7 +711,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         with h5py.File(file_path, 'r+') as f:
             dataset = f[key]
             metadata = {
-                'is_loaded': self.is_loaded,
+                'is_loaded': bool(self.is_loaded),
                 'filePrefix': str(self.filePrefix),
                 'format_name': self.config.format_name,
                 'session_name': self.config.session_name,
