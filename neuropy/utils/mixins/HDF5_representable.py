@@ -217,14 +217,13 @@ class HDF_Converter:
     @staticmethod
     def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
         """ value: dict-like """
-        if isinstance(f, h5py.File):
+        if isinstance(f, (h5py.File, h5py.AttributeManager, h5py.Group, h5py.HLObject)):
             for sub_k, sub_v in value.items():
                 f[f'{key}/{sub_k}'] = sub_v
         else:
-            with h5py.File(f, "a") as f:
+            with h5py.File(f, "a") as f: # TypeError: expected str, bytes or os.PathLike object, not AttributeManager
                 for sub_k, sub_v in value.items():
                     f[f'{key}/{sub_k}'] = sub_v
-
 
     # @staticmethod
     # def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
