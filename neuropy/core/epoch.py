@@ -1043,7 +1043,7 @@ def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
         Usage:
 
         from neuropy.core.epoch import ensure_dataframe
-        
+
     """
     if isinstance(epochs, pd.DataFrame):
         return epochs
@@ -1051,3 +1051,49 @@ def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
         return epochs.to_dataframe()
 
 
+def subdivide_epochs(df: pd.DataFrame, subdivide_bin_size: float, start_col='start', stop_col='stop') -> pd.DataFrame:
+    """ splits each epoch into equally sized chunks determined by subidivide_bin_size.
+    
+    # Example usage
+        from neuropy.core.epoch import subdivide_epochs, ensure_dataframe
+
+        df: pd.DataFrame = ensure_dataframe(deepcopy(long_LR_epochs_obj)) 
+        df['epoch_type'] = 'lap'
+        df['interval_type_id'] = 666
+
+        subdivide_bin_size = 0.100  # Specify the size of each sub-epoch in seconds
+        subdivided_df: pd.DataFrame = subdivide_epochs(df, subdivide_bin_size)
+        print(subdivided_df)
+
+    """
+    sub_epochs = []
+
+    extra_column_names = list(set(df.columns) - set([start_col, stop_col, 'label', 'duration', 'lap_id', 'lap_dir', 'epoch_t_bin_idx', 'epoch_num_t_bins']))
+    # print(f'extra_column_names: {extra_column_names}')
+
+    for index, row in df.iterrows():
+        start = row[start_col]
+        stop = row[stop_col]
+        
+        duration = stop - start
+        num_bins: int = int(duration / subdivide_bin_size) + 1
+        
+        for i in range(num_bins):
+            sub_start = start + (i * subdivide_bin_size)
+            sub_stop = min(start + (i + 1) * subdivide_bin_size, stop)
+            sub_duration = sub_stop - sub_start
+            
+            sub_epochs.append({
+                start_col: sub_start,
+                stop_col: sub_stop,
+                'label': row['label'],
+                'duration': sub_duration,
+                'lap_id': row['lap_id'],
+                'lap_dir': row['lap_dir'],
+                'epoch_t_bin_idx': i,
+                'epoch_num_t_bins': num_bins,
+                **{k:row[k] for k in extra_column_names},
+            })
+    
+    sub_epochs_df = pd.DataFrame(sub_epochs)
+    return sub_epochs_df
