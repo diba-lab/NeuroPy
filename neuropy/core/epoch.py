@@ -955,6 +955,44 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
                 a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
         return out_filepath
 
+    @classmethod
+    def from_neuroscope(cls, in_filepath):
+        """ imports from a Neuroscope compatible .evt file.
+        Usage:
+            from neuropy.core.epoch import Epoch
+
+            evt_filepath = Path('/Users/pho/Downloads/2006-6-07_16-40-19.bst.evt').resolve()
+            # evt_filepath = Path('/Users/pho/Downloads/2006-6-08_14-26-15.bst.evt').resolve()
+            evt_epochs: Epoch = Epoch.from_neuroscope(in_filepath=evt_filepath)
+            evt_epochs
+
+        """
+        if isinstance(in_filepath, str):
+            in_filepath = Path(in_filepath).resolve()
+        assert in_filepath.exists()
+
+        # Read the .evt file and reconstruct the data
+        data = []
+        with in_filepath.open("r") as f:
+            lines = f.readlines()
+            for line in lines:
+                parts = line.strip().split()
+                if len(parts) == 2:
+                    timestamp: float = float(parts[0]) / 1000.0
+                    event_type = parts[1]
+                    if event_type in ['start', 'st']:
+                        start = timestamp
+                    elif event_type in ['end', 'e']:
+                        end = timestamp
+                        data.append({'start': start, 'stop': end})
+
+        # Convert the reconstructed data into a DataFrame
+        df = pd.DataFrame(data)
+        df['label'] = df.index.astype('str', copy=True)
+        _obj = cls.from_dataframe(df=df)
+        _obj.filename = in_filepath.stem
+        return _obj
+        
     def as_array(self):
         return self.to_dataframe()[["start", "stop"]].to_numpy()
 
