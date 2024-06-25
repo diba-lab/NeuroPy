@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict, Optional, OrderedDict # PlacefieldSnapshot
+from typing import Dict, Optional, OrderedDict, Union # PlacefieldSnapshot
 from attrs import define, field, filters, asdict, astuple, Factory
 import h5py
 import pandas as pd
@@ -363,7 +363,7 @@ class PfND_TimeDependent(PfND):
                     self.snapshot()
                     
 
-    def batch_snapshotting(self, combined_records_list, reset_at_start:bool = True, debug_print=False):
+    def batch_snapshotting(self, combined_records_list, reset_at_start:bool = True, debug_print=False) -> Dict[float, PlacefieldSnapshot]:
         """ Updates sequentially, snapshotting each time.
 
         combined_records_list: can be an Epoch object, a epoch-formatted pd.DataFrame, or a series of tuples to convert into combined_records_list

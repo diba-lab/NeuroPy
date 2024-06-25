@@ -1039,6 +1039,12 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
 
 def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
+    """ 
+        Usage:
+
+        from neuropy.core.epoch import ensure_dataframe
+        
+    """
     if isinstance(epochs, pd.DataFrame):
         return epochs
     else:
