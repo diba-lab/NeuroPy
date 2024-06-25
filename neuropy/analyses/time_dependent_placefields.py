@@ -1,5 +1,4 @@
 from copy import deepcopy
-from typing import Dict, Optional, OrderedDict, Union # PlacefieldSnapshot
 from attrs import define, field, filters, asdict, astuple, Factory
 import h5py
 import pandas as pd
@@ -20,6 +19,12 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol #
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field, custom_define
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
+from typing import Dict, OrderedDict, List, Tuple, Optional, Callable, Union, Any
+from typing_extensions import TypeAlias
+from typing import NewType
+import neuropy.utils.type_aliases as types
+
+SnapshotTimestamp = NewType('SnapshotTimestamp', float)
 
 ## On saving:
 # 2023-04-20 - AttributeError: 'PfND_TimeDependent' object has no attribute '_included_thresh_neurons_indx'
@@ -153,7 +158,7 @@ class PfND_TimeDependent(PfND):
         filtered_pos_df, filtered_spikes_df, ratemap
     """
     last_t: float = np.finfo('float').max # set to maximum value (so all times are included) just for setup.
-    historical_snapshots: Dict[float, PlacefieldSnapshot] = Factory(dict)
+    historical_snapshots: Dict[SnapshotTimestamp, PlacefieldSnapshot] = Factory(dict)
     fragile_linear_neuron_IDXs: np.array = None
     n_fragile_linear_neuron_IDXs: int = None
     # _included_thresh_neurons_indx: np.array
@@ -363,7 +368,7 @@ class PfND_TimeDependent(PfND):
                     self.snapshot()
                     
 
-    def batch_snapshotting(self, combined_records_list, reset_at_start:bool = True, debug_print=False) -> Dict[float, PlacefieldSnapshot]:
+    def batch_snapshotting(self, combined_records_list, reset_at_start:bool = True, debug_print=False) -> Dict[SnapshotTimestamp, PlacefieldSnapshot]:
         """ Updates sequentially, snapshotting each time.
 
         combined_records_list: can be an Epoch object, a epoch-formatted pd.DataFrame, or a series of tuples to convert into combined_records_list
