@@ -76,7 +76,10 @@ class TimeColumnAliasesProtocol:
         """
         if required_columns_synonym_dict is None:
             required_columns_synonym_dict = cls._time_column_name_synonyms
-            
+        
+        if not isinstance(df, pd.DataFrame):
+            df = df.to_dataframe()
+        
         for preferred_column_name, replacement_set in required_columns_synonym_dict.items():
             if preferred_column_name not in df.columns:
                 # try to rename based on synonyms
