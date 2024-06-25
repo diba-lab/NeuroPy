@@ -457,7 +457,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## Replays:
         try:
             session, replays_df = cls._default_kdiba_spikeII_load_replays_vars(session, time_variable_name=active_time_variable_name)
-        except Exception as e:
+        except BaseException as e:
             print(f'session.replays could not be loaded from .replay_info.mat due to error {e}. Skipping (will be unavailable)')
         else:
             # Successful!
