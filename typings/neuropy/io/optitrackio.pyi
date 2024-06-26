@@ -17,7 +17,7 @@ def getunits(fileName):
     """determine if position data is in centimeters or meters"""
     ...
 
-def posfromCSV(fileName): # -> tuple[Any, Any, Any, Any]:
+def posfromCSV(fileName): # -> tuple[ndarray[Any, dtype[Any]] | NDArray[signedinteger[Any]], ndarray[Any, dtype[Any]] | NDArray[signedinteger[Any]], ndarray[Any, dtype[Any]] | NDArray[signedinteger[Any]], ndarray[Any, dtype[Any]]]:
     """Import position data from OptiTrack CSV file"""
     ...
 
@@ -25,7 +25,7 @@ def interp_missing_pos(x, y, z, t): # -> tuple[Any, Any, Any]:
     """Interpolate missing data points"""
     ...
 
-def posfromFBX(fileName): # -> tuple[Any, Any, Any]:
+def posfromFBX(fileName): # -> tuple[NDArray[Any], NDArray[Any], NDArray[Any]]:
     ...
 
 def getStartTime(fileName): # -> datetime:
@@ -45,7 +45,7 @@ class OptitrackIO:
     def __init__(self, dirname, scale_factor=...) -> None:
         ...
     
-    def get_position_at_datetimes(self, dt): # -> tuple[Any, Any, Any]:
+    def get_position_at_datetimes(self, dt): # -> tuple[NDArray[float64], NDArray[float64], NDArray[float64]]:
         ...
     
     def old_stuff(self): # -> None:

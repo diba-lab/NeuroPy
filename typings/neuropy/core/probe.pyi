@@ -69,7 +69,7 @@ class Shank:
     def set_disconnected_channels(self, channel_ids): # -> None:
         ...
     
-    def to_dataframe(self):
+    def to_dataframe(self): # -> DataFrame[Any]:
         ...
     
     def move(self, translation): # -> None:
@@ -90,11 +90,11 @@ class Probe:
         ...
     
     @property
-    def shank_id(self):
+    def shank_id(self): # -> ArrayLike:
         ...
     
     @property
-    def x(self):
+    def x(self): # -> ArrayLike:
         ...
     
     @property
@@ -102,24 +102,24 @@ class Probe:
         ...
     
     @property
-    def y(self):
+    def y(self): # -> ArrayLike:
         ...
     
     @property
-    def channel_id(self):
+    def channel_id(self): # -> ArrayLike:
         ...
     
     @property
-    def connected(self):
+    def connected(self): # -> ArrayLike:
         ...
     
     def add_shanks(self, shanks: Shank, shank_pitch=...): # -> None:
         ...
     
-    def to_dict(self, recurrsively=...):
+    def to_dict(self, recurrsively=...): # -> dict[Hashable, Any]:
         ...
     
-    def to_dataframe(self):
+    def to_dataframe(self): # -> DataFrame[Any]:
         ...
     
     def move(self, translation): # -> None:
@@ -132,7 +132,7 @@ class ProbeGroup(DataWriter):
         ...
     
     @property
-    def x(self):
+    def x(self): # -> ArrayLike:
         ...
     
     @property
@@ -144,7 +144,7 @@ class ProbeGroup(DataWriter):
         ...
     
     @property
-    def y(self):
+    def y(self): # -> ArrayLike:
         ...
     
     @property
@@ -160,14 +160,14 @@ class ProbeGroup(DataWriter):
         ...
     
     @property
-    def channel_id(self):
+    def channel_id(self): # -> ArrayLike:
         ...
     
     @property
-    def shank_id(self):
+    def shank_id(self): # -> ArrayLike:
         ...
     
-    def get_channels(self, groupby=...):
+    def get_channels(self, groupby=...): # -> NDArray[Any]:
         ...
     
     def get_shank_id_for_channels(self, channel_id):
@@ -188,11 +188,11 @@ class ProbeGroup(DataWriter):
     def get_probe(self): # -> None:
         ...
     
-    def get_connected_channels(self, groupby=...):
+    def get_connected_channels(self, groupby=...): # -> NDArray[Any]:
         ...
     
     @property
-    def probe_id(self):
+    def probe_id(self): # -> ArrayLike:
         ...
     
     @property
@@ -204,7 +204,7 @@ class ProbeGroup(DataWriter):
         ...
     
     @property
-    def get_disconnected(self):
+    def get_disconnected(self): # -> DataFrame[Any]:
         ...
     
     def add_probe(self, probe: Probe): # -> None:
@@ -217,7 +217,7 @@ class ProbeGroup(DataWriter):
     def from_dict(d: dict): # -> ProbeGroup:
         ...
     
-    def to_dataframe(self):
+    def to_dataframe(self): # -> DataFrame[Any]:
         ...
     
     def remove_probes(self, probe_id=...): # -> None:

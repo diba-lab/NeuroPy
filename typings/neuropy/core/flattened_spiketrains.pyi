@@ -47,7 +47,7 @@ class SpikesAccessor(TimeSlicedMixin):
         ...
     
     @property
-    def n_total_spikes(self):
+    def n_total_spikes(self): # -> int:
         ...
     
     @property
@@ -62,7 +62,7 @@ class SpikesAccessor(TimeSlicedMixin):
         """ gets the slice of spikes with the specified `included_neuron_ids` """
         ...
     
-    def get_unit_spiketrains(self, included_neuron_ids=...):
+    def get_unit_spiketrains(self, included_neuron_ids=...): # -> NDArray[Any]:
         """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
         ...
     
@@ -179,20 +179,20 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
         ...
     
     @property
-    def spikes_df(self):
+    def spikes_df(self): # -> DataFrame[Any]:
         """The spikes_df property."""
         ...
     
     @property
-    def flattened_sort_indicies(self):
+    def flattened_sort_indicies(self): # -> ArrayLike:
         ...
     
     @property
-    def flattened_spike_identities(self):
+    def flattened_spike_identities(self): # -> ArrayLike:
         ...
     
     @property
-    def flattened_spike_times(self):
+    def flattened_spike_times(self): # -> ArrayLike:
         ...
     
     def to_dict(self, recurrsively=...): # -> dict[str, Any]:
@@ -202,7 +202,7 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
     def from_dict(d: dict): # -> FlattenedSpiketrains:
         ...
     
-    def to_dataframe(self):
+    def to_dataframe(self): # -> DataFrame[Any]:
         ...
     
     def time_slice(self, t_start=..., t_stop=...): # -> FlattenedSpiketrains:
@@ -226,7 +226,7 @@ class FlattenedSpiketrains(HDFMixin, ConcatenationInitializable, NeuronUnitSlica
         ...
     
     @staticmethod
-    def build_spike_dataframe(active_session, timestamp_scale_factor=..., spike_timestamp_column_name=..., progress_tracing=...):
+    def build_spike_dataframe(active_session, timestamp_scale_factor=..., spike_timestamp_column_name=..., progress_tracing=...): # -> DataFrame[Any]:
         """ Builds the spike_df from the active_session's .neurons object.
 
         Args:

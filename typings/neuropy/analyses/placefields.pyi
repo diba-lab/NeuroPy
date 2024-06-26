@@ -39,17 +39,17 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
         ...
     
     @property
-    def grid_bin_1D(self): # -> tuple[int, int] | <subclass of int and tuple> | <subclass of int and list> | int:
+    def grid_bin_1D(self): # -> generic | bool | int | float | complex | str | bytes | memoryview:
         """The grid_bin_1D property."""
         ...
     
     @property
-    def grid_bin_bounds_1D(self): # -> tuple[Any | None, Any | None] | tuple[Any, ...] | list[Any] | None:
+    def grid_bin_bounds_1D(self): # -> generic | bool | int | float | complex | str | bytes | memoryview | None:
         """The grid_bin_bounds property."""
         ...
     
     @property
-    def smooth_1D(self): # -> tuple[int, int] | <subclass of int and tuple> | <subclass of int and list> | int:
+    def smooth_1D(self): # -> generic | bool | int | float | complex | str | bytes | memoryview:
         """The smooth_1D property."""
         ...
     
@@ -115,7 +115,7 @@ class PfnDMixin(SimplePrintable):
         ...
     
     @safely_accepts_kwargs
-    def plot_raw(self, subplots=..., fignum=..., alpha=..., label_cells=..., ax=..., clus_use=...): # -> None:
+    def plot_raw(self, subplots=..., fignum=..., alpha=..., label_cells=..., ax=..., clus_use=...): # -> Figure | None:
         """ Plots the Placefield raw spiking activity for all cells"""
         ...
     
@@ -136,7 +136,7 @@ class PfnDMixin(SimplePrintable):
         ...
     
     @safely_accepts_kwargs
-    def plot_all(self, cellind, speed_thresh=..., spikes_color=..., spikes_alpha=..., fig=...):
+    def plot_all(self, cellind, speed_thresh=..., spikes_color=..., spikes_alpha=..., fig=...): # -> Figure:
         ...
     
 
@@ -304,15 +304,15 @@ class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresent
         ...
     
     @property
-    def xbin_centers(self):
+    def xbin_centers(self): # -> NDArray[floating[Any]]:
         ...
     
     @property
-    def ybin_centers(self):
+    def ybin_centers(self): # -> NDArray[floating[Any]]:
         ...
     
     @property
-    def filtered_spikes_df(self):
+    def filtered_spikes_df(self): # -> DataFrame[Any]:
         """The filtered_spikes_df property."""
         ...
     
@@ -321,7 +321,7 @@ class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresent
         ...
     
     @property
-    def filtered_pos_df(self):
+    def filtered_pos_df(self): # -> DataFrame[Any]:
         """The filtered_pos_df property."""
         ...
     
@@ -366,11 +366,11 @@ class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresent
         ...
     
     @property
-    def never_visited_occupancy_mask(self):
+    def never_visited_occupancy_mask(self): # -> NDArray:
         ...
     
     @property
-    def nan_never_visited_occupancy(self):
+    def nan_never_visited_occupancy(self): # -> NDArray:
         ...
     
     @property
@@ -425,7 +425,7 @@ class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresent
         ...
     
     @property
-    def included_neuron_IDXs(self):
+    def included_neuron_IDXs(self): # -> ndarray[Any, Any]:
         """The neuron INDEXES, NOT IDs (not 'aclu' values) that were included after filtering by frate and etc. """
         ...
     
@@ -468,7 +468,7 @@ class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresent
         ...
     
     @classmethod
-    def filtered_by_speed(cls, epochs_df: pd.DataFrame, position_df: pd.DataFrame, speed_thresh: Optional[float], speed_column_override_name: Optional[str] = ..., debug_print: bool = ...):
+    def filtered_by_speed(cls, epochs_df: pd.DataFrame, position_df: pd.DataFrame, speed_thresh: Optional[float], speed_column_override_name: Optional[str] = ..., debug_print: bool = ...): # -> DataFrame[Any]:
         """ Filters the position_df by speed and epoch_df correctly, so we can get actual occupancy.
         2023-11-14 - 
         
@@ -486,10 +486,10 @@ class PfND(HDFMixin, AttrsBasedClassHelperMixin, ContinuousPeakLocationRepresent
     def str_for_display(self, prefix_string=...): # -> str:
         ...
     
-    def to_dict(self):
+    def to_dict(self): # -> Dict[str, Any]:
         ...
     
-    def __getstate__(self):
+    def __getstate__(self): # -> Dict[str, Any]:
         ...
     
     def __setstate__(self, state): # -> None:

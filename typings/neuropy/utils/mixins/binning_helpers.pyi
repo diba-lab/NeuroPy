@@ -22,7 +22,7 @@ def get_bin_centers(bin_edges):
     """ For a series of 1D bin edges given by bin_edges, returns the center of the bins. Output will have one less element than bin_edges. """
     ...
 
-def get_bin_edges(bin_centers):
+def get_bin_edges(bin_centers): # -> NDArray[Any]:
     """ For a series of 1D bin centers given by bin_centers, returns the edges of the bins. Output will have one more element than bin_centers
         Reciprocal of get_bin_centers(bin_edges)
     """
@@ -66,7 +66,7 @@ class BinningContainer:
     
 
 
-def compute_spanning_bins(variable_values, num_bins: int = ..., bin_size: float = ..., variable_start_value: float = ..., variable_end_value: float = ...): # -> tuple[Any, BinningInfo]:
+def compute_spanning_bins(variable_values, num_bins: int = ..., bin_size: float = ..., variable_start_value: float = ..., variable_end_value: float = ...): # -> tuple[NDArray[floating[Any]], BinningInfo]:
     """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
 
 
@@ -96,7 +96,7 @@ def compute_spanning_bins(variable_values, num_bins: int = ..., bin_size: float 
     """
     ...
 
-def build_spanning_grid_matrix(x_values, y_values, debug_print=...): # -> tuple[Any, list[tuple[Any, ...]], tuple[int, int]]:
+def build_spanning_grid_matrix(x_values, y_values, debug_print=...): # -> tuple[NDArray[Any], list[tuple[Any, ...]], tuple[int, int]]:
     """ builds a 2D matrix with entries spanning x_values across axis 0 and spanning y_values across axis 1.
         
         For example, used to build a grid of position points from xbins and ybins.
@@ -133,12 +133,12 @@ class BinnedPositionsMixin:
         ...
     
     @property
-    def xbin_labels(self):
+    def xbin_labels(self): # -> NDArray[signedinteger[Any]]:
         """ the labels of each xbin center. Starts at 1!"""
         ...
     
     @property
-    def ybin_labels(self): # -> None:
+    def ybin_labels(self): # -> NDArray[signedinteger[Any]] | None:
         """ the labels of each ybin center. Starts at 1!"""
         ...
     
@@ -151,7 +151,7 @@ class BinnedPositionsMixin:
     
 
 
-def bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=..., bin_size=...): # -> tuple[Any, Any | None, dict[str, Any]]:
+def bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=..., bin_size=...): # -> tuple[Any | NDArray[Any], Any | NDArray[Any] | None, dict[str, Any]]:
     """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
         Usage:
             ## Binning with Fixed Number of Bins:    
@@ -194,7 +194,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=..., posi
     """
     ...
 
-def transition_matrix(state_sequence, markov_order: int = ..., max_state_index: int = ...):
+def transition_matrix(state_sequence, markov_order: int = ..., max_state_index: int = ...): # -> NDArray[Any]:
     """" Computes the transition matrix from Markov chain sequence of order `n`.
     See https://stackoverflow.com/questions/58048810/building-n-th-order-markovian-transition-matrix-from-a-given-sequence
 

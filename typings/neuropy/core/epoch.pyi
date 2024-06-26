@@ -198,10 +198,10 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         ...
     
     @classmethod
-    def from_PortionInterval(cls, portion_interval):
+    def from_PortionInterval(cls, portion_interval): # -> DataFrame[Any]:
         ...
     
-    def to_PortionInterval(self):
+    def to_PortionInterval(self): # -> Interval:
         ...
     
     def adding_active_aclus_information(self, spikes_df: pd.DataFrame, epoch_id_key_name: str = ..., add_unique_aclus_list_column: bool = ...) -> pd.DataFrame:
@@ -343,7 +343,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         ...
     
-    def __getitem__(self, slice_):
+    def __getitem__(self, slice_): # -> NDArray[Any]:
         """ Allows pass-thru indexing like it were a numpy array.
 
         2024-03-07 Potentially more dangerous than helpful.
@@ -410,14 +410,28 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def get_proportion_by_label(self, t_start=..., t_stop=...): # -> dict[Any, Any]:
         ...
     
-    def count(self, t_start=..., t_stop=..., binsize=...):
+    def count(self, t_start=..., t_stop=..., binsize=...): # -> NDArray[Any]:
         ...
     
     def to_neuroscope(self, ext=...): # -> Path:
         """ exports to a Neuroscope compatable .evt file. """
         ...
     
-    def as_array(self):
+    @classmethod
+    def from_neuroscope(cls, in_filepath): # -> Self:
+        """ imports from a Neuroscope compatible .evt file.
+        Usage:
+            from neuropy.core.epoch import Epoch
+
+            evt_filepath = Path('/Users/pho/Downloads/2006-6-07_16-40-19.bst.evt').resolve()
+            # evt_filepath = Path('/Users/pho/Downloads/2006-6-08_14-26-15.bst.evt').resolve()
+            evt_epochs: Epoch = Epoch.from_neuroscope(in_filepath=evt_filepath)
+            evt_epochs
+
+        """
+        ...
+    
+    def as_array(self): # -> ndarray[Any, Any]:
         ...
     
     @classmethod
@@ -463,5 +477,28 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
 
 def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
+    """ 
+        Usage:
+
+        from neuropy.core.epoch import ensure_dataframe
+
+    """
+    ...
+
+def subdivide_epochs(df: pd.DataFrame, subdivide_bin_size: float, start_col=..., stop_col=...) -> pd.DataFrame:
+    """ splits each epoch into equally sized chunks determined by subidivide_bin_size.
+    
+    # Example usage
+        from neuropy.core.epoch import subdivide_epochs, ensure_dataframe
+
+        df: pd.DataFrame = ensure_dataframe(deepcopy(long_LR_epochs_obj)) 
+        df['epoch_type'] = 'lap'
+        df['interval_type_id'] = 666
+
+        subdivide_bin_size = 0.100  # Specify the size of each sub-epoch in seconds
+        subdivided_df: pd.DataFrame = subdivide_epochs(df, subdivide_bin_size)
+        print(subdivided_df)
+
+    """
     ...
 

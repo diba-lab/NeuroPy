@@ -136,7 +136,7 @@ class NeuronIdentityAccessingMixin:
         """ e.g. return np.array(active_epoch_placefields2D.cell_ids) """
         ...
     
-    def get_neuron_id_and_idx(self, neuron_i=..., neuron_id=...): # -> tuple[int | Any | None, Any | int | None]:
+    def get_neuron_id_and_idx(self, neuron_i=..., neuron_id=...): # -> tuple[int | None, Any | int | None]:
         """For a specified neuron_i (index) or neuron_id, returns the other quanity (or both)
 
         Args:
@@ -155,7 +155,7 @@ class NeuronIdentityAccessingMixin:
         """
         ...
     
-    def find_neuron_IDXs_from_cell_ids(self, cell_ids): # -> list[int | Any | None]:
+    def find_neuron_IDXs_from_cell_ids(self, cell_ids): # -> list[int | None]:
         """Finds the cell IDXs (not IDs) from the cell original IDs (cell_ids)
         Args:
             cell_ids ([type]): [description]
@@ -193,7 +193,7 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
         ...
     
     @classmethod
-    def hdf_coding_ClassNames(cls):
+    def hdf_coding_ClassNames(cls): # -> NDArray[Any]:
         ...
     
     @classmethod
@@ -210,7 +210,7 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
     
 
 
-def build_units_colormap(neuron_ids): # -> tuple[Any, Any, Any, Any]:
+def build_units_colormap(neuron_ids): # -> tuple[NDArray[Any], ndarray[Any, Any], ndarray[Any, Any], ListedColormap]:
     """ 
     Usage:
         pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap = build_units_colormap(good_placefield_neuronIDs)
@@ -275,11 +275,11 @@ class NeuronType(HDFConvertableEnum, Enum):
         ...
     
     @property
-    def shortClassName(self):
+    def shortClassName(self): # -> Any:
         ...
     
     @property
-    def longClassName(self):
+    def longClassName(self): # -> Any:
         ...
     
     @property
@@ -287,19 +287,19 @@ class NeuronType(HDFConvertableEnum, Enum):
         ...
     
     @classmethod
-    def longClassNames(cls):
+    def longClassNames(cls): # -> NDArray[Any]:
         ...
     
     @classmethod
-    def shortClassNames(cls):
+    def shortClassNames(cls): # -> NDArray[Any]:
         ...
     
     @classmethod
-    def bapunNpyFileStyleShortClassNames(cls):
+    def bapunNpyFileStyleShortClassNames(cls): # -> NDArray[Any]:
         ...
     
     @classmethod
-    def hdf_coding_ClassNames(cls):
+    def hdf_coding_ClassNames(cls): # -> NDArray[Any]:
         ...
     
     @classmethod
@@ -348,28 +348,28 @@ class NeuronType(HDFConvertableEnum, Enum):
         ...
     
     @classmethod
-    def from_qclu_series(cls, qclu_Series):
+    def from_qclu_series(cls, qclu_Series): # -> NDArray[Any]:
         ...
     
     @classmethod
-    def from_any_string_series(cls, neuron_types_strings):
+    def from_any_string_series(cls, neuron_types_strings): # -> NDArray[Any]:
         ...
     
     @classmethod
-    def from_bapun_npy_style_series(cls, bapun_style_neuron_types):
+    def from_bapun_npy_style_series(cls, bapun_style_neuron_types): # -> NDArray[Any]:
         ...
     
     @classmethod
-    def from_hdf_coding_style_series(cls, hdf_coding_neuron_types):
+    def from_hdf_coding_style_series(cls, hdf_coding_neuron_types): # -> NDArray[Any]:
         ...
     
     @classmethod
-    def classRenderColors(cls):
+    def classRenderColors(cls): # -> NDArray[Any]:
         """ colors used to render each type of neuron """
         ...
     
     @property
-    def renderColor(self):
+    def renderColor(self): # -> Any:
         ...
     
     @classmethod

@@ -17,7 +17,7 @@ class RadonTransformComputation:
 
     """
     @classmethod
-    def phi(cls, velocity, time_bin_size, pos_bin_size):
+    def phi(cls, velocity, time_bin_size, pos_bin_size): # -> Any:
         ...
     
     @classmethod
@@ -47,7 +47,7 @@ class RadonTransformComputation:
         ...
     
     @classmethod
-    def y_line_idxs(cls, phi, rho, ci_mid, ri_mid, ci_mat=...): # -> Callable[..., Any]:
+    def y_line_idxs(cls, phi, rho, ci_mid, ri_mid, ci_mat=...): # -> Callable[..., Any] | Any:
         """ 
         returns a lambda function that takes `ci_mat`
         y_line_idxs_fn = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, ci_mid=ci_mid, ri_mid=ri_mid)
@@ -61,7 +61,7 @@ class RadonTransformComputation:
         ...
     
     @classmethod
-    def y_line(cls, phi, rho, t_mid, x_mid, t_mat=...): # -> Callable[..., Any]:
+    def y_line(cls, phi, rho, t_mid, x_mid, t_mat=...): # -> Callable[..., Any] | Any:
         """
         
         y_line = RadonTransformComputation.y_line_idxs(phi=phi_mat, rho=rho_mat, t_mid=t_mid, x_mid=x_mid, t_mat=t_mat)
@@ -69,7 +69,7 @@ class RadonTransformComputation:
         ...
     
     @classmethod
-    def compute_score(cls, arr: NDArray, y_line_idxs: NDArray, nlines: int, n_neighbours: int): # -> tuple[Any, Any | int, tuple[Any, Any, Any, tuple[Any, Any]]]:
+    def compute_score(cls, arr: NDArray, y_line_idxs: NDArray, nlines: int, n_neighbours: int): # -> tuple[Any, int, tuple[NDArray[float64], Any, NDArray[Any], tuple[tuple[NDArray[intp], ...], tuple[NDArray[intp], ...]]]]:
         ...
     
 
@@ -115,7 +115,7 @@ class RadonTransformDebugValue:
     
 
 
-def radon_transform(arr: NDArray, nlines: int = ..., dt: float = ..., dx: float = ..., n_neighbours: int = ..., enable_return_neighbors_arr=..., t0: Optional[float] = ..., x0: Optional[float] = ...): # -> tuple[Any, Any, Any, tuple[int, Any, RadonTransformDebugValue]] | tuple[Any, Any, Any]:
+def radon_transform(arr: NDArray, nlines: int = ..., dt: float = ..., dx: float = ..., n_neighbours: int = ..., enable_return_neighbors_arr=..., t0: Optional[float] = ..., x0: Optional[float] = ...): # -> tuple[Any, Any, Any, tuple[int, NDArray, RadonTransformDebugValue]] | tuple[Any, Any, Any]:
     """Line fitting algorithm primarily used in decoding algorithm, a variant of radon transform, algorithm based on Kloosterman et al. 2012
 
     from neuropy.analyses.decoders import radon_transform
@@ -177,7 +177,7 @@ def wcorr(arr):
     """
     ...
 
-def jump_distance(posteriors, jump_stat=..., norm=...):
+def jump_distance(posteriors, jump_stat=..., norm=...): # -> NDArray[floating[Any]]:
     """Calculate jump distance for posterior matrices"""
     ...
 
@@ -185,7 +185,7 @@ def column_shift(arr, shifts=...):
     """Circular shift columns independently by a given amount"""
     ...
 
-def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[core.Epoch, pd.DataFrame], bin_size=..., slideby=..., export_time_bins: bool = ..., included_neuron_ids=..., debug_print: bool = ..., use_single_time_bin_per_epoch: bool = ...): # -> tuple[list[Any], Any, list[Any] | None]:
+def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[core.Epoch, pd.DataFrame], bin_size=..., slideby=..., export_time_bins: bool = ..., included_neuron_ids=..., debug_print: bool = ..., use_single_time_bin_per_epoch: bool = ...): # -> tuple[list[Any], NDArray[Any], list[Any] | None]:
     """Binning events and calculating spike counts
 
     Args:
@@ -230,7 +230,7 @@ class Decode1d:
         """Shuffling and decoding epochs"""
         ...
     
-    def score_posterior(self, p): # -> tuple[Any, Any]:
+    def score_posterior(self, p): # -> tuple[NDArray[Any], NDArray[Any]]:
         """Scoring of epochs
 
         Returns
@@ -245,7 +245,7 @@ class Decode1d:
         ...
     
     @property
-    def p_value(self):
+    def p_value(self): # -> Any:
         ...
     
     def plot_in_bokeh(self): # -> None:

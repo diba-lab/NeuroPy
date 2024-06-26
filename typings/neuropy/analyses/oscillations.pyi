@@ -35,7 +35,7 @@ class Gamma:
     def __init__(self, basepath) -> None:
         ...
     
-    def get_peak_intervals(self, lfp, band=..., lowthresh=..., highthresh=..., minDistance=..., minDuration=...):
+    def get_peak_intervals(self, lfp, band=..., lowthresh=..., highthresh=..., minDistance=..., minDuration=...): # -> NDArray[Any]:
         """Returns strong theta lfp. If it has multiple channels, then strong theta periods are calculated from that channel which has highest area under the curve in the theta frequency band. Parameters are applied on z-scored lfp.
 
         Parameters

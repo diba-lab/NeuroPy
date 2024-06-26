@@ -80,7 +80,7 @@ def unwrap_single_item(lst): # -> None:
     """
     ...
 
-def find_desired_sort_indicies(extant_arr, desired_sort_arr): # -> tuple[Any, Any]:
+def find_desired_sort_indicies(extant_arr, desired_sort_arr): # -> tuple[NDArray[Any], NDArray[Any] | Any]:
     """ Finds the set of sort indicies that can be applied to extant_arr s.t.
         (extant_arr[out_sort_idxs] == desired_sort_arr)
     
@@ -231,7 +231,7 @@ def paired_individual_sorting(neuron_IDs_lists, sortable_values_lists): # -> lis
     """
     ...
 
-def find_nearest_time(df: pd.DataFrame, target_time: float, time_column_name: str = ..., max_allowed_deviation: float = ..., debug_print=...): # -> tuple[Any, int | Any | None, Any | None, Any]:
+def find_nearest_time(df: pd.DataFrame, target_time: float, time_column_name: str = ..., max_allowed_deviation: float = ..., debug_print=...): # -> tuple[DataFrame[Any], int | None, Any | None, Any]:
     """ finds the nearest time in the time_column_name matching the provided target_time
     
 
@@ -246,7 +246,7 @@ def find_nearest_time(df: pd.DataFrame, target_time: float, time_column_name: st
     """
     ...
 
-def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_name: str = ..., max_allowed_deviation: float = ..., debug_print=...): # -> tuple[Any, Any]:
+def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_name: str = ..., max_allowed_deviation: float = ..., debug_print=...): # -> tuple[Series[Any], Series[Any]]:
     """
     !! Untested !! a ChatGPT GPT4-turbo written find_nearest_times which extends find_nearest_time to multiple target times. 
     Find the nearest time indices for each target time within the specified max_allowed_deviation.

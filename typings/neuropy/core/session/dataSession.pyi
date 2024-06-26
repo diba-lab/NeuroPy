@@ -25,7 +25,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         ...
     
     @property
-    def is_resolved(self):
+    def is_resolved(self) -> bool:
         ...
     
     @property
@@ -82,7 +82,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         ...
     
     @property
-    def has_replays(self): # -> bool:
+    def has_replays(self) -> bool:
         """The has_replays property."""
         ...
     
@@ -138,7 +138,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         """ Returns the approximate size in bytes for this object by getting the size of its dataframes. """
         ...
     
-    def panel_dataframes_overview(self, max_page_items=...):
+    def panel_dataframes_overview(self, max_page_items=...): # -> Column:
         ...
     
     def get_output_path(self, mkdir_if_needed: bool = ...) -> Path:
@@ -288,7 +288,7 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             spk_df = compute_PBEs_spikes_df(sess) """
         ...
     
-    def plot_laps_2d(self): # -> tuple[Any, Any]:
+    def plot_laps_2d(self): # -> tuple[Figure, list[Any]]:
         ...
     
     def to_hdf(self, file_path, key: str, **kwargs): # -> None:

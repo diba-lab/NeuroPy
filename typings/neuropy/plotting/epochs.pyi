@@ -27,7 +27,7 @@ def plot_epochs(ax, epochs: Epoch, ymin=..., ymax=..., color=..., style=...):
     """
     ...
 
-def plot_hypnogram(epochs: Epoch, ax=..., unit=..., collapsed=..., annotate=...):
+def plot_hypnogram(epochs: Epoch, ax=..., unit=..., collapsed=..., annotate=...): # -> Any:
     """Plot hypnogram
 
     Parameters
@@ -52,7 +52,7 @@ def plot_hypnogram(epochs: Epoch, ax=..., unit=..., collapsed=..., annotate=...)
 def plot_epochs_with_raster(self, ax=...): # -> None:
     ...
 
-def plot_artifact_epochs(epochs: Epoch, signal: Signal, downsample_factor: int = ...):
+def plot_artifact_epochs(epochs: Epoch, signal: Signal, downsample_factor: int = ...): # -> Any:
     """Plots artifact epochs against a signal
 
     Parameters
