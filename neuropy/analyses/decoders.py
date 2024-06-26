@@ -467,7 +467,9 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         If the epoch is shorter than the bin_size the time_bins returned should be the edges of the epoch
         
         
-    """        
+    """
+    from neuropy.core.epoch import ensure_dataframe, Epoch
+
     # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
     if isinstance(neurons, core.Neurons):
         spiketrains = neurons.spiketrains
@@ -479,15 +481,9 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         raise NotImplementedError
 
     # Handle either core.Epoch or pd.DataFrame objects:
-    if isinstance(epochs, core.Epoch):
-        epoch_df = epochs.to_dataframe()
-        n_epochs = epochs.n_epochs
+    epoch_df = ensure_dataframe(epochs)
+    n_epochs = np.shape(epoch_df)[0] # there is one row per epoch
         
-    elif isinstance(epochs, pd.DataFrame):
-        epoch_df = epochs
-        n_epochs = np.shape(epoch_df)[0] # there is one row per epoch
-    else:
-        raise NotImplementedError
     
     spkcount = []
     if export_time_bins:

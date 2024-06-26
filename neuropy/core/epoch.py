@@ -956,7 +956,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         return out_filepath
 
     @classmethod
-    def from_neuroscope(cls, in_filepath):
+    def from_neuroscope(cls, in_filepath, metadata=None):
         """ imports from a Neuroscope compatible .evt file.
         Usage:
             from neuropy.core.epoch import Epoch
@@ -991,6 +991,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         df['label'] = df.index.astype('str', copy=True)
         _obj = cls.from_dataframe(df=df)
         _obj.filename = in_filepath.stem
+        _obj.metadata = metadata
         return _obj
         
     def as_array(self):
@@ -1062,8 +1063,8 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         return df
     
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame):
-        return cls(df)
+    def from_dataframe(cls, df: pd.DataFrame, metadata=None):
+        return cls(df, metadata=metadata)
 
 
     # ==================================================================================================================== #
