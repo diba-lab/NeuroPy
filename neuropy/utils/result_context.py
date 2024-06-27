@@ -885,7 +885,7 @@ def providing_context(**additional_context_kwargs):
 
 @define(slots=False)
 class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
-    """ a class that extends IdentifyingContext to enable application-specific rendering of contexts.
+    """ a class that extends IdentifyingContext to enable use-specific rendering of contexts.
     
     Primarily provides: `get_specific_purpose_description`
 
