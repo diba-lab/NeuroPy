@@ -673,7 +673,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         # epochs.epochs.
         assert (
             pd.Series(["start", "stop", "label"]).isin(epochs.columns).all()
-        ), "Epoch dataframe should at least have columns with names: start, stop, label"
+        ), f"Epoch dataframe should at least have columns with names: start, stop, label but it only has the columns: {list(epochs.columns)}"
 
     def __repr__(self) -> str:
         # return f"{len(self.starts)} epochs"
@@ -1078,8 +1078,11 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
 
 def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
-    """ 
-        Usage:
+    """ Ensures that the epochs are returned as an Pandas DataFrame, does nothing if they already are a DataFrame.
+    
+    Reciprocal to `ensure_Epoch(...)`
+
+    Usage:
 
         from neuropy.core.epoch import ensure_dataframe
 
@@ -1088,6 +1091,32 @@ def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
         return epochs
     else:
         return epochs.to_dataframe()
+
+
+def ensure_Epoch(epochs: Union[Epoch, pd.DataFrame], metadata=None) -> Epoch:
+    """ Ensures that the epochs are returned as an Epoch object, does nothing if they already are an Epoch object.
+
+        Reciprocal to `ensure_dataframe(...)`
+
+        Usage:
+
+        from neuropy.core.epoch import ensure_Epoch
+
+    """
+    if isinstance(epochs, pd.DataFrame):
+        ## convert to Epoch
+        return Epoch.from_dataframe(epochs, metadata=metadata)
+    else:
+        ## assume already an Epoch
+        if metadata is not None:
+            if epochs.metadata is None:
+                epochs.metadata = metadata
+            else:
+                epochs.metadata = epochs.metadata | metadata # merge metadata
+        
+        return epochs
+    
+
 
 
 def subdivide_epochs(df: pd.DataFrame, subdivide_bin_size: float, start_col='start', stop_col='stop') -> pd.DataFrame:
