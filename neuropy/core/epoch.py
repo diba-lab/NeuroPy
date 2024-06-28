@@ -601,7 +601,8 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
             assert isinstance(epochs, pd.DataFrame)
         super().__init__(metadata=metadata)
         self._df = epochs.epochs.get_valid_df() # gets already sorted appropriately and everything. epochs.epochs uses the DataFrame accesor
-        self._check_epochs(epochs) # check anyway
+        self._check_epochs(self._df) # check anyway
+        # self._check_epochs(epochs) # check anyway
 
     @property
     def starts(self):
