@@ -8,7 +8,7 @@ def firing_rate(spike_clusters, cluster_ids=..., bin_size=..., duration=...):
     """Compute the average number of spikes per cluster per bin."""
     ...
 
-def correlograms(spike_times, spike_clusters, cluster_ids=..., sample_rate=..., bin_size=..., window_size=..., symmetrize=...): # -> NDArray[Any] | NDArray[int32]:
+def correlograms(spike_times, spike_clusters, cluster_ids=..., sample_rate=..., bin_size=..., window_size=..., symmetrize=...):
     """Compute all pairwise cross-correlograms among the clusters appearing
     in `spike_clusters`.
     Parameters

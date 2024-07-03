@@ -8,87 +8,87 @@ from .. import core
 
 class filter_sig:
     @staticmethod
-    def bandpass(signal, hf, lf, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def bandpass(signal, hf, lf, fs=..., order=..., ax=...): # -> Signal:
         ...
     
     @staticmethod
-    def highpass(signal, cutoff, fs=..., order=..., ax=...): # -> NDArray[Any] | Any:
+    def highpass(signal, cutoff, fs=..., order=..., ax=...):
         ...
     
     @staticmethod
-    def lowpass(signal, cutoff, fs=..., order=..., ax=...): # -> NDArray[Any] | Any:
+    def lowpass(signal, cutoff, fs=..., order=..., ax=...):
         ...
     
     @staticmethod
-    def delta(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def delta(signal, fs=..., order=..., ax=...): # -> Signal:
         ...
     
     @staticmethod
-    def theta(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def theta(signal, fs=..., order=..., ax=...): # -> Signal:
         ...
     
     @staticmethod
-    def spindle(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def spindle(signal, fs=..., order=..., ax=...): # -> Signal:
         ...
     
     @staticmethod
-    def slowgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def slowgamma(signal, fs=..., order=..., ax=...): # -> Signal:
         ...
     
     @staticmethod
-    def mediumgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def mediumgamma(signal, fs=..., order=..., ax=...): # -> Signal:
         ...
     
     @staticmethod
-    def fastgamma(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def fastgamma(signal, fs=..., order=..., ax=...): # -> Signal:
         ...
     
     @staticmethod
-    def ripple(signal, fs=..., order=..., ax=...): # -> Signal | NDArray[Any] | Any:
+    def ripple(signal, fs=..., order=..., ax=...): # -> Signal:
         ...
     
 
 
-def whiten(strain, interp_psd, dt): # -> NDArray[float64]:
+def whiten(strain, interp_psd, dt):
     ...
 
 class SpectrogramBands:
     def __init__(self, signal: core.Signal, window: float = ..., overlap=..., smooth=..., multitaper=..., norm_sig=...) -> None:
         ...
     
-    def get_band_power(self, f1=..., f2=...): # -> Any:
+    def get_band_power(self, f1=..., f2=...):
         ...
     
     @property
-    def delta(self): # -> Any:
+    def delta(self):
         ...
     
     @property
-    def deltaplus(self): # -> Any:
+    def deltaplus(self):
         ...
     
     @property
-    def theta(self): # -> Any:
+    def theta(self):
         ...
     
     @property
-    def spindle(self): # -> Any:
+    def spindle(self):
         ...
     
     @property
-    def gamma(self): # -> Any:
+    def gamma(self):
         ...
     
     @property
-    def ripple(self): # -> Any:
+    def ripple(self):
         ...
     
     @property
-    def theta_delta_ratio(self): # -> Any:
+    def theta_delta_ratio(self):
         ...
     
     @property
-    def theta_deltaplus_ratio(self): # -> Any:
+    def theta_deltaplus_ratio(self):
         ...
     
     def plotSpect(self, ax=..., freqRange=...): # -> None:
@@ -101,7 +101,7 @@ class wavelet_decomp:
     lfp: np.array
     freqs: np.array = ...
     sampfreq: int = ...
-    def colgin2009(self): # -> NDArray[signedinteger[Any]]:
+    def colgin2009(self):
         """colgin
 
 
@@ -115,7 +115,7 @@ class wavelet_decomp:
         """
         ...
     
-    def quyen2008(self): # -> NDArray[signedinteger[Any]]:
+    def quyen2008(self):
         """colgin
 
 
@@ -128,7 +128,7 @@ class wavelet_decomp:
         """
         ...
     
-    def bergel2018(self): # -> NDArray[floating[Any]]:
+    def bergel2018(self):
         """colgin
 
 
@@ -145,7 +145,7 @@ class wavelet_decomp:
     def torrenceCompo(self): # -> None:
         ...
     
-    def cohen(self, ncycles=...): # -> NDArray[signedinteger[Any]]:
+    def cohen(self, ncycles=...):
         """Implementation of ref. 1 chapter 13
 
 
@@ -161,7 +161,7 @@ class wavelet_decomp:
     
 
 
-def hilbertfast(signal, ax=...): # -> tuple[Dispatchable, ...]:
+def hilbertfast(signal, ax=...):
     """inputs a signal does padding to next power of 2 for faster computation of hilbert transform
 
     Arguments:
@@ -172,7 +172,7 @@ def hilbertfast(signal, ax=...): # -> tuple[Dispatchable, ...]:
     """
     ...
 
-def fftnormalized(signal, fs=...): # -> tuple[Any, NDArray[floating[Any]]]:
+def fftnormalized(signal, fs=...): # -> tuple[Any, Any]:
     ...
 
 @dataclass
@@ -207,7 +207,7 @@ class bicoherence:
     fs: int = ...
     window: int = ...
     overlap: int = ...
-    def compute(self, signal: np.array): # -> Any:
+    def compute(self, signal: np.array):
         """Computes bicoherence
 
         Parameters
@@ -287,7 +287,7 @@ class PAC:
         """comodulogram for frequencies of interest"""
         ...
     
-    def plot(self, ax=..., **kwargs): # -> Any:
+    def plot(self, ax=..., **kwargs):
         """Bar plot for phase amplitude coupling
 
         Parameters
@@ -322,19 +322,19 @@ class ThetaParams:
         ...
     
     @property
-    def rise_mid(self): # -> NDArray[Any]:
+    def rise_mid(self):
         ...
     
     @property
-    def fall_mid(self): # -> NDArray[Any]:
+    def fall_mid(self):
         ...
     
     @property
-    def peak_width(self): # -> NDArray[floating[Any]]:
+    def peak_width(self):
         ...
     
     @property
-    def trough_width(self): # -> NDArray[floating[Any]]:
+    def trough_width(self):
         ...
     
     @property
@@ -342,10 +342,10 @@ class ThetaParams:
         ...
     
     @property
-    def peaktrough(self): # -> NDArray[floating[Any]]:
+    def peaktrough(self):
         ...
     
-    def break_by_phase(self, y, binsize=..., slideby=...): # -> tuple[list[Any], NDArray[signedinteger[Any]] | NDArray[Any], NDArray[floating[Any]]]:
+    def break_by_phase(self, y, binsize=..., slideby=...): # -> tuple[list[Any], Any, Any]:
         """Breaks y into theta phase specific components
 
         Parameters
@@ -366,7 +366,7 @@ class ThetaParams:
         """
         ...
     
-    def sanityCheck(self): # -> Any:
+    def sanityCheck(self):
         """Plots raw signal with filtered signal and peak, trough locations with phase
 
         Returns
@@ -392,7 +392,7 @@ def psd_auc(signal: core.Signal, freq_band: tuple, window=..., overlap=...): # -
     """
     ...
 
-def hilbert_ampltiude_stat(signals, freq_band, fs, statistic=...): # -> NDArray[float64]:
+def hilbert_ampltiude_stat(signals, freq_band, fs, statistic=...):
     """Calculates hilbert amplitude statistic over the entire signal
 
     Parameters
@@ -409,7 +409,7 @@ def hilbert_ampltiude_stat(signals, freq_band, fs, statistic=...): # -> NDArray[
     """
     ...
 
-def theta_phase_specfic_extraction(signal, y, fs, binsize=..., slideby=...): # -> tuple[list[Any], NDArray[signedinteger[Any]], Any]:
+def theta_phase_specfic_extraction(signal, y, fs, binsize=..., slideby=...): # -> tuple[list[Any], Any, Any]:
     """Breaks y into theta phase specific components
 
     Parameters

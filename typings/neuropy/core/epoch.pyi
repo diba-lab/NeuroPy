@@ -198,10 +198,10 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         ...
     
     @classmethod
-    def from_PortionInterval(cls, portion_interval): # -> DataFrame[Any]:
+    def from_PortionInterval(cls, portion_interval):
         ...
     
-    def to_PortionInterval(self): # -> Interval:
+    def to_PortionInterval(self):
         ...
     
     def adding_active_aclus_information(self, spikes_df: pd.DataFrame, epoch_id_key_name: str = ..., add_unique_aclus_list_column: bool = ...) -> pd.DataFrame:
@@ -343,7 +343,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         ...
     
-    def __getitem__(self, slice_): # -> NDArray[Any]:
+    def __getitem__(self, slice_):
         """ Allows pass-thru indexing like it were a numpy array.
 
         2024-03-07 Potentially more dangerous than helpful.
@@ -410,15 +410,15 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def get_proportion_by_label(self, t_start=..., t_stop=...): # -> dict[Any, Any]:
         ...
     
-    def count(self, t_start=..., t_stop=..., binsize=...): # -> NDArray[Any]:
+    def count(self, t_start=..., t_stop=..., binsize=...):
         ...
     
-    def to_neuroscope(self, ext=...): # -> Path:
+    def to_neuroscope(self, ext=..., override_filepath=...): # -> Path:
         """ exports to a Neuroscope compatable .evt file. """
         ...
     
     @classmethod
-    def from_neuroscope(cls, in_filepath): # -> Self:
+    def from_neuroscope(cls, in_filepath, metadata=...): # -> Self:
         """ imports from a Neuroscope compatible .evt file.
         Usage:
             from neuropy.core.epoch import Epoch
@@ -431,7 +431,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         ...
     
-    def as_array(self): # -> ndarray[Any, Any]:
+    def as_array(self):
         ...
     
     @classmethod
@@ -467,7 +467,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         ...
     
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame): # -> Self:
+    def from_dataframe(cls, df: pd.DataFrame, metadata=...): # -> Self:
         ...
     
     def to_Epoch(self) -> Epoch:
@@ -477,10 +477,25 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
 
 def ensure_dataframe(epochs: Union[Epoch, pd.DataFrame]) -> pd.DataFrame:
-    """ 
-        Usage:
+    """ Ensures that the epochs are returned as an Pandas DataFrame, does nothing if they already are a DataFrame.
+    
+    Reciprocal to `ensure_Epoch(...)`
+
+    Usage:
 
         from neuropy.core.epoch import ensure_dataframe
+
+    """
+    ...
+
+def ensure_Epoch(epochs: Union[Epoch, pd.DataFrame], metadata=...) -> Epoch:
+    """ Ensures that the epochs are returned as an Epoch object, does nothing if they already are an Epoch object.
+
+        Reciprocal to `ensure_dataframe(...)`
+
+        Usage:
+
+        from neuropy.core.epoch import ensure_Epoch
 
     """
     ...

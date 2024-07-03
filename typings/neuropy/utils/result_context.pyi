@@ -303,7 +303,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         ...
     
     @classmethod
-    def try_extract_date_from_session_name(cls, session_name: str, assumed_year_if_missing: str = ..., debug_print: bool = ...): # -> Timestamp | NaTType | None:
+    def try_extract_date_from_session_name(cls, session_name: str, assumed_year_if_missing: str = ..., debug_print: bool = ...): # -> None:
         """ 2023-08-24 - Attempts to determine at least the relative recording date for a given session from the session's name alone.
         From the 'session_name' column in the provided data, we can observe two different formats used to specify the date:
 
@@ -363,7 +363,7 @@ def providing_context(**additional_context_kwargs): # -> Callable[..., _Wrapped[
 
 @define(slots=False)
 class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
-    """ a class that extends IdentifyingContext to enable application-specific rendering of contexts.
+    """ a class that extends IdentifyingContext to enable use-specific rendering of contexts.
     
     Primarily provides: `get_specific_purpose_description`
 

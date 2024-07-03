@@ -25,7 +25,7 @@ class Animal(DataWriter):
     def __post_init__(self): # -> None:
         ...
     
-    def to_dataframe(self): # -> DataFrame[Any]:
+    def to_dataframe(self):
         ...
     
     def write_csv(self): # -> None:

@@ -64,7 +64,7 @@ def plot_ratemap_2D(ratemap: Ratemap, computation_config=..., included_unit_indi
     ...
 
 @safely_accepts_kwargs
-def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=..., fignum=..., fig=..., ax=..., pad=..., normalize_tuning_curve=..., sortby=..., cmap=..., included_unit_indicies=..., included_unit_neuron_IDs=..., brev_mode: PlotStringBrevityModeEnum = ..., plot_variable: enumTuningMap2DPlotVariables = ..., curve_hatch_style=..., missing_aclu_string_formatter=..., single_cell_pfmap_processing_fn=..., active_context=..., use_flexitext_titles=..., use_flexitext_ticks=..., ytick_location_shift: float = ..., plot_zero_baselines: bool = ..., skip_figure_titles: bool = ..., flat_stack_mode: bool = ..., debug_print=...): # -> tuple[Axes | Any, NDArray[Any] | NDArray[intp] | ndarray[Any, Any], ndarray[Any, Any]]:
+def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=..., fignum=..., fig=..., ax=..., pad=..., normalize_tuning_curve=..., sortby=..., cmap=..., included_unit_indicies=..., included_unit_neuron_IDs=..., brev_mode: PlotStringBrevityModeEnum = ..., plot_variable: enumTuningMap2DPlotVariables = ..., curve_hatch_style=..., missing_aclu_string_formatter=..., single_cell_pfmap_processing_fn=..., active_context=..., use_flexitext_titles=..., use_flexitext_ticks=..., ytick_location_shift: float = ..., plot_zero_baselines: bool = ..., skip_figure_titles: bool = ..., flat_stack_mode: bool = ..., debug_print=...): # -> tuple[Any, Any, Any]:
     """Plot 1D place fields stacked
 
     Parameters
