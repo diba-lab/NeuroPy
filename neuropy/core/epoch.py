@@ -947,10 +947,18 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         bins = np.arange(t_start, t_stop + binsize, binsize)
         return np.histogram(mid_times, bins=bins)[0]
 
-    def to_neuroscope(self, ext="PHO"):
+    def to_neuroscope(self, ext="PHO", override_filepath=None):
         """ exports to a Neuroscope compatable .evt file. """
-        assert self.filename is not None
-        out_filepath = self.filename.with_suffix(f".{ext}.evt")
+        if not isinstance(ext, str):
+            ext = '.'.join(ext) # assume it is an list, tuple or something. Join its elements by periods
+
+        if override_filepath is not None:
+            out_filepath = override_filepath.resolve()
+            out_filepath = out_filepath.with_suffix(f".{ext}.evt")
+        else:
+            assert self.filename is not None
+            out_filepath = self.filename.with_suffix(f".{ext}.evt")
+
         with out_filepath.open("w") as a:
             for event in self._df.itertuples():
                 a.write(f"{event.start*1000} start\n{event.stop*1000} end\n")
