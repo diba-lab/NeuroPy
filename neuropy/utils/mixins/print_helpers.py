@@ -110,7 +110,7 @@ def print_file_progress_message(filepath, action: str, contents_description: str
     if (filepath is not None) and (len(str(filepath)) > 0):
         if not isinstance(filepath, str):
             ## assume it's a pathlib.Path, convert to string
-            filepath = f"'{str(pkl_path.as_posix())}'"
+            filepath = f"{str(filepath.as_posix())}"
     
         # add filepath to string:
         out_string = f'{out_string} "{str(filepath)}"' # like "Loading flattened_spike_identities results from path"
