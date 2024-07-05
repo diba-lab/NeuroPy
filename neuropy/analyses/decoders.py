@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional, Union
 from pathlib import Path
 
@@ -380,19 +381,22 @@ def old_radon_transform(arr, nlines=5000):
     return posterior_sum[max_line], slope
 
 
-def wcorr(arr):
+def wcorr(arr: NDArray) -> float:
     """weighted correlation
     Encountering issue when nx == 1, as in there is only one time bin, in which the wcorr doesn't make any sense.
     """
+    # with warnings.catch_warnings():
+    #     warnings.simplefilter("error", RuntimeWarning)
+
     nx, ny = arr.shape[1], arr.shape[0]
-    y_mat = np.tile(np.arange(ny)[:, np.newaxis], (1, nx))
-    x_mat = np.tile(np.arange(nx), (ny, 1))
-    arr_sum = np.nansum(arr)
-    ey = np.nansum(arr * y_mat) / arr_sum
-    ex = np.nansum(arr * x_mat) / arr_sum
-    cov_xy = np.nansum(arr * (y_mat - ey) * (x_mat - ex)) / arr_sum
-    cov_yy = np.nansum(arr * (y_mat - ey) ** 2) / arr_sum
-    cov_xx = np.nansum(arr * (x_mat - ex) ** 2) / arr_sum
+    y_mat: NDArray = np.tile(np.arange(ny)[:, np.newaxis], (1, nx))
+    x_mat: NDArray = np.tile(np.arange(nx), (ny, 1))
+    arr_sum: float = np.nansum(arr)
+    ey: float = np.nansum(arr * y_mat) / arr_sum  # RuntimeWarning: invalid value encountered in double_scalars
+    ex: float = np.nansum(arr * x_mat) / arr_sum  # RuntimeWarning: invalid value encountered in double_scalars
+    cov_xy: float = np.nansum(arr * (y_mat - ey) * (x_mat - ex)) / arr_sum # RuntimeWarning: invalid value encountered in double_scalars
+    cov_yy: float = np.nansum(arr * (y_mat - ey) ** 2) / arr_sum # RuntimeWarning: invalid value encountered in double_scalars
+    cov_xx: float = np.nansum(arr * (x_mat - ex) ** 2) / arr_sum # RuntimeWarning: invalid value encountered in double_scalars
 
     return cov_xy / np.sqrt(cov_xx * cov_yy)
 
