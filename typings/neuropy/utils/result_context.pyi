@@ -303,7 +303,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
         ...
     
     @classmethod
-    def try_extract_date_from_session_name(cls, session_name: str, assumed_year_if_missing: str = ..., debug_print: bool = ...): # -> None:
+    def try_extract_date_from_session_name(cls, session_name: str, assumed_year_if_missing: str = ..., debug_print: bool = ...): # -> Timestamp | NaTType | None:
         """ 2023-08-24 - Attempts to determine at least the relative recording date for a given session from the session's name alone.
         From the 'session_name' column in the provided data, we can observe two different formats used to specify the date:
 

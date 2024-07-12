@@ -16,7 +16,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         ...
     
     @property
-    def neuron_ids(self): # -> None:
+    def neuron_ids(self): # -> NDArray[signedinteger[Any]] | NDArray[Any] | None:
         """The neuron_ids property."""
         ...
     
@@ -31,7 +31,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         ...
     
     @property
-    def neuron_type(self): # -> list[Any]:
+    def neuron_type(self): # -> list[Any] | NDArray[Any]:
         """The neuron_type property."""
         ...
     
@@ -71,15 +71,15 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
     def add_metadata(self): # -> None:
         ...
     
-    def get_all_spikes(self):
+    def get_all_spikes(self): # -> NDArray[Any]:
         ...
     
     @property
-    def n_total_spikes(self):
+    def n_total_spikes(self): # -> Any:
         ...
     
     @property
-    def n_spikes(self):
+    def n_spikes(self): # -> NDArray[Any]:
         "number of spikes within each spiketrain"
         ...
     
@@ -96,7 +96,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         """Returns neurons object with neuron_ids equal to ids"""
         ...
     
-    def get_isi(self, bin_size=..., n_bins=...):
+    def get_isi(self, bin_size=..., n_bins=...): # -> NDArray[Any]:
         """Interspike interval
 
         Parameters
@@ -279,7 +279,7 @@ class Mua(DataWriter):
         ...
     
     @property
-    def spike_counts(self):
+    def spike_counts(self): # -> ndarray[Any, Any]:
         ...
     
     @spike_counts.setter
@@ -324,7 +324,7 @@ class Mua(DataWriter):
     def from_dict(d): # -> Mua:
         ...
     
-    def to_dataframe(self):
+    def to_dataframe(self): # -> DataFrame[Any]:
         ...
     
 

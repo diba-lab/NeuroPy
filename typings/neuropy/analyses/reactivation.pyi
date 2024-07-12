@@ -9,7 +9,7 @@ class ExplainedVariance(core.DataWriter):
     def __init__(self, neurons: core.Neurons, template, matching, control, bin_size=..., window: int = ..., slideby: int = ..., pairs_bool=..., ignore_epochs: core.Epoch = ...) -> None:
         ...
     
-    def plot(self, ax=..., t_start=..., legend=...):
+    def plot(self, ax=..., t_start=..., legend=...): # -> Any:
         ...
     
 
@@ -45,11 +45,11 @@ class NeuronEnsembles(core.DataWriter):
     def get_firing_rate_filter(neurons, t_start, t_stop, frate_thresh):
         ...
     
-    def get_original_data(self): # -> tuple[Any, Any]:
+    def get_original_data(self): # -> tuple[Any, NDArray[float64] | Any]:
         ...
     
     @property
-    def n_ensembles(self):
+    def n_ensembles(self): # -> Any:
         ...
     
     def calculate_activation(self, t_start=..., t_stop=..., bin_size=...): # -> None:

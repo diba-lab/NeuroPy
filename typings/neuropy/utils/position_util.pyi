@@ -13,7 +13,7 @@ class RegularizationApproach(Enum):
     RESTORE_X_RANGE = ...
 
 
-def linearize_position_df(pos_df: pd.DataFrame, sample_sec=..., method=..., sigma=..., override_position_sampling_rate_Hz=..., regularization_approach: RegularizationApproach = ...):
+def linearize_position_df(pos_df: pd.DataFrame, sample_sec=..., method=..., sigma=..., override_position_sampling_rate_Hz=..., regularization_approach: RegularizationApproach = ...): # -> DataFrame[Any]:
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
 
@@ -90,7 +90,7 @@ def calculate_run_epochs(position: core.Position, speedthresh=..., merge_dur=...
     """
     ...
 
-def compute_position_grid_size(*any_1d_series, num_bins: tuple): # -> tuple[Any, list[Any], list[Any]]:
+def compute_position_grid_size(*any_1d_series, num_bins: tuple): # -> tuple[NDArray[float64], list[Any], list[Any]]:
     """  Computes the required bin_sizes from the required num_bins (for each dimension independently)
     Usage:
     out_grid_bin_size, out_bins, out_bins_infos = compute_position_grid_size(curr_kdiba_pipeline.sess.position.x, curr_kdiba_pipeline.sess.position.y, num_bins=(64, 64))

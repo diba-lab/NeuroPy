@@ -10,11 +10,11 @@ class BinarysignalIO:
         ...
     
     @property
-    def duration(self):
+    def duration(self): # -> float:
         ...
     
     @property
-    def n_frames(self):
+    def n_frames(self): # -> int:
         ...
     
     def get_signal(self, channel_indx=..., t_start=..., t_stop=...): # -> Signal:

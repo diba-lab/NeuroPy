@@ -24,7 +24,7 @@ class UnpackableMixin:
         """
         ...
     
-    def __iter__(self):
+    def __iter__(self): # -> Iterator[Any]:
         """ allows unpacking. See https://stackoverflow.com/questions/37837520/implement-packing-unpacking-in-an-object """
         ...
     
@@ -33,7 +33,7 @@ class UnpackableMixin:
     
 
 
-def interleave_elements(start_points, end_points, debug_print: bool = ...):
+def interleave_elements(start_points, end_points, debug_print: bool = ...): # -> NDArray[Any]:
     """ Given two equal sized arrays, produces an output array of double that size that contains elements of start_points interleaved with elements of end_points
     Example:
         from neuropy.utils.mixins.indexing_helpers import interleave_elements

@@ -43,7 +43,7 @@ class DataWriter(FileRepresentable, DictRepresentable, LegacyDataLoadingMixin, S
         ...
     
     @classmethod
-    def from_file(cls, f): # -> type[NotImplementedError] | None:
+    def from_file(cls, f): # -> type[NotImplementedError] | Any | None:
         ...
     
     @classmethod

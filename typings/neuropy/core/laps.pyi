@@ -22,11 +22,11 @@ class Laps(Epoch):
         ...
     
     @property
-    def lap_id(self):
+    def lap_id(self): # -> ndarray[Any, Any]:
         ...
     
     @property
-    def maze_id(self):
+    def maze_id(self): # -> ndarray[Any, Any]:
         ...
     
     @property
@@ -34,11 +34,11 @@ class Laps(Epoch):
         ...
     
     @property
-    def starts(self):
+    def starts(self): # -> ndarray[Any, Any]:
         ...
     
     @property
-    def stops(self):
+    def stops(self): # -> ndarray[Any, Any]:
         ...
     
     def filtered_by_lap_flat_index(self, lap_indicies): # -> Self:
@@ -78,13 +78,13 @@ class Laps(Epoch):
     def trimmed_to_non_overlapping(self) -> Laps:
         ...
     
-    def to_dataframe(self):
+    def to_dataframe(self): # -> DataFrame[Any]:
         ...
     
-    def get_lap_flat_indicies(self, lap_id):
+    def get_lap_flat_indicies(self, lap_id): # -> ndarray[Any, Any]:
         ...
     
-    def get_lap_times(self, lap_id):
+    def get_lap_times(self, lap_id): # -> ndarray[Any, Any]:
         ...
     
     def as_epoch_obj(self): # -> Epoch:
@@ -138,7 +138,7 @@ class Laps(Epoch):
         ...
     
     @classmethod
-    def build_dataframe(cls, mat_file_loaded_dict: dict, time_variable_name=..., absolute_start_timestamp=..., t_start: Optional[float] = ..., t_delta: Optional[float] = ..., t_end: Optional[float] = ..., global_session: Optional[Union[Position, DataSession]] = ...):
+    def build_dataframe(cls, mat_file_loaded_dict: dict, time_variable_name=..., absolute_start_timestamp=..., t_start: Optional[float] = ..., t_delta: Optional[float] = ..., t_end: Optional[float] = ..., global_session: Optional[Union[Position, DataSession]] = ...): # -> DataFrame[Any]:
         ...
     
     @classmethod

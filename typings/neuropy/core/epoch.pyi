@@ -198,10 +198,10 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         ...
     
     @classmethod
-    def from_PortionInterval(cls, portion_interval):
+    def from_PortionInterval(cls, portion_interval): # -> DataFrame[Any]:
         ...
     
-    def to_PortionInterval(self):
+    def to_PortionInterval(self): # -> Interval:
         ...
     
     def adding_active_aclus_information(self, spikes_df: pd.DataFrame, epoch_id_key_name: str = ..., add_unique_aclus_list_column: bool = ...) -> pd.DataFrame:
@@ -343,7 +343,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         ...
     
-    def __getitem__(self, slice_):
+    def __getitem__(self, slice_): # -> NDArray[Any]:
         """ Allows pass-thru indexing like it were a numpy array.
 
         2024-03-07 Potentially more dangerous than helpful.
@@ -410,7 +410,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def get_proportion_by_label(self, t_start=..., t_stop=...): # -> dict[Any, Any]:
         ...
     
-    def count(self, t_start=..., t_stop=..., binsize=...):
+    def count(self, t_start=..., t_stop=..., binsize=...): # -> NDArray[Any]:
         ...
     
     def to_neuroscope(self, ext=..., override_filepath=...): # -> Path:
@@ -431,7 +431,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         ...
     
-    def as_array(self):
+    def as_array(self): # -> ndarray[Any, Any]:
         ...
     
     @classmethod

@@ -14,7 +14,7 @@ class OverlappingIntervalsFallbackBehavior(Enum):
     FALLBACK_TO_SLOW_SEARCH = ...
 
 
-def verify_non_overlapping(start_stop_times_arr):
+def verify_non_overlapping(start_stop_times_arr): # -> bool_:
     """Returns True if no members of the start_stop_times_arr overlap each other.
 
     Args:
@@ -30,7 +30,7 @@ def verify_non_overlapping(start_stop_times_arr):
     """
     ...
 
-def get_non_overlapping_epochs(start_stop_times_arr):
+def get_non_overlapping_epochs(start_stop_times_arr): # -> NDArray[Any]:
     """Gets the indicies of any epochs that DON'T overlap one another.
     
     Args:
@@ -58,7 +58,7 @@ def drop_overlapping(start_stop_times_arr):
     """
     ...
 
-def get_overlapping_indicies(start_stop_times_arr):
+def get_overlapping_indicies(start_stop_times_arr): # -> NDArray[longlong]:
     """Gets the indicies of any epochs that DO overlap one another.
     
     Args:
@@ -73,7 +73,7 @@ def get_overlapping_indicies(start_stop_times_arr):
     """
     ...
 
-def debug_overlapping_epochs(epochs_df):
+def debug_overlapping_epochs(epochs_df): # -> NDArray[longlong]:
     """
     from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, drop_overlapping, get_overlapping_indicies, OverlappingIntervalsFallbackBehavior
     curr_epochs_obj = deepcopy(sess.ripple)
@@ -82,7 +82,7 @@ def debug_overlapping_epochs(epochs_df):
     """
     ...
 
-def determine_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels=..., no_interval_fill_value=..., overlap_behavior=...): # -> tuple[Any, list[Any]]:
+def determine_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels=..., no_interval_fill_value=..., overlap_behavior=...): # -> NDArray[Any] | tuple[NDArray[Any], list[Any]]:
     """ Given a list of event times (`times_arr`) and a separate list of epoch start_stop_times (`start_stop_times_arr`), adds a
     Usage:
         from neuropy.utils.efficient_interval_search import determine_event_interval_identity
@@ -90,10 +90,10 @@ def determine_event_interval_identity(times_arr, start_stop_times_arr, period_id
     """
     ...
 
-def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=..., overlap_behavior=...): # -> tuple[Any, list[Any]]:
+def determine_unsorted_event_interval_identity(times_arr, start_stop_times_arr, period_identity_labels, no_interval_fill_value=..., overlap_behavior=...): # -> tuple[NDArray[Any], list[Any]]:
     ...
 
-def determine_event_interval_is_included(times_arr, start_stop_times_arr):
+def determine_event_interval_is_included(times_arr, start_stop_times_arr): # -> NDArray[Any]:
     ...
 
 def deduplicate_epochs(epochs_df, agressive_deduplicate: bool = ...):
@@ -128,7 +128,7 @@ def convert_Epoch_obj_to_PortionInterval_obj(epoch_obj, **P_Interval_kwargs) -> 
     """
     ...
 
-def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=..., debug_print=...): # -> tuple[*tuple[Epoch, ...], Any, Any]:
+def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=..., debug_print=...): # -> tuple[*tuple[Epoch, ...], Interval, Interval]:
     """ Filter *_replays_Interval by requiring them to be below the speed 
     *epoch_args = long_replays, short_replays, global_replays
 
@@ -149,7 +149,7 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
     """
     ...
 
-def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh: float = ..., min_num_unique_aclu_inclusions=..., include_intermediate_computations: bool = ...): # -> tuple[Epoch, tuple[list[Any], Any, Any, Any, Any] | None]:
+def filter_epochs_by_num_active_units(active_spikes_df, active_epochs, min_inclusion_fr_active_thresh: float = ..., min_num_unique_aclu_inclusions=..., include_intermediate_computations: bool = ...): # -> tuple[Epoch, tuple[list[Any], Any, NDArray[Any], NDArray[bool_], Any] | None]:
     """ Filter active_epochs by requiring them to have at least `min_num_unique_aclu_inclusions` active units as determined by filtering active_spikes_df.
     Inputs:
         active_spikes_df: a spike_df with only active units

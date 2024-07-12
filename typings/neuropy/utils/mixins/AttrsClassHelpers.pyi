@@ -22,11 +22,11 @@ class HDF_SerializationType(Enum):
     DATASET = ...
     ATTRIBUTE = ...
     @property
-    def required_tag(self):
+    def required_tag(self): # -> Any:
         ...
     
     @classmethod
-    def requiredClassTags(cls):
+    def requiredClassTags(cls): # -> NDArray[Any]:
         ...
     
 
