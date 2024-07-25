@@ -166,7 +166,16 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
                 user_annotations[ctx + Ctx(decoder='short_LR')] = [[61.397, 61.662], [72.607, 72.954], [77.735, 78.048], [91.578, 91.857], [241.692, 241.846], [338.425, 338.644], [367.853, 368.127], [380.259, 380.597], [485.046, 485.367], [630.858, 631.206], [689.063, 689.285], [743.166, 743.293], [799.927, 800.140], [815.267, 815.468], [867.655, 867.836], [906.068, 906.269], [1136.947, 1137.501], [1296.292, 1296.619], [1325.176, 1325.339], [1378.883, 1379.019], [1410.607, 1410.783], [1453.569, 1453.790], [1456.699, 1457.127], [1485.888, 1486.146], [1492.934, 1493.018], [1493.483, 1493.693], [1530.547, 1530.794], [1540.999, 1541.243], [1658.499, 1658.923], [1807.340, 1807.478], [1818.494, 1818.659], [1832.060, 1832.191], [1835.039, 1835.215], [1848.992, 1849.224], [1866.809, 1867.072], [1892.861, 1893.089], [1998.453, 1998.566]]
                 user_annotations[ctx + Ctx(decoder='short_RL')] = [[41.012, 41.359], [146.972, 147.245], [204.162, 204.322], [267.606, 267.774], [303.683, 303.898], [341.709, 342.028], [398.601, 399.047], [543.325, 543.487], [799.366, 799.545], [1318.305, 1318.500], [1424.499, 1424.714], [1472.388, 1472.686], [1513.619, 1513.767], [1519.637, 1519.792], [1633.030, 1633.265], [1697.468, 1697.711], [1780.357, 1780.492], [1789.761, 1790.010], [1840.475, 1840.606], [1855.422, 1855.711], [1892.268, 1892.522], [1925.050, 1925.228], [1966.703, 1967.053], [2045.095, 2045.393], [2051.142, 2051.269]]
                             
-                                
+
+        # Pho + Kamran Selected and Agreed on these events together on 2024-07-25 ____________________________________________ #
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+            user_annotations[ctx + Ctx(decoder='long_LR')] = [[282.873, 283.142], [323.968, 324.431], [380.259, 380.597], [419.651, 419.876], [434.102, 434.316], [571.061, 571.225], [878.106, 878.315], [1158.821, 1159.079], [1493.483, 1493.693]]
+            user_annotations[ctx + Ctx(decoder='long_RL')] = [[911.215, 911.588], [1152.558, 1152.761], [1855.422, 1855.711]]
+            user_annotations[ctx + Ctx(decoder='short_LR')] = [[193.648, 193.893], [241.692, 241.846], [267.606, 267.774], [338.425, 338.644], [485.046, 485.367], [545.744, 546.074], [689.063, 689.285], [749.247, 749.420], [799.927, 800.140], [815.267, 815.468], [886.561, 886.679], [906.068, 906.269], [1285.369, 1285.508], [1296.292, 1296.619], [1325.176, 1325.339], [1378.883, 1379.019], [1410.607, 1410.783], [1453.569, 1453.790], [1456.699, 1457.127], [1504.300, 1504.475], [1523.409, 1523.857], [1540.999, 1541.243], [1818.494, 1818.659], [1835.039, 1835.215], [1848.992, 1849.224], [1866.809, 1867.072], [1885.974, 1886.315], [2053.277, 2053.445]]
+            user_annotations[ctx + Ctx(decoder='short_RL')] = [[303.683, 303.898], [398.601, 399.047], [663.843, 664.227], [799.366, 799.545], [1296.292, 1296.619], [1318.305, 1318.500], [1368.482, 1368.847], [1424.499, 1424.714], [1472.388, 1472.686], [1513.619, 1513.767], [1633.030, 1633.265], [1780.357, 1780.492], [1840.475, 1840.606], [1859.245, 1859.388], [1892.268, 1892.522], [1915.874, 1916.032], [1925.050, 1925.228], [2051.142, 2051.269]]
+
+
+
         ## IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')
         with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
@@ -263,6 +272,10 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_RL',user_annotation='selections')] = [[149.959, 150.254], [307.08, 307.194], [1332.28, 1332.39]]
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_LR',user_annotation='selections')] = [[132.511, 132.791], [571.304, 571.385], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1699.23, 1699.36]]
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_RL',user_annotation='selections')] = [[105.4, 105.563], [1302.65, 1302.8], [1332.28, 1332.39], [1450.89, 1451.02]]
+
+
+
+
 
         with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
