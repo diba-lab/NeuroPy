@@ -348,3 +348,96 @@ class SimpleFieldSizesReprMixin:
                 attr_reprs.append(f"{a.name}: {attr_type}")
         content = ",\n\t".join(attr_reprs)
         return f"{type(self).__name__}({content}\n)"
+
+
+
+
+
+
+_default_class_name_dict_replace = { # used only by `convert_attrs_inline_class_instance_to_normal_class_defn`
+    'numpy.': 'np.',
+    'pandas.core.frame.DataFrame': 'pd.DataFrame',
+    'np.int8': 'int',
+    'np.int16': 'int',
+    'np.int32': 'int',
+    'np.int64': 'int',
+    'np.float16': 'float',
+    'np.float32': 'float',
+    'np.float64': 'float',
+}
+
+
+
+# @function_attributes(short_name=None, tags=['class-conversion', 'programming', 'meta'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-07-30 21:09', related_items=[])
+def convert_attrs_inline_class_instance_to_normal_class_defn(an_instance, class_name_replace_dict=None, print_output:bool=False) -> str:
+    """ Converts an inline `attrs`-based class definition generated via `attrs.make_class(...)` to a full-class-defn-form class definition.
+    
+     For example:
+        ```python
+        HeuristicScoresTuple = attrs.make_class("HeuristicScoresTuple", {k:field() for k in ("longest_sequence_length", "longest_sequence_length_ratio", "direction_change_bin_ratio", "congruent_dir_bins_ratio", "total_congruent_direction_change", 
+                                                                                            "total_variation", "integral_second_derivative", "stddev_of_diff",
+                                                                                            "position_derivatives_df")}, bases=(UnpackableMixin, object,))
+        ```
+
+        ```python
+        class HeuristicScoresTuple(UnpackableMixin, object,):
+            longest_sequence_length = field()
+            longest_sequence_length_ratio = field()
+            # ... remainder of fields
+        ```
+
+
+    Usage:
+
+        from neuropy.utils.mixins.AttrsClassHelpers import convert_attrs_inline_class_instance_to_normal_class_defn
+        content = convert_attrs_inline_class_instance_to_normal_class_defn(an_instance=deepcopy(active_heuristic_scores))
+        print(content)
+    
+    """
+    from pyphocorehelpers.print_helpers import strip_type_str_to_classname
+    
+    if class_name_replace_dict is None:
+        class_name_replace_dict = _default_class_name_dict_replace
+
+    # include_any_defaults = False
+
+    include_any_defaults = True
+    include_curr_values_as_defaults = False
+
+    fixed_defaults_values = {a.name:(a.default or None) for a in an_instance.__attrs_attrs__}
+
+    
+    attr_reprs = []
+    for a in an_instance.__attrs_attrs__:
+        attr_value = getattr(an_instance, a.name)
+        attr_type = strip_type_str_to_classname(type(attr_value))
+        for old, new in class_name_replace_dict.items():
+            attr_type = attr_type.replace(old, new)
+        curr_attr_defn_line: str = f"{a.name}: {attr_type} = "
+        if not include_any_defaults:
+            # no defaults:
+            curr_attr_defn_line += f'field()'
+        else:
+            if include_curr_values_as_defaults:
+                _final_default_value = str(attr_value)	
+                curr_attr_defn_line += f'field(default={_final_default_value})'
+            else:
+                # used fixed defaults
+                _final_default_value = fixed_defaults_values[a.name]
+                # _final_default_value = fixed_defaults_values.get(a.name, attr_value)
+                curr_attr_defn_line += f'field(default={_final_default_value})'
+                
+        attr_reprs.append(curr_attr_defn_line)
+        
+    class_defn_str: str = f"@define(slots=False)\nclass {an_instance.__class__.__name__}"
+    base_classes = [v.__name__ for v in an_instance.__class__.__bases__]
+    if len(base_classes) > 0:
+        class_defn_str += '(' + ', '.join(base_classes) + ')'
+    class_defn_str += ':'
+    content = class_defn_str + '\n'
+    content += "\t" + ",\n\t".join(attr_reprs)
+    if print_output:
+        print(content)
+    return content
+
+
