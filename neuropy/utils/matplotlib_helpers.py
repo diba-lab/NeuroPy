@@ -2008,125 +2008,6 @@ from flexitext import FlexiText, Style
 from flexitext.textgrid import make_text_grid, make_grid
 from flexitext.text import Text as StyledText
 
-
-# def value_to_color(value, debug_print=True):
-#     """
-#     Maps a value between -1.0 and 1.0 to an RGB color code.
-#     -1.0 maps to bright blue, 0.0 maps to dark gray, and 1.0 maps to bright red.
-#     """
-#     import colorsys
-
-#     magnitude_value: float = np.abs(value)
-#     # norm_value: float = map_to_fixed_range(magnitude_value, x_min=0.0, x_max=1.0)
-#     saturation_component = magnitude_value
-#     # saturation_component = norm_value
-
-#     if value <= 0:
-#         # Map values from -1.0 to 0.0 to shades of blue
-#         # norm = (value + 1) / 2  # Normalize to [0, 1] range
-#         rgb = colorsys.hsv_to_rgb(0.67, saturation_component, magnitude_value)  # Blue to dark gray
-#     else:
-#         # Map values from 0.0 to 1.0 to shades of red
-#         # norm = value  # No need to normalize
-#         rgb = colorsys.hsv_to_rgb(0.0, saturation_component, magnitude_value)  # Dark gray to red
-
-#     if debug_print:
-#         print(f'value: {value}')
-#         # print(f'norm_value: {norm_value}')
-#         print(f'magnitude_value: {magnitude_value}')
-#         print(f'saturation_component: {saturation_component}')
-#         print(f'rgb: {rgb}')
-
-#     return '#{:02x}{:02x}{:02x}'.format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)) # ValueError: cannot convert float NaN to integer
-
-# def build_label_value_formatted_text_properties(label: str, value: float):
-#     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
-#     Create text areas with different colors and properties
-
-#     from neuropy.utils.matplotlib_helpers import build_label_value_formatted_text_properties
-
-
-#     """
-#     # Create text areas with different colors and properties
-#     from matplotlib import font_manager
-
-#     label_text_props = dict(color="black")
-#     label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
-    
-#     # assert not isinstance(value, str)
-#     value = float(value)
-#     color = value_to_color(value)
-#     value_textprops = dict(color=color, weight="bold")
-#     value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
-
-#     return label_text_props, value_textprops
-
-# def build_label_value_formatted_text(label: str, value: float):
-#     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
-#     Create text areas with different colors and properties
-#     """
-#     # Create text areas with different colors and properties
-#     from matplotlib import font_manager
-#     from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
-
-#     # label_text_props = dict(color="black")
-#     # label_text_props['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=9)
-    
-#     # # assert not isinstance(value, str)
-#     # value = float(value)
-#     # color = value_to_color(value)
-#     # value_textprops = dict(color=color, weight="bold")
-#     # value_textprops['fontproperties'] = font_manager.FontProperties(family='Source Sans Pro', size=10)
-
-
-#     label_text_props, value_textprops = build_label_value_formatted_text_properties(label, value)
-
-#     ## Build actual labels:
-#     txtArea_label = TextArea(label, textprops=label_text_props)
-#     txtArea_formatted_value = TextArea(value, textprops=value_textprops)
-#     # Combine the text areas horizontally into a single line
-#     box = HPacker(children=[txtArea_label, txtArea_formatted_value], align="center", pad=0, sep=5)
-
-#     return box
-
-# def build_formatted_label_values_stack(formated_text_list):
-#     """ Builds a single line of a_label: a_value text labels that can be formatted in different colors, sizes, etc. 
-
-#     Usage:
-#         import matplotlib.pyplot as plt
-#         from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
-#         from neuropy.utils.matplotlib_helpers import build_formatted_label_values_stack, build_formatted_label_values_stack, value_to_color
-
-#         # Create a figure and axis
-#         fig, ax = plt.subplots()
-#         formated_text_list = [("wcorr: ", -0.754),
-#                                 ("$P_i$: ", 0.052), 
-#                                 ("pearsonr: ", -0.76),
-#                             ]
-
-#         stack_box = build_formatted_label_values_stack(formated_text_list)
-
-#         text_kwargs = _helper_build_text_kwargs_flat_top(a_curr_ax=ax)
-
-#         anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False,**text_kwargs, borderpad=0.)
-
-#         # Add the offset box to the axes
-#         ax.add_artist(anchored_box)
-
-#         # Display the plot
-#         plt.show()
-
-
-#     """
-#     # Create text areas with different colors and properties
-#     from matplotlib import font_manager
-#     from matplotlib.offsetbox import TextArea, HPacker, VPacker
-
-#     stack_box = VPacker(children=[build_label_value_formatted_text(a_label, a_value) for a_label, a_value in formated_text_list], align='right', pad=0, sep=2)
-#     return stack_box
-
-#     # anchored_box = AnchoredOffsetbox(child=stack_box, pad=0., frameon=False, **text_kwargs, borderpad=0.)
-
 import matplotlib as mpl
 import matplotlib.colors
 from matplotlib import cm
@@ -2253,6 +2134,26 @@ class ValueFormatter:
     
 
 
+def find_first_available_matplotlib_font_name(desired_fonts_list):
+    """ returns the first font that is available to matplotlib
+    
+        from neuropy.utils.matplotlib_helpers import find_first_available_matplotlib_font_name
+
+        found_font_name = find_first_available_matplotlib_font_name(desired_fonts_list=['Source Sans Pro', 'Source Sans 3', 'DejaVu Sans Mono'])
+
+    """
+    import matplotlib.font_manager as fm
+
+    known_font_names = sorted(fm.get_font_names())
+    _found_font_name = None
+    for a_font in desired_fonts_list:
+        if (_found_font_name is None) and (a_font in known_font_names):
+            ## found font
+            _found_font_name = a_font
+            return _found_font_name
+
+    return _found_font_name
+
 
 
 
@@ -2287,13 +2188,14 @@ def parse_and_format_unformatted_values_text(unformatted_text_block: str, key_va
     # splits into new lines first, then splits into (label, value) pairs on the `key_value_split`
     split_label_value_tuples = [[part.strip() for part in line.split(key_value_split)] for line in unformatted_text_block.splitlines()] # [['wcorr', '-0.754'], ['$P_i$', '0.052'], ['pearsonr', '-0.76']]
 
+    found_font_name = find_first_available_matplotlib_font_name(desired_fonts_list=['Source Sans Pro', 'Source Sans 3', 'DejaVu Sans Mono'])    
+
     texts: List[StyledText] = []
     for (label, value) in split_label_value_tuples:
-        flexitext_label_text_props = dict(color="black", name='Source Sans Pro', size=9)
-
+        flexitext_label_text_props = dict(color="black", name=found_font_name, size=9)
         float_val = float(value)
         # formatted_val_color: str = a_val_formatter.value_to_color(float_val, debug_print=False)
-        flexitext_value_textprops = dict(color='grey', weight="bold", name='Source Sans Pro', size=10) | a_val_formatter.value_to_format_dict(float_val, debug_print=False) # merge the formatting dict, using the value returned from the formatter preferentially
+        flexitext_value_textprops = dict(color='grey', weight="bold", name=found_font_name, size=10) | a_val_formatter.value_to_format_dict(float_val, debug_print=False) # merge the formatting dict, using the value returned from the formatter preferentially
         
         label_formatted_text: StyledText = Style(**flexitext_label_text_props)(label + desired_label_value_sep)
         value_formatted_text: StyledText = Style(**flexitext_value_textprops)(value + "\n")
