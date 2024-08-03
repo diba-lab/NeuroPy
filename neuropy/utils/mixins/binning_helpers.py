@@ -436,7 +436,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
 
 
 ## Transition Matrix Computations
-def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=None):
+def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=None, nan_entries_replace_value:Optional[float]=None):
     """" Computes the transition matrix from Markov chain sequence of order `n`.
     See https://stackoverflow.com/questions/58048810/building-n-th-order-markovian-transition-matrix-from-a-given-sequence
 
@@ -504,10 +504,24 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
         # use user-provided max_state_index:
         num_states = max_state_index + 1
 
+    # offset_idx: int = 1
+    offset_idx: int = markov_order # the markov_order is how many elements ahead we should look
+
+    # Note that zippping with an unequal number of elements means that the number of iterations will be limited to the minimum number of elements:
+    # offset_idx: int = 2
+    # np.shape(state_sequence):  (4769,)
+    # np.shape(state_sequence[offset_idx:]):  (4767,)
+    # len(list(zip(state_sequence, state_sequence[offset_idx:]))): 4767
+
     M = np.zeros(shape=(num_states, num_states))
-    for (i, j) in zip(state_sequence, state_sequence[1:]):
+    for (i, j) in zip(state_sequence, state_sequence[offset_idx:]):
         M[i, j] += 1
         
     #now convert to probabilities:
     T = (M.T / M.sum(axis=1, keepdims=True)).T
-    return np.linalg.matrix_power(T, markov_order)
+
+    if nan_entries_replace_value is not None:
+        # replace NaN entries in final output
+        T[np.isnan(T)] = float(nan_entries_replace_value)
+    
+    return T
