@@ -499,11 +499,17 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
 
     """
     if max_state_index is None:
-        num_states = 1 + max(state_sequence) #number of states
+        print(f'WARNING: `max_state_index` is not provided, guessing from maximimum observed state in sequence!')
+        max_state_index = max(state_sequence)
+        num_states = 1 + max_state_index #number of states
     else:
         # use user-provided max_state_index:
         num_states = max_state_index + 1
 
+    assert max(state_sequence) <= max_state_index, f"VIOLATED! max(state_sequence): {max(state_sequence)} <= max_state_index: {max_state_index}"
+    assert max(state_sequence) < num_states, f"VIOLATED! max(state_sequence): {max(state_sequence)} < num_states: {num_states}"
+    # assert 0 in state_sequence, f"does not contain zero! Make sure that it is not a 1-indexed sequence!"
+    
     # offset_idx: int = 1
     offset_idx: int = markov_order # the markov_order is how many elements ahead we should look
 
@@ -517,7 +523,12 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
     for (i, j) in zip(state_sequence, state_sequence[offset_idx:]):
         M[i, j] += 1
         
-    #now convert to probabilities:
+    # now convert to probabilities:
+    ## NOTE: NaNs will occur when there are rows of all zeros, as when we compute the sum of the row it becomes zero, and thus we divide the whole row by zero giving a whole row of NaNs
+    # assert np.allclose((M.T / M.sum(axis=1, keepdims=True)).T, (M / M.sum(axis=1)[:, np.newaxis])) ## Note that the new and old ways are identical
+    # T = M / M.sum(axis=1)[:, np.newaxis] # row sum
+    # M = M / M.sum(axis=0)[np.newaxis,:] # col sum
+    # Prev normalization method:
     T = (M.T / M.sum(axis=1, keepdims=True)).T
 
     if nan_entries_replace_value is not None:
