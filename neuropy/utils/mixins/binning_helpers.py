@@ -510,7 +510,6 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
     assert max(state_sequence) < num_states, f"VIOLATED! max(state_sequence): {max(state_sequence)} < num_states: {num_states}"
     # assert 0 in state_sequence, f"does not contain zero! Make sure that it is not a 1-indexed sequence!"
     
-    # offset_idx: int = 1
     offset_idx: int = markov_order # the markov_order is how many elements ahead we should look
 
     # Note that zippping with an unequal number of elements means that the number of iterations will be limited to the minimum number of elements:
@@ -518,7 +517,6 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
     # np.shape(state_sequence):  (4769,)
     # np.shape(state_sequence[offset_idx:]):  (4767,)
     # len(list(zip(state_sequence, state_sequence[offset_idx:]))): 4767
-
     M = np.zeros(shape=(num_states, num_states))
     for (i, j) in zip(state_sequence, state_sequence[offset_idx:]):
         M[i, j] += 1
