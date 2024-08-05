@@ -243,12 +243,12 @@ class BinnedPositionsMixin(object):
         
     """
     @property
-    def xbin_centers(self):
+    def xbin_centers(self) -> NDArray:
         """ the x-position of the centers of each xbin. Note that there is (n_xbins - 1) of these. """
         return self.xbin[:-1] + np.diff(self.xbin) / 2
 
     @property
-    def ybin_centers(self):
+    def ybin_centers(self) -> Optional[NDArray]:
         """ the y-position of the centers of each xbin. Note that there is (n_ybins - 1) of these. """
         if self.ybin is None:
             return None
@@ -256,18 +256,46 @@ class BinnedPositionsMixin(object):
             return self.ybin[:-1] + np.diff(self.ybin) / 2
 
     @property
-    def xbin_labels(self):
+    def xbin_labels(self) -> NDArray:
         """ the labels of each xbin center. Starts at 1!"""
         return np.arange(start=1, stop=len(self.xbin)) # bin labels are 1-indexed, thus adding 1
 
     @property
-    def ybin_labels(self):
+    def ybin_labels(self) -> Optional[NDArray]:
         """ the labels of each ybin center. Starts at 1!"""
         if self.ybin is None:
             return None
         else:
             return np.arange(start=1, stop=len(self.ybin))
 
+    @property
+    def n_xbin_edges(self) -> int:
+        """ the number of xbin edges. """
+        return len(self.xbin) 
+
+    @property
+    def n_ybin_edges(self) -> Optional[int]:
+        """ the number of ybin edges. """
+        if self.ybin is None:
+            return None
+        else:
+             return len(self.ybin)
+
+    @property
+    def n_xbin_centers(self) -> int:
+        """ the number of xbin (centers). Note that there is (n_xbin_edges - 1) of these. """
+        return (len(self.xbin) - 1) # the -1 is to get the counts for the centers only
+
+    @property
+    def n_ybin_centers(self) -> Optional[int]:
+        """ the number of ybin (centers). Note that there is (n_ybin_edges - 1) of these. """
+        if self.ybin is None:
+            return None
+        else:
+             return (len(self.ybin) - 1) # the -1 is to get the counts for the centers only
+
+            
+    
     @property
     def dims_coord_tuple(self):
         """Returns a tuple containing the number of bins in each dimension. For 1D it will be (n_xbins,) for 2D (n_xbins, n_ybins) 
