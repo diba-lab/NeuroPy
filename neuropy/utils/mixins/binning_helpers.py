@@ -436,7 +436,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
 
 
 ## Transition Matrix Computations
-def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=None, nan_entries_replace_value:Optional[float]=None):
+def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=None, nan_entries_replace_value:Optional[float]=None, should_validate_normalization:bool=True):
     """" Computes the transition matrix from Markov chain sequence of order `n`.
     See https://stackoverflow.com/questions/58048810/building-n-th-order-markovian-transition-matrix-from-a-given-sequence
 
@@ -498,13 +498,17 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
         binned_x_transition_matrix_higher_order_list = [binned_x_transition_matrix, transition_matrix(deepcopy(binned_x_indicies), markov_order=2), transition_matrix(deepcopy(binned_x_indicies), markov_order=3)]
 
     """
+    from sklearn.preprocessing import normalize
+    
+    assert markov_order > 0
+    
     if max_state_index is None:
         print(f'WARNING: `max_state_index` is not provided, guessing from maximimum observed state in sequence!')
         max_state_index = max(state_sequence)
-        num_states = 1 + max_state_index #number of states
+        num_states: int = 1 + max_state_index #number of states
     else:
         # use user-provided max_state_index:
-        num_states = max_state_index + 1
+        num_states: int = max_state_index + 1
 
     assert max(state_sequence) <= max_state_index, f"VIOLATED! max(state_sequence): {max(state_sequence)} <= max_state_index: {max_state_index}"
     assert max(state_sequence) < num_states, f"VIOLATED! max(state_sequence): {max(state_sequence)} < num_states: {num_states}"
@@ -523,14 +527,36 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
         
     # now convert to probabilities:
     ## NOTE: NaNs will occur when there are rows of all zeros, as when we compute the sum of the row it becomes zero, and thus we divide the whole row by zero giving a whole row of NaNs
+    # Normalize matrix by rows
+    T = normalize(M, axis=1, norm='l1')
+    
+    # _row_normalization_sum = np.sum(M, axis=1).astype(float) # should be a column vector
+    # # Loop through and normalize each row:
+    # T = M.copy().astype(float)
+    # for row_idx in np.arange(num_states):
+    #     T[row_idx, :] = T[row_idx, :] / _row_normalization_sum # row normalization, even explicitly is not working. I must be doing something wrong with indexing?
+
+    
     # assert np.allclose((M.T / M.sum(axis=1, keepdims=True)).T, (M / M.sum(axis=1)[:, np.newaxis])) ## Note that the new and old ways are identical
     # T = M / M.sum(axis=1)[:, np.newaxis] # row sum
     # M = M / M.sum(axis=0)[np.newaxis,:] # col sum
     # Prev normalization method:
-    T = (M.T / M.sum(axis=1, keepdims=True)).T
+    # T = (M.T / M.sum(axis=1, keepdims=True)).T
 
     if nan_entries_replace_value is not None:
         # replace NaN entries in final output
         T[np.isnan(T)] = float(nan_entries_replace_value)
     
+
+    # ## Check:
+    if should_validate_normalization:
+        ## test row normalization:
+        _check_row_normalization_sum = np.sum(T, axis=1)
+        _is_row_normalization_all_valid = np.allclose(_check_row_normalization_sum, 1.0)
+        assert np.alltrue(_is_row_normalization_all_valid), f"not row normalized!\n\t_is_row_normalization_all_valid: {_is_row_normalization_all_valid}\n\t_check_row_normalization_sum: {_check_row_normalization_sum}"
+
+
+    # _check_row_normalization_sum = np.sum(T, axis=1)
+    # assert np.allclose(_check_row_normalization_sum, 1), f"0th order not row normalized!\n\t_check_row_normalization_sum: {_check_row_normalization_sum}"
+
     return T
