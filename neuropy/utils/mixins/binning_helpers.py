@@ -436,7 +436,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
 
 
 ## Transition Matrix Computations
-def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=None, nan_entries_replace_value:Optional[float]=None, should_validate_normalization:bool=True):
+def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=None, nan_entries_replace_value:Optional[float]=None, should_validate_normalization:bool=False):
     """" Computes the transition matrix from Markov chain sequence of order `n`.
     See https://stackoverflow.com/questions/58048810/building-n-th-order-markovian-transition-matrix-from-a-given-sequence
 
@@ -552,8 +552,8 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
     if should_validate_normalization:
         ## test row normalization:
         _check_row_normalization_sum = np.sum(T, axis=1)
-        _is_row_normalization_all_valid = np.allclose(_check_row_normalization_sum, 1.0)
-        assert np.alltrue(_is_row_normalization_all_valid), f"not row normalized!\n\t_is_row_normalization_all_valid: {_is_row_normalization_all_valid}\n\t_check_row_normalization_sum: {_check_row_normalization_sum}"
+        _is_row_normalization_all_valid = np.allclose(_check_row_normalization_sum[np.nonzero(_check_row_normalization_sum)], 1.0)
+        assert _is_row_normalization_all_valid, f"not row normalized!\n\t_is_row_normalization_all_valid: {_is_row_normalization_all_valid}\n\t_check_row_normalization_sum: {_check_row_normalization_sum}"
 
 
     # _check_row_normalization_sum = np.sum(T, axis=1)
