@@ -530,33 +530,15 @@ def transition_matrix(state_sequence, markov_order:int=1, max_state_index:int=No
     # Normalize matrix by rows
     T = normalize(M, axis=1, norm='l1')
     
-    # _row_normalization_sum = np.sum(M, axis=1).astype(float) # should be a column vector
-    # # Loop through and normalize each row:
-    # T = M.copy().astype(float)
-    # for row_idx in np.arange(num_states):
-    #     T[row_idx, :] = T[row_idx, :] / _row_normalization_sum # row normalization, even explicitly is not working. I must be doing something wrong with indexing?
-
-    
-    # assert np.allclose((M.T / M.sum(axis=1, keepdims=True)).T, (M / M.sum(axis=1)[:, np.newaxis])) ## Note that the new and old ways are identical
-    # T = M / M.sum(axis=1)[:, np.newaxis] # row sum
-    # M = M / M.sum(axis=0)[np.newaxis,:] # col sum
-    # Prev normalization method:
-    # T = (M.T / M.sum(axis=1, keepdims=True)).T
-
     if nan_entries_replace_value is not None:
         # replace NaN entries in final output
         T[np.isnan(T)] = float(nan_entries_replace_value)
     
-
     # ## Check:
     if should_validate_normalization:
-        ## test row normalization:
+        ## test row normalization (only considering non-zero entries):
         _check_row_normalization_sum = np.sum(T, axis=1)
         _is_row_normalization_all_valid = np.allclose(_check_row_normalization_sum[np.nonzero(_check_row_normalization_sum)], 1.0)
         assert _is_row_normalization_all_valid, f"not row normalized!\n\t_is_row_normalization_all_valid: {_is_row_normalization_all_valid}\n\t_check_row_normalization_sum: {_check_row_normalization_sum}"
-
-
-    # _check_row_normalization_sum = np.sum(T, axis=1)
-    # assert np.allclose(_check_row_normalization_sum, 1), f"0th order not row normalized!\n\t_check_row_normalization_sum: {_check_row_normalization_sum}"
 
     return T
