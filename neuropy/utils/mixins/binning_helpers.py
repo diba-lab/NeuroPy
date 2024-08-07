@@ -47,6 +47,27 @@ class BinningInfo(object):
 class BinningContainer(object):
     """A container that allows accessing either bin_edges (self.edges) or bin_centers (self.centers) 
     Factored out of pyphocorehelpers.indexing_helpers.BinningContainer
+    
+    #TODO 2024-08-07 16:12: - [ ] Observing inconsistent values:
+        a_time_bin_container: neuropy.utils.mixins.binning_helpers.BinningContainer
+        │   ├── edges: numpy.ndarray  = [678.314 678.315 678.316 678.317 678.318 678.319 678.32 678.321 678.322 678.323 678.324 678.325 678.326 678.327 678.328 678.329 678.33 678.331 678.332 678.333 678.334 678.335 678.336 678.337 678.338 678.339 678.34 678.341 678.342 678.343 678.344 678.345 678.346 678.347 678.348... - (283,)
+        │   ├── centers: numpy.ndarray  = [678.314] - (1,)
+        │   ├── edge_info: neuropy.utils.mixins.binning_helpers.BinningInfo  = BinningInfo(variable_extents=[678.3138549999567, 678.59585499995], step=0.0009999999999763531, num_bins=283, bin_indicies=array([  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29...
+            │   ├── variable_extents: list  = [678.3138549999567, 678.59585499995] - (2,)
+            │   ├── step: numpy.float64  = 0.0009999999999763531
+            │   ├── num_bins: int  = 283
+            │   ├── bin_indicies: numpy.ndarray  = [  0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39  40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  57  58  59  60  61  62  63  64  65  66  67  68 ... - (283,)
+        │   ├── center_info: neuropy.utils.mixins.binning_helpers.BinningInfo  = BinningInfo(variable_extents=array([678.314, 678.315, 678.316, 678.317, 678.318, 678.319, 678.32, 678.321, 678.322, 678.323, 678.324, 678.325, 678.326, 678.327, 678.328, 678.329, 678.33, 678.331, 678.332, 678.333, 678.334, 678.335, 678.336, 678.337, 678.338, 678.339, 678.34, 6...
+            │   ├── variable_extents: numpy.ndarray  = [678.314 678.315 678.316 678.317 678.318 678.319 678.32 678.321 678.322 678.323 678.324 678.325 678.326 678.327 678.328 678.329 678.33 678.331 678.332 678.333 678.334 678.335 678.336 678.337 678.338 678.339 678.34 678.341 678.342 678.343 678.344 678.345 678.346 678.347 678.348... - (283,)
+            │   ├── step: float  = 0.0009999999999763531
+            │   ├── num_bins: int  = 1
+            │   ├── bin_indicies: numpy.ndarray  = [0] - (1,)
+        
+
+    Observations:
+        clearly initialized from edges, since edge_info.variable_extents is correct and center_info.variable_extents is so messed up. I didn't know it could get that way!
+    
+
     """
     edges: np.ndarray
     centers: np.ndarray
@@ -74,6 +95,7 @@ class BinningContainer(object):
         else:
             self.centers = get_bin_centers(edges)
             
+        ## build infos:
         if edge_info is not None:
             self.edge_info = edge_info
         else:
@@ -127,10 +149,10 @@ class BinningContainer(object):
         ## Build the Centers from the new edges:
         self.centers = get_bin_centers(edges)
         self.center_info = BinningContainer.build_center_binning_info(self.centers, self.edge_info.variable_extents)
-            
+        
         
 
-def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None, variable_start_value:float=None, variable_end_value:float=None):
+def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None, variable_start_value:float=None, variable_end_value:float=None) -> Tuple[NDArray, BinningInfo]:
     """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
 
 
@@ -197,7 +219,13 @@ def build_spanning_grid_matrix(x_values, y_values, debug_print=False):
         
         For example, used to build a grid of position points from xbins and ybins.
     Usage:
+        from neuropy.utils.mixins.binning_helpers import build_spanning_grid_matrix
         all_positions_matrix, flat_all_positions_matrix, original_data_shape = build_all_positions_matrix(active_one_step_decoder.xbin_centers, active_one_step_decoder.ybin_centers)
+    
+    Outputs:
+        all_positions_matrix: a 3D matrix # .shape # (num_cols, num_rows, 2)
+        flat_all_positions_matrix: a list of 2-tuples of length num_rows * num_cols
+        original_data_shape: a tuple containing the shape of the original data (num_cols, num_rows)
     """
     num_rows = len(y_values)
     num_cols = len(x_values)
