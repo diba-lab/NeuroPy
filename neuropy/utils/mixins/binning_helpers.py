@@ -211,7 +211,7 @@ def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=Non
     else:
         raise ValueError
     
-    return xbin, BinningInfo(curr_variable_extents, xstep, xnum_bins, np.arange(xnum_bins))
+    return xbin, BinningInfo(variable_extents=curr_variable_extents, step=xstep, num_bins=xnum_bins, bin_indicies=np.arange(xnum_bins))
       
 
 def build_spanning_grid_matrix(x_values, y_values, debug_print=False):
