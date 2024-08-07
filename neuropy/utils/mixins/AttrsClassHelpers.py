@@ -139,14 +139,16 @@ class AttrsBasedClassHelperMixin:
         Usage:
             desired_keys_subset = ['most_likely_positions_list', 'p_x_given_n_list', 'marginal_x_list', 'marginal_y_list', 'most_likely_position_indicies_list', 'nbins', 'time_bin_containers', 'time_bin_edges']
         
-
+            ._test_find_fields_by_shape_metadata(desired_keys_subset=desired_keys_subset)
         """
         class_fields = cls.__attrs_attrs__
         # indices_fields_n_epochs = [field.name for field in class_fields if hasattr(field.metadata, 'shape') and field.metadata['shape'][0] == 'n_epochs']
         indices_fields_n_epochs = [field.name for field in class_fields if 'shape' in field.metadata and field.metadata['shape'][0] == 'n_epochs']
         # print(f'indices_fields_n_epochs: {indices_fields_n_epochs}') # ['most_likely_positions_list', 'p_x_given_n_list', 'marginal_x_list', 'marginal_y_list', 'most_likely_position_indicies_list', 'spkcount', 'nbins', 'time_bin_containers', 'time_bin_edges', 'epoch_description_list']
         # desired_keys = ['most_likely_positions_list', 'p_x_given_n_list', 'marginal_x_list', 'marginal_y_list', 'most_likely_position_indicies_list', 'nbins', 'time_bin_containers', 'time_bin_edges']
-        return [a_field for a_field in indices_fields_n_epochs if a_field in desired_keys]
+        if desired_keys_subset is None:
+            desired_keys_subset = indices_fields_n_epochs
+        return [a_field for a_field in indices_fields_n_epochs if a_field in desired_keys_subset]
 
 
 
