@@ -1,10 +1,14 @@
-from typing import Optional
+from typing import Dict, List, Tuple, Optional, Callable, Union, Any, NewType, TypeVar
+from typing_extensions import TypeAlias
+from copy import deepcopy
 import numpy as np
 from nptyping import NDArray
 import pandas as pd
+import attrs
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
-from dataclasses import dataclass # for BinningInfo
-
+    
 def find_minimum_time_bin_duration(epoch_durations: NDArray) -> float:
     """ determines the minimum time bin size that can be used to bin epochs with the provided durations.
     2024-01-25 - Used to require that the epoch was divisible into at least two bins. With my updated code it can handle the case where it's divisible into a single bin.
@@ -35,14 +39,64 @@ def get_bin_edges(bin_centers):
     out.append(last_edge_bin) # append the last_edge_bin to the bins.
     return np.array(out)
 
-@dataclass
-class BinningInfo(object):
-    """ Factored out of pyphocorehelpers.indexing_helpers.BinningInfo """
-    variable_extents: tuple
-    step: float
-    num_bins: int
-    bin_indicies: NDArray
+@custom_define(slots=False, repr=False, eq=False)
+class BinningInfo(HDF_SerializationMixin, AttrsBasedClassHelperMixin):
+    """ Factored out of pyphocorehelpers.indexing_helpers.BinningInfo
     
+    2024-08-07: refactored from `dataclass` to attrs
+    
+    Removed `bin_indicies`
+    
+    """
+    variable_extents: Tuple = serialized_field(is_computable=False) # serialized_field
+    step: float = serialized_attribute_field(is_computable=False)
+    num_bins: int = serialized_attribute_field(is_computable=False)
+    bin_indicies: NDArray = serialized_field(init=False, repr=False, is_computable=True, metadata={'shape':('num_bins',)}) # , eq=attrs.cmp_using(eq=np.array_equal)
+    
+    def _validate_variable_extents(self):
+        variable_extents = deepcopy(self.variable_extents)
+        if isinstance(variable_extents, NDArray):
+            variable_extents_length = np.shape(variable_extents)[0]
+        else:
+            variable_extents_length = len(variable_extents)
+        # assert variable_extents_length == 2, f"variable_extents should be of length 2 (start, end) but is instead:\n\t variable_extents: {variable_extents}\n\t np.shape(variable_extents): {np.shape(variable_extents)}" # find where the bad extents are being introduced here!
+        assert variable_extents_length >= 2 , f"variable_extents should be of length 2 (start, end) but is instead:\n\t variable_extents: {variable_extents}\n\t variable_extents_length: {variable_extents_length}" # don't allow any less than 2
+            
+        if (variable_extents_length > 2):
+            print(f'WARNING: fixing invalid variable_extents!\n\t invalid variable_extents: {variable_extents}\n\tupdated self.variable_extents: {self.variable_extents}')
+            self.variable_extents = (variable_extents[0], variable_extents[-1]) # first and last values
+            print(f'\t VARIABLE EXTENTS CHANGED!')
+        assert variable_extents_length == 2, f"variable_extents should be of length 2 (start, end) but is instead:\n\t variable_extents: {variable_extents}\n\t np.shape(variable_extents): {np.shape(variable_extents)}"
+        
+        
+    def __attrs_post_init__(self):
+        """ validate and build bin_indicies """
+        self._validate_variable_extents()
+        self.bin_indicies = np.arange(self.num_bins)
+        assert len(self.bin_indicies) == self.num_bins, f"len(self.bin_indicies): {len(self.bin_indicies)} does not equal self.num_bins: {self.num_bins}!! Something is wrong"
+        # self.num_bins = len(self.bin_indicies) # update from bin_indicies
+    
+    
+    # @property
+    # def bin_indicies(self) -> NDArray:
+    #     """bin_indicies - np.ndarray of time_bin_indicies that will be used for the produced output dataframe of the binned spike counts for each unit. (e.g. time_bin_indicies = time_window_edges_binning_info.bin_indicies[1:])."""
+    #     # return np.arange(self.num_bins)
+    #     return self.bin_indicies
+    # @bin_indicies.setter
+    # def bin_indicies(self, value: NDArray):
+    #     self._bin_indicies = value
+    
+    ## For serialization/pickling:
+    def __getstate__(self):
+        # Copy the object's state from self.__dict__ which contains all our instance attributes. Always use the dict.copy() method to avoid modifying the original state.
+        state = self.__dict__.copy()
+        return state
+
+    def __setstate__(self, state):
+        # super(BinningInfo, self).__init__() # Call the superclass __init__() (from https://stackoverflow.com/a/48325758)
+        self.__dict__.update(state)
+
+
 
 class BinningContainer(object):
     """A container that allows accessing either bin_edges (self.edges) or bin_centers (self.centers) 
@@ -120,7 +174,7 @@ class BinningContainer(object):
         except Exception as e:
             raise e
         variable_extents = [edges[0], edges[-1]] # get first and last values as the extents
-        return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(edges), bin_indicies=np.arange(len(edges)))
+        return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(edges))
     
     @classmethod
     def build_center_binning_info(cls, centers: NDArray, variable_extents):
@@ -133,8 +187,7 @@ class BinningContainer(object):
             assert len(centers) == 2, f"centers must be of at least length 2 to re-derive center_info, but it is of length {len(centers)}. centers: {centers}"
             actual_window_size = centers[1] - centers[0]
 
-
-        return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(centers), bin_indicies=np.arange(len(centers)))
+        return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(centers))
     
     
     def setup_from_edges(self, edges: NDArray, edge_info: Optional[BinningInfo]=None):
@@ -211,7 +264,7 @@ def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=Non
     else:
         raise ValueError
     
-    return xbin, BinningInfo(variable_extents=curr_variable_extents, step=xstep, num_bins=xnum_bins, bin_indicies=np.arange(xnum_bins))
+    return xbin, BinningInfo(variable_extents=curr_variable_extents, step=xstep, num_bins=xnum_bins)
       
 
 def build_spanning_grid_matrix(x_values, y_values, debug_print=False):
