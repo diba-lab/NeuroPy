@@ -120,7 +120,7 @@ class BinningContainer(object):
         except Exception as e:
             raise e
         variable_extents = [edges[0], edges[-1]] # get first and last values as the extents
-        return BinningInfo(variable_extents, actual_window_size, len(edges), np.arange(len(edges)))
+        return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(edges), bin_indicies=np.arange(len(edges)))
     
     @classmethod
     def build_center_binning_info(cls, centers, variable_extents):
@@ -134,7 +134,7 @@ class BinningContainer(object):
             actual_window_size = centers[1] - centers[0]
 
 
-        return BinningInfo(variable_extents, actual_window_size, len(centers), np.arange(len(centers)))
+        return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(centers), bin_indicies=np.arange(len(centers)))
     
     
     def setup_from_edges(self, edges: np.ndarray, edge_info: Optional[BinningInfo]=None):
