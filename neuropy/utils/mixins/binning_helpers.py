@@ -41,7 +41,7 @@ class BinningInfo(object):
     variable_extents: tuple
     step: float
     num_bins: int
-    bin_indicies: np.ndarray
+    bin_indicies: NDArray
     
 
 class BinningContainer(object):
@@ -69,8 +69,8 @@ class BinningContainer(object):
     
 
     """
-    edges: np.ndarray
-    centers: np.ndarray
+    edges: NDArray
+    centers: NDArray
     
     edge_info: BinningInfo
     center_info: BinningInfo
@@ -81,7 +81,7 @@ class BinningContainer(object):
         # return len(self.centers)`
 
 
-    def __init__(self, edges: Optional[np.ndarray]=None, centers: Optional[np.ndarray]=None, edge_info: Optional[BinningInfo]=None, center_info: Optional[BinningInfo]=None):
+    def __init__(self, edges: Optional[NDArray]=None, centers: Optional[NDArray]=None, edge_info: Optional[BinningInfo]=None, center_info: Optional[BinningInfo]=None):
         super(BinningContainer, self).__init__()
         assert (edges is not None) or (centers is not None) # Require either centers or edges to be provided
         if edges is not None:
@@ -109,7 +109,7 @@ class BinningContainer(object):
             
             
     @classmethod
-    def build_edge_binning_info(cls, edges):
+    def build_edge_binning_info(cls, edges: NDArray):
         # Otherwise try to reverse engineer edge_info
         try:
             actual_window_size = edges[2] - edges[1] # if at least 3 bins long, safer to use the 2nd and 3rd bin to determine the actual_window_size
@@ -123,7 +123,7 @@ class BinningContainer(object):
         return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(edges), bin_indicies=np.arange(len(edges)))
     
     @classmethod
-    def build_center_binning_info(cls, centers, variable_extents):
+    def build_center_binning_info(cls, centers: NDArray, variable_extents):
         # Otherwise try to reverse engineer center_info
         try:
             # The very end bins can be slightly different sizes occasionally, so if our list is longer than length 2 use the differences in the points after the left end.
@@ -137,7 +137,7 @@ class BinningContainer(object):
         return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(centers), bin_indicies=np.arange(len(centers)))
     
     
-    def setup_from_edges(self, edges: np.ndarray, edge_info: Optional[BinningInfo]=None):
+    def setup_from_edges(self, edges: NDArray, edge_info: Optional[BinningInfo]=None):
         # Set the edges first:
         self.edges = edges
         if edge_info is not None:
@@ -342,7 +342,7 @@ class BinnedPositionsMixin(object):
 
 
 
-def bin_pos_nD(x: np.ndarray, y: np.ndarray, num_bins=None, bin_size=None):
+def bin_pos_nD(x: NDArray, y: NDArray, num_bins=None, bin_size=None):
         """ Spatially bins the provided x and y vectors into position bins based on either the specified num_bins or the specified bin_size
         Usage:
             ## Binning with Fixed Number of Bins:    
