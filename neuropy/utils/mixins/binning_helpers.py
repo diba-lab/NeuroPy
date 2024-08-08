@@ -184,15 +184,21 @@ class BinningContainer(object):
     @classmethod
     def build_center_binning_info(cls, centers: NDArray, variable_extents):
         # Otherwise try to reverse engineer center_info
+        assert len(centers) > 1, f"centers must be of at least length 2 to re-derive center_info, but it is of length {len(centers)}. centers: {centers}\n\tCannot continue!"
+            
         try:
             # The very end bins can be slightly different sizes occasionally, so if our list is longer than length 2 use the differences in the points after the left end.
             actual_window_size = centers[2] - centers[1]
         except IndexError as e:
             # For lists of length 2, use the only bins we have
-            assert len(centers) == 2, f"centers must be of at least length 2 to re-derive center_info, but it is of length {len(centers)}. centers: {centers}"
+            actual_window_size = None
+            assert len(centers) == 2, f"centers must be of at least length 2 to re-derive center_info, but it is of length {len(centers)}. centers: {centers}\n\tIndexError e: {e}"
             actual_window_size = centers[1] - centers[0]
-
-        return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(centers))
+        except BaseException as e:
+            raise e
+            # step = variable_extents.step # could use
+    
+        return BinningInfo(variable_extents=deepcopy(variable_extents), step=actual_window_size, num_bins=len(centers))
     
     
 
