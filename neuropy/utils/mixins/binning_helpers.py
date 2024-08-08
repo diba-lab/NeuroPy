@@ -47,6 +47,9 @@ class BinningInfo(HDF_SerializationMixin, AttrsBasedClassHelperMixin):
     
     Removed `bin_indicies`
     
+    Usage:
+        from neuropy.utils.mixins.binning_helpers import BinningInfo, BinningContainer
+    
     """
     variable_extents: Tuple = serialized_field(is_computable=False) # serialized_field
     step: float = serialized_attribute_field(is_computable=False)
@@ -66,7 +69,9 @@ class BinningInfo(HDF_SerializationMixin, AttrsBasedClassHelperMixin):
             print(f'WARNING: fixing invalid variable_extents!\n\t invalid variable_extents: {variable_extents}\n\tupdated self.variable_extents: {self.variable_extents}')
             self.variable_extents = (variable_extents[0], variable_extents[-1]) # first and last values
             print(f'\t VARIABLE EXTENTS CHANGED!')
-        assert variable_extents_length == 2, f"variable_extents should be of length 2 (start, end) but is instead:\n\t variable_extents: {variable_extents}\n\t np.shape(variable_extents): {np.shape(variable_extents)}"
+            variable_extents_length = len(self.variable_extents) # new length
+        
+        assert variable_extents_length == 2, f"variable_extents should be of length 2 (start, end) but is instead:\n\t variable_extents: {self.variable_extents}\n\t variable_extents_length: {variable_extents_length}"
         
         
     def __attrs_post_init__(self):
@@ -159,7 +164,7 @@ class BinningContainer(object):
         if center_info is not None:
             self.center_info = center_info
         else:
-            self.center_info = BinningContainer.build_center_binning_info(self.centers, self.edge_info.variable_extents)
+            self.center_info = BinningContainer.build_center_binning_info(self.centers, variable_extents=self.edge_info.variable_extents)
             
             
     @classmethod
@@ -171,9 +176,9 @@ class BinningContainer(object):
             # If edges is smaller than size 3, use the only two we have
             assert len(edges) == 2
             actual_window_size = edges[1] - edges[0]
-        except Exception as e:
+        except BaseException as e:
             raise e
-        variable_extents = [edges[0], edges[-1]] # get first and last values as the extents
+        variable_extents = (edges[0], edges[-1]) # get first and last values as the extents
         return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(edges))
     
     @classmethod

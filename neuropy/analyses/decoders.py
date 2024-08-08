@@ -1,7 +1,7 @@
 import warnings
 from typing import Optional, Union
 from pathlib import Path
-
+from copy import deepcopy
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from nptyping import NDArray
