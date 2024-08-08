@@ -557,27 +557,46 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                 # And the bin center is just the middle of the epoch
                 reduced_time_bin_centers = np.asarray([(epoch.start + epoch.stop) / 2])
                 actual_window_size = float(epoch.stop - epoch.start) # the actual (variable) bin size
-                
-                center_info = BinningInfo(variable_extents=reduced_time_bin_edges, step=actual_window_size, num_bins=len(reduced_time_bin_centers)) # BinningInfo(variable_extents: tuple, step: float, num_bins: int)
+                assert len(reduced_time_bin_edges) >= 2, f"epochs_spkcount(...): epoch[{i}], nbins[{i}]: cannot build extents because len(reduced_time_bin_edges) < 2: reduced_time_bin_edges: {reduced_time_bin_edges}"
+                manual_center_info = BinningInfo(variable_extents=(reduced_time_bin_edges[0], reduced_time_bin_edges[-1]), step=actual_window_size, num_bins=len(reduced_time_bin_centers)) # BinningInfo(variable_extents: tuple, step: float, num_bins: int)
                 # center_info = BinningContainer.build_center_binning_info(reduced_time_bin_centers, reduced_time_bin_edges) # the second argument (edge_extents) is just the edges
-                bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info) # have to manually provide center_info because it doesn't work with two or less entries.
+                bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=manual_center_info) # have to manually provide center_info because it doesn't work with two or less entries.
                 
             else:
                 reduced_slide_by_amount = int(slideby * 1000)
                 reduced_time_bin_edges = bins[:: reduced_slide_by_amount] # WTH does this notation mean?
+                
+                # assert len(reduced_time_bin_edges) >= 2, f"epochs_spkcount(...): epoch[{i}], nbins[{i}]: cannot build extents because len(reduced_time_bin_edges) < 2: reduced_time_bin_edges: {reduced_time_bin_edges}"
+                assert len(reduced_time_bin_edges) > 0, f"epochs_spkcount(...): epoch[{i}], nbins[{i}]: cannot build extents because reduced_time_bin_edges is empty (len(reduced_time_bin_edges) == 0): reduced_time_bin_edges: {reduced_time_bin_edges}"
+                
                 try:
-                    bin_container = BinningContainer(edges=reduced_time_bin_edges)
-                    reduced_time_bin_centers = bin_container.centers
-                except AssertionError:
-                    # AssertionError: centers must be of at least length 2 to re-derive center_info, but it is of length 1. centers: [3.48527]
-                    reduced_time_bin_edges = bins
-                    # And the bin center is just the middle of the epoch
-                    reduced_time_bin_centers = np.asarray([(reduced_time_bin_edges[0] + reduced_time_bin_edges[1]) / 2])
-                    actual_window_size = float(reduced_time_bin_edges[1] - reduced_time_bin_edges[0]) # the actual (variable) bin size
-                    center_info = BinningInfo(variable_extents=reduced_time_bin_edges, step=actual_window_size, num_bins=len(reduced_time_bin_centers))
-                    # center_info = BinningContainer.build_center_binning_info(reduced_time_bin_centers, reduced_time_bin_edges) # the second argument (edge_extents) is just the edges
-                    bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info) # have to manually provide center_info because it doesn't work with two or less entries.
+                    if len(reduced_time_bin_edges) == 1:
+                        # Built using `epoch` - have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
+                        print(f'WARNING: epochs_spkcount(...): epoch[{i}], nbins[{i}]: {nbins[i]} - TODO 2024-08-07 19:11: Building BinningContainer for epoch with fewer than 2 edges (occurs when epoch duration is shorter than the bin size). Using the epoch.start, epoch.stop as the two edges (giving a single bin) but this might be off and cause problems, as they are the edges of the epoch but maybe not "real" edges?')
+                        reduced_time_bin_edges = np.array([epoch.start, epoch.stop])
+                        # reduced_time_bin_edges = deepcopy(bins) #TODO 2024-08-07 19:11: - [ ] This might be off, as they are the edges of the epoch but maybe not "real" edges?
+                        reduced_time_bin_centers = np.asarray([(epoch.start + epoch.stop) / 2]) # And the bin center is just the middle of the epoch
+                        actual_window_size = float(epoch.stop - epoch.start) # the actual (variable) bin size
+                        variable_extents = (epoch.start, epoch.stop)
+                        manual_center_info = BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=1) # num_bins == 1, just like when (len(reduced_time_bin_edges) == 2)
+                        bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=manual_center_info) # have to manually provide center_info because it doesn't work with two or less entries.                        
+                    elif len(reduced_time_bin_edges) == 2:
+                        # have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
+                        reduced_time_bin_edges = deepcopy(bins)
+                        # And the bin center is just the middle of the epoch
+                        reduced_time_bin_centers = np.asarray([(reduced_time_bin_edges[0] + reduced_time_bin_edges[1]) / 2]) # just a single element?
+                        actual_window_size = float(reduced_time_bin_edges[1] - reduced_time_bin_edges[0]) # the actual (variable) bin size... #TODO 2024-08-07 18:50: - [ ] this might be the subsampled bin size
+                        manual_center_info = BinningInfo(variable_extents=(reduced_time_bin_edges[0], reduced_time_bin_edges[-1]), step=actual_window_size, num_bins=len(reduced_time_bin_centers))
+                        bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=manual_center_info) # have to manually provide center_info because it doesn't work with two or less entries.
+                    else:
+                        # can do it like normal:
+                        ## automatically computes reduced_time_bin_centers and both infos:
+                        bin_container = BinningContainer(edges=reduced_time_bin_edges)
+                        reduced_time_bin_centers = deepcopy(bin_container.centers)                 
 
+                except BaseException as err:
+                    print(f'ERROR: epochs_spkcount(...): epoch[{i}], nbins[{i}]: while building time bins, encountered exception err: {err}.')
+                    raise err                
             
             if debug_print:
                 num_bad_time_bins = len(bins)
