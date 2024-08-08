@@ -195,20 +195,37 @@ class BinningContainer(object):
         return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(centers))
     
     
-    def setup_from_edges(self, edges: NDArray, edge_info: Optional[BinningInfo]=None):
+
+    @classmethod
+    def init_from_edges(cls, edges: NDArray, edge_info: Optional[BinningInfo]=None) -> "BinningContainer":
+        """ initializes from edges, overwritting everything else
+        """
         # Set the edges first:
-        self.edges = edges
+        edges = deepcopy(edges)
         if edge_info is not None:
-            self.edge_info = edge_info # valid edge_info provided, use that
+            edge_info = deepcopy(edge_info) # valid edge_info provided, use that
         else:
             # Otherwise try to reverse engineer edge_info:
-            self.edge_info = BinningContainer.build_edge_binning_info(self.edges)
+            edge_info = cls.build_edge_binning_info(edges)
         
         ## Build the Centers from the new edges:
-        self.centers = get_bin_centers(edges)
-        self.center_info = BinningContainer.build_center_binning_info(self.centers, self.edge_info.variable_extents)
+        centers = get_bin_centers(edges)
+        if (len(edges) == 1):
+            assert (edge_info is not None), f"need `edge_info` to get extents for (len(edges) == 1) case"
+            # Built using `edge_info.variable_extents` - have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
+            variable_extents = deepcopy(edge_info.variable_extents)
+            center_info = BinningInfo(variable_extents=variable_extents, step=edge_info.step, num_bins=1) # num_bins == 1, just like when (len(reduced_time_bin_edges) == 2)                  
+        elif len(edges) == 2:
+            # have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
+            # And the bin center is just the middle of the epoch
+            actual_window_size = float(edges[1] - edges[0]) # the actual (variable) bin size... #TODO 2024-08-07 18:50: - [ ] this might be the subsampled bin size
+            center_info = BinningInfo(variable_extents=(edges[0], edges[-1]), step=actual_window_size, num_bins=1)
+        else:
+            # can do it like normal by calling `.build_center_binning_info(...)`:
+            ## automatically computes reduced_time_bin_centers and both infos:
+            center_info = cls.build_center_binning_info(centers, variable_extents=deepcopy(edge_info.variable_extents)) # BinningContainer.build_center_binning_info(centers, variable_extents=self.edge_info.variable_extents)
         
-        
+        return cls(edges=edges, edge_info=edge_info, centers=centers, center_info=center_info)
 
 def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None, variable_start_value:float=None, variable_end_value:float=None) -> Tuple[NDArray, BinningInfo]:
     """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats

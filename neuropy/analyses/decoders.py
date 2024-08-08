@@ -487,8 +487,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
     # Handle either core.Epoch or pd.DataFrame objects:
     epoch_df = ensure_dataframe(epochs)
     n_epochs = np.shape(epoch_df)[0] # there is one row per epoch
-        
-    
+
     spkcount = []
     if export_time_bins:
         time_bin_containers_list = []
@@ -497,7 +496,6 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
 
     nbins = np.zeros(n_epochs, dtype="int")
 
-    
     if slideby is None:
         slideby = bin_size
     if debug_print:
@@ -554,7 +552,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
             # reduced_time_bins: only the FULL number of bin *edges*
             # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
             if use_single_time_bin_per_epoch:
-                # For single bin case, the bin edges are just the epoch start and stop times
+                # For single bin case, the bin edges are just the epoch start and stop times (which are importantly smaller than the time_bin_size)
                 reduced_time_bin_edges = bins
                 # And the bin center is just the middle of the epoch
                 reduced_time_bin_centers = np.asarray([(epoch.start + epoch.stop) / 2])
