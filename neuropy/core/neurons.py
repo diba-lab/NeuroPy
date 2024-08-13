@@ -86,6 +86,13 @@ class Neurons(DataWriter):
         self.t_start = t_start
         self.t_stop = t_stop
 
+    @staticmethod
+    def load(file):
+        """Loads a previously saved Neurons class from an .npy file"""
+        neurons_dict = DataWriter.from_file(file)
+
+        return Neurons.from_dict(neurons_dict)
+
     def __getitem__(self, i):
         # copy object
         spiketrains = self.spiketrains[i]
@@ -136,7 +143,11 @@ class Neurons(DataWriter):
         return len(self.spiketrains)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {np.unique(self.neuron_type)}"
+        try:
+            neuron_types = np.unique(self.neuron_type)
+        except TypeError:
+            neuron_types = "Error importing - check inputs"
+        return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {neuron_types}"
 
     def time_slice(self, t_start=None, t_stop=None):
         t_start, t_stop = super()._time_slice_params(t_start, t_stop)
@@ -182,6 +193,43 @@ class Neurons(DataWriter):
             shank_ids=shank_ids,
         )
 
+    def concatenate(self, neurons_to_add, index_to_add=0):
+        """Add two neuron spike trains together. Adds 'index_to_add' to neuron_ids, shank_ids, and peak_channels
+        to help differentiate different sessions (e.g. index_to_add=100 will make the cluster_ids from
+        neurons_to_add be 101, 102, 103... """
+        t_start = np.min((self.t_start, neurons_to_add.t_start))
+        t_stop = np.max((self.t_stop, neurons_to_add.t_stop))
+
+        # Check to make sure everything is compatible
+        assert self.sampling_rate == neurons_to_add.sampling_rate
+        feature_dict = {}
+        for feature in ["spiketrains", "neuron_ids", "neuron_type", "waveforms",
+                        "peak_channels", "shank_ids"]:
+            print(f"{feature} with kind={getattr(self, feature).dtype.kind}")
+            # try:
+            if feature in ["spiketrains", "neuron_type", "waveforms"]:
+                feature_dict[feature] = np.concatenate((getattr(self, feature),
+                                                        getattr(neurons_to_add, feature)),
+                                                        axis=0)
+            else:  # only add to id related fields
+
+                feature_dict[feature] = np.concatenate((getattr(self, feature),
+                                                        getattr(neurons_to_add, feature) + index_to_add),
+                                                       axis=0)
+            # except:
+            #     print(f"Error concatenating {feature}. Set to None")
+            #     feature_dict[feature] = None
+
+        return Neurons(spiketrains=feature_dict["spiketrains"],
+                       t_start=t_start,
+                       t_stop=t_stop,
+                       sampling_rate=self.sampling_rate,
+                       neuron_ids=feature_dict["neuron_ids"],
+                       neuron_type=feature_dict["neuron_type"],
+                       waveforms=feature_dict["waveforms"],
+                       # waveforms_amplitude=feature_dict["waveforms_amplitude"],
+                       peak_channels=feature_dict["peak_channels"],
+                       shank_ids=feature_dict["shank_ids"])
     def get_neuron_type(self, neuron_type):
         if isinstance(neuron_type, str):
             indices = self.neuron_type == neuron_type
