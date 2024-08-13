@@ -1,11 +1,13 @@
 from pathlib import Path
+import os
 
-from neuropy.io.neuroscopeio import NeuroscopeIO
-from neuropy.io.binarysignalio import BinarysignalIO
-
+# from neuropy.io.neuroscopeio import NeuroscopeIO
+import neuropy.io.neuroscopeio as neuroscopeio
+# from neuropy.io.binarysignalio import BinarysignalIO
+import neuropy.io.binarysignalio as binarysignalio
 
 class ProcessData:
-    def __init__(self, basepath):
+    def __init__(self, basepath=os.getcwd()):
         basepath = Path(basepath)
         self.basepath = basepath
         xml_files = sorted(basepath.glob("*.xml"))
@@ -14,16 +16,17 @@ class ProcessData:
         fp = xml_files[0].with_suffix("")
         self.filePrefix = fp
 
-        self.recinfo = NeuroscopeIO(xml_files[0])
+        # self.recinfo = NeuroscopeIO(xml_files[0])
+        self.recinfo = neuroscopeio.NeuroscopeIO(xml_files[0])
         eegfiles = sorted(basepath.glob("*.eeg"))
         assert len(eegfiles) == 1, "Fewer/more than one .eeg file detected"
-        self.eegfile = BinarysignalIO(
+        self.eegfile = binarysignalio.BinarysignalIO(
             eegfiles[0],
             n_channels=self.recinfo.n_channels,
             sampling_rate=self.recinfo.eeg_sampling_rate,
         )
         try:
-            self.datfile = BinarysignalIO(
+            self.datfile = binarysignalio.BinarysignalIO(
                 eegfiles[0].with_suffix(".dat"),
                 n_channels=self.recinfo.n_channels,
                 sampling_rate=self.recinfo.dat_sampling_rate,
