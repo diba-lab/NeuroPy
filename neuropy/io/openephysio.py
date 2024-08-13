@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from dateutil import tz
 import matplotlib.pyplot as plt
 
-
 class OESyncIO:
     """Class to synchronize external data sources to Open-Ephys recordings."""
     def __init__(self, basepath) -> None:
@@ -409,6 +408,15 @@ def recording_events_to_combined_time(
     return event_time_comb
 
 
+def get_version_number(settings_path):
+    """Get OE version number"""
+    settings_path = Path(settings_path)
+    assert settings_path.name == "settings.xml"
+
+    settings_dict = XML2Dict(settings_path)
+
+    return settings_dict["INFO"]["VERSION"]
+
 def parse_sync_file(sync_file):
     """Grab synchronization info for a given session
     :param sync_file: path to 'sync_messages.txt' file in recording folder tree for that recording.
@@ -419,22 +427,41 @@ def parse_sync_file(sync_file):
     # Read in file
     sync_lines = open(sync_file).readlines()
 
+    oe_version = get_version_number(Path(sync_file).parents[2] / "settings.xml")
+
     try:
         # Grab sampling rate and sync time based on file structure
-        SR = int(
-            sync_lines[1][
-                re.search("@", sync_lines[1])
-                .span()[1] : re.search("Hz", sync_lines[1])
+        if oe_version < "0.6":
+            SR = int(
+                sync_lines[1][
+                    re.search("@", sync_lines[1])
+                    .span()[1] : re.search("Hz", sync_lines[1])
+                    .span()[0]
+                ]
+            )
+            sync_frame = int(
+                sync_lines[1][
+                    re.search("start time: ", sync_lines[1])
+                    .span()[1] : re.search("@[0-9]*Hz", sync_lines[1])
+                    .span()[0]
+                ]
+            )
+        else:
+            SR = int(
+                sync_lines[1][
+                re.search("@ ", sync_lines[1])
+                .span()[1]: re.search(" Hz", sync_lines[1])
                 .span()[0]
-            ]
-        )
-        sync_frame = int(
-            sync_lines[1][
-                re.search("start time: ", sync_lines[1])
-                .span()[1] : re.search("@[0-9]*Hz", sync_lines[1])
+                ]
+            )
+            sync_frame = int(
+                sync_lines[1][
+                re.search(": ", sync_lines[1])
+                .span()[1]: re.search("\n", sync_lines[1])
                 .span()[0]
-            ]
-        )
+                ]
+            )
+
     except IndexError:  # Fill in from elsewhere if sync_messages missing info
         parent_dir = Path(sync_file).parent
         timestamp_files = sorted(parent_dir.glob("**/continuous/**/timestamps.npy"))
@@ -749,19 +776,5 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    import tracefc.io.traceio as traceio
-
-    basepath = Path("/data3/Trace_FC/Recording_Rats/Finn2/2023_05_06_habituation1")
-    ttl_df = load_all_ttl_events(basepath, sanity_check_channel=1, zero_timestamps=True)
-    cs_starts, cs_ends, cs_df = traceio.load_trace_events(
-        basepath, session_type="tone_recall", event_type="CS+", return_df=True
-    )
-    sync_df = create_sync_df(basepath)
-    ttl_lag_use = ttl_lag = pd.Timedelta(0.8, unit="seconds")
-    cs_oe_start_df = traceio.trace_ttl_to_openephys(
-        cs_starts, ttl_df[ttl_df["channel_states"].abs() == 2], ttl_lag=ttl_lag_use
-    )
-    # Convert to times in combined eeg file
-    cs_starts_combined = recording_events_to_combined_time(cs_oe_start_df, sync_df)
-
+    parse_sync_file('/data2/Anisomycin/Recording_Rats/Creampuff/2024_07_17_Anisomycin/1_PRE/2024-07-17_10-12-28/Record Node 104/experiment1/recording1/sync_messages.txt')
     pass
