@@ -185,7 +185,7 @@ def plot_miniscope_noise(
         freq_bool = np.bitwise_and(
             f_full[0] > EWLnoise_range[1], f_full[0] < EWLnoise_range[0]
         )
-        good_epochs = Pxx_full[:, freq_bool].sum(axis=1) < 20000
+        good_epochs = Pxx_full[:, freq_bool].sum(axis=1) < disconnect_thresh
         f_full = f_full[good_epochs]
         Pxx_full = Pxx_full[good_epochs]
 

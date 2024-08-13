@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import xml.etree.ElementTree as Etree
-from .. import core
+# from .. import core
+from neuropy.core.neurons import Neurons
+from neuropy.core.position import Position
+from neuropy.core.epoch import Epoch
 
 
 class NeuroscopeIO:
@@ -78,7 +81,7 @@ class NeuroscopeIO:
         """
         pass
 
-    def write_neurons(self, neurons: core.Neurons, suffix_num: int = 1):
+    def write_neurons(self, neurons: Neurons, suffix_num: int = 1):
         """To view spikes in neuroscope, spikes are exported to .clu.# and .res.# files in the basepath.
         You can order the spikes in a way to view sequential activity in neuroscope.
 
@@ -112,7 +115,7 @@ class NeuroscopeIO:
 
         return file_clu
 
-    def write_epochs(self, epochs: core.Epoch, ext="epc"):
+    def write_epochs(self, epochs: Epoch, ext="epc"):
         with self.source_file.with_suffix(f".evt.{ext}").open("w") as a:
             for event in epochs.to_dataframe().itertuples():
                 # First attempt to fix bug where Neuropy exported .evt files get broken after manual
@@ -124,7 +127,7 @@ class NeuroscopeIO:
                     event_stop += 0.2
                 a.write(f"{event_start}\tstart\n{event_stop}\tstop\n")
 
-    def write_position(self, position: core.Position):
+    def write_position(self, position: Position):
         """Writes core.Position object to neuroscope compatible format
 
         Parameters
@@ -170,6 +173,6 @@ class NeuroscopeIO:
             elif line.find("stop") > -1:
                 stops.append(float(line.split(f"{split_str}stop")[0]) / 1000)
 
-        return core.Epoch(
+        return Epoch(
             pd.DataFrame({"start": starts, "stop": stops, "label": label})
         )

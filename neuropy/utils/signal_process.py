@@ -1368,6 +1368,7 @@ def plot_miniscope_noise(
     block_sec=10,
     interval_sec=60,
     remove_disconnects=False,
+    disconnect_thresh = 20000,
     EWLnoise_range=(4835, 4855),
 ):
     assert isinstance(signal, core.Signal)
@@ -1395,7 +1396,7 @@ def plot_miniscope_noise(
         freq_bool = np.bitwise_and(
             f_full[0] > EWLnoise_range[1], f_full[0] < EWLnoise_range[0]
         )
-        good_epochs = Pxx_full[:, freq_bool].sum(axis=1) < 20000
+        good_epochs = Pxx_full[:, freq_bool].sum(axis=1) < disconnect_thresh
         f_full = f_full[good_epochs]
         Pxx_full = Pxx_full[good_epochs]
 

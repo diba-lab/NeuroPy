@@ -62,6 +62,7 @@ class PhyIO:
             cluinfo["id"] = cluinfo["cluster_id"]
 
         self.cluster_info = cluinfo.copy()
+        self.neuron_ids = cluinfo["id"]
         self.peak_amplitudes = cluinfo["amp"].values
         self.peak_channels = cluinfo["ch"].values
         self.shank_ids = cluinfo["sh"].values

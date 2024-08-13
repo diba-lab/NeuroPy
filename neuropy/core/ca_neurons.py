@@ -45,6 +45,68 @@ class CaNeurons(DataWriter):
         self.neuron_type = neuron_type
         self.posthocmerge = posthocmerge
 
+    def get_delta_t(self):
+        """Get time from start of first miniscope recording"""
+        delta_t = (self.t['Timestamps'] - self.t.iloc[0]['Timestamps']).dt.total_seconds().values
+
+        return delta_t
+
+    def n_events(self):
+        """Get # of calcium events for each neuron"""
+        pass
+
+    def event_bool(self):
+        """Get a boolean indicating Ca event times (rising phases) for each neuron"""
+
+        return self.S > 0
+
+    def get_event_frames(self):
+        """Get times of events (rising phase of C or S > 0) for all neurons"""
+        ## NRK todo: make this into an Epoch class?
+        event_times = []
+        for idn, event_diff in enumerate(np.diff((self.event_bool() > 0).astype(int), axis=1)):
+            starts = np.where(event_diff == 1)[0]
+            stops = np.where(event_diff == -1)[0] + 1
+
+            assert len(starts) == len(stops), "Bugfix assertion: # event starts don't equal # event stops"
+            # Guess at code to fix above
+            if len(starts) > len(stops):
+                if (stops[-1] - starts[-1]) < 0:
+                    starts = starts[:-1]
+                else:
+                    starts = starts[1:]
+
+            if len(stops) > len(starts):
+                if (stops[0] - starts[0]) < 0:
+                    stops = stops[1:]
+                else:
+                    stops = stops[:-1]
+            event_times.append(pd.DataFrame({"neuron": idn, "starts": starts, "stops": stops}))
+
+        return pd.concat(event_times, axis=0).reset_index().drop(columns=["index"])
+
+    def get_event_times(self):
+        delta_t = self.get_delta_t()
+        event_frame_df = self.get_event_frames()
+        starts_sec = delta_t[event_frame_df["starts"].values]
+        stops_sec = delta_t[event_frame_df["stops"].values]
+
+        event_frame_df["starts (sec)"] = starts_sec
+        event_frame_df["stops (sec)"] = stops_sec
+        event_frame_df["length (sec)"] = stops_sec - starts_sec
+
+        return event_frame_df
+
+    def get_event_rise_heights(self):
+        """Get height of rise for each calcium event"""
+        event_frame_df = self.get_event_times()
+        start_height = self.C[event_frame_df["neuron"], event_frame_df["starts"]]
+        stop_height = self.C[event_frame_df["neuron"], event_frame_df["stops"]]
+        event_frame_df["height (au)"] = stop_height - start_height
+
+        return event_frame_df
+
+
     def plot_rois(
         self,
         neuron_inds: list or np.ndarray or None = None,

@@ -23,7 +23,7 @@ def radon_transform(arr, nlines=10000, dt=1, dx=1, neighbours=1):
     neighbours : int,
         probability in each bin is replaced by sum of itself and these many 'neighbours' column wise, default 1 neighbour
 
-    NOTE: when returning velcoity the sign is flipped to match with position going from bottom to up
+    NOTE: when returning velocity the sign is flipped to match with position going from bottom to up
 
     Returns
     -------

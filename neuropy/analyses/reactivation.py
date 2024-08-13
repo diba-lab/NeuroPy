@@ -12,6 +12,7 @@ from typing import Union
 from ..utils.mathutil import getICA_Assembly
 from .. import core
 from ..plotting import Fig
+from tqdm import tqdm
 
 
 class ExplainedVariance(core.DataWriter):
@@ -51,7 +52,7 @@ class ExplainedVariance(core.DataWriter):
         control,
         bin_size=0.250,
         window: int = 900,
-        slideby: int = None,
+        slideby: int = 300,
         pairs_bool=None,
         ignore_epochs: core.Epoch = None,
     ):
@@ -72,7 +73,7 @@ class ExplainedVariance(core.DataWriter):
         window : int or typle, optional
             window over which pairwise correlations will be calculated in matching and control time periods, if window is None entire time period is considered,in seconds, by default 900
         slideby : int, optional
-            slide window by this much, in seconds, by default None
+            slide window by this much, in seconds, by default 300
         pairs_bool : 2d array, optional
             a 2d symmetric boolean array of size n_neurons x n_neurons specifying which pairs to be kept for calcualting explained variance, by default None
         ignore_epochs : core.Epoch, optional
@@ -164,15 +165,31 @@ class ExplainedVariance(core.DataWriter):
 
             partial_corr = np.zeros((n_control_windows, n_matching_windows))
             rev_partial_corr = np.zeros((n_control_windows, n_matching_windows))
-            for m_i, m_pairs in enumerate(matching_paircorr):
+            print(f"Calculating partial correlations for {len(matching_paircorr)} time windows")
+            for m_i, m_pairs in enumerate(tqdm(matching_paircorr)):
                 for c_i, c_pairs in enumerate(control_paircorr):
                     df = pd.DataFrame({"t": template_corr, "m": m_pairs, "c": c_pairs})
-                    partial_corr[c_i, m_i] = pg.partial_corr(
-                        df, x="t", y="m", covar="c"
-                    ).r
-                    rev_partial_corr[c_i, m_i] = pg.partial_corr(
-                        df, x="t", y="c", covar="m"
-                    ).r
+                    try:
+                        # if ((~np.isnan(df["m"])).sum() > 2) and ((~np.isnan(df["c"])).sum() > 2):
+                        # Make sure you have at least 3 neurons-pairs with valid pairwise correlations in the windows in question
+                        if df[['t', 'm', 'c']].dropna().shape[0] > 2:
+                            partial_corr[c_i, m_i] = pg.partial_corr(
+                                df, x="t", y="m", covar="c"
+                            ).r
+                            rev_partial_corr[c_i, m_i] = pg.partial_corr(
+                                df, x="t"
+                                , y="c", covar="m"
+                            ).r
+                        else:  # Don't calculate ev and rev unless you have > 3 samples from both the control and matching epochs
+                            partial_corr[c_i, m_i] = np.nan
+                            rev_partial_corr[c_i, m_i] = np.nan
+                    except AssertionError:
+
+                        partial_corr[c_i, m_i] = pg.partial_corr(
+                            df, x="t", y="m", covar="c"
+                        ).r
+                        pass
+
 
         self.ev = np.nanmean(partial_corr**2, axis=0)
         self.rev = np.nanmean(rev_partial_corr**2, axis=0)
