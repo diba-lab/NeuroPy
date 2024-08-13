@@ -134,6 +134,11 @@ class Epoch(DataWriter):
         epochs[["start", "stop"]] += dt
         return Epoch(epochs=epochs, metadata=self.metadata)
 
+    def scale(self, sf):
+        epochs = self._epochs.copy()
+        epochs[["start", "stop"]] = epochs[["start", "stop"]] * sf
+        return Epoch(epochs=epochs, metadata=self.metadata)
+
     def get_unique_labels(self):
         return np.unique(self.labels)
 
@@ -791,6 +796,54 @@ def get_epoch_overlap_duration(epochs1: Epoch, epochs2: Epoch):
 def getOverlap(a, b):
     """From https://stackoverflow.com/questions/2953967/built-in-function-for-computing-overlap-in-python"""
     return max(0, min(a[1], b[1]) - max(a[0], b[0]))
+
+
+def combine_epochs(epochs_df: pd.DataFrame, inplace: bool = True):
+    """Combine epochs so that there are no starts or stops contained
+    entirely within another epoch"""
+
+    all([col in epochs_df.columns for col in ["start", "stop"]])
+
+    # First find epochs that overlap and get id to replace with
+    start_overlaps, stop_overlaps = [], []
+    for ide, epoch in epochs_df.iterrows():
+        overlap_start = np.bitwise_and(epoch['start'] > epochs_df['start'],
+                                       epoch['start'] < epochs_df['stop'])
+        overlap_stop = np.bitwise_and(epoch['stop'] > epochs_df['start'],
+                                      epoch['stop'] < epochs_df['stop'])
+        if overlap_start.sum() == 1:
+            start_overlap_id = np.where(overlap_start)[0][0]
+            #             print('epoch ' + str(ide) + ' overlap start w epoch '
+            #                   + str(start_overlap_id))
+            start_overlaps.append([ide, start_overlap_id])
+
+        if overlap_stop.sum() == 1:
+            stop_overlap_id = np.where(overlap_stop)[0][0]
+            #             print('epoch ' + str(ide) + ' overlap stop w epoch '
+            #                  + str(stop_overlap_id))
+            stop_overlaps.append([ide, stop_overlap_id])
+    # Now walk through and replace
+    for start in start_overlaps:
+        epochs_df.loc[start[0], "start"] = epochs_df.loc[start[1], "start"]
+
+    for stop in stop_overlaps:
+        epochs_df.loc[stop[0], "stop"] = epochs_df.loc[stop[1], "stop"]
+
+    #     overlap_ids = np.hstack((np.asarray(start_overlaps)[:, 1],
+    #                   np.asarray(stop_overlaps)[:, 1]))
+
+    #     print('Dropping duplicate epochs: ' + str(overlap_ids))
+
+    if inplace:
+        epochs_df.drop_duplicates(inplace=inplace, ignore_index=True)
+        epochs_df.sort_values(by='start', inplace=inplace, ignore_index=True)
+
+        return None
+    else:
+        epochs_out = epochs_df.drop_duplicates(inplace=inplace, ignore_index=True)
+        epochs_out = epochs_out.sort_values(by='start', inplace=inplace, ignore_index=True)
+
+        return epochs_out
 
 
 if __name__ == "__main__":
