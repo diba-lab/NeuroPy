@@ -333,7 +333,6 @@ class Raster:
                 end_buffer_sec,
                 avg_event_sec,
             )
-
         return start_buffers, end_buffers, good_frames_bool, trial_dts
 
     @staticmethod
@@ -405,7 +404,7 @@ class Raster:
                 trial_dt < (end_buffer_sec + avg_event_sec),
             )
             good_frames_bool.append(good_frame_bool)
-
+ 
         return start_buffers, end_buffers, good_frames_bool, trial_dts
 
 
