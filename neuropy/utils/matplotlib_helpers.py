@@ -254,6 +254,10 @@ def _determine_best_placefield_2D_layout(xbin, ybin, included_unit_indicies, sub
 def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_threshold: float=0.0000001):
     """ Universally used to prepare the pfmap to be displayed (across every plot time)
     
+    Regardless of `occupancy` and `drop_below_threshold`, the image is rescaled by its maximum (meaning the output will be normalized between zero and one).
+    `occupancy` is not used unless `drop_below_threshold` is non-None
+    
+
     Input:
         drop_below_threshold: if None, no indicies are dropped. Otherwise, values of occupancy less than the threshold specified are used to build a mask, which is subtracted from the returned image (the image is NaN'ed out in these places).
 
@@ -266,10 +270,11 @@ def _scale_current_placefield_to_acceptable_range(image, occupancy, drop_below_t
     # Pre-filter the data:
     with np.errstate(divide='ignore', invalid='ignore'):
         image = np.array(image.copy()) / np.nanmax(image) # note scaling by maximum here!
-        if drop_below_threshold is not None:
+        if (drop_below_threshold is not None) and (occupancy is not None):
             image[np.where(occupancy < drop_below_threshold)] = np.nan # null out the occupancy
         return image # return the modified and masked image
 
+    
 def _build_square_checkerboard_image(extent, num_checkerboard_squares_short_axis:int=10, debug_print=False):
     """ builds a background checkerboard image used to indicate opacity
     Usage:
