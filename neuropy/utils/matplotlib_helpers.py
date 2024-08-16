@@ -1712,8 +1712,8 @@ def matplotlib_configuration_update(is_interactive:bool, backend:Optional[str]=N
     
     # Example usage:
 
-        from neuropy.utils.matplotlib_helpers import matplotlib_configuration
-        with matplotlib_configuration(is_interactive=False, backend='AGG'):
+        from neuropy.utils.matplotlib_helpers import matplotlib_configuration_update
+        with matplotlib_configuration_update(is_interactive=False, backend='AGG'):
             # Perform non-interactive Matplotlib operations with 'AGG' backend
             plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
             plt.xlabel('X-axis')
@@ -1721,7 +1721,7 @@ def matplotlib_configuration_update(is_interactive:bool, backend:Optional[str]=N
             plt.title('Non-interactive Mode with AGG Backend')
             plt.savefig('plot.png')  # Save the plot to a file (non-interactive mode)
 
-        with matplotlib_configuration(is_interactive=True, backend='Qt5Agg'):
+        with matplotlib_configuration_update(is_interactive=True, backend='Qt5Agg'):
             # Perform interactive Matplotlib operations with 'Qt5Agg' backend
             plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
             plt.xlabel('X-axis')
