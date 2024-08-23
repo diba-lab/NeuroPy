@@ -66,6 +66,16 @@ def get_dat_timestamps(
     timestamps = []
     nrec, start_end_str, nframe_dat = [], [], []  # for start_end=True only
     nframe_end = -1
+
+    # Backwards/forwards compatibility code
+    set_file = get_settings_filename(timestamp_files[0])  # get settings file name
+    set_folder = get_set_folder(timestamp_files[0])
+    oe_version = get_version_number(set_folder / set_file)
+    ts_in_sec = False
+    if oe_version >= "0.6":
+        print("OE version >= 0.6 detected, check timestamps. Could be off by factor = Sampling Rate")
+        ts_in_sec = True  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (that's in sample_numbers.npy)
+
     for idf, file in enumerate(timestamp_files):
         set_file = get_settings_filename(file)  # get settings file name
         set_folder = get_set_folder(file)
@@ -96,6 +106,11 @@ def get_dat_timestamps(
         SR, sync_frame = parse_sync_file(
             file.parents[3] / "recording1/sync_messages.txt"
         )  # Get SR and sync frame info
+
+        # OE version >= 0.6 bugfix
+        sync_frame = sync_frame / SR if ts_in_sec else SR
+        SR = 1 if ts_in_sec else SR
+
         print("start time = " + str(start_time))
         stamps = np.load(file)  # load in timestamps
 
@@ -362,15 +377,18 @@ def recording_events_to_combined_time(
     :param time_out: eeg_time or dat_time
     :param event_ts_key: key to use to access datetimes in event_df
     :param sync_ts_key: key to use to access datetimes in sync_df"""
-    # Calc and check that each cs occurs in the same recording.
-    nrec_start = [
-        sync_df["Recording"][np.max(np.nonzero((start > sync_df[sync_ts_key]).values))]
-        for start in event_df[event_ts_key]
-    ]
-    nrec_stop = [
-        sync_df["Recording"][np.min(np.nonzero((start < sync_df[sync_ts_key]).values))]
-        for start in event_df[event_ts_key]
-    ]
+    # Calc and check that each event occurs in the same recording.
+    try:
+        nrec_start = [
+            sync_df["Recording"][np.max(np.nonzero((start > sync_df[sync_ts_key]).values))]
+            for start in event_df[event_ts_key]
+        ]
+        nrec_stop = [
+            sync_df["Recording"][np.min(np.nonzero((start < sync_df[sync_ts_key]).values))]
+            for start in event_df[event_ts_key]
+        ]
+    except ValueError:
+        print("Event time falls either in different recordings or outside of all recording times. Check!")
 
     # Loop through each recording and calculate CS time in combined dat/eeg file
     if nrec_start == nrec_stop:
