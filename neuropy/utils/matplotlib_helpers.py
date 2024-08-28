@@ -1713,6 +1713,12 @@ def matplotlib_configuration_update(is_interactive:bool, backend:Optional[str]=N
     # Example usage:
 
         from neuropy.utils.matplotlib_helpers import matplotlib_configuration_update
+        
+        _restore_previous_matplotlib_settings_callback = matplotlib_configuration_update(is_interactive=True, backend='Qt5Agg')
+        _restore_previous_matplotlib_settings_callback = matplotlib_configuration_update(is_interactive=False, backend='AGG')
+            
+            
+            
         with matplotlib_configuration_update(is_interactive=False, backend='AGG'):
             # Perform non-interactive Matplotlib operations with 'AGG' backend
             plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
@@ -1779,7 +1785,7 @@ def matplotlib_configuration_update(is_interactive:bool, backend:Optional[str]=N
             # setattr(plt, "show", lambda: None)
             setattr(plt, "show", lambda: print(f'plt.show() was overriden by a call to `matplotlib_configuration_update(...)`'))
 
-    except Exception as e:
+    except BaseException as e:
         # Exception occurred while switching the backend
         print(f"An exception occurred: {str(e)}\n Trying to revert settings using `_restore_previous_settings_callback()`...`")
         _restore_previous_settings_callback()
@@ -1832,7 +1838,7 @@ def matplotlib_backend(backend:str):
         # Yield control back to the caller
         yield
         
-    except Exception as e:
+    except BaseException as e:
         # Exception occurred while switching the backend
         print(f"An exception occurred: {str(e)}")
         # You can choose to handle the exception here or re-raise it if needed
@@ -1875,7 +1881,7 @@ def matplotlib_interactivity(is_interactive:bool):
         # Yield control back to the caller
         yield
         
-    except Exception as e:
+    except BaseException as e:
         # Exception occurred while switching the backend
         print(f"An exception occurred: {str(e)}")
         # You can choose to handle the exception here or re-raise it if needed
@@ -1956,7 +1962,7 @@ def matplotlib_configuration(is_interactive:bool, backend:Optional[str]=None):
 
             yield
             
-    except Exception as e:
+    except BaseException as e:
         # Exception occurred while switching the backend
         print(f"An exception occurred: {str(e)}")
         # You can choose to handle the exception here or re-raise it if needed
