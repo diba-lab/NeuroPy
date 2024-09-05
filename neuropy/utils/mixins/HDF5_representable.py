@@ -339,11 +339,14 @@ class HDF_Converter:
     @classmethod
     def _restore_dataframe_byte_strings_to_strings(cls, df: pd.DataFrame) -> pd.DataFrame:
         """ converts columns containing byte strings (b'aString') to normal strings ('aString') """
-        for col in df:
-            if isinstance(df[col][0], bytes):
-                # print(col, "will be transformed from bytestring to string")
-                df[col] = df[col].str.decode("utf8")  # or any other encoding
+        # for col in df:
+        #     if isinstance(df[col][0], bytes):
+        #         # print(col, "will be transformed from bytestring to string")
+        #         df[col] = df[col].str.decode("utf8")  # or any other encoding
 
+        # Convert byte strings to regular strings
+        df = df.applymap(lambda x: x.decode() if isinstance(x, bytes) else x)
+        return df
 
     @classmethod
     def expand_dataframe_session_context_column(cls, non_expanded_context_df: pd.DataFrame, session_uid_column_name:str='session_uid') -> pd.DataFrame:
@@ -381,7 +384,7 @@ class HDF_Converter:
         return out_df
 
     @classmethod
-    def restore_native_column_types_manual_if_needed(cls, df: pd.DataFrame) -> pd.DataFrame:
+    def restore_native_column_types_manual_if_needed(cls, df: pd.DataFrame, attempt_convert_numeric: bool = True) -> pd.DataFrame:
         """ 2023-08-24
         Usage:
             restore_native_column_types_manual_if_needed(_out_table)
@@ -397,7 +400,14 @@ class HDF_Converter:
         if ("neuron_type" in df.columns) and ((df.dtypes["neuron_type"] == np.int8) or (df.dtypes["neuron_type"] == np.uint8)):
             df["neuron_type"] = df["neuron_type"].apply(lambda x: NeuronType.hdf_coding_ClassNames()[x]).astype(object)
 
-        cls._restore_dataframe_byte_strings_to_strings(df)
+        df = cls._restore_dataframe_byte_strings_to_strings(df)
+        
+        if attempt_convert_numeric:
+            # Convert relevant columns to numeric
+            for col in df.columns:
+                # Attempt to convert each column to numeric, if possible
+                df[col] = pd.to_numeric(df[col], errors='ignore')
+            
         return df
 
     @classmethod
@@ -407,8 +417,14 @@ class HDF_Converter:
         Usage:
             _out_table = general_post_load_restore_table_as_needed(_out_table)
         """
-        cls.restore_native_column_types_manual_if_needed(df)
+        df = cls.restore_native_column_types_manual_if_needed(df)
         df = cls.expand_dataframe_session_context_column(df, session_uid_column_name=session_uid_column_name)
+        
+        # # Convert byte strings to regular strings
+        # df = df.applymap(lambda x: x.decode() if isinstance(x, bytes) else x)
+        # # Convert strings to numeric values
+        # df = df.apply(pd.to_numeric)
+        
         return df
 
 
