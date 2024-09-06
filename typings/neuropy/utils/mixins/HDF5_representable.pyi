@@ -124,7 +124,7 @@ class HDF_Converter:
         ...
     
     @classmethod
-    def restore_native_column_types_manual_if_needed(cls, df: pd.DataFrame) -> pd.DataFrame:
+    def restore_native_column_types_manual_if_needed(cls, df: pd.DataFrame, attempt_convert_numeric: bool = ...) -> pd.DataFrame:
         """ 2023-08-24
         Usage:
             restore_native_column_types_manual_if_needed(_out_table)
