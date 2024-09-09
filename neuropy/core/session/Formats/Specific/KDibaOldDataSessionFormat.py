@@ -1,6 +1,7 @@
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from typing import Dict, List, Optional
 from pathlib import Path
 from neuropy.analyses.placefields import PlacefieldComputationParameters
@@ -481,6 +482,58 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
  
 
     @classmethod
+    def parse_session_dates(cls, dates: List[str]) -> List[datetime]:
+        """ parses the session_name to a datetime, adding the year (2006) as needed. 
+        """
+        parsed_dates = []
+        
+        for date_str in dates:
+            day_date_str, time_str = date_str.split(sep='_', maxsplit=2)
+            
+            # Remove 'fet' prefix if present
+            if day_date_str.startswith('fet'):
+                day_date_str = day_date_str.replace('fet', '') # '11-02_17-46-44'
+                # Add the year 2006 if it's missing
+                # date_str = '2006-' + date_str
+                
+            # Add the year 2006 if it's missing
+            if day_date_str.count('-') < 2:
+                day_date_str = '2006-' + day_date_str
+                
+            # re-assemble:
+            date_str = '_'.join((day_date_str, time_str))
+            # print(f'date_str: "{date_str}"')
+            try:
+                parsed_date = datetime.strptime(date_str, '%Y-%m-%d_%H-%M-%S')
+            except ValueError:
+                # Handle cases where seconds, minutes, or hours are single digits
+                date_part, time_part = date_str.split('_')
+                time_part = ':'.join([f"{int(part):02d}" for part in time_part.split('-')])
+                parsed_date = datetime.strptime(f"{date_part}_{time_part}", '%Y-%m-%d_%H:%M:%S')
+            
+            parsed_dates.append(parsed_date)
+        
+        return parsed_dates
+
+    @classmethod
+    def _sessions_df_add_experience_rank(cls, session_df: pd.DataFrame) -> pd.DataFrame:
+        """ adds two new columns to the session_df: ['experience_rank', 'experience_orientation_rank'] reflecting the amount of previous experiences (previous sessions) the animal has already experienced.
+                
+        'experience_rank': number of previous exposures to the long/short paradigm in either orientation.
+        'experience_orientation_rank': number of previous exposures to this exact orientation (e.g. 'one' vs. 'two')
+        
+        """
+        # Sort the dataframe by 'animal' and 'session_datetime'
+        session_df = session_df.sort_values(['animal', 'session_datetime'])
+        
+        # Add a new column 'experience_rank' that counts the number of previous sessions
+        session_df['experience_rank'] = session_df.groupby('animal')['session_datetime'].rank(method='first', ascending=True).astype(int) - 1
+
+        session_df['experience_orientation_rank'] = session_df.groupby(['animal', 'exper_name'])['session_datetime'].rank(method='first', ascending=True).astype(int) - 1
+
+        return session_df
+
+    @classmethod
     def build_session_basedirs_dict(cls, global_data_root_parent_path, debug_print=False) -> Dict[IdentifyingContext, Path]:
         """ generates a dict of session_ctx:basedir. Hardcoded for the KDIBA sessions.
         
@@ -488,6 +541,19 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         History: 2023-09-21 - Extracted from `pyphoplacecellanalysis.General.Batch.runBatch.run_diba_batch`
         
+        Usage:
+        
+            ## Find all existing sessions:
+            assert global_data_root_parent_path.exists(), f"global_data_root_parent_path: {global_data_root_parent_path} does not exist! Is the right computer's config commented out above?"
+            active_data_mode_name = 'kdiba'
+            output_session_basedir_dict = KDibaOldDataSessionFormatRegisteredClass.build_session_basedirs_dict(global_data_root_parent_path)
+            ## OUTPUTS: output_session_basedir_dict
+            output_session_basedir_dict
+
+            for curr_session_context, curr_session_basedir in output_session_basedir_dict.items():
+                print(f'EXTANT SESSION! curr_session_context: {curr_session_context}, curr_session_basedir: {curr_session_basedir}')
+
+
         """
         if not isinstance(global_data_root_parent_path, Path):
             global_data_root_parent_path = Path(global_data_root_parent_path).resolve()
@@ -498,7 +564,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         animal_names = ['gor01', 'vvp01', 'pin01']
         experiment_names_lists = [['one', 'two'], ['one', 'two'], ['one']] # there is no 'two' for animal 'pin01'
-        exclude_lists = [['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused'], [], [], [], ['redundant','showclus','sleep','tmaze']]
+        # exclude_lists = [['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused'], [], [], [], ['redundant','showclus','sleep','tmaze']]
+        exclude_lists = [['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused', 'redundant','showclus','sleep','tmaze'], ['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused', 'redundant','showclus','sleep','tmaze'], ['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused', 'redundant','showclus','sleep','tmaze'], ['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused', 'redundant','showclus','sleep','tmaze'], ['PhoHelpers', 'Spike3D-Minimal-Test', 'Unused', 'redundant','showclus','sleep','tmaze']]
 
         output_session_basedir_dict = {}
         for animal_name, an_experiment_names_list, exclude_list in zip(animal_names, experiment_names_lists, exclude_lists):
@@ -525,6 +592,32 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## end for
         return output_session_basedir_dict
 
+    @classmethod
+    def find_all_existing_sessions(cls, global_data_root_parent_path: Path) -> pd.DataFrame:
+        """ discovers all existing sessions on disk. 
+        
+        """
+        assert global_data_root_parent_path.exists(), f"global_data_root_parent_path: {global_data_root_parent_path} does not exist! Is the right computer's config commented out above?"
+        active_data_mode_name = 'kdiba'
+        output_session_basedir_dict = cls.build_session_basedirs_dict(global_data_root_parent_path)
+        ## OUTPUTS: output_session_basedir_dict
+        output_session_basedir_dict
+
+        record_list = []
+        for curr_session_context, curr_session_basedir in output_session_basedir_dict.items():
+            a_record = curr_session_context.to_dict()
+            a_record['path'] = curr_session_basedir.as_posix()
+            # print(f'EXTANT SESSION! curr_session_context: {curr_session_context}, curr_session_basedir: {curr_session_basedir}, a_record: {a_record}')
+            record_list.append(a_record)
+
+        sessions_df: pd.DataFrame = pd.DataFrame.from_records(record_list)
+        # Add the parsed datetime to the session
+        sessions_df['session_datetime'] = cls.parse_session_dates(sessions_df['session_name'].to_list())
+        # Sort by column: 'session_datetime' (ascending)
+        sessions_df = sessions_df.sort_values(['session_datetime'])
+        sessions_df = cls._sessions_df_add_experience_rank(sessions_df).sort_values(['session_datetime']) # Sort by column: 'session_datetime' (ascending)
+
+        return sessions_df
 
     # ---------------------------------------------------------------------------- #
     #                     Extended Computation/Loading Methods                     #

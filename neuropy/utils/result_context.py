@@ -882,6 +882,22 @@ def providing_context(**additional_context_kwargs):
 #         self.computation_configuration = computation_configuration
     
     
+def print_identifying_context_array_code(included_session_contexts: List[IdentifyingContext], array_name: str='array_session_contexts') -> None:
+    """ 
+    Usage:
+        from neuropy.utils.result_context import print_identifying_context_array_code
+        
+        print_identifying_context_array_code(included_session_contexts, array_name='included_session_contexts')
+        
+    """
+    print(f'{array_name} = [')
+    for a_session_context in included_session_contexts:
+        print('\t' + a_session_context.get_initialization_code_string() + ',')
+    print(f']')
+
+
+
+
 
 @define(slots=False)
 class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
