@@ -322,15 +322,25 @@ class Laps(Epoch):
         # Filter rows based on column: 'lap'
         pos_df = pos_df[pos_df['lap'].notna()]
         # Performed 1 aggregation grouped on column: 'lap'
+        
+        # Perform aggregation grouped on column: 'lap'
+        lap_speed_means = pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean')).reset_index()
+
+        # Ensure alignment between pos_df['lap'] and laps_df['lap_id']
+        laps_in_both = laps_df.merge(lap_speed_means, left_on='lap_id', right_on='lap', how='left')
+
+        # Create the is_LR_dir boolean array
+        is_LR_dir = (laps_in_both['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
+
         # is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
-        is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
+        # is_LR_dir = ((pos_df.groupby(['lap']).agg(speed_mean=('velocity_x_smooth', 'mean'))).reset_index()['speed_mean'] > 0.0).to_numpy() # increasing values => LR_dir
 
         # could potentially improve by finding velocity only over a certain threshold, or looking at the direction of the peak velocity.
         
-
         ## THIS IS DEFINITIONAL. HOW CAN IT BE WRONG?
 
-        laps_df['is_LR_dir'] = is_LR_dir # ValueError: Length of values (80) does not match length of index (82)
+        # Assign the is_LR_dir to laps_df, ensuring the length matches
+        laps_df['is_LR_dir'] = is_LR_dir # ValueError: Length of values (80) does not match length of index (82), ValueError: Length of values (49) does not match length of index (48)
         # global_laps._df['direction_consistency'] = 0.0
         # assert np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
         is_new_dir_substantially_different: bool = not np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
