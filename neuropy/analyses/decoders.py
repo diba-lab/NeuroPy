@@ -300,7 +300,7 @@ def radon_transform(arr: NDArray, nlines:int=10000, dt:float=1, dx:float=1, n_ne
         inside_matrix_only_best_y_line_idxs = best_y_line_idxs[is_inside_matrix]
         inside_matrix_only_t = t[is_inside_matrix]
         best_inside_y_line = np.array([pos[an_idx] for an_idx in inside_matrix_only_best_y_line_idxs])    
-        velocity = (best_inside_y_line[-1]-best_inside_y_line[0])/(inside_matrix_only_t[-1]-inside_matrix_only_t[0])
+        velocity = (best_inside_y_line[-1]-best_inside_y_line[0])/(inside_matrix_only_t[-1]-inside_matrix_only_t[0]) # IndexError: index -1 is out of bounds for axis 0 with size 0
         intercept = best_inside_y_line[0]-(velocity * inside_matrix_only_t[0])
         
         # best_y_line = np.array([pos[an_idx] for an_idx in best_y_line_idxs]) # (n_t, )
