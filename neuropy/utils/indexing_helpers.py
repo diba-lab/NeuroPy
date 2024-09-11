@@ -282,7 +282,26 @@ class NumpyHelpers:
         """
         return cls.all_array_generic(np.allclose, list_of_arrays=list_of_arrays, rtol=rtol, atol=atol, equal_nan=equal_nan)
     
+    
+    @classmethod
+    def safe_concat(cls, np_concat_list: Union[List[NDArray], Dict[Any, NDArray]], **np_concat_kwargs) -> NDArray:
+        """ returns an empty dataframe if the key isn't found in the group.
+        Usage:
+            from neuropy.utils.indexing_helpers import NumpyHelpers
 
+            NumpyHelpers.safe_concat
+            
+        """
+        if len(np_concat_list) > 0:
+            if isinstance(np_concat_list, dict):
+                np_concat_list = list(np_concat_list.values())
+            out_concat_arr: NDArray = np.concatenate(np_concat_list, **np_concat_kwargs)
+        else:
+            # out_concat_arr = []
+            out_concat_arr = np.array([]) # empty df would be better
+        return out_concat_arr
+    
+    
 
 # ==================================================================================================================== #
 # Sorting/Joint-sorting                                                                                                #
