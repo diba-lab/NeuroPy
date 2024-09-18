@@ -2310,3 +2310,30 @@ class AnchoredCustomText(AnchoredOffsetbox):
         ax.add_artist(self)
         return True
 
+
+
+# @function_attributes(short_name=None, tags=['colormap', 'image', 'colorbar'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-09-18 19:06', related_items=[])
+def save_colormap_image(filepath: str, colormap: str = 'viridis', orientation: str = 'horizontal'):
+    """
+    Saves a colorbar image of the specified colormap to the given file path.
+
+    Args:
+        filepath (str): The path where the image will be saved.
+        colormap (str): The name of the colormap (default is 'viridis').
+        orientation (str): Orientation of the colorbar, either 'horizontal' or 'vertical' (default is 'horizontal').
+
+    Usage:
+        from neuropy.utils.matplotlib_helpers import save_colormap_image
+        
+        save_colormap_image('path/to/save/colorbar.png', 'plasma', 'vertical')
+    """
+    fig, ax = plt.subplots(figsize=(6, 1) if orientation == 'horizontal' else (1, 6))
+    fig.subplots_adjust(bottom=0.5 if orientation == 'horizontal' else 0.05, left=0.05 if orientation == 'vertical' else 0.5)
+
+    cmap = plt.get_cmap(colormap)
+    norm = plt.Normalize(vmin=0, vmax=1)
+    fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=ax, orientation=orientation)
+
+    plt.savefig(filepath, bbox_inches='tight')
+    plt.close(fig)
+
