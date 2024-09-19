@@ -49,6 +49,7 @@ def get_dat_timestamps(
     sync: bool = False,
     start_end_only=False,
     local_time="America/Detroit",
+    print_start_time_to_screen=True,
 ):
     """
     Gets timestamps for each frame in your dat file(s) in a given directory.
@@ -109,7 +110,8 @@ def get_dat_timestamps(
             file.parents[3] / "recording1/sync_messages.txt"
         )  # Get SR and sync frame info
 
-        print("start time = " + str(start_time))
+        if print_start_time_to_screen:
+            print("start time = " + str(start_time))
         stamps = np.load(file)  # load in timestamps
 
         # Remove any dropped end frames.
@@ -225,18 +227,19 @@ def get_timestamp_files(
     return [timestamps_list[ind] for ind in file_inds]
 
 
-def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
+def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250, **kwargs):
     """
     Gets all timestamps corresponding to a downsampled lfp or eeg file
     :param dat_times_or_folder: str, path to parent directory, holding your 'experiment' folder(s).
     OR pandas dataframe of timestamps from .dat file.
     :param SRdat: sample rate for .dat file
     :param SRlfp: sample rate for .lfp file
+    :param **kwargs: inputs to get_dat_timestamps
     :return:
     """
 
     if isinstance(dat_times_or_folder, (str, Path)):
-        dat_times = get_dat_timestamps(dat_times_or_folder)
+        dat_times = get_dat_timestamps(dat_times_or_folder, **kwargs)
     elif isinstance(dat_times_or_folder, (pd.DataFrame, pd.Series)):
         dat_times = dat_times_or_folder
 
@@ -262,9 +265,14 @@ def load_all_ttl_events(
     # Grab corresponding continuous data folders
     exppaths = [file.parents[3] for file in TTLpaths]
 
+    # Get sync data
+    start_end_df = get_dat_timestamps(basepath, start_end_only=True, print_start_time_to_screen=False)
+
     # Concatenate everything together into one list
     events_all, nframes_dat = [], []
-    for TTLfolder, expfolder in zip(TTLpaths, exppaths):
+    for idr, (TTLfolder, expfolder) in enumerate(zip(TTLpaths, exppaths)):
+        rec_start_df = start_end_df[(start_end_df.Recording == idr) & (start_end_df.Condition == 'start')]
+        nframes_dat.append(rec_start_df.nframe_dat.values[0])
         events = load_ttl_events(TTLfolder, **kwargs)
         events_all.append(events)
 
@@ -273,8 +281,8 @@ def load_all_ttl_events(
 
     # Now loop through and make everything into a datetime in case you are forced to use system times to synchronize everything later
     times_list = []
-    for ide, events in enumerate(events_all):
-        times_list.append(events_to_datetime(events))
+    for ide, (events, start_frame_dat) in enumerate(zip(events_all, nframes_dat)):
+        times_list.append(events_to_datetime(events, start_frame_dat))
 
     ttl_df = pd.concat(times_list)
 
@@ -363,14 +371,18 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=T
     return events
 
 
-def events_to_datetime(events):
-    """Parses out channel_states and timestamps and calculates absolute datetimes for all events"""
+def events_to_datetime(events, start_frame_dat=None):
+    """Parses out channel_states and timestamps and calculates absolute datetimes for all events
+    If start_frame_dat is specified, also outputs the sample number from each + start_frame_dat, useful
+    for getting the correct frame number of an event in a combined dat file"""
 
     # First grab relevant keys from full events dictionary
     sub_dict = {key: events[key] for key in ["channel_states", "timestamps"]}
     sub_dict["datetimes"] = events["start_time"] + pd.to_timedelta(
         events["timestamps"] / [events["SR"]], unit="sec"
     )
+    if start_frame_dat is not None:
+        sub_dict["sample_number"] = sub_dict["timestamps"] + start_frame_dat
 
     # Now dump any event names into the appropriate rows
     if events["event_names"] is not None:
