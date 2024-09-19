@@ -9,7 +9,7 @@ import scipy.stats as stats
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 from typing import Union
-from ..utils.mathutil import getICA_Assembly
+# from ..utils.mathutil import getICA_Assembly
 from .. import core
 from ..plotting import Fig
 from tqdm import tqdm
@@ -75,7 +75,7 @@ class ExplainedVariance(core.DataWriter):
         slideby : int, optional
             slide window by this much, in seconds, by default 300
         pairs_bool : 2d array, optional
-            a 2d symmetric boolean array of size n_neurons x n_neurons specifying which pairs to be kept for calcualting explained variance, by default None
+            a 2d symmetric boolean array of size n_neurons x n_neurons specifying which pairs to be kept for calculating explained variance, by default None
         ignore_epochs : core.Epoch, optional
             ignore calculation for these epochs, helps with noisy epochs, by default None
         """
@@ -425,3 +425,16 @@ class NeuronEnsembles(core.DataWriter):
         if style == "heatmap":
             _, ax = plt.subplots()
             ax.pcolormesh(weights)
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+    from neuropy.core.epoch import Epoch
+    from neuropy.core.neurons import Neurons
+    dir_use = Path('/Users/nkinsky/Documents/UM/Working/Octopamine_Rolipram/BG_2019-10-21_SDSAL')
+    neurons_use = Neurons.from_file(sorted(dir_use.glob("*.neurons.npy"))[0])
+    neurons_use = Neurons.from_dict(neurons_use)
+
+    rec_epochs = Epoch(epochs=None, file=sorted(dir_use.glob("*.epoch.npy"))[0])
+    t = ExplainedVariance(neurons_use, rec_epochs['maze'].as_array().squeeze(), rec_epochs['post'].as_array().squeeze(),
+                          rec_epochs['pre'].as_array().squeeze(), slideby=300, window=900)

@@ -10,6 +10,8 @@ import pandas as pd
 from datetime import datetime, timezone
 from dateutil import tz
 import matplotlib.pyplot as plt
+from packaging.version import Version
+
 
 class OESyncIO:
     """Class to synchronize external data sources to Open-Ephys recordings."""
@@ -68,13 +70,13 @@ def get_dat_timestamps(
     nframe_end = -1
 
     # Backwards/forwards compatibility code
-    set_file = get_settings_filename(timestamp_files[0])  # get settings file name
-    set_folder = get_set_folder(timestamp_files[0])
-    oe_version = get_version_number(set_folder / set_file)
-    ts_in_sec = False
-    if oe_version >= "0.6":
-        print("OE version >= 0.6 detected, check timestamps. Could be off by factor = Sampling Rate")
-        ts_in_sec = True  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (that's in sample_numbers.npy)
+    # set_file = get_settings_filename(timestamp_files[0])  # get settings file name
+    # set_folder = get_set_folder(timestamp_files[0])
+    # oe_version = get_version_number(set_folder / set_file)
+    # ts_units = "frames"
+    # if oe_version >= "0.6":
+    #     print("OE version >= 0.6 detected, check timestamps. Could be off by factor = Sampling Rate")
+    #     ts_units = "seconds"  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (that's in sample_numbers.npy)
 
     for idf, file in enumerate(timestamp_files):
         set_file = get_settings_filename(file)  # get settings file name
@@ -106,10 +108,6 @@ def get_dat_timestamps(
         SR, sync_frame = parse_sync_file(
             file.parents[3] / "recording1/sync_messages.txt"
         )  # Get SR and sync frame info
-
-        # OE version >= 0.6 bugfix
-        sync_frame = sync_frame / SR if ts_in_sec else SR
-        SR = 1 if ts_in_sec else SR
 
         print("start time = " + str(start_time))
         stamps = np.load(file)  # load in timestamps
@@ -189,14 +187,26 @@ def get_timestamp_files(
     basepath: str or Path, type: str in ["continuous", "TTL"], sync: bool = False
 ):
     """
-    Identify all timestamp files of a certain type
+    Identify all timestamp files of a certain type.
+    IMPORTANT NOTE: Due to the original OE file naming scheme, this function grabs files with 'timestamps' in units of
+    frames (sample_number), NOT actual time.
     :param basepath: str of Path object of folder containing timestamp file(s)
     :param type: 'continuous' or 'TTL'
     :param sync: False(default) for 'timestamps.npy', True for 'synchronized_timestamps.npy'
     :return: list of all files in that directory matching the inputs
     """
+    basepath = Path(basepath)
 
-    timestamps_list = sorted(basepath.glob("**/*timestamps.npy"))
+    # Backwards compatibility fix
+    settings_file = sorted(basepath.glob("**/*settings.xml"))[0]
+    oe_version = get_version_number(settings_file)
+    ts_file_str = "**/*timestamps.npy"
+    if Version(oe_version) >= Version("0.6"):
+        # print("OE version >= 0.6 detected, check timestamps. Could be off by factor = Sampling Rate")
+        # ts_units = "seconds"  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (tha
+        ts_file_str = "**/*sample_numbers.npy"
+    timestamps_list = sorted(basepath.glob(ts_file_str))
+
     assert len(timestamps_list) > 0, "No timestamps.npy files found, check if files exist and if appropriate inputs are being used"
     continuous_bool = ["continuous" in str(file_name) for file_name in timestamps_list]
     TTL_bool = ["TTL" in str(file_name) for file_name in timestamps_list]
@@ -283,6 +293,8 @@ def load_all_ttl_events(
 
 def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=True):
     """Loads TTL events for one recording folder and spits out a dictionary.
+    IMPORTANT NOTE: Due to the original OE file naming scheme, this function grabs files with 'timestamps' in units of
+    frames (sample_number), NOT actual time.
 
     :param TTLfolder: folder where your TTLevents live, recorded in BINARY format.
     :param zero_timestamps: True (default) = subtract start time in sync_messages.txt. This will align everything
@@ -295,10 +307,19 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=T
     """
     TTLfolder = Path(TTLfolder)
 
+    # Backwards compatibility fix
+    settings_file = sorted(TTLfolder.parents[4].glob("**/*settings.xml"))[0]
+    oe_version = get_version_number(settings_file)
+    varnames_load = ["channel_states", "channels", "full_words", "timestamps"]
+    keynames_use = ["channel_states", "channels", "full_words", "timestamps"]
+    if Version(oe_version) >= Version("0.6"):
+        varnames_load = ["states", "timestamps", "full_words", "sample_numbers"]
+        keynames_use = ["channel_states", "time_in_sec", "full_words", "timestamps"]
+
     # Load event times and states into a dict
     events = dict()
-    for varname in ["channel_states", "channels", "full_words", "timestamps"]:
-        events[varname] = np.load(TTLfolder / (varname + ".npy"))
+    for keyname, varname in zip(keynames_use, varnames_load):
+        events[keyname] = np.load(TTLfolder / (varname + ".npy"))
 
     # Get sync info
     if sync_info:
@@ -429,7 +450,10 @@ def recording_events_to_combined_time(
 def get_version_number(settings_path):
     """Get OE version number"""
     settings_path = Path(settings_path)
-    assert settings_path.name == "settings.xml"
+    assert re.search("settings_?[0-9]?[0-9]?.xml",
+                     settings_path.name) is not None, \
+        "settings file is not of the format settings.xml or settings_#.xml"
+    # assert settings_path.name == "settings.xml"
 
     settings_dict = XML2Dict(settings_path)
 
