@@ -331,10 +331,10 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=T
 
     # Get sync info
     if sync_info:
-        # sync_file = TTLfolder.parents[2] / "sync_messages.txt"
-        sync_file = (
-            TTLfolder.parents[3] / "recording1/sync_messages.txt"
-        )  # Get SR and sync frame info
+        sync_file = TTLfolder.parents[2] / "sync_messages.txt"
+        # sync_file = (
+        #     TTLfolder.parents[3] / "recording1/sync_messages.txt"
+        # )  # Get SR and sync frame info
         SR, record_start = parse_sync_file(sync_file)
         events["SR"] = SR
 
