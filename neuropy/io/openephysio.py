@@ -10,6 +10,8 @@ import pandas as pd
 from datetime import datetime, timezone
 from dateutil import tz
 import matplotlib.pyplot as plt
+from packaging.version import Version
+
 
 class OESyncIO:
     """Class to synchronize external data sources to Open-Ephys recordings."""
