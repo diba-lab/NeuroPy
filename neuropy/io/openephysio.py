@@ -106,12 +106,17 @@ def get_dat_timestamps(
                     m.group(0), format="%Y-%m-%d_%H-%M-%S"
                 ).tz_localize(local_time)
 
-        SR, sync_frame = parse_sync_file(
+        # Get SR and sync frame info - for syncing to time of day.
+        SR, sync_frame_exp = parse_sync_file(
             file.parents[3] / "recording1/sync_messages.txt"
-        )  # Get SR and sync frame info
+        )
+        # sync_frame info between recordings within the same experiment folder
+        _, sync_frame_rec = parse_sync_file(file.parents[2] / "sync_messages.txt")
+
+        start_time_rec = start_time + pd.Timedelta((sync_frame_rec - sync_frame_exp) / SR, unit="sec")
 
         if print_start_time_to_screen:
-            print("start time = " + str(start_time))
+            print("start time = " + str(start_time_rec))
         stamps = np.load(file)  # load in timestamps
 
         # Remove any dropped end frames.
@@ -130,7 +135,7 @@ def get_dat_timestamps(
             stamps = stamps[[0, -1]]
         timestamps.append(
             (
-                start_time + pd.to_timedelta((stamps - sync_frame) / SR, unit="sec")
+                start_time + pd.to_timedelta((stamps - sync_frame_exp) / SR, unit="sec")
             ).to_frame(index=False)
         )  # Add in absolute timestamps, keep index of acquisition system
 
@@ -331,10 +336,10 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=T
 
     # Get sync info
     if sync_info:
-        sync_file = TTLfolder.parents[2] / "sync_messages.txt"
+        sync_file = TTLfolder.parents[2] / "sync_messages.txt"   # This gets you time from start of dat file
         # sync_file = (
         #     TTLfolder.parents[3] / "recording1/sync_messages.txt"
-        # )  # Get SR and sync frame info
+        # )  # Get SR and sync frame info - this gets you absolute time from start of recording!
         SR, record_start = parse_sync_file(sync_file)
         events["SR"] = SR
 
