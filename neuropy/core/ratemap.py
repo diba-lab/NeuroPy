@@ -78,7 +78,6 @@ class Ratemap(DataWriter):
         if self.ndim == 1:
             if isinstance(val, (int, float)):
                 val = np.arange(0, val * self.tuning_curves.shape[1], val)
-
             assert (
                 len(val) == self.tuning_curves.shape[1]
             ), "length of coords should be equal to tuning_curve.shape[1]"
@@ -129,8 +128,7 @@ class Ratemap(DataWriter):
     def copy(self):
         return Ratemap(
             tuning_curves=self.tuning_curves,
-            x=self.x,
-            y=self.y,
+            coords=self._coords.squeeze(),
             neuron_ids=self.neuron_ids,
             occupancy=self.occupancy,
             metadata=self.metadata,
@@ -170,8 +168,9 @@ class Ratemap(DataWriter):
             new ratemap
         """
         assert self.ndim == 1, "Only allowed for 1 dimensional ratemaps"
-        f_tc = interpolate.interp1d(self.x_coords, self.tuning_curves)
-        x_new = np.linspace(self.x_coords[0], self.x_coords[-1], nbins)
+        x_coords = self.x_coords if not callable(self.x_coords) else self.x_coords()
+        f_tc = interpolate.interp1d(x_coords, self.tuning_curves)
+        x_new = np.linspace(x_coords[0], x_coords[-1], nbins)
         tc_new = f_tc(x_new)  # Interpolated tuning curve
 
         ratemap_new = self.copy()
