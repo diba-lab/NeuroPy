@@ -2,7 +2,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 from neuropy.analyses.placefields import PlacefieldComputationParameters
 from neuropy.core.epoch import NamedTimerange
@@ -516,7 +516,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         return parsed_dates
 
     @classmethod
-    def _sessions_df_add_experience_rank(cls, session_df: pd.DataFrame) -> pd.DataFrame:
+    def _sessions_df_add_experience_rank(cls, session_df: pd.DataFrame, experience_rank_col_name:str='experience_rank', experience_orientation_rank_col_name:str='experience_orientation_rank') -> pd.DataFrame:
         """ adds two new columns to the session_df: ['experience_rank', 'experience_orientation_rank'] reflecting the amount of previous experiences (previous sessions) the animal has already experienced.
                 
         'experience_rank': number of previous exposures to the long/short paradigm in either orientation.
@@ -527,9 +527,8 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         session_df = session_df.sort_values(['animal', 'session_datetime'])
         
         # Add a new column 'experience_rank' that counts the number of previous sessions
-        session_df['experience_rank'] = session_df.groupby('animal')['session_datetime'].rank(method='first', ascending=True).astype(int) - 1
-
-        session_df['experience_orientation_rank'] = session_df.groupby(['animal', 'exper_name'])['session_datetime'].rank(method='first', ascending=True).astype(int) - 1
+        session_df[experience_rank_col_name] = session_df.groupby('animal')['session_datetime'].rank(method='first', ascending=True).astype(int) - 1
+        session_df[experience_orientation_rank_col_name] = session_df.groupby(['animal', 'exper_name'])['session_datetime'].rank(method='first', ascending=True).astype(int) - 1
 
         return session_df
 
@@ -592,6 +591,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         ## end for
         return output_session_basedir_dict
 
+    # @function_attributes(short_name=None, tags=[''], input_requires=[], output_provides=[], uses=['cls.build_session_basedirs_dict', 'cls.parse_session_dates', 'cls._sessions_df_add_experience_rank'], used_by=['cls.find_build_and_save_sessions_experiment_datetime_df_csv'], creation_date='2024-09-23 20:51', related_items=[])
     @classmethod
     def find_all_existing_sessions(cls, global_data_root_parent_path: Path) -> pd.DataFrame:
         """ discovers all existing sessions on disk. 
@@ -601,7 +601,6 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         active_data_mode_name = 'kdiba'
         output_session_basedir_dict = cls.build_session_basedirs_dict(global_data_root_parent_path)
         ## OUTPUTS: output_session_basedir_dict
-        output_session_basedir_dict
 
         record_list = []
         for curr_session_context, curr_session_basedir in output_session_basedir_dict.items():
@@ -619,6 +618,130 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         return sessions_df
 
+    @classmethod
+    def load_bad_sessions_csv(cls, bad_sessions_csv_path=Path(r'C:\Users\pho\repos\matlab-to-neuropy-exporter\output\2024-09-23_bad_sessions_table.csv').resolve()):
+        """2024-09-23 - Load the "bad_sessions_table.csv" output by `IIDataMat_Export_ToPython_2022_08_01.m` (indicating sessions which failed to process at the MATLAB level for one reason or another)
+        
+        Usage:
+            from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+            bad_sessions_csv_path = Path(r'~/repos/matlab-to-neuropy-exporter/output/2024-09-23_bad_sessions_table.csv').resolve() ## exported from `IIDataMat_Export_ToPython_2022_08_01.m`
+            bad_session_df, bad_session_contexts = KDibaOldDataSessionFormatRegisteredClass.load_bad_sessions_csv(bad_sessions_csv_path=bad_sessions_csv_path)        
+        """
+        assert bad_sessions_csv_path.exists(), f"bad_sessions_csv_path: '{bad_sessions_csv_path}' does not exist!"
+        bad_sessions_df = pd.read_csv(bad_sessions_csv_path)
+        # bad_sessions_df
+        bad_session_folder_paths: List[Path] = [Path(v).resolve() for v in bad_sessions_df['session_folder'].to_list()]
+        # bad_session_folder_paths
+        _bad_session_folder_path_parts = [session_folder_path.parts[-4:] for session_folder_path in bad_session_folder_paths] # get last 4 components only [('KDIBA', 'vvp01', 'one', '2006-4-10_21-2-40'), ...]
+        bad_session_df: pd.DataFrame = pd.DataFrame(_bad_session_folder_path_parts, columns=['format_name', 'animal', 'exper_name', 'session_name'])
+        bad_session_contexts: List[IdentifyingContext] = [IdentifyingContext(**v) for v in list(bad_session_df.to_dict(orient='index').values())]
+        print(',\n'.join([IdentifyingContext(**v).get_initialization_code_string() for v in list(bad_session_df.to_dict(orient='index').values())]))
+        return bad_session_df, bad_session_contexts
+                
+                                                                                        
+                                                                                        
+    # @function_attributes(short_name=None, tags=['csv', 'export', 'session', 'info'], input_requires=[], output_provides=[], uses=['cls.find_all_existing_sessions'], used_by=[], creation_date='2024-09-23 19:22', related_items=['load_and_apply_session_experience_rank_csv'])
+    @classmethod
+    def find_build_and_save_sessions_experiment_datetime_df_csv(cls, global_data_root_parent_path: Optional[Path]=None, export_csv_path: Optional[Path]=None, bad_sessions_csv_path: Optional[Path]=None) -> Tuple[pd.DataFrame, Path]:
+        """ discovers all existing sessions on disk and then exports a `sessions_experiment_datetime_df.csv` file containing information about the novelty and datetime of each session.
+        
+        Usage:
+            from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+            
+            sessions_df, export_folder_path = KDibaOldDataSessionFormatRegisteredClass.find_build_and_save_sessions_experiment_datetime_df_csv()
+            
+            sessions_df, export_folder_path = KDibaOldDataSessionFormatRegisteredClass.find_build_and_save_sessions_experiment_datetime_df_csv(export_folder_path=Path('EXTERNAL/PhoDibaPaper2024Book/EXTERNAL/sessions_experiment_datetime_df.csv').resolve(),
+                                                                                        )
+                
+            sessions_df, export_folder_path = KDibaOldDataSessionFormatRegisteredClass.find_build_and_save_sessions_experiment_datetime_df_csv(global_data_root_parent_path=global_data_root_parent_path,
+                                                                                        export_folder_path=Path('EXTERNAL/PhoDibaPaper2024Book/EXTERNAL/sessions_experiment_datetime_df.csv').resolve(),
+            )
+                                                                                    
+            
+        """
+        if global_data_root_parent_path is None:
+            from pyphocorehelpers.Filesystem.path_helpers import find_first_extant_path
+            known_global_data_root_parent_paths = [Path(r'/nfs/turbo/umms-kdiba/Data'), Path(r'W:\Data'), Path(r'/home/halechr/cloud/turbo/Data'), Path(r'/media/halechr/MAX/Data'), Path(r'/Volumes/MoverNew/data')] # , Path(r'/home/halechr/FastData'), Path(r'/home/halechr/turbo/Data'), Path(r'W:\Data'), Path(r'/home/halechr/cloud/turbo/Data')
+            global_data_root_parent_path = find_first_extant_path(known_global_data_root_parent_paths)
+            assert global_data_root_parent_path.exists(), f"global_data_root_parent_path: {global_data_root_parent_path} does not exist! Is the right computer's config commented out above?"
+
+        sessions_df: pd.DataFrame = cls.find_all_existing_sessions(global_data_root_parent_path=global_data_root_parent_path).sort_values(['session_datetime'])
+        # sessions_df.to_csv(r"C:\Users\pho\repos\Spike3DWorkEnv\Spike3D\EXTERNAL\PhoDibaPaper2024Book\EXTERNAL\sessions_experiment_datetime_df.csv")
+        # Assuming session_df is your DataFrame
+
+        ## INPUTS: `sessions_df`
+        new_included_session_contexts = []
+
+        _context_column_names = ['format_name', 'animal', 'exper_name', 'session_name']
+        session_uid_col = []
+        for a_session_tuple in sessions_df[_context_column_names].itertuples():
+            # print(f'a_session_tuple: {a_session_tuple}')
+            a_session_record_dict = {k:getattr(a_session_tuple, k) for k in _context_column_names}
+            a_ctxt = IdentifyingContext(**a_session_record_dict)
+            new_included_session_contexts.append(a_ctxt)
+            session_uid_col.append(a_ctxt.get_description(separator='|'))
+            
+        sessions_df['session_uid'] = session_uid_col
+        # print_identifying_context_array_code(new_included_session_contexts, array_name='new_included_session_contexts')
+        # sessions_df
+        ## OUTPUTS: `new_included_session_contexts`
+        # if export_csv_path is None:
+        #     export_folder_path = Path('EXTERNAL/PhoDibaPaper2024Book/EXTERNAL').resolve()
+        #     export_folder_path.mkdir(parents=False, exist_ok=True)
+        #     export_csv_path = export_folder_path.joinpath("sessions_experiment_datetime_df.csv").resolve()
+
+
+        ## Tries to determine whether the session is good/bad by trying to load a "bad_sessions_table.csv" file (either provided or from a default directory) or if that fails, falling back to the default hardcoded values in `UserAnnotations.get_hardcoded_bad_sessions()`
+        can_load_bad_sessions_from_csv: bool = False
+        if bad_sessions_csv_path is None:
+            # set the default
+            bad_sessions_csv_path: Optional[Path] = Path(r'C:\Users\pho\repos\matlab-to-neuropy-exporter\output\2024-09-23_bad_sessions_table.csv').resolve() ## exported from `IIDataMat_Export_ToPython_2022_08_01.m`
+            
+        if isinstance(bad_sessions_csv_path, str):
+            bad_sessions_csv_path = Path(bad_sessions_csv_path).resolve()
+        if not bad_sessions_csv_path.exists():
+            can_load_bad_sessions_from_csv = False
+            
+        if can_load_bad_sessions_from_csv:
+            bad_session_df, bad_session_contexts = KDibaOldDataSessionFormatRegisteredClass.load_bad_sessions_csv(bad_sessions_csv_path=bad_sessions_csv_path)
+        else:
+            # can't load the bad_sessions from a specific CSV, use UserAnnotations to get the hardcoded ones
+            from neuropy.core.user_annotations import UserAnnotationsManager
+            bad_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_bad_sessions()
+            bad_session_df: pd.DataFrame = pd.DataFrame.from_records([v.to_dict() for v in bad_session_contexts], columns=['format_name', 'animal', 'exper_name', 'session_name'])
+            
+        ## Creates or updates the 'is_bad_session' boolean column
+        if 'is_bad_session' not in sessions_df.columns:
+            sessions_df['is_bad_session'] = False # create the column
+        sessions_df['is_bad_session'] = np.isin(sessions_df['session_name'], bad_session_df['session_name'].values) # bad sessions are those with session_names included in the bad export list
+
+
+        ## sort and reset index
+        sessions_df = sessions_df.sort_values(['session_datetime'], inplace=False).reset_index(drop=True, inplace=False)
+
+        # Adds the ['good_only_experience_rank', 'good_only_experience_orientation_rank'] columns to the dataframe ___________ #
+        _good_only_sessions_df = deepcopy(sessions_df)[sessions_df['is_bad_session'] == False]
+        # Sort by column: 'session_datetime' (ascending)
+        _good_only_sessions_df = _good_only_sessions_df.sort_values(['session_datetime'])
+        _good_only_sessions_df = KDibaOldDataSessionFormatRegisteredClass._sessions_df_add_experience_rank(_good_only_sessions_df,
+                                                                                                        experience_rank_col_name='good_only_experience_rank',
+                                                                                                        experience_orientation_rank_col_name='good_only_experience_orientation_rank').sort_values(['session_datetime']) # Sort by column: 'session_datetime' (ascending)
+        ## OUTPUTS: good_only_sessions_df
+
+        # Add the columns in to `sessions_df`
+        sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']] = _good_only_sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']] # this causes NaNs to get set for some reason
+        sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']] = sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']].fillna(value=-1, inplace=False).convert_dtypes()
+        
+        ## Export the CSV:
+        if isinstance(export_csv_path, str):
+            export_csv_path = Path(export_csv_path).resolve()
+        
+        sessions_df.to_csv(export_csv_path)
+        print(f'export CSV to "{export_csv_path}"')
+                            
+        
+        return sessions_df, export_csv_path
+                
     # ---------------------------------------------------------------------------- #
     #                     Extended Computation/Loading Methods                     #
     # ---------------------------------------------------------------------------- #
