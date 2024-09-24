@@ -145,17 +145,24 @@ class NeuronIdentityDataframeAccessor:
             unique_aclu_information_df: pd.DataFrame = self.extract_unique_neuron_identities()
             unique_aclu_identity_subcomponents_column_names = list(unique_aclu_information_df.columns)
             # Horizontally join (merge) the dataframes
-            result_df: pd.DataFrame = pd.merge(unique_aclu_information_df, neuron_indexed_df, left_on='aclu', right_on='aclu', how='inner')
+            result_df: pd.DataFrame = pd.merge(unique_aclu_information_df, neuron_indexed_df, left_on='aclu', right_on='aclu', how='inner', suffixes=('', '_dup')) # to prevent column duplication, suffix the right df with the _dup suffix which will be dropped after merging
+            # Drop the duplicate columns
+            duplicate_columns = [col for col in result_df.columns if col.endswith('_dup')]
+            result_df = result_df.drop(columns=duplicate_columns)
+
         else:
             result_df: pd.DataFrame = neuron_indexed_df
 
-        # Add this session context columns for each entry: creates the columns ['format_name', 'animal', 'exper_name', 'session_name']
-        _static_session_context_keys = curr_session_context._get_session_context_keys()
-        if add_expanded_session_context_keys:
+
+        if (add_expanded_session_context_keys and (curr_session_context is not None)):
+            # Add this session context columns for each entry: creates the columns ['format_name', 'animal', 'exper_name', 'session_name']
+            _static_session_context_keys = curr_session_context._get_session_context_keys()
             result_df[_static_session_context_keys] = curr_session_context.as_tuple()
         # Reordering the columns to place the new columns on the left
         # result_df = result_df[['format_name', 'animal', 'exper_name', 'session_name', 'aclu', 'shank', 'cluster', 'qclu', 'neuron_type', 'active_set_membership', 'lap_delta_minus', 'lap_delta_plus', 'replay_delta_minus', 'replay_delta_plus']]
-        result_df = self._add_global_uid(neuron_indexed_df=result_df, session_context=curr_session_context)
+        if curr_session_context is not None:
+            result_df = self._add_global_uid(neuron_indexed_df=result_df, session_context=curr_session_context)
+
         return result_df
 
 
