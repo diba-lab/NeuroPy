@@ -422,12 +422,21 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
                 for name, val in dict_rep.items():
                     # name = name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names)
                     # val = p.pretty(val)
-                    p.text(f"{name}")
-                    p.text(': ')
                     # p.text(f"{val}")
+                    # ## Spaces:
+                    # p.text(f"{name}")
+                    # p.text(': ')
+                    # p.pretty(val)
+                    # if name != list(dict_rep.keys())[-1]:
+                    #     p.breakable(sep=", ") # Add a breakable separator to the output. This does not mean that it will automatically break here. If no breaking on this position takes place the sep is inserted which default to one space.
+                    ## Functional (no line breaks):
+                    p.text(f"{name}")
+                    p.text('= ')
                     p.pretty(val)
                     if name != list(dict_rep.keys())[-1]:
-                        p.breakable(sep=", ") # Add a breakable separator to the output. This does not mean that it will automatically break here. If no breaking on this position takes place the sep is inserted which default to one space.
+                        p.text(', ')
+                        
+
 
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
