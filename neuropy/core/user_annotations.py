@@ -654,7 +654,15 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
 
     @classmethod
     def get_hardcoded_good_sessions(cls) -> List[IdentifyingContext]:
-        # Hardcoded included_session_contexts:
+        """Hardcoded included_session_contexts:
+                
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+        
+            included_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_good_sessions()
+            
+            
+        """
         return [
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'), # prev completed
@@ -672,3 +680,52 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'),
             IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'), # prev completed
         ]
+
+
+    @classmethod
+    def get_hardcoded_bad_sessions(cls) -> List[IdentifyingContext]:
+        """ Hardcoded excluded_session_contexts:
+        
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+        
+            excluded_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_bad_sessions()
+            bad_session_df: pd.DataFrame = pd.DataFrame.from_records([v.to_dict() for v in excluded_session_contexts], columns=['format_name', 'animal', 'exper_name', 'session_name'])
+            bad_session_df
+
+        Built Via:
+            from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+            bad_sessions_csv_path = Path(r'~/repos/matlab-to-neuropy-exporter/output/2024-09-23_bad_sessions_table.csv').resolve() ## exported from `IIDataMat_Export_ToPython_2022_08_01.m`
+            bad_session_df, bad_session_contexts = KDibaOldDataSessionFormatRegisteredClass.load_bad_sessions_csv(bad_sessions_csv_path=bad_sessions_csv_path)        
+            
+        
+        """
+        bad_session_contexts: List[IdentifyingContext] = [IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-28_12-17-27'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-12_14-59-23'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-27_18-21-57'),
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_12-35-59'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-2-0'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-55-7'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-03_11-0-53'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='redundant'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='showclus'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='sleep'),
+            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='tmaze')
+        ]
+
+        return bad_session_contexts
