@@ -342,12 +342,20 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [ 5, 16, 17, 19, 20]
 
 
+        # 2006-4-17_12-52-15 _________________________________________________________________________________________________ #
+        with Ctx(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+            user_annotations[ctx + Ctx(decoder='long_LR')] = []
+            user_annotations[ctx + Ctx(decoder='long_RL')] = [[545.997, 546.377]]
+            user_annotations[ctx + Ctx(decoder='short_LR')] = []
+            user_annotations[ctx + Ctx(decoder='short_RL')] = [[161.848, 162.029], [702.907, 703.008]]
+        
         # 2006-4-16_18-47-52 _________________________________________________________________________________________________ #
         with Ctx(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[715.966, 716.140]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[464.763, 464.957]]
-            user_annotations[ctx + Ctx(decoder='short_LR')] = []
+            user_annotations[ctx + Ctx(decoder='short_LR')] = [[72.222, 72.320]]
             user_annotations[ctx + Ctx(decoder='short_RL')] = [[694.698, 695.182]]
+            # user_annotations[ctx + Ctx(decoder='short_RL')] = []
 
 
         # Process raw annotations with the helper function
