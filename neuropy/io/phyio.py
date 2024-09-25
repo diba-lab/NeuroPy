@@ -66,6 +66,7 @@ class PhyIO:
         self.peak_amplitudes = cluinfo["amp"].values
         self.peak_channels = cluinfo["ch"].values
         self.shank_ids = cluinfo["sh"].values
+        self.clu_q = cluinfo["q"].values
         self.channel_map = channel_map
         self.channel_positions = channel_positions
 
