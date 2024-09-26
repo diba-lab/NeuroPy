@@ -364,6 +364,14 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             user_annotations[ctx + Ctx(decoder='short_LR')] = []
             user_annotations[ctx + Ctx(decoder='short_RL')] = []
             
+        # 2006-4-28_12-38-13 _________________________________________________________________________________________________ #
+        with Ctx(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+            user_annotations[ctx + Ctx(decoder='long_LR')] = [[304.098, 304.301]]
+            user_annotations[ctx + Ctx(decoder='long_RL')] = [[98.551, 98.723]]
+            user_annotations[ctx + Ctx(decoder='short_LR')] = []
+            user_annotations[ctx + Ctx(decoder='short_RL')] = []
+
+
         # Process raw annotations with the helper function
         for context, sequences in user_annotations.items():
             user_annotations[context] = numpyify_array(sequences)
