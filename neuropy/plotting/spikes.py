@@ -3,7 +3,7 @@ import matplotlib as mpl
 from .. import core
 import numpy as np
 import seaborn as sns
-
+from neuropy.utils.ccg import correlograms
 
 def plot_raster(
     neurons: core.Neurons,
@@ -122,18 +122,21 @@ def plot_mua(mua: core.Mua, ax=None, **kwargs):
 
 
 def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
-
-    """Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
+    """
+    Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
     type: 'all' or 'ccg_only'.
-    ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type 'all'"""
+    ax (optional): if supplied len(ax) must be 1 for type='ccg_only' or nclus^2 for type 'all'
+    """
+    if isinstance(clus_use, int):
+        clus_use = [clus_use]
 
     def ccg_spike_assemble(clus_use):
         """Assemble an array of sorted spike times and cluIDs for the input cluster ids the list clus_use"""
         spikes_all, clus_all = [], []
         [
             (
-                spikes_all.append(self.times[idc]),
-                clus_all.append(np.ones_like(self.times[idc]) * idc),
+                spikes_all.append(self.spiketrains[idc]),
+                clus_all.append(np.ones_like(self.spiketrains[idc]) * idc),
             )
             for idc in clus_use
         ]
@@ -145,30 +148,50 @@ def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=No
 
         return spikes_sorted, clus_sorted.astype("int")
 
+    # Assemble spike times and cluster IDs
     spikes_sorted, clus_sorted = ccg_spike_assemble(clus_use)
+
+    # Calculate the correlograms
     ccgs = correlograms(
         spikes_sorted,
         clus_sorted,
-        sample_rate=self._obj.sampfreq,
+        sample_rate=self.sampling_rate,
         bin_size=bin_size,
         window_size=window_size,
     )
 
+    # Adjust for CCG or ACG only
     if type == "ccgs_only":
         ccgs = ccgs[0, 1, :].reshape(1, 1, -1)
 
-    if ax is None:
-        fig, ax = plt.subplots(ccgs.shape[0], ccgs.shape[1])
+    # Check the shape of ccgs to determine if it’s an ACG or CCG
+    is_acg = ccgs.shape[0] == 1 and ccgs.shape[1] == 1  # Shape is (1, 1, N) for ACGs
 
+    # Determine subplot dimensions based on the correlogram shape
+    if ax is None:
+        fig, ax = plt.subplots(ccgs.shape[0], ccgs.shape[1], squeeze=False)  # Always create 2D array of axes
+
+    # Make sure `ax` is a 2D array for reshaping
+    if isinstance(ax, plt.Axes):
+        ax = np.array([ax])  # Convert single Axes object to array for consistency
+
+    # Calculate bins for the histogram
     winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
-    bins = np.linspace(0, 1, winsize_bins)
+    bins = np.linspace(-window_size / 2, window_size / 2, winsize_bins)
+
+    # Plotting each correlogram
     for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
-        a.bar(bins, ccg, width=1 / (winsize_bins - 1))
-        a.set_xticks([0, 1])
-        a.set_xticklabels(np.ones((2,)) * np.round(window_size / 2, 2))
+        a.bar(bins, ccg, width=bins[1] - bins[0])
+
+        if is_acg:
+            a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+                      label='Refractory Period Boundary')  # Line at -1 ms
+            a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+
+        a.set_xticks([-window_size / 2, 0, window_size / 2])
         a.set_xlabel("Time (s)")
         a.set_ylabel("Spike Count")
-        pretty_plot(a)
+    plt.tight_layout()
 
     return ax
 
