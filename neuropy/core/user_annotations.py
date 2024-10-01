@@ -685,7 +685,9 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             
             
         """
-        return [
+        bad_sessions = cls.get_hardcoded_bad_sessions()
+        good_sessions = [
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # DONE 2024-09-27 -- NOT SURE, BUT FINISHED
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'), # prev completed
@@ -697,11 +699,11 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'),
             IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'),
             IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'),
-            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'),
             IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'),
             IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'), # prev completed
         ]
+        return [v for v in good_sessions if (v not in bad_sessions)]
 
 
     @classmethod
@@ -727,6 +729,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51'),
@@ -740,6 +743,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-27_18-21-57'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'), # 2024-10-01 - bad laps, Bad Laps "3"/"4" - don't see lap 1/2
             IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_12-35-59'),
             IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-2-0'),
             IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-55-7'),
