@@ -67,6 +67,40 @@ class TimeColumnAliasesProtocol:
     }
 
     @classmethod
+    def find_first_extant_suitable_columns_name(cls, df: pd.DataFrame, col_connonical_name:str='start', required_columns_synonym_dict: Optional[dict]=None, should_raise_exception_on_fail:bool=False) -> Optional[str]:
+        """ if the required columns (as specified in _time_column_name_synonyms's keys are missing, search for synonyms and replace the synonym columns with the preferred column name.
+
+        Usage:
+            from neuropy.utils.mixins.time_slicing import TimeColumnAliasesProtocol
+
+            start_col_name: str = TimeColumnAliasesProtocol.find_first_extant_suitable_columns_name(df, col_connonical_name='start', required_columns_synonym_dict={"start":{'begin','start_t','ripple_start_t'}, "stop":['end','stop_t']}, should_raise_exception_on_fail=False)
+
+        """
+        if required_columns_synonym_dict is None:
+            required_columns_synonym_dict = cls._time_column_name_synonyms
+        if not isinstance(df, pd.DataFrame):
+            df = df.to_dataframe()
+            
+        if col_connonical_name in df.columns:
+            return col_connonical_name
+            
+        ## otherwise try synonyms for that column
+        assert col_connonical_name in required_columns_synonym_dict, f"col_connonical_name: '{col_connonical_name}' is missing from required_columns_synonym_dict: {required_columns_synonym_dict}"
+        synonym_columns_list = required_columns_synonym_dict[col_connonical_name]
+        
+        # try to rename based on synonyms
+        for a_synonym in synonym_columns_list:
+            if a_synonym in df.columns:
+                return a_synonym # return the found column synonym
+                    
+        ## must be in there by the time that you're done.
+        if should_raise_exception_on_fail:
+            raise AttributeError(f"Failed to find synonym for the col_connonical_name: '{col_connonical_name}'.")
+        else:
+            return None
+
+
+    @classmethod
     def renaming_synonym_columns_if_needed(cls, df: pd.DataFrame, required_columns_synonym_dict: Optional[dict]=None) -> pd.DataFrame:
         """ if the required columns (as specified in _time_column_name_synonyms's keys are missing, search for synonyms and replace the synonym columns with the preferred column name.
 
