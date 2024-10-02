@@ -47,7 +47,7 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
         assert np.array_equal(found_data_indicies, found_data_indicies_1D_search)
     
 
-    - [ ] TODO FATAL 2024-03-04 19:55 - This function is incorrect as it can return multiple matches for each passed time due to the tolerance. Unfinished.
+    - [X] FIXED 2024-03-04 19:55 - This function was peviously incorrect and could return multiple matches for each passed time due to the tolerance.
         
     """
     def _subfn_find_epoch_times(epoch_slices_df: pd.DataFrame, epoch_times: NDArray, active_t_column_names=['start','stop'], ndim:int=2) -> NDArray:
