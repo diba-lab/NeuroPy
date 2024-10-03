@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from functools import reduce # intersection_of_arrays, union_of_arrays
 
-from typing import Iterable, TypeVar
+from typing import Iterable, TypeVar, Dict, List, Tuple, Any, Optional
 
 T = TypeVar('T')
 
@@ -543,6 +543,57 @@ def convert_to_dictlike(other) -> Dict:
         return other.__dict__
     else:
         raise NotImplementedError(f"Object other of type: {type(other)} could not be converted to a python dict.\nother: {other}.")
+
+def get_nested_value(d: Dict, keys: List[Any]) -> Any:
+    """  how can I index into nested dictionaries using a list of keys? """
+    for key in keys:
+        d = d[key]
+    return d
+
+def flatten_dict(d: Dict, parent_key='', sep='/') -> Dict:
+    """ flattens a dictionary to a single non-nested dict
+
+    Example:
+
+    Input:
+        {'computation_params': {'merged_directional_placefields': {'laps_decoding_time_bin_size': 0.25, 'ripple_decoding_time_bin_size': 0.025, 'should_validate_lap_decoding_performance': False},
+        'rank_order_shuffle_analysis': {'num_shuffles': 500, 'minimum_inclusion_fr_Hz': 5.0, 'included_qclu_values': [1, 2], 'skip_laps': False},
+        'directional_decoders_decode_continuous': {'time_bin_size': None},
+        'directional_decoders_evaluate_epochs': {'should_skip_radon_transform': False},
+            ...
+        }
+
+    Output:
+
+        {'merged_directional_placefields/laps_decoding_time_bin_size': 0.25,
+            'merged_directional_placefields/ripple_decoding_time_bin_size': 0.025,
+            'merged_directional_placefields/should_validate_lap_decoding_performance': False,
+            'rank_order_shuffle_analysis/num_shuffles': 500,
+            'rank_order_shuffle_analysis/minimum_inclusion_fr_Hz': 5.0,
+            'rank_order_shuffle_analysis/included_qclu_values': [1, 2],
+            'rank_order_shuffle_analysis/skip_laps': False,
+            'directional_decoders_decode_continuous/time_bin_size': None,
+            'directional_decoders_evaluate_epochs/should_skip_radon_transform': False,
+            ...
+            }
+
+
+    """
+    if (not isinstance(d, dict)):
+        assert isinstance(parent_key, str), f"expected type(parent_key) == str but instead type(parent_key): {type(parent_key)}, parent_key: {parent_key}"
+        return {parent_key:d}
+    
+    items = {}
+    for k, v in d.items():
+        # Construct the new key by concatenating the parent key and current key
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            # If the value is a dictionary, recursively flatten it
+            items.update(flatten_dict(v, new_key, sep=sep))
+        else:
+            # If the value is not a dictionary, add it to the items
+            items[new_key] = v
+    return items
 
 
 # ==================================================================================================================== #
