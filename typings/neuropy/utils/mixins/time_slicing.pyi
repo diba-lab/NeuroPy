@@ -47,6 +47,18 @@ class TimeColumnAliasesProtocol:
     """ allows time columns to be access by aliases for interoperatability """
     _time_column_name_synonyms = ...
     @classmethod
+    def find_first_extant_suitable_columns_name(cls, df: pd.DataFrame, col_connonical_name: str = ..., required_columns_synonym_dict: Optional[dict] = ..., should_raise_exception_on_fail: bool = ...) -> Optional[str]:
+        """ if the required columns (as specified in _time_column_name_synonyms's keys are missing, search for synonyms and replace the synonym columns with the preferred column name.
+
+        Usage:
+            from neuropy.utils.mixins.time_slicing import TimeColumnAliasesProtocol
+
+            start_col_name: str = TimeColumnAliasesProtocol.find_first_extant_suitable_columns_name(df, col_connonical_name='start', required_columns_synonym_dict={"start":{'begin','start_t','ripple_start_t'}, "stop":['end','stop_t']}, should_raise_exception_on_fail=False)
+
+        """
+        ...
+    
+    @classmethod
     def renaming_synonym_columns_if_needed(cls, df: pd.DataFrame, required_columns_synonym_dict: Optional[dict] = ...) -> pd.DataFrame:
         """ if the required columns (as specified in _time_column_name_synonyms's keys are missing, search for synonyms and replace the synonym columns with the preferred column name.
 

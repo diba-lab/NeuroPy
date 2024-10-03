@@ -43,7 +43,7 @@ def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray
         assert np.array_equal(found_data_indicies, found_data_indicies_1D_search)
     
 
-    - [ ] TODO FATAL 2024-03-04 19:55 - This function is incorrect as it can return multiple matches for each passed time due to the tolerance. Unfinished.
+    - [X] FIXED 2024-03-04 19:55 - This function was peviously incorrect and could return multiple matches for each passed time due to the tolerance.
         
     """
     ...
@@ -215,12 +215,35 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """
         ...
     
+    @classmethod
+    def add_maze_id_if_needed(cls, epochs_df: pd.DataFrame, t_start: float, t_delta: float, t_end: float, replace_existing: bool = ..., labels_column_name: str = ..., start_time_col_name: str = ..., end_time_col_name: str = ...) -> pd.DataFrame:
+        """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
+
+        Add the maze_id to the active_filter_epochs so we can see how properties change as a function of which track the replay event occured on
+        
+        WARNING: does NOT modify in place!
+
+        Adds Columns: ['maze_id']
+        Usage:
+            from neuropy.core.session.dataSession import Laps
+
+            t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+            laps_obj: Laps = curr_active_pipeline.sess.laps
+            laps_df = laps_obj.to_dataframe()
+            laps_df = laps_df.epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end)
+            laps_df
+
+        """
+        ...
+    
     def adding_maze_id_if_needed(self, t_start: float, t_delta: float, t_end: float, replace_existing: bool = ..., labels_column_name: str = ...) -> pd.DataFrame:
         """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
 
+        Add the maze_id to the active_filter_epochs so we can see how properties change as a function of which track the replay event occured on
+        
         WARNING: does NOT modify in place!
 
-
+        Adds Columns: ['maze_id']
         Usage:
             from neuropy.core.session.dataSession import Laps
 

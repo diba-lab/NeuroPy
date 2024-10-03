@@ -807,3 +807,19 @@ class AnchoredCustomText(AnchoredOffsetbox):
     
 
 
+def save_colormap_image(filepath: str, colormap: str = ..., orientation: str = ...): # -> None:
+    """
+    Saves a colorbar image of the specified colormap to the given file path.
+
+    Args:
+        filepath (str): The path where the image will be saved.
+        colormap (str): The name of the colormap (default is 'viridis').
+        orientation (str): Orientation of the colorbar, either 'horizontal' or 'vertical' (default is 'horizontal').
+
+    Usage:
+        from neuropy.utils.matplotlib_helpers import save_colormap_image
+        
+        save_colormap_image('path/to/save/colorbar.png', 'plasma', 'vertical')
+    """
+    ...
+

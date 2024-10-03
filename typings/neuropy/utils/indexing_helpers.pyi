@@ -179,6 +179,17 @@ class NumpyHelpers:
         """
         ...
     
+    @classmethod
+    def safe_concat(cls, np_concat_list: Union[List[NDArray], Dict[Any, NDArray]], **np_concat_kwargs) -> NDArray:
+        """ returns an empty dataframe if the key isn't found in the group.
+        Usage:
+            from neuropy.utils.indexing_helpers import NumpyHelpers
+
+            NumpyHelpers.safe_concat
+            
+        """
+        ...
+    
 
 
 def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists): # -> list[Any]:
@@ -261,6 +272,41 @@ def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_n
 
 def convert_to_dictlike(other) -> Dict:
     """ try every known trick to get a plain `dict` out of the provided object. """
+    ...
+
+def get_nested_value(d: Dict, keys: List[Any]) -> Any:
+    """  how can I index into nested dictionaries using a list of keys? """
+    ...
+
+def flatten_dict(d: Dict, parent_key=..., sep=...) -> Dict:
+    """ flattens a dictionary to a single non-nested dict
+
+    Example:
+
+    Input:
+        {'computation_params': {'merged_directional_placefields': {'laps_decoding_time_bin_size': 0.25, 'ripple_decoding_time_bin_size': 0.025, 'should_validate_lap_decoding_performance': False},
+        'rank_order_shuffle_analysis': {'num_shuffles': 500, 'minimum_inclusion_fr_Hz': 5.0, 'included_qclu_values': [1, 2], 'skip_laps': False},
+        'directional_decoders_decode_continuous': {'time_bin_size': None},
+        'directional_decoders_evaluate_epochs': {'should_skip_radon_transform': False},
+            ...
+        }
+
+    Output:
+
+        {'merged_directional_placefields/laps_decoding_time_bin_size': 0.25,
+            'merged_directional_placefields/ripple_decoding_time_bin_size': 0.025,
+            'merged_directional_placefields/should_validate_lap_decoding_performance': False,
+            'rank_order_shuffle_analysis/num_shuffles': 500,
+            'rank_order_shuffle_analysis/minimum_inclusion_fr_Hz': 5.0,
+            'rank_order_shuffle_analysis/included_qclu_values': [1, 2],
+            'rank_order_shuffle_analysis/skip_laps': False,
+            'directional_decoders_decode_continuous/time_bin_size': None,
+            'directional_decoders_evaluate_epochs/should_skip_radon_transform': False,
+            ...
+            }
+
+
+    """
     ...
 
 class PandasHelpers:

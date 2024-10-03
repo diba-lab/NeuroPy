@@ -361,6 +361,16 @@ def providing_context(**additional_context_kwargs): # -> Callable[..., _Wrapped[
     """
     ...
 
+def print_identifying_context_array_code(included_session_contexts: List[IdentifyingContext], array_name: str = ...) -> None:
+    """ 
+    Usage:
+        from neuropy.utils.result_context import print_identifying_context_array_code
+        
+        print_identifying_context_array_code(included_session_contexts, array_name='included_session_contexts')
+        
+    """
+    ...
+
 @define(slots=False)
 class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
     """ a class that extends IdentifyingContext to enable use-specific rendering of contexts.

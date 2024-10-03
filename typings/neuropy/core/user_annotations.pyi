@@ -126,6 +126,35 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
     
     @classmethod
     def get_hardcoded_good_sessions(cls) -> List[IdentifyingContext]:
+        """Hardcoded included_session_contexts:
+                
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+        
+            included_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_good_sessions()
+            
+            
+        """
+        ...
+    
+    @classmethod
+    def get_hardcoded_bad_sessions(cls) -> List[IdentifyingContext]:
+        """ Hardcoded excluded_session_contexts:
+        
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+        
+            excluded_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_bad_sessions()
+            bad_session_df: pd.DataFrame = pd.DataFrame.from_records([v.to_dict() for v in excluded_session_contexts], columns=['format_name', 'animal', 'exper_name', 'session_name'])
+            bad_session_df
+
+        Built Via:
+            from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+            bad_sessions_csv_path = Path(r'~/repos/matlab-to-neuropy-exporter/output/2024-09-23_bad_sessions_table.csv').resolve() ## exported from `IIDataMat_Export_ToPython_2022_08_01.m`
+            bad_session_df, bad_session_contexts = KDibaOldDataSessionFormatRegisteredClass.load_bad_sessions_csv(bad_sessions_csv_path=bad_sessions_csv_path)        
+            
+        
+        """
         ...
     
 
