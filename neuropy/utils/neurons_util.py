@@ -142,7 +142,7 @@ def estimate_neuron_type(
         # )
 
         n_t = waveform.shape[1]  # waveform width
-        center = np.int(n_t / 2)
+        center = int(n_t / 2)
         wave_window = int(0.25 * (neur.sampling_rate / 1000))
         from_peak = int(0.18 * (neur.sampling_rate / 1000))
         left_peak = np.trapz(
