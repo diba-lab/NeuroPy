@@ -692,16 +692,16 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'), # prev completed
-            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'),
-            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'),
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'),
             IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'),
             IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'),
             IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'),
             IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'),
-            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'),
+            # IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
             IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'),
-            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'), # prev completed
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'), # 2024-10-04 - very bad position tracking data (jumping around everywhere at high frequency)
         ]
         return [v for v in good_sessions if (v not in bad_sessions)]
 
@@ -724,7 +724,10 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             
         
         """
-        bad_session_contexts: List[IdentifyingContext] = [IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40'),
+        bad_session_contexts: List[IdentifyingContext] = [
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55'),
@@ -744,6 +747,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-27_18-21-57'),
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14'),
             IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'), # 2024-10-01 - bad laps, Bad Laps "3"/"4" - don't see lap 1/2
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
             IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_12-35-59'),
             IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-2-0'),
             IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-55-7'),
