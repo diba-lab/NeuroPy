@@ -638,7 +638,33 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         print(',\n'.join([IdentifyingContext(**v).get_initialization_code_string() for v in list(bad_session_df.to_dict(orient='index').values())]))
         return bad_session_df, bad_session_contexts
                 
-                                                                                        
+
+    @classmethod
+    def _add_session_good_bad_annotation_status(cls, all_session_experiment_experience_df: pd.DataFrame) -> pd.DataFrame:
+        """ Uses the user annotations to add explicit 'is_excluded' (for bad) and 'is_known_good' for whitelisted/included sessions
+        ADDS COLUMNS: ['is_excluded', 'is_known_good']
+        
+        Usage:
+            all_session_experiment_experience_df = KDibaOldDataSessionFormatRegisteredClass._add_session_good_bad_annotation_status(all_session_experiment_experience_df=all_session_experiment_experience_df)
+            all_session_experiment_experience_df
+            
+        """
+        from neuropy.core.user_annotations import UserAnnotationsManager
+
+        good_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_good_sessions()
+        good_session_uids = [v.get_description(separator='|') for v in good_session_contexts]
+
+        bad_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_bad_sessions()
+        bad_session_uids = [v.get_description(separator='|') for v in bad_session_contexts] # 'kdiba|gor01|two|2006-6-08_21-16-25'
+        ## Adds the 'is_excluded' column:
+        all_session_experiment_experience_df['is_excluded'] = False
+        all_session_experiment_experience_df.loc[np.isin(all_session_experiment_experience_df['session_uid'], bad_session_uids), 'is_excluded'] = True
+        ## Adds the 'is_known_good' column:
+        all_session_experiment_experience_df['is_known_good'] = False
+        all_session_experiment_experience_df.loc[np.isin(all_session_experiment_experience_df['session_uid'], good_session_uids), 'is_known_good'] = True
+
+        return all_session_experiment_experience_df
+                                                                    
                                                                                         
     # @function_attributes(short_name=None, tags=['csv', 'export', 'session', 'info'], input_requires=[], output_provides=[], uses=['cls.find_all_existing_sessions'], used_by=[], creation_date='2024-09-23 19:22', related_items=['load_and_apply_session_experience_rank_csv'])
     @classmethod
@@ -703,7 +729,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             can_load_bad_sessions_from_csv = False
             
         if can_load_bad_sessions_from_csv:
-            bad_session_df, bad_session_contexts = KDibaOldDataSessionFormatRegisteredClass.load_bad_sessions_csv(bad_sessions_csv_path=bad_sessions_csv_path)
+            bad_session_df, bad_session_contexts = cls.load_bad_sessions_csv(bad_sessions_csv_path=bad_sessions_csv_path)
         else:
             # can't load the bad_sessions from a specific CSV, use UserAnnotations to get the hardcoded ones
             from neuropy.core.user_annotations import UserAnnotationsManager
@@ -723,7 +749,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         _good_only_sessions_df = deepcopy(sessions_df)[sessions_df['is_bad_session'] == False]
         # Sort by column: 'session_datetime' (ascending)
         _good_only_sessions_df = _good_only_sessions_df.sort_values(['session_datetime'])
-        _good_only_sessions_df = KDibaOldDataSessionFormatRegisteredClass._sessions_df_add_experience_rank(_good_only_sessions_df,
+        _good_only_sessions_df = cls._sessions_df_add_experience_rank(_good_only_sessions_df,
                                                                                                         experience_rank_col_name='good_only_experience_rank',
                                                                                                         experience_orientation_rank_col_name='good_only_experience_orientation_rank').sort_values(['session_datetime']) # Sort by column: 'session_datetime' (ascending)
         ## OUTPUTS: good_only_sessions_df
@@ -732,11 +758,15 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']] = _good_only_sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']] # this causes NaNs to get set for some reason
         sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']] = sessions_df[['good_only_experience_rank', 'good_only_experience_orientation_rank']].fillna(value=-1, inplace=False).convert_dtypes()
         
+
+        sessions_df = cls._add_session_good_bad_annotation_status(all_session_experiment_experience_df=sessions_df)
+        
+            
         ## Export the CSV:
         if isinstance(export_csv_path, str):
             export_csv_path = Path(export_csv_path).resolve()
         
-        sessions_df.to_csv(export_csv_path)
+        sessions_df.to_csv(export_csv_path, index=False)
         print(f'export CSV to "{export_csv_path}"')
                             
         
