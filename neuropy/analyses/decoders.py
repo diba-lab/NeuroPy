@@ -570,7 +570,8 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                 assert len(reduced_time_bin_edges) > 0, f"epochs_spkcount(...): epoch[{i}], nbins[{i}]: cannot build extents because reduced_time_bin_edges is empty (len(reduced_time_bin_edges) == 0): reduced_time_bin_edges: {reduced_time_bin_edges}"
                 
                 try:
-                    if len(reduced_time_bin_edges) == 1:
+                    n_reduced_edges: int = len(reduced_time_bin_edges)
+                    if n_reduced_edges == 1:
                         # Built using `epoch` - have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
                         print(f'ERROR: epochs_spkcount(...): epoch[{i}], nbins[{i}]: {nbins[i]} - TODO 2024-08-07 19:11: Building BinningContainer for epoch with fewer than 2 edges (occurs when epoch duration is shorter than the bin size). Using the epoch.start, epoch.stop as the two edges (giving a single bin) but this might be off and cause problems, as they are the edges of the epoch but maybe not "real" edges?')
                         reduced_time_bin_edges = np.array([epoch.start, epoch.stop])
@@ -581,7 +582,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                         manual_center_info = BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=1) # num_bins == 1, just like when (len(reduced_time_bin_edges) == 2)
                         bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=manual_center_info) # have to manually provide center_info because it doesn't work with two or less entries.   
                         print(f'\t ERROR (cont.): even after this hack `slide_view` is not updated, so the returned spkcount is not valid and has the old (wrong, way too many) number of bins. This results in decoded posteriors/postitions/etc with way too many bins downstream. see `SOLUTION 2024-08-07 20:08: - [ ] Recompute the Invalid Quantities with the known correct number of time bins` for info.')                     
-                    elif len(reduced_time_bin_edges) == 2:
+                    elif n_reduced_edges == 2:
                         # have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
                         reduced_time_bin_edges = deepcopy(bins)
                         # And the bin center is just the middle of the epoch

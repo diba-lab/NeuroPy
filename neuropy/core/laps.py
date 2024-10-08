@@ -341,9 +341,13 @@ class Laps(Epoch):
 
         # Assign the is_LR_dir to laps_df, ensuring the length matches
         laps_df['is_LR_dir'] = is_LR_dir # ValueError: Length of values (80) does not match length of index (82), ValueError: Length of values (49) does not match length of index (48)
+        # 'lap_dir': {LR: 0, RL: 1}
+        is_RL_dir: NDArray = np.logical_not(is_LR_dir)
+        # is_RL_dir = np.logical_not(laps_df['is_LR_dir'])
+        _proposed_new_lap_dir = is_RL_dir.astype(int) # 1 for RL, 0 for LR
+        is_new_dir_substantially_different: bool = not np.all(laps_df['lap_dir'].values == _proposed_new_lap_dir)
         # global_laps._df['direction_consistency'] = 0.0
         # assert np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
-        is_new_dir_substantially_different: bool = not np.all(laps_df[(laps_df['is_LR_dir'].astype(int) == np.logical_not(laps_df['lap_dir'].astype(int)))])
         if (is_new_dir_substantially_different):
             print(f'WARN: Laps._compute_lap_dir_from_smoothed_velocity(...): the velocity-determined lap direction ("is_LR_dir") substantially differs from the previous ("lap_dir") column. This might be because it initially used simple ODD/EVEN determination for the direction.')
             if replace_existing:
