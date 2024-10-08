@@ -506,16 +506,6 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         if debug_print:
             print(f'window_shape: {window_shape}')
 
-    # ----- little faster but requires epochs to be non-overlapping ------
-    # bins_epochs = []
-    # for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
-    #     bins = np.arange(epoch.start, epoch.stop, bin_size)
-    #     nbins[i] = len(bins) - 1
-    #     bins_epochs.extend(bins)
-    # spkcount = np.asarray(
-    #     [np.histogram(_, bins=bins_epochs)[0] for _ in spiketrains]
-    # )
-
     # deleting unwanted columns that represent time between events
     # cumsum_nbins = np.cumsum(nbins)
     # del_columns = cumsum_nbins[:-1] + np.arange(len(cumsum_nbins) - 1)
@@ -534,9 +524,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
             bins = np.array([epoch.start, epoch.stop]) # NOTE: not subdivided
             nbins[i] = 1
         else:
-            # fixed time-bin duration -> variable num time bins per epoch depending on epoch length    
-            # first dividing in 1ms
-            # bins = np.arange(epoch.start, epoch.stop, 0.001) # subdivided by 1ms, so way more bins here than we'd expect for either bin_centers or bin_edges
+            # fixed time-bin duration -> variable num time bins per epoch depending on epoch length
             bin_starts = np.arange(epoch.start, (epoch.stop - bin_size + 1e-10), slideby)
             if len(bin_starts) == 0:
                 # Epoch shorter than bin_size
@@ -554,23 +542,12 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
             bin_ends = bin_starts + bin_size
             bin_ends = np.minimum(bin_ends, epoch.stop)
             bins = np.sort(np.unique(np.concatenate((bin_starts, bin_ends))))
-                    
-        
-        # spkcount_ = np.asarray(
-        #     [np.histogram(_, bins=bins)[0] for _ in spiketrains]
-        # )
+        # end if use_single_time_bin_per_epoch       
+
         spkcount_ = np.array([np.histogram(st, bins=bins)[0] for st in spiketrains])
-        # spkcount.append(spkcount_)
         if debug_print:
             print(f'i: {i}, epoch: [{epoch.start}, {epoch.stop}], bins: {np.shape(bins)}, np.shape(spkcount_): {np.shape(spkcount_)}')
         
-        # # the 2nd condition ((window_shape > spkcount_.shape[1])) prevents ValueError: window shape cannot be larger than input array shape spkcount_.shape: (80,60), window_shape: 75
-        # if (use_single_time_bin_per_epoch or (window_shape > spkcount_.shape[1])): 
-        #     slide_view = spkcount_  # In this case, your spike count stays as it is
-        #     nbins[i] = 1 # always 1 bin. #TODO 2024-01-19 04:45: - [ ] What is slide_view and do I need it?
-        # else:        
-        #     slide_view = np.lib.stride_tricks.sliding_window_view(spkcount_, window_shape, axis=1)[:, :: int(slideby * 1000), :].sum(axis=2) # ValueError: window shape cannot be larger than input array shape spkcount_.shape: (80,60), window_shape: 75
-        #     nbins[i] = slide_view.shape[1]
         
         if export_time_bins:
             if debug_print:
@@ -596,72 +573,11 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                 edge_info=edge_info,
                 center_info=center_info
             )
-                        
-            # reduced_time_bins: only the FULL number of bin *edges*
-            # reduced_time_bins # array([22.26, 22.36, 22.46, ..., 2093.66, 2093.76, 2093.86])
-            # if use_single_time_bin_per_epoch:
-            #     # For single bin case, the bin edges are just the epoch start and stop times (which are importantly smaller than the time_bin_size)
-            #     reduced_time_bin_edges = bins
-            #     # And the bin center is just the middle of the epoch
-            #     reduced_time_bin_centers = np.asarray([(epoch.start + epoch.stop) / 2])
-            #     actual_window_size = float(epoch.stop - epoch.start) # the actual (variable) bin size
-            #     assert len(reduced_time_bin_edges) >= 2, f"epochs_spkcount(...): epoch[{i}], nbins[{i}]: cannot build extents because len(reduced_time_bin_edges) < 2: reduced_time_bin_edges: {reduced_time_bin_edges}"
-            #     manual_center_info = BinningInfo(variable_extents=(reduced_time_bin_edges[0], reduced_time_bin_edges[-1]), step=actual_window_size, num_bins=len(reduced_time_bin_centers)) # BinningInfo(variable_extents: tuple, step: float, num_bins: int)
-            #     # center_info = BinningContainer.build_center_binning_info(reduced_time_bin_centers, reduced_time_bin_edges) # the second argument (edge_extents) is just the edges
-            #     bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=manual_center_info) # have to manually provide center_info because it doesn't work with two or less entries.
-                
-            # else:
-            #     # reduced_slide_by_amount = int(slideby * 1000)
-            #     # reduced_time_bin_edges = bins[:: reduced_slide_by_amount] # WTH does this notation mean?
-                
-            #     # assert len(reduced_time_bin_edges) >= 2, f"epochs_spkcount(...): epoch[{i}], nbins[{i}]: cannot build extents because len(reduced_time_bin_edges) < 2: reduced_time_bin_edges: {reduced_time_bin_edges}"
-            #     assert len(reduced_time_bin_edges) > 0, f"epochs_spkcount(...): epoch[{i}], nbins[{i}]: cannot build extents because reduced_time_bin_edges is empty (len(reduced_time_bin_edges) == 0): reduced_time_bin_edges: {reduced_time_bin_edges}"
-                
-            #     try:
-            #         n_reduced_edges: int = len(reduced_time_bin_edges)
-            #         if n_reduced_edges == 1:
-            #             # Built using `epoch` - have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
-            #             print(f'ERROR: epochs_spkcount(...): epoch[{i}], nbins[{i}]: {nbins[i]} - TODO 2024-08-07 19:11: Building BinningContainer for epoch with fewer than 2 edges (occurs when epoch duration is shorter than the bin size). Using the epoch.start, epoch.stop as the two edges (giving a single bin) but this might be off and cause problems, as they are the edges of the epoch but maybe not "real" edges?')
-            #             reduced_time_bin_edges = np.array([epoch.start, epoch.stop])
-            #             # reduced_time_bin_edges = deepcopy(bins) #TODO 2024-08-07 19:11: - [ ] This might be off, as they are the edges of the epoch but maybe not "real" edges?
-            #             reduced_time_bin_centers = np.asarray([(epoch.start + epoch.stop) / 2]) # And the bin center is just the middle of the epoch
-            #             actual_window_size = float(epoch.stop - epoch.start) # the actual (variable) bin size
-            #             variable_extents = (epoch.start, epoch.stop)
-            #             manual_center_info = BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=1) # num_bins == 1, just like when (len(reduced_time_bin_edges) == 2)
-            #             bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=manual_center_info) # have to manually provide center_info because it doesn't work with two or less entries.   
-            #             print(f'\t ERROR (cont.): even after this hack `slide_view` is not updated, so the returned spkcount is not valid and has the old (wrong, way too many) number of bins. This results in decoded posteriors/postitions/etc with way too many bins downstream. see `SOLUTION 2024-08-07 20:08: - [ ] Recompute the Invalid Quantities with the known correct number of time bins` for info.')                     
-            #         elif n_reduced_edges == 2:
-            #             # have to manually build center_info from subsampled `bins` because it doesn't work with two or less entries.
-            #             reduced_time_bin_edges = deepcopy(bins)
-            #             # And the bin center is just the middle of the epoch
-            #             reduced_time_bin_centers = np.asarray([(reduced_time_bin_edges[0] + reduced_time_bin_edges[1]) / 2]) # just a single element?
-            #             actual_window_size = float(reduced_time_bin_edges[1] - reduced_time_bin_edges[0]) # the actual (variable) bin size... #TODO 2024-08-07 18:50: - [ ] this might be the subsampled bin size
-            #             manual_center_info = BinningInfo(variable_extents=(reduced_time_bin_edges[0], reduced_time_bin_edges[-1]), step=actual_window_size, num_bins=len(reduced_time_bin_centers))
-            #             bin_container = BinningContainer(edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=manual_center_info) # have to manually provide center_info because it doesn't work with two or less entries.
-            #         else:
-            #             # can do it like normal:
-            #             ## automatically computes reduced_time_bin_centers and both infos:
-            #             bin_container = BinningContainer(edges=reduced_time_bin_edges)
-            #             reduced_time_bin_centers = deepcopy(bin_container.centers)
-
-            #     except BaseException as err:
-            #         print(f'ERROR: epochs_spkcount(...): epoch[{i}], nbins[{i}]: while building time bins, encountered exception err: {err}.')
-            #         raise err
-            
-            # if debug_print:
-            #     num_bad_time_bins = len(bins)
-            #     print(f'num_bad_time_bins: {num_bad_time_bins}')
-            #     if not use_single_time_bin_per_epoch:
-            #         print(f'reduced_slide_by_amount: {reduced_slide_by_amount}')
-            #     print(f'reduced_time_bin_edges.shape: {reduced_time_bin_edges.shape}') # reduced_time_bin_edges.shape: (20717,)
-            #     print(f'reduced_time_bin_centers.shape: {reduced_time_bin_centers.shape}') # reduced_time_bin_centers.shape: (20716,)
-
             reduced_time_bin_centers = deepcopy(bin_container.centers)
             assert len(reduced_time_bin_centers) == nbins[i], f"The length of the produced reduced_time_bin_centers and the nbins[i] should be the same, but len(reduced_time_bin_centers): {len(reduced_time_bin_centers)} and nbins[i]: {nbins[i]}!"
-            # time_bin_centers_list.append(reduced_time_bin_centers)
             time_bin_containers_list.append(bin_container)
-            
-        # spkcount.append(slide_view)
+        # end if export_time_bins
+
         spkcount.append(spkcount_)
 
     return spkcount, nbins, time_bin_containers_list
