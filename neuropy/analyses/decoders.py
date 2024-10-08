@@ -472,7 +472,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         
         
     """
-    from neuropy.core.epoch import ensure_dataframe, Epoch
+    from neuropy.core.epoch import ensure_dataframe
 
     # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
     if isinstance(neurons, core.Neurons):
