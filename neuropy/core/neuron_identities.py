@@ -481,6 +481,13 @@ class NeuronIdentitiesDisplayerMixin:
     def get_extended_neuron_id_string(self, neuron_i=None, neuron_id=None):
         assert (neuron_i is not None) or (neuron_id is not None), "You must specify either neuron_i (index) or neuron_id, and the other will be returned"
         assert (neuron_i is None) or (neuron_id is None), "You cannot specify both neuron_i (index) and neuron_id, as it would be ambiguous which takes priority. Please remove one of the two arguments."
+        if neuron_id is not None:
+            assert (neuron_i is None)
+            assert (neuron_id in self.neuron_ids), f"neuron_id: {neuron_id} is not in self.neuron_ids: {self.neuron_ids}"
+            # neuron_i: int = list(self.neuron_ids).index(neuron_id) # find index
+            neuron_i: int = list(self.neuron_ids).index(neuron_id) # find index
+            # print(f'neuron_i: {neuron_i}')
+            assert (neuron_i is not None)
         
         # TODO: make more general
         curr_cell_alt_id = self.neuron_extended_ids[neuron_i]
