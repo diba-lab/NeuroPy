@@ -536,14 +536,12 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                 bin_ends = bin_starts + bin_size
                 bin_ends = np.minimum(bin_ends, epoch.stop)
                 bins = np.concatenate((bin_starts, [bin_ends[-1]]))
-                bins = np.sort(np.unique(bins))
+                bins = np.unique(bins)
                 nbins[i] = (len(bins) - 1)
-            # end if len(bin_starts) == 0
-
-            # bin_ends = bin_starts + bin_size
-            # bin_ends = np.minimum(bin_ends, epoch.stop)
-            # bins = np.sort(np.unique(np.concatenate((bin_starts, bin_ends))))
-        
+            
+            bin_ends = bin_starts + bin_size
+            bin_ends = np.minimum(bin_ends, epoch.stop)
+            bins = np.sort(np.unique(np.concatenate((bin_starts, bin_ends))))
         # end if use_single_time_bin_per_epoch       
 
         spkcount_ = np.array([np.histogram(st, bins=bins)[0] for st in spiketrains])
