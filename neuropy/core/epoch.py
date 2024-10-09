@@ -513,6 +513,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             active_epochs_df['unique_active_aclus'] = active_epochs_df.label.map(epoch_unique_aclus_dict)
         epoch_num_unique_aclus_dict = {k:len(v) for k,v in epoch_unique_aclus_dict.items()}
         active_epochs_df['n_unique_aclus'] = active_epochs_df.label.map(epoch_num_unique_aclus_dict)
+        active_epochs_df['n_unique_aclus'] = active_epochs_df['n_unique_aclus'].fillna(0).astype(int) # fill NaN values with 0s and convert to int
         return active_epochs_df
 
 
