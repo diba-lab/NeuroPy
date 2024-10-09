@@ -79,7 +79,18 @@ class BinningInfo(HDF_SerializationMixin, AttrsBasedClassHelperMixin):
         self._validate_variable_extents()
         self.bin_indicies = np.arange(self.num_bins)
         assert len(self.bin_indicies) == self.num_bins, f"len(self.bin_indicies): {len(self.bin_indicies)} does not equal self.num_bins: {self.num_bins}!! Something is wrong"
-        
+        # self.num_bins = len(self.bin_indicies) # update from bin_indicies
+    
+    
+    # @property
+    # def bin_indicies(self) -> NDArray:
+    #     """bin_indicies - np.ndarray of time_bin_indicies that will be used for the produced output dataframe of the binned spike counts for each unit. (e.g. time_bin_indicies = time_window_edges_binning_info.bin_indicies[1:])."""
+    #     # return np.arange(self.num_bins)
+    #     return self.bin_indicies
+    # @bin_indicies.setter
+    # def bin_indicies(self, value: NDArray):
+    #     self._bin_indicies = value
+    
     ## For serialization/pickling:
     def __getstate__(self):
         # Copy the object's state from self.__dict__ which contains all our instance attributes. Always use the dict.copy() method to avoid modifying the original state.
@@ -89,6 +100,8 @@ class BinningInfo(HDF_SerializationMixin, AttrsBasedClassHelperMixin):
     def __setstate__(self, state):
         # super(BinningInfo, self).__init__() # Call the superclass __init__() (from https://stackoverflow.com/a/48325758)
         self.__dict__.update(state)
+
+
 
 class BinningContainer(object):
     """A container that allows accessing either bin_edges (self.edges) or bin_centers (self.centers) 
@@ -188,6 +201,7 @@ class BinningContainer(object):
         return BinningInfo(variable_extents=deepcopy(variable_extents), step=actual_window_size, num_bins=len(centers))
     
     
+
     @classmethod
     def init_from_edges(cls, edges: NDArray, edge_info: Optional[BinningInfo]=None) -> "BinningContainer":
         """ initializes from edges, overwritting everything else
@@ -218,7 +232,6 @@ class BinningContainer(object):
             center_info = cls.build_center_binning_info(centers, variable_extents=deepcopy(edge_info.variable_extents)) # BinningContainer.build_center_binning_info(centers, variable_extents=self.edge_info.variable_extents)
         
         return cls(edges=edges, edge_info=edge_info, centers=centers, center_info=center_info)
-
 
 def compute_spanning_bins(variable_values, num_bins:int=None, bin_size:float=None, variable_start_value:float=None, variable_end_value:float=None) -> Tuple[NDArray, BinningInfo]:
     """Extracted from pyphocorehelpers.indexing_helpers import compute_position_grid_size for use in BaseDataSessionFormats
