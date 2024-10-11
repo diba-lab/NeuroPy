@@ -687,7 +687,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         """
         bad_sessions = cls.get_hardcoded_bad_sessions()
         good_sessions = [
-            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # DONE 2024-09-27 -- NOT SURE, BUT FINISHED
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # ONLY ONE SHORT LAP
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'), # prev completed
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'), # prev completed
@@ -725,6 +725,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         
         """
         bad_session_contexts: List[IdentifyingContext] = [
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # ONLY ONE SHORT LAP
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
             IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
             IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40'),
