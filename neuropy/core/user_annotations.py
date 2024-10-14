@@ -2,6 +2,7 @@ import sys
 from copy import deepcopy
 from typing import List, Dict, Any, Tuple, Optional, Callable
 from attrs import define, field, Factory, asdict
+from nptyping import NDArray
 import numpy as np
 import pandas as pd
 import tables as tb
@@ -760,3 +761,24 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         ]
 
         return bad_session_contexts
+
+
+
+    @classmethod
+    def get_hardcoded_bimodal_aclus(cls) -> Dict[IdentifyingContext, List]:
+        """
+        Cells/aclus that are bimodal
+        """
+        bad_aclu_mapping = {
+            IdentifyingContext(format_name= 'kdiba', animal= 'vvp01', exper_name= 'one', session_name= '2006-4-09_17-29-30'):
+            dict(
+                bad_looking_aclus = [4, 25],
+                minorly_bad_looking_aclus = [7, 28, 22],
+            )
+        }
+
+        ## Bad/Icky Bimodal Cells:
+        return {IdentifyingContext(format_name= 'kdiba', animal= 'vvp01', exper_name= 'one', session_name= '2006-4-10_12-25-50'): [7, 36, 31, 4, 32, 27, 13, ],
+
+        }
+
