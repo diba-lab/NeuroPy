@@ -1,3 +1,4 @@
+import io
 from copy import deepcopy
 from typing import Callable, Dict, Optional
 from attrs import define, fields, filters, asdict, astuple
@@ -41,6 +42,22 @@ from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresen
 from .. import plotting
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta, build_formatted_str_from_properties_dict
 
+# ==================================================================================================================== #
+# Formatting Override Globals                                                                                          #
+# ==================================================================================================================== #
+def _try_grid_bin_bounds_tuple_tuple_print_formatted(value) -> str:
+    assert isinstance(value, (list, tuple)), f"type(value): {type(value)}"
+    assert len(value) == 2, f"len(value): {len(value)} != 2"
+    assert isinstance(value[0], (list, tuple)), f"type(value[0]): {type(value[0])}"
+    assert len(value[0]) == 2, f"len(value[0]): {len(value[0])} != 2"
+    assert isinstance(value[1], (list, tuple)), f"type(value[1]): {type(value[1])}"
+    assert len(value[1]) == 2, f"len(value[1]): {len(value[1])} != 2"
+    return f"(({value[0][0]:.3f}, {value[0][1]:.3f}), ({value[1][0]:.3f}, {value[1][1]:.3f}))"
+
+custom_formatting_dict: Dict[str, Callable] = {'grid_bin_bounds': lambda value: _try_grid_bin_bounds_tuple_tuple_print_formatted(value)
+}
+
+custom_skip_formatting_display_list: List[str] = ['grid_bin_bounds', 'is_directional'] # items in custom_skip_formatting_display_list will not be displayed
 
 
 class PlacefieldComputationParameters(SimplePrintable, DiffableObject, SubsettableDictRepresentable, metaclass=OrderedMeta):
@@ -104,15 +121,16 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
         else:
             return self.smooth[0]
 
-    def _unlisted_parameter_strings(self):
+    def _unlisted_parameter_strings(self) -> List[str]:
         """ returns the string representations of all key/value pairs that aren't normally defined.
         NOTE: this seems generally useful!
         
+        Uses: custom_formatting_dict
         """
         # Dump all arguments into parameters.
         out_list = []
         for key, value in self.__dict__.items():
-            if (key is not None) and (key not in PlacefieldComputationParameters.variable_names):
+            if (key is not None) and (key not in PlacefieldComputationParameters.variable_names) and (key not in custom_skip_formatting_display_list):
                 if value is None:
                     out_list.append(f"{key}_None")
                 else:
@@ -122,46 +140,67 @@ class PlacefieldComputationParameters(SimplePrintable, DiffableObject, Subsettab
                     elif hasattr(value, 'str_for_concise_display'):
                         out_list.append(f'{key}_{value.str_for_concise_display()}')
                     else:
-                        # no special handling methods:
-                        if isinstance(value, float):
-                            out_list.append(f"{key}_{value:.2f}")
-                        elif isinstance(value, np.ndarray):
-                            out_list.append(f'{key}_ndarray[{np.shape(value)}]')
+                        a_custom_formatting_fn = custom_formatting_dict.get(key, None)
+                        if a_custom_formatting_fn is not None:
+                            # have a valid custom formatting fcn
+                            _value_out_str: str = a_custom_formatting_fn(value)
+                            out_list.append(f"{key}_{_value_out_str}") ## default
                         else:
-                            # No special handling:
-                            try:
-                                out_list.append(f"{key}_{value}")
-                            except Exception as e:
-                                print(f'UNEXPECTED_EXCEPTION: {e}')
-                                print(f'self.__dict__: {self.__dict__}')
-                                raise e
+                            # no special handling methods:
+                            if isinstance(value, float):
+                                out_list.append(f"{key}_{value:.2f}")
+                            elif isinstance(value, np.ndarray):
+                                out_list.append(f'{key}_ndarray[{np.shape(value)}]')
+                            else:
+                                ## try converting to NDArray
+                                was_conversion_success: bool = False
+                                try:
+                                    _test_converted_value = np.array(value)
+                                    with io.StringIO() as buf, np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
+                                        print(f"{_test_converted_value}", file=buf)
+                                        _value_out_str: str = buf.getvalue()
+                                        out_list.append(f"{key}_{_value_out_str}") ## default
+                                    was_conversion_success = True
+                                except BaseException as e:
+                                    print(f'conversion to NDArray failed for key "{key}", value: {value} with error {e}')
+                                    was_conversion_success = False
+                                    pass
+                                
+                                # No special handling:
+                                if not was_conversion_success:
+                                    try:
+                                        out_list.append(f"{key}_{value}") ## default
+                                    except BaseException as e:
+                                        print(f'UNEXPECTED_EXCEPTION: {e}')
+                                        print(f'self.__dict__: {self.__dict__}')
+                                        raise e
 
         return out_list
 
 
-    def str_for_filename(self, is_2D):
+    def str_for_filename(self, is_2D: bool):
         with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
             # score_text = f"score: " + str(np.array([epoch_score])).lstrip("[").rstrip("]") # output is just the number, as initially it is '[0.67]' but then the [ and ] are stripped.            
-            extras_strings = self._unlisted_parameter_strings()
+            extras_strings: List[str] = self._unlisted_parameter_strings()
             if is_2D:
                 return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}", f"smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
             else:
                 return '-'.join([f"speedThresh_{self.speed_thresh:.2f}", f"gridBin_{self.grid_bin_1D:.2f}", f"smooth_{self.smooth_1D:.2f}", f"frateThresh_{self.frate_thresh:.2f}", *extras_strings])
 
-    def str_for_display(self, is_2D):
+    def str_for_display(self, is_2D: bool, extras_join_sep: str=', ', normal_to_extras_line_sep:str=''):
         """ For rendering in a title, etc
+        normal_to_extras_line_sep: the separator between the normal and extras lines
         
         #TODO 2023-07-21 16:35: - [ ] The np.printoptions doesn't affect the values that are returned from `extras_string = ', '.join(self._unlisted_parameter_strings())`
         We end up with '(speedThresh_10.00, gridBin_2.00, smooth_2.00, frateThresh_1.00)grid_bin_bounds_((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))' (too many sig-figs on the output grid_bin_bounds)
         
         """
-        
         with np.printoptions(precision=self.float_precision, suppress=True, threshold=self.array_items_threshold):
-            extras_string = ', '.join(self._unlisted_parameter_strings())
+            extras_string = extras_join_sep.join(self._unlisted_parameter_strings()) # ['grid_bin_bounds_((37.0773897438341, 250.69004399129707), (137.97626338793503, 146.00371440346137))', 'is_directional_False']
             if is_2D:
-                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin[0]:.2f}_{self.grid_bin[1]:.2f}, smooth_{self.smooth[0]:.2f}_{self.smooth[1]:.2f}, frateThresh_{self.frate_thresh:.2f})" + normal_to_extras_line_sep + extras_string
             else:
-                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + extras_string
+                return f"(speedThresh_{self.speed_thresh:.2f}, gridBin_{self.grid_bin_1D:.2f}, smooth_{self.smooth_1D:.2f}, frateThresh_{self.frate_thresh:.2f})" + normal_to_extras_line_sep + extras_string
 
 
     def str_for_attributes_list_display(self, param_sep_char='\n', key_val_sep_char='\t', subset_includelist:Optional[list]=None, subset_excludelist:Optional[list]=None, override_float_precision:Optional[int]=None, override_array_items_threshold:Optional[int]=None):
