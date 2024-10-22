@@ -613,10 +613,11 @@ def plot_ratemap_1D(ratemap: Ratemap, normalize_xbin=False, fignum=None, fig=Non
             else:
                 # TODO: drops the formatted_max_value_string (firing rate) and maybe some other things 
                 neuron_extended_id=ratemap.neuron_extended_ids[curr_ratemap_relative_neuron_IDX]
-                final_label_str = f'<size:10><weight:bold>{neuron_extended_id.id}</></>'
-                final_label_str = final_label_str + '|'.join([ # _build_flexitext_neuron_extended_id_sublabel('aclu', neuron_extended_id.id),
+                final_label_str = f'<size:10><weight:bold>{neuron_extended_id.aclu}</></>'
+                final_label_str = final_label_str + '|'.join([ # _build_flexitext_neuron_extended_id_sublabel('aclu', neuron_extended_id.aclu),
                         _build_flexitext_neuron_extended_id_sublabel('s', neuron_extended_id.shank),
                         _build_flexitext_neuron_extended_id_sublabel('c', neuron_extended_id.cluster),
+                        _build_flexitext_neuron_extended_id_sublabel('q', neuron_extended_id.qclu),
                     ])
 
         else:

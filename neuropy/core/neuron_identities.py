@@ -403,15 +403,15 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
     def _basic_identity_formatting_string(self, neuron_extended_id):
         """Builds the string output for just the id (aclu) component of the neuron_extended_id """
         if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
-            return f'Cell cell_uid: {neuron_extended_id.id}'
+            return f'Cell cell_uid: {neuron_extended_id.aclu}'
         elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
-            return f'Cell {neuron_extended_id.id}'
+            return f'Cell {neuron_extended_id.aclu}'
         elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return f'Cell {neuron_extended_id.id}'
+            return f'Cell {neuron_extended_id.aclu}'
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return f'{neuron_extended_id.id}'
+            return f'{neuron_extended_id.aclu}'
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return f'{neuron_extended_id.id}'
+            return f'{neuron_extended_id.aclu}'
         else:
             print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
             raise NameError
