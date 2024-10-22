@@ -971,6 +971,25 @@ class FormattedFigureText:
     def bottom_margin(self, value):
         self.margins.bottom_margin = value
 
+
+    @classmethod
+    def init_from_margins(cls, top_margin=None, left_margin=None, right_margin=None, bottom_margin=None) -> "FormattedFigureText":
+        """ allows initializing while overriding specific margins 
+        
+        text_formatter = FormattedFigureText.init_from_margins(left_margin=0.01)
+        
+        """
+        _obj = cls()
+        if top_margin is not None:
+            _obj.top_margin = top_margin
+        if left_margin is not None:
+            _obj.left_margin = left_margin
+        if right_margin is not None:
+            _obj.right_margin = right_margin
+        if bottom_margin is not None:
+            _obj.bottom_margin = bottom_margin
+        return _obj
+        
     @classmethod
     def _build_formatted_title_string(cls, epochs_name) -> str:
         """ buidls the two line colored string figure's footer that is passed into `flexitext`.
