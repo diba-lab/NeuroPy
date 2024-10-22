@@ -67,7 +67,7 @@ class Ratemap(HDFMixin, NeuronIdentitiesDisplayerMixin, RatemapPlottingMixin, Co
         if neuron_extended_ids is not None:
             assert len(neuron_extended_ids) == self.tuning_curves.shape[0]
             assert len(neuron_extended_ids) == len(self._neuron_ids)
-            # NeuronExtendedIdentityTuple objects
+            # NeuronExtendedIdentity objects
             self._neuron_extended_ids = neuron_extended_ids   
         
         self.xbin = xbin

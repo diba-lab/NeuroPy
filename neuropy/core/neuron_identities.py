@@ -20,7 +20,21 @@ from neuropy.utils.mixins.print_helpers import SimplePrintable
 from neuropy.utils.colors_util import get_neuron_colors
 from matplotlib.colors import ListedColormap
 
-NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank cluster id')
+from attrs import define, field, Factory
+from neuropy.utils.mixins.indexing_helpers import UnpackableMixin
+
+NeuronExtendedIdentityTuple = namedtuple('NeuronExtendedIdentityTuple', 'shank cluster id') ## DEPRICATED IN FAVOR OF `NeuronExtendedIdentity`
+
+@define(slots=False, eq=False)
+class NeuronExtendedIdentity(UnpackableMixin):
+    """ 
+    from neuropy.core.neuron_identities import NeuronExtendedIdentity
+    
+    """
+    shank: int = field()
+    cluster: int = field()
+    aclu: int = field(alias='id')
+    qclu: int = field()
 
 
 """
@@ -82,8 +96,9 @@ class NeuronIdentityDataframeAccessor:
         # groupby the multi-index [shank, cluster]:
         # shank_cluster_grouped_spikes_df = self._obj.groupby(['shank','cluster'])
         aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
-        shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
-        output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
+        shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster','qclu']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
+        # output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
+        output_tuples_list = [NeuronExtendedIdentity(shank=an_id.shank, cluster=an_id.cluster, aclu=an_id.aclu, qclu=an_id.qclu) for an_id in shank_cluster_reference_df.itertuples()]
         return output_tuples_list
         
     @property
@@ -229,39 +244,63 @@ class NeuronIdentity(SimplePrintable):
         ['shank','cluster']
     
     """
+    # @property
+    # def extended_identity_tuple(self):
+    #     """The extended_identity_tuple property."""
+    #     return NeuronExtendedIdentityTuple(self.shank_index, self.cluster_index, self.cell_uid) # returns self as a NeuronExtendedIdentityTuple 
+    # @extended_identity_tuple.setter
+    # def extended_identity_tuple(self, value):
+    #     assert isinstance(value, NeuronExtendedIdentityTuple), "value should be a NeuronExtendedIdentityTuple"
+    #     self.cell_uid = value.id
+    #     self.shank_index = value.shank
+    #     self.cluster_index = value.cluster
+
+
     @property
     def extended_identity_tuple(self):
         """The extended_identity_tuple property."""
-        return NeuronExtendedIdentityTuple(self.shank_index, self.cluster_index, self.cell_uid) # returns self as a NeuronExtendedIdentityTuple 
+        return NeuronExtendedIdentity(self.shank_index, self.cluster_index, self.cell_uid, self.qclu) # returns self as a NeuronExtendedIdentityTuple 
     @extended_identity_tuple.setter
     def extended_identity_tuple(self, value):
-        assert isinstance(value, NeuronExtendedIdentityTuple), "value should be a NeuronExtendedIdentityTuple"
+        assert isinstance(value, NeuronExtendedIdentity), "value should be a NeuronExtendedIdentity"
         self.cell_uid = value.id
         self.shank_index = value.shank
         self.cluster_index = value.cluster
-        
+        self.qclu = value.qclu
+
+
     @property
     def extended_id_string(self):
         """The extended_id_string property."""
         return self._extended_id_string
-    
-    
-    
-    def __init__(self, cell_uid, shank_index, cluster_index, color=None):
+        
+    def __init__(self, cell_uid, shank_index, cluster_index, qclu, color=None):
         self.cell_uid = cell_uid
         self.shank_index = shank_index
         self.cluster_index = cluster_index
+        self.qclu = qclu
         self.color = color
 
+    # @classmethod
+    # def init_from_NeuronExtendedIdentityTuple(cls, a_tuple: NeuronExtendedIdentityTuple, a_color=None):
+    #     """Iniitalizes from a NeuronExtendedIdentityTuple and optionally a color
+    #     Args:
+    #         a_tuple (NeuronExtendedIdentityTuple): [description]
+    #         a_color ([type], optional): [description]. Defaults to None.
+    #     """
+    #     return cls(a_tuple.id, a_tuple.shank, a_tuple.cluster, color=a_color)
+        
     @classmethod
-    def init_from_NeuronExtendedIdentityTuple(cls, a_tuple: NeuronExtendedIdentityTuple, a_color=None):
+    def init_from_NeuronExtendedIdentity(cls, a_tuple: NeuronExtendedIdentity, a_color=None):
         """Iniitalizes from a NeuronExtendedIdentityTuple and optionally a color
         Args:
             a_tuple (NeuronExtendedIdentityTuple): [description]
             a_color ([type], optional): [description]. Defaults to None.
         """
-        return cls(a_tuple.id, a_tuple.shank, a_tuple.cluster, color=a_color)
+        return cls(a_tuple.aclu, a_tuple.shank, a_tuple.cluster, a_tuple.qclu, color=a_color)
         
+
+
         
         
 class NeuronIdentityAccessingMixin:
@@ -349,15 +388,15 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
     def extended_identity_labels(self):
         """The extended_identity_labels property."""
         if self == PlotStringBrevityModeEnum.VERBOSE:
-            return {'cell_uid':'cell_uid', 'shank_index':'shank_index', 'cluster_index':'cluster_index'}
+            return {'cell_uid':'cell_uid', 'shank_index':'shank_index', 'cluster_index':'cluster_index', 'qclu':'qclu'}
         elif self == PlotStringBrevityModeEnum.DEFAULT:
-            return {'cell_uid':'id', 'shank_index':'shank', 'cluster_index':'cluster'}
+            return {'cell_uid':'id', 'shank_index':'shank', 'cluster_index':'cluster', 'qclu':'qclu'}
         elif self == PlotStringBrevityModeEnum.CONCISE:
-            return {'cell_uid':'', 'shank_index':'shk', 'cluster_index':'clu'}
+            return {'cell_uid':'', 'shank_index':'shk', 'cluster_index':'clu', 'qclu':'qclu'}
         elif self == PlotStringBrevityModeEnum.MINIMAL:
-            return {'cell_uid':'', 'shank_index':'s', 'cluster_index':'c'}
+            return {'cell_uid':'', 'shank_index':'s', 'cluster_index':'c', 'qclu':'q'}
         elif self == PlotStringBrevityModeEnum.NONE:
-            return {'cell_uid':'', 'shank_index':'', 'cluster_index':''}
+            return {'cell_uid':'', 'shank_index':'', 'cluster_index':'', 'qclu':''}
         else:
             raise NameError
 
@@ -380,15 +419,15 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
     def _extra_info_identity_formatting_string(self, neuron_extended_id):
         """Builds the string output for just the shank and cluster components of the neuron_extended_id."""
         if self.name == PlotStringBrevityModeEnum.VERBOSE.name:
-            return f'(shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster})'
+            return f'(shank_index {neuron_extended_id.shank}, cluster_index {neuron_extended_id.cluster}, qclu {neuron_extended_id.qclu})'
         elif self.name == PlotStringBrevityModeEnum.DEFAULT.name:
-            return f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster})'
+            return f'(shank {neuron_extended_id.shank}, cluster {neuron_extended_id.cluster}, qclu {neuron_extended_id.qclu})'
         elif self.name == PlotStringBrevityModeEnum.CONCISE.name:
-            return f'(shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster})'
+            return f'(shk {neuron_extended_id.shank}, clu {neuron_extended_id.cluster}, qclu {neuron_extended_id.qclu})'
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
-            return f's{neuron_extended_id.shank}, c{neuron_extended_id.cluster}'
+            return f's{neuron_extended_id.shank}, c{neuron_extended_id.cluster}, q{neuron_extended_id.qclu}'
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return f'{neuron_extended_id.shank},{neuron_extended_id.cluster}'
+            return f'{neuron_extended_id.shank},{neuron_extended_id.cluster},{neuron_extended_id.qclu}'
         else:
             print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
             raise NameError
@@ -478,6 +517,11 @@ class NeuronIdentitiesDisplayerMixin:
     def neuron_cluster_ids(self):
         return [extended_id.cluster for extended_id in self.neuron_extended_ids]
 
+    @property
+    def neuron_qclu_ids(self):
+        return [extended_id.qclu for extended_id in self.neuron_extended_ids]
+    
+
     def get_extended_neuron_id_string(self, neuron_i=None, neuron_id=None):
         assert (neuron_i is not None) or (neuron_id is not None), "You must specify either neuron_i (index) or neuron_id, and the other will be returned"
         assert (neuron_i is None) or (neuron_id is None), "You cannot specify both neuron_i (index) and neuron_id, as it would be ambiguous which takes priority. Please remove one of the two arguments."
@@ -493,7 +537,8 @@ class NeuronIdentitiesDisplayerMixin:
         curr_cell_alt_id = self.neuron_extended_ids[neuron_i]
         curr_cell_shank = curr_cell_alt_id.shank
         curr_cell_cluster = curr_cell_alt_id.cluster
-        return f'(shank {curr_cell_shank}, cluster {curr_cell_cluster})'
+        curr_cell_qclu = curr_cell_alt_id.qclu
+        return f'(shank {curr_cell_shank}, cluster {curr_cell_cluster}, qclu {curr_cell_qclu})'
         
         # ax1.set_title(
         #     f"Cell {neuron_ids[cell]} - (shank {curr_cell_shank}, cluster {curr_cell_cluster}) \n{round(np.nanmax(pfmap),2)} Hz"

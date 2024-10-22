@@ -18,7 +18,7 @@ from matplotlib.patheffects import withStroke # used in plot_ratemap_1D
 from typing import TYPE_CHECKING
 from neuropy.core.neuron_identities import PlotStringBrevityModeEnum
 if TYPE_CHECKING:
-    from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple
+    from neuropy.core.neuron_identities import NeuronExtendedIdentity
     from neuropy.core.ratemap import Ratemap
     
 from neuropy.utils import mathutil
