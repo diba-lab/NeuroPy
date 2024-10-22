@@ -577,7 +577,9 @@ def flatten_dict(d: Dict, parent_key='', sep='/') -> Dict:
             ...
             }
 
-
+    Usage:
+        from neuropy.utils.indexing_helpers import flatten_dict
+    
     """
     if (not isinstance(d, dict)):
         assert isinstance(parent_key, str), f"expected type(parent_key) == str but instead type(parent_key): {type(parent_key)}, parent_key: {parent_key}"
