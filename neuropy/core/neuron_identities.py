@@ -36,6 +36,13 @@ class NeuronExtendedIdentity(UnpackableMixin):
     aclu: int = field(alias='id')
     qclu: int = field()
 
+    @classmethod
+    def init_from_NeuronExtendedIdentityTuple(cls, a_tuple):
+        """ # NeuronExtendedIdentityTuple """
+        _obj = cls(shank=a_tuple.shank, cluster=a_tuple.cluster, aclu=a_tuple.id, qclu=None)
+        return _obj
+
+
 
 """
 from neuropy.core.neuron_identities import NeuronExtendedIdentityTuple, neuronTypesEnum, NeuronIdentityTable
@@ -411,7 +418,7 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
         elif self.name == PlotStringBrevityModeEnum.MINIMAL.name:
             return f'{neuron_extended_id.aclu}'
         elif self.name == PlotStringBrevityModeEnum.NONE.name:
-            return f'{neuron_extended_id.aclu}'
+            return f'{neuron_extended_id.aclu}' # AttributeError: 'NeuronExtendedIdentityTuple' object has no attribute 'aclu'
         else:
             print(f'self: {self} with name {self.name} and value {self.value} is unknown type!')
             raise NameError
