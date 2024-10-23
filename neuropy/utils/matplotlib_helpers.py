@@ -102,7 +102,7 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     
     
     
-def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentityTuple=None, brev_mode: PlotStringBrevityModeEnum=None, formatted_max_value_string=None, use_special_overlayed_title=True):
+def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentity=None, brev_mode: PlotStringBrevityModeEnum=None, formatted_max_value_string=None, use_special_overlayed_title=True):
     """ builds the subplot title for 2D PFs that displays the neuron identity and other important info. """    
     from neuropy.core.neuron_identities import PlotStringBrevityModeEnum # needed for _build_neuron_identity_label
     from neuropy.core.neuron_identities import NeuronExtendedIdentity # needed for _build_neuron_identity_label
@@ -110,7 +110,11 @@ def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentityTuple
     if brev_mode is None:
         brev_mode = PlotStringBrevityModeEnum.CONCISE
 
-    if neuron_extended_id is not None:    
+    if neuron_extended_id is not None:
+        if isinstance(neuron_extended_id, (tuple, )):
+            ## convert to modern
+            neuron_extended_id = NeuronExtendedIdentity.init_from_NeuronExtendedIdentityTuple(neuron_extended_id)
+        
         full_extended_id_string = brev_mode.extended_identity_formatting_string(neuron_extended_id)
     else:
         full_extended_id_string = ''
