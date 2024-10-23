@@ -11,7 +11,7 @@ class BaseConfig(GetAccessibleMixin):
 
     from neuropy.core.parameters import BaseConfig
     
-    History: 2024-10-23 11:36 Refactored from pyphoplacecellanalysis.General.Model.Configs.DynamicConfigs.BaseConfig
+History: 2024-10-23 11:36 Refactored from {pyphoplacecellanalysis.General.Model.Configs.DynamicConfigs.BaseConfig}
     
     """
 
@@ -51,7 +51,7 @@ class ParametersContainer(HDF_SerializationMixin, AttrsBasedClassHelperMixin, Ba
     """ 
     from neuropy.core.parameters import ParametersContainer
     
-	from neuropy.core.session.Formats.BaseDataSessionFormats import ParametersContainer
+	from neuropy.core.session.Formats.BaseDataSessionFormats.ParametersContainer
     from neuropy.core.session.Formats.BaseDataSessionFormats import ParametersContainer
     
     """
