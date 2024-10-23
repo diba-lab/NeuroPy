@@ -428,6 +428,19 @@ class HDF_Converter:
         return df
 
 
+    @classmethod
+    def safe_set_attribute(cls, group, attr_name, attr_value):
+        """ gracefully handles python NoneType conversion 
+        
+        can replace calls like `group.attrs[a_field_attr.name] = a_value`
+        
+        """
+        # Replace None with a placeholder value
+        if attr_value is None:
+            attr_value = 'None'  # or np.nan for numeric values
+        group.attrs[attr_name] = attr_value
+
+
 # ==================================================================================================================== #
 # HDF Serialization (saving to HDF5 file)                                                                              #
 # ==================================================================================================================== #
@@ -587,7 +600,6 @@ class HDF_SerializationMixin:
                                 unserializable_fields[a_field_attr] = e
                             else:
                                 raise e
-
                     else:
                         if debug_print:
                             print(f'field "{a_field_name}" with key "{a_field_key}" has "is_hdf_handled_custom" set, meaning the inheritor from this class must handle it in the overriden method.')
@@ -615,6 +627,14 @@ class HDF_SerializationMixin:
         if len(_active_obj_attributes_values_dict) > 0: # don't open the file for no reason
             # Open the file with h5py to add attributes to the group. The pandas.HDFStore object doesn't provide a direct way to manipulate groups as objects, as it is primarily intended to work with datasets (i.e., pandas DataFrames)
             with h5py.File(file_path, 'r+') as f:
+                if key not in f:
+                    ## group does not exist, we must create it
+                    parent_key = str(Path(key).parent.as_posix())
+                    assert parent_key in f, f"parent_key: {parent_key} is not in f either!"
+                    curr_key_part: str = str(Path(key).stem)
+                    a_group = f[parent_key].create_group(curr_key_part)
+                
+                assert key in f
                 group = f[key]
                 for a_field_name, a_value in _active_obj_attributes_values_dict.items():
                     a_field_attr = active_hdf_attributes_fields_dict[a_field_name]
@@ -627,7 +647,8 @@ class HDF_SerializationMixin:
                         custom_serialization_fn(group.attrs, a_field_attr.name, a_value)
                     else:
                         # set that group attribute to a_value
-                        group.attrs[a_field_attr.name] = a_value #TODO 2023-07-31 05:50: - [ ] Assumes that the value is valid to be used as an HDF5 attribute without conversion.
+                        HDF_Converter.safe_set_attribute(group, a_field_attr.name, a_value)
+                        # group.attrs[a_field_attr.name] = a_value #TODO 2023-07-31 05:50: - [ ] Assumes that the value is valid to be used as an HDF5 attribute without conversion.
 
 
 
