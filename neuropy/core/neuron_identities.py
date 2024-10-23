@@ -37,9 +37,9 @@ class NeuronExtendedIdentity(UnpackableMixin):
     qclu: int = field()
 
     @classmethod
-    def init_from_NeuronExtendedIdentityTuple(cls, a_tuple):
+    def init_from_NeuronExtendedIdentityTuple(cls, a_tuple, qclu=None):
         """ # NeuronExtendedIdentityTuple """
-        _obj = cls(shank=a_tuple.shank, cluster=a_tuple.cluster, aclu=a_tuple.id, qclu=None)
+        _obj = cls(shank=a_tuple.shank, cluster=a_tuple.cluster, id=a_tuple.id, qclu=qclu)
         return _obj
 
 
@@ -105,7 +105,7 @@ class NeuronIdentityDataframeAccessor:
         aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
         shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster','qclu']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
         # output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
-        output_tuples_list = [NeuronExtendedIdentity(shank=an_id.shank, cluster=an_id.cluster, aclu=an_id.aclu, qclu=an_id.qclu) for an_id in shank_cluster_reference_df.itertuples()]
+        output_tuples_list = [NeuronExtendedIdentity(shank=an_id.shank, cluster=an_id.cluster, id=an_id.aclu, qclu=an_id.qclu) for an_id in shank_cluster_reference_df.itertuples()]
         return output_tuples_list
         
     @property
