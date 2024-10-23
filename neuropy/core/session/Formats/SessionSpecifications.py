@@ -9,6 +9,7 @@ from pathlib import Path
 from neuropy.core.session.dataSession import DataSession
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter, SimplePrintable, OrderedMeta
 from neuropy.utils.result_context import IdentifyingContext
+from neuropy.core.parameters import ParametersContainer
 
 
 @dataclass
@@ -133,30 +134,6 @@ class SessionFolderSpec():
 #                             '{}.epochs_info.mat'.format(session_name), 
 # ])
 
-
-@define(slots=False, repr=False, eq=False)
-class ParametersContainer:
-    epoch_estimation_parameters: dict = field()
-
-    def to_dict(self) -> Dict:
-        return self.__dict__.copy()
-    
-    def __repr__(self):
-        """ 2024-01-11 - Renders only the fields and their sizes  """
-        from pyphocorehelpers.print_helpers import strip_type_str_to_classname
-        # content = ",\n\t".join([f"{a.name}: {strip_type_str_to_classname(type(getattr(self, a.name)))}" for a in self.__attrs_attrs__])
-        # return f"{type(self).__name__}({content}\n)"
-        attr_reprs = []
-        for a in self.__attrs_attrs__:
-            attr_type = strip_type_str_to_classname(type(getattr(self, a.name)))
-            if 'shape' in a.metadata:
-                shape = ', '.join(a.metadata['shape'])  # this joins tuple elements with a comma, creating a string without quotes
-                attr_reprs.append(f"{a.name}: {attr_type} | shape ({shape})")  # enclose the shape string with parentheses
-            else:
-                attr_reprs.append(f"{a.name}: {attr_type}")
-        content = ",\n\t".join(attr_reprs)
-        return f"{type(self).__name__}({content}\n)"
-    
 
 
 @define(slots=False, repr=False, str=False)
