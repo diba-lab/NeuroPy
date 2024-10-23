@@ -3,7 +3,8 @@ from typing import Optional, List, Dict, Tuple, Union
 from attr import define, field, Factory, asdict, astuple
 from neuropy.utils.mixins.gettable_mixin import GetAccessibleMixin
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_attribute_field, serialized_field, non_serialized_field
-from neuropy.utils.mixins.HDF5_representable import HDF_SerializationMixin
+from neuropy.utils.mixins.HDF5_representable import HDF_SerializationMixin, HDF_Converter
+
 
 @define(slots=False)
 class BaseConfig(GetAccessibleMixin):
@@ -55,7 +56,7 @@ class ParametersContainer(HDF_SerializationMixin, AttrsBasedClassHelperMixin, Ba
     from neuropy.core.session.Formats.BaseDataSessionFormats import ParametersContainer
     
     """
-    epoch_estimation_parameters: dict = serialized_field()
+    epoch_estimation_parameters: dict = serialized_field(serialization_fn=(lambda f, k, v: HDF_Converter._convert_dict_to_hdf_attrs_fn(f, k, v))) # , serialization_fn=(lambda f, k, v: HDF_Converter._convert_dict_to_hdf_attrs_fn(f, k, v)))
 
     def to_dict(self) -> Dict:
         return self.__dict__.copy()

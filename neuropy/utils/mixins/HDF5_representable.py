@@ -223,7 +223,16 @@ class HDF_Converter:
         else:
             with h5py.File(f, "a") as f: # TypeError: expected str, bytes or os.PathLike object, not AttributeManager
                 for sub_k, sub_v in value.items():
-                    f[f'{key}/{sub_k}'] = sub_v
+                    try:
+                        f[f'{key}/{sub_k}'] = sub_v # TypeError: No conversion path for dtype: dtype('<U29')
+                    except TypeError as e:
+                        curr_full_key: str = f'{key}/{sub_k}'
+                        print(f'._convert_dict_to_hdf_attrs_fn(...) failed with TypeError {e}\n\t for value: curr_full_key: {curr_full_key}, sub_v: {sub_v}')
+                        # pass # allow failing?
+                        raise e
+                    except BaseException as e:
+                        raise e
+                    
 
     # @staticmethod
     # def _convert_dict_to_hdf_attrs_fn(f, key: str, value):
@@ -478,7 +487,7 @@ class HDF_SerializationMixin:
     # Main Methods _______________________________________________________________________________________________________ #
 
     
-    def to_hdf(self, file_path, key: str, debug_print=False, enable_hdf_testing_mode:bool=False, **kwargs):
+    def to_hdf(self, file_path, key: str, debug_print=False, enable_hdf_testing_mode:bool=False, OVERRIDE_ALLOW_GLOBAL_NESTED_EXPANSION:bool=None, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
         enable_hdf_testing_mode: bool - default False - if True, errors are not thrown for the first field that cannot be serialized, and instead all are attempted to see which ones work.
         
@@ -564,7 +573,8 @@ class HDF_SerializationMixin:
                             HDF_Converter._try_default_to_hdf_conversion_fn(file_path=file_path, key=a_field_key, value=a_value, file_mode=file_mode)
                         except NotImplementedError as e:
                             ## If not handled in the default method, try global expansion if that is alowed. Otherwise we're out of options.
-                            if _ALLOW_GLOBAL_NESTED_EXPANSION:
+                            if _ALLOW_GLOBAL_NESTED_EXPANSION or OVERRIDE_ALLOW_GLOBAL_NESTED_EXPANSION:
+                            # if _ALLOW_GLOBAL_NESTED_EXPANSION:
                                 if hasattr(a_value, 'to_dict'):
                                     a_value = a_value.to_dict() # convert to dict using the to_dict() method.
                                 elif hasattr(a_value, '__dict__'):
