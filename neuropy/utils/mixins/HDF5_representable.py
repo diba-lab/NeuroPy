@@ -446,7 +446,7 @@ class HDF_Converter:
         """
         # Replace None with a placeholder value
         if attr_value is None:
-            attr_value = 'None'  # or np.nan for numeric values
+            attr_value = 'None'  # or np.nan for numeric values # #TODO 2024-10-23 13:38: - [ ] needs to get a special HDF5 non-unicode (ASCI) string.
         group.attrs[attr_name] = attr_value
 
 

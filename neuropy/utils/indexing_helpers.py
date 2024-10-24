@@ -582,8 +582,11 @@ def flatten_dict(d: Dict, parent_key='', sep='/') -> Dict:
     
     """
     if (not isinstance(d, dict)):
-        assert isinstance(parent_key, str), f"expected type(parent_key) == str but instead type(parent_key): {type(parent_key)}, parent_key: {parent_key}"
-        return {parent_key:d}
+        if hasattr(d, 'to_dict'):
+            d = d.to_dict() ## convert to dict and continue
+        else:
+            assert isinstance(parent_key, str), f"expected type(parent_key) == str but instead type(parent_key): {type(parent_key)}, parent_key: {parent_key}"
+            return {parent_key:d}
     
     items = {}
     for k, v in d.items():
