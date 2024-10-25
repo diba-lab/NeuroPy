@@ -653,11 +653,9 @@ class NeuronType(HDFConvertableEnum, Enum):
             _out_map[5] = "intr" # interneurons
 
         ## Post 2023-07-31 - Excluding "double fields" qclues on Kamran's request
-
-        
-        ## #TODO 2023-12-07 12:22: - [ ] Kamran wants me to exclude [6, 7]
-        #TODO 2023-12-07 20:59: - [ ] Updated to only include [1,2,4,9] as pyramidal
-
+        ## 2023-12-07 12:22: - [ ] Kamran wants me to exclude [6, 7]
+        ## 2023-12-07 20:59: - [ ] Updated to only include [1,2,4,9] as pyramidal
+		## 2024-10-25 - Including [1,2,4,6,7,9]
         """
         _out_map = dict() # start with an empty dict
         for i in np.arange(10):
