@@ -62,6 +62,7 @@ def compute_data_extent(xpoints, *other_1d_series):
         extent[curr_start_idx] = curr_min
         extent[curr_start_idx+1] = curr_xmax
     return extent
+
 def compute_data_aspect_ratio(xbin, ybin, sorted_inputs=True):
     """Computes the aspect ratio of the provided data
 
@@ -100,7 +101,7 @@ class enumTuningMap2DPlotVariables(AutoNameEnum):
     SPIKES_MAPS = auto()
     OCCUPANCY = auto()
     
-    
+
     
 def _build_neuron_identity_label(neuron_extended_id: NeuronExtendedIdentity=None, brev_mode: PlotStringBrevityModeEnum=None, formatted_max_value_string=None, use_special_overlayed_title=True):
     """ builds the subplot title for 2D PFs that displays the neuron identity and other important info. """    
