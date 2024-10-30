@@ -2,6 +2,7 @@
 import collections
 from collections.abc import MutableMapping
 from neuropy.utils.mixins.diffable import DiffableObject
+from neuropy.utils.mixins.gettable_mixin import KeypathsAccessibleMixin
 
 
 def get_dict_subset(a_dict, included_keys=None, require_all_keys=False):
@@ -40,10 +41,11 @@ def overriding_dict_with(lhs_dict, **kwargs):
     """
     return override_dict(lhs_dict, kwargs)
     
-    
 
 
-class DynamicContainer(DiffableObject, MutableMapping):
+#TODO 2024-10-30 10:30: - [ ] Add KeypathsAccessibleMixin conformance? Why not?
+
+class DynamicContainer(KeypathsAccessibleMixin, DiffableObject, MutableMapping):
     """ A class that permits flexible prototyping of parameters and data needed for computations, while still allowing development-time guidance on available members.
         From https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/#When_making_a_custom_list_or_dictionary,_remember_you_have_options
         The UserDict class implements the interface that dictionaries are supposed to have, but it wraps around an actual dict object under-the-hood.
