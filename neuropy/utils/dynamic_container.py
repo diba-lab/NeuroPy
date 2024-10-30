@@ -42,10 +42,122 @@ def overriding_dict_with(lhs_dict, **kwargs):
     return override_dict(lhs_dict, kwargs)
     
 
+#TODO 2024-10-30 11:05: - [ ] There are VERY similar classes in `neuropy.utils.mixins.dict_representable.DictInitializable`, which is where these classes should probably be moved
+
+
+class DictlikeInitializableMixin:
+    """ Implementors can be initialized from a dict-like """
+    # Helper initialization methods:    
+    # For initialization from a different dictionary-backed object:
+    @classmethod
+    def init_from_dict(cls, a_dict):
+        return cls(**a_dict) # expand the dict as input args.
+    
+    @classmethod
+    def init_from_object(cls, an_object):
+        # test to see if the object is dict-backed:
+        obj_dict_rep = an_object.__dict__ ## could check for the object's .to_dict() or .items()
+        return cls.init_from_dict(obj_dict_rep)
+        
+            
+class DictlikeOverridableMixin:
+    """ allows self to be overriden by a kwargs, a dict, or another DictlikeOverridableMixin (dict-like) 
+    
+    Usage:
+
+        from neuropy.utils.dynamic_container import DictlikeInitializableMixin, DictlikeOverridableMixin
+    
+        
+    """
+    
+    def to_dict(self):
+        raise NotImplementedError(f'Implementor must override and implement')
+        # return dict(self.items())
+
+        
+    def __ior__(self, other):
+        """ Used with vertical bar equals operator: |=
+        
+        Unlike __or__(self, other), does not allow keys present ONLY in other to be added to self.
+            Identically like __or__(self, other) though, if a key is present in both self and other the value in OTHER will be used. 
+        
+        Usage:
+            # Explicit __ior__ usage:
+            out = DynamicContainer(**{'s': 2, 'gamma': 0.2}).__ior__(kwargs)
+
+            # Multi-line "override" update:
+            out = DynamicContainer(**{'s': 2, 'gamma': 0.2})
+            out|=kwargs
+            
+            # WARNING: this is wrong! Must first have a DynamicContainer to call __ior__ on, not a plain dict inside the DynamicContainer initializer
+            out = DynamicContainer(**({'s': 2, 'gamma': 0.2}.__ior__(kwargs))) # |=
+
+        Testing:
+        def _test_xor(**kwargs):
+            # want it only to pass 's' and 'gamma' keys to create the container despite more keys being present in kwargs
+            # out = DynamicContainer(**{'s': 2, 'gamma': 0.2}).__ior__(kwargs) # |=
+            out = DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs)
+            # out = DynamicContainer(**{'s': 2, 'gamma': 0.2})
+            # out|=kwargs
+            print(f'{out}')
+            return out
+            # dict_or = self.to_dict().__or__(other_dict)
+            
+        _test_xor(s=3) # DynamicContainer({'s': 3, 'gamma': 0.2})
+        _test_xor(s=3, m='vet') # DynamicContainer({'s': 3, 'gamma': 0.2})
+        _test_xor(s=3, m='vet', gamma=0.9) # DynamicContainer({'s': 3, 'gamma': 0.9})
+
+        """
+        assert isinstance(self, DictlikeInitializableMixin), f"self is not Dict-initializable!"
+        
+        if isinstance(other, (dict)):
+            other_dict = other
+        elif isinstance(other, DictlikeOverridableMixin):
+            other_dict = other.to_dict()
+        else:
+            # try to convert the other type into a dict using all known available methods: DynamicContainer
+            try:
+                other_dict = other.to_dict() # try to convert to dict using the .to_dict() method if possible
+            except Exception as e:
+                # If that failed, fallback to trying to access the object's .__dict__ property
+                try:
+                    other_dict = dict(other.items())
+                except Exception as e:
+                    # Give up, can't convert!                
+                    print(f'UNHANDLED TYPE: type(other): {type(other)}, other: {other}')
+                    # raise NotImplementedError            
+                    other_dict = None
+                    raise e
+
+                pass # other_dict               
+        
+        # restrict the other dict to the subset of keys that we have.
+        limited_other_dict = get_dict_subset(other_dict, included_keys=self.to_dict().keys(), require_all_keys=False)
+        # dict_or = self.to_dict().__ior__(other_dict)
+        dict_or = self.to_dict().__or__(limited_other_dict) # now can perform normal __or__ using the restricted subset dict
+        
+        return self.init_from_dict(dict_or)
+        # return DynamicContainer.init_from_dict(dict_or)
+    
+    
+    def overriding_with(self, **kwargs):
+        """returns self overriden with the kwargs provided (if they exist), otherwise returning the extant values.
+            Calls self.__ior__(other) under the hood.
+        """
+        return self.override(kwargs)
+     
+    def override(self, other):
+        """returns self overriden with the values specified in other (if they exist), otherwise returning the extant values.
+            Calls self.__ior__(other) under the hood.
+        """
+        return self.__ior__(other)
+        
+
+
 
 #TODO 2024-10-30 10:30: - [ ] Add KeypathsAccessibleMixin conformance? Why not?
 
-class DynamicContainer(KeypathsAccessibleMixin, DiffableObject, MutableMapping):
+class DynamicContainer(KeypathsAccessibleMixin, DictlikeOverridableMixin, DictlikeInitializableMixin, DiffableObject, MutableMapping):
     """ A class that permits flexible prototyping of parameters and data needed for computations, while still allowing development-time guidance on available members.
         From https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/#When_making_a_custom_list_or_dictionary,_remember_you_have_options
         The UserDict class implements the interface that dictionaries are supposed to have, but it wraps around an actual dict object under-the-hood.
@@ -111,80 +223,6 @@ class DynamicContainer(KeypathsAccessibleMixin, DiffableObject, MutableMapping):
             
         dict_or = self.to_dict().__or__(other_dict)
         return DynamicContainer.init_from_dict(dict_or)
-    
-    
-    def __ior__(self, other):
-        """ Used with vertical bar equals operator: |=
-        
-        Unlike __or__(self, other), does not allow keys present ONLY in other to be added to self.
-            Identically like __or__(self, other) though, if a key is present in both self and other the value in OTHER will be used. 
-        
-        Usage:
-            # Explicit __ior__ usage:
-            out = DynamicContainer(**{'s': 2, 'gamma': 0.2}).__ior__(kwargs)
-
-            # Multi-line "override" update:
-            out = DynamicContainer(**{'s': 2, 'gamma': 0.2})
-            out|=kwargs
-            
-            # WARNING: this is wrong! Must first have a DynamicContainer to call __ior__ on, not a plain dict inside the DynamicContainer initializer
-            out = DynamicContainer(**({'s': 2, 'gamma': 0.2}.__ior__(kwargs))) # |=
-
-        Testing:
-        def _test_xor(**kwargs):
-            # want it only to pass 's' and 'gamma' keys to create the container despite more keys being present in kwargs
-            # out = DynamicContainer(**{'s': 2, 'gamma': 0.2}).__ior__(kwargs) # |=
-            out = DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs)
-            # out = DynamicContainer(**{'s': 2, 'gamma': 0.2})
-            # out|=kwargs
-            print(f'{out}')
-            return out
-            # dict_or = self.to_dict().__or__(other_dict)
-            
-        _test_xor(s=3) # DynamicContainer({'s': 3, 'gamma': 0.2})
-        _test_xor(s=3, m='vet') # DynamicContainer({'s': 3, 'gamma': 0.2})
-        _test_xor(s=3, m='vet', gamma=0.9) # DynamicContainer({'s': 3, 'gamma': 0.9})
-
-        """
-        if isinstance(other, (dict)):
-            other_dict = other
-        elif isinstance(other, DynamicContainer):
-            other_dict = other.to_dict()
-        else:
-            # try to convert the other type into a dict using all known available methods: DynamicContainer
-            try:
-                other_dict = other.to_dict() # try to convert to dict using the .to_dict() method if possible
-            except Exception as e:
-                # If that failed, fallback to trying to access the object's .__dict__ property
-                try:
-                    other_dict = dict(other.items())
-                except Exception as e:
-                    # Give up, can't convert!                
-                    print(f'UNHANDLED TYPE: type(other): {type(other)}, other: {other}')
-                    # raise NotImplementedError            
-                    other_dict = None
-                    raise e
-
-                pass # other_dict               
-        
-        # restrict the other dict to the subset of keys that we have.
-        limited_other_dict = get_dict_subset(other_dict, included_keys=self.to_dict().keys(), require_all_keys=False)
-        # dict_or = self.to_dict().__ior__(other_dict)
-        dict_or = self.to_dict().__or__(limited_other_dict) # now can perform normal __or__ using the restricted subset dict
-        return DynamicContainer.init_from_dict(dict_or)
-    
-    
-    def overriding_with(self, **kwargs):
-        """returns self overriden with the kwargs provided (if they exist), otherwise returning the extant values.
-            Calls self.__ior__(other) under the hood.
-        """
-        return self.override(kwargs)
-     
-    def override(self, other):
-        """returns self overriden with the values specified in other (if they exist), otherwise returning the extant values.
-            Calls self.__ior__(other) under the hood.
-        """
-        return self.__ior__(other)
     
     
     def __getattr__(self, item):
@@ -255,17 +293,17 @@ class DynamicContainer(KeypathsAccessibleMixin, DiffableObject, MutableMapping):
     def to_dict(self):
         return dict(self.items())
         
-    # Helper initialization methods:    
-    # For initialization from a different dictionary-backed object:
-    @classmethod
-    def init_from_dict(cls, a_dict):
-        return cls(**a_dict) # expand the dict as input args.
+    # # Helper initialization methods:    
+    # # For initialization from a different dictionary-backed object:
+    # @classmethod
+    # def init_from_dict(cls, a_dict):
+    #     return cls(**a_dict) # expand the dict as input args.
     
-    @classmethod
-    def init_from_object(cls, an_object):
-        # test to see if the object is dict-backed:
-        obj_dict_rep = an_object.__dict__
-        return cls.init_from_dict(obj_dict_rep)
+    # @classmethod
+    # def init_from_object(cls, an_object):
+    #     # test to see if the object is dict-backed:
+    #     obj_dict_rep = an_object.__dict__
+    #     return cls.init_from_dict(obj_dict_rep)
     
     
     
