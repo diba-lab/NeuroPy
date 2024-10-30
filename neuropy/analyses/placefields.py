@@ -28,7 +28,7 @@ from neuropy.utils.mixins.binning_helpers import BinnedPositionsMixin, bin_pos_n
 
 from neuropy.utils.mathutil import compute_grid_bin_bounds
 from neuropy.utils.mixins.diffable import DiffableObject # for compute_placefields_as_needed type-hinting
-from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
+from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable, DictInitializable, DictlikeOverridableMixin
 
 from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
@@ -36,7 +36,6 @@ from neuropy.utils.mixins.time_slicing import add_epochs_id_identity # for build
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.peak_location_representing import PeakLocationRepresentingMixin, ContinuousPeakLocationRepresentingMixin
 from neuropy.utils.mixins.gettable_mixin import KeypathsAccessibleMixin
-from neuropy.utils.dynamic_container import DictlikeOverridableMixin, DictlikeInitializableMixin
 
 # from .. import core
 # import neuropy.core as core
@@ -61,7 +60,7 @@ custom_formatting_dict: Dict[str, Callable] = {'grid_bin_bounds': lambda value: 
 custom_skip_formatting_display_list: List[str] = ['grid_bin_bounds', 'is_directional'] # items in custom_skip_formatting_display_list will not be displayed
 
 
-class PlacefieldComputationParameters(SimplePrintable, KeypathsAccessibleMixin, DictlikeOverridableMixin, DictlikeInitializableMixin, DiffableObject, SubsettableDictRepresentable, metaclass=OrderedMeta):
+class PlacefieldComputationParameters(SimplePrintable, KeypathsAccessibleMixin, SubsettableDictRepresentable, DictlikeOverridableMixin, DictInitializable, DiffableObject, metaclass=OrderedMeta):
 	"""A simple wrapper object for parameters used in placefield calcuations
 	
 	#TODO 2023-07-30 18:18: - [ ] HDFMixin conformance for PlacefieldComputationParameters

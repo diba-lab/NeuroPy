@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from neuropy.utils.dynamic_container import overriding_dict_with # required for plot_placefield_occupancy
+from neuropy.utils.mixins.dict_representable import overriding_dict_with # required for plot_placefield_occupancy
 from neuropy.utils.mixins.unwrap_placefield_computation_parameters import unwrap_placefield_computation_parameters
 
 def plot_all_placefields(active_placefields1D, active_placefields2D, active_config, variant_identifier_label=None, should_save_to_disk=True, **kwargs):

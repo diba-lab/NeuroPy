@@ -6,7 +6,7 @@ import pandas as pd
 
 # Can safely include using
 from typing import Callable
-from neuropy.utils.dynamic_container import overriding_dict_with # required for safely_accepts_kwargs
+from neuropy.utils.mixins.dict_representable import overriding_dict_with # required for safely_accepts_kwargs
 
 def inspect_callable_arguments(a_callable: Callable, debug_print=False):
     """ Not yet validated/implemented

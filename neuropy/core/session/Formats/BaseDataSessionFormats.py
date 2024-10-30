@@ -14,7 +14,8 @@ from neuropy.core import Mua, Epoch
 from neuropy.core.epoch import NamedTimerange # required for DataSessionFormatBaseRegisteredClass.build_global_filter_config_function(.)
 from neuropy.io import NeuroscopeIO, BinarysignalIO 
 from neuropy.analyses.placefields import PlacefieldComputationParameters
-from neuropy.utils.dynamic_container import DynamicContainer, override_dict
+from neuropy.utils.dynamic_container import DynamicContainer
+from neuropy.utils.mixins.dict_representable import override_dict
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from neuropy.utils.position_util import compute_position_grid_size
 from neuropy.utils.result_context import IdentifyingContext
