@@ -47,7 +47,7 @@ class NeuronExtendedIdentity(UnpackableMixin):
     @classmethod
     def init_from_NeuronExtendedIdentityTuple(cls, a_tuple, qclu=None):
         """ # NeuronExtendedIdentityTuple """
-        _obj = cls(shank=a_tuple.shank, cluster=a_tuple.cluster, id=a_tuple.id, qclu=qclu)
+        _obj = cls(shank=a_tuple.shank, cluster=a_tuple.cluster, aclu=a_tuple.id, qclu=qclu)
         return _obj
 
     def __getstate__(self):
