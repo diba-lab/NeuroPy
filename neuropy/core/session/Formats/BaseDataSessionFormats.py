@@ -114,9 +114,9 @@ class DataSessionFormatRegistryHolder(type): # inheriting from type? Is this rig
     
     
     @classmethod
-    def get_registry_known_data_session_type_dict(cls, override_data_basepath=None):
+    def get_registry_known_data_session_type_dict(cls, override_data_basepath=None, get_known_data_session_type_properties=None):
         """ returns a dict<str, KnownDataSessionTypeProperties> with keys corresponding to the registered short-names of the data_session_type (like 'kdiba', or 'bapun') and values of KnownDataSessionTypeProperties. """
-        return {a_class._session_class_name:a_class.get_known_data_session_type_properties(override_basepath=override_data_basepath) for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
+        return {a_class._session_class_name:a_class.get_known_data_session_type_properties(override_basepath=override_data_basepath, override_parameters_flat_keypaths_dict=override_parameters_flat_keypaths_dict) for a_class_name, a_class in cls.get_registry().items() if a_class_name != 'DataSessionFormatBaseRegisteredClass'}
 
 
 
@@ -305,8 +305,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
 
 
     @classmethod
-    def get_session(cls, basedir):
-        _test_session = cls.build_session(Path(basedir))
+    def get_session(cls, basedir, override_parameters_flat_keypaths_dict=None):
+        _test_session = cls.build_session(Path(basedir), override_parameters_flat_keypaths_dict=override_parameters_flat_keypaths_dict)
         _test_session, loaded_file_record_list = cls.load_session(_test_session)
         return _test_session    
     
@@ -419,16 +419,16 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
 
 
     @classmethod
-    def get_known_data_session_type_properties(cls, override_basepath=None):
+    def get_known_data_session_type_properties(cls, override_basepath=None, override_parameters_flat_keypaths_dict=None):
         """ returns the KnownDataSessionTypeProperties for this class, which contains information about the process of loading the session."""
         if override_basepath is not None:
             basepath = override_basepath
         else:
             basepath = Path(cls._session_default_basedir)
-        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), basedir=basepath)
+        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir, override_parameters_flat_keypaths_dict=override_parameters_flat_keypaths_dict)), basedir=basepath)
         
     @classmethod
-    def build_session(cls, basedir):
+    def build_session(cls, basedir, override_parameters_flat_keypaths_dict=None):
         basedir = Path(basedir)
         session_name = cls.get_session_name(basedir) # 'RatS-Day5TwoNovel-2020-12-04_07-55-09'
         session_context = cls.parse_session_basepath_to_context(basedir) 
@@ -436,7 +436,8 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         format_name = cls.get_session_format_name()
             
         # get the default preprocessing parameters:
-        preprocessing_parameters = cls.build_default_preprocessing_parameters()                                                    
+        preprocessing_parameters = cls.build_default_preprocessing_parameters(override_parameters_flat_keypaths_dict=override_parameters_flat_keypaths_dict)
+
         session_config = SessionConfig(basedir, format_name=format_name, session_spec=session_spec, session_name=session_name, session_context=session_context, preprocessing_parameters=preprocessing_parameters)
         assert session_config.is_resolved, "active_sess_config could not be resolved!"
         session_obj = DataSession(session_config)

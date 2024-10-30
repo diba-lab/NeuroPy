@@ -128,13 +128,13 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
 
     @classmethod
-    def get_known_data_session_type_properties(cls, override_basepath=None):
+    def get_known_data_session_type_properties(cls, override_basepath=None, override_parameters_flat_keypaths_dict=None):
         """ returns the session_name for this basedir, which determines the files to load. """
         if override_basepath is not None:
             basepath = override_basepath
         else:
             basepath = Path(cls._session_default_basedir)
-        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir)), 
+        return KnownDataSessionTypeProperties(load_function=(lambda a_base_dir: cls.get_session(basedir=a_base_dir, override_parameters_flat_keypaths_dict=override_parameters_flat_keypaths_dict)), 
                                 basedir=basepath, post_load_functions=[lambda a_loaded_sess: cls.POSTLOAD_estimate_laps_and_replays(a_loaded_sess)])  # post_load_functions=[lambda a_loaded_sess: estimate_session_laps(a_loaded_sess)]
 
     
