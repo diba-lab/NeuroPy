@@ -269,7 +269,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
 
 
     @classmethod
-    def build_default_computation_configs(cls, sess, **kwargs):
+    def build_default_computation_configs(cls, sess, **kwargs) -> List[DynamicContainer]:
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
         override_parameters_flat_keypaths_dict = kwargs.pop('override_parameters_flat_keypaths_dict', {}) or {} # ` or {}` part handles None values
         override_parameters_nested_dicts = KeypathsAccessibleMixin.keypath_dict_to_nested_dict(override_parameters_flat_keypaths_dict)
