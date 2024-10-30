@@ -18,6 +18,7 @@ from neuropy.utils.dynamic_container import DynamicContainer, override_dict
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 from neuropy.utils.position_util import compute_position_grid_size
 from neuropy.utils.result_context import IdentifyingContext
+from neuropy.utils.mixins.gettable_mixin import KeypathsAccessibleMixin
 
 # ==================================================================================================================== #
 # 2022-12-07 - Finding Local Session Paths
@@ -250,9 +251,13 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
         
         Used in: ['cls.build_session']
         """
-        default_lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True, use_direction_dependent_laps=True) # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
-        default_PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.6) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300  
-        default_replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3)
+        override_parameters_flat_keypaths_dict = kwargs.pop('override_parameters_flat_keypaths_dict', {})
+        override_parameters_nested_dicts = KeypathsAccessibleMixin.keypath_dict_to_nested_dict(override_parameters_flat_keypaths_dict)
+        override_preprocessing = override_parameters_nested_dicts.get('preprocessing', {})
+        
+        default_lap_estimation_parameters = DynamicContainer(N=20, should_backup_extant_laps_obj=True, use_direction_dependent_laps=True).override(override_preprocessing.get('laps', {}))  # Passed as arguments to `sess.replace_session_laps_with_estimates(...)`
+        default_PBE_estimation_parameters = DynamicContainer(sigma=0.030, thresh=(0, 1.5), min_dur=0.030, merge_dur=0.100, max_dur=0.6).override(override_preprocessing.get('PBEs', {})) # 2023-10-05 Kamran's imposed Parameters, wants to remove the effect of the max_dur which was previously at 0.300  
+        default_replay_estimation_parameters = DynamicContainer(require_intersecting_epoch=None, min_epoch_included_duration=0.06, max_epoch_included_duration=0.6, maximum_speed_thresh=None, min_inclusion_fr_active_thresh=0.01, min_num_unique_aclu_inclusions=3).override(override_preprocessing.get('replays', {}))
 
         preprocessing_parameters = ParametersContainer(epoch_estimation_parameters=DynamicContainer.init_from_dict({
                     'laps': default_lap_estimation_parameters,
@@ -261,15 +266,25 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
                 }))
         return preprocessing_parameters
 
+
     @classmethod
     def build_default_computation_configs(cls, sess, **kwargs):
         """ OPTIONALLY can be overriden by implementors to provide specific filter functions """
-        kwargs.setdefault('pf_params', PlacefieldComputationParameters(**override_dict({'speed_thresh': 10.0, 'grid_bin': cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), 'grid_bin_bounds': None, 'smooth': (2.0, 2.0), 'frate_thresh': 1.0, 'time_bin_size': 0.1, 'computation_epochs': None}, kwargs)))
+        override_parameters_flat_keypaths_dict = kwargs.pop('override_parameters_flat_keypaths_dict', {})
+        override_parameters_nested_dicts = KeypathsAccessibleMixin.keypath_dict_to_nested_dict(override_parameters_flat_keypaths_dict)
+        
+        #TODO 2024-10-30 10:20: - [ ] Should it be `.get('preprocessing', {})`? Or these more top-level?
+        kwargs.setdefault('pf_params', PlacefieldComputationParameters(**override_dict({'speed_thresh': 10.0, 'grid_bin': cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), 'grid_bin_bounds': None, 'smooth': (2.0, 2.0), 'frate_thresh': 1.0, 'time_bin_size': 0.1, 'computation_epochs': None},
+                                                                                        (override_parameters_nested_dicts.get('preprocessing', {}).get('pf_params', {}) | kwargs))))
         kwargs.setdefault('spike_analysis', DynamicContainer(**{'max_num_spikes_per_neuron': 20000,
                                                                  'kleinberg_parameters': DynamicContainer(**{'s': 2, 'gamma': 0.2}).override(kwargs),
                                                                  'use_progress_bar': False,
-                                                                 'debug_print': False}).override(kwargs))
-        return [DynamicContainer(pf_params=kwargs['pf_params'], spike_analysis=kwargs['spike_analysis'])]
+                                                                 'debug_print': False}).override((override_parameters_nested_dicts.get('preprocessing', {}).get('spike_analysis', {}) | kwargs)))
+        # return [DynamicContainer(pf_params=kwargs['pf_params'], spike_analysis=kwargs['spike_analysis'])]
+        
+        return [DynamicContainer(pf_params=kwargs['pf_params'].override(override_parameters_nested_dicts.get('preprocessing', {}).get('pf_params', {})),
+                                 spike_analysis=kwargs['spike_analysis'].override(override_parameters_nested_dicts.get('preprocessing', {}).get('spike_analysis', {}))
+                                 )]
         # return [DynamicContainer(pf_params=PlacefieldComputationParameters(speed_thresh=10.0, grid_bin=cls.compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64)), smooth=(2.0, 2.0), frate_thresh=0.2, time_bin_size=1.0, computation_epochs = None),
         #                   spike_analysis=DynamicContainer(max_num_spikes_per_neuron=20000, kleinberg_parameters=DynamicContainer(s=2, gamma=0.2), use_progress_bar=False, debug_print=False))]
         # active_grid_bin = compute_position_grid_bin_size(sess.position.x, sess.position.y, num_bins=(64, 64))
