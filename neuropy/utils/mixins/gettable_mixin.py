@@ -85,13 +85,16 @@ class KeypathsAccessibleMixin:
     @classmethod
     def keypath_dict_to_nested_dict(cls, keypath_dict: Dict[str, Any]) -> Dict:
         """ converts a flat dict of keypath:value -> nested dicts of keys """
-        nested_dict = {}
-        for keypath, value in keypath_dict.items():
-            keys = keypath.split('.')
-            current_level = nested_dict
-            for key in keys[:-1]:
-                if key not in current_level:
-                    current_level[key] = {}
-                current_level = current_level[key]
-            current_level[keys[-1]] = value
-        return nested_dict
+        if keypath_dict is None:
+            return None
+        else:
+            nested_dict = {}
+            for keypath, value in keypath_dict.items():
+                keys = keypath.split('.')
+                current_level = nested_dict
+                for key in keys[:-1]:
+                    if key not in current_level:
+                        current_level[key] = {}
+                    current_level = current_level[key]
+                current_level[keys[-1]] = value
+            return nested_dict
