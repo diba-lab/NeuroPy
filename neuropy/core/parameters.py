@@ -1,18 +1,18 @@
 
 from typing import Optional, List, Dict, Tuple, Union
 from attr import define, field, Factory, asdict, astuple
-from neuropy.utils.mixins.gettable_mixin import GetAccessibleMixin
+from neuropy.utils.mixins.gettable_mixin import GetAccessibleMixin, KeypathsAccessibleMixin
 from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_attribute_field, serialized_field, non_serialized_field
 from neuropy.utils.mixins.HDF5_representable import HDF_SerializationMixin, HDF_Converter
 
 
 @define(slots=False)
-class BaseConfig(GetAccessibleMixin):
+class BaseConfig(KeypathsAccessibleMixin, GetAccessibleMixin):
     """ 2023-10-24 - Base class to enable successful unpickling from old pre-attrs-based classes (based on `DynamicParameters`) to attrs-based classes.`
 
     from neuropy.core.parameters import BaseConfig
     
-History: 2024-10-23 11:36 Refactored from {pyphoplacecellanalysis.General.Model.Configs.DynamicConfigs.BaseConfig}
+    History: 2024-10-23 11:36 Refactored from {pyphoplacecellanalysis.General.Model.Configs.DynamicConfigs.BaseConfig}
     
     """
 
