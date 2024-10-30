@@ -33,14 +33,32 @@ class NeuronExtendedIdentity(UnpackableMixin):
     """
     shank: int = field()
     cluster: int = field()
-    aclu: int = field(alias='id')
+    aclu: int = field()
     qclu: int = field()
+    
+    @property
+    def id(self) -> int:
+        """Provided for compatibility with NeuronExtendedIdentityTuple """
+        return self.aclu
+    @id.setter
+    def id(self, value):
+        self.aclu = value
 
     @classmethod
     def init_from_NeuronExtendedIdentityTuple(cls, a_tuple, qclu=None):
         """ # NeuronExtendedIdentityTuple """
         _obj = cls(shank=a_tuple.shank, cluster=a_tuple.cluster, id=a_tuple.id, qclu=qclu)
         return _obj
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['id'] = state.pop('aclu')  # Add `id` for backward compatibility
+        return state
+
+    def __setstate__(self, state):
+        if 'id' in state:
+            state['aclu'] = state.pop('id')  # Map `id` to `aclu` if deserialized with older version
+        self.__dict__.update(state)
 
 
 
@@ -105,7 +123,7 @@ class NeuronIdentityDataframeAccessor:
         aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
         shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster','qclu']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
         # output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
-        output_tuples_list = [NeuronExtendedIdentity(shank=an_id.shank, cluster=an_id.cluster, id=an_id.aclu, qclu=an_id.qclu) for an_id in shank_cluster_reference_df.itertuples()]
+        output_tuples_list = [NeuronExtendedIdentity(shank=an_id.shank, cluster=an_id.cluster, aclu=an_id.aclu, qclu=an_id.qclu) for an_id in shank_cluster_reference_df.itertuples()]
         return output_tuples_list
         
     @property
