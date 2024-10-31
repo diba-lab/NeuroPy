@@ -10,8 +10,42 @@ from typing import List
 from pandas import CategoricalDtype
 from neuropy.utils.mixins.HDF5_representable import HDFConvertableEnum
 from neuropy.utils.mixins.print_helpers import SimplePrintable
+from attrs import define
+from neuropy.utils.mixins.indexing_helpers import UnpackableMixin
 
 NeuronExtendedIdentityTuple = ...
+@define(slots=False, eq=False)
+class NeuronExtendedIdentity(UnpackableMixin):
+    """ 
+    from neuropy.core.neuron_identities import NeuronExtendedIdentity
+    
+    """
+    shank: int = ...
+    cluster: int = ...
+    aclu: int = ...
+    qclu: int = ...
+    @property
+    def id(self) -> int:
+        """Provided for compatibility with NeuronExtendedIdentityTuple """
+        ...
+    
+    @id.setter
+    def id(self, value): # -> None:
+        ...
+    
+    @classmethod
+    def init_from_NeuronExtendedIdentityTuple(cls, a_tuple, qclu=...): # -> Self:
+        """ # NeuronExtendedIdentityTuple """
+        ...
+    
+    def __getstate__(self): # -> dict[str, Any]:
+        ...
+    
+    def __setstate__(self, state): # -> None:
+        ...
+    
+
+
 neuronTypesList: List[str] = ...
 neuronTypesEnum = ...
 class NeuronIdentityTable(tb.IsDescription):
@@ -42,7 +76,7 @@ class NeuronIdentityDataframeAccessor:
         ...
     
     @property
-    def neuron_probe_tuple_ids(self): # -> list[NeuronExtendedIdentityTuple]:
+    def neuron_probe_tuple_ids(self): # -> list[NeuronExtendedIdentity]:
         """ returns a list of NeuronExtendedIdentityTuple tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
         ...
     
@@ -83,7 +117,7 @@ class NeuronIdentity(SimplePrintable):
     
     """
     @property
-    def extended_identity_tuple(self): # -> NeuronExtendedIdentityTuple:
+    def extended_identity_tuple(self): # -> NeuronExtendedIdentity:
         """The extended_identity_tuple property."""
         ...
     
@@ -96,11 +130,11 @@ class NeuronIdentity(SimplePrintable):
         """The extended_id_string property."""
         ...
     
-    def __init__(self, cell_uid, shank_index, cluster_index, color=...) -> None:
+    def __init__(self, cell_uid, shank_index, cluster_index, qclu, color=...) -> None:
         ...
     
     @classmethod
-    def init_from_NeuronExtendedIdentityTuple(cls, a_tuple: NeuronExtendedIdentityTuple, a_color=...): # -> Self:
+    def init_from_NeuronExtendedIdentity(cls, a_tuple: NeuronExtendedIdentity, a_color=...): # -> Self:
         """Iniitalizes from a NeuronExtendedIdentityTuple and optionally a color
         Args:
             a_tuple (NeuronExtendedIdentityTuple): [description]
@@ -236,6 +270,10 @@ class NeuronIdentitiesDisplayerMixin:
     def neuron_cluster_ids(self): # -> list[Any]:
         ...
     
+    @property
+    def neuron_qclu_ids(self): # -> list[Any]:
+        ...
+    
     def get_extended_neuron_id_string(self, neuron_i=..., neuron_id=...): # -> str:
         ...
     
@@ -323,11 +361,9 @@ class NeuronType(HDFConvertableEnum, Enum):
             _out_map[5] = "intr" # interneurons
 
         ## Post 2023-07-31 - Excluding "double fields" qclues on Kamran's request
-
-        
-        ## #TODO 2023-12-07 12:22: - [ ] Kamran wants me to exclude [6, 7]
-        #TODO 2023-12-07 20:59: - [ ] Updated to only include [1,2,4,9] as pyramidal
-
+        ## 2023-12-07 12:22: - [ ] Kamran wants me to exclude [6, 7]
+        ## 2023-12-07 20:59: - [ ] Updated to only include [1,2,4,9] as pyramidal
+		## 2024-10-25 - Including [1,2,4,6,7,9]
         """
         ...
     

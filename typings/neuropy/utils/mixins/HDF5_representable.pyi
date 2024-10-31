@@ -140,6 +140,15 @@ class HDF_Converter:
         """
         ...
     
+    @classmethod
+    def safe_set_attribute(cls, group, attr_name, attr_value): # -> None:
+        """ gracefully handles python NoneType conversion 
+        
+        can replace calls like `group.attrs[a_field_attr.name] = a_value`
+        
+        """
+        ...
+    
 
 
 _ALLOW_GLOBAL_NESTED_EXPANSION: bool = ...
@@ -167,7 +176,7 @@ class HDF_SerializationMixin:
         """ returns whether the class is completely hdf serializable. """
         ...
     
-    def to_hdf(self, file_path, key: str, debug_print=..., enable_hdf_testing_mode: bool = ..., **kwargs): # -> None:
+    def to_hdf(self, file_path, key: str, debug_print=..., enable_hdf_testing_mode: bool = ..., OVERRIDE_ALLOW_GLOBAL_NESTED_EXPANSION: bool = ..., **kwargs): # -> None:
         """ Saves the object to key in the hdf5 file specified by file_path
         enable_hdf_testing_mode: bool - default False - if True, errors are not thrown for the first field that cannot be serialized, and instead all are attempted to see which ones work.
         

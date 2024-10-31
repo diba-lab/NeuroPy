@@ -157,5 +157,12 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         """
         ...
     
+    @classmethod
+    def get_hardcoded_bimodal_aclus(cls) -> Dict[IdentifyingContext, List]:
+        """
+        Cells/aclus that are bimodal
+        """
+        ...
+    
 
 

@@ -6,7 +6,7 @@ from neuropy.utils.debug_helpers import safely_accepts_kwargs
 
 class PfnD_PlotOccupancy_Mixin:
     @safely_accepts_kwargs
-    def plot_occupancy(self, identifier_details_list=..., fig=..., ax=..., active_context=..., **kwargs): # -> tuple[Figure | Any, Axes | Any]:
+    def plot_occupancy(self, identifier_details_list=..., fig=..., ax=..., active_context=..., use_flexitext_titles: bool = ..., skip_update_titles: bool = ..., **kwargs): # -> tuple[Figure | Any, Axes | Any]:
         """ the actually used plotting function. 
         Calls `plot_placefield_occupancy` to do the real plotting. Mostly just sets the title, subtitle, etc.
         #TODO 2023-06-13 19:25: - [ ] Fix `self.config.str_for_display(is_2D)` to enable excluding irrelevant items by includelist

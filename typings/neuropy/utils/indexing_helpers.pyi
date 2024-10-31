@@ -305,7 +305,9 @@ def flatten_dict(d: Dict, parent_key=..., sep=...) -> Dict:
             ...
             }
 
-
+    Usage:
+        from neuropy.utils.indexing_helpers import flatten_dict
+    
     """
     ...
 
@@ -407,7 +409,11 @@ class PandasHelpers:
     
     @classmethod
     def safe_concat(cls, df_concat_list: Union[List[pd.DataFrame], Dict[Any, pd.DataFrame]], **pd_concat_kwargs) -> Optional[pd.DataFrame]:
-        """ returns an empty dataframe if the key isn't found in the group.
+        """ returns an empty dataframe if the list of dataframes is empty.
+        
+        NOTE: does not perform intellegent merging, just handles empty lists
+            
+            
         Usage:
             from neuropy.utils.indexing_helpers import PandasHelpers
 

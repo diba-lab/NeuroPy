@@ -310,6 +310,15 @@ class FormattedFigureText:
     def bottom_margin(self, value): # -> None:
         ...
     
+    @classmethod
+    def init_from_margins(cls, top_margin=..., left_margin=..., right_margin=..., bottom_margin=...) -> FormattedFigureText:
+        """ allows initializing while overriding specific margins 
+        
+        text_formatter = FormattedFigureText.init_from_margins(left_margin=0.01)
+        
+        """
+        ...
+    
     def setup_margins(self, fig, **kwargs): # -> None:
         ...
     

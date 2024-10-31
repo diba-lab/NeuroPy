@@ -42,8 +42,8 @@ class SpikesAccessor(TimeSlicedMixin):
         ...
     
     @property
-    def neuron_probe_tuple_ids(self): # -> list[NeuronExtendedIdentityTuple]:
-        """ returns a list of NeuronExtendedIdentityTuple tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
+    def neuron_probe_tuple_ids(self): # -> list[NeuronExtendedIdentity]:
+        """ returns a list of NeuronExtendedIdentity tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
         ...
     
     @property
