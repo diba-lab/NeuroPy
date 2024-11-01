@@ -903,7 +903,18 @@ def print_identifying_context_array_code(included_session_contexts: List[Identif
     print(f']')
 
 
+from typing import Protocol # for ContextFormatRenderingFn
 
+class ContextFormatRenderingFn(Protocol):
+    """ Functions implementing the protocol do not actually need to import/inherit from it it, it is just used for typehinting in the class below
+        
+        def _filename_formatting_fn(ctxt: DisplaySpecifyingIdentifyingContext, subset_includelist=None, subset_excludelist=None) -> str:
+                return 'test_str'
+
+    """
+    def __call__( self, ctxt: "DisplaySpecifyingIdentifyingContext", subset_includelist: Optional[List[str]] = None, subset_excludelist: Optional[List[str]] = None) -> str:
+        pass
+    
 
 
 @define(slots=False)
@@ -913,16 +924,16 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
     Primarily provides: `get_specific_purpose_description`
 
     """
-    display_dict: Dict = field()
-
+    display_dict: Dict = field(default=Factory(dict))
+    specific_purpose_display_dict: Dict[str, ContextFormatRenderingFn] = field(default=Factory(dict))
 
     @classmethod
-    def init_from_context(cls, a_context: IdentifyingContext, display_dict=None) -> "DisplaySpecifyingIdentifyingContext":
+    def init_from_context(cls, a_context: IdentifyingContext, display_dict=None, specific_purpose_display_dict=None) -> "DisplaySpecifyingIdentifyingContext":
         kwargs = copy.deepcopy(a_context.to_dict())
         if display_dict is None:
             display_dict = {}
         # _new_instance =  cls(**kwargs, display_dict=display_dict)
-        _new_instance =  cls(display_dict=display_dict)
+        _new_instance =  cls(display_dict=display_dict, specific_purpose_display_dict=specific_purpose_display_dict)
         # Set own attributes
         for name, value in kwargs.items():
             setattr(_new_instance, name, value)
@@ -930,9 +941,8 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         return _new_instance
 
 
-
     # String/Printing Functions __________________________________________________________________________________________ #
-    def get_specific_purpose_description(self, specific_purpose:str, subset_includelist=None, subset_excludelist=None)-> Optional[str]:
+    def get_specific_purpose_description(self, specific_purpose:str, *extras_strings, subset_includelist=None, subset_excludelist=None)-> Optional[str]:
         """ returns a simple text descriptor of the context
         
         specific_purpose: str - the specific purpose name to get the formatted description of
@@ -943,7 +953,8 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         Outputs:
             a str like 'sess_kdiba_2006-6-07_11-26-53'
         """
-        if specific_purpose == 'flexitext_footer':
+        specific_purpose_render_fn = self.specific_purpose_display_dict.get(specific_purpose, None)  
+        if (specific_purpose == 'flexitext_footer'):
             if np.all(self.has_keys(['format_name', 'animal', 'exper_name'])):
                 first_portion_sess_ctxt_str = self.get_description(subset_includelist=['format_name', 'animal', 'exper_name'], separator=' | ')
                 session_name_sess_ctxt_str = self.get_description(subset_includelist=['session_name'], separator=' | ') # 2006-6-08_14-26-15
@@ -959,11 +970,11 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                 return (f"<color:silver, size:10>{all_keys_ctxt_str}</>")
 
             # return (f"<color:silver, size:10>{first_portion_sess_ctxt_str} | <weight:bold>{session_name_sess_ctxt_str}</></>")
+        elif specific_purpose_render_fn is not None:
+            return specific_purpose_render_fn(self)
 
-            
-        
         else:
-            raise NotImplementedError(f'specific_purpose: {specific_purpose} does not match any known purpose.')
+            raise NotImplementedError(f'specific_purpose: {specific_purpose} does not match any known purpose. Known purposes: {list(self.specific_purpose_display_dict.keys())}')
             return None # has no specific purpose
 
 
