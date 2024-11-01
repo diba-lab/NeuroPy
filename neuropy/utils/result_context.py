@@ -1025,17 +1025,18 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         
         
         """
+        if subset_excludelist is None:
+            subset_excludelist = []
+        subset_excludelist = subset_excludelist + ['display_dict', 'specific_purpose_display_dict'] # always exclude the meta properties from printing
+                
+
         ## Build a session descriptor string:
         if include_property_names:
             if key_value_separator is None:
                 key_value_separator = separator # use same separator between key{}value as pairs of items.
             # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
-            if subset_excludelist is None:
-                subset_excludelist = []
-            subset_excludelist = subset_excludelist + ['display_dict', 'specific_purpose_display_dict'] # always exclude the meta properties from printing
-            
+
             ## have to check formatting purpose:
-            
             
             descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # creates a list of [name, val] list items
             if key_value_separator != separator:
