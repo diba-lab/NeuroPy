@@ -47,7 +47,7 @@ import pandas as pd # used for find_unique_values
 from neuropy.utils.indexing_helpers import convert_to_dictlike
 from neuropy.utils.mixins.diffable import DiffableObject
 from neuropy.utils.mixins.dict_representable import SubsettableDictRepresentable
-
+from neuropy.utils.mixins.gettable_mixin import GetAccessibleMixin
 
 """ 
 user_args, user_kwds = _keygen(func, ignored, *args, **kwds)
@@ -72,7 +72,7 @@ class CollisionOutcome(Enum):
     APPEND_USING_KEY_PREFIX = "append_using_key_prefix" # uses the collision_prefix provided to generate a new unique key and assigns that key the new value
 
 @define(slots=False, eq=False) # eq=False makes hashing and equality by identity, which is appropriate for this type of object
-class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
+class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepresentable):
     """ a general extnsible base context that allows additive member creation
     
         Should not hold any state or progress-related variables. 
@@ -926,6 +926,22 @@ class ContextFormatRenderingFn(Protocol):
         """ merges two functions """
         return (lambda ctxt, subset_includelist=None, subset_excludelist=None: lhs_fn(ctxt=ctxt, subset_includelist=subset_includelist, subset_excludelist=subset_excludelist) + rhs_fn(ctxt=ctxt, subset_includelist=subset_includelist, subset_excludelist=subset_excludelist))
 
+    @classmethod
+    def merge_specific_purpose_dicts(cls, lhs_dict: Dict[str, "ContextFormatRenderingFn"], rhs_dict: Dict[str, "ContextFormatRenderingFn"]) -> Dict[str, "ContextFormatRenderingFn"]:
+        """ final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict= , rhs_dict= ) 
+        """
+        final_merged_output_dict = deepcopy(lhs_dict)             
+        for a_display_purpose, rhs_fn in rhs_dict.items():
+            if a_display_purpose not in final_merged_output_dict:
+                # just add it
+                final_merged_output_dict[a_display_purpose] = rhs_fn
+            else:
+                # it is in there, merge it
+                lhs_fn = final_merged_output_dict.get(a_display_purpose, cls.no_op)
+                final_fn = cls.merge_fns(lhs_fn=lhs_fn, rhs_fn=rhs_fn) ## return the combined fn
+                final_merged_output_dict[a_display_purpose] = final_fn
+        return final_merged_output_dict
+        
 
 @define(slots=False, eq=False)
 class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
@@ -1028,7 +1044,10 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         if subset_excludelist is None:
             subset_excludelist = []
         subset_excludelist = subset_excludelist + ['display_dict', 'specific_purpose_display_dict'] # always exclude the meta properties from printing
-                
+
+        def _get_formatted_str_value(name: str, val: Any):
+            display_fn = self.display_dict.get(name, lambda n, v: str(v))
+            return display_fn(name, val)
 
         ## Build a session descriptor string:
         if include_property_names:
@@ -1038,7 +1057,9 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
 
             ## have to check formatting purpose:
             
-            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # creates a list of [name, val] list items
+
+            
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), _get_formatted_str_value(name, val)] for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # creates a list of [name, val] list items
             if key_value_separator != separator:
                 # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
                 descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
@@ -1046,8 +1067,9 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                 # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
                 descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
         else:
-            descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())] # ensures each value is a string
-            
+            # descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())] # ensures each value is a string
+            descriptor_array = [_get_formatted_str_value(name, val) for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # ensures each value is a string
+             
         if prefix_items is not None:
             descriptor_array.extend(prefix_items)
         if suffix_items is not None:
@@ -1143,12 +1165,23 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                 # display_dict
                 ## merge the display dict fns
                 merged_dict = (self.display_dict | deepcopy(value)) ## return the combined fn
+                # merged_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict=self.display_dict, rhs_dict=value)
                 setattr(self, name, merged_dict)
             elif name == 'specific_purpose_display_dict':
                 ## merge the display dict fns
-                lhs_fn = self.specific_purpose_display_dict.get(name, ContextFormatRenderingFn.no_op)
-                final_fn = ContextFormatRenderingFn.merge_fns(lhs_fn=lhs_fn, rhs_fn=value) ## return the combined fn
-                setattr(self, name, final_fn)
+                final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict=self.specific_purpose_display_dict, rhs_dict=value)
+                # final_merged_output_dict = self.specific_purpose_display_dict                
+                # for a_display_purpose, rhs_fn in value.items():
+                #     if a_display_purpose not in final_merged_output_dict:
+                #         # just add it
+                #         final_merged_output_dict[a_display_purpose] = rhs_fn
+                #     else:
+                #         # it is in there, merge it
+                #         self.specific_purpose_display_dict
+                #         lhs_fn = final_merged_output_dict.get(a_display_purpose, ContextFormatRenderingFn.no_op)
+                #         final_fn = ContextFormatRenderingFn.merge_fns(lhs_fn=lhs_fn, rhs_fn=rhs_fn) ## return the combined fn
+                #         final_merged_output_dict[a_display_purpose] = final_fn
+                setattr(self, name, final_merged_output_dict) # overwrite self.specific_purpose_display_dict
             else:
                 final_name = self.resolve_key(self, name, value, collision_prefix, strategy=strategy)
                 if final_name is not None:
@@ -1174,9 +1207,8 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                 setattr(duplicate_ctxt, name, merged_dict)
             elif name == 'specific_purpose_display_dict':
                 ## merge the display dict fns
-                lhs_fn = duplicate_ctxt.specific_purpose_display_dict.get(name, ContextFormatRenderingFn.no_op)
-                final_fn = ContextFormatRenderingFn.merge_fns(lhs_fn=lhs_fn, rhs_fn=value) ## return the combined fn
-                setattr(duplicate_ctxt, name, final_fn)
+                final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict=duplicate_ctxt.specific_purpose_display_dict, rhs_dict=value)
+                setattr(duplicate_ctxt, name, final_merged_output_dict)
             else:            
                 final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix, strategy=strategy)
                 if final_name is not None:
