@@ -63,8 +63,6 @@ keymap: a tool for converting a function's input signature to an unique key
 """
 
 
-
-
 class CollisionOutcome(Enum):
     """Describes how to update the context when a key that already exists is present."""
     IGNORE_UPDATED = "ignore_updated" # do nothing, ignoring the new value and keeping the existing one
