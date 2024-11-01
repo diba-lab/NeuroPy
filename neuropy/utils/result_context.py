@@ -124,7 +124,8 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
                 
     """
     def __init__(self, **kwargs):
-        super(self.__class__, self).__init__()
+        super().__init__()
+        # super(self.__class__, self).__init__()
         # super(IdentifyingContext, self).__init__()
         ## Sets attributes dnymically:
         for name, value in kwargs.items():
@@ -401,7 +402,7 @@ class IdentifyingContext(DiffableObject, SubsettableDictRepresentable):
             "IdentifyingContext<('kdiba', '2006-6-08_14-26-15', 'maze1_PYR')>"
         """
         return f"IdentifyingContext<{self.as_tuple().__repr__()}>"
-        
+
     # _ipython_key_completions_
     def _repr_pretty_(self, p, cycle):
         """  just adds non breaking text to the output, p.breakable() either adds a whitespace or breaks here. If you pass it an argument it is used instead of the default space. 
@@ -917,16 +918,38 @@ class ContextFormatRenderingFn(Protocol):
     
 
 
-@define(slots=False)
+@define(slots=False, eq=False)
 class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
     """ a class that extends IdentifyingContext to enable use-specific rendering of contexts.
     
     Primarily provides: `get_specific_purpose_description`
 
     """
-    display_dict: Dict = field(default=Factory(dict))
-    specific_purpose_display_dict: Dict[str, ContextFormatRenderingFn] = field(default=Factory(dict))
+    display_dict: Dict = field(default=None)
+    specific_purpose_display_dict: Dict[str, ContextFormatRenderingFn] = field(default=None)
 
+    def __init__(self, display_dict=None, specific_purpose_display_dict=None, **kwargs):
+        # super(self.__class__, self).__init__(**kwargs)
+        # super(self.__class__, self).__init__() # Replace super(self.__class__, self).__init__() with super().__init__() in both your base class and subclass. This ensures that the __init__ method of the immediate superclass is called correctly, respecting the MRO and preventing infinite recursion.
+        super().__init__(**kwargs)
+        # ## Sets attributes dnymically:
+        # for name, value in kwargs.items():
+        #     setattr(self, name, value)
+        if display_dict is None:
+            display_dict = {}
+        if specific_purpose_display_dict is None:
+            specific_purpose_display_dict = {}
+        self.__attrs_init__(display_dict=display_dict, specific_purpose_display_dict=specific_purpose_display_dict)
+
+            
+        # self.display_dict = display_dict
+        # self.specific_purpose_display_dict = specific_purpose_display_dict      
+        # super(IdentifyingContext, self).__init__()
+        ## Sets attributes dnymically:
+        # for name, value in kwargs.items():
+        #     setattr(self, name, value)
+    
+    
     @classmethod
     def init_from_context(cls, a_context: IdentifyingContext, display_dict=None, specific_purpose_display_dict=None) -> "DisplaySpecifyingIdentifyingContext":
         kwargs = copy.deepcopy(a_context.to_dict())
@@ -1011,4 +1034,47 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         
     #     descriptor_string = separator.join(descriptor_array)
     #     return descriptor_string
+
+
+    def get_initialization_code_string(self, subset_includelist=None, subset_excludelist=None, class_name_override=None) -> str:
+        """ returns the string that contains valid code to initialize a matching object. """
+        class_name_override = class_name_override or "DisplaySpecifyingIdentifyingContext"
+        init_args_list_str = ",".join([f"{k}='{v}'" for k,v in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()]) # "format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'"
+        return f"{class_name_override}({init_args_list_str})" #"IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')"
+
+    def __str__(self) -> str:
+        """ 'kdiba_2006-6-08_14-26-15_maze1_PYR' """
+        return self.get_description()
+
+    def __repr__(self) -> str:
+        """ 
+            "DisplaySpecifyingIdentifyingContext({'format_name': 'kdiba', 'session_name': '2006-6-08_14-26-15', 'filter_name': 'maze1_PYR'})" 
+            "DisplaySpecifyingIdentifyingContext<('kdiba', '2006-6-08_14-26-15', 'maze1_PYR')>"
+        """
+        return f"DisplaySpecifyingIdentifyingContext<{self.as_tuple().__repr__()}>"
+        
+    # _ipython_key_completions_
+    def _repr_pretty_(self, p, cycle):
+        """  just adds non breaking text to the output, p.breakable() either adds a whitespace or breaks here. If you pass it an argument it is used instead of the default space. 
+        https://ipython.readthedocs.io/en/stable/api/generated/IPython.lib.pretty.html#module-IPython.lib.pretty
+
+        Can test with:
+            from IPython.lib.pretty import pprint
+            pprint(active_context)
+
+        """
+        if cycle:
+            p.text('DisplaySpecifyingIdentifyingContext(...)')
+        else:
+            with p.group(8, 'DisplaySpecifyingIdentifyingContext(', ')'):
+                dict_rep = self.to_dict()
+                for name, val in dict_rep.items():
+                    ## Functional (no line breaks):
+                    p.text(f"{name}")
+                    p.text('= ')
+                    p.pretty(val)
+                    if name != list(dict_rep.keys())[-1]:
+                        p.text(', ')
+                        
+
 
