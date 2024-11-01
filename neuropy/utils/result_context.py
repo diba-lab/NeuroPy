@@ -32,13 +32,14 @@ Humans need things with distinct, visual groupings. Inclusion Sets, Exceptions (
 """
 import re # used in try_extract_date_from_session_name
 import copy
-from typing import Any, List, Dict, Optional, Union
+from typing import Any, List, Dict, Optional, Union, Protocol
 from enum import Enum
 from functools import wraps # used for decorators
 from attrs import define, field, Factory
 from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#usage
 from collections import defaultdict
 from neuropy.utils.mixins.diffable import OrderedSet
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd # used for find_unique_values
@@ -904,8 +905,6 @@ def print_identifying_context_array_code(included_session_contexts: List[Identif
     print(f']')
 
 
-from typing import Protocol # for ContextFormatRenderingFn
-
 class ContextFormatRenderingFn(Protocol):
     """ Functions implementing the protocol do not actually need to import/inherit from it it, it is just used for typehinting in the class below
         
@@ -916,6 +915,16 @@ class ContextFormatRenderingFn(Protocol):
     def __call__( self, ctxt: "DisplaySpecifyingIdentifyingContext", subset_includelist: Optional[List[str]] = None, subset_excludelist: Optional[List[str]] = None) -> str:
         pass
     
+
+    @classmethod
+    def no_op(cls, ctxt: "DisplaySpecifyingIdentifyingContext", subset_includelist: Optional[List[str]] = None, subset_excludelist: Optional[List[str]]=None) -> str:
+        """ does nothing """
+        return ''
+
+    @classmethod
+    def merge_fns(cls, lhs_fn: "ContextFormatRenderingFn", rhs_fn: "ContextFormatRenderingFn") -> "ContextFormatRenderingFn":
+        """ merges two functions """
+        return (lambda ctxt, subset_includelist=None, subset_excludelist=None: lhs_fn(ctxt=ctxt, subset_includelist=subset_includelist, subset_excludelist=subset_excludelist) + rhs_fn(ctxt=ctxt, subset_includelist=subset_includelist, subset_excludelist=subset_excludelist))
 
 
 @define(slots=False, eq=False)
@@ -1001,40 +1010,51 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
             return None # has no specific purpose
 
 
-
-    # def get_description(self, subset_includelist=None, subset_excludelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
-    #     """ returns a simple text descriptor of the context
+    # String/Printing Functions __________________________________________________________________________________________ #
+    def get_description(self, subset_includelist=None, subset_excludelist=None, separator:str='_', include_property_names:bool=False, replace_separator_in_property_names:str='-', key_value_separator=None, prefix_items=[], suffix_items=[])->str:
+        """ returns a simple text descriptor of the context
         
-    #     include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
-    #     replace_separator_in_property_names: str = replaces occurances of the separator with the str specified for the included property names. has no effect if include_property_names=False
-    #     key_value_separator: Optional[str] = if None, uses the same separator between key{}value as used between items.
+        include_property_names: str - whether to include the keys/names of the properties in the output string or just the values
+        replace_separator_in_property_names: str = replaces occurances of the separator with the str specified for the included property names. has no effect if include_property_names=False
+        key_value_separator: Optional[str] = if None, uses the same separator between key{}value as used between items.
         
-    #     Outputs:
-    #         a str like 'sess_kdiba_2006-6-07_11-26-53'
-    #     """
-    #     ## Build a session descriptor string:
-    #     if include_property_names:
-    #         if key_value_separator is None:
-    #             key_value_separator = separator # use same separator between key{}value as pairs of items.
-    #         # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
-    #         descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # creates a list of [name, val] list items
-    #         if key_value_separator != separator:
-    #             # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
-    #             descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
-    #         else:
-    #             # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
-    #             descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
-    #     else:
-    #         descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())] # ensures each value is a string
+        Outputs:
+            a str like 'sess_kdiba_2006-6-07_11-26-53'
             
-    #     if prefix_items is not None:
-    #         descriptor_array.extend(prefix_items)
-    #     if suffix_items is not None:
-    #         descriptor_array.extend(suffix_items)
+        #TODO 2024-11-01 09:46: - [ ] We don't know the display purpose when get_descripton is called, so we just have to ignore it for now.
         
-    #     descriptor_string = separator.join(descriptor_array)
-    #     return descriptor_string
-
+        
+        """
+        ## Build a session descriptor string:
+        if include_property_names:
+            if key_value_separator is None:
+                key_value_separator = separator # use same separator between key{}value as pairs of items.
+            # the double .replace(...).replace(...) below is to make sure the name string doesn't contain either separator, which may be different.
+            if subset_excludelist is None:
+                subset_excludelist = []
+            subset_excludelist = subset_excludelist + ['display_dict', 'specific_purpose_display_dict'] # always exclude the meta properties from printing
+            
+            ## have to check formatting purpose:
+            
+            
+            descriptor_array = [[name.replace(separator, replace_separator_in_property_names).replace(key_value_separator, replace_separator_in_property_names), str(val)] for name, val in self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).items()] # creates a list of [name, val] list items
+            if key_value_separator != separator:
+                # key_value_separator is different from separator. Join the pairs into strings [(k0, v0), (k1, v1), ...] -> [f"{k0}{key_value_separator}{v0}", f"{k1}{key_value_separator}{v1}", ...]
+                descriptor_array = [key_value_separator.join(sublist) for sublist in descriptor_array]
+            else:
+                # old way, just flattens [(k0, v0), (k1, v1), ...] -> [k0, v0, k1, v1, ...]
+                descriptor_array = [item for sublist in descriptor_array for item in sublist] # flat descriptor array
+        else:
+            descriptor_array = [str(val) for val in list(self.to_dict(subset_includelist=subset_includelist, subset_excludelist=subset_excludelist).values())] # ensures each value is a string
+            
+        if prefix_items is not None:
+            descriptor_array.extend(prefix_items)
+        if suffix_items is not None:
+            descriptor_array.extend(suffix_items)
+        
+        descriptor_string = separator.join(descriptor_array)
+        return descriptor_string
+    
 
     def get_initialization_code_string(self, subset_includelist=None, subset_excludelist=None, class_name_override=None) -> str:
         """ returns the string that contains valid code to initialize a matching object. """
@@ -1077,4 +1097,90 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                         p.text(', ')
                         
 
+
+    @classmethod
+    def resolve_key(cls, duplicate_ctxt: "DisplaySpecifyingIdentifyingContext", name:str, value, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX):
+        """ensures no collision between attributes occur, and if they do resolve them according to strategy. e.g. rename them with an identifying prefix
+        Returns the resolved key (str) or None.
+        """
+        if hasattr(duplicate_ctxt, name):
+            # Check whether the existing context already has that key:
+            if (getattr(duplicate_ctxt, name) == value):
+                # Check whether it is the same value or not:
+                # the existing context has the same value for the overlapping key as the current one. Permit the merge.
+                final_name = name # this will not change the result
+            else:
+                # the keys exist on both and they have differing values. Try to resolve with the `collision_prefix`:                
+                if strategy.name == CollisionOutcome.IGNORE_UPDATED.name:
+                    final_name = None # by returning None the caller will know the keep the existing.
+                elif strategy.name == CollisionOutcome.FAIL_IF_DIFFERENT.name:
+                    print(f'ERROR: namespace collision in resolve_key! attr with name "{name}" already exists and the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}. Using collision_prefix to add new name: "{final_name}"!')
+                    raise KeyError
+                elif strategy.name == CollisionOutcome.REPLACE_EXISTING.name:
+                    final_name = name # this will overwrite the old value because the returned key is the same.
+                elif strategy.name == CollisionOutcome.APPEND_USING_KEY_PREFIX.name:
+                    ## rename the current attribute to be set by appending a prefix
+                    assert collision_prefix is not None, f"namespace collision in `adding_context(...)`! attr with name '{name}' already exists but the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}! Furthermore 'collision_prefix' is None!"
+                    final_name = f'{collision_prefix}{name}'
+                    print(f'WARNING: namespace collision in resolve_key! attr with name "{name}" already exists and the value differs: existing_value: {getattr(duplicate_ctxt, name)} new_value: {value}. Using collision_prefix to add new name: "{final_name}"!')
+        else:
+            final_name = name
+        return final_name
+
+
+    def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
+        """ adds the additional_context_items to self 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
+        
+        """        
+        for name, value in additional_context_items.items():
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+
+            ## handle     display_dict, specific_purpose_display_dict
+    
+            if name == 'display_dict':
+                # display_dict
+                ## merge the display dict fns
+                merged_dict = (self.display_dict | deepcopy(value)) ## return the combined fn
+                setattr(self, name, merged_dict)
+            elif name == 'specific_purpose_display_dict':
+                ## merge the display dict fns
+                lhs_fn = self.specific_purpose_display_dict.get(name, ContextFormatRenderingFn.no_op)
+                final_fn = ContextFormatRenderingFn.merge_fns(lhs_fn=lhs_fn, rhs_fn=value) ## return the combined fn
+                setattr(self, name, final_fn)
+            else:
+                final_name = self.resolve_key(self, name, value, collision_prefix, strategy=strategy)
+                if final_name is not None:
+                    # Set the new attr
+                    setattr(self, final_name, value)
+        
+        return self
+
+    def adding_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
+        """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
+        collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
+        
+        """
+        # assert isinstance(collision_prefix, str), f"collision_prefix must be provided as a string! Did you forget to provide it?"
+        duplicate_ctxt = copy.deepcopy(self)
+        
+        for name, value in additional_context_items.items():
+            # ensure no collision between attributes occur, and if they do rename them with an identifying prefix
+            if name == 'display_dict':
+                # display_dict
+                ## merge the display dict fns
+                merged_dict = (duplicate_ctxt.display_dict | deepcopy(value)) ## return the combined fn
+                setattr(duplicate_ctxt, name, merged_dict)
+            elif name == 'specific_purpose_display_dict':
+                ## merge the display dict fns
+                lhs_fn = duplicate_ctxt.specific_purpose_display_dict.get(name, ContextFormatRenderingFn.no_op)
+                final_fn = ContextFormatRenderingFn.merge_fns(lhs_fn=lhs_fn, rhs_fn=value) ## return the combined fn
+                setattr(duplicate_ctxt, name, final_fn)
+            else:            
+                final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix, strategy=strategy)
+                if final_name is not None:
+                    # Set the new attr
+                    setattr(duplicate_ctxt, final_name, value)
+        
+        return duplicate_ctxt
 
