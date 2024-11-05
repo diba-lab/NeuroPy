@@ -876,6 +876,16 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
                     config_dict['loaded_track_limits'][a_loadable_alim_key] = an_alim
 
+        # 2024-11-05 added on 2024-11-05 17:32 _______________________________________________________________________________ #
+        if 'first_valid_pos_time' in position_mat_file:
+            first_valid_pos_time = position_mat_file['first_valid_pos_time'].item()
+            if first_valid_pos_time is not None:
+                config_dict['first_valid_pos_time'] = first_valid_pos_time
+        if 'last_valid_pos_time' in position_mat_file:
+            last_valid_pos_time = position_mat_file['last_valid_pos_time'].item()
+            if last_valid_pos_time is not None:
+                config_dict['last_valid_pos_time'] = last_valid_pos_time
+
         # return the updated config dict
         return config_dict
 
@@ -919,6 +929,16 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                 an_alim = position_mat_file[a_loadable_alim_key].squeeze()
                 if an_alim is not None:
                     session.config.loaded_track_limits[a_loadable_alim_key] = an_alim
+                    
+        # 2024-11-05 added on 2024-11-05 17:32 _______________________________________________________________________________ #
+        if 'first_valid_pos_time' in position_mat_file:
+            first_valid_pos_time = position_mat_file['first_valid_pos_time'].item()
+            if first_valid_pos_time is not None:
+                session.config.first_valid_pos_time = first_valid_pos_time
+        if 'last_valid_pos_time' in position_mat_file:
+            last_valid_pos_time = position_mat_file['last_valid_pos_time'].item()
+            if last_valid_pos_time is not None:
+                session.config.last_valid_pos_time = last_valid_pos_time
 
         # return the session with the upadated member variables
         return session
@@ -991,7 +1011,7 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         else:
             raise ValueError
         
-
+    
         session = cls._default_kdiba_exported_load_position_info_mat(basepath=basepath, session_name=session_name, session=session)
         # session.config.position_sampling_rate_Hz = position_sampling_rate_Hz
         # session.position = Position(traces=np.vstack((x, y)), computed_traces=np.full([1, num_samples], np.nan), t_start=active_t_start, sampling_rate=position_sampling_rate_Hz)
