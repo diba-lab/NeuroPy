@@ -520,6 +520,8 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
 def build_units_colormap(neuron_ids):
     """ 
     Usage:
+        from neuropy.core.neuron_identities import build_units_colormap
+        
         pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap = build_units_colormap(good_placefield_neuronIDs)
     """
     pf_sort_ind = np.array([int(i) for i in np.arange(len(neuron_ids))]) # convert to integer scalar array

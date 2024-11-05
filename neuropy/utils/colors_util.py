@@ -140,6 +140,8 @@ class ColorsUtil:
 def get_neuron_colors(sort_indicies, cmap=None, debug_print=False) -> np.ndarray:
     """ returns the list of colors, an RGBA np.array of shape: 4 x n_neurons. 
     
+    from neuropy.utils.colors_util import get_neuron_colors
+    
     colors_array = get_neuron_colors(sort_indicies, cmap=None, debug_print=False)
     
     """
