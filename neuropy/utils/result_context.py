@@ -133,10 +133,10 @@ class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepr
             setattr(self, name, value)
         
     @classmethod
-    def try_init_from_session_key(cls, session_str: str) -> "IdentifyingContext":
+    def try_init_from_session_key(cls, session_str: str, separator:str='_') -> "IdentifyingContext":
         """ Tries to create a valid IdentifyingContext from the known session_context_keys and a session string like 'kdiba_pin01_one_fet11-01_12-58-54'
         """
-        split_keys = session_str.split('_', maxsplit=3)
+        split_keys = session_str.split(separator, maxsplit=3)
         assert len(split_keys) == 4, f"session_str: '{session_str}' could not be parsed into a valid IdentifyingContext. split_keys: {split_keys}"
         return cls(**dict(zip(cls._get_session_context_keys(), split_keys)))
     
