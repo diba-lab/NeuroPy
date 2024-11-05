@@ -331,7 +331,7 @@ class PfnDMixin(SimplePrintable):
 
 	@safely_accepts_kwargs
 	def plotRaw_v_time(self, cellind, speed_thresh=False, spikes_color=None, spikes_alpha=None, ax=None, position_plot_kwargs=None, spike_plot_kwargs=None,
-		should_include_trajectory=True, should_include_spikes=True, should_include_labels=True, use_filtered_positions=False, use_pandas_plotting=False):
+		should_include_trajectory=True, should_include_spikes=True, should_include_filter_excluded_spikes=True, should_include_labels=True, use_filtered_positions=False, use_pandas_plotting=False):
 		""" Builds one subplot for each dimension of the position data
 		Updated to work with both 1D and 2D Placefields
 
@@ -396,7 +396,7 @@ class PfnDMixin(SimplePrintable):
 		if cellind is not None:
 			if should_include_spikes:
 				# Grab correct spike times/positions
-				if speed_thresh:
+				if speed_thresh and (not should_include_filter_excluded_spikes):
 					spk_pos_, spk_t_ = self.run_spk_pos, self.run_spk_t # TODO: these don't exist
 				else:
 					spk_pos_, spk_t_ = self.spk_pos, self.spk_t
