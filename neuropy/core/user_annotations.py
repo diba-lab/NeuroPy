@@ -671,6 +671,75 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.79328080534583, 130.59109955280485))))
         user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.16323999738597, 128.89035363816865))))
                                 
+        # ==================================================================================================================== #
+        # 2024-11-05 16:05 Produced programmatically from exxported matlab csv                                                 #
+        # ==================================================================================================================== #
+        # """ 
+        # ```python
+        #     matlab_exported_csv = Path('/home/halechr/repos/matlab-to-neuropy-exporter/output/2024-11-05_good_sessions_table.csv').resolve()
+        #     Assert.path_exists(matlab_exported_csv)
+        #     session_info_matlab_df: pd.DataFrame = pd.read_csv(matlab_exported_csv)
+
+        #     # session_info_matlab_df['session_export_path'].map(lambda v: Path(v).relative_to(global_data_root_parent_path).parts) #.map(lambda v: Path(v).name) as_posix().split('/')
+        #     session_info_matlab_df['session_context'] = session_info_matlab_df['session_export_path'].map(lambda v: IdentifyingContext.try_init_from_session_key('_'.join(Path(v).relative_to(global_data_root_parent_path).parts), separator='_'))
+        #     session_info_matlab_df
+
+        #     user_annotation_code_strs = []
+
+        #     for a_tuple in session_info_matlab_df[['session_context', 'first_valid_pos_time', 'last_valid_pos_time']].itertuples(index=False):
+                
+        #         _code_str: str = f"user_annotations[{a_tuple.session_context.get_initialization_code_string()}].update(track_start_t={a_tuple.first_valid_pos_time}, track_end_t={a_tuple.last_valid_pos_time})"
+        #         user_annotation_code_strs.append(_code_str)
+
+        # ```
+        # """
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')].update(track_start_t=10.98) ## Manual
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')].update(track_start_t=10.1221450000303, track_end_t=1978.00547199999)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')].update(track_start_t=9.03898199996911, track_end_t=2078.12502899999)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')].update(track_start_t=38.9233210000675, track_end_t=1737.07045)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')].update(track_start_t=29.1566759999841, track_end_t=520.185412999941)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')].update(track_start_t=22.0592309999047, track_end_t=1119.23407399992)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')].update(track_start_t=12.8251579999924, track_end_t=863.916483999928)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')].update(track_start_t=15.549006999936, track_end_t=2578.53313699993)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')].update(track_start_t=9.20195200003218, track_end_t=2619.60006099998)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')].update(track_start_t=12.8726610000012, track_end_t=1235.43789400009)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')].update(track_start_t=6.99150600004941, track_end_t=2562.566185)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')].update(track_start_t=12.7854130000342, track_end_t=811.422589999973)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')].update(track_start_t=10.7205819999799, track_end_t=878.426836000057)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')].update(track_start_t=nan, track_end_t=nan)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')].update(track_start_t=6.02368800001568, track_end_t=1426.15366000001)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')].update(track_start_t=18.9487729999964, track_end_t=869.104464999997)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')].update(track_start_t=20.6751609999919, track_end_t=810.47034)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')].update(track_start_t=12.6970189999847, track_end_t=508.128582999983)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')].update(track_start_t=15.89814200002, track_end_t=666.954281000013)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')].update(track_start_t=16.7988520000363, track_end_t=913.63453400007)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')].update(track_start_t=26.0018009999912, track_end_t=1743.198221)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')].update(track_start_t=27.4544520000054, track_end_t=1471.14405999999)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')].update(track_start_t=1.93768199999977, track_end_t=1279.892742)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')].update(track_start_t=23.3863830000009, track_end_t=893.397008)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')].update(track_start_t=19.5205369999894, track_end_t=851.158837999988)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')].update(track_start_t=18.695103, track_end_t=1034.350836)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')].update(track_start_t=23.261978999999, track_end_t=760.703594999999)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')].update(track_start_t=21.5540140000085, track_end_t=807.348131000006)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')].update(track_start_t=0.633843999996316, track_end_t=622.394167999999)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')].update(track_start_t=13.964290999982, track_end_t=507.294616999978)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')].update(track_start_t=17.5178040000028, track_end_t=482.08531200001)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')].update(track_start_t=11.430015000049, track_end_t=583.70736)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')].update(track_start_t=25.2757259999635, track_end_t=569.291590000037)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')].update(track_start_t=18.7161159999669, track_end_t=4277.00783000002)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')].update(track_start_t=9.6452860001009, track_end_t=524.096874000039)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44')].update(track_start_t=-75.3297229999998, track_end_t=1941.410477)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0')].update(track_start_t=29.6559119999984, track_end_t=1177.572948)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25')].update(track_start_t=19.1183459999993, track_end_t=1003.345493)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_21-26-8')].update(track_start_t=34.375172, track_end_t=860.640345)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-05_19-26-43')].update(track_start_t=4.25055900000007, track_end_t=1241.666767)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_11-43-50')].update(track_start_t=7.62950799999999, track_end_t=727.620426)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_12-15-3')].update(track_start_t=14.9508269999997, track_end_t=764.041609)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_21-17-16')].update(track_start_t=14.403914, track_end_t=719.78661)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_22-4-5')].update(track_start_t=20.9049300000001, track_end_t=745.123835)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')].update(track_start_t=13.4352230000004, track_end_t=3031.404034)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')].update(track_start_t=16.0465110000005, track_end_t=1085.451218)
+        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')].update(track_start_t=8.9677370000004, track_end_t=1139.771152)
 
         return user_annotations
 
