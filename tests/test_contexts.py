@@ -204,6 +204,23 @@ class TestIdentifyingContext(unittest.TestCase):
         self.assertTrue(True, "No pass")
 
 
+    def test_case_insensitivity(self):
+        # Check equality with different cases in attribute values
+        context_lower = IdentifyingContext(format_name='kdiba', animal='gor01', exper_name='one', session_name='2006-6-08_14-26-15')
+        context_upper = IdentifyingContext(format_name='KDIBA', animal='GOR01', exper_name='ONE', session_name='2006-6-08_14-26-15')
+        
+        self.assertEqual(context_lower, context_upper)
+        
+        # Check dictionary lookup with case insensitivity
+        context_dict = {context_lower: 'data'}
+        self.assertIn(context_upper, context_dict)
+        self.assertEqual(context_dict[context_upper], 'data')
+
+    def test_query_case_insensitivity(self):
+        # Test case-insensitive query for 'exper_name' == 'one'
+        self.assertTrue(self.ic1.query({'exper_name': 'ONE'}))
+        self.assertTrue(self.ic1.query({'animal': 'GOR01', 'exper_name': 'ONE'}))
+
 
 if __name__ == '__main__':
     unittest.main()
