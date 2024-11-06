@@ -672,21 +672,18 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         # ==================================================================================================================== #
         # """ 
         # ```python
+        #     # global_session.epochs
+        #     ## INPUTS: global_data_root_parent_path
         #     matlab_exported_csv = Path('/home/halechr/repos/matlab-to-neuropy-exporter/output/2024-11-05_good_sessions_table.csv').resolve()
         #     Assert.path_exists(matlab_exported_csv)
         #     session_info_matlab_df: pd.DataFrame = pd.read_csv(matlab_exported_csv)
-
-        #     # session_info_matlab_df['session_export_path'].map(lambda v: Path(v).relative_to(global_data_root_parent_path).parts) #.map(lambda v: Path(v).name) as_posix().split('/')
         #     session_info_matlab_df['session_context'] = session_info_matlab_df['session_export_path'].map(lambda v: IdentifyingContext.try_init_from_session_key('_'.join(Path(v).relative_to(global_data_root_parent_path).parts), separator='_'))
-        #     session_info_matlab_df
-
         #     user_annotation_code_strs = []
-
         #     for a_tuple in session_info_matlab_df[['session_context', 'first_valid_pos_time', 'last_valid_pos_time']].itertuples(index=False):
-                
         #         _code_str: str = f"user_annotations[{a_tuple.session_context.get_initialization_code_string()}].update(track_start_t={a_tuple.first_valid_pos_time}, track_end_t={a_tuple.last_valid_pos_time})"
         #         user_annotation_code_strs.append(_code_str)
 
+        #     ## OUTPUTS: user_annotation_code_strs
         # ```
         # """
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')].update(track_start_t=10.98) ## Manual
@@ -828,6 +825,20 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         return bad_session_contexts
 
 
+    @classmethod
+    def get_all_known_sessions(cls) -> List[IdentifyingContext]:
+        """Hardcoded included_session_contexts:
+                
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+        
+            included_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_good_sessions()
+            
+        """
+        bad_sessions = cls.get_hardcoded_bad_sessions()
+        good_sessions = cls.get_hardcoded_good_sessions()
+        return (bad_sessions + good_sessions)
+        
 
     @classmethod
     def get_hardcoded_bimodal_aclus(cls) -> Dict[IdentifyingContext, List]:
