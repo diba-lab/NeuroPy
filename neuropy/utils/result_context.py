@@ -449,7 +449,9 @@ class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepr
 
     def __hash__(self):
         """ custom hash function that allows use in dictionary just based off of the values and not the object instance. """
-        dict_rep = self.to_dict()
+        # dict_rep = self.to_dict()
+        dict_rep = {k: str(v).casefold() if isinstance(v, str) else v for k, v in self.to_dict().items()} # case insensitive comparison
+        # str(k).casefold()
         sorted_dict_rep = dict(sorted(dict_rep.items())) # sort the dict rep's keys so the the comparisons are ultimately independent of order, meaning IdentifyingContext(k1='a', k2='b') == IdentifyingContext(k2='b', k1='a')
         member_names_tuple = list(sorted_dict_rep.keys())
         values_tuple = list(sorted_dict_rep.values())
@@ -465,8 +467,8 @@ class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepr
         """
         if isinstance(other, IdentifyingContext):
             # Convert both dictionaries to lowercase for case-insensitive comparison
-            self_dict = {k: str(v).lower() if isinstance(v, str) else v for k, v in self.to_dict().items()}
-            other_dict = {k: str(v).lower() if isinstance(v, str) else v for k, v in other.to_dict().items()}
+            self_dict = {k: str(v).casefold() if isinstance(v, str) else v for k, v in self.to_dict().items()}
+            other_dict = {k: str(v).casefold() if isinstance(v, str) else v for k, v in other.to_dict().items()}
             return dict(sorted(self_dict.items())) == dict(sorted(other_dict.items()))
             # return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
             # return dict(sorted(self.to_dict().items())) == dict(sorted(other.to_dict().items())) 

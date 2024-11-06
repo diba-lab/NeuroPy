@@ -274,10 +274,6 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_LR',user_annotation='selections')] = [[132.511, 132.791], [571.304, 571.385], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1699.23, 1699.36]]
         # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_RL',user_annotation='selections')] = [[105.4, 105.563], [1302.65, 1302.8], [1332.28, 1332.39], [1450.89, 1451.02]]
 
-
-
-
-
         with IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99]
