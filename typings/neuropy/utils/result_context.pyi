@@ -106,6 +106,12 @@ class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepr
         ...
     
     @classmethod
+    def try_init_from_session_key(cls, session_str: str, separator: str = ...) -> IdentifyingContext:
+        """ Tries to create a valid IdentifyingContext from the known session_context_keys and a session string like 'kdiba_pin01_one_fet11-01_12-58-54'
+        """
+        ...
+    
+    @classmethod
     def matching(cls, context_iterable: Union[Dict[IdentifyingContext, Any], List[IdentifyingContext]], criteria: Union[Dict[str, Any], IdentifyingContext]) -> Union[Dict[IdentifyingContext, Any], List[IdentifyingContext]]:
         """ 
         Queries the iterable (either list or dict with IdentifyingContext as keys) and returns the values matching the criteria
@@ -265,7 +271,12 @@ class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepr
         ...
     
     def __eq__(self, other) -> bool:
-        """Overrides the default implementation"""
+        """Overrides the default implementation. Performs case-insensitive comparisons, e.g.
+        
+        ## note the differing capitalization of the format_name:
+        assert (IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53') == IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'))
+        
+        """
         ...
     
     @classmethod

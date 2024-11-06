@@ -124,7 +124,7 @@ class PfnDMixin(SimplePrintable):
 		...
 	
 	@safely_accepts_kwargs
-	def plotRaw_v_time(self, cellind, speed_thresh=..., spikes_color=..., spikes_alpha=..., ax=..., position_plot_kwargs=..., spike_plot_kwargs=..., should_include_trajectory=..., should_include_spikes=..., should_include_labels=..., use_filtered_positions=..., use_pandas_plotting=...):
+	def plotRaw_v_time(self, cellind, speed_thresh=..., spikes_color=..., spikes_alpha=..., ax=..., position_plot_kwargs=..., spike_plot_kwargs=..., should_include_trajectory=..., should_include_spikes=..., should_include_filter_excluded_spikes=..., should_include_labels=..., use_filtered_positions=..., use_pandas_plotting=...):
 		""" Builds one subplot for each dimension of the position data
 		Updated to work with both 1D and 2D Placefields
 

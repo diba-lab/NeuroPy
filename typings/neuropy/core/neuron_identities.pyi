@@ -247,6 +247,8 @@ class PlotStringBrevityModeEnum(HDFConvertableEnum, Enum):
 def build_units_colormap(neuron_ids): # -> tuple[NDArray[Any], ndarray[Any, Any], ndarray[Any, Any], ListedColormap]:
     """ 
     Usage:
+        from neuropy.core.neuron_identities import build_units_colormap
+        
         pf_sort_ind, pf_colors, pf_colormap, pf_listed_colormap = build_units_colormap(good_placefield_neuronIDs)
     """
     ...
