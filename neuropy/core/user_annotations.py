@@ -152,12 +152,12 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
 
         user_annotations = {}
 
-        ## IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [13,  14,  15,  25,  27,  28,  31,  37,  42,  45,  48,  57,  61,  62,  63,  76,  79,  82,  89,  90, 111, 112, 113, 115]
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [  9,  11,  13,  14,  15,  20,  22,  25,  37,  40,  45,  48,  61, 62,  76,  79,  84,  89,  90,  93,  94, 111, 112, 113, 115, 121]
+        ## IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [13,  14,  15,  25,  27,  28,  31,  37,  42,  45,  48,  57,  61,  62,  63,  76,  79,  82,  89,  90, 111, 112, 113, 115]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [  9,  11,  13,  14,  15,  20,  22,  25,  37,  40,  45,  48,  61, 62,  76,  79,  84,  89,  90,  93,  94, 111, 112, 113, 115, 121]
 
         # 2023-07-19 - New Annotations, lots more than before.
-        with Ctx(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [1, 3, 11, 13, 14, 15, 17, 21, 23, 24, 25, 26, 27, 28, 30, 31, 32, 33, 36, 37, 39, 42, 43, 44, 45, 46, 48, 51, 52, 53, 55, 57, 58, 60, 61, 62, 68, 69, 70, 72, 74, 76, 81, 84, 85, 86, 87, 88, 89, 90, 91, 92, 95, 96, 97, 98, 100, 101, 105, 106, 109, 112, 113, 114, 115, 118, 119, 120, 121, 123, 124, 125, 126, 127, 128, 130, 131, 132]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [2, 3, 4, 8, 9, 10, 11, 13, 14, 15, 16, 17, 20, 21, 23, 24, 25, 26, 28, 29, 30, 31, 32, 33, 36, 38, 39, 40, 41, 42, 43, 44, 46, 48, 49, 51, 53, 55, 63, 64, 66, 67, 69, 70, 72, 75, 77, 78, 80, 81, 83, 84, 85, 86, 87, 88, 91, 92, 93, 95, 96, 97, 98, 99, 100, 101, 102, 104, 105, 106, 107, 110, 111, 112, 113, 114, 115, 116, 118, 119, 120, 121, 122, 123, 124, 126, 127, 131, 132]
@@ -169,7 +169,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
                             
 
         # Pho + Kamran Selected and Agreed on these events together on 2024-07-25 ____________________________________________ #
-        with Ctx(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[282.873, 283.142], [323.968, 324.431], [380.259, 380.597], [419.651, 419.876], [434.102, 434.316], [571.061, 571.225], [878.106, 878.315], [1158.821, 1159.079], [1493.483, 1493.693]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[911.215, 911.588], [1152.558, 1152.761], [1855.422, 1855.711]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[193.648, 193.893], [241.692, 241.846], [267.606, 267.774], [338.425, 338.644], [485.046, 485.367], [545.744, 546.074], [689.063, 689.285], [749.247, 749.420], [799.927, 800.140], [815.267, 815.468], [886.561, 886.679], [906.068, 906.269], [1285.369, 1285.508], [1296.292, 1296.619], [1325.176, 1325.339], [1378.883, 1379.019], [1410.607, 1410.783], [1453.569, 1453.790], [1456.699, 1457.127], [1504.300, 1504.475], [1523.409, 1523.857], [1540.999, 1541.243], [1818.494, 1818.659], [1835.039, 1835.215], [1848.992, 1849.224], [1866.809, 1867.072], [1885.974, 1886.315], [2053.277, 2053.445]]
@@ -177,8 +177,8 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
 
 
 
-        ## IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')
-        with IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+        ## IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')
+        with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [5,  13,  15,  17,  20,  21,  24,  31,  33,  43,  44,  49,  63, 64,  66,  68,  70,  71,  74,  76,  77,  78,  84,  90,  94,  95, 104, 105, 122, 123]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [ 12,  13,  15,  17,  20,  24,  30,  31,  32,  33,  41,  43,  49, 54,  55,  68,  70,  71,  73,  76,  77,  78,  84,  89,  94, 100, 104, 105, 111, 114, 115, 117, 118, 122, 123, 131]
@@ -188,14 +188,14 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
                 user_annotations[ctx + Ctx(decoder='short_LR')] = [[488.296, 488.484], [677.993, 678.341], [721.893, 722.227], [876.270, 876.452], [888.227, 888.465], [890.870, 891.037], [922.816, 923.107], [950.183, 950.448], [953.942, 954.258], [1006.840, 1007.132], [1044.949, 1045.453], [1096.396, 1096.547], [1129.646, 1129.839], [1259.291, 1259.445], [1259.725, 1259.882], [1284.424, 1284.590], [1329.846, 1330.068], [1511.195, 1511.428], [1511.974, 1512.058], [1549.236, 1549.366], [1558.468, 1558.679], [1560.657, 1560.753], [1561.312, 1561.414], [1561.818, 1561.886], [1655.991, 1656.213], [1730.888, 1731.068], [1734.810, 1734.952], [1861.411, 1861.532], [1909.781, 1910.039], [1967.738, 1968.092], [2036.973, 2037.326], [2038.027, 2038.271], [2038.531, 2038.732], [2042.389, 2042.639], [2064.367, 2064.545], [2070.819, 2071.031], [2119.100, 2119.256], [2125.548, 2125.738], [2132.661, 2132.983], [2153.029, 2153.144], [2170.259, 2170.624], [2191.256, 2191.387], [2192.123, 2192.362], [2193.779, 2193.987], [2194.559, 2194.763], [2200.654, 2200.799], [2201.847, 2202.033], [2219.725, 2219.871], [2229.350, 2229.845], [2248.613, 2248.810], [2249.704, 2249.915], [2313.885, 2314.058], [2372.291, 2372.609], [2422.595, 2422.819], [2462.666, 2462.743], [2482.132, 2482.613], [2484.411, 2484.484], [2530.725, 2530.921], [2531.219, 2531.302], [2556.112, 2556.383], [2556.597, 2556.918]]
                 user_annotations[ctx + Ctx(decoder='short_RL')] = [[66.662, 66.779], [470.140, 470.318], [518.520, 518.992], [788.911, 789.495], [831.621, 831.910], [870.931, 871.079], [888.227, 888.465], [890.870, 891.037], [910.571, 911.048], [953.942, 954.258], [982.605, 982.909], [996.526, 997.074], [1001.634, 1001.967], [1014.096, 1014.277], [1033.052, 1033.226], [1096.396, 1096.547], [1136.294, 1136.682], [1200.697, 1200.903], [1211.214, 1211.332], [1214.611, 1214.835], [1266.591, 1266.719], [1317.706, 1318.221], [1333.493, 1333.689], [1380.751, 1380.890], [1381.958, 1382.319], [1448.171, 1448.337], [1499.587, 1499.711], [1620.637, 1620.793], [1744.335, 1744.587], [1798.635, 1798.766], [1970.811, 1970.953], [1994.072, 1994.253], [2050.894, 2050.995], [2051.248, 2051.677], [2077.674, 2077.962], [2132.661, 2132.983], [2203.726, 2203.819], [2204.539, 2204.658], [2317.030, 2317.124], [2330.010, 2330.161], [2331.841, 2331.958], [2333.100, 2333.317], [2335.649, 2335.817], [2349.621, 2349.833], [2368.841, 2369.000], [2379.690, 2379.862], [2403.112, 2403.409], [2456.244, 2456.327], [2456.467, 2456.573], [2457.493, 2458.009], [2505.335, 2505.672]]
 
-        with Ctx(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19',display_fn_name='DecodedEpochSlices',epochs='ripple', source='diba_evt_file', user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19',display_fn_name='DecodedEpochSlices',epochs='ripple', source='diba_evt_file', user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[240.289, 240.593], [257.224, 257.379], [400.450, 400.635], [556.017, 556.236], [922.935, 923.138], [1193.992, 1194.155], [1201.830, 1202.019]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[240.289, 240.593], [380.729, 380.971], [422.649, 422.887], [452.370, 452.589], [461.147, 461.271], [524.869, 525.018], [528.485, 528.687], [784.232, 784.383], [838.186, 838.448], [888.232, 888.400], [908.192, 908.403], [910.828, 911.051], [967.634, 967.792], [1035.121, 1035.307], [1272.890, 1273.020], [1746.259, 1746.427], [1970.832, 1970.955], [2080.650, 2080.778], [2087.270, 2087.419], [2192.079, 2192.268]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[224.721, 225.028], [292.625, 292.852], [295.973, 296.110], [304.521, 304.657], [487.266, 487.460], [512.776, 512.873], [873.107, 873.271], [890.921, 891.040], [934.106, 934.419], [950.225, 950.387], [977.841, 978.060], [1024.842, 1025.106], [1111.265, 1111.420], [1211.218, 1211.317], [1256.835, 1256.975], [1266.599, 1266.700], [1301.772, 1301.972], [1359.901, 1360.075], [1500.969, 1501.076], [1530.095, 1530.241], [1569.808, 1569.904], [1683.428, 1683.516], [1743.419, 1743.537], [1751.104, 1751.226], [1804.385, 1804.521], [1838.754, 1838.848], [1851.774, 1851.870], [1905.212, 1905.317], [1949.899, 1950.214], [2111.682, 2111.803], [2125.632, 2125.742], [2234.936, 2235.059], [2248.665, 2248.811], [2307.667, 2307.764], [2313.892, 2314.001], [2330.034, 2330.168], [2333.119, 2333.322], [2376.105, 2376.246], [2401.432, 2401.567], [2530.734, 2530.928], [2556.120, 2556.388]]
             user_annotations[ctx + Ctx(decoder='short_RL')] = [[257.224, 257.379], [478.725, 478.830], [502.732, 502.870], [647.955, 648.097], [676.013, 676.334], [833.416, 833.582], [907.500, 907.610], [954.047, 954.202], [996.896, 997.077], [1033.094, 1033.220], [1045.288, 1045.398], [1096.399, 1096.598], [1164.642, 1164.875], [1184.873, 1185.032], [1214.615, 1214.826], [1233.264, 1233.444], [1326.652, 1326.756], [1371.850, 1371.976], [1427.235, 1427.394], [1453.582, 1453.741], [1797.982, 1798.092], [1843.176, 1843.283], [1870.983, 1871.187], [1943.534, 1943.632], [1967.960, 1968.088], [2038.594, 2038.738], [2042.447, 2042.645], [2051.554, 2051.683], [2077.861, 2077.959], [2214.245, 2214.395], [2255.984, 2256.074], [2275.941, 2276.092], [2328.668, 2328.822], [2335.671, 2335.817], [2368.900, 2368.982], [2408.837, 2409.006], [2536.522, 2536.617]]
 
 
-        with Ctx(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = []
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[304.440, 304.656], [380.746, 380.904], [487.205, 487.451], [489.425, 489.656], [802.912, 803.114]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[292.624, 292.808], [304.440, 304.656], [873.001, 873.269], [1259.725, 1259.882], [1326.545, 1326.765], [1329.846, 1330.068], [1620.637, 1620.793], [1917.094, 1917.270], [1967.738, 1968.092], [1970.811, 1970.953], [2038.531, 2038.732], [2077.674, 2077.962], [2183.966, 2184.102], [2248.613, 2248.810], [2333.100, 2333.317], [2372.291, 2372.609], [2482.132, 2482.613]]
@@ -206,21 +206,21 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         # ==================================================================================================================== #
         #MARK '2006-6-12_15-55-31'                                                                                                
         # ==================================================================================================================== #
-        with Ctx(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[735.218, 735.375], [1006.693, 1006.829]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[535.654, 535.812], [540.199, 540.442], [685.390, 685.632], [706.614, 706.937], [712.075, 712.343], [1021.844, 1021.978]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[615.091, 615.238], [735.218, 735.375]]
             user_annotations[ctx + Ctx(decoder='short_RL')] = [[127.873, 128.242], [153.506, 153.851], [165.036, 165.260], [535.654, 535.812], [540.199, 540.442], [712.075, 712.343], [761.180, 761.553], [892.791, 893.041], [1021.844, 1021.978], [1028.172, 1028.618]]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [10, 11, 12, 17, 18, 22]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [10, 11, 12, 16, 18, 19, 23]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [10, 11, 12, 17, 18, 22]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [10, 11, 12, 16, 18, 19, 23]
 
         # ==================================================================================================================== #
         #MARK '11-02_17-46-44'                                                                                                #
         # ==================================================================================================================== #
-        # IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44')
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [13, 23, 41, 46]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [4, 7, 10, 15, 21, 23, 41]
-        with Ctx(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        # IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44')
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [13, 23, 41, 46]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [4, 7, 10, 15, 21, 23, 41]
+        with Ctx(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[1128.687, 1129.087], [1434.460, 1434.643]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[1798.653, 1798.915]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[419.116, 419.338], [538.868, 539.061], [973.037, 973.303], [1100.022, 1100.352], [1182.640, 1182.866]]
@@ -230,7 +230,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         # ==================================================================================================================== #
         #MARK '11-02_19-28-0'                                                                                                
         # ==================================================================================================================== #
-        with Ctx(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [2, 6]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [2, 5, 9, 10]
@@ -243,9 +243,9 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         # ==================================================================================================================== #
         #MARK '11-03_12-3-25'                                                                                                
         # ==================================================================================================================== #
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = []
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 4, 5]
-        with Ctx(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = []
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 4, 5]
+        with Ctx(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = []
             user_annotations[ctx + Ctx(decoder='long_RL')] = []
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[650.569, 650.759]]
@@ -254,7 +254,7 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         ## ==================================================================================================================== #
         #MARK fet11-01_12-58-54                                                                                                
         # ==================================================================================================================== #
-        with IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+        with IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [19, 23, 26, 29, 44, 57, 64, 83, 90, 92, 110, 123, 125, 126, 131]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [5, 10, 19, 23, 24, 26, 31, 35, 36, 39, 44, 48, 57, 61, 64, 65, 71, 73, 77, 83, 89, 92, 93, 94, 96, 97, 98, 100, 102, 108, 111, 113, 116, 117, 118, 123, 124, 125, 126, 131]
@@ -263,18 +263,18 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
                 user_annotations[ctx + Ctx(decoder='long_RL')] = [[127.407, 127.814], [583.209, 583.421], [710.132, 710.272], [756.700, 756.870], [776.909, 777.358], [793.618, 793.836], [840.625, 840.887], [873.844, 874.247], [906.872, 907.088], [913.670, 913.997], [960.367, 960.876], [974.823, 974.975], [985.189, 985.421], [996.211, 996.545], [1001.143, 1001.491], [1010.452, 1010.973], [1015.451, 1015.784], [1019.475, 1019.786], [1092.514, 1092.913], [1194.214, 1194.639], [1207.971, 1208.522], [1231.077, 1231.299], [1410.845, 1411.402], [1416.479, 1416.751], [1666.657, 1667.047], [1845.977, 1846.337], [1973.078, 1973.381], [2096.822, 2097.041], [2188.747, 2189.144], [2390.000, 2390.216], [2882.524, 2882.883]]
                 user_annotations[ctx + Ctx(decoder='short_LR')] = [[72.773, 72.959], [248.042, 248.455], [459.258, 459.493], [515.191, 515.382], [583.209, 583.421], [641.164, 641.521], [974.823, 974.975], [1010.452, 1010.973], [1032.318, 1032.708], [1034.151, 1034.318], [1045.985, 1046.297], [1085.149, 1085.547], [1173.110, 1173.518], [1701.600, 1701.786], [1801.789, 1801.895], [1898.371, 1898.735], [1923.863, 1924.232], [2007.016, 2007.254], [2112.551, 2112.728], [2169.387, 2169.592], [2188.747, 2189.144], [2193.303, 2193.589], [2585.775, 2585.850], [2804.318, 2804.726], [2808.438, 2808.732]]
                 user_annotations[ctx + Ctx(decoder='short_RL')] = [[514.232, 514.534], [583.209, 583.421], [721.530, 721.862], [776.909, 777.358], [961.169, 961.534], [996.211, 996.545], [1139.799, 1140.052], [1319.801, 1319.934], [1666.657, 1667.047], [1671.685, 1671.904], [1715.347, 1715.616], [1732.210, 1732.584], [1755.430, 1755.648], [1761.609, 1761.856], [1836.915, 1837.300], [1845.977, 1846.337], [1886.594, 1886.825], [1979.255, 1979.408], [2043.567, 2043.787], [2096.822, 2097.041], [2155.092, 2155.453], [2249.904, 2250.456], [2269.116, 2269.193], [2281.042, 2281.254], [2299.280, 2299.576], [2301.648, 2302.190], [2393.337, 2393.676], [2767.283, 2767.443], [2907.136, 2907.351], [2922.757, 2922.924], [2947.266, 2947.608], [2953.522, 2953.791]]         
-        # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 13, 16, 18, 19, 20, 23, 24, 27, 28, 36, 38, 40, 43, 44, 47, 48, 52, 55, 64, 65]
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 10, 13, 16, 18, 19, 24, 27, 28, 36, 40, 43, 44, 47, 48, 50, 55, 60, 64, 65]
+        # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 13, 16, 18, 19, 20, 23, 24, 27, 28, 36, 38, 40, 43, 44, 47, 48, 52, 55, 64, 65]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 10, 13, 16, 18, 19, 24, 27, 28, 36, 40, 43, 44, 47, 48, 50, 55, 60, 64, 65]
         # 2023-07-19 Annotations:
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99]
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99]
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_LR',user_annotation='selections')] = [[132.511, 132.791], [149.959, 150.254], [1186.9, 1187], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1693.34, 1693.48], [1725.28, 1725.6]]
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_RL',user_annotation='selections')] = [[149.959, 150.254], [307.08, 307.194], [1332.28, 1332.39]]
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_LR',user_annotation='selections')] = [[132.511, 132.791], [571.304, 571.385], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1699.23, 1699.36]]
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_RL',user_annotation='selections')] = [[105.4, 105.563], [1302.65, 1302.8], [1332.28, 1332.39], [1450.89, 1451.02]]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_LR',user_annotation='selections')] = [[132.511, 132.791], [149.959, 150.254], [1186.9, 1187], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1693.34, 1693.48], [1725.28, 1725.6]]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='long_RL',user_annotation='selections')] = [[149.959, 150.254], [307.08, 307.194], [1332.28, 1332.39]]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_LR',user_annotation='selections')] = [[132.511, 132.791], [571.304, 571.385], [1284.18, 1284.29], [1302.65, 1302.8], [1316.06, 1316.27], [1699.23, 1699.36]]
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',decoder='short_RL',user_annotation='selections')] = [[105.4, 105.563], [1302.65, 1302.8], [1332.28, 1332.39], [1450.89, 1451.02]]
 
-        with IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+        with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [3, 5, 12, 18, 23, 26, 28, 30, 32, 33, 35, 37, 44, 59, 61, 64, 66, 70, 71, 74, 76, 79, 84, 85, 97, 99]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [5, 6, 8, 18, 23, 28, 29, 30, 32, 40, 44, 59, 61, 64, 66, 70, 71, 73, 74, 79, 80, 81, 84, 85, 88, 97, 99]
@@ -286,15 +286,15 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
                 user_annotations[ctx + Ctx(decoder='short_RL')] = [[105.400, 105.563], [534.584, 534.939], [564.149, 564.440], [637.785, 638.182], [670.216, 670.418], [675.972, 676.153], [689.092, 689.241], [760.981, 761.121], [993.868, 994.185], [1131.640, 1131.887], [1161.001, 1161.274], [1188.466, 1188.592], [1302.651, 1302.801], [1332.283, 1332.395], [1450.894, 1451.024], [1673.437, 1673.920], [1705.053, 1705.141]]   
 
 
-        with Ctx(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[149.959, 150.254], [808.799, 808.948], [993.868, 994.185]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[251.417, 251.812], [624.226, 624.499], [637.785, 638.182], [783.916, 784.032], [1085.080, 1085.184], [1136.192, 1136.453], [1693.342, 1693.482], [1725.279, 1725.595]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[105.400, 105.563], [132.511, 132.791], [564.149, 564.440], [670.216, 670.418], [675.972, 676.153], [722.678, 722.933], [760.981, 761.121], [1131.640, 1131.887], [1161.001, 1161.274], [1191.563, 1191.864], [1302.651, 1302.801], [1332.283, 1332.395], [1450.894, 1451.024], [1705.053, 1705.141], [1707.712, 1707.919]]
             user_annotations[ctx + Ctx(decoder='short_RL')] = [[154.499, 154.853], [191.609, 191.949], [599.710, 599.905], [745.811, 746.097], [1117.650, 1118.019], [1233.968, 1234.181], [1244.038, 1244.176], [1252.562, 1252.739], [1262.523, 1262.926], [1267.918, 1268.235], [1316.056, 1316.270], [1317.977, 1318.181], [1348.890, 1349.264], [1440.852, 1441.328], [1731.111, 1731.288]]
                         
                         
-        # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')
-        with Ctx(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
+        # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')
+        with Ctx(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25',display_fn_name='DecodedEpochSlices',user_annotation='selections') as ctx:
             with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                 user_annotations[ctx + Ctx(decoder='long_results_obj')] = [2, 13, 18, 23, 25, 27, 32]
                 user_annotations[ctx + Ctx(decoder='short_results_obj')] = [2, 8, 9, 13, 16, 18, 25, 27, 28, 32, 33]
@@ -305,8 +305,8 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
                 user_annotations[ctx + Ctx(decoder='short_RL')] = [[491.798, 492.178], [940.016, 940.219]]
 
 
-        # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')
-        with IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40') as session_ctx:
+        # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')
+        with IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40') as session_ctx:
             with (session_ctx + IdentifyingContext(display_fn_name='DecodedEpochSlices', user_annotation='selections')) as ctx:
                 with (ctx + IdentifyingContext(epochs='replays')) as ctx:
                     user_annotations[ctx + Ctx(decoder='long_results_obj')] = [4, 22, 24, 28, 30, 38, 42, 50, 55, 60, 67, 70, 76, 83, 85, 100, 103, 107, 108, 113, 118, 121, 122, 131, 140, 142, 149, 153, 170, 171]
@@ -319,35 +319,35 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
                     user_annotations[ctx + Ctx(decoder='short_RL')] = [[373.508, 373.754], [391.895, 392.163], [600.244, 600.768], [1015.26, 1015.5], [1079.9, 1080.08], [1310.59, 1310.92], [1433.42, 1433.58], [1494.95, 1495.4], [1558.22, 1558.42], [1616.92, 1617.09], [1774.48, 1774.61], [1956.96, 1957.2], [2011.36, 2011.54], [2059.35, 2059.56], [2074.35, 2074.62], [2156.53, 2156.79], [2233.53, 2233.95], [2260.49, 2260.61], [2521.1, 2521.31]]
 
 
-        # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 6, 15, 16, 18]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 4, 6, 9, 13, 15, 16, 18]
+        # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 6, 15, 16, 18]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3, 4, 6, 9, 13, 15, 16, 18]
 
-        # IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [5, 6, 7, 14, 17, 19, 20, 24]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [5, 6, 19, 20]
+        # IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [5, 6, 7, 14, 17, 19, 20, 24]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [5, 6, 19, 20]
 
 
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [0, 3, 4, 5, 9, 12]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [0, 3, 4, 6, 9, 12, 13]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [0, 3, 4, 5, 9, 12]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [0, 3, 4, 6, 9, 12, 13]
 
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [3]
 
         # 2023-07-21T19-17-02
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 19]
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [ 5, 16, 17, 19, 20]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='long_results_obj',user_annotation='selections')] = [3, 19]
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3',display_fn_name='DecodedEpochSlices',epochs='replays',decoder='short_results_obj',user_annotation='selections')] = [ 5, 16, 17, 19, 20]
 
 
         # 2006-4-17_12-52-15 _________________________________________________________________________________________________ #
-        with Ctx(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = []
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[545.997, 546.377]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = []
             user_annotations[ctx + Ctx(decoder='short_RL')] = [[161.848, 162.029], [702.907, 703.008]]
         
         # 2006-4-16_18-47-52 _________________________________________________________________________________________________ #
-        with Ctx(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[715.966, 716.140]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[464.763, 464.957]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = [[72.222, 72.320]]
@@ -355,14 +355,14 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             # user_annotations[ctx + Ctx(decoder='short_RL')] = []
 
         # 2006-4-25_13-20-55 _________________________________________________________________________________________________ #
-        with Ctx(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[247.539, 247.734], [458.548, 458.639]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[51.287, 51.457], [63.019, 63.232], [541.021, 541.161]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = []
             user_annotations[ctx + Ctx(decoder='short_RL')] = []
             
         # 2006-4-28_12-38-13 _________________________________________________________________________________________________ #
-        with Ctx(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
+        with Ctx(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13',display_fn_name='DecodedEpochSlices',epochs='ripple',user_annotation='selections') as ctx:
             user_annotations[ctx + Ctx(decoder='long_LR')] = [[304.098, 304.301]]
             user_annotations[ctx + Ctx(decoder='long_RL')] = [[98.551, 98.723]]
             user_annotations[ctx + Ctx(decoder='short_LR')] = []
@@ -394,78 +394,78 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
     def get_hardcoded_specific_session_cell_exclusivity_annotations_dict(cls) -> dict:
         """ hand-labeled by pho on 2023-10-04 """
         session_cell_exclusivity_annotations: Dict[IdentifyingContext, SessionCellExclusivityRecord] = {
-        IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):
+        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):
             SessionCellExclusivityRecord(LxC=[109],
                 LpC=[],
                 SpC=[67, 52],
                 SxC=[23,4,58]),
-        IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):
+        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):
             SessionCellExclusivityRecord(LxC=[3, 29, 103],
                 LpC=[],
                 SpC=[33, 35, 58],
                 SxC=[55]),
-        IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):
+        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):
             SessionCellExclusivityRecord(LxC=[],
                 LpC=[2, 3, 34],
                 SpC=[31, 33, 53],
                 SxC=[30]),
-        IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):
+        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):
             SessionCellExclusivityRecord(LxC=[],
                 LpC=[],
                 SpC=[18, 65],
                 SxC=[3, 19]),
-        IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):
+        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):
             SessionCellExclusivityRecord(LxC=[90],
                 LpC=[23, 73],
                 SpC=[4, 16, 82],
                 SxC=[8]),
-        IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):
+        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):
             SessionCellExclusivityRecord(LxC=[91, 95],
                 LpC=[15, 16, 32],
                 SpC=[11],
                 SxC=[]),
-        IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'):
+        IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'):
             SessionCellExclusivityRecord(LxC=[38, 59],
                 LpC=[51, 60],
                 SpC=[7],
                 SxC=[8]),
         ## Break
-        IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):
+        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):
             SessionCellExclusivityRecord(LxC=[],
                 LpC=[4, 6, 17, 28, 12],
                 SpC=[21, 31],
                 SxC=[41]),
-        IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):
+        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):
             SessionCellExclusivityRecord(LxC=[23],
                 LpC=[19],
                 SpC=[36],
                 SxC=[29]),
-        IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):
+        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):
             SessionCellExclusivityRecord(LxC=[25],
                 LpC=[12, 14, 17],
                 SpC=[30],
                 SxC=[]),
-        IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'):
+        IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'):
             SessionCellExclusivityRecord(LxC=[14, 30, 32],
                 LpC=[40],
                 SpC=[42],
                 SxC=[]),
-        IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44'):
+        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'):
             SessionCellExclusivityRecord(LxC=[8, 27],
                 LpC=[10],
                 SpC=[18,20,40],
                 SxC=[17]),
-        IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0'):
+        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'):
             SessionCellExclusivityRecord(LxC=[27],
                 LpC=[8, 13],
                 SpC=[],
                 SxC=[]),
-        IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25'):
+        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'):
             SessionCellExclusivityRecord(LxC=[],
                 LpC=[],
                 SpC=[13,22,28],
                 SxC=[]),
-        IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'):
+        IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'):
             SessionCellExclusivityRecord(LxC=[],
                 LpC=[6, 10, 16, 19],
                 SpC=[24],
@@ -508,164 +508,164 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         """
         user_annotations = {}            
         # user_annotations.update({ 
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((29.16, 261.70), (130.23, 150.99))},
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):{'grid_bin_bounds':((22.397021260868584, 245.6584673739576), (133.66465594522782, 155.97244934208123))},
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((17.01858788173554, 250.2171441367766), (135.66814125966783, 154.75073313142283)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):{'grid_bin_bounds':(((29.088604852961407, 251.70402561515647), (138.496638485457, 154.30675703402517)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):{'grid_bin_bounds':(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))},
-        #     # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):{'grid_bin_bounds':((28.54313873072426, 255.54313873072425), (80.0, 151.0))}, # (-56.2405385510412, -12.237798967230454)
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
-        #     # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):{'grid_bin_bounds':(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))},
-        #     # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):{'grid_bin_bounds':(((36.47611374385336, 246.658598426423), (134.75608863422366, 149.10512838805013)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6'):{'grid_bin_bounds':(((34.889907585004366, 250.88049171752402), (131.38802948402946, 148.80548955773958)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47'):{'grid_bin_bounds':(((37.58127153781621, 248.7032779553949), (133.5550653393467, 147.88514770982718)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47'):{'grid_bin_bounds':(((26.23480758754316, 249.30607830191923), (130.58181353748455, 153.36300919999059)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1'):{'grid_bin_bounds':(((31.470464455344967, 252.05028043482017), (128.05945067500747, 150.3229156741395)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40'):{'grid_bin_bounds':(((29.637787747400818, 244.6377877474008), (138.47834488369824, 155.0993015545914)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12'):{'grid_bin_bounds':(((27.16098236570231, 249.70986567911666), (106.81005068995495, 118.74413456592755)))},
-        #     # IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58  -3'):{'grid_bin_bounds':(((28.84138997640293, 259.56043988873074), (101.90256273413083, 118.33845994931318)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38'):{'grid_bin_bounds':(((21.01014932647431, 250.0101493264743), (92.34934413366932, 128.1552287735411)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46'):{'grid_bin_bounds':(((17.270839996578303, 259.97986762679335), (94.26725170377283, 131.3621243061284)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59'):{'grid_bin_bounds':(((30.511181558838498, 247.5111815588389), (106.97411662767412, 146.12444016982818)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24'):{'grid_bin_bounds':(((30.473731136762368, 250.59478046470133), (105.10585244511995, 149.36442051808177)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'):{'grid_bin_bounds':(((27.439671363238585, 252.43967136323857), (106.37372678405141, 149.37372678405143)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15'):{'grid_bin_bounds':(((25.118453388111003, 253.3770388211908), (106.67602982073078, 145.67602982073078)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7'):{'grid_bin_bounds':(((22.47237613669028, 247.4723761366903), (109.8597911774777, 148.96242871522395)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40'):{'grid_bin_bounds':(((27.10059856429566, 249.16997904433555), (104.99819196992492, 148.0743732909197)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2'):{'grid_bin_bounds':(((19.0172498755827, 255.42277198494864), (110.04725120825609, 146.9523233129975)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55'):{'grid_bin_bounds':(((12.844282158261015, 249.81408485606906), (107.18107171696062, 147.5733884981106)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50'):{'grid_bin_bounds':(((29.04362374788327, 248.04362374788326), (104.87398380095135, 145.87398380095135)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13'):{'grid_bin_bounds':(((14.219834349211556, 256.8892365192059), (104.62582591329034, 144.76901436952045)))},
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44'):dict(grid_bin_bounds=(((26.927879930920472, 253.7869451377655), (129.2279041328145, 152.59317191760715)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0'):dict(grid_bin_bounds=(((20.551685242617875, 249.52142297024744), (136.6282885482392, 154.9308054334688)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25'):dict(grid_bin_bounds=(((22.2851382680749, 246.39985985110218), (133.85711719213543, 152.81579979839964)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'):dict(grid_bin_bounds=(((24.27436551166163, 254.60064907635376), (136.60434348821698, 150.5038133052293)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):dict(grid_bin_bounds=(((28.300282316379977, 259.7976187852487), (128.30369397123394, 154.72988093974095)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'):dict(grid_bin_bounds=(((24.481516142738176, 255.4815161427382), (132.49260896751392, 155.30747604466447)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'):dict(grid_bin_bounds=(((38.73738238974907, 252.7760510005677), (132.90403388034895, 148.5092041989809)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3'):dict(grid_bin_bounds=(((30.65617684737977, 242.10210639375669), (135.26433229328896, 154.7431209356581)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32'):dict(grid_bin_bounds=(((22.21801384517548, 249.21801384517548), (96.86784196156162, 123.98778194291367)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_21-26-8'):dict(grid_bin_bounds=(((20.72906822314644, 251.8461197472293), (135.47600437022294, 153.41070963308343)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-05_19-26-43'):dict(grid_bin_bounds=(((22.368808752432248, 251.37564395184629), (137.03177602287607, 158.05294971766054)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_11-43-50'):dict(grid_bin_bounds=(((24.69593655030406, 253.64858157619915), (136.41037216273168, 154.5621182921704)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_12-15-3'):dict(grid_bin_bounds=(((23.604005859617253, 246.60400585961725), (140.24525850461768, 156.87513105457236)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_21-17-16'):dict(grid_bin_bounds=(((26.531441449778306, 250.85301772871418), (138.8068762398286, 154.96868817726707)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_22-4-5'):dict(grid_bin_bounds=(((23.443356646345123, 251.83482088135696), (134.31041516724372, 155.28217042078484)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3'):dict(grid_bin_bounds=(((22.32225341225395, 251.16261749302362), (134.7141935930816, 152.90682184511172)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3'):dict(grid_bin_bounds=(((23.682015380447947, 250.68201538044795), (132.83596766730062, 151.01445456436113)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((29.16, 261.70), (130.23, 150.99))},
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):{'grid_bin_bounds':((22.397021260868584, 245.6584673739576), (133.66465594522782, 155.97244934208123))},
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((17.01858788173554, 250.2171441367766), (135.66814125966783, 154.75073313142283)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):{'grid_bin_bounds':(((29.088604852961407, 251.70402561515647), (138.496638485457, 154.30675703402517)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):{'grid_bin_bounds':(((29.16, 261.7), (133.87292045454544, 150.19888636363635)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):{'grid_bin_bounds':(((19.639345624112345, 248.63934562411234), (134.21607306829767, 154.57926689187622)))},
+        #     # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):{'grid_bin_bounds':((28.54313873072426, 255.54313873072425), (80.0, 151.0))}, # (-56.2405385510412, -12.237798967230454)
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
+        #     # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):{'grid_bin_bounds':((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915))},
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):{'grid_bin_bounds':(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))},
+        #     # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):{'grid_bin_bounds':(((36.47611374385336, 246.658598426423), (134.75608863422366, 149.10512838805013)))},
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6'):{'grid_bin_bounds':(((34.889907585004366, 250.88049171752402), (131.38802948402946, 148.80548955773958)))},
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47'):{'grid_bin_bounds':(((37.58127153781621, 248.7032779553949), (133.5550653393467, 147.88514770982718)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47'):{'grid_bin_bounds':(((26.23480758754316, 249.30607830191923), (130.58181353748455, 153.36300919999059)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1'):{'grid_bin_bounds':(((31.470464455344967, 252.05028043482017), (128.05945067500747, 150.3229156741395)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40'):{'grid_bin_bounds':(((29.637787747400818, 244.6377877474008), (138.47834488369824, 155.0993015545914)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12'):{'grid_bin_bounds':(((27.16098236570231, 249.70986567911666), (106.81005068995495, 118.74413456592755)))},
+        #     # IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58  -3'):{'grid_bin_bounds':(((28.84138997640293, 259.56043988873074), (101.90256273413083, 118.33845994931318)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38'):{'grid_bin_bounds':(((21.01014932647431, 250.0101493264743), (92.34934413366932, 128.1552287735411)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46'):{'grid_bin_bounds':(((17.270839996578303, 259.97986762679335), (94.26725170377283, 131.3621243061284)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59'):{'grid_bin_bounds':(((30.511181558838498, 247.5111815588389), (106.97411662767412, 146.12444016982818)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24'):{'grid_bin_bounds':(((30.473731136762368, 250.59478046470133), (105.10585244511995, 149.36442051808177)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'):{'grid_bin_bounds':(((27.439671363238585, 252.43967136323857), (106.37372678405141, 149.37372678405143)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15'):{'grid_bin_bounds':(((25.118453388111003, 253.3770388211908), (106.67602982073078, 145.67602982073078)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7'):{'grid_bin_bounds':(((22.47237613669028, 247.4723761366903), (109.8597911774777, 148.96242871522395)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40'):{'grid_bin_bounds':(((27.10059856429566, 249.16997904433555), (104.99819196992492, 148.0743732909197)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2'):{'grid_bin_bounds':(((19.0172498755827, 255.42277198494864), (110.04725120825609, 146.9523233129975)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55'):{'grid_bin_bounds':(((12.844282158261015, 249.81408485606906), (107.18107171696062, 147.5733884981106)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50'):{'grid_bin_bounds':(((29.04362374788327, 248.04362374788326), (104.87398380095135, 145.87398380095135)))},
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13'):{'grid_bin_bounds':(((14.219834349211556, 256.8892365192059), (104.62582591329034, 144.76901436952045)))},
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'):dict(grid_bin_bounds=(((26.927879930920472, 253.7869451377655), (129.2279041328145, 152.59317191760715)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'):dict(grid_bin_bounds=(((20.551685242617875, 249.52142297024744), (136.6282885482392, 154.9308054334688)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'):dict(grid_bin_bounds=(((22.2851382680749, 246.39985985110218), (133.85711719213543, 152.81579979839964)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'):dict(grid_bin_bounds=(((24.27436551166163, 254.60064907635376), (136.60434348821698, 150.5038133052293)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):dict(grid_bin_bounds=(((28.300282316379977, 259.7976187852487), (128.30369397123394, 154.72988093974095)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'):dict(grid_bin_bounds=(((24.481516142738176, 255.4815161427382), (132.49260896751392, 155.30747604466447)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'):dict(grid_bin_bounds=(((38.73738238974907, 252.7760510005677), (132.90403388034895, 148.5092041989809)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3'):dict(grid_bin_bounds=(((30.65617684737977, 242.10210639375669), (135.26433229328896, 154.7431209356581)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32'):dict(grid_bin_bounds=(((22.21801384517548, 249.21801384517548), (96.86784196156162, 123.98778194291367)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_21-26-8'):dict(grid_bin_bounds=(((20.72906822314644, 251.8461197472293), (135.47600437022294, 153.41070963308343)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-05_19-26-43'):dict(grid_bin_bounds=(((22.368808752432248, 251.37564395184629), (137.03177602287607, 158.05294971766054)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_11-43-50'):dict(grid_bin_bounds=(((24.69593655030406, 253.64858157619915), (136.41037216273168, 154.5621182921704)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_12-15-3'):dict(grid_bin_bounds=(((23.604005859617253, 246.60400585961725), (140.24525850461768, 156.87513105457236)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_21-17-16'):dict(grid_bin_bounds=(((26.531441449778306, 250.85301772871418), (138.8068762398286, 154.96868817726707)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_22-4-5'):dict(grid_bin_bounds=(((23.443356646345123, 251.83482088135696), (134.31041516724372, 155.28217042078484)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3'):dict(grid_bin_bounds=(((22.32225341225395, 251.16261749302362), (134.7141935930816, 152.90682184511172)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3'):dict(grid_bin_bounds=(((23.682015380447947, 250.68201538044795), (132.83596766730062, 151.01445456436113)))),
         #     ## 2023-07-20 New, will replace existing:
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'):dict(grid_bin_bounds=(((39.69907686853041, 254.50216929581626), (132.04374884996278, 148.989363285708)))),
-        #     # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):dict(grid_bin_bounds=(((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):dict(grid_bin_bounds=(((31.189597143056417, 248.34843718632368), (129.87370603299934, 152.79894671566146)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):dict(grid_bin_bounds=(((28.300282316379977, 259.30028231638), (128.30369397123394, 154.72988093974095)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6'):dict(grid_bin_bounds=(((34.889907585004366, 249.88990758500438), (131.38802948402946, 148.38802948402946)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):dict(grid_bin_bounds=(((22.397021260868584, 245.3970212608686), (133.66465594522782, 155.97244934208123)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47'):dict(grid_bin_bounds=(((24.87832507963516, 243.19318180072503), (138.17144977828153, 154.70022850038026)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((24.71824744583462, 248.6393456241123), (136.77104473778593, 152.85274652666337)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):dict(grid_bin_bounds=(((29.088604852961407, 251.70402561515647), (138.496638485457, 153.496638485457)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'):dict(grid_bin_bounds=(((24.481516142738176, 255.4815161427382), (132.49260896751392, 155.30747604466447)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3'):dict(grid_bin_bounds=(((30.65617684737977, 241.65617684737975), (135.26433229328896, 154.26433229328896)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):dict(grid_bin_bounds=(((28.54313873072426, 255.54313873072425), (-55.2405385510412, -12.237798967230454)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):dict(grid_bin_bounds=(((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47'):dict(grid_bin_bounds=(((28.818747438744666, 252.93642303882393), (105.90899758151346, 119.13817286828353)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1'):dict(grid_bin_bounds=(((29.717076500273222, 259.56043988873074), (95.7227315733896, 133.44723972697744)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32'):dict(grid_bin_bounds=(((26.23603700440421, 249.21801384517548), (92.8248259903438, 133.94007118631126)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40'):dict(grid_bin_bounds=(((24.30309074447524, 252.62022717482705), (88.84795233953739, 129.8246799924719)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12'):dict(grid_bin_bounds=(((18.92582426040771, 259.0914978964906), (92.73825146448141, 127.71789984751534)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):dict(grid_bin_bounds=(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))),
-        #     # IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'):dict(grid_bin_bounds=(((28.84138997640293, 259.56043988873074), (106.30424414303856, 118.90256273413083)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38'):dict(grid_bin_bounds=(((31.074573205168065, 250.46915764230738), (104.49699700791726, 143.3410531370672)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46'):dict(grid_bin_bounds=(((24.297550846655597, 254.08440958433795), (107.3563450759142, 150.37117694134784)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59'):dict(grid_bin_bounds=(((30.511181558838498, 247.5111815588389), (106.97411662767412, 145.9741166276741)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24'):dict(grid_bin_bounds=(((24.981275039670876, 249.50933410068018), (107.26469870056884, 148.83960860385804)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'):dict(grid_bin_bounds=(((27.905254233199088, 250.7946946337514), (105.45717926004222, 146.30022614559135)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15'):dict(grid_bin_bounds=(((18.204825719140114, 251.30717868551005), (102.22431800161995, 148.39669517071601)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44'):dict(grid_bin_bounds=(((26.927879930920472, 253.7869451377655), (129.2279041328145, 152.2279041328145)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0'):dict(grid_bin_bounds=(((20.551685242617875, 249.52142297024744), (136.6282885482392, 154.9308054334688)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25'):dict(grid_bin_bounds=(((22.2851382680749, 246.39985985110218), (133.85711719213543, 152.81579979839964)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_21-26-8'):dict(grid_bin_bounds=(((25.037045888933548, 251.8461197472293), (134.08933682327196, 153.70077784443535)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-05_19-26-43'):dict(grid_bin_bounds=(((25.586078838864836, 251.7891334064322), (135.5158259968098, 161.196019438371)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_11-43-50'):dict(grid_bin_bounds=(((24.69593655030406, 252.54415392264917), (135.0071025581097, 155.43479839454722)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_12-15-3'):dict(grid_bin_bounds=(((22.348488031027813, 246.60400585961725), (139.61986158820912, 157.67819754950602)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_21-17-16'):dict(grid_bin_bounds=(((27.11122010574816, 251.94824027772256), (141.2080597276766, 157.07149975242388)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_22-4-5'):dict(grid_bin_bounds=(((21.369069920503218, 250.59459989762465), (135.63605454614645, 156.15891604175224)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'):dict(grid_bin_bounds=(((22.403791476255435, 255.28121598502332), (135.43617904962073, 153.6679723832235)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3'):dict(grid_bin_bounds=(((22.32225341225395, 251.16261749302362), (129.90833607359593, 156.190369383283)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3'):dict(grid_bin_bounds=(((23.682015380447947, 250.68201538044795), (132.9587491923089, 150.81663988518108)))),
-        #     IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'):dict(grid_bin_bounds=(((30.511181558838498, 247.5111815588389), (106.97411662767412, 147.52430924258078)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'):dict(grid_bin_bounds=(((39.69907686853041, 254.50216929581626), (132.04374884996278, 148.989363285708)))),
+        #     # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'):dict(grid_bin_bounds=(((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'):dict(grid_bin_bounds=(((36.58620390950715, 248.91627658974846), (132.81136363636367, 149.2840909090909)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37'):dict(grid_bin_bounds=(((31.189597143056417, 248.34843718632368), (129.87370603299934, 152.79894671566146)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'):dict(grid_bin_bounds=(((28.300282316379977, 259.30028231638), (128.30369397123394, 154.72988093974095)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6'):dict(grid_bin_bounds=(((34.889907585004366, 249.88990758500438), (131.38802948402946, 148.38802948402946)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'):dict(grid_bin_bounds=(((22.397021260868584, 245.3970212608686), (133.66465594522782, 155.97244934208123)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47'):dict(grid_bin_bounds=(((24.87832507963516, 243.19318180072503), (138.17144977828153, 154.70022850038026)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'):dict(grid_bin_bounds=(((24.71824744583462, 248.6393456241123), (136.77104473778593, 152.85274652666337)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'):dict(grid_bin_bounds=(((29.088604852961407, 251.70402561515647), (138.496638485457, 153.496638485457)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'):dict(grid_bin_bounds=(((24.481516142738176, 255.4815161427382), (132.49260896751392, 155.30747604466447)))),
+        #     IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3'):dict(grid_bin_bounds=(((30.65617684737977, 241.65617684737975), (135.26433229328896, 154.26433229328896)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'):dict(grid_bin_bounds=(((28.54313873072426, 255.54313873072425), (-55.2405385510412, -12.237798967230454)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'):dict(grid_bin_bounds=(((25.5637332724328, 257.964172947664), (89.1844223602494, 131.92462510535915)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47'):dict(grid_bin_bounds=(((28.818747438744666, 252.93642303882393), (105.90899758151346, 119.13817286828353)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1'):dict(grid_bin_bounds=(((29.717076500273222, 259.56043988873074), (95.7227315733896, 133.44723972697744)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32'):dict(grid_bin_bounds=(((26.23603700440421, 249.21801384517548), (92.8248259903438, 133.94007118631126)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40'):dict(grid_bin_bounds=(((24.30309074447524, 252.62022717482705), (88.84795233953739, 129.8246799924719)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12'):dict(grid_bin_bounds=(((18.92582426040771, 259.0914978964906), (92.73825146448141, 127.71789984751534)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'):dict(grid_bin_bounds=(((29.64642522460817, 257.8732552112081), (106.68603845428224, 146.71219371189815)))),
+        #     # IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'):dict(grid_bin_bounds=(((28.84138997640293, 259.56043988873074), (106.30424414303856, 118.90256273413083)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38'):dict(grid_bin_bounds=(((31.074573205168065, 250.46915764230738), (104.49699700791726, 143.3410531370672)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46'):dict(grid_bin_bounds=(((24.297550846655597, 254.08440958433795), (107.3563450759142, 150.37117694134784)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59'):dict(grid_bin_bounds=(((30.511181558838498, 247.5111815588389), (106.97411662767412, 145.9741166276741)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24'):dict(grid_bin_bounds=(((24.981275039670876, 249.50933410068018), (107.26469870056884, 148.83960860385804)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'):dict(grid_bin_bounds=(((27.905254233199088, 250.7946946337514), (105.45717926004222, 146.30022614559135)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15'):dict(grid_bin_bounds=(((18.204825719140114, 251.30717868551005), (102.22431800161995, 148.39669517071601)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'):dict(grid_bin_bounds=(((26.927879930920472, 253.7869451377655), (129.2279041328145, 152.2279041328145)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'):dict(grid_bin_bounds=(((20.551685242617875, 249.52142297024744), (136.6282885482392, 154.9308054334688)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'):dict(grid_bin_bounds=(((22.2851382680749, 246.39985985110218), (133.85711719213543, 152.81579979839964)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_21-26-8'):dict(grid_bin_bounds=(((25.037045888933548, 251.8461197472293), (134.08933682327196, 153.70077784443535)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-05_19-26-43'):dict(grid_bin_bounds=(((25.586078838864836, 251.7891334064322), (135.5158259968098, 161.196019438371)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_11-43-50'):dict(grid_bin_bounds=(((24.69593655030406, 252.54415392264917), (135.0071025581097, 155.43479839454722)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_12-15-3'):dict(grid_bin_bounds=(((22.348488031027813, 246.60400585961725), (139.61986158820912, 157.67819754950602)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_21-17-16'):dict(grid_bin_bounds=(((27.11122010574816, 251.94824027772256), (141.2080597276766, 157.07149975242388)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_22-4-5'):dict(grid_bin_bounds=(((21.369069920503218, 250.59459989762465), (135.63605454614645, 156.15891604175224)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'):dict(grid_bin_bounds=(((22.403791476255435, 255.28121598502332), (135.43617904962073, 153.6679723832235)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3'):dict(grid_bin_bounds=(((22.32225341225395, 251.16261749302362), (129.90833607359593, 156.190369383283)))),
+        #     IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3'):dict(grid_bin_bounds=(((23.682015380447947, 250.68201538044795), (132.9587491923089, 150.81663988518108)))),
+        #     IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'):dict(grid_bin_bounds=(((30.511181558838498, 247.5111815588389), (106.97411662767412, 147.52430924258078)))),
         # })
     
         
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',user_annotation='grid_bin_bounds')] = ((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',user_annotation='grid_bin_bounds')] = ((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
         # ==================================================================================================================== #
         # Generated by `EXTERNAL\TESTING\testing_notebooks\PhoMatFileBrowsingTesting.ipynb` on 2024-04-10                      #
         # ==================================================================================================================== #
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (135.23924311831908, 144.1984518410047))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.925447118083, 145.16448776601297))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.34507862499134, 147.58755064986212))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.97626338793503, 146.00371440346137))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.2791990765373, 145.4465660546858))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.39266723911976, 146.9470603477007))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.39397650284766, 151.15367504603452))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.89578722770338, 148.51861548115295))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.3053644252862, 147.99662782360443))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.91706986262813, 148.7452035506836))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.07167669307665, 149.9682455260008))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (136.10095530133273, 144.59252270314897))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.44749773951332, 147.73754766678462))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.9314777686048, 146.63678892951214))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_21-26-8')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.0941872269056, 144.73231230966147))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-05_19-26-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.68438010327935, 149.1812684821468))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_11-43-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.83695987994884, 148.19261155492785))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_12-15-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.81427373438675, 151.01734563269633))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_21-17-16')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.1080902149446, 149.67559694575627))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_22-4-5')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.6251048241162, 147.8395197952068))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (140.14211943328775, 147.2745729796531))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.74109546718452, 144.66169395771726))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.05172078553375, 143.70812931964014))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.13933162527657, 115.13913718623321))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.8177789584226, 113.7570079192343))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.18519657066037, 113.91231021144307))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.52716865032582, 113.61793633102158))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.19374317979644, 114.35521596716852))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.82954763216065, 113.6273663796197))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.31665318697634, 113.76094640105372))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.64675309404181, 115.02034120144286))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.9445597322445, 114.6716733730272))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.67092311452707, 114.54957547519382))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (106.80073123839011, 112.7399601992018))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.55947898953707, 114.56941305702512))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.22908621020602, 114.94607134445735))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.0566791531139, 115.63225407401256))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.29954776242832, 115.16807161656368))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.60152468408094, 114.81344556506657))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.22404579212474, 114.08244113972872))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.2501053175898, 113.9772189583725))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.96634289724359, 130.46108420493456))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.84017431563773, 129.69856966324173))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.9536718458597, 129.52924676675838))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (125.03673561741104, 131.04666968489906))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.05348636842058, 129.56848468917428))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (126.17725557343053, 131.1266130407736))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.90636700893516, 129.5627755430415))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.63448954400148, 128.79596233137354))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.14624025653195, 129.44912325725667))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.92990621750084, 128.7984300716362))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.22934368316666, 129.46152157721505))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.50144550147462, 129.4508029688177))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.27871634925401, 129.58159934997875))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.01748457963947, 129.67389311374583))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.59625706838818, 130.18196049581826))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.54109241108247, 129.91468051848352))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.37674715861888, 129.74020675948856))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.79328080534583, 130.59109955280485))))
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.16323999738597, 128.89035363816865))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (135.23924311831908, 144.1984518410047))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.925447118083, 145.16448776601297))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.34507862499134, 147.58755064986212))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.97626338793503, 146.00371440346137))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.2791990765373, 145.4465660546858))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.39266723911976, 146.9470603477007))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.39397650284766, 151.15367504603452))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.89578722770338, 148.51861548115295))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.3053644252862, 147.99662782360443))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.91706986262813, 148.7452035506836))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.07167669307665, 149.9682455260008))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (136.10095530133273, 144.59252270314897))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.44749773951332, 147.73754766678462))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.9314777686048, 146.63678892951214))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_21-26-8')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.0941872269056, 144.73231230966147))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-05_19-26-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.68438010327935, 149.1812684821468))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_11-43-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.83695987994884, 148.19261155492785))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_12-15-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.81427373438675, 151.01734563269633))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_21-17-16')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.1080902149446, 149.67559694575627))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_22-4-5')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.6251048241162, 147.8395197952068))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (140.14211943328775, 147.2745729796531))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.74109546718452, 144.66169395771726))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.05172078553375, 143.70812931964014))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.13933162527657, 115.13913718623321))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.8177789584226, 113.7570079192343))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.18519657066037, 113.91231021144307))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.52716865032582, 113.61793633102158))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.19374317979644, 114.35521596716852))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.82954763216065, 113.6273663796197))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.31665318697634, 113.76094640105372))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.64675309404181, 115.02034120144286))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.9445597322445, 114.6716733730272))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.67092311452707, 114.54957547519382))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (106.80073123839011, 112.7399601992018))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.55947898953707, 114.56941305702512))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.22908621020602, 114.94607134445735))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.0566791531139, 115.63225407401256))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.29954776242832, 115.16807161656368))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.60152468408094, 114.81344556506657))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.22404579212474, 114.08244113972872))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.2501053175898, 113.9772189583725))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.96634289724359, 130.46108420493456))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.84017431563773, 129.69856966324173))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.9536718458597, 129.52924676675838))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (125.03673561741104, 131.04666968489906))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.05348636842058, 129.56848468917428))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (126.17725557343053, 131.1266130407736))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.90636700893516, 129.5627755430415))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.63448954400148, 128.79596233137354))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.14624025653195, 129.44912325725667))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.92990621750084, 128.7984300716362))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.22934368316666, 129.46152157721505))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.50144550147462, 129.4508029688177))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.27871634925401, 129.58159934997875))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.01748457963947, 129.67389311374583))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.59625706838818, 130.18196049581826))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.54109241108247, 129.91468051848352))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.37674715861888, 129.74020675948856))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.79328080534583, 130.59109955280485))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.16323999738597, 128.89035363816865))))
                                 
         # ==================================================================================================================== #
         # 2024-11-05 16:05 Produced programmatically from exxported matlab csv                                                 #
@@ -689,53 +689,53 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
 
         # ```
         # """
-        # user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')].update(track_start_t=10.98) ## Manual
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')].update(track_start_t=10.1221450000303, track_end_t=1978.00547199999)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')].update(track_start_t=9.03898199996911, track_end_t=2078.12502899999)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')].update(track_start_t=38.9233210000675, track_end_t=1737.07045)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')].update(track_start_t=29.1566759999841, track_end_t=520.185412999941)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')].update(track_start_t=22.0592309999047, track_end_t=1119.23407399992)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')].update(track_start_t=12.8251579999924, track_end_t=863.916483999928)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')].update(track_start_t=15.549006999936, track_end_t=2578.53313699993)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')].update(track_start_t=9.20195200003218, track_end_t=2619.60006099998)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')].update(track_start_t=12.8726610000012, track_end_t=1235.43789400009)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')].update(track_start_t=6.99150600004941, track_end_t=2562.566185)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')].update(track_start_t=12.7854130000342, track_end_t=811.422589999973)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')].update(track_start_t=10.7205819999799, track_end_t=878.426836000057)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')].update(track_start_t=np.nan, track_end_t=np.nan)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')].update(track_start_t=6.02368800001568, track_end_t=1426.15366000001)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')].update(track_start_t=18.9487729999964, track_end_t=869.104464999997)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')].update(track_start_t=20.6751609999919, track_end_t=810.47034)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')].update(track_start_t=12.6970189999847, track_end_t=508.128582999983)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')].update(track_start_t=15.89814200002, track_end_t=666.954281000013)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')].update(track_start_t=16.7988520000363, track_end_t=913.63453400007)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')].update(track_start_t=26.0018009999912, track_end_t=1743.198221)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')].update(track_start_t=27.4544520000054, track_end_t=1471.14405999999)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')].update(track_start_t=1.93768199999977, track_end_t=1279.892742)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')].update(track_start_t=23.3863830000009, track_end_t=893.397008)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')].update(track_start_t=19.5205369999894, track_end_t=851.158837999988)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')].update(track_start_t=18.695103, track_end_t=1034.350836)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')].update(track_start_t=23.261978999999, track_end_t=760.703594999999)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')].update(track_start_t=21.5540140000085, track_end_t=807.348131000006)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')].update(track_start_t=0.633843999996316, track_end_t=622.394167999999)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')].update(track_start_t=13.964290999982, track_end_t=507.294616999978)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')].update(track_start_t=17.5178040000028, track_end_t=482.08531200001)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')].update(track_start_t=11.430015000049, track_end_t=583.70736)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')].update(track_start_t=25.2757259999635, track_end_t=569.291590000037)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')].update(track_start_t=18.7161159999669, track_end_t=4277.00783000002)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')].update(track_start_t=9.6452860001009, track_end_t=524.096874000039)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44')].update(track_start_t=-75.3297229999998, track_end_t=1941.410477)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0')].update(track_start_t=29.6559119999984, track_end_t=1177.572948)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25')].update(track_start_t=19.1183459999993, track_end_t=1003.345493)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_21-26-8')].update(track_start_t=34.375172, track_end_t=860.640345)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-05_19-26-43')].update(track_start_t=4.25055900000007, track_end_t=1241.666767)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_11-43-50')].update(track_start_t=7.62950799999999, track_end_t=727.620426)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_12-15-3')].update(track_start_t=14.9508269999997, track_end_t=764.041609)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_21-17-16')].update(track_start_t=14.403914, track_end_t=719.78661)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-09_22-4-5')].update(track_start_t=20.9049300000001, track_end_t=745.123835)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')].update(track_start_t=13.4352230000004, track_end_t=3031.404034)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')].update(track_start_t=16.0465110000005, track_end_t=1085.451218)
-        user_annotations[IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')].update(track_start_t=8.9677370000004, track_end_t=1139.771152)
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')].update(track_start_t=10.98) ## Manual
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')].update(track_start_t=10.1221450000303, track_end_t=1978.00547199999)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')].update(track_start_t=9.03898199996911, track_end_t=2078.12502899999)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')].update(track_start_t=38.9233210000675, track_end_t=1737.07045)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')].update(track_start_t=29.1566759999841, track_end_t=520.185412999941)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')].update(track_start_t=22.0592309999047, track_end_t=1119.23407399992)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')].update(track_start_t=12.8251579999924, track_end_t=863.916483999928)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')].update(track_start_t=15.549006999936, track_end_t=2578.53313699993)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')].update(track_start_t=9.20195200003218, track_end_t=2619.60006099998)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')].update(track_start_t=12.8726610000012, track_end_t=1235.43789400009)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')].update(track_start_t=6.99150600004941, track_end_t=2562.566185)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')].update(track_start_t=12.7854130000342, track_end_t=811.422589999973)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')].update(track_start_t=10.7205819999799, track_end_t=878.426836000057)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')].update(track_start_t=np.nan, track_end_t=np.nan)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')].update(track_start_t=6.02368800001568, track_end_t=1426.15366000001)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')].update(track_start_t=18.9487729999964, track_end_t=869.104464999997)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')].update(track_start_t=20.6751609999919, track_end_t=810.47034)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')].update(track_start_t=12.6970189999847, track_end_t=508.128582999983)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')].update(track_start_t=15.89814200002, track_end_t=666.954281000013)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')].update(track_start_t=16.7988520000363, track_end_t=913.63453400007)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')].update(track_start_t=26.0018009999912, track_end_t=1743.198221)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')].update(track_start_t=27.4544520000054, track_end_t=1471.14405999999)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')].update(track_start_t=1.93768199999977, track_end_t=1279.892742)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')].update(track_start_t=23.3863830000009, track_end_t=893.397008)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')].update(track_start_t=19.5205369999894, track_end_t=851.158837999988)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')].update(track_start_t=18.695103, track_end_t=1034.350836)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')].update(track_start_t=23.261978999999, track_end_t=760.703594999999)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')].update(track_start_t=21.5540140000085, track_end_t=807.348131000006)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')].update(track_start_t=0.633843999996316, track_end_t=622.394167999999)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')].update(track_start_t=13.964290999982, track_end_t=507.294616999978)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')].update(track_start_t=17.5178040000028, track_end_t=482.08531200001)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')].update(track_start_t=11.430015000049, track_end_t=583.70736)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')].update(track_start_t=25.2757259999635, track_end_t=569.291590000037)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')].update(track_start_t=18.7161159999669, track_end_t=4277.00783000002)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')].update(track_start_t=9.6452860001009, track_end_t=524.096874000039)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44')].update(track_start_t=-75.3297229999998, track_end_t=1941.410477)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0')].update(track_start_t=29.6559119999984, track_end_t=1177.572948)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25')].update(track_start_t=19.1183459999993, track_end_t=1003.345493)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_21-26-8')].update(track_start_t=34.375172, track_end_t=860.640345)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-05_19-26-43')].update(track_start_t=4.25055900000007, track_end_t=1241.666767)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_11-43-50')].update(track_start_t=7.62950799999999, track_end_t=727.620426)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_12-15-3')].update(track_start_t=14.9508269999997, track_end_t=764.041609)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_21-17-16')].update(track_start_t=14.403914, track_end_t=719.78661)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_22-4-5')].update(track_start_t=20.9049300000001, track_end_t=745.123835)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')].update(track_start_t=13.4352230000004, track_end_t=3031.404034)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')].update(track_start_t=16.0465110000005, track_end_t=1085.451218)
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')].update(track_start_t=8.9677370000004, track_end_t=1139.771152)
 
         return user_annotations
 
@@ -753,21 +753,21 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         """
         bad_sessions = cls.get_hardcoded_bad_sessions()
         good_sessions = [
-            # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # ONLY ONE SHORT LAP
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'), # prev completed
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'), # prev completed
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'), # prev completed
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'), # prev completed
-            # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
-            # IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'),
-            # IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-03_12-3-25'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'), # 2024-10-04 - very bad position tracking data (jumping around everywhere at high frequency)
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # ONLY ONE SHORT LAP
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15'), # prev completed
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43'), # prev completed
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31'), # prev completed
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19'), # prev completed
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            # IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3'),
+            # IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54'), # 2024-10-04 - very bad position tracking data (jumping around everywhere at high frequency)
         ]
         return [v for v in good_sessions if (v not in bad_sessions)]
 
@@ -791,38 +791,38 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         
         """
         bad_session_contexts: List[IdentifyingContext] = [
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # ONLY ONE SHORT LAP
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
-            IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-28_12-17-27'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-12_14-59-23'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-27_18-21-57'),
-            IdentifyingContext(format_name='KDIBA',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_17-46-44'), # 2024-10-01 - bad laps, Bad Laps "3"/"4" - don't see lap 1/2
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-02_19-28-0'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_12-35-59'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-2-0'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='11-19_13-55-7'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='fet11-03_11-0-53'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='redundant'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='showclus'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='sleep'),
-            IdentifyingContext(format_name='KDIBA',animal='pin01',exper_name='one',session_name='tmaze')
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'), # ONLY ONE SHORT LAP
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-28_12-17-27'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_14-59-23'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-27_18-21-57'),
+            IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44'), # 2024-10-01 - bad laps, Bad Laps "3"/"4" - don't see lap 1/2
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0'), # 2024-10-04 - has long placefields outside of the possible bounds on the short track for some reason?!?!
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-19_12-35-59'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-19_13-2-0'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-19_13-55-7'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_11-0-53'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='redundant'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='showclus'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='sleep'),
+            IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='tmaze')
         ]
 
         return bad_session_contexts
