@@ -5,6 +5,8 @@ from scipy import stats
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 from neuropy.core import Signal, ProbeGroup, Epoch
+from neuropy.utils.signal_process import WaveletSg, filter_sig
+from neuropy.io import BinarysignalIO
 
 
 def _detect_freq_band_epochs(
@@ -40,7 +42,7 @@ def _detect_freq_band_epochs(
 
     # Because here one shank is selected per shank, based on visualization:
     # mean: very conservative in cases where some shanks may not have that strong ripple
-    # max: works well but may have ocassional false positives
+    # max: works well but may have occasional false positives
 
     # First, bandpass the signal in the range of interest
     power = np.zeros(signals.shape[1])
@@ -580,6 +582,68 @@ def detect_spindle_epochs(
 def detect_gamma_epochs():
     pass
 
+class Ripple:
+    """Events and analysis related to sharp-wave ripple oscillations"""
+
+    @staticmethod
+    def detect_ripple_epochs(**kwargs):
+        return detect_ripple_epochs(**kwargs)
+
+    @staticmethod
+    def detect_sharpwave_epochs(**kwargs):
+        return detect_sharpwave_epochs(**kwargs)
+
+    @staticmethod
+    def get_peak_ripple_freq(eegfile: BinarysignalIO, rpl_epochs: Epoch, lf=100, hf=300):
+        """Detect peak ripple frequency"""
+
+        # Load in relevant metadata
+        sampling_rate = eegfile.sampling_rate
+        rpl_channels = rpl_epochs.metadata["channels"]
+
+        # Specify frequencies and get signal
+        freqs = np.linspace(100, 250, 100)
+        signal = eegfile.get_signal(rpl_channels)
+
+        # Bandpass signal in ripple range
+        lfp = filter_sig.bandpass(signal, lf=lf, hf=hf).traces.mean(axis=0)
+
+        # Build up arrays to grab every 1000 ripples
+        n_rpls = len(rpl_epochs)
+        rpls_window = np.arange(0, n_rpls, np.min([1000, n_rpls - 1]))
+        rpls_window[-1] = n_rpls
+        peak_freqs = []
+        # Loop through each set of 1000 ripples, concatenate signal for each together, run Wavelet and get peak frequency
+        # at time of peak power
+        buffer_frames = int(.1 * sampling_rate)  # grab 100ms either side of peak power
+        for i in range(len(rpls_window) - 1):
+            # Get blocks of ripples and their peak times
+            rpl_df = rpl_epochs[rpls_window[i] : rpls_window[i + 1]].to_dataframe()
+            peakframe = (rpl_df["peak_time"].values * sampling_rate).astype("int")
+
+            rpl_frames = [np.arange(p - buffer_frames, p + buffer_frames) for p in peakframe]  # Grab 100ms either side of peak frame
+            rpl_frames = np.concatenate(rpl_frames)
+
+            # Grab signal for ripples only
+            new_sig = Signal(lfp[rpl_frames].reshape(1, -1), sampling_rate=sampling_rate)
+
+            # Run Wavelet and get peak frequency for each ripple
+            wvlt = WaveletSg(signal=new_sig, freqs=freqs, ncycles=10).traces
+            peak_freqs.append(
+                freqs[
+                    np.reshape(wvlt, (len(freqs), len(peakframe), -1))
+                    .max(axis=2)
+                    .argmax(axis=0)
+                ]
+            )
+
+        # Concatenate all peak frequencies found
+        peak_freqs = np.concatenate(peak_freqs)
+        assert len(peak_freqs) == len(rpl_epochs), "# peak frequencies found does not match size of input 'rpl_epochs', check code"
+        new_epochs = rpl_epochs.add_column("peak_frequency_bp", peak_freqs)
+
+        return new_epochs
+
 
 class Gamma:
     """Events and analysis related to gamma oscillations"""
@@ -690,21 +754,25 @@ class Gamma:
 
 if __name__ == "__main__":
     from neuropy.io import BinarysignalIO
-    from neuropy.core import Shank, Probe, ProbeGroup, Epoch
+    from neuropy.core import Shank, Probe, ProbeGroup, Epoch, ProcessData
 
-    eegfile = BinarysignalIO(
-        "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.eeg",
-        n_channels=35,
-        sampling_rate=1250,
-    )
-    signal = eegfile.get_signal()
-    prbgrp = ProbeGroup().from_file(
-        "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.probegroup.npy"
-    )
-    art_epochs = Epoch(
-        epochs=None,
-        file="/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.art_epochs.npy",
-    )
-    ripple_epochs = detect_ripple_epochs(
-        signal, prbgrp, thresh=(2.5, None), ignore_epochs=art_epochs, mindur=0.025
-    )
+    # eegfile = BinarysignalIO(
+    #     "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.eeg",
+    #     n_channels=35,
+    #     sampling_rate=1250,
+    # )
+    # signal = eegfile.get_signal()
+    # prbgrp = ProbeGroup().from_file(
+    #     "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.probegroup.npy"
+    # )
+    # art_epochs = Epoch(
+    #     epochs=None,
+    #     file="/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.art_epochs.npy",
+    # )
+    # ripple_epochs = detect_ripple_epochs(
+    #     signal, prbgrp, thresh=(2.5, None), ignore_epochs=art_epochs, mindur=0.025
+    # )
+    sess = ProcessData('/data3/Psilocybin/Recording_Rats/Finn/2022_02_17_psilocybin')
+    signal = sess.eegfile.get_signal()
+    rpl_epochs = detect_ripple_epochs(signal, ripple_channel=27)
+    Ripple.get_peak_ripple_freq(sess.eegfile, rpl_epochs)
