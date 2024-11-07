@@ -203,6 +203,7 @@ class NeuronIdentityDataframeAccessor:
         if (add_expanded_session_context_keys and (curr_session_context is not None)):
             # Add this session context columns for each entry: creates the columns ['format_name', 'animal', 'exper_name', 'session_name']
             _static_session_context_keys = curr_session_context._get_session_context_keys()
+            result_df[_static_session_context_keys] = '' # initialize to empty first to prevent a strange NotImplementedError in pandas?!?! Maybe soemthing about column type inference?
             result_df[_static_session_context_keys] = curr_session_context.as_tuple()
         # Reordering the columns to place the new columns on the left
         # result_df = result_df[['format_name', 'animal', 'exper_name', 'session_name', 'aclu', 'shank', 'cluster', 'qclu', 'neuron_type', 'active_set_membership', 'lap_delta_minus', 'lap_delta_plus', 'replay_delta_minus', 'replay_delta_plus']]
