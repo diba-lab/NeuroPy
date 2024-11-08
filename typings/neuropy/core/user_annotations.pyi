@@ -158,6 +158,18 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         ...
     
     @classmethod
+    def get_all_known_sessions(cls) -> List[IdentifyingContext]:
+        """Hardcoded included_session_contexts:
+                
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+        
+            included_session_contexts: List[IdentifyingContext] = UserAnnotationsManager.get_hardcoded_good_sessions()
+            
+        """
+        ...
+    
+    @classmethod
     def get_hardcoded_bimodal_aclus(cls) -> Dict[IdentifyingContext, List]:
         """
         Cells/aclus that are bimodal
