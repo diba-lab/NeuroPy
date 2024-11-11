@@ -211,12 +211,43 @@ class Pf1D(core.Ratemap):
     ):
         return plotting.plot_ratemaps()
 
-    def plot_ratemaps_raster(self):
-        _, ax = plt.subplots()
-        order = self.get_sort_order(by="index")
+    def plot_ratemaps_raster(self, jitter=0, plot_time=False, scale=None, sort=True, ax=None):
+        """Plot ratemap as a raster for each neuron
+
+        Parameters
+        ----------
+        jitter: float, offset each neuron's spikes and get an estimate of spiking density
+
+        plot_time: bool, True = show timing of each spike on y-axis
+
+        scale: None = keep in native coords (input), 'tuning_curve' = scale to match tuning curve
+
+        sort: True = sort by peak location, False = don't sort
+        """
+
+        assert isinstance(ax, plt.Axes) or (ax is None)
+        assert (scale == "tuning_curve") or (scale is None)
+        if ax is None:
+            _, ax = plt.subplots()
+
+        order = self.get_sort_order(by="index") if sort else np.arange(self.n_neurons)
         spiketrains_pos = [self.ratemap_spiketrains_pos[i] for i in order]
-        for i, pos in enumerate(spiketrains_pos):
-            ax.plot(pos, i * np.ones_like(pos), "k.", markersize=2)
+        spiketrains_t = [self.ratemap_spiketrains[i] for i in order]
+
+        scale_factor = 1
+        if scale == "tuning_curve":
+            ncm = np.ptp(self.coords)
+            nbins = self.tuning_curves.shape[1]
+            scale_factor = (nbins - 2) / ncm
+
+        for i, (pos, t) in enumerate(zip(spiketrains_pos, spiketrains_t)):
+            if plot_time:
+                ypos = (t - self.t_start) / ((self.t_stop - self.t_start) * 1.1) + i - 0.45  # exact time
+                # ypos = np.linspace(-0.45, 0.45, len(t)) + i  # rough approximation
+                # NRK Todo: allow plotting by lap.
+            else:
+                ypos = i * np.ones_like(pos) + np.random.randn(pos.shape[0]) * jitter
+            ax.plot(pos * scale_factor - 0.5, ypos, "k.", markersize=2)
 
     def plot_raw_ratemaps_laps(self, ax=None, subplots=(8, 9)):
         return plotting.plot_raw_ratemaps()
