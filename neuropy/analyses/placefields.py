@@ -252,6 +252,58 @@ class Pf1D(core.Ratemap):
     def plot_raw_ratemaps_laps(self, ax=None, subplots=(8, 9)):
         return plotting.plot_raw_ratemaps()
 
+    def neuron_slice(self, inds=None, ids=None):
+        """Slice out neurons"""
+        assert (inds == None) != (ids == None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        if ids is not None:
+            inds = [np.where(idd == self.neuron_ids)[0][0] for idd in ids]
+        inds = np.sort(inds)
+
+        # Make a copy and slice
+        pfslice = deepcopy(self)
+        pfslice.tuning_curves = self.tuning_curves[inds]
+        pfslice.neuron_ids = self.neuron_ids[inds]
+        pfslice.ratemap_spiketrains = [self.ratemap_spiketrains[ind] for ind in inds]
+        pfslice.ratemap_spiketrains_pos = [self.ratemap_spiketrains_pos[ind] for ind in inds]
+
+        return pfslice
+
+    def get_pf_widths(self, rel_height_thresh: float = 0.5, dist_thresh: float = 10,
+                      width: float = 3, height: float = 1, prominence: float = 1, smooth_sigma=1,
+                      keep: str in ['all', 'peak_only'] = 'peak_only', sanity_check_plot: bool = False):
+
+        pf_tc_smooth = gaussian_filter1d(self.tuning_curves, sigma=smooth_sigma, axis=1) \
+            if (smooth_sigma > 0) else self.tuning_curves
+
+        widths = []
+        for idt, (tc, peak_loc) in enumerate(zip(pf_tc_smooth, self.peak_locations())):
+            peaks, _ = find_peaks(tc, distance=dist_thresh, rel_height=rel_height_thresh, width=width, height=height,
+                                  prominence=prominence)
+            biggest = np.argmax(tc)
+            if keep == 'peak_only':
+                try:
+                    peaks = [peaks.flat[np.abs(peaks - biggest).argmin()]]
+                except ValueError:
+                    peaks = peaks
+            width_results = peak_widths(tc, peaks=peaks, rel_height=rel_height_thresh)
+            widths.append(width_results[0].squeeze() if width_results[0].size > 0 else np.array(np.nan))
+
+        if sanity_check_plot:  # plot last neuron
+            _, ax = plt.subplots(2, 1, height_ratios=[4, 1], sharex=True)
+            ax[0].plot(tc)
+            ax[0].plot(peaks, tc[peaks], 'r.')
+            ax[0].plot(peak_loc, tc[peak_loc], 'g*')
+            ax[0].plot(biggest, tc[biggest], 'co', markerfacecolor=None)
+            ax[0].hlines(*width_results[1:], 'r')
+            ax[0].set_ylabel('Firing rate (Hz)')
+
+            self.plot_ratemaps_raster(jitter=0.1, scale='tuning_curve', sort=False, ax=ax[1])
+            ax[1].set_xlabel(f"Bin # ({self.x_binsize} cm bins)")
+            ax[1].set_ylim([idt - 0.5, idt + 0.5])
+            ax[1].set_yticks([])
+            sns.despine(left=True, ax=ax[1])
+
+        return widths
 
 class Pf2D:
     def __init__(
