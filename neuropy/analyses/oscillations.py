@@ -582,6 +582,7 @@ def detect_spindle_epochs(
 def detect_gamma_epochs():
     pass
 
+
 class Ripple:
     """Events and analysis related to sharp-wave ripple oscillations"""
 
@@ -613,6 +614,7 @@ class Ripple:
         rpls_window = np.arange(0, n_rpls, np.min([1000, n_rpls - 1]))
         rpls_window[-1] = n_rpls
         peak_freqs = []
+
         # Loop through each set of 1000 ripples, concatenate signal for each together, run Wavelet and get peak frequency
         # at time of peak power
         buffer_frames = int(.1 * sampling_rate)  # grab 100ms either side of peak power
