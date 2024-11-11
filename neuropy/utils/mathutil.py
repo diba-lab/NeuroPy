@@ -52,7 +52,7 @@ def gaussian_kernel1D(sigma, bin_size, truncate=4.0):
 
 
 def min_max_scaler(x, axis=-1):
-    """Scales the values x to lie between 0 and 1 along the specfied axis
+    """Scales the values x to lie between 0 and 1 along the specified axis
 
     Parameters
     ----------
@@ -68,6 +68,23 @@ def min_max_scaler(x, axis=-1):
         x, axis=axis, keepdims=True
     )
 
+
+def min_max_external_scaler(x, xmin, xptp):
+    """Scales the values of x according to a specified min value and peak-to-peak values.
+    Cousin to min_max_scaler, useful for comparing firing rates across different conditions
+
+    Parameters
+    ----------
+    x: np.array
+    xmin: np.array which matches the shape of x in one direction and is shape 1 in the other direction
+    xptp: same as xmin but specifying the range of the data
+
+    Returns
+    -------
+    scaled np.array
+    """
+
+    return (x - xmin) / xptp
 
 def cdf(x, bins):
     """Returns cummulative distribution for x at bins"""

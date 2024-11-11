@@ -41,12 +41,13 @@ def plot_ratemap(
 
     tuning_curves = ratemap.tuning_curves
     n_neurons = ratemap.n_neurons
-    bin_cntr = ratemap.xbin_centers
+    # bin_cntr = ratemap.xbin_centers
+    bin_cntr = ratemap.x_coords()
     if normalize_xbin:
         bin_cntr = (bin_cntr - np.min(bin_cntr)) / np.ptp(bin_cntr)
 
     if ax is None:
-        fig = Fig(grid=(1, 1), size=(4.5, 11))
+        fig = Fig(nrows=1, ncols=1, size=(4.5, 11))
         ax = fig.subplot(fig.gs[0])
 
     if normalize_tuning_curve:

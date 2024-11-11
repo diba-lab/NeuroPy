@@ -8,7 +8,7 @@ from .. import core
 
 class PhyIO:
     def __init__(self, dirname: Path, include_groups=("mua", "good")) -> None:
-        self.source_dir = dirname
+        self.source_dir = Path(dirname)
         self.sampling_rate = None
         self.spiketrains = None
         self.waveforms = None

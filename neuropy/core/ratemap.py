@@ -78,7 +78,6 @@ class Ratemap(DataWriter):
         if self.ndim == 1:
             if isinstance(val, (int, float)):
                 val = np.arange(0, val * self.tuning_curves.shape[1], val)
-
             assert (
                 len(val) == self.tuning_curves.shape[1]
             ), "length of coords should be equal to tuning_curve.shape[1]"
@@ -129,9 +128,22 @@ class Ratemap(DataWriter):
     def copy(self):
         return Ratemap(
             tuning_curves=self.tuning_curves,
-            x=self.x,
-            y=self.y,
+            coords=self._coords.squeeze(),
             neuron_ids=self.neuron_ids,
+            occupancy=self.occupancy,
+            metadata=self.metadata,
+        )
+
+    def neuron_slice(self, inds=None, ids=None):
+        """Slice neuron indexes (inds) or number (ids). Cannot specify both """
+        assert (inds == None) != (ids == None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        if ids is not None:
+            inds = [np.where(idd == self.neuron_ids)[0][0] for idd in ids]
+        inds = np.sort(inds)
+        return Ratemap(
+            tuning_curves=self.tuning_curves[inds],
+            coords=self._coords.squeeze(),
+            neuron_ids=self.neuron_ids[inds],
             occupancy=self.occupancy,
             metadata=self.metadata,
         )
@@ -170,8 +182,9 @@ class Ratemap(DataWriter):
             new ratemap
         """
         assert self.ndim == 1, "Only allowed for 1 dimensional ratemaps"
-        f_tc = interpolate.interp1d(self.x_coords, self.tuning_curves)
-        x_new = np.linspace(self.x_coords[0], self.x_coords[-1], nbins)
+        x_coords = self.x_coords if not callable(self.x_coords) else self.x_coords()
+        f_tc = interpolate.interp1d(x_coords, self.tuning_curves)
+        x_new = np.linspace(x_coords[0], x_coords[-1], nbins)
         tc_new = f_tc(x_new)  # Interpolated tuning curve
 
         ratemap_new = self.copy()
