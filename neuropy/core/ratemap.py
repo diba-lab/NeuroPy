@@ -134,6 +134,20 @@ class Ratemap(DataWriter):
             metadata=self.metadata,
         )
 
+    def neuron_slice(self, inds=None, ids=None):
+        """Slice neuron indexes (inds) or number (ids). Cannot specify both """
+        assert (inds == None) != (ids == None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        if ids is not None:
+            inds = [np.where(idd == self.neuron_ids)[0][0] for idd in ids]
+        inds = np.sort(inds)
+        return Ratemap(
+            tuning_curves=self.tuning_curves[inds],
+            coords=self._coords.squeeze(),
+            neuron_ids=self.neuron_ids[inds],
+            occupancy=self.occupancy,
+            metadata=self.metadata,
+        )
+
     @property
     def x_binsize(self):
         return np.diff(self.x_coords())[0]
