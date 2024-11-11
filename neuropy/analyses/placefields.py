@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from scipy.signal import find_peaks, peak_widths
+from copy import deepcopy
+import seaborn as sns
 
 from .. import core
 from ..utils.signal_process import ThetaParams
@@ -121,6 +124,10 @@ class Pf1D(core.Ratemap):
         self.occupancy = occupancy
         self.frate_thresh = frate_thresh
         self.speed_thresh = speed_thresh
+        self.speed = speed
+        self.t = t
+        self.t_start = t_start
+        self.t_stop = t_stop
 
     def estimate_theta_phases(self, signal: core.Signal):
         """Calculates phase of spikes computed for placefields
