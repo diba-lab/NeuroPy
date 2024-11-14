@@ -354,12 +354,7 @@ class OptitrackIO:
 
         # ------- collecting timepoints related to position tracking ------
         posfiles = np.asarray(sorted(self.dirname.glob("*.csv")))
-        posfilestimes = np.asarray(
-            [
-                datetime.strptime(file.stem, "Take %Y-%m-%d %I.%M.%S %p")
-                for file in posfiles
-            ]
-        )
+        posfilestimes = np.asarray([getStartTime(file) for file in posfiles])
         filesort_ind = np.argsort(posfilestimes).astype(int)
         posfiles = posfiles[filesort_ind]
 
