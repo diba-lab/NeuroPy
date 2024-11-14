@@ -44,6 +44,43 @@ def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit")
     return dt_start_utc.astimezone(to_zone)
 
 
+def get_ms_start(sync_file, to_zone="America/Detroit"):
+    """
+    Parameters
+    ----------
+    sync_file: Path to sync_messages.txt file of interest
+    to_zone: Set to America/Detroit
+
+    Returns
+    -------
+    rec_start: Start time of recording down to millisecond precision in America/Detroit Timezone Datetimes.
+
+    """
+    # Read in file
+    sync_lines = open(sync_file).readlines()
+
+    # Read in OE.Version-only 0.6+ seems to write in a current millis into sync_messages.txt.
+    oe_version = get_version_number(Path(sync_file).parents[2] / "settings.xml")
+
+    try:
+        #
+        if oe_version > "0.6":
+            # Extract milliseconds from the first line
+            ms_match = re.search(r"Software Time .*: (\d+)", sync_lines[0])
+            ms = int(ms_match.group(1)) if ms_match else None
+
+            # Convert milliseconds elapsed to UTC datetime
+            utc_datetime = datetime.fromtimestamp(ms / 1000, timezone.utc)
+
+            # Get Recording Start in America/Detroit Timezone
+            rec_start = utc_datetime.astimezone(tz.gettz(to_zone))
+            return rec_start
+
+    except Exception as e:
+        print(f"Error parsing sync file: {e}")
+        return None
+
+
 def get_dat_timestamps(
     basepath: str or Path,
     sync: bool = False,
@@ -498,6 +535,7 @@ def get_version_number(settings_path):
 
     return settings_dict["INFO"]["VERSION"]
 
+
 def parse_sync_file(sync_file):
     """Grab synchronization info for a given session
     :param sync_file: path to 'sync_messages.txt' file in recording folder tree for that recording.
@@ -857,5 +895,4 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    parse_sync_file('/data2/Anisomycin/Recording_Rats/Creampuff/2024_07_17_Anisomycin/1_PRE/2024-07-17_10-12-28/Record Node 104/experiment1/recording1/sync_messages.txt')
     pass
