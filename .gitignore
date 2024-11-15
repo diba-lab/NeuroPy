@@ -129,6 +129,9 @@ dmypy.json
 .pyre/
 .vscode/settings.json
 
+# PyCharm
+.idea/
+
 # auto backup files
 .DS_store
 *.DS_store
