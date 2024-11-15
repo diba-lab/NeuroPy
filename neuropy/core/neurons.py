@@ -27,6 +27,7 @@ class Neurons(DataWriter):
         waveforms=None,
         waveforms_amplitude=None,
         peak_channels=None,
+        clu_q = None,
         shank_ids=None,
         metadata=None,
     ) -> None:
@@ -85,6 +86,7 @@ class Neurons(DataWriter):
         self._sampling_rate = sampling_rate
         self.t_start = t_start
         self.t_stop = t_stop
+        self.clu_q = clu_q
 
     @staticmethod
     def load(file):
