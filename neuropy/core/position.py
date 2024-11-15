@@ -12,6 +12,7 @@ class Position(DataWriter):
         traces: np.ndarray,
         t_start=0,
         sampling_rate=120,
+        time=None,
         metadata=None,
     ) -> None:
         if traces.ndim == 1:
