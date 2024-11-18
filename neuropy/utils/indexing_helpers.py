@@ -301,7 +301,28 @@ class NumpyHelpers:
             out_concat_arr = np.array([]) # empty df would be better
         return out_concat_arr
     
+    @classmethod
+    def logical_generic(cls, pairwise_numpy_logical_fn, *list_of_arrays, **kwargs) -> NDArray:
+        """ generalizes the logical_and function to multiple arrays 
+
+                from neuropy.utils.indexing_helpers import NumpyHelpers
+        df1_matches_all_conditions = NumpyHelpers.logical_generic(np.logical_and, *[df1[k] == v for k, v in a_values_dict.items()])
+        
+        """
+        # Input type checking
+        if not np.all(isinstance(arr, np.ndarray) for arr in list_of_arrays):
+            raise ValueError("All elements in 'list_of_arrays' must be NumPy arrays.")        
     
+        if len(list_of_arrays) < 2:
+            raise NotImplementedError(f"requires more than 1 array but you provided: {len(list_of_arrays)}")
+        else:
+            ## It has more than two elements:
+            reference_array = list_of_arrays[0] # Use the first array as a reference for comparison
+            # Check equivalence for each array in the list
+            for an_arr in list_of_arrays[1:]:
+                reference_array = pairwise_numpy_logical_fn(reference_array, an_arr, **kwargs) 
+
+            return reference_array
 
 # ==================================================================================================================== #
 # Sorting/Joint-sorting                                                                                                #

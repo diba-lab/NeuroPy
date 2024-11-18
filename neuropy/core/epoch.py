@@ -457,7 +457,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
         """
         # find_data_indicies_from_epoch_times(a_df, np.squeeze(any_good_selected_epoch_times[:,0]), t_column_names=['ripple_start_t',])
-        return find_data_indicies_from_epoch_times(self._obj,epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
+        return find_data_indicies_from_epoch_times(self._obj, epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
 
             
     def matching_epoch_times_slice(self, epoch_times: NDArray, atol:float=1e-3, t_column_names=None) -> pd.DataFrame:
