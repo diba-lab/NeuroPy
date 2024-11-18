@@ -774,6 +774,83 @@ class PandasHelpers:
             out_concat_df = None # empty df would be better
         return out_concat_df
 
+    @classmethod
+    def convert_dataframe_columns_to_datatype_if_possible(cls, df: pd.DataFrame, datatype_str_column_names_list_dict, debug_print=False):
+        """ If the columns specified in datatype_str_column_names_list_dict exist in the dataframe df, their type is changed to the key of the dict. See usage example below:
+        
+        Inputs:
+            df: Pandas.DataFrame 
+            datatype_str_column_names_list_dict: {'int':['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']}
+
+        Usage:
+            from neuropy.utils.indexing_helpers import PandasHelpers
+            PandasHelpers.convert_dataframe_columns_to_datatype_if_possible(curr_active_pipeline.sess.spikes_df, {'int':['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']})
+        """
+        # spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']] = spikes_df[['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']].astype('int') # convert integer calumns to correct datatype
+        for a_datatype_name, a_column_names_list in datatype_str_column_names_list_dict.items():
+            is_included = np.isin(a_column_names_list, df.columns)
+            if debug_print:
+                print(f'datatype: {a_datatype_name}: {a_column_names_list}:{is_included}')
+            a_column_names_list = np.array(a_column_names_list)
+            subset_extant_columns = a_column_names_list[is_included] # Get only the column names thare are included in the dataframe
+            if debug_print:
+                print(f'\t subset_extant_columns: {subset_extant_columns}')
+            # subset_extant_columns = a_column_names_list
+            df[subset_extant_columns] = df[subset_extant_columns].astype(a_datatype_name) # convert integer calumns to correct datatype
+
+    @classmethod
+    def add_explicit_dataframe_columns_from_lookup_df(cls, df: pd.DataFrame, lookup_properties_map_df: pd.DataFrame, join_column_name='aclu') -> pd.DataFrame:
+        """ Uses a value (specified by `join_column_name`) in each row of `df` to lookup the appropriate values in `lookup_properties_map_df` to be explicitly added as columns to `df`
+        df: a dataframe. Each row has a join_column_name value (e.g. 'aclu')
+        
+        lookup_properties_map_df: a dataframe with one row for each `join_column_name` value (e.g. one row for each 'aclu', describing various properties of that neuron)
+        
+        
+        By default lookup_properties_map_df can be obtained from curr_active_pipeline.sess.neurons._extended_neuron_properties_df and has the columns:
+            ['aclu', 'qclu', 'neuron_type', 'shank', 'cluster']
+        Which will be added to the spikes_df
+        
+        WARNING: the df will be unsorted after this operation, and you'll need to sort it again if you want it sorted
+        
+        
+        Usage:
+            from neuropy.utils.indexing_helpers import PandasHelpers
+            curr_active_pipeline.sess.flattened_spiketrains._spikes_df = PandasHelpers.add_explicit_dataframe_columns_from_lookup_df(curr_active_pipeline.sess.spikes_df, curr_active_pipeline.sess.neurons._extended_neuron_properties_df)
+            curr_active_pipeline.sess.spikes_df.sort_values(by=['t_seconds'], inplace=True) # Need to re-sort by timestamps once done
+            curr_active_pipeline.sess.spikes_df
+
+        """
+        ## only find the columns in lookup_properties_map_df that are NOT in df. e.g. ['qclu', 'cluster']
+        missing_spikes_df_columns = list(lookup_properties_map_df.columns[np.logical_not(np.isin(lookup_properties_map_df.columns, df.columns))]) 
+        missing_spikes_df_columns.insert(0, join_column_name) # Insert 'aclu' into the list so we can join on it
+        subset_neurons_properties_df = lookup_properties_map_df[missing_spikes_df_columns] # get the subset dataframe with only the requested columns
+        ## Merge the result:
+        # df = pd.merge(subset_neurons_properties_df, df, on=join_column_name, how='outer', suffixes=('_neurons_properties', '_spikes_df'))
+        return pd.merge(df, subset_neurons_properties_df, on=join_column_name, how='left', suffixes=('_neurons_properties', '_spikes_df'), copy=False) # avoids copying if possible
+
+    @classmethod
+    def adding_additional_df_columns(cls, original_df: pd.DataFrame, additional_cols_df: pd.DataFrame) -> pd.DataFrame:
+        """ Adds the columns in `additional_cols_df` to `original_df`, horizontally concatenating them without considering either index.
+
+        Usage:
+            
+            from neuropy.utils.indexing_helpers import PandasHelpers
+
+            a_result.filter_epochs = PandasHelpers.adding_additional_df_columns(original_df=a_result.filter_epochs, additional_cols_df=_out_new_scores[a_name]) # update the filter_epochs with the new columns
+
+        """     
+        assert np.shape(additional_cols_df)[0] == np.shape(original_df)[0], f"np.shape(additional_cols_df)[0]: {np.shape(additional_cols_df)[0]} != np.shape(original_df)[0]: {np.shape(original_df)[0]}"
+        # For each column in additional_cols_df, add it to original_df
+        for column in additional_cols_df.columns:
+            if not isinstance(original_df, pd.DataFrame):
+                original_df._df[column] = additional_cols_df[column].values # Assume an Epoch, set the internal df
+            else:
+                # just set the column
+                original_df[column] = additional_cols_df[column].values # TypeError: 'Epoch' object does not support item assignment
+            
+            
+        return original_df
+
 
     
 class ColumnTracker(ContextDecorator):
@@ -793,7 +870,7 @@ class ColumnTracker(ContextDecorator):
 
     Usage:
 
-        from pyphocorehelpers.print_helpers import ColumnTracker
+        from neuropy.utils.indexing_helpers import ColumnTracker
 
         dfs_dict = {a_name:a_result.filter_epochs for a_name, a_result in filtered_decoder_filter_epochs_decoder_result_dict.items()}
         with ColumnTracker(dfs_dict) as tracker:
