@@ -404,7 +404,7 @@ class ContextFormatRenderingFn(Protocol):
         ...
     
     @classmethod
-    def merge_specific_purpose_dicts(cls, lhs_dict: Dict[str, ContextFormatRenderingFn], rhs_dict: Dict[str, ContextFormatRenderingFn]) -> Dict[str, ContextFormatRenderingFn]:
+    def merge_specific_purpose_dicts(cls, lhs_dict: Dict[str, ContextFormatRenderingFn], rhs_dict: Dict[str, ContextFormatRenderingFn], enable_function_merge: bool = ...) -> Dict[str, ContextFormatRenderingFn]:
         """ final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict= , rhs_dict= ) 
         """
         ...
@@ -425,6 +425,10 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
     
     @classmethod
     def init_from_context(cls, a_context: IdentifyingContext, display_dict=..., specific_purpose_display_dict=...) -> DisplaySpecifyingIdentifyingContext:
+        ...
+    
+    def get_raw_identifying_context(self) -> IdentifyingContext:
+        """returns the raw IdentifyingContext equivalent of this object without its formatting properties."""
         ...
     
     def get_specific_purpose_description(self, specific_purpose: str, *extras_strings, subset_includelist=..., subset_excludelist=...) -> Optional[str]:
@@ -478,14 +482,14 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         """
         ...
     
-    def add_context(self, collision_prefix: str, strategy: CollisionOutcome = ..., **additional_context_items) -> DisplaySpecifyingIdentifyingContext:
+    def add_context(self, collision_prefix: str, strategy: CollisionOutcome = ..., enable_function_merge: bool = ..., **additional_context_items) -> DisplaySpecifyingIdentifyingContext:
         """ adds the additional_context_items to self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
         """
         ...
     
-    def adding_context(self, collision_prefix: str, strategy: CollisionOutcome = ..., **additional_context_items) -> DisplaySpecifyingIdentifyingContext:
+    def adding_context(self, collision_prefix: str, strategy: CollisionOutcome = ..., enable_function_merge: bool = ..., **additional_context_items) -> DisplaySpecifyingIdentifyingContext:
         """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         

@@ -190,6 +190,16 @@ class NumpyHelpers:
         """
         ...
     
+    @classmethod
+    def logical_generic(cls, pairwise_numpy_logical_fn, *list_of_arrays, **kwargs) -> NDArray:
+        """ generalizes the logical_and function to multiple arrays 
+
+                from neuropy.utils.indexing_helpers import NumpyHelpers
+        df1_matches_all_conditions = NumpyHelpers.logical_generic(np.logical_and, *[df1[k] == v for k, v in a_values_dict.items()])
+        
+        """
+        ...
+    
 
 
 def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists): # -> list[Any]:
@@ -422,6 +432,57 @@ class PandasHelpers:
         """
         ...
     
+    @classmethod
+    def convert_dataframe_columns_to_datatype_if_possible(cls, df: pd.DataFrame, datatype_str_column_names_list_dict, debug_print=...): # -> None:
+        """ If the columns specified in datatype_str_column_names_list_dict exist in the dataframe df, their type is changed to the key of the dict. See usage example below:
+        
+        Inputs:
+            df: Pandas.DataFrame 
+            datatype_str_column_names_list_dict: {'int':['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']}
+
+        Usage:
+            from neuropy.utils.indexing_helpers import PandasHelpers
+            PandasHelpers.convert_dataframe_columns_to_datatype_if_possible(curr_active_pipeline.sess.spikes_df, {'int':['shank', 'cluster', 'aclu', 'qclu', 'traj', 'lap']})
+        """
+        ...
+    
+    @classmethod
+    def add_explicit_dataframe_columns_from_lookup_df(cls, df: pd.DataFrame, lookup_properties_map_df: pd.DataFrame, join_column_name=...) -> pd.DataFrame:
+        """ Uses a value (specified by `join_column_name`) in each row of `df` to lookup the appropriate values in `lookup_properties_map_df` to be explicitly added as columns to `df`
+        df: a dataframe. Each row has a join_column_name value (e.g. 'aclu')
+        
+        lookup_properties_map_df: a dataframe with one row for each `join_column_name` value (e.g. one row for each 'aclu', describing various properties of that neuron)
+        
+        
+        By default lookup_properties_map_df can be obtained from curr_active_pipeline.sess.neurons._extended_neuron_properties_df and has the columns:
+            ['aclu', 'qclu', 'neuron_type', 'shank', 'cluster']
+        Which will be added to the spikes_df
+        
+        WARNING: the df will be unsorted after this operation, and you'll need to sort it again if you want it sorted
+        
+        
+        Usage:
+            from neuropy.utils.indexing_helpers import PandasHelpers
+            curr_active_pipeline.sess.flattened_spiketrains._spikes_df = PandasHelpers.add_explicit_dataframe_columns_from_lookup_df(curr_active_pipeline.sess.spikes_df, curr_active_pipeline.sess.neurons._extended_neuron_properties_df)
+            curr_active_pipeline.sess.spikes_df.sort_values(by=['t_seconds'], inplace=True) # Need to re-sort by timestamps once done
+            curr_active_pipeline.sess.spikes_df
+
+        """
+        ...
+    
+    @classmethod
+    def adding_additional_df_columns(cls, original_df: pd.DataFrame, additional_cols_df: pd.DataFrame) -> pd.DataFrame:
+        """ Adds the columns in `additional_cols_df` to `original_df`, horizontally concatenating them without considering either index.
+
+        Usage:
+            
+            from neuropy.utils.indexing_helpers import PandasHelpers
+
+            a_result.filter_epochs = PandasHelpers.adding_additional_df_columns(original_df=a_result.filter_epochs, additional_cols_df=_out_new_scores[a_name]) # update the filter_epochs with the new columns
+
+        """
+        ...
+    
 
 
 class ColumnTracker(ContextDecorator):
@@ -441,7 +502,7 @@ class ColumnTracker(ContextDecorator):
 
     Usage:
 
-        from pyphocorehelpers.print_helpers import ColumnTracker
+        from neuropy.utils.indexing_helpers import ColumnTracker
 
         dfs_dict = {a_name:a_result.filter_epochs for a_name, a_result in filtered_decoder_filter_epochs_decoder_result_dict.items()}
         with ColumnTracker(dfs_dict) as tracker:

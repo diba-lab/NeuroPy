@@ -947,7 +947,7 @@ class ContextFormatRenderingFn(Protocol):
         return (lambda ctxt, subset_includelist=None, subset_excludelist=None: lhs_fn(ctxt=ctxt, subset_includelist=subset_includelist, subset_excludelist=subset_excludelist) + rhs_fn(ctxt=ctxt, subset_includelist=subset_includelist, subset_excludelist=subset_excludelist))
 
     @classmethod
-    def merge_specific_purpose_dicts(cls, lhs_dict: Dict[str, "ContextFormatRenderingFn"], rhs_dict: Dict[str, "ContextFormatRenderingFn"]) -> Dict[str, "ContextFormatRenderingFn"]:
+    def merge_specific_purpose_dicts(cls, lhs_dict: Dict[str, "ContextFormatRenderingFn"], rhs_dict: Dict[str, "ContextFormatRenderingFn"], enable_function_merge:bool=True) -> Dict[str, "ContextFormatRenderingFn"]:
         """ final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict= , rhs_dict= ) 
         """
         final_merged_output_dict = deepcopy(lhs_dict)             
@@ -957,8 +957,13 @@ class ContextFormatRenderingFn(Protocol):
                 final_merged_output_dict[a_display_purpose] = rhs_fn
             else:
                 # it is in there, merge it
-                lhs_fn = final_merged_output_dict.get(a_display_purpose, cls.no_op)
-                final_fn = cls.merge_fns(lhs_fn=lhs_fn, rhs_fn=rhs_fn) ## return the combined fn
+                if enable_function_merge:
+                    lhs_fn = final_merged_output_dict.get(a_display_purpose, cls.no_op)
+                    final_fn = cls.merge_fns(lhs_fn=lhs_fn, rhs_fn=rhs_fn) ## return the combined fn
+                else:
+                    # already in output, overwrite with rhs
+                    final_fn = rhs_fn
+
                 final_merged_output_dict[a_display_purpose] = final_fn
         return final_merged_output_dict
         
@@ -1007,6 +1012,11 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
             setattr(_new_instance, name, value)
 
         return _new_instance
+
+
+    def get_raw_identifying_context(self) -> "IdentifyingContext":
+        """returns the raw IdentifyingContext equivalent of this object without its formatting properties."""
+        return IdentifyingContext(**{k:v for k, v in self.to_dict().items() if k not in ['display_dict', 'specific_purpose_display_dict']})
 
 
     # String/Printing Functions __________________________________________________________________________________________ #
@@ -1171,7 +1181,7 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         return final_name
 
 
-    def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
+    def add_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, enable_function_merge:bool=False, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
         """ adds the additional_context_items to self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
@@ -1189,7 +1199,7 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                 setattr(self, name, merged_dict)
             elif name == 'specific_purpose_display_dict':
                 ## merge the display dict fns
-                final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict=self.specific_purpose_display_dict, rhs_dict=value)
+                final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict=self.specific_purpose_display_dict, rhs_dict=value, enable_function_merge=enable_function_merge)
                 # final_merged_output_dict = self.specific_purpose_display_dict                
                 # for a_display_purpose, rhs_fn in value.items():
                 #     if a_display_purpose not in final_merged_output_dict:
@@ -1210,7 +1220,7 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
         
         return self
 
-    def adding_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
+    def adding_context(self, collision_prefix:str, strategy:CollisionOutcome=CollisionOutcome.APPEND_USING_KEY_PREFIX, enable_function_merge:bool=False, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
         """ returns a new IdentifyingContext that results from adding additional_context_items to a copy of self 
         collision_prefix: only used when an attr name in additional_context_items already exists for this context and the values of that attr are different
         
@@ -1227,7 +1237,7 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                 setattr(duplicate_ctxt, name, merged_dict)
             elif name == 'specific_purpose_display_dict':
                 ## merge the display dict fns
-                final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict=duplicate_ctxt.specific_purpose_display_dict, rhs_dict=value)
+                final_merged_output_dict = ContextFormatRenderingFn.merge_specific_purpose_dicts(lhs_dict=duplicate_ctxt.specific_purpose_display_dict, rhs_dict=value, enable_function_merge=enable_function_merge)
                 setattr(duplicate_ctxt, name, final_merged_output_dict)
             else:            
                 final_name = self.resolve_key(duplicate_ctxt, name, value, collision_prefix, strategy=strategy)
