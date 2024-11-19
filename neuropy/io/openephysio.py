@@ -214,40 +214,43 @@ def get_dat_timestamps(
     #     ts_units = "seconds"  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (that's in sample_numbers.npy)
 
     for idf, file in enumerate(timestamp_files):
-        set_file = get_settings_filename(file)  # get settings file name
-        set_folder = get_set_folder(file)
-        try:
-            start_time = get_us_start(set_folder / set_file)
-            # print("Using precise start time from Pho/Timestamp plugin")
-        except KeyError:
-            try:
-                experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
-                start_time = pd.Timestamp(experiment_meta["INFO"]["DATE"]).tz_localize(
-                    local_time
-                )  # get start time from meta-data
-            except FileNotFoundError:
-                print(
-                    "WARNING:"
-                    + str(set_folder / set_file)
-                    + " not found. Inferring start time from directory structure. PLEASE CHECK!"
-                )
-                # Find folder with timestamps
-                m = re.search(
-                    "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
-                    str(set_folder),
-                )
-                start_time = pd.to_datetime(
-                    m.group(0), format="%Y-%m-%d_%H-%M-%S"
-                ).tz_localize(local_time)
+        # set_folder = get_set_folder(file)
 
+        # try:
+        #     start_time = get_us_start(set_folder / set_file)
+        #     # print("Using precise start time from Pho/Timestamp plugin")
+        # except KeyError:
+        #     try:
+        #         experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
+        #         start_time = pd.Timestamp(experiment_meta["INFO"]["DATE"]).tz_localize(
+        #             local_time
+        #         )  # get start time from meta-data
+        #     except FileNotFoundError:
+        #         print(
+        #             "WARNING:"
+        #             + str(set_folder / set_file)
+        #             + " not found. Inferring start time from directory structure. PLEASE CHECK!"
+        #         )
+        #         # Find folder with timestamps
+        #         m = re.search(
+        #             "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
+        #             str(set_folder),
+        #         )
+        #         start_time = pd.to_datetime(
+        #             m.group(0), format="%Y-%m-%d_%H-%M-%S"
+        #         ).tz_localize(local_time)
+        #
+
+        rec_folder = file.parents[2] # Get recording file
+        start_time_rec, _ = get_recording_start(rec_folder, to_zone=local_time)
         # Get SR and sync frame info - for syncing to time of day.
         SR, sync_frame_exp = parse_sync_file(
             file.parents[3] / "recording1/sync_messages.txt"
         )
-        # sync_frame info between recordings within the same experiment folder
-        _, sync_frame_rec = parse_sync_file(file.parents[2] / "sync_messages.txt")
-
-        start_time_rec = start_time + pd.Timedelta((sync_frame_rec - sync_frame_exp) / SR, unit="sec")
+        # # sync_frame info between recordings within the same experiment folder
+        # _, sync_frame_rec = parse_sync_file(file.parents[2] / "sync_messages.txt")
+        #
+        # start_time_rec = start_time + pd.Timedelta((sync_frame_rec - sync_frame_exp) / SR, unit="sec")
 
         if print_start_time_to_screen:
             print("start time = " + str(start_time_rec))
@@ -269,7 +272,7 @@ def get_dat_timestamps(
             stamps = stamps[[0, -1]]
         timestamps.append(
             (
-                start_time + pd.to_timedelta((stamps - sync_frame_exp) / SR, unit="sec")
+                start_time_rec + pd.to_timedelta((stamps - sync_frame_exp) / SR, unit="sec")
             ).to_frame(index=False)
         )  # Add in absolute timestamps, keep index of acquisition system
 
@@ -339,7 +342,7 @@ def get_timestamp_files(
     basepath = Path(basepath)
 
     # Backwards compatibility fix
-    settings_file = sorted(basepath.glob("**/*settings.xml"))[0]
+    settings_file = sorted(Path(str(basepath).split("/experiment")[0]).glob("**/*settings.xml"))[0]
     oe_version = get_version_number(settings_file)
     ts_file_str = "**/*timestamps.npy"
     if Version(oe_version) >= Version("0.6"):
