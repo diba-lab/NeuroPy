@@ -504,7 +504,9 @@ def getProminence(var,step,lats=None,lons=None,min_depth=None,
 
 
 def split_path_by_index(path, index):
-    """Splits a Matplotlib Path object into two at the given index. Useful for"""
+    """Splits a Matplotlib Path object into two at the given index. Useful for matplotlib versions
+    > 3.6 which don't split separate contout objects up into different members of a list, instead combining
+    everything together"""
 
     vertices = path.vertices
     codes = path.codes
