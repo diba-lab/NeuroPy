@@ -1042,7 +1042,7 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
             return specific_purpose_render_fn(self)
 
         else:
-            raise NotImplementedError(f'specific_purpose: {specific_purpose} does not match any known purpose. Known purposes: {list(self.specific_purpose_display_dict.keys())}')
+            raise NotImplementedError(f'specific_purpose: "{specific_purpose}" does not match any known purpose. Known purposes: {list(self.specific_purpose_display_dict.keys())}')
             return None # has no specific purpose
 
 
