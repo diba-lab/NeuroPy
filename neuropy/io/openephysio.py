@@ -28,6 +28,95 @@ class OESyncIO:
         :return pd.DataFrame OR np.array with OE timestamps matching external TTL events"""
         pass
 
+
+def get_settings_file(experiment_or_recording_folder):
+
+    if "recording" in Path(experiment_or_recording_folder).stem:
+        exp_folder = Path(experiment_or_recording_folder).parent
+    elif "experiment" in Path(experiment_or_recording_folder).stem:
+        exp_folder = Path(experiment_or_recording_folder)
+    else:
+        assert False, "must enter either '.../experiment#' folder or '.../experiment#/recording#' folder"
+
+    exp_num = str(exp_folder).split("experiment")[1]
+    exp_append = "" if exp_num == "1" else f"_{exp_num}"
+    settings_path = exp_folder.parent / f"settings{exp_append}.xml"
+
+    return settings_path
+
+
+def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detroit"):
+    """Get start time of recording."""
+
+    # Get version number
+    # exp_num = str(recording_folder.parent).split("experiment")[1]
+    # exp_append = exp_num if exp_num == "" else f"_{exp_num}"
+    # settings_path = Path(recording_folder).parents[1] / f"settings{exp_append}.xml"
+    settings_path = get_settings_file(recording_folder)
+    oe_version = get_version_number(settings_path)
+
+    #
+    if Version(oe_version) < Version("0.6"):
+        # Try to get time via PhoTimestamp plugin. Otherwise try to get via create time of file. Otherwise grab from settings file directly.
+        # Try to get microsecond start time from PhoTimestamp plugin.
+        try:
+            start_time = get_us_start(settings_path, from_zone=from_zone, to_zone=to_zone)
+            precision = "us"
+
+        except KeyError:
+            try:
+                experiment_meta = XML2Dict(settings_path)  # Get meta data
+                start_time = pd.Timestamp(experiment_meta["INFO"]["DATE"]).tz_localize(
+                    to_zone
+                )  # get start time from meta-data
+                precision = "s"
+            except FileNotFoundError:
+                print(
+                    "WARNING:"
+                    + str(settings_path)
+                    + " not found. Inferring start time from directory structure. PLEASE CHECK!"
+                )
+                # Find folder with timestamps
+                m = re.search(
+                    "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
+                    str(settings_path),
+                )
+                start_time = pd.to_datetime(
+                    m.group(0), format="%Y-%m-%d_%H-%M-%S"
+                ).tz_localize(to_zone)
+                precision = "s"
+
+        # Get SR and sync frame info - for syncing to time of day.
+        SR, sync_frame_exp = parse_sync_file(recording_folder.parent / "recording1/sync_messages.txt")
+
+        # sync_frame info between recordings within the same experiment folder
+        _, sync_frame_rec = parse_sync_file(recording_folder / "sync_messages.txt")
+
+        start_time_rec = start_time + pd.Timedelta((sync_frame_rec - sync_frame_exp) / SR, unit="sec")
+
+        # Try to improve precision by getting start time directly from sync_messages.txt modification time
+        if precision == "s":
+            start_time_ms_precision = get_ms_start_from_creation_time(recording_folder / "sync_messages.txt")
+
+            if np.abs((start_time_ms_precision - start_time_rec).total_seconds()) < 1.001:
+                start_time_rec = start_time_ms_precision
+                precision = "ms"
+            else:
+                print(
+                    "Can't find PhoTimestamp plugin in settings.xml file and sync_messages.txt modification time is off"
+                    " from approximate start time by more than 1 second - start time will only have second precision")
+
+        # Add in start frame lag
+
+    elif Version(oe_version) >= Version("0.6"):
+        start_time_rec = get_ms_start(recording_folder / "sync_messages.txt")
+        precision = "ms"
+    #     # Get start time from frame number - look through ALL code to make sure start_frame does not come in other than calculating start times!
+    #     pass
+
+    return start_time_rec, precision
+
+
 def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit"):
     """Get microsecond time second precision start time from Pho/Timestamp plugin"""
 
@@ -42,6 +131,14 @@ def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit")
     to_zone = tz.gettz(to_zone)
 
     return dt_start_utc.astimezone(to_zone)
+
+
+def get_ms_start_from_creation_time(sync_messages_file, to_zone="America/Detroit"):
+    """Try to get recording start time from file modification time - only works if original file metadata is preserved,
+    and will spit out the wrong time if the file was copied by apps like Dropbox which write new files instead of
+    copying properly"""
+
+    return (pd.Timestamp(datetime.fromtimestamp(os.path.getmtime(sync_messages_file))).tz_localize(to_zone))
 
 
 def get_ms_start(sync_file, to_zone="America/Detroit"):
@@ -895,4 +992,13 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    pass
+
+    # Code to check `get_recording_start` function for all possible recording types
+    # OE 0.6.7
+    # start_time, prec = get_recording_start(Path('/data3/Anisomycin/Recording_Rats/Creampuff/2024_07_17_Anisomycin/2_POST/2024-07-17_10-42-12/Record Node 104/experiment1/recording1'))
+
+    # OE 0.5.3 with PhoTimestamp
+    # start_time, prec = get_recording_start(Path('/data2/Trace_FC/Recording_Rats/Finn/2022_01_20_training/1_tone_habituation/2022-01-20_12-28-41/Record Node 104/experiment1/recording1'))
+
+    start_time, prec = get_recording_start(Path("/data2/Trace_FC/Recording_Rats/Django/2023_03_08_training/2_training/2023-03-08_12-15-15/Record Node 103/experiment1/recording1"))
+    print(f"start_time={start_time}, precision={prec}")
