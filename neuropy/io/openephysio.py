@@ -159,28 +159,30 @@ def get_ms_start(sync_file, to_zone="America/Detroit"):
 
     """
     # Read in file
-    sync_lines = open(sync_file).readlines()
+    # sync_lines = open(sync_file).readlines()
+    with open(sync_file, 'r') as sfile:
+        sync_lines = sfile.readlines()
 
-    # Read in OE.Version-only 0.6+ seems to write in a current millis into sync_messages.txt.
-    oe_version = get_version_number(Path(sync_file).parents[2] / "settings.xml")
+        # Read in OE.Version-only 0.6+ seems to write in a current millis into sync_messages.txt.
+        oe_version = get_version_number(Path(sync_file).parents[2] / "settings.xml")
 
-    try:
-        #
-        if oe_version > "0.6":
-            # Extract milliseconds from the first line
-            ms_match = re.search(r"Software Time .*: (\d+)", sync_lines[0])
-            ms = int(ms_match.group(1)) if ms_match else None
+        try:
+            #
+            if Version(oe_version) > Version("0.6"):
+                # Extract milliseconds from the first line
+                ms_match = re.search(r"Software Time .*: (\d+)", sync_lines[0])
+                ms = int(ms_match.group(1)) if ms_match else None
 
-            # Convert milliseconds elapsed to UTC datetime
-            utc_datetime = datetime.fromtimestamp(ms / 1000, timezone.utc)
+                # Convert milliseconds elapsed to UTC datetime
+                utc_datetime = datetime.fromtimestamp(ms / 1000, timezone.utc)
 
-            # Get Recording Start in America/Detroit Timezone
-            rec_start = utc_datetime.astimezone(tz.gettz(to_zone))
-            return rec_start
+                # Get Recording Start in America/Detroit Timezone
+                rec_start = utc_datetime.astimezone(tz.gettz(to_zone))
+                return rec_start
 
-    except Exception as e:
-        print(f"Error parsing sync file: {e}")
-        return None
+        except Exception as e:
+            print(f"Error parsing sync file: {e}")
+            return None
 
 
 def get_dat_timestamps(
