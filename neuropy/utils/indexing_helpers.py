@@ -313,8 +313,8 @@ class NumpyHelpers:
         if not np.all(isinstance(arr, np.ndarray) for arr in list_of_arrays):
             raise ValueError("All elements in 'list_of_arrays' must be NumPy arrays.")        
     
-        if len(list_of_arrays) < 2:
-            raise NotImplementedError(f"requires more than 1 array but you provided: {len(list_of_arrays)}")
+        if len(list_of_arrays) == 0:
+            raise NotImplementedError(f"requires at least 1 array but you provided: {len(list_of_arrays)}")
         else:
             ## It has more than two elements:
             reference_array = list_of_arrays[0] # Use the first array as a reference for comparison
