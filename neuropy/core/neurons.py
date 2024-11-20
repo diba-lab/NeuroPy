@@ -151,10 +151,16 @@ class Neurons(DataWriter):
             neuron_types = "Error importing - check inputs"
         return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n t_start: {self.t_start}\n t_stop: {self.t_stop}\n neuron_type: {neuron_types}"
 
-    def time_slice(self, t_start=None, t_stop=None):
+    def time_slice(self, t_start=None, t_stop=None, zero_spike_times=False):
+        """zero_spike_times = True will subtract t_start from all spike times"""
         t_start, t_stop = super()._time_slice_params(t_start, t_stop)
         neurons = deepcopy(self)
-        spiketrains = [t[(t >= t_start) & (t <= t_stop)] for t in neurons.spiketrains]
+        if zero_spike_times:
+            spiketrains = [t[(t >= t_start) & (t <= t_stop)] - t_start for t in neurons.spiketrains]
+            t_stop = t_stop - t_start
+            t_start = 0
+        else:
+            spiketrains = [t[(t >= t_start) & (t <= t_stop)] for t in neurons.spiketrains]
 
         return Neurons(
             spiketrains=spiketrains,

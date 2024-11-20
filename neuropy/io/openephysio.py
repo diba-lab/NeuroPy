@@ -472,41 +472,44 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=T
             events["timestamps"] = events["timestamps"] - record_start
             # events["timestamps_from_exp_start"] =
 
-        # Grab start time from .xml file and keep it with events just in case
-        settings_file = TTLfolder.parents[4] / get_settings_filename(TTLfolder)
-        missing_set_file = False
-        try:
-            exp_start_time = pd.to_datetime(
-                XML2Dict(settings_file)["INFO"]["DATE"]
-            )
-            # events["start_time"] = pd.to_datetime(
-            #     XML2Dict(settings_file)["INFO"]["DATE"]
-            # )
+        # # Grab start time from .xml file and keep it with events just in case
+        # settings_file = TTLfolder.parents[4] / get_settings_filename(TTLfolder)
+        # missing_set_file = False
+        # try:
+        #     exp_start_time = pd.to_datetime(
+        #         XML2Dict(settings_file)["INFO"]["DATE"]
+        #     )
+        #     # events["start_time"] = pd.to_datetime(
+        #     #     XML2Dict(settings_file)["INFO"]["DATE"]
+        #     # )
+        #
+        # except FileNotFoundError:
+        #     print("Settings file: " + str(settings_file) + " NOT FOUND")
+        #
+        #     # Find start time using filename
+        #     p = re.compile(
+        #         "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-2]+[0-9]+-[0-6]+[0-9]+-[0-6]+[0-9]+"
+        #     )
+        #
+        #     exp_start_time = pd.to_datetime(
+        #         p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
+        #     )
+        #     missing_set_file = True
+        #     # events["start_time"] = pd.to_datetime(
+        #     #     p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
+        #     # )
 
-        except FileNotFoundError:
-            print("Settings file: " + str(settings_file) + " NOT FOUND")
+        # events["start_time"] = (exp_start_time +
+        #                         pd.Timedelta((record_start - exp_start) / SR, unit="sec"))
 
-            # Find start time using filename
-            p = re.compile(
-                "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-2]+[0-9]+-[0-6]+[0-9]+-[0-6]+[0-9]+"
-            )
+        # # Print to screen to double-check!
+        # if missing_set_file:
+        #     print(
+        #         str(events["start_time"])
+        #         + " loaded from folder structure, be sure to double check!"
+        #     )
 
-            exp_start_time = pd.to_datetime(
-                p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
-            )
-            missing_set_file = True
-            # events["start_time"] = pd.to_datetime(
-            #     p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
-            # )
-
-        events["start_time"] = (exp_start_time +
-                                pd.Timedelta((record_start - exp_start) / SR, unit="sec"))
-        # Print to screen to double-check!
-        if missing_set_file:
-            print(
-                str(events["start_time"])
-                + " loaded from folder structure, be sure to double check!"
-            )
+        events["start_time"], _ = get_recording_start(TTLfolder.parents[2])
 
     # Last add in event_names dict
     events["event_names"] = event_names
