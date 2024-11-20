@@ -49,20 +49,17 @@ def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detr
     """Get start time of recording."""
 
     # Get version number
-    # exp_num = str(recording_folder.parent).split("experiment")[1]
-    # exp_append = exp_num if exp_num == "" else f"_{exp_num}"
-    # settings_path = Path(recording_folder).parents[1] / f"settings{exp_append}.xml"
     settings_path = get_settings_file(recording_folder)
     oe_version = get_version_number(settings_path)
 
     #
     if Version(oe_version) < Version("0.6"):
-        # Try to get time via PhoTimestamp plugin. Otherwise try to get via create time of file. Otherwise grab from settings file directly.
         # Try to get microsecond start time from PhoTimestamp plugin.
         try:
             start_time = get_us_start(settings_path, from_zone=from_zone, to_zone=to_zone)
             precision = "us"
 
+        # Otherwise get time from settings file (lower precision)
         except KeyError:
             try:
                 experiment_meta = XML2Dict(settings_path)  # Get meta data
@@ -70,6 +67,8 @@ def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detr
                     to_zone
                 )  # get start time from meta-data
                 precision = "s"
+
+            # Last ditch get from directory structure and spit out warning.
             except FileNotFoundError:
                 print(
                     "WARNING:"
@@ -86,6 +85,7 @@ def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detr
                 ).tz_localize(to_zone)
                 precision = "s"
 
+        # Now add in lag from settings file creation (first time you hit record after hitting play)
         # Get SR and sync frame info - for syncing to time of day.
         SR, sync_frame_exp = parse_sync_file(recording_folder.parent / "recording1/sync_messages.txt")
 
@@ -159,28 +159,30 @@ def get_ms_start(sync_file, to_zone="America/Detroit"):
 
     """
     # Read in file
-    sync_lines = open(sync_file).readlines()
+    # sync_lines = open(sync_file).readlines()
+    with open(sync_file, 'r') as sfile:
+        sync_lines = sfile.readlines()
 
-    # Read in OE.Version-only 0.6+ seems to write in a current millis into sync_messages.txt.
-    oe_version = get_version_number(Path(sync_file).parents[2] / "settings.xml")
+        # Read in OE.Version-only 0.6+ seems to write in a current millis into sync_messages.txt.
+        oe_version = get_version_number(Path(sync_file).parents[2] / "settings.xml")
 
-    try:
-        #
-        if oe_version > "0.6":
-            # Extract milliseconds from the first line
-            ms_match = re.search(r"Software Time .*: (\d+)", sync_lines[0])
-            ms = int(ms_match.group(1)) if ms_match else None
+        try:
+            #
+            if Version(oe_version) > Version("0.6"):
+                # Extract milliseconds from the first line
+                ms_match = re.search(r"Software Time .*: (\d+)", sync_lines[0])
+                ms = int(ms_match.group(1)) if ms_match else None
 
-            # Convert milliseconds elapsed to UTC datetime
-            utc_datetime = datetime.fromtimestamp(ms / 1000, timezone.utc)
+                # Convert milliseconds elapsed to UTC datetime
+                utc_datetime = datetime.fromtimestamp(ms / 1000, timezone.utc)
 
-            # Get Recording Start in America/Detroit Timezone
-            rec_start = utc_datetime.astimezone(tz.gettz(to_zone))
-            return rec_start
+                # Get Recording Start in America/Detroit Timezone
+                rec_start = utc_datetime.astimezone(tz.gettz(to_zone))
+                return rec_start
 
-    except Exception as e:
-        print(f"Error parsing sync file: {e}")
-        return None
+        except Exception as e:
+            print(f"Error parsing sync file: {e}")
+            return None
 
 
 def get_dat_timestamps(
@@ -219,39 +221,11 @@ def get_dat_timestamps(
     #     ts_units = "seconds"  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (that's in sample_numbers.npy)
 
     for idf, file in enumerate(timestamp_files):
-        # set_folder = get_set_folder(file)
 
-        # try:
-        #     start_time = get_us_start(set_folder / set_file)
-        #     # print("Using precise start time from Pho/Timestamp plugin")
-        # except KeyError:
-        #     try:
-        #         experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
-        #         start_time = pd.Timestamp(experiment_meta["INFO"]["DATE"]).tz_localize(
-        #             local_time
-        #         )  # get start time from meta-data
-        #     except FileNotFoundError:
-        #         print(
-        #             "WARNING:"
-        #             + str(set_folder / set_file)
-        #             + " not found. Inferring start time from directory structure. PLEASE CHECK!"
-        #         )
-        #         # Find folder with timestamps
-        #         m = re.search(
-        #             "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
-        #             str(set_folder),
-        #         )
-        #         start_time = pd.to_datetime(
-        #             m.group(0), format="%Y-%m-%d_%H-%M-%S"
-        #         ).tz_localize(local_time)
-        #
-
-        rec_folder = file.parents[2] # Get recording file
+        rec_folder = file.parents[2]  # Get recording file
         start_time_rec, _ = get_recording_start(rec_folder, to_zone=local_time)
         # Get SR and sync frame info - for syncing to time of day.
-        SR, sync_frame_exp = parse_sync_file(
-            file.parents[3] / "recording1/sync_messages.txt"
-        )
+        SR, sync_frame_rec = parse_sync_file(file.parents[2] / "sync_messages.txt")
         # # sync_frame info between recordings within the same experiment folder
         # _, sync_frame_rec = parse_sync_file(file.parents[2] / "sync_messages.txt")
         #
@@ -277,7 +251,7 @@ def get_dat_timestamps(
             stamps = stamps[[0, -1]]
         timestamps.append(
             (
-                start_time_rec + pd.to_timedelta((stamps - sync_frame_exp) / SR, unit="sec")
+                start_time_rec + pd.to_timedelta((stamps - sync_frame_rec) / SR, unit="sec")
             ).to_frame(index=False)
         )  # Add in absolute timestamps, keep index of acquisition system
 
