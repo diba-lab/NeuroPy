@@ -49,20 +49,17 @@ def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detr
     """Get start time of recording."""
 
     # Get version number
-    # exp_num = str(recording_folder.parent).split("experiment")[1]
-    # exp_append = exp_num if exp_num == "" else f"_{exp_num}"
-    # settings_path = Path(recording_folder).parents[1] / f"settings{exp_append}.xml"
     settings_path = get_settings_file(recording_folder)
     oe_version = get_version_number(settings_path)
 
     #
     if Version(oe_version) < Version("0.6"):
-        # Try to get time via PhoTimestamp plugin. Otherwise try to get via create time of file. Otherwise grab from settings file directly.
         # Try to get microsecond start time from PhoTimestamp plugin.
         try:
             start_time = get_us_start(settings_path, from_zone=from_zone, to_zone=to_zone)
             precision = "us"
 
+        # Otherwise get time from settings file (lower precision)
         except KeyError:
             try:
                 experiment_meta = XML2Dict(settings_path)  # Get meta data
@@ -70,6 +67,8 @@ def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detr
                     to_zone
                 )  # get start time from meta-data
                 precision = "s"
+
+            # Last ditch get from directory structure and spit out warning.
             except FileNotFoundError:
                 print(
                     "WARNING:"
@@ -86,6 +85,7 @@ def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detr
                 ).tz_localize(to_zone)
                 precision = "s"
 
+        # Now add in lag from settings file creation (first time you hit record after hitting play)
         # Get SR and sync frame info - for syncing to time of day.
         SR, sync_frame_exp = parse_sync_file(recording_folder.parent / "recording1/sync_messages.txt")
 
