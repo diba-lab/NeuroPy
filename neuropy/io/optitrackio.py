@@ -10,6 +10,7 @@ import pandas as pd
 from ..utils import position_util, mathutil
 from pathlib import Path
 from ..core import Position
+from copy import deepcopy
 
 
 def getSampleRate(fileName):
@@ -378,7 +379,7 @@ class OptitrackIO:
 
             else:
                 x, y, z, trelative = posfromCSV(file)
-                # Make sure you arent't just importing the header, if so engage except
+                # Make sure you aren't just importing the header, if so engage except
                 assert len(x) > 0
                 nframes_pos = len(x)
                 trange = tbegin + pd.to_timedelta(trelative, unit="s")
@@ -386,7 +387,7 @@ class OptitrackIO:
                 tend = trange[-1]
 
             datetime_starts.append(tbegin)
-            datetime_stops.append(tend)
+            datetime_stops.append(tend.to_pydatetime())  # Explicitly returns a datetime and not a timestamp
             datetime_nframes.append(nframes_pos)
             posx.extend(x)
             posy.extend(y)
@@ -415,6 +416,33 @@ class OptitrackIO:
         z = np.interp(dt, self.datetime_array, self.z)
 
         return x, y, z
+
+    def remove_negatives(self, ref_time):
+        """
+        Remove position data that is before the referenced time. Used when motive is started during a recording that
+        precedes the relevant recording
+
+        Parameters
+        ----------
+        ref_time : float, optional
+            The reference time to subtract from the datetime_array, by default 0.
+        """
+        if not isinstance(ref_time, pd.Timestamp):
+            ref_time = pd.Timestamp(ref_time)  # Ensure ref_time is a pandas Timestamp
+            print("Reference time was not a timestamp, converting to timestamp")
+
+        relative_times = (self.datetime_array - ref_time).total_seconds()
+        mask = relative_times >= 0
+
+        # Filter only per-frame data
+        self.datetime_array = self.datetime_array[mask]
+        self.x = self.x[mask]
+        self.y = self.y[mask]
+        self.z = self.z[mask]
+
+        self.datetime_starts = self.datetime_array[0]
+        self.datetime_stops = self.datetime_array[-1]
+        self.datetime_nframes = len(self.datetime_array)
 
     def old_stuff(self):
         """get position data from files. All position related files should be in 'position' folder within basepath
