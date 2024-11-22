@@ -10,7 +10,6 @@ import pandas as pd
 from ..utils import position_util, mathutil
 from pathlib import Path
 from ..core import Position
-from copy import deepcopy
 
 
 def getSampleRate(fileName):
