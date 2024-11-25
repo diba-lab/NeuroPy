@@ -2051,12 +2051,31 @@ import matplotlib.colors
 from matplotlib import cm
 from neuropy.utils.mathutil import bounded
 
+def get_heatmap_cmap(cmap: Union[str, mpl.colors.Colormap]='viridis', bad_color='black', under_color='white', over_color='red') -> mpl.colors.Colormap:
+    """ 
+    from neuropy.utils.matplotlib_helpers import get_heatmap_cmap
+     # cmap = get_heatmap_cmap(cmap='viridis', bad_color='black', under_color='white', over_color='red')
+    cmap = get_heatmap_cmap(cmap='Orange', bad_color='black', under_color='white', over_color='red')
+    
+    """
+    # Get the colormap to use and set the bad color
+    if isinstance(cmap, str):
+        ## convert to real colormap
+        cmap = mpl.colormaps.get_cmap(cmap)  # viridis is the default colormap for imshow
+
+    cmap.set_bad(color=bad_color, alpha=0.95)
+    cmap.set_under(color=under_color, alpha=0.0)
+    cmap.set_over(color=over_color, alpha=1.0)
+    # cmap = 'turbo'
+    return cmap
+    
 
 @define(slots=False)
 class ValueFormatter:
     """ builds text formatting (for example larger values being rendered larger or more red) 
 
     Usage:
+        from neuropy.utils.matplotlib_helpers import ValueFormatter
         a_val_formatter = ValueFormatter()
         a_val_formatter(0.934)
     """
@@ -2065,8 +2084,8 @@ class ValueFormatter:
     out_of_range_fallback_color: str = field(default="#00FF00") # lime green
 
     # select a divergent colormap
-    cmap: mpl.colors.Colormap = field(factory=(lambda *args, **kwargs: cm.coolwarm))
-    norm: mpl.colors.Normalize = field(factory=(lambda *args, **kwargs: mpl.colors.Normalize(vmin=-1, vmax=1)))
+    cmap: Union[str, mpl.colors.Colormap] = field(factory=(lambda *args, **kwargs: cm.coolwarm))
+    norm: Optional[mpl.colors.Normalize] = field(factory=(lambda *args, **kwargs: mpl.colors.Normalize(vmin=-1, vmax=1)))
     
     coloring_function: Callable = field(default=None)
 
@@ -2078,6 +2097,11 @@ class ValueFormatter:
     def __attrs_post_init__(self):
         if self.cmap is None:
             self.cmap = cm.coolwarm
+        if isinstance(self.cmap, str):
+            ## convert to real colormap
+            self.cmap = mpl.colormaps.get_cmap(self.cmap)  # viridis is the default colormap for imshow
+            
+            
         if self.norm is None:
             self.norm = mpl.colors.Normalize(vmin=-1, vmax=1)
         if self.coloring_function is None:
@@ -2125,7 +2149,7 @@ class ValueFormatter:
 
             return color
 
-
+    @function_attributes(short_name=None, tags=['cmap', 'diverging-cmap'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-11-25 09:52', related_items=[])
     def blue_grey_red_custom_value_to_color_fn(self, value, debug_print=True) -> str:
         """
         Maps a value between -1.0 and 1.0 to an RGB color code.
