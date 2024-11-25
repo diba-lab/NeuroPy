@@ -2149,7 +2149,7 @@ class ValueFormatter:
 
             return color
 
-    @function_attributes(short_name=None, tags=['cmap', 'diverging-cmap'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-11-25 09:52', related_items=[])
+    # @function_attributes(short_name=None, tags=['cmap', 'diverging-cmap'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-11-25 09:52', related_items=[])
     def blue_grey_red_custom_value_to_color_fn(self, value, debug_print=True) -> str:
         """
         Maps a value between -1.0 and 1.0 to an RGB color code.
