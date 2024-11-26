@@ -975,8 +975,8 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
     Primarily provides: `get_specific_purpose_description`
 
     """
-    display_dict: Dict = field(default=None)
-    specific_purpose_display_dict: Dict[str, ContextFormatRenderingFn] = field(default=None)
+    display_dict: Dict = field(default=None, metadata={'exclude_to_dict': True})
+    specific_purpose_display_dict: Dict[str, ContextFormatRenderingFn] = field(default=None, metadata={'exclude_to_dict': True})
 
     def __init__(self, display_dict=None, specific_purpose_display_dict=None, **kwargs):
         # super(self.__class__, self).__init__(**kwargs)
@@ -1246,4 +1246,70 @@ class DisplaySpecifyingIdentifyingContext(IdentifyingContext):
                     setattr(duplicate_ctxt, final_name, value)
         
         return duplicate_ctxt
+    
+    # ==================================================================================================================== #
+    # Needless overrides                                                                                                   #
+    # ==================================================================================================================== #
+    def adding_context_if_missing(self, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
+        return self.adding_context(None, strategy=CollisionOutcome.IGNORE_UPDATED, **additional_context_items)
+    def overwriting_context(self, **additional_context_items) -> "DisplaySpecifyingIdentifyingContext":
+        return self.adding_context(None, strategy=CollisionOutcome.REPLACE_EXISTING, **additional_context_items)
 
+    def __add__(self, other) -> "DisplaySpecifyingIdentifyingContext":
+        """ Allows adding contexts using the `+` operator
+        """
+        other_dict = convert_to_dictlike(other)
+        return copy.deepcopy(self).overwriting_context(**other_dict)
+
+    # ==================================================================================================================== #
+    # SubsettableDictRepresentable conformances                                                                            #
+    # ==================================================================================================================== #
+    def to_dict(self, subset_includelist=None, subset_excludelist=None) -> benedict:
+        """ 
+        Inputs:
+            subset_includelist:<list?> a list of keys that specify the subset of the keys to be returned. If None, all are returned.
+        """
+        _global_subset_excludelist = ['display_dict', 'specific_purpose_display_dict']
+
+        if subset_excludelist is not None:
+            # if we have a excludelist, assert that we don't have an includelist
+            assert subset_includelist is None, f"subset_includelist MUST be None when a subset_excludelist is provided, but instead it's {subset_includelist}!"
+            subset_excludelist = subset_excludelist + _global_subset_excludelist # always exclude the meta properties from printing
+            subset_includelist = self.keys(subset_excludelist=subset_excludelist) # get all but the excluded keys
+        else:
+            ## no subset_excludelist provided
+            subset_excludelist = _global_subset_excludelist
+
+        if subset_includelist is None:
+            subset_includelist = self.keys(subset_excludelist=subset_excludelist) # get all but the excluded keys
+        else:
+            ## allow even the 'display_dict', 'specific_purpose_display_dict' keys in the user's subset_includelist
+            for k in _global_subset_excludelist:
+                if k in subset_includelist:
+                    print(f'WARN: the user-provided subset_includelist: {subset_includelist} contains the usually incorrect global key: {k} in _global_subset_excludelist: {_global_subset_excludelist}')
+
+            
+            
+        if subset_includelist is None:
+            return benedict(self.__dict__)
+        else:
+            return benedict(self.__dict__).subset(subset_includelist)
+                
+        # return benedict(self.__dict__).subset(subset_includelist)
+            
+        
+
+    # def keys(self, subset_includelist=None, subset_excludelist=None):
+    #     if subset_includelist is None:
+    #         return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_excludelist or [])]
+    #     else:
+    #         assert subset_excludelist is None, f"subset_excludelist MUST be None when a subset_includelist is provided, but instead it's {subset_excludelist}!"
+    #         return [a_key for a_key in benedict(self.__dict__).subset(subset_includelist).keys() if a_key not in (subset_excludelist or [])]
+
+    # def keypaths(self, subset_includelist=None, subset_excludelist=None): 
+    #     if subset_includelist is None:
+    #         return [a_key for a_key in benedict(self.__dict__).keys() if a_key not in (subset_excludelist or [])]
+    #     else:
+    #         assert subset_excludelist is None, f"subset_excludelist MUST be None when a subset_includelist is provided, but instead it's {subset_excludelist}!"
+    #         return [a_key for a_key in benedict(self.__dict__).subset(subset_includelist).keys() if a_key not in (subset_excludelist or [])]
+        
