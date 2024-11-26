@@ -465,7 +465,7 @@ class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepr
         assert (IdentifyingContext(format_name='KDIBA',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53') == IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53'))
         
         """
-        if isinstance(other, IdentifyingContext):
+        if isinstance(other, (IdentifyingContext, )):
             # Convert both dictionaries to lowercase for case-insensitive comparison
             self_dict = {k: str(v).casefold() if isinstance(v, str) else v for k, v in self.to_dict().items()}
             other_dict = {k: str(v).casefold() if isinstance(v, str) else v for k, v in other.to_dict().items()}
@@ -473,7 +473,7 @@ class IdentifyingContext(GetAccessibleMixin, DiffableObject, SubsettableDictRepr
             # return self.to_dict() == other.to_dict() # Python's dicts use element-wise comparison by default, so this is what we want.
             # return dict(sorted(self.to_dict().items())) == dict(sorted(other.to_dict().items())) 
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"type(other): {type(other)} not handled.")
 
     
     @classmethod
