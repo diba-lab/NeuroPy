@@ -1,4 +1,4 @@
-from typing import Union, List, Dict, Set, Any, Optional, OrderedDict  # for OrderedMeta
+from typing import Union, Tuple, List, Dict, Set, Any, Optional, OrderedDict  # for OrderedMeta
 from nptyping import NDArray
 from contextlib import contextmanager, ContextDecorator
 
@@ -133,6 +133,48 @@ def find_desired_sort_indicies(extant_arr, desired_sort_arr):
     assert np.all(extant_arr[sort_idxs] == desired_sort_arr), f"must sort: extant_arr[sort_idxs]: {extant_arr[sort_idxs]}\n desired_sort_arr: {desired_sort_arr}"
     return sort_idxs, desired_sort_arr
 
+
+class ListHelpers:
+    """
+    from neuropy.utils.indexing_helpers import ListHelpers
+    
+    """
+    # @function_attributes(short_name=None, tags=['split'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-11-27 06:10', related_items=['np.split'])
+    @classmethod
+    def split_on_index(cls, lst: List, index: int) -> Tuple[List, List]:
+        """ Splits a list on a specific index into two lists
+        from neuropy.utils.indexing_helpers import ListHelpers
+        """
+        return lst[:index + 1], lst[index + 1:]
+
+    # @function_attributes(short_name=None, tags=['split'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-11-27 06:11', related_items=['np.split'])
+    @classmethod
+    def list_split(lst: List, sep: Any, maxsplits:Optional[int]=None) -> List[List]:
+        """ Analagous to string split method
+        
+        #TODO 2024-11-27 06:11: - [ ] Seems nearly identical but less flexible than `np.split`
+        
+        Splits a list into sublists separated by the specified separator value, 
+        with an optional limit on the number of splits.
+
+        :param lst: The list to split.
+        :param sep: The separator value to split on.
+        :param maxsplits: Optional integer specifying the maximum number of splits to do.
+        :return: A list of sublists.
+        """
+        result = []
+        current = []
+        splits_done = 0
+
+        for item in lst:
+            if item == sep and (maxsplits is None or splits_done < maxsplits):
+                result.append(current)
+                current = []
+                splits_done += 1
+            else:
+                current.append(item)
+        result.append(current)
+        return result
 
 
 # ==================================================================================================================== #
