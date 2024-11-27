@@ -8,7 +8,7 @@ from attrs import define
 from matplotlib.offsetbox import AnchoredOffsetbox, TextArea
 from matplotlib.widgets import RectangleSelector, SpanSelector
 from neuropy.utils.misc import AutoNameEnum
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, Union
 from matplotlib.figure import Figure
 from flexitext.text import Text as StyledText
 
@@ -677,19 +677,29 @@ def resize_window_to_inches(window, width_inches, height_inches, dpi=...): # -> 
     """
     ...
 
+def get_heatmap_cmap(cmap: Union[str, mpl.colors.Colormap] = ..., bad_color=..., under_color=..., over_color=...) -> mpl.colors.Colormap:
+    """ 
+    from neuropy.utils.matplotlib_helpers import get_heatmap_cmap
+     # cmap = get_heatmap_cmap(cmap='viridis', bad_color='black', under_color='white', over_color='red')
+    cmap = get_heatmap_cmap(cmap='Orange', bad_color='black', under_color='white', over_color='red')
+    
+    """
+    ...
+
 @define(slots=False)
 class ValueFormatter:
     """ builds text formatting (for example larger values being rendered larger or more red) 
 
     Usage:
+        from neuropy.utils.matplotlib_helpers import ValueFormatter
         a_val_formatter = ValueFormatter()
         a_val_formatter(0.934)
     """
     NONE_fallback_color: str = ...
     nan_fallback_color: str = ...
     out_of_range_fallback_color: str = ...
-    cmap: mpl.colors.Colormap = ...
-    norm: mpl.colors.Normalize = ...
+    cmap: Union[str, mpl.colors.Colormap] = ...
+    norm: Optional[mpl.colors.Normalize] = ...
     coloring_function: Callable = ...
     def __attrs_post_init__(self): # -> None:
         ...
