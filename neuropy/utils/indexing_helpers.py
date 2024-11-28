@@ -327,7 +327,7 @@ class NumpyHelpers:
     
     @classmethod
     def safe_concat(cls, np_concat_list: Union[List[NDArray], Dict[Any, NDArray]], **np_concat_kwargs) -> NDArray:
-        """ returns an empty dataframe if the key isn't found in the group.
+        """ returns an empty array if the key isn't found in the group.
         Usage:
             from neuropy.utils.indexing_helpers import NumpyHelpers
 
