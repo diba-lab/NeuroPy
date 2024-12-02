@@ -343,6 +343,53 @@ class NumpyHelpers:
             out_concat_arr = np.array([]) # empty df would be better
         return out_concat_arr
     
+    # @function_attributes(short_name=None, tags=['numpy', 'safe', 'indexing','list'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-05-08 20:06', related_items=[])
+    @classmethod
+    def safe_numpy_index(cls, arr, idxs: np.ndarray):
+        """ tries to prevent errors when arr is a list and idxs is a numpy array. """
+        try:
+            return arr[idxs] # works for arr: np.ndarray and idxs: np.ndarray
+        except TypeError as e:
+            # "TypeError: only integer scalar arrays can be converted to a scalar index"
+            # Occurs when arr is list and idxs: np.ndarray
+            if isinstance(arr, list):
+                return [arr[i] for i in idxs] # returns a list object
+            else:
+                print(f"NotImplementedError: type(arr): {type(arr)}, type(idxs): {type(idxs)}")
+                raise NotImplementedError
+        except Exception as e:
+            raise e
+            
+    @classmethod
+    def safe_vstack(cls, arr):
+        """ a version of np.vstack that doesn't throw a ValueError on empty lists
+        Usually thows: `ValueError: need at least one array to concatenate`
+            
+            from pyphocorehelpers.indexing_helpers import safe_np_vstack
+
+            NumpyHelpers.safe_vstack(...)
+        
+        """
+        if len(arr)>0:
+            return np.vstack(arr) # without this check np.vstack throws `ValueError: need at least one array to concatenate` for empty lists
+        else:
+            return np.array(arr) # ChatGPT suggests returning np.empty((0, 0))  # Create an empty array with shape (0, 0)
+
+    @classmethod
+    def safe_hstack(cls, arr):
+        """ a version of np.hstack that doesn't throw a ValueError on empty lists
+            Usually thows: `ValueError: need at least one array to concatenate`
+        
+            NumpyHelpers.safe_hstack(...)
+        """
+        if len(arr)>0:
+            return np.hstack(arr) # without this check np.vstack throws `ValueError: need at least one array to concatenate` for empty lists
+        else:
+            return np.array(arr) # ChatGPT suggests returning np.empty((0, 0))  # Create an empty array with shape (0, 0)
+        
+
+
+    
     @classmethod
     def logical_generic(cls, pairwise_numpy_logical_fn, *list_of_arrays, **kwargs) -> NDArray:
         """ generalizes the logical_and function to multiple arrays 
