@@ -2070,6 +2070,49 @@ def get_heatmap_cmap(cmap: Union[str, mpl.colors.Colormap]='viridis', bad_color=
     return cmap
     
 
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import ListedColormap
+
+def modify_colormap_alpha(cmap: Union[str, mpl.colors.Colormap], alpha: float) -> ListedColormap:
+    """
+    Create a copy of the given colormap with a specified alpha.
+
+    Args:
+        cmap_name (str): Name of the original colormap.
+        alpha (float): Desired alpha value (0.0 to 1.0).
+
+    Returns:
+        ListedColormap: A colormap with the specified alpha.
+    
+    Usage:
+
+        from neuropy.utils.matplotlib_helpers import modify_colormap_alpha
+        # Example usage
+        custom_cmap = modify_colormap_alpha('viridis', 0.5)
+
+        # Visualizing the custom colormap
+        plt.imshow([np.linspace(0, 1, 100)], aspect='auto', cmap=custom_cmap)
+        plt.colorbar()
+        plt.show()
+
+    """
+    # Get the colormap to use and set the bad color
+    if isinstance(cmap, str):
+        ## convert to real colormap
+        cmap = mpl.colormaps.get_cmap(cmap)  # viridis is the default colormap for imshow
+            
+    colors = cmap(np.arange(cmap.N))
+    colors[:, 3] = alpha  # Modify alpha channel
+    return ListedColormap(colors)
+
+
+            
+
+    
+    
 @define(slots=False)
 class ValueFormatter:
     """ builds text formatting (for example larger values being rendered larger or more red) 
