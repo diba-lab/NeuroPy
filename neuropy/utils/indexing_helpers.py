@@ -786,6 +786,113 @@ class PandasHelpers:
             all_have_all_columns = all(_subfn_check_and_report(df, required_columns, key) for key, df in dfs.items())
 
         return all_have_all_columns
+    
+
+    @classmethod
+    def find_duplicated_df_columns(cls, df: pd.DataFrame, print_duplicated_columns: bool = True) -> List[str]:
+        """
+        Check if all DataFrames in the given container have the required columns.
+        
+        Parameters:
+            dfs: A container that may be a single DataFrame, a list/tuple of DataFrames, or a dictionary with DataFrames as values.
+            required_columns: A list of column names that are required to be present in each DataFrame.
+            print_changes: If True, prints the columns that are missing from each DataFrame.
+        
+        Returns:
+            True if all DataFrames contain all the required columns, otherwise False.
+
+        Usage:
+
+            duplicated_columns, duplicated_columns_dict = PandasHelpers.find_duplicated_df_columns(df=ripple_merged_complete_epoch_stats_df, print_duplicated_columns=True)
+            has_required_columns
+            
+        """
+        all_columns_list = deepcopy(list(df.columns))
+        num_all_columns: int = len(all_columns_list)
+
+        unique_columns_list = list(dict.fromkeys(all_columns_list).keys())
+        num_unique_columns: int = len(unique_columns_list)
+        
+        num_duplicated_columns: int = num_all_columns - num_unique_columns
+        if num_duplicated_columns > 0:
+            if print_duplicated_columns:
+                print(f'WARN: detected {num_duplicated_columns} duplicated columns.')
+            # duplicated_columns = set(all_columns_list).difference(unique_columns_list)
+
+            # duplicated_columns = deepcopy(all_columns_list)
+            duplicated_columns_dict = {}
+            non_duplicated_column_indicies = []
+            for idx, k in enumerate(all_columns_list):
+                if k not in duplicated_columns_dict:
+                    duplicated_columns_dict[k] = [idx] # start a new list
+                else:
+                    # already present, add this index
+                    duplicated_columns_dict[k].append(idx)
+                    
+            # end for
+            duplicated_columns_dict = {k:v for k, v in duplicated_columns_dict.items() if (len(v) > 1)} ## drop all but the duplicate columns (marked by 2+ indicies)
+            non_duplicated_columns_dict = {k:v for k, v in duplicated_columns_dict.items() if (len(v) == 1)} ## drop all but the duplicate columns (marked by 2+ indicies)
+            duplicated_column_names = list(duplicated_columns_dict.keys())
+                        
+            if print_duplicated_columns:
+                print(f'\tduplicated_columns_dict: {duplicated_columns_dict}')
+                print(f'\tduplicated_columns: {duplicated_column_names}')
+            return duplicated_column_names, duplicated_columns_dict ## return duplicated columns list
+        else:
+            return [], dict() # no duplicated columns
+         
+
+    @classmethod
+    def dropping_duplicated_df_columns(cls, df: pd.DataFrame, debug_print: bool = False) -> pd.DataFrame:
+        """
+        Check if all DataFrames in the given container have the required columns.
+        
+        Parameters:
+            dfs: A container that may be a single DataFrame, a list/tuple of DataFrames, or a dictionary with DataFrames as values.
+            required_columns: A list of column names that are required to be present in each DataFrame.
+            print_changes: If True, prints the columns that are missing from each DataFrame.
+        
+        Returns:
+            True if all DataFrames contain all the required columns, otherwise False.
+
+        Usage:
+
+            ripple_merged_complete_epoch_stats_df = PandasHelpers.dropping_duplicated_df_columns(df=ripple_merged_complete_epoch_stats_df, print_duplicated_columns=True)
+            has_required_columns
+            
+        """
+        all_columns_list = deepcopy(list(df.columns))
+        num_all_columns: int = len(all_columns_list)
+
+        unique_columns_list = list(dict.fromkeys(all_columns_list).keys())
+        num_unique_columns: int = len(unique_columns_list)
+        
+        num_duplicated_columns: int = num_all_columns - num_unique_columns
+        
+        duplicated_columns, duplicated_columns_dict = cls.find_duplicated_df_columns(df=df, print_duplicated_columns=debug_print)
+        first_set_idxs = np.array([v[0] for k, v in duplicated_columns_dict.items()]) # [10,11,12,13] -- the originals
+        repeated_col_idxs = np.array(flatten([v[1:] for k, v in duplicated_columns_dict.items()])) # [104,105,102,103] -- the duplicates
+        valid_col_idxs = np.array([idx for idx in np.arange(len(deepcopy(list(df.columns)))) if (idx not in repeated_col_idxs)]) ## all indicies except the invalid (duplicated) ones
+        
+        #TODO 2024-12-02 22:59: - [ ] This function does not verify that the "duplicate" columns have the same values as the originals
+
+        deduplicated_df: pd.DataFrame = deepcopy(df) #.drop(axis='columns', index=repeated_col_idxs, inplace=False)
+        if debug_print:
+            print(f'dropping duplicated_columns: {duplicated_columns}, duplicated_columns_dict: {duplicated_columns_dict}')
+
+        deduplicated_df = deepcopy(deduplicated_df.iloc[:, valid_col_idxs]) # only the valid columns
+        # deduplicated_df = deduplicated_df.drop(deduplicated_df.iloc[:, repeated_col_idxs], axis='columns', inplace=False)
+        assert cls.require_columns(deduplicated_df, required_columns=duplicated_columns, print_missing_columns=debug_print)
+        ## validate after dropping
+        post_dedup_duplicated_columns, post_dedup_duplicated_columns_dict = PandasHelpers.find_duplicated_df_columns(df=deduplicated_df, print_duplicated_columns=debug_print)
+        assert len(post_dedup_duplicated_columns) == 0, f"post_dedup_duplicated_columns is not empty after de-duplicating!"
+        assert len(deduplicated_df.columns) == num_unique_columns, f"len(deduplicated_df.columns): {len(deduplicated_df.columns)} should equal the original num_unique_columns ({num_unique_columns}) after deduplications, but it does not!"
+        return deduplicated_df
+
+         
+
+
+
 
     @classmethod
     def reordering_columns(cls, df: pd.DataFrame, column_name_desired_index_dict: Dict[str, int]) -> pd.DataFrame:
