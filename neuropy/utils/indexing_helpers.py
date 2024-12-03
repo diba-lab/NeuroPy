@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Union, Tuple, List, Dict, Set, Any, Optional, OrderedDict  # for OrderedMeta
 from nptyping import NDArray
 from contextlib import contextmanager, ContextDecorator
@@ -394,7 +395,8 @@ class NumpyHelpers:
     def logical_generic(cls, pairwise_numpy_logical_fn, *list_of_arrays, **kwargs) -> NDArray:
         """ generalizes the logical_and function to multiple arrays 
 
-                from neuropy.utils.indexing_helpers import NumpyHelpers
+        from neuropy.utils.indexing_helpers import NumpyHelpers
+
         df1_matches_all_conditions = NumpyHelpers.logical_generic(np.logical_and, *[df1[k] == v for k, v in a_values_dict.items()])
         
         """
@@ -412,6 +414,26 @@ class NumpyHelpers:
                 reference_array = pairwise_numpy_logical_fn(reference_array, an_arr, **kwargs) 
 
             return reference_array
+
+
+
+    @classmethod
+    def logical_and(cls, *list_of_arrays, **kwargs) -> NDArray:
+        """ generalizes the `logical_and` function to multiple arrays """
+        return cls.logical_generic(np.logical_and, *list_of_arrays, **kwargs)
+        
+    @classmethod
+    def logical_or(cls, *list_of_arrays, **kwargs) -> NDArray:
+        """ generalizes the `logical_or` function to multiple arrays """
+        return cls.logical_generic(np.logical_or, *list_of_arrays, **kwargs)
+        
+    @classmethod
+    def logical_xor(cls, *list_of_arrays, **kwargs) -> NDArray:
+        """ generalizes the `logical_xor` function to multiple arrays """
+        return cls.logical_generic(np.logical_xor, *list_of_arrays, **kwargs)    
+
+        
+        
 
 # ==================================================================================================================== #
 # Sorting/Joint-sorting                                                                                                #
