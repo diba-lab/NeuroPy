@@ -2055,7 +2055,7 @@ def get_heatmap_cmap(cmap: Union[str, mpl.colors.Colormap]='viridis', bad_color=
     """ 
     from neuropy.utils.matplotlib_helpers import get_heatmap_cmap
      # cmap = get_heatmap_cmap(cmap='viridis', bad_color='black', under_color='white', over_color='red')
-    cmap = get_heatmap_cmap(cmap='Orange', bad_color='black', under_color='white', over_color='red')
+    cmap = get_heatmap_cmap(cmap='Oranges', bad_color='black', under_color='white', over_color='red')
     
     """
     # Get the colormap to use and set the bad color
@@ -2092,7 +2092,11 @@ def modify_colormap_alpha(cmap: Union[str, mpl.colors.Colormap], alpha: float) -
         from neuropy.utils.matplotlib_helpers import modify_colormap_alpha
         # Example usage
         custom_cmap = modify_colormap_alpha('viridis', 0.5)
-
+        # Define a colormap
+        cmap = plt.get_cmap('tab10')
+        custom_cmap = modify_colormap_alpha(cmap=cmap, alpha=subsequence_line_color_alpha)
+        num_colors: int = custom_cmap.N
+        
         # Visualizing the custom colormap
         plt.imshow([np.linspace(0, 1, 100)], aspect='auto', cmap=custom_cmap)
         plt.colorbar()
