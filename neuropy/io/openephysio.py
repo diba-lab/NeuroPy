@@ -30,19 +30,17 @@ class OESyncIO:
 
 
 def get_settings_file(experiment_or_recording_folder):
-
-    if "recording" in Path(experiment_or_recording_folder).stem:
-        exp_folder = Path(experiment_or_recording_folder).parent
+    if "Record Node" in Path(experiment_or_recording_folder).stem:
+        node_folder = Path(experiment_or_recording_folder)
     elif "experiment" in Path(experiment_or_recording_folder).stem:
-        exp_folder = Path(experiment_or_recording_folder)
+        node_folder = Path(experiment_or_recording_folder).parent
+    elif "recording" in Path(experiment_or_recording_folder).stem:
+        node_folder = Path(experiment_or_recording_folder).parents[1]
     else:
-        assert False, "must enter either '.../experiment#' folder or '.../experiment#/recording#' folder"
+        assert False, "must enter any one of '.../Record Node ###', '.../experiment#', or '.../experiment#/recording#' folder"
 
-    exp_num = str(exp_folder).split("experiment")[1]
-    exp_append = "" if exp_num == "1" else f"_{exp_num}"
-    settings_path = exp_folder.parent / f"settings{exp_append}.xml"
-
-    return settings_path
+    settings_path = sorted(node_folder.glob("**/*settings*"))
+    return settings_path[0]
 
 
 def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detroit"):
