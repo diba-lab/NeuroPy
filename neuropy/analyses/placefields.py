@@ -126,6 +126,7 @@ class Pf1D(core.Ratemap):
         self.speed_thresh = speed_thresh
         self.speed = speed
         self.t = t
+        self.x = x
         self.t_start = t_start
         self.t_stop = t_stop
 
@@ -206,12 +207,10 @@ class Pf1D(core.Ratemap):
 
         return ax
 
-    def plot_ratemaps(
-        self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"
-    ):
-        return plotting.plot_ratemaps()
+    def plot_ratemaps(self, **kwargs):
+        return plotting.plot_ratemap(self, **kwargs)
 
-    def plot_ratemaps_raster(self, jitter=0, plot_time=False, scale=None, sort=True, ax=None):
+    def plot_rasters(self, jitter=0, plot_time=False, scale=None, sort=True, ax=None):
         """Plot ratemap as a raster for each neuron
 
         Parameters
@@ -240,14 +239,38 @@ class Pf1D(core.Ratemap):
             nbins = self.tuning_curves.shape[1]
             scale_factor = (nbins - 2) / ncm
 
-        for i, (pos, t) in enumerate(zip(spiketrains_pos, spiketrains_t)):
+        for i, (spk_pos, spk_t) in enumerate(zip(spiketrains_pos, spiketrains_t)):
             if plot_time:
-                ypos = (t - self.t_start) / ((self.t_stop - self.t_start) * 1.1) + i - 0.45  # exact time
-                # ypos = np.linspace(-0.45, 0.45, len(t)) + i  # rough approximation
+                ypos = (spk_t - self.t_start) / ((self.t_stop - self.t_start) * 1.1) + i - 0.45  # spike time
+                ypos_traj = (self.t - self.t_start) / ((self.t_stop - self.t_start) * 1.1) + i - 0.45  # trajectory time
+                ax.plot(self.x * scale_factor - 0.5, ypos_traj, "-", color=[0, 0, 1, 0.3])
                 # NRK Todo: allow plotting by lap.
             else:
-                ypos = i * np.ones_like(pos) + np.random.randn(pos.shape[0]) * jitter
-            ax.plot(pos * scale_factor - 0.5, ypos, "k.", markersize=2)
+                ypos = i * np.ones_like(spk_pos) + np.random.randn(spk_pos.shape[0]) * jitter
+            ax.plot(spk_pos * scale_factor - 0.5, ypos, "k.", markersize=2)
+
+    def plot_ratemap_w_raster(self, ind=None, id=None, ax=None, **kwargs):
+
+        # Get neuron index
+        assert (ind == None) != (id == None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        if ind is None:
+            ind = np.where(id == self.neuron_ids)[0][0]
+
+        # Slice desired neuron's placefield
+        pfuse = self.neuron_slice([ind])
+
+        # Create axes
+        if ax is None:
+            _, ax = plt.subplots(2, 1, figsize=(4, 4), sharex=True,
+                                 height_ratios=[3, 2])
+
+        # Plot tuning curve
+        pfuse.plot_ratemaps(normalize_tuning_curve=True, ax=ax[0])
+
+        # Plot raster below
+        pfuse.plot_rasters(plot_time=True, ax=ax[1])
+
+        return ax
 
     def plot_raw_ratemaps_laps(self, ax=None, subplots=(8, 9)):
         return plotting.plot_raw_ratemaps()
@@ -594,3 +617,16 @@ class Pf2D:
         self._obj.spikes.plot_ccg(clus_use=[cellind], type="acg", ax=axccg)
 
         return fig_use
+
+    if __name__ == "__main__":
+        import subjects
+        sess = subjects.remaze_sess()[1]
+
+        maze = sess.paradigm[
+            "maze"].flatten()  # Grab times when rat was on the maze (as opposed to pre/post sleep recordings)
+        neurons = sess.neurons_stable.get_neuron_type("pyr")  # get pre-selected stable neurons
+        kw = dict(frate_thresh=0, grid_bin=5)  # Define placefield parameters
+
+        pfmaze = Pf1D(neurons, position=sess.maze, **kw)
+
+        pfmaze.plot_ratemap_w_raster([2])
