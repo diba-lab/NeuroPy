@@ -26,6 +26,7 @@ import numpy as np
 from matplotlib.transforms import Bbox
 import mpl_toolkits
 from copy import deepcopy
+import matplotlib
 from matplotlib.path import Path
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
