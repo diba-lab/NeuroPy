@@ -280,10 +280,10 @@ class Pf1D(core.Ratemap):
 
     def neuron_slice(self, inds=None, ids=None):
         """Slice out neurons"""
-        assert (inds == None) != (ids == None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        assert (inds is None) != (ids is None), "Exactly one of 'inds' and 'ids' must be a list or array"
         if ids is not None:
-            inds = [np.where(idd == self.neuron_ids)[0][0] for idd in ids]
-        inds = np.sort(inds)
+            inds = [np.where(idd == self.neuron_ids)[0][0] for idd in np.atleast_1d(ids)]
+        inds = np.sort(np.atleast_1d(inds))
 
         # Make a copy and slice
         pfslice = deepcopy(self)
