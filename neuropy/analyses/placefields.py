@@ -731,6 +731,8 @@ class Pf2D:
         return fig_use
 
     if __name__ == "__main__":
+        import matplotlib
+        matplotlib.use('TkAgg')
         import subjects
         sess = subjects.remaze_sess()[1]
 
@@ -740,5 +742,6 @@ class Pf2D:
         kw = dict(frate_thresh=0, grid_bin=5)  # Define placefield parameters
 
         pfmaze = Pf1D(neurons, position=sess.maze, **kw)
-
-        pfmaze.plot_ratemap_w_raster([2])
+        pf_data_df = pfmaze.neuron_slice(inds=np.arange(10)).get_pf_data(test="blah", step=0.1, height_thresh=0.5, plot=True)
+        pass
+        # pfmaze.plot_ratemap_w_raster([2])
