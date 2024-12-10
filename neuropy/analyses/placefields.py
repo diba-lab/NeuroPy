@@ -366,8 +366,8 @@ class Pf1D(core.Ratemap):
         :param: plot: plots identified, heights, prominences, and widths, default = False
 
         :return: widths, edges: 1d and 2d np.ndarrays of widths, and left/right edges for each field.
-                 width and one edge = np.nan means the edge of the field lies outside of the data limits
-                                      at that height_thresh"""
+                 one edge = np.nan means the edge of the field lies outside of the data limits
+                            at that height_thresh, width from other edge to track limit is still reported"""
 
         assert tuning_curve.ndim == 1, "Tuning curve must be 1-dimensional"
         edges, widths = [], []
@@ -384,17 +384,23 @@ class Pf1D(core.Ratemap):
                 np.array([(center > lims[0]) & (center < lims[1]) for lims in abv_thresh_regions])].squeeze()
 
             # Interpolate the exact crossing point
-            left_edge, right_edge = np.nan, np.nan
+            left_edge, right_edge, edge = np.nan, np.nan
+            track_width = tuning_curve.size
             if left_ind > 0:
                 left_edge = np.interp(0, tuning_curve[[left_ind - 1, left_ind]] - (height - pro * height_thresh),
                                       [left_ind - 1, left_ind])
-            if right_ind < tuning_curve.size:
+            if right_ind < track_width:
                 right_edge = np.interp(0, tuning_curve[[right_ind, right_ind - 1]] - (height - pro * height_thresh),
                                        [right_ind, right_ind - 1])
 
             # Save
-            ### NRK todo: fill in nans here!
-            widths.append(right_edge - left_edge)
+            if np.isnan(left_edge):
+                width_use = right_edge
+            elif np.isnan(right_edge):
+                width_use = track_width - left_edge
+            else:
+                width_use = right_edge - left_edge
+            widths.append(width_use)
             edges.append(np.array([left_edge, right_edge]))
 
         if plot:
