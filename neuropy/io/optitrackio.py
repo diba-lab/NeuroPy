@@ -473,6 +473,9 @@ class OptitrackIO:
         self.datetime_stops = self.datetime_array[-1]
         self.datetime_nframes = len(self.datetime_array)
 
+    def to_position(self, t_start=0):
+        return Position(np.array([self.x, self.y, self.z]), t_start=t_start)
+
     def old_stuff(self):
         """get position data from files. All position related files should be in 'position' folder within basepath
 
