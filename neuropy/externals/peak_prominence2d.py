@@ -450,7 +450,6 @@ def getProminence(var,step,lats=None,lons=None,min_depth=None,
     id_map=np.zeros(var.shape)
 
     keys = list(peaks.keys())  # NRK update
-    print(keys)
     for ii in range(len(peaks)):
         kk=keys[ii]
         vv=peaks[kk]
@@ -506,7 +505,7 @@ def getProminence(var,step,lats=None,lons=None,min_depth=None,
 
 def split_path_by_index(path, index):
     """Splits a Matplotlib Path object into two at the given index. Useful for matplotlib versions
-    > 3.6 which don't split separate contout objects up into different members of a list, instead combining
+    > 3.6 which don't split separate contour objects up into different members of a list, instead combining
     everything together"""
 
     vertices = path.vertices
@@ -541,7 +540,8 @@ def split_path(path, splitby=Path.CLOSEPOLY):
         last_poly_ind = 0
         for poly in range(npoly):
             split_ind = split_inds[poly] - last_poly_ind
-            last_poly_ind = split_ind
+            last_poly_ind = split_inds[poly]
+
             if poly < (npoly - 1):
                 split_temp = split_path_by_index(path, split_ind)
                 path = split_temp[1]
@@ -591,7 +591,7 @@ if __name__=='__main__':
     ax1.set_title('Top view, col contours as dashed lines')
 
     for kk,vv in peaks.items():
-        print(kk)
+        # print(kk)
         cols=vv['contour']
         ax1.plot(cols.vertices[:,0],cols.vertices[:,1],'k:')
 

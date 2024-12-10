@@ -136,7 +136,7 @@ class Ratemap(DataWriter):
 
     def neuron_slice(self, inds=None, ids=None):
         """Slice neuron indexes (inds) or number (ids). Cannot specify both """
-        assert (inds == None) != (ids == None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        assert (inds is None) != (ids is None), "Exactly one of 'inds' and 'ids' must be a list or array"
         if ids is not None:
             inds = [np.where(idd == self.neuron_ids)[0][0] for idd in ids]
         inds = np.sort(inds)
