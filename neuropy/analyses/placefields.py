@@ -307,6 +307,7 @@ class Pf1D(core.Ratemap):
         kwargs_peaks = {key: value for key, value in kwargs.items() if key in peaks_keys}
         kwargs_widths = {key: value for key, value in kwargs.items() if key in ["height_thresh"]}
 
+        # Now loop through each neuron and calculate peak / width information
         pf_stats_list = []
         ind = 0
         for nid in self.neuron_ids:
@@ -364,7 +365,9 @@ class Pf1D(core.Ratemap):
         :param: height thresh: float between 0 and 1, height threshold at which to calculate pf width
         :param: plot: plots identified, heights, prominences, and widths, default = False
 
-        :return: widths, edges: 1d and 2d np.ndarrays of widths, and left/right edges for each field"""
+        :return: widths, edges: 1d and 2d np.ndarrays of widths, and left/right edges for each field.
+                 width and one edge = np.nan means the edge of the field lies outside of the data limits
+                                      at that height_thresh"""
 
         assert tuning_curve.ndim == 1, "Tuning curve must be 1-dimensional"
         edges, widths = [], []
@@ -381,15 +384,16 @@ class Pf1D(core.Ratemap):
                 np.array([(center > lims[0]) & (center < lims[1]) for lims in abv_thresh_regions])].squeeze()
 
             # Interpolate the exact crossing point
-            if (left_ind > 0) and (right_ind < tuning_curve.size):
+            left_edge, right_edge = np.nan, np.nan
+            if left_ind > 0:
                 left_edge = np.interp(0, tuning_curve[[left_ind - 1, left_ind]] - (height - pro * height_thresh),
-                                   [left_ind - 1, left_ind])
+                                      [left_ind - 1, left_ind])
+            if right_ind < tuning_curve.size:
                 right_edge = np.interp(0, tuning_curve[[right_ind, right_ind - 1]] - (height - pro * height_thresh),
-                                    [right_ind, right_ind - 1])
-            else:
-                left_edge, right_edge = np.nan, np.nan
+                                       [right_ind, right_ind - 1])
 
             # Save
+            ### NRK todo: fill in nans here!
             widths.append(right_edge - left_edge)
             edges.append(np.array([left_edge, right_edge]))
 
