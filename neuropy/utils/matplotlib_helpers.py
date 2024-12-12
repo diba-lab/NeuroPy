@@ -2435,3 +2435,101 @@ def save_colormap_image(filepath: str, colormap: str = 'viridis', orientation: s
     plt.savefig(filepath, bbox_inches='tight')
     plt.close(fig)
 
+
+
+class TabbedMatplotlibFigures:
+    """ 
+    Example:
+        from neuropy.utils.matplotlib_helpers import TabbedMatplotlibFigures
+        
+        def _perform_plot(x_data, y_data, extant_fig=None, extant_axes=None, **kwargs):
+            if extant_fig is not None:
+                fig = extant_fig # use the existing passed figure
+                # fig.set_size_inches([23, 9.7])
+            else:
+                if extant_axes is None:
+                    fig = plt.figure(figsize=(23, 9.7))
+                else:
+                    fig = extant_axes.get_figure()
+                    
+            if extant_axes is not None:
+                # user-supplied extant axes [axs0, axs1]
+                assert isinstance(extant_axes, dict), f"extant_axes should be a dict but is instead of type: {type(extant_axes)}\n\textant_axes: {extant_axes}"
+                assert len(extant_axes) == 1
+                ax_scatter = extant_axes["ax_scatter"]
+            else:
+                # Need axes:
+                # Layout Subplots in Figure:
+                extant_axes = fig.subplot_mosaic(
+                    [   
+                        ["ax_scatter"],
+                    ],
+                )
+                ax_scatter = extant_axes["ax_scatter"]
+                # gs = fig.add_gridspec(1, 8)
+                # gs.update(wspace=0, hspace=0.05) # set the spacing between axes. # `wspace=0`` is responsible for sticking the pf and the activity axes together with no spacing
+                # ax_activity_v_time = fig.add_subplot(gs[0, :-1]) # all except the last element are the trajectory over time
+                # ax_pf_tuning_curve = fig.add_subplot(gs[0, -1], sharey=ax_activity_v_time) # The last element is the tuning curve
+                # ax_pf_tuning_curve.set_title('Normalized Placefield', fontsize='14')
+                ax_scatter.set_xticklabels([])
+                ax_scatter.set_yticklabels([])
+            # end else
+            
+            ## BEGIN FUNCTION BODY
+            ax_scatter.plot(x_data, y_data)
+            
+            return fig, extant_axes
+
+
+        ## INPUTS: arrays, plot_data_dict
+
+        plot_subplot_mosaic_dict = {f"arr[{i}]":dict(sharex=True, sharey=True,) for i, arr in enumerate(arrays)}
+        ui, figures_dict, axs_dict = TabbedMatplotlibFigures._build_tabbed_multi_figure(plot_subplot_mosaic_dict)
+
+        for a_name, ax in axs_dict.items():
+            plot_arr = plot_data_dict[a_name]
+            fig = figures_dict[a_name]
+            fig, extant_axes = _perform_plot(x_data=np.arange(len(plot_arr)), y_data=plot_arr, extant_fig=fig, extant_axes=ax)
+        ui.show()
+
+
+    """
+    @classmethod
+    def build_tabbed_multi_figure(cls, plot_subplot_mosaic_dict):
+        """ 
+        plot_subplot_mosaic_dict = {f"arr[{i}]":dict(sharex=True, sharey=True,) for i, arr in enumerate(arrays)}
+        ui, plots_dict, axs_dict = TabbedMatplotlibFigures.build_tabbed_multi_figure(plot_subplot_mosaic_dict)
+        ui.show()
+        
+                
+        """
+        from mpl_multitab import MplMultiTab, MplMultiTab2D ## Main imports
+        
+        ui = MplMultiTab()
+        figures_dict = {}
+        axs_dict = {}
+        # for plot_name, plot_arr in plot_data_dict.items():
+        for plot_name, plot_subplot_mosaic_kwargs in plot_subplot_mosaic_dict.items():
+            fig = ui.add_tab(plot_name)
+            figures_dict[plot_name] = fig
+            if 'mosaic' not in plot_subplot_mosaic_kwargs:
+                ## add the required 'mosaic' parameter if it's missing, this specifies the layout
+                plot_subplot_mosaic_kwargs['mosaic'] = [   
+                    ["ax_scatter"],
+                ]
+            extant_axes = fig.subplot_mosaic(**plot_subplot_mosaic_kwargs)
+
+            # fig, extant_axes = _perform_plot(x_data=np.arange(len(plot_arr)), y_data=plot_arr, extant_fig=fig)
+            # extant_axes = fig.subplot_mosaic(mosaic=
+            #     [   
+            #         ["ax_scatter"],
+            #     ],
+            # **plot_subplot_mosaic_kwargs,
+            # )
+            
+            axs_dict[plot_name] = extant_axes
+
+        return ui, figures_dict, axs_dict
+        # return MatplotlibRenderPlots(name=f'TabbedMatplotlibFigures.build_tabbed_multi_figure', figures=figures_dict, axes=axs_dict, ui=ui)
+
+    
