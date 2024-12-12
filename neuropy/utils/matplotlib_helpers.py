@@ -2436,124 +2436,7 @@ def save_colormap_image(filepath: str, colormap: str = 'viridis', orientation: s
     plt.close(fig)
 
 
-import pyphoplacecellanalysis.External.pyqtgraph as pg
-from qtpy import QtCore, QtWidgets, QtGui
-from neuropy.utils.mixins.dict_representable import get_dict_subset # used to filter kwargs down to proper Figure inputs
-from mpl_multitab import MplMultiTab, MplMultiTab2D
-from pyphocorehelpers.DataStructure.general_parameter_containers import VisualizationParameters, RenderPlotsData, RenderPlots
-from pyphocorehelpers.gui.PhoUIContainer import PhoUIContainer
 
-class CustomMplMultiTab(MplMultiTab):
-    """ 
-        from neuropy.utils.matplotlib_helpers import CustomMplMultiTab
-        
-    """
-    # @property
-    # def fig(self):
-    #     """The main figure."""
-    #     return self.getFigure()
-    
-    # @property
-    # def axes(self):
-    #     """The axes that have been added to the figure (via add_subplot(111) or similar)."""
-    #     return self.plots.fig.get_axes()
-    
-    # @property
-    # def ax(self):
-    #     """The first axes property."""
-    #     if len(self.axes) > 0:
-    #         return self.axes[0]
-    #     else:
-    #         return None
-
-    @property
-    def tabs_dict(self) -> Dict:
-        """The child tabs."""
-        return self.tabs._items
-         
-    @property
-    def windowTitle(self):
-        """The windowTitle property."""
-        return self.params.window_title
-    @windowTitle.setter
-    def windowTitle(self, value):
-        self.params.window_title = value
-        if self.window().isVisible():
-            print(f'updating the window title!!')
-            self.window().setWindowTitle(self.params.window_title)
-
-
-    def __init__(self, name='CustomMplMultiTab', plot_function_name=None, disable_toolbar=True, scrollable_figure=True, size=(5.0, 4.0), dpi=72, figures=(), title=None, parent=None, **kwargs):
-        super().__init__(figures=figures, title=title, parent=parent) # MplMultiTab.__init__(self)
-        
-        ## Init containers:
-        self.params = VisualizationParameters(name=name, plot_function_name=plot_function_name, debug_print=False)
-        self.plots_data = RenderPlotsData(name=name)
-        self.plots = RenderPlots(name=name)
-        self.ui = PhoUIContainer(name=name)
-        self.ui.connections = PhoUIContainer(name=name)
-
-        self.params.name = name
-        if plot_function_name is not None:
-            self.params.window_title = f" - ".join([name, plot_function_name]) # name should be first so window title is rendered reasonably. kwargs.pop('plot_function_name', name)
-        else:
-            # TypeError: sequence item 1: expected str instance, NoneType found
-            self.params.window_title = f"{name}"
-            
-        self.params.disable_toolbar = disable_toolbar
-        self.params.scrollable_figure = scrollable_figure
-        self.params.scrollAreaContents_MinimumHeight = kwargs.pop('scrollAreaContents_MinimumHeight', None)
-        self.params.verticalScrollBarPolicy = kwargs.pop('verticalScrollBarPolicy', pg.QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.params.horizontalScrollBarPolicy = kwargs.pop('horizontalScrollBarPolicy', pg.QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # Extract figure_kwargs:
-        self.params.figure_kwargs = get_dict_subset(kwargs, ['figsize', 'dpi', 'facecolor', 'edgecolor', 'linewidth', 'frameon', 'subplotpars', 'tight_layout', 'constrained_layout', 'layout']) 
-        self.params.figure_kwargs['figsize'] = size
-        self.params.figure_kwargs['dpi'] = dpi
-        
-        self.setup()
-        self.buildUI()
-        
-    def setup(self):
-        pass
-    
-    def buildUI(self):
-        ## Init Figure and components
-        pass
-        # # Default matplotlib toolbar:
-        # self.ui.toolbar = None
-        # if not self.params.disable_toolbar:
-        #     self._buildUI_default_toolbar()
-        
-        # if self.params.scrollable_figure:
-        #     self._buildUI_buildScrollableWidget()
-        # else:
-        #     self._buildUI_buildNonScrollableWidget()
-
-        # self.ui.statusBar = None
-        # # self._buildUI_setup_statusbar()
-
-
-    # def getFigure(self):
-    #     return self.plots.fig
-        
-    def show(self):
-        # This is needed so the initial plot is done when launching the gui
-        return super().show()
-
-
-    def draw(self):
-        """ Redraws the current figure.
-        This is what is taking a ton of time with the .Agg backend at least and complex figures. Need a way to freeze it out so it isn't called until it is needed. 
-        """
-        #TODO 2023-07-06 15:05: - [ ] PERFORMANCE - REDRAW
-        for k, v in self.tabs_dict.items():
-            # print(f"k: {k}, v: {v}")
-            v.canvas.draw()
-            
-
-
-            
             
 class TabbedMatplotlibFigures:
     """ 
@@ -2622,6 +2505,8 @@ class TabbedMatplotlibFigures:
                 
         """
         from mpl_multitab import MplMultiTab, MplMultiTab2D ## Main imports
+        from pyphoplacecellanalysis.Pho2D.matplotlib.CustomMatplotlibTabbedWidget import CustomMplMultiTab
+        
         if obj_class is None:
             from neuropy.utils.matplotlib_helpers import CustomMplMultiTab
             obj_class = CustomMplMultiTab
