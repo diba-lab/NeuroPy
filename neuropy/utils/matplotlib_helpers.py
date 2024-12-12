@@ -2483,8 +2483,8 @@ class CustomMplMultiTab(MplMultiTab):
             self.window().setWindowTitle(self.params.window_title)
 
 
-    def __init__(self, name='CustomMplMultiTab', plot_function_name=None, disable_toolbar=True, scrollable_figure=True, size=(5.0, 4.0), dpi=72, figures=(), labels=(), title=None, parent=None, **kwargs):
-        super().__init__(figures=figures, labels=labels, title=title, parent=parent) # MplMultiTab.__init__(self)
+    def __init__(self, name='CustomMplMultiTab', plot_function_name=None, disable_toolbar=True, scrollable_figure=True, size=(5.0, 4.0), dpi=72, figures=(), title=None, parent=None, **kwargs):
+        super().__init__(figures=figures, title=title, parent=parent) # MplMultiTab.__init__(self)
         
         ## Init containers:
         self.params = VisualizationParameters(name=name, plot_function_name=plot_function_name, debug_print=False)
@@ -2608,7 +2608,7 @@ class TabbedMatplotlibFigures:
 
     """
     @classmethod
-    def build_tabbed_multi_figure(cls, plot_subplot_mosaic_dict):
+    def build_tabbed_multi_figure(cls, plot_subplot_mosaic_dict, obj_class = None):
         """ 
         plot_subplot_mosaic_dict = {f"arr[{i}]":dict(sharex=True, sharey=True,) for i, arr in enumerate(arrays)}
         ui, plots_dict, axs_dict = TabbedMatplotlibFigures.build_tabbed_multi_figure(plot_subplot_mosaic_dict)
@@ -2617,10 +2617,13 @@ class TabbedMatplotlibFigures:
                 
         """
         from mpl_multitab import MplMultiTab, MplMultiTab2D ## Main imports
-        from neuropy.utils.matplotlib_helpers import CustomMplMultiTab
-        
+        if obj_class is None:
+            from neuropy.utils.matplotlib_helpers import CustomMplMultiTab
+            obj_class = CustomMplMultiTab
+
         # ui = MplMultiTab()
-        ui = CustomMplMultiTab()
+        # ui = CustomMplMultiTab()
+        ui = obj_class()
         figures_dict = {}
         axs_dict = {}
         # for plot_name, plot_arr in plot_data_dict.items():
@@ -2632,7 +2635,10 @@ class TabbedMatplotlibFigures:
                 plot_subplot_mosaic_kwargs['mosaic'] = [   
                     ["ax_scatter"],
                 ]
-            extant_axes = fig.subplot_mosaic(**plot_subplot_mosaic_kwargs)
+            # extant_axes = fig.subplot_mosaic(**plot_subplot_mosaic_kwargs)
+            extant_axes = fig.figure.subplot_mosaic(**plot_subplot_mosaic_kwargs)
+            
+
 
             # fig, extant_axes = _perform_plot(x_data=np.arange(len(plot_arr)), y_data=plot_arr, extant_fig=fig)
             # extant_axes = fig.subplot_mosaic(mosaic=
