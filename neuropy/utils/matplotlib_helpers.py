@@ -2508,7 +2508,6 @@ class TabbedMatplotlibFigures:
         from pyphoplacecellanalysis.Pho2D.matplotlib.CustomMatplotlibTabbedWidget import CustomMplMultiTab
         
         if obj_class is None:
-            from neuropy.utils.matplotlib_helpers import CustomMplMultiTab
             obj_class = CustomMplMultiTab
 
         # ui = MplMultiTab()
