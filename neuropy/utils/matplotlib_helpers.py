@@ -2537,6 +2537,11 @@ class CustomMplMultiTab(MplMultiTab):
     # def getFigure(self):
     #     return self.plots.fig
         
+    def show(self):
+        # This is needed so the initial plot is done when launching the gui
+        return super().show()
+
+
     def draw(self):
         """ Redraws the current figure.
         This is what is taking a ton of time with the .Agg backend at least and complex figures. Need a way to freeze it out so it isn't called until it is needed. 
@@ -2635,8 +2640,8 @@ class TabbedMatplotlibFigures:
                 plot_subplot_mosaic_kwargs['mosaic'] = [   
                     ["ax_scatter"],
                 ]
-            # extant_axes = fig.subplot_mosaic(**plot_subplot_mosaic_kwargs)
-            extant_axes = fig.figure.subplot_mosaic(**plot_subplot_mosaic_kwargs)
+            extant_axes = fig.subplot_mosaic(**plot_subplot_mosaic_kwargs)
+            # extant_axes = fig.figure.subplot_mosaic(**plot_subplot_mosaic_kwargs)
             
 
 
