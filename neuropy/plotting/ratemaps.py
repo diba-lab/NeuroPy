@@ -27,7 +27,7 @@ def plot_ratemap(
         [description], by default 2
     normalize : bool, optional
         [description], by default False
-    sortby : bool, optional
+    sortby : array, optional
         [description], by default True
     cmap : str, optional
         [description], by default "tab20b"

@@ -8,39 +8,57 @@ from .. import core
 from ..utils.mathutil import contiguous_regions, thresh_epochs
 
 
-def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2):
+def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2, dimensions=["x", "y"]):
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
 
     Parameters
     ----------
-    track_names: list of track names, each must match an epoch in epochs class.
-    sample_sec : int, optional
-        sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results
-    method : str, optional
+    position: core.Position
+        Position object containing spatial information
+    sample_sec: int, optional
+        Sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results.
+    method: str, optional
         by default 'ISOMAP' (for any continuous track, untested on t-maze as of 12/22/2020) or
         'PCA' (for straight tracks)
+    sigma: int, optional
+        Gaussian filter smoothing parameter, by default 2.
+    dimensions: list, optional
+        List of spatial dimensions to use, by default ["x", "y"].
 
+    Returns
+    -------
+    core.Position
+        A new Position object with linearized traces.
     """
-    xpos = position.x
-    ypos = position.y
+    # Extract the specified dimensions
+    pos_components = []
+    for dim in dimensions:
+        if hasattr(position, dim):
+            pos_components.append(getattr(position, dim))
+        else:
+            raise ValueError(f"Dimeinos '{dim}' not found in the position object.")
 
-    # NRK todo: check xpos and ypos shape before analyzing.
-    xy_pos = np.vstack((xpos, ypos)).T
+    # Combined dimensions
+    pos_array = np.vstack(pos_components).T
+
     xlinear = None
+
     if method.lower() == "pca":
         pca = PCA(n_components=1)
-        xlinear = pca.fit_transform(xy_pos).squeeze()
+        xlinear = pca.fit_transform(pos_array).squeeze()
     elif method.lower() == "isomap":
         imap = Isomap(n_neighbors=5, n_components=2)
-        # downsample points to reduce memory load and time
-        pos_ds = xy_pos[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
+
+        # Downsample points to reduce memory load and time
+        pos_ds = pos_array[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
         imap.fit(pos_ds)
-        iso_pos = imap.transform(xy_pos)
-        # Keep iso_pos here in case we want to use 2nd dimension (transverse to track) in future...
+        iso_pos = imap.transform(pos_array)
+
+        # Keep iso_pos here in case we want to use 2nd dimension (transverse to track)
         if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
-            iso_pos[:, [0, 1]] = iso_pos[:, [1, 0]]
-        xlinear = iso_pos[:, 0]
+            iso_pos[:, [0,1]] = iso_pos[:, [1,0]]
+        xlinear = iso_pos[:,0]
 
     xlinear = gaussian_filter1d(xlinear, sigma=sigma)
     xlinear -= np.min(xlinear)
