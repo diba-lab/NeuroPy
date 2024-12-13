@@ -968,7 +968,7 @@ class PandasHelpers:
             
         Usage:
         
-            ffrom neuropy.utils.indexing_helpers import PandasHelpers
+            from neuropy.utils.indexing_helpers import PandasHelpers
             
             ## Move the "height" columns to the end
             result_df = PandasHelpers.reordering_columns_relative(result_df, column_names=list(filter(lambda column: column.endswith('_peak_heights'), existing_columns)), relative_mode='end')
