@@ -11,6 +11,7 @@ from neuropy.utils.misc import AutoNameEnum
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, Union
 from matplotlib.figure import Figure
 from flexitext.text import Text as StyledText
+from matplotlib.colors import ListedColormap
 
 if TYPE_CHECKING:
     ...
@@ -681,8 +682,37 @@ def get_heatmap_cmap(cmap: Union[str, mpl.colors.Colormap] = ..., bad_color=...,
     """ 
     from neuropy.utils.matplotlib_helpers import get_heatmap_cmap
      # cmap = get_heatmap_cmap(cmap='viridis', bad_color='black', under_color='white', over_color='red')
-    cmap = get_heatmap_cmap(cmap='Orange', bad_color='black', under_color='white', over_color='red')
+    cmap = get_heatmap_cmap(cmap='Oranges', bad_color='black', under_color='white', over_color='red')
     
+    """
+    ...
+
+def modify_colormap_alpha(cmap: Union[str, mpl.colors.Colormap], alpha: float) -> ListedColormap:
+    """
+    Create a copy of the given colormap with a specified alpha.
+
+    Args:
+        cmap_name (str): Name of the original colormap.
+        alpha (float): Desired alpha value (0.0 to 1.0).
+
+    Returns:
+        ListedColormap: A colormap with the specified alpha.
+    
+    Usage:
+
+        from neuropy.utils.matplotlib_helpers import modify_colormap_alpha
+        # Example usage
+        custom_cmap = modify_colormap_alpha('viridis', 0.5)
+        # Define a colormap
+        cmap = plt.get_cmap('tab10')
+        custom_cmap = modify_colormap_alpha(cmap=cmap, alpha=subsequence_line_color_alpha)
+        num_colors: int = custom_cmap.N
+        
+        # Visualizing the custom colormap
+        plt.imshow([np.linspace(0, 1, 100)], aspect='auto', cmap=custom_cmap)
+        plt.colorbar()
+        plt.show()
+
     """
     ...
 
@@ -841,4 +871,74 @@ def save_colormap_image(filepath: str, colormap: str = ..., orientation: str = .
         save_colormap_image('path/to/save/colorbar.png', 'plasma', 'vertical')
     """
     ...
+
+class TabbedMatplotlibFigures:
+    """ 
+    Example:
+        from neuropy.utils.matplotlib_helpers import TabbedMatplotlibFigures
+        
+        def _perform_plot(x_data, y_data, extant_fig=None, extant_axes=None, **kwargs):
+            if extant_fig is not None:
+                fig = extant_fig # use the existing passed figure
+                # fig.set_size_inches([23, 9.7])
+            else:
+                if extant_axes is None:
+                    fig = plt.figure(figsize=(23, 9.7))
+                else:
+                    fig = extant_axes.get_figure()
+                    
+            if extant_axes is not None:
+                # user-supplied extant axes [axs0, axs1]
+                assert isinstance(extant_axes, dict), f"extant_axes should be a dict but is instead of type: {type(extant_axes)}\n\textant_axes: {extant_axes}"
+                assert len(extant_axes) == 1
+                ax_scatter = extant_axes["ax_scatter"]
+            else:
+                # Need axes:
+                # Layout Subplots in Figure:
+                extant_axes = fig.subplot_mosaic(
+                    [   
+                        ["ax_scatter"],
+                    ],
+                )
+                ax_scatter = extant_axes["ax_scatter"]
+                # gs = fig.add_gridspec(1, 8)
+                # gs.update(wspace=0, hspace=0.05) # set the spacing between axes. # `wspace=0`` is responsible for sticking the pf and the activity axes together with no spacing
+                # ax_activity_v_time = fig.add_subplot(gs[0, :-1]) # all except the last element are the trajectory over time
+                # ax_pf_tuning_curve = fig.add_subplot(gs[0, -1], sharey=ax_activity_v_time) # The last element is the tuning curve
+                # ax_pf_tuning_curve.set_title('Normalized Placefield', fontsize='14')
+                ax_scatter.set_xticklabels([])
+                ax_scatter.set_yticklabels([])
+            # end else
+            
+            ## BEGIN FUNCTION BODY
+            ax_scatter.plot(x_data, y_data)
+            
+            return fig, extant_axes
+
+
+        ## INPUTS: arrays, plot_data_dict
+
+        plot_subplot_mosaic_dict = {f"arr[{i}]":dict(sharex=True, sharey=True,) for i, arr in enumerate(arrays)}
+        ui, figures_dict, axs_dict = TabbedMatplotlibFigures._build_tabbed_multi_figure(plot_subplot_mosaic_dict)
+
+        for a_name, ax in axs_dict.items():
+            plot_arr = plot_data_dict[a_name]
+            fig = figures_dict[a_name]
+            fig, extant_axes = _perform_plot(x_data=np.arange(len(plot_arr)), y_data=plot_arr, extant_fig=fig, extant_axes=ax)
+        ui.show()
+
+
+    """
+    @classmethod
+    def build_tabbed_multi_figure(cls, plot_subplot_mosaic_dict, obj_class=...): # -> tuple[CustomMplMultiTab | Any, dict[Any, Any], dict[Any, Any]]:
+        """ 
+        plot_subplot_mosaic_dict = {f"arr[{i}]":dict(sharex=True, sharey=True,) for i, arr in enumerate(arrays)}
+        ui, plots_dict, axs_dict = TabbedMatplotlibFigures.build_tabbed_multi_figure(plot_subplot_mosaic_dict)
+        ui.show()
+        
+                
+        """
+        ...
+    
+
 

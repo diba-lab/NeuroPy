@@ -16,7 +16,8 @@ from neuropy.utils.mixins.indexing_helpers import UnpackableMixin
 NeuronExtendedIdentityTuple = ...
 @define(slots=False, eq=False)
 class NeuronExtendedIdentity(UnpackableMixin):
-    """ 
+    """ Holds the aclu (a unique integer identifier), alongside the cluster quality (qclu, categorical integer) and recording related properties
+    
     from neuropy.core.neuron_identities import NeuronExtendedIdentity
     
     """
