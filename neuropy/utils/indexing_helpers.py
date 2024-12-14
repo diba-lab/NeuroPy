@@ -433,6 +433,10 @@ class NumpyHelpers:
         return cls.logical_generic(np.logical_xor, *list_of_arrays, **kwargs)    
 
         
+    @classmethod
+    def split(cls, arr: NDArray, indices_or_sections, **kwargs) -> List[NDArray]:
+        """ returns the result of `np.split(...)` but removes any empty sequences that it returns. """
+        return [v for v in np.split(arr, indices_or_sections, **kwargs) if len(v) > 0] # exclude empty subsequences
         
 
 # ==================================================================================================================== #
