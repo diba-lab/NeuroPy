@@ -401,16 +401,29 @@ class NumpyHelpers:
         
         """
         # Input type checking
-        if not np.all(isinstance(arr, np.ndarray) for arr in list_of_arrays):
-            raise ValueError("All elements in 'list_of_arrays' must be NumPy arrays.")        
+        ## conversion if needed
+        list_of_final_arrays = []
+        for arr in list_of_arrays:
+            if isinstance(arr, NDArray):
+                list_of_final_arrays.append(arr) ## include directly
+            elif isinstance(arr, pd.Series):
+                ## convert to numpy array
+                arr = arr.to_numpy()
+                list_of_final_arrays.append(arr)
+            else:
+                ValueError(f"All elements in 'list_of_arrays' must be NumPy arrays, but type of each is {[type(arr) for arr in list_of_arrays]}")
+            
+        
+        if not np.all([isinstance(arr, NDArray) for arr in list_of_final_arrays]):
+            raise ValueError(f"All elements in 'list_of_arrays' must be NumPy arrays, but type of each is {[type(arr) for arr in list_of_final_arrays]}")        
     
-        if len(list_of_arrays) == 0:
-            raise NotImplementedError(f"requires at least 1 array but you provided: {len(list_of_arrays)}")
+        if len(list_of_final_arrays) == 0:
+            raise NotImplementedError(f"requires at least 1 array but you provided: {len(list_of_final_arrays)}")
         else:
             ## It has more than two elements:
-            reference_array = list_of_arrays[0] # Use the first array as a reference for comparison
+            reference_array = list_of_final_arrays[0] # Use the first array as a reference for comparison
             # Check equivalence for each array in the list
-            for an_arr in list_of_arrays[1:]:
+            for an_arr in list_of_final_arrays[1:]:
                 reference_array = pairwise_numpy_logical_fn(reference_array, an_arr, **kwargs) 
 
             return reference_array
