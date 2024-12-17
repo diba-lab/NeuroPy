@@ -366,6 +366,80 @@ def set_margins(fig, left=0, right=0, top=0, bottom=0, is_in_inches: bool=False)
     engine.execute(fig)
 
 
+
+def add_text_with_stroke(ax, text: str, x_pos: float, y_pos: float, strokewidth=3, stroke_foreground='w', stroke_alpha=0.9, text_foreground='k', font_size=None, text_alpha=1.0, **kwargs):
+    """
+    Add a new ax.text(...) object to the axes but with an outline.
+
+    Args:
+        ax (matplotlib.axes.Axes): The axes object where the title should be added.
+        title (str): The title text.
+        loc (str or int): The location code for the title placement.
+        strokewidth (int, optional): The line width for the stroke around the text. Default is 3.
+        stroke_foreground (str, optional): The color for the stroke around the text. Default is 'w' (white).
+        stroke_alpha (float, optional): The alpha value for the stroke. Default is 0.9.
+        text_foreground (str, optional): The color for the text. Default is 'k' (black).
+        font_size (int, optional): The font size for the title text. If not provided, it will use the value from plt.rcParams['legend.title_fontsize'].
+        text_alpha (float, optional): The alpha value for the text itself. Default is 1.0 (opaque).
+        **kwargs: Additional keyword arguments to be passed to AnchoredText.
+
+    Returns:
+        matplotlib.offsetbox.AnchoredText: The AnchoredText object containing the title.
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.offsetbox import AnchoredText
+    # from matplotlib.patheffects import withStroke
+    import matplotlib.patheffects as path_effects
+
+    # List of keys to be removed from kwargs and added to text_prop_kwargs if present
+    # text_pop_key_name_list = ('horizontalalignment', 'verticalalignment', 'multialignment', 'rotation', 'fontproperties')
+    text_pop_key_name_list = ('horizontalalignment', 'verticalalignment', 'multialignment', 'ha', 'va', 'rotation', 'fontproperties')
+
+    # Get any text property keyword arguments from kwargs, or use an empty dictionary if not present
+    text_prop_kwargs = kwargs.pop('text_prop_kwargs', {})
+
+    # Add the path effect for the stroke, font size, text color, and any relevant keyword arguments from text_pop_key_name_list
+    text_prop_kwargs = text_prop_kwargs | dict(
+        # path_effects=[withStroke(foreground=stroke_foreground, linewidth=strokewidth, alpha=stroke_alpha)],
+        size=(font_size or plt.rcParams['legend.title_fontsize']),
+        color=text_foreground,
+        **{k: kwargs.pop(k) for k in text_pop_key_name_list if k in kwargs}
+    )
+
+    # Create the AnchoredText object with the specified properties
+    # if use_AnchoredCustomText:
+    #     at = AnchoredCustomText(text, loc=loc, prop=text_prop_kwargs, pad=0., borderpad=0.5, frameon=False, **kwargs)
+    # else:
+    #     ## cannot have custom_value_formatter
+    #     custom_value_formatter = kwargs.pop('custom_value_formatter', None)
+    #     assert custom_value_formatter is None, f"custom_value_formatter should be None for non-custom anchored text but custom_value_formatter: {custom_value_formatter}"
+    #     at = AnchoredText(text, loc=loc, prop=text_prop_kwargs, pad=0., borderpad=0.5, frameon=False, **kwargs)
+
+    # ax.add_artist(at)
+
+    # default_text_kwargs = dict(ha='center', va='center', color='white')
+    
+    # Add text with stroke outline
+    text = ax.text(x_pos, y_pos, text, **text_prop_kwargs)
+        # fontsize=(font_size or plt.rcParams['legend.title_fontsize']), ha='center', va='center', color=subseq_idx_text_color)
+
+    # Apply path effects for the outline
+    text.set_path_effects([
+        path_effects.Stroke(linewidth=strokewidth, foreground=stroke_foreground, alpha=stroke_alpha),  # Outline (black)
+        path_effects.Normal()  # Fill (white)
+    ])
+
+    # # Set the alpha value for the text itself, if specified
+    # if text_alpha < 1.0:
+    #     if use_AnchoredCustomText:
+    #         at.update_text_alpha(text_alpha)
+    #     else:
+    #         at.txt._text.set_alpha(text_alpha)
+
+    return text
+
+
+
 def add_inner_title(ax, title, loc, strokewidth=3, stroke_foreground='w', stroke_alpha=0.9, text_foreground='k', font_size=None, text_alpha=1.0, use_AnchoredCustomText: bool=False, **kwargs):
     """
     Add a figure title inside the border of the figure (instead of outside).
