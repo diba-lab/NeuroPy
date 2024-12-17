@@ -766,27 +766,6 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return active_epochs_df
 
 
-    # def adding_active_aclus_information(self, spikes_df: pd.DataFrame, add_unique_aclus_list_column: bool=False, partition_column_name: str = 'Probe_Epoch_id') -> pd.DataFrame:
-    #     """ 
-    #     adds the columns: ['unique_active_aclus', 'n_unique_aclus'] 
-
-    #     Usage:
-
-    #         active_epochs_df = add_active_aclus_information(active_epochs_df, active_spikes_df, add_unique_aclus_list_column=True)
-
-    #     """
-    #     from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
-
-        
-    #     active_epochs_df: pd.DataFrame = self._obj.epochs.get_valid_df()
-    #     unique_values = np.unique(spikes_df[partition_column_name]) # array([ 0,  1,  2,  3,  4,  7, 11, 12, 13, 14])
-    #     grouped_df = spikes_df.groupby([partition_column_name]) #  Groups on the specified column.
-    #     epoch_unique_aclus_dict = {aValue:grouped_df.get_group(aValue).aclu.unique() for aValue in unique_values} # dataframes split for each unique value in the column
-    #     if add_unique_aclus_list_column:
-    #         active_epochs_df['unique_active_aclus'] = active_epochs_df.label.map(epoch_unique_aclus_dict)
-    #     epoch_num_unique_aclus_dict = {k:len(v) for k,v in epoch_unique_aclus_dict.items()}
-    #     active_epochs_df['n_unique_aclus'] = active_epochs_df.label.map(epoch_num_unique_aclus_dict)
-    #     return active_epochs_df
     
     @classmethod
     def add_maze_id_if_needed(cls, epochs_df: pd.DataFrame, t_start:float, t_delta:float, t_end:float, replace_existing:bool=True, labels_column_name:str='label', start_time_col_name: str='start', end_time_col_name: str='stop') -> pd.DataFrame:
