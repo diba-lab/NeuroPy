@@ -678,7 +678,9 @@ def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_n
 # ==================================================================================================================== #
 
 def convert_to_dictlike(other) -> Dict:
-    """ try every known trick to get a plain `dict` out of the provided object. """
+    """ try every known trick to get a plain `dict` out of the provided object.
+        from neuropy.utils.indexing_helpers import convert_to_dictlike    
+    """
     # Verify that other is an instance of IdentifyingContext
     if isinstance(other, dict):
         return other
