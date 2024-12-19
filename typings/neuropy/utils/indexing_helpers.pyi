@@ -272,6 +272,11 @@ class NumpyHelpers:
         """ generalizes the `logical_xor` function to multiple arrays """
         ...
     
+    @classmethod
+    def split(cls, arr: NDArray, indices_or_sections, **kwargs) -> List[NDArray]:
+        """ returns the result of `np.split(...)` but removes any empty sequences that it returns. """
+        ...
+    
 
 
 def paired_incremental_sorting(neuron_IDs_lists, sortable_values_lists): # -> list[Any]:
@@ -353,7 +358,9 @@ def find_nearest_times(df: pd.DataFrame, target_times: np.ndarray, time_column_n
     ...
 
 def convert_to_dictlike(other) -> Dict:
-    """ try every known trick to get a plain `dict` out of the provided object. """
+    """ try every known trick to get a plain `dict` out of the provided object.
+        from neuropy.utils.indexing_helpers import convert_to_dictlike    
+    """
     ...
 
 def get_nested_value(d: Dict, keys: List[Any]) -> Any:
@@ -517,7 +524,7 @@ class PandasHelpers:
             
         Usage:
         
-            ffrom neuropy.utils.indexing_helpers import PandasHelpers
+            from neuropy.utils.indexing_helpers import PandasHelpers
             
             ## Move the "height" columns to the end
             result_df = PandasHelpers.reordering_columns_relative(result_df, column_names=list(filter(lambda column: column.endswith('_peak_heights'), existing_columns)), relative_mode='end')

@@ -85,6 +85,27 @@ def set_margins(fig, left=..., right=..., top=..., bottom=..., is_in_inches: boo
     """
     ...
 
+def add_text_with_stroke(ax, text: str, x_pos: float, y_pos: float, strokewidth=..., stroke_foreground=..., stroke_alpha=..., text_foreground=..., font_size=..., text_alpha=..., **kwargs): # -> str:
+    """
+    Add a new ax.text(...) object to the axes but with an outline.
+
+    Args:
+        ax (matplotlib.axes.Axes): The axes object where the title should be added.
+        title (str): The title text.
+        loc (str or int): The location code for the title placement.
+        strokewidth (int, optional): The line width for the stroke around the text. Default is 3.
+        stroke_foreground (str, optional): The color for the stroke around the text. Default is 'w' (white).
+        stroke_alpha (float, optional): The alpha value for the stroke. Default is 0.9.
+        text_foreground (str, optional): The color for the text. Default is 'k' (black).
+        font_size (int, optional): The font size for the title text. If not provided, it will use the value from plt.rcParams['legend.title_fontsize'].
+        text_alpha (float, optional): The alpha value for the text itself. Default is 1.0 (opaque).
+        **kwargs: Additional keyword arguments to be passed to AnchoredText.
+
+    Returns:
+        matplotlib.offsetbox.AnchoredText: The AnchoredText object containing the title.
+    """
+    ...
+
 def add_inner_title(ax, title, loc, strokewidth=..., stroke_foreground=..., stroke_alpha=..., text_foreground=..., font_size=..., text_alpha=..., use_AnchoredCustomText: bool = ..., **kwargs): # -> AnchoredCustomText | AnchoredText:
     """
     Add a figure title inside the border of the figure (instead of outside).
