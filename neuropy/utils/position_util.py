@@ -14,6 +14,7 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
 
     Parameters
     ----------
+    :param: position: with .x and .y fields being x/y (horizontal) position and z being vertical position
     track_names: list of track names, each must match an epoch in epochs class.
     sample_sec : int, optional
         sample a point every sample_sec seconds for training ISOMAP, by default 3. Lower it if inaccurate results
