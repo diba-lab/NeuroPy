@@ -504,8 +504,16 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
         force_recompute: if True, the columns with names binned_column_names will be overwritten even if they already exist.
         
     Usage:
+        from neuropy.utils.mixins.binning_helpers import build_df_discretized_binned_position_columns
+        
         active_df, (xbin, ybin), bin_infos = build_df_discretized_binned_position_columns(active_pf_2D.filtered_spikes_df.copy(), bin_values=(active_pf_2D.xbin, active_pf_2D.ybin), active_computation_config=active_computation_config, force_recompute=False, debug_print=True)
         active_df
+    
+        
+    Usage 1D (x-only):
+        epochs_track_identity_marginal_df, (xbin, ), bin_infos = build_df_discretized_binned_position_columns(deepcopy(epochs_track_identity_marginal_df), bin_values=(deepcopy(active_pf_2D.xbin),),
+                                                                                                            position_column_names = ('x_meas',),  binned_column_names = ('binned_x', ),
+                                                                                                            force_recompute=False, debug_print=True)
     
     ## TODO: Move into perminant location and replace duplicated/specific implementations with this more general version.
         Known Reimplementations:
