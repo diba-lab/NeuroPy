@@ -1109,8 +1109,52 @@ class PandasHelpers:
             
         return original_df
 
+    @classmethod
+    def empty_df_like(cls, df: pd.DataFrame) -> pd.DataFrame:
+        """ Returns an empty dataframe with the same columns (and the same dtypes for each column) as `df`
+
+        Usage:
+            
+            from neuropy.utils.indexing_helpers import PandasHelpers
+
+            a_result.filter_epochs = PandasHelpers.empty_df_like(a_result.filter_epochs)
+
+        """
+        return pd.DataFrame(data=None, columns=deepcopy(df.columns)).astype(deepcopy(df.dtypes))
+    
 
     
+    @classmethod
+    def get_df_row_changes(cls, potentially_updated_df: pd.DataFrame, prev_df: pd.DataFrame, debug_print=False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """ Returns an empty dataframe with the same columns (and the same dtypes for each column) as `df`
+
+        Usage:
+            
+            from neuropy.utils.indexing_helpers import PandasHelpers
+
+            (added_rows, same_rows, removed_rows) = PandasHelpers.get_df_row_changes(potentially_updated_df=potentially_updated_df, prev_df=prev_df) 
+
+        """
+        ## INPUTS: intervals_df, extant_intervals_df
+        # Convert rows to tuples for comparison
+        intervals_tuples = set(map(tuple, potentially_updated_df.to_numpy()))
+        extant_intervals_tuples = set(map(tuple, prev_df.to_numpy()))
+
+        # Find added rows (in extant_intervals_df but not in intervals_df)
+        added_rows = prev_df.loc[~prev_df.apply(tuple, axis=1).isin(intervals_tuples)]
+        # added_rows
+        # Find removed rows (in intervals_df but not in extant_intervals_df)
+        removed_rows = potentially_updated_df.loc[~potentially_updated_df.apply(tuple, axis=1).isin(extant_intervals_tuples)]
+        # removed_rows
+        # Find same rows (intersection of both DataFrames)
+        same_rows = potentially_updated_df.loc[potentially_updated_df.apply(tuple, axis=1).isin(extant_intervals_tuples)]
+        # same_rows
+        if debug_print:
+            print(f'added_rows: {added_rows}\n\tsame_rows: {same_rows}\n\tremoved_rows: {removed_rows}\n')
+        
+        return (added_rows, same_rows, removed_rows)
+            
+        
 class ColumnTracker(ContextDecorator):
     """A context manager to track changes in the columns of DataFrames.
 
