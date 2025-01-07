@@ -604,6 +604,32 @@ class PandasHelpers:
         """
         ...
     
+    @classmethod
+    def empty_df_like(cls, df: pd.DataFrame) -> pd.DataFrame:
+        """ Returns an empty dataframe with the same columns (and the same dtypes for each column) as `df`
+
+        Usage:
+            
+            from neuropy.utils.indexing_helpers import PandasHelpers
+
+            a_result.filter_epochs = PandasHelpers.empty_df_like(a_result.filter_epochs)
+
+        """
+        ...
+    
+    @classmethod
+    def get_df_row_changes(cls, potentially_updated_df: pd.DataFrame, prev_df: pd.DataFrame, debug_print=...) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """ Returns an empty dataframe with the same columns (and the same dtypes for each column) as `df`
+
+        Usage:
+            
+            from neuropy.utils.indexing_helpers import PandasHelpers
+
+            (added_rows, same_rows, removed_rows) = PandasHelpers.get_df_row_changes(potentially_updated_df=potentially_updated_df, prev_df=prev_df) 
+
+        """
+        ...
+    
 
 
 class ColumnTracker(ContextDecorator):
