@@ -64,9 +64,11 @@ def min_max_scaler(x, axis=-1):
     np.array
         scaled array
     """
-    return (x - np.min(x, axis=axis, keepdims=True)) / np.ptp(
-        x, axis=axis, keepdims=True
-    )
+    min_val = np.min(x, axis=axis, keepdims=True)
+    range_val = np.ptp(x, axis=axis, keepdims=True)
+    return (x - min_val)  / np.where(range_val == 0,1,range_val)
+    #return (x - np.min(x, axis=axis, keepdims=True)) / np.ptp(
+    #    x, axis=axis, keepdims=True)
 
 
 def min_max_external_scaler(x, xmin, xptp):
