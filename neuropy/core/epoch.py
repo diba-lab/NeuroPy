@@ -742,7 +742,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
         Usage:
 
-            active_epochs_df = add_active_aclus_information(active_epochs_df, active_spikes_df, add_unique_aclus_list_column=True)
+            active_epochs_df = active_epochs_df.epochs.adding_active_aclus_information(spikes_df=active_spikes_df, epoch_id_key_name='Probe_Epoch_id', add_unique_aclus_list_column=True)
 
         """
         active_epochs_df: pd.DataFrame = self._obj.epochs.get_valid_df()
@@ -750,8 +750,13 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         # Ensures the appropriate columns are added to spikes_df:
         # spikes_df = spikes_df.spikes.adding_epochs_identity_column(epochs_df=active_epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
         #     should_replace_existing_column=False, drop_non_epoch_spikes=True)
-        assert epoch_id_key_name in spikes_df, f"epoch_id_key_name: '{epoch_id_key_name}' is not in spikes_df.columns: {spikes_df.columns}"
-
+        assert epoch_id_key_name in spikes_df, f"""ERROR: epoch_id_key_name: '{epoch_id_key_name}' is not in spikes_df.columns: {spikes_df.columns}. Did you add the columns to spikes_df via:
+## INPUTS: curr_active_pipeline, epochs_df
+active_spikes_df: pd.DataFrame = get_proper_global_spikes_df(curr_active_pipeline).spikes.adding_epochs_identity_column(epochs_df=epochs_df, epoch_id_key_name='replay_id', epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
+	should_replace_existing_column=False, drop_non_epoch_spikes=True) ## gets the proper spikes_df, and then adds the epoch_id columns (named 'replay_id') for the epochs provided in `epochs_df`
+epochs_df = epochs_df.epochs.adding_active_aclus_information(spikes_df=active_spikes_df, epoch_id_key_name='replay_id', add_unique_aclus_list_column=True)
+epochs_df
+        """
         unique_values = np.unique(spikes_df[epoch_id_key_name]) # array([ 0,  1,  2,  3,  4,  7, 11, 12, 13, 14])
         grouped_df = spikes_df.groupby([epoch_id_key_name]) #  Groups on the specified column.
         epoch_unique_aclus_dict = {aValue:grouped_df.get_group(aValue).aclu.unique() for aValue in unique_values} # dataframes split for each unique value in the column
