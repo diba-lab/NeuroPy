@@ -12,6 +12,7 @@ def plot_ratemap(
     ax=None,
     pad=2,
     normalize_tuning_curve=False,
+    cross_norm=None,
     sortby=None,
     cmap="tab20b",
 ):
@@ -27,6 +28,8 @@ def plot_ratemap(
         [description], by default 2
     normalize : bool, optional
         [description], by default False
+    cross_norm : np.array, optional
+        Nx2 numpy array including xmin and xptp per neuron, by default None.
     sortby : array, optional
         [description], by default True
     cmap : str, optional
@@ -51,7 +54,14 @@ def plot_ratemap(
         ax = fig.subplot(fig.gs[0])
 
     if normalize_tuning_curve:
-        tuning_curves = mathutil.min_max_scaler(tuning_curves)
+        if isinstance(cross_norm, np.ndarray):
+            # Create xmin array and set it to be broadcastable during
+            xmin = cross_norm[:,0]
+            xptp = cross_norm[:,1] - cross_norm[:,0]
+
+            tuning_curves = mathutil.min_max_external_scaler(tuning_curves, xmin, xptp)
+        else:
+            tuning_curves = mathutil.min_max_scaler(tuning_curves)
         pad = 1
 
     if sortby is None:

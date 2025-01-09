@@ -67,8 +67,6 @@ def min_max_scaler(x, axis=-1):
     min_val = np.min(x, axis=axis, keepdims=True)
     range_val = np.ptp(x, axis=axis, keepdims=True)
     return (x - min_val)  / np.where(range_val == 0,1,range_val)
-    #return (x - np.min(x, axis=axis, keepdims=True)) / np.ptp(
-    #    x, axis=axis, keepdims=True)
 
 
 def min_max_external_scaler(x, xmin, xptp):
@@ -86,7 +84,22 @@ def min_max_external_scaler(x, xmin, xptp):
     scaled np.array
     """
 
+    # Check to make sure xmin and xptp are broadcastable to x.
+    req_shape = (x.shape[0],1)
+    if xmin.ndim == 1 and xmin.shape[0] == x.shape[0]:
+        xmin = xmin[:,np.newaxis]
+
+    if xptp.ndim == 1 and xptp.shape[0] == x.shape[0]:
+        xptp = xptp[:,np.newaxis]
+
+    if xmin.shape != req_shape:
+        raise ValueError(f"Array with shape {xmin.shape} cannot be made broadcastable to {req_shape}.")
+
+    if xptp.shape != req_shape:
+        raise ValueError(f"Array with shape {xptp.shape} cannot be made broadcastable to {req_shape}.")
+
     return (x - xmin) / xptp
+
 
 def cdf(x, bins):
     """Returns cummulative distribution for x at bins"""
