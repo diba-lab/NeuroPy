@@ -455,8 +455,33 @@ def find_epoch_times_to_data_indicies_map(a_df: pd.DataFrame, epoch_times: NDArr
     
     return epoch_time_to_index_map
             
+def find_epochs_overlapping_other_epochs(epochs_df: pd.DataFrame, epochs_df_required_to_overlap: pd.DataFrame):
+    """ 
+    For example, you might wonder which epochs occur during laps:
 
+        from neuropy.core.epoch import find_epoch_times_to_data_indicies_map
+        
+        ## INPUTS: time_bin_containers, global_laps
+        left_edges = deepcopy(time_bin_containers.left_edges)
+        right_edges = deepcopy(time_bin_containers.right_edges)
+        continuous_time_binned_computation_epochs_df: pd.DataFrame = pd.DataFrame({'start': left_edges, 'stop': right_edges, 'label': np.arange(len(left_edges))})
+        is_included: NDArray = find_epochs_overlapping_other_epochs(epochs_df=continuous_time_binned_computation_epochs_df, epochs_df_required_to_overlap=deepcopy(global_laps))
+        continuous_time_binned_computation_epochs_df['is_in_laps'] = is_included
+        continuous_time_binned_computation_epochs_df
+        continuous_time_binned_computation_epochs_included_only_df = continuous_time_binned_computation_epochs_df[continuous_time_binned_computation_epochs_df['is_in_laps']].drop(columns=['is_in_laps'])
+        continuous_time_binned_computation_epochs_included_only_df
 
+    """
+    ## INPUTS: continuous_time_binned_computation_epochs, laps
+    epochs_df: pd.DataFrame = ensure_dataframe(epochs_df)
+    epochs_df_required_to_overlap: pd.DataFrame = ensure_dataframe(epochs_df_required_to_overlap)
+    epochs_df_required_to_overlap_portion: P.Interval = epochs_df_required_to_overlap.epochs.to_PortionInterval()
+    continuous_time_binned_computation_epochs_portion_intervals: List[P.Interval] = [P.closedopen(a_row.start, a_row.stop) for a_row in epochs_df[['start', 'stop']].itertuples()]
+    is_included: NDArray = np.array([an_interval.overlaps(epochs_df_required_to_overlap_portion) for an_interval in continuous_time_binned_computation_epochs_portion_intervals])
+    return is_included
+
+        
+        
 """ 
 from neuropy.core.epoch import NamedTimerange, EpochsAccessor, Epoch
 
