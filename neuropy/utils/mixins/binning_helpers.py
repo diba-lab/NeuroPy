@@ -5,7 +5,7 @@ import numpy as np
 from nptyping import NDArray
 import pandas as pd
 import attrs
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field
+from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, custom_define, serialized_field, serialized_attribute_field, non_serialized_field, keys_only_repr, SimpleFieldSizesReprMixin
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
 
     
@@ -40,7 +40,7 @@ def get_bin_edges(bin_centers):
     return np.array(out)
 
 @custom_define(slots=False, repr=False, eq=False)
-class BinningInfo(HDF_SerializationMixin, AttrsBasedClassHelperMixin):
+class BinningInfo(SimpleFieldSizesReprMixin, HDF_SerializationMixin, AttrsBasedClassHelperMixin):
     """ Factored out of pyphocorehelpers.indexing_helpers.BinningInfo
     
     2024-08-07: refactored from `dataclass` to attrs
@@ -103,7 +103,8 @@ class BinningInfo(HDF_SerializationMixin, AttrsBasedClassHelperMixin):
 
 
 
-class BinningContainer(object):
+@custom_define(slots=False, repr=False, eq=False)
+class BinningContainer(SimpleFieldSizesReprMixin, HDF_SerializationMixin, AttrsBasedClassHelperMixin):
     """A container that allows accessing either bin_edges (self.edges) or bin_centers (self.centers) 
     Factored out of pyphocorehelpers.indexing_helpers.BinningContainer
     
@@ -128,17 +129,30 @@ class BinningContainer(object):
     
 
     """
-    edges: NDArray
-    centers: NDArray
+    edges: NDArray = serialized_field(repr=False, is_computable=True, metadata={'shape':('num_bins+1',)})
+    centers: NDArray = serialized_field(repr=False, is_computable=True, metadata={'shape':('num_bins',)})
     
-    edge_info: BinningInfo
-    center_info: BinningInfo
+    edge_info: BinningInfo = serialized_field(is_computable=True)
+    center_info: BinningInfo = serialized_field(is_computable=False)
     
     @property
     def num_bins(self) -> int:
         return self.center_info.num_bins
         # return len(self.centers)`
 
+
+    @property
+    def left_edges(self) -> NDArray:
+        """ the left edges of the bins. len(right_edges) == len(centers) """
+        return self.centers - (self.center_info.step/2.0)
+
+    @property
+    def right_edges(self) -> NDArray:
+        """ the right edges of the bins. len(right_edges) == len(centers) """
+        return self.centers + (self.center_info.step/2.0)
+
+        
+    
 
     def __init__(self, edges: Optional[NDArray]=None, centers: Optional[NDArray]=None, edge_info: Optional[BinningInfo]=None, center_info: Optional[BinningInfo]=None):
         super(BinningContainer, self).__init__()
@@ -176,8 +190,8 @@ class BinningContainer(object):
             # If edges is smaller than size 3, use the only two we have
             assert len(edges) == 2
             actual_window_size = edges[1] - edges[0]
-        except BaseException as e:
-            raise e
+        except Exception as e:
+            raise
         variable_extents = (edges[0], edges[-1]) # get first and last values as the extents
         return BinningInfo(variable_extents=variable_extents, step=actual_window_size, num_bins=len(edges))
     
@@ -194,14 +208,12 @@ class BinningContainer(object):
             actual_window_size = None
             assert len(centers) == 2, f"centers must be of at least length 2 to re-derive center_info, but it is of length {len(centers)}. centers: {centers}\n\tIndexError e: {e}"
             actual_window_size = centers[1] - centers[0]
-        except BaseException as e:
-            raise e
+        except Exception as e:
+            raise
             # step = variable_extents.step # could use
     
         return BinningInfo(variable_extents=deepcopy(variable_extents), step=actual_window_size, num_bins=len(centers))
     
-    
-
     @classmethod
     def init_from_edges(cls, edges: NDArray, edge_info: Optional[BinningInfo]=None) -> "BinningContainer":
         """ initializes from edges, overwritting everything else
