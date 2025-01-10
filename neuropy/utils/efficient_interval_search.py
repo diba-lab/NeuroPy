@@ -581,15 +581,16 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
     """
     # Get the first and last spike times for each epoch:
     # Valid epochs should be pruned to this interval (when the first/last pyramidal spike happened):
-
-    from neuropy.core.epoch import Epoch # `filter_epochs_by_num_active_units` used to rebuild the spike-constrained epochs:
+    min_num_spikes_per_epoch: int = 1 # NOTE: len(v) must be greater than 1 (instead of 0) because if we only have 1 spike in the epoch attempting to trim it will result in a zero-duration epoch!
+    
+    from neuropy.core.epoch import Epoch #, ensure_dataframe # `filter_epochs_by_num_active_units` used to rebuild the spike-constrained epochs:
 
     epoch_split_spike_dfs = [active_spikes_df.spikes.time_sliced(t_start, t_stop) for t_start, t_stop in zip(active_epochs.starts, active_epochs.stops)] # oh, very fast actually!
-    is_epoch_non_empty_spikes_df = np.logical_not([len(v)<=0 for v in epoch_split_spike_dfs]) # the epochs have no active cells (no spikes at all)
+    is_epoch_non_empty_spikes_df = np.logical_not([len(v)<=min_num_spikes_per_epoch for v in epoch_split_spike_dfs]) # the epochs have no active cells (no spikes at all)
     # Drop empty epochs:
     active_epochs = active_epochs.boolean_indicies_slice(is_epoch_non_empty_spikes_df) # np.shape(epoch_first_last_spike_times) # (207, 2)
     # Drop empty spikes dfs:
-    epoch_split_spike_dfs = [v for v in epoch_split_spike_dfs if len(v)>0]
+    epoch_split_spike_dfs = [v for v in epoch_split_spike_dfs if len(v)>min_num_spikes_per_epoch] # NOTE: len(v) must be greater than 1 (instead of 0) because if we only have 1 spike in the epoch attempting to trim it will result in a zero-duration epoch!
     assert active_epochs.n_epochs == len(epoch_split_spike_dfs)
     ## What if they're already empty here? (no spikes at all in any epoch?)
 
@@ -622,6 +623,7 @@ def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_un
         spike_trimmed_active_epochs_df = pd.DataFrame(epoch_first_last_spike_times, columns=['start', 'stop']) # when epoch_first_last_spike_times is array([], dtype=float64), encountering an error: `*** ValueError: Empty data passed with indices specified.`
         spike_trimmed_active_epochs_df['label'] = active_epochs.labels # add the original label from the active_epochs
         spike_trimmed_active_epochs = Epoch(epochs=spike_trimmed_active_epochs_df, metadata=active_epochs.metadata)
+        spike_trimmed_active_epochs = spike_trimmed_active_epochs.filtered_by_duration(min_duration=1e-9, max_duration=None) ## make sure there are no zero-duration items
         
     else:
         # Output is empty. Initializing the pd.DataFrame this way prevents  `*** ValueError: Empty data passed with indices specified.` See also # Issue: https://github.com/pandas-dev/pandas/pull/47192
