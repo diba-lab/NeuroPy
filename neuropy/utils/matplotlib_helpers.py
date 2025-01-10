@@ -1760,7 +1760,7 @@ def interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze
 
 
 # Title Helpers ______________________________________________________________________________________________________ #
-def perform_update_title_subtitle(fig, ax, title_string:Optional[str], subtitle_string:Optional[str], active_context=None, use_flexitext_titles=False):
+def perform_update_title_subtitle(fig=None, ax=None, title_string:Optional[str]=None, subtitle_string:Optional[str]=None, active_context=None, use_flexitext_titles=False):
     """ Only updates the title/subtitle if the value is not None
     
     Usage:
@@ -1769,6 +1769,13 @@ def perform_update_title_subtitle(fig, ax, title_string:Optional[str], subtitle_
     perform_update_title_subtitle(fig=fig_long_pf_1D, ax=ax_long_pf_1D, title_string="TEST - 1D Placemaps", subtitle_string="TEST - SUBTITLE")
     
     """
+    if fig is None:
+        fig = plt.gcf()
+        
+    if ax is None:
+        ax = plt.gca()
+            
+
     if title_string is not None:
         fig.canvas.manager.set_window_title(title_string) # sets the window's title
 
