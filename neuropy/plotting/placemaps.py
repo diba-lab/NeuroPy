@@ -94,7 +94,7 @@ def plot_all_placefields(active_placefields1D, active_placefields2D, active_conf
 
 
 
-def plot_placefield_occupancy(active_epoch_placefields, fig=None, ax=None, **kwargs):
+def plot_placefield_occupancy(active_epoch_placefields, fig=None, ax=None, plot_pos_bin_axes: bool=False, **kwargs):
     """ plots the placefield occupancy in a matplotlib figure. 
     Works for both 1D and 2D.
     
@@ -123,11 +123,24 @@ def plot_placefield_occupancy(active_epoch_placefields, fig=None, ax=None, **kwa
         if max_normalized:
             only_visited_occupancy = only_visited_occupancy / np.nanmax(only_visited_occupancy)
             
+        if not plot_pos_bin_axes:
+            x_centers = active_epoch_placefields1D.ratemap.xbin_centers
+            x_edges = active_epoch_placefields1D.ratemap.xbin
+        else:
+            from neuropy.utils.mixins.binning_helpers import get_bin_edges
+            
+            n_xbins: int = len(active_epoch_placefields1D.ratemap.xbin_centers)
+            xbin_size: float = 1.0
+            half_xbin_size: float = xbin_size/2.0
+            
+            x_centers = np.arange(n_xbins) + half_xbin_size            
+            x_edges = get_bin_edges(x_centers)
+
         if should_fill:
-            occupancy_ax.plot(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy)
-            occupancy_ax.scatter(active_epoch_placefields1D.ratemap.xbin_centers, only_visited_occupancy, color='r')
+            occupancy_ax.plot(x_centers, only_visited_occupancy)
+            occupancy_ax.scatter(x_centers, only_visited_occupancy, color='r')
         
-        occupancy_ax.stairs(only_visited_occupancy, active_epoch_placefields1D.ratemap.xbin, fill=False, label='1D Placefield Occupancy', hatch='//') # can also use: , orientation='horizontal'
+        occupancy_ax.stairs(only_visited_occupancy, x_edges, fill=False, label='1D Placefield Occupancy', hatch='//') # can also use: , orientation='horizontal'
         occupancy_ax.set_ylim([0, np.nanmax(only_visited_occupancy)])
         
         # specify bin_size, etc

@@ -7,7 +7,7 @@ from neuropy.utils.matplotlib_helpers import FormattedFigureText, FigureMargins
 
 class PfnD_PlotOccupancy_Mixin:
     @safely_accepts_kwargs
-    def plot_occupancy(self, identifier_details_list=[], fig=None, ax=None, active_context=None, use_flexitext_titles:bool=True, skip_update_titles:bool=False, **kwargs):
+    def plot_occupancy(self, identifier_details_list=[], fig=None, ax=None, active_context=None, use_flexitext_titles:bool=True, skip_update_titles:bool=False, plot_pos_bin_axes:bool=False, **kwargs):
         """ the actually used plotting function. 
         Calls `plot_placefield_occupancy` to do the real plotting. Mostly just sets the title, subtitle, etc.
         #TODO 2023-06-13 19:25: - [ ] Fix `self.config.str_for_display(is_2D)` to enable excluding irrelevant items by includelist
@@ -26,7 +26,7 @@ class PfnD_PlotOccupancy_Mixin:
         title_string = ' '.join([active_pf_occupancy_identifier_string])
         subtitle_string = ' '.join([f'{self.config.str_for_display(is_2D)}'])    
         
-        occupancy_fig, occupancy_ax = plot_placefield_occupancy(self, fig=fig, ax=ax, **kwargs)
+        occupancy_fig, occupancy_ax = plot_placefield_occupancy(self, fig=fig, ax=ax, plot_pos_bin_axes=plot_pos_bin_axes, **kwargs)
 
         if skip_update_titles:
             occupancy_fig.canvas.manager.set_window_title(title_string) # sets the window's title
