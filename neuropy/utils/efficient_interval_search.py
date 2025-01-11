@@ -575,6 +575,7 @@ def filter_epochs_by_speed(speed_df, *epoch_args, speed_thresh=2.0, debug_print=
 def trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_unique_aclu_inclusions=1):
     """ 2022-02-16 - Trim the active_epochs to the first and last spike times for each epoch.
 
+    2025-01-10 18:53 - Found that epochs containing only one spike resulted in zero-duration epochs after trimming, which threw 
     Usage:
         from neuropy.utils.efficient_interval_search import trim_epochs_to_first_last_spikes
         spike_trimmed_active_epochs, epoch_split_spike_dfs = trim_epochs_to_first_last_spikes(active_spikes_df, active_epochs, min_num_unique_aclu_inclusions=1)
