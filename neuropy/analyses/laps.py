@@ -187,6 +187,121 @@ def _subfn_perform_estimate_lap_splits_1D(pos_df: pd.DataFrame, hardcoded_track_
     return (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs), hardcoded_track_midpoint_x
 
 
+def replace_session_laps(sess, override_laps_df: pd.DataFrame, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None, debug_plot=False, debug_print=False):
+    """ 2021-12-21 - Pho's lap estimation from the position data (only)
+    Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)
+
+    CAVIAT: Only works for the linear track (not more complex environments/mazes)
+    USES: Used in KDibaOldDataSessionFormat as a post-processing step to replace the laps computed from the spikesII.mat data
+
+        2023-04-07 - Used in notebook to compute the laps if they aren't there so that we can filter by them.
+
+
+    Note: Uses `sess.position`
+
+    Uses: ['_subfn_perform_estimate_lap_splits_1D', 'Laps.from_estimated_laps', '_subfn_compute_laps_spike_indicies']
+    
+    
+    debug_plot: if True, plots a user-customizable laps view with the points detected for each
+    
+    
+    Updates:
+        `sess.laps`
+
+
+
+    override_laps_df: Optional[pd.DataFrame] = UserAnnotationsManager.get_hardcoded_laps_override_dict().get(curr_active_pipeline.get_session_context(), None)
+
+
+    
+    """
+
+    # backup the extant laps object to prepare for the new one:
+    if should_backup_extant_laps_obj:
+        assert not hasattr(sess, 'laps_backup'), 'sess.laps_backup already exists, so we can''t backup the extant laps object.'
+        sess.laps_backup = deepcopy(sess.laps)
+
+    if should_plot_laps_2d:
+        from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
+        # plot originals:
+        fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=True)
+        out_axes_list[0].set_title('Old SpikeII computed Laps')
+        
+
+    # position_obj = sess.position
+    position_obj = sess.position.linear_pos_obj
+    position_obj.compute_higher_order_derivatives()
+    pos_df = position_obj.compute_smoothed_position_info(N=N) ## Smooth the velocity curve to apply meaningful logic to it
+    pos_df: pd.DataFrame = position_obj.to_dataframe()
+    # If the index doesn't start at zero, it will need to for compatibility with the lap splitting logic because it uses the labels via "df.loc"
+    if 'index_backup' not in pos_df.columns:
+        pos_df['index_backup'] = pos_df.index  # Backup the current index to a new column
+    # Drop rows with missing data in columns: 't', 'velocity_x_smooth' and 2 other columns. This occurs from smoothing
+    pos_df = pos_df.dropna(subset=['t', 'x', 'x_smooth', 'velocity_x_smooth', 'acceleration_x_smooth'])    
+    pos_df.reset_index(drop=True, inplace=True) # Either way, reset the index
+    lap_change_indicies = _subfn_perform_estimate_lap_splits_1D(pos_df, hardcoded_track_midpoint_x=None, debug_print=debug_print) # allow smart midpoint determiniation
+    (desc_crossing_begining_idxs, desc_crossing_midpoint_idxs, desc_crossing_ending_idxs), (asc_crossing_begining_idxs, asc_crossing_midpoint_idxs, asc_crossing_ending_idxs), hardcoded_track_midpoint_x = lap_change_indicies    
+    custom_test_laps_obj = Laps.from_estimated_laps(pos_df['t'].to_numpy(), desc_crossing_begining_idxs, desc_crossing_ending_idxs, asc_crossing_begining_idxs, asc_crossing_ending_idxs) ## Get the timestamps corresponding to the indicies
+    assert custom_test_laps_obj.n_laps > 0, f"estimation for {sess} produced no laps!"
+
+
+    
+    t_start, t_delta, t_end = curr_active_pipeline.find_LongShortDelta_times()
+
+    ## Load the custom laps
+    
+    print(f'override_laps_df: {override_laps_df}')
+    if 'lap_id' not in override_laps_df:
+        override_laps_df['lap_id'] = override_laps_df.index.astype('int') ## set lap_id from the index
+    else:
+        override_laps_df[['lap_id']] = override_laps_df[['lap_id']].astype('int')
+
+    # Either way, ensure that the lap_dir is an 'int' column.
+    override_laps_df['lap_dir'] = override_laps_df['lap_dir'].astype('int')
+    # override_laps_df['lap_dir'] = override_laps_df['lap_dir'].astype('int')
+    
+    if 'label' not in override_laps_df:
+        override_laps_df['label'] = override_laps_df['lap_id'].astype('str') # add the string "label" column
+    else:
+        override_laps_df['label'] = override_laps_df['label'].astype('str')
+        
+    # override_laps_df = Laps._compute_lap_dir_from_smoothed_velocity(laps_df=override_laps_df, global_session=curr_active_pipeline.sess, replace_existing=False)
+    override_laps_df = Laps._update_dataframe_computed_vars(laps_df=override_laps_df, t_start=t_start, t_delta=t_delta, t_end=t_end, global_session=curr_active_pipeline.sess, replace_existing=False)
+    override_laps_obj = Laps(laps=override_laps_df, metadata=None)
+    ## OUTPUTS: override_laps_obj
+    
+    curr_active_pipeline.sess.laps = deepcopy(override_laps_obj)
+    
+    # curr_active_pipeline.sess.laps_df = override_laps_df
+    curr_active_pipeline.sess.compute_position_laps()
+    
+    
+        
+    ## Determine the spikes included with each computed lap:
+    spikes_df: pd.DataFrame = deepcopy(sess.spikes_df)
+    if time_variable_name is None:
+        time_variable_name = 't_rel_seconds'
+    else:
+        time_variable_name = spikes_df.spikes.time_variable_name # get time_variable_name from the spikes_df object
+    custom_test_laps_obj = _subfn_compute_laps_spike_indicies(custom_test_laps_obj, spikes_df, time_variable_name=time_variable_name)
+    sess.laps = deepcopy(custom_test_laps_obj) # replace the laps obj
+
+    if should_plot_laps_2d:
+        from pyphoplacecellanalysis.PhoPositionalData.plotting.laps import plot_laps_2d
+        # plot computed:
+        fig, out_axes_list = plot_laps_2d(sess, legacy_plotting_mode=False)
+        out_axes_list[0].set_title('New Pho Position Thresholding Estimated Laps')
+        fig.canvas.manager.set_window_title('New Pho Position Thresholding Estimated Laps')
+
+
+    if debug_plot:
+        from pyphoplacecellanalysis.GUI.PyQtPlot.Widgets.GraphicsWidgets.EpochsEditorItem import EpochsEditor # perform_plot_laps_diagnoser
+        custom_epochs_editor = EpochsEditor.init_laps_diagnoser(pos_df, custom_test_laps_obj, include_velocity=True, include_accel=True)
+        custom_epochs_editor.add_lap_split_points(lap_change_indicies)
+
+    return sess
+
+
 def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, should_plot_laps_2d=False, time_variable_name=None, debug_plot=False, debug_print=False):
     """ 2021-12-21 - Pho's lap estimation from the position data (only)
     Replaces the sess.laps which is computed or loaded from the spikesII.mat spikes data (which isn't very good)
@@ -259,7 +374,6 @@ def estimate_session_laps(sess, N=20, should_backup_extant_laps_obj=False, shoul
         from pyphoplacecellanalysis.GUI.PyQtPlot.Widgets.GraphicsWidgets.EpochsEditorItem import EpochsEditor # perform_plot_laps_diagnoser
         custom_epochs_editor = EpochsEditor.init_laps_diagnoser(pos_df, custom_test_laps_obj, include_velocity=True, include_accel=True)
         custom_epochs_editor.add_lap_split_points(lap_change_indicies)
-
 
     return sess
 
