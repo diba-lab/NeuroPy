@@ -28,11 +28,18 @@ class DataWriter:
     def from_dict(cls, d):
         return cls(**d)
 
-    @staticmethod
-    def from_file(f):
+    @classmethod
+    def from_file(cls, f, convert=False):
+        """
+        :param f: filename, full path
+        :param convert: bool, True = send to class, False = keep as dict (left as default for legacy purposes)
+        :return:
+        """
+
         f = Path(f) if isinstance(f, str) else f
         if f.is_file():
             d = np.load(f, allow_pickle=True).item()
+            d = cls.from_dict(d) if convert else d
             return d
         else:
             return None

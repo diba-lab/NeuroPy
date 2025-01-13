@@ -141,6 +141,7 @@ class CaNeurons(DataWriter):
             for id, roi in zip(neuron_inds, Aplot):
                 xedges, yedges = detect_roi_edges(roi > 0)
                 (hl,) = ax.plot(xedges, yedges, linewidth=0.7)
+                roi_color = hl.get_color()
                 lines.append(hl)
                 if plot_cell_id:
                     jitter = np.random.randint(
@@ -150,7 +151,8 @@ class CaNeurons(DataWriter):
                         xedges.mean() + jitter[0],
                         yedges.mean() + jitter[1],
                         str(id),
-                        color="w",
+                        # color="w",
+                        color=roi_color,
                     )
         else:
             lines = None
@@ -226,9 +228,11 @@ class CaNeurons(DataWriter):
         pass
 
     def plot_traces(self):
+        print("CaNeuros.plot_traces not yet implemented")
         pass
 
     def plot_traces_and_ROIs(self):
+        print("CaNeurons.plot_traces_and_ROIs not yet implemented")
         pass
 
     def quick_merge(self, unit_ids: list, method="max"):
@@ -564,7 +568,7 @@ class CaNeuronReg:
         return pwmap
 
 
-class PairwiseMap:
+class PairwiseMap(DataWriter):
     """Class to save pairwise neuron registration maps"""
 
     def __init__(
@@ -593,6 +597,11 @@ class PairwiseMap:
         if savename is None:
             savename = self.savename
         np.save(savename, self, allow_pickle=True)
+
+    @staticmethod
+    def load(fp):
+
+        return DataWriter.from_file(fp)
 
 
 class MultiSessionMap:
@@ -781,15 +790,15 @@ def load_pairwise_map(map_path):
 
 
 def id_and_plot_reference_cells(
-    caneurons1: CaNeurons, caneurons2: CaNeurons, return_inds=False, **kwargs
-):
+    caneurons1: CaNeurons, caneurons2: CaNeurons, return_inds=False,
+        min_type: str in ["min", "mc_min_crop"] = "min", **kwargs):
     """identify and clearly plot reference cells active across both session to aid
     in manual cell registration.
     **kwargs to CaNeurons.plot_rois"""
 
     # Plot out cells from both sessions
     careg = CaNeuronReg([caneurons1, caneurons2])
-    fig, ax = careg.plot_rois_across_sessions()
+    fig, ax = careg.plot_rois_across_sessions(min_type=min_type)
     fig.canvas.draw()  # This magical line makes the plot actually appear mid function run!
 
     # Select 3-4 reference cells that are clearly active and the same in both sessions

@@ -10,6 +10,8 @@ import pandas as pd
 from datetime import datetime, timezone
 from dateutil import tz
 import matplotlib.pyplot as plt
+from packaging.version import Version
+
 
 class OESyncIO:
     """Class to synchronize external data sources to Open-Ephys recordings."""
@@ -25,6 +27,98 @@ class OESyncIO:
 
         :return pd.DataFrame OR np.array with OE timestamps matching external TTL events"""
         pass
+
+
+def get_settings_file(experiment_or_recording_folder):
+    if "Record Node" in Path(experiment_or_recording_folder).stem:
+        node_folder = Path(experiment_or_recording_folder)
+    elif "experiment" in Path(experiment_or_recording_folder).stem:
+        node_folder = Path(experiment_or_recording_folder).parent
+    elif "recording" in Path(experiment_or_recording_folder).stem:
+        node_folder = Path(experiment_or_recording_folder).parents[1]
+    else:
+        assert False, "must enter any one of '.../Record Node ###', '.../experiment#', or '.../experiment#/recording#' folder"
+
+    settings_path = sorted(node_folder.glob("**/*settings*"))
+    return settings_path[0]
+
+
+def get_recording_start(recording_folder, from_zone="UTC", to_zone="America/Detroit"):
+    """Get start time of recording."""
+
+    # Get version number
+    settings_path = get_settings_file(recording_folder)
+    oe_version = get_version_number(settings_path)
+
+    #
+    if Version(oe_version) < Version("0.6"):
+        # Try to get microsecond start time from PhoTimestamp plugin.
+        try:
+            start_time = get_us_start(settings_path, from_zone=from_zone, to_zone=to_zone)
+            precision = "us"
+
+        # Otherwise get time from settings file (lower precision)
+        except KeyError:
+            try:
+                experiment_meta = XML2Dict(settings_path)  # Get meta data
+                start_time = pd.Timestamp(experiment_meta["INFO"]["DATE"]).tz_localize(
+                    to_zone
+                )  # get start time from meta-data
+                precision = "s"
+
+            # Last ditch get from directory structure and spit out warning.
+            except FileNotFoundError:
+                print(
+                    "WARNING:"
+                    + str(settings_path)
+                    + " not found. Inferring start time from directory structure. PLEASE CHECK!"
+                )
+                # Find folder with timestamps
+                m = re.search(
+                    "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
+                    str(settings_path),
+                )
+                start_time = pd.to_datetime(
+                    m.group(0), format="%Y-%m-%d_%H-%M-%S"
+                ).tz_localize(to_zone)
+                precision = "s"
+
+        # Now add in lag from settings file creation (first time you hit record after hitting play)
+        # Get SR and sync frame info - for syncing to time of day.
+        SR, sync_frame_exp = parse_sync_file(recording_folder.parent / "recording1/sync_messages.txt")
+
+        # sync_frame info between recordings within the same experiment folder
+        _, sync_frame_rec = parse_sync_file(recording_folder / "sync_messages.txt")
+
+        # Add in start frame lag
+        start_time_rec = start_time + pd.Timedelta((sync_frame_rec - sync_frame_exp) / SR, unit="sec")
+
+        # Try to improve precision by getting start time directly from sync_messages.txt modification time
+        if precision == "s":
+            # Sometimes sync_messages.txt gets modified and created anew at the beginning of the next recording.
+            # So loop through both `sync_messages.txt` and 'structure.oebin` to check modification time
+            for file_name in ["sync_messages.txt", "structure.oebin"]:
+                try:
+                    start_time_ms_precision = get_ms_start_from_creation_time(recording_folder / file_name)
+
+                    if np.abs((start_time_ms_precision - start_time_rec).total_seconds()) < 1.9999:
+                        start_time_rec = start_time_ms_precision
+                        precision = "ms"
+                        break
+                except FileNotFoundError:
+                    continue
+
+        if precision == "s":  # Output warning if ms or better precision can't be obtained
+            print(
+                "Can't find PhoTimestamp plugin in settings.xml file and sync_messages.txt modification time is off"
+                " from approximate start time by more than 1 second - start time will only have second precision")
+
+    elif Version(oe_version) >= Version("0.6"):
+        start_time_rec = get_ms_start(recording_folder / "sync_messages.txt")
+        precision = "ms"
+
+    return start_time_rec, precision
+
 
 def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit"):
     """Get microsecond time second precision start time from Pho/Timestamp plugin"""
@@ -42,11 +136,59 @@ def get_us_start(settings_file: str, from_zone="UTC", to_zone="America/Detroit")
     return dt_start_utc.astimezone(to_zone)
 
 
+def get_ms_start_from_creation_time(sync_messages_file, to_zone="America/Detroit"):
+    """Try to get recording start time from file modification time - only works if original file metadata is preserved,
+    and will spit out the wrong time if the file was copied by apps like Dropbox which write new files instead of
+    copying properly"""
+
+    return (pd.Timestamp(datetime.fromtimestamp(os.path.getmtime(sync_messages_file))).tz_localize(to_zone))
+
+
+def get_ms_start(sync_file, to_zone="America/Detroit"):
+    """
+    Parameters
+    ----------
+    sync_file: Path to sync_messages.txt file of interest
+    to_zone: Set to America/Detroit
+
+    Returns
+    -------
+    rec_start: Start time of recording down to millisecond precision in America/Detroit Timezone Datetimes.
+
+    """
+    # Read in file
+    # sync_lines = open(sync_file).readlines()
+    with open(sync_file, 'r') as sfile:
+        sync_lines = sfile.readlines()
+
+        # Read in OE.Version-only 0.6+ seems to write in a current millis into sync_messages.txt.
+        oe_version = get_version_number(Path(sync_file).parents[2] / "settings.xml")
+
+        try:
+            #
+            if Version(oe_version) > Version("0.6"):
+                # Extract milliseconds from the first line
+                ms_match = re.search(r"Software Time .*: (\d+)", sync_lines[0])
+                ms = int(ms_match.group(1)) if ms_match else None
+
+                # Convert milliseconds elapsed to UTC datetime
+                utc_datetime = datetime.fromtimestamp(ms / 1000, timezone.utc)
+
+                # Get Recording Start in America/Detroit Timezone
+                rec_start = utc_datetime.astimezone(tz.gettz(to_zone))
+                return rec_start
+
+        except Exception as e:
+            print(f"Error parsing sync file: {e}")
+            return None
+
+
 def get_dat_timestamps(
     basepath: str or Path,
     sync: bool = False,
     start_end_only=False,
     local_time="America/Detroit",
+    print_start_time_to_screen=True,
 ):
     """
     Gets timestamps for each frame in your dat file(s) in a given directory.
@@ -68,50 +210,27 @@ def get_dat_timestamps(
     nframe_end = -1
 
     # Backwards/forwards compatibility code
-    set_file = get_settings_filename(timestamp_files[0])  # get settings file name
-    set_folder = get_set_folder(timestamp_files[0])
-    oe_version = get_version_number(set_folder / set_file)
-    ts_in_sec = False
-    if oe_version >= "0.6":
-        print("OE version >= 0.6 detected, check timestamps. Could be off by factor = Sampling Rate")
-        ts_in_sec = True  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (that's in sample_numbers.npy)
+    # set_file = get_settings_filename(timestamp_files[0])  # get settings file name
+    # set_folder = get_set_folder(timestamp_files[0])
+    # oe_version = get_version_number(set_folder / set_file)
+    # ts_units = "frames"
+    # if oe_version >= "0.6":
+    #     print("OE version >= 0.6 detected, check timestamps. Could be off by factor = Sampling Rate")
+    #     ts_units = "seconds"  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (that's in sample_numbers.npy)
 
     for idf, file in enumerate(timestamp_files):
-        set_file = get_settings_filename(file)  # get settings file name
-        set_folder = get_set_folder(file)
-        try:
-            start_time = get_us_start(set_folder / set_file)
-            # print("Using precise start time from Pho/Timestamp plugin")
-        except KeyError:
-            try:
-                experiment_meta = XML2Dict(set_folder / set_file)  # Get meta data
-                start_time = pd.Timestamp(experiment_meta["INFO"]["DATE"]).tz_localize(
-                    local_time
-                )  # get start time from meta-data
-            except FileNotFoundError:
-                print(
-                    "WARNING:"
-                    + str(set_folder / set_file)
-                    + " not found. Inferring start time from directory structure. PLEASE CHECK!"
-                )
-                # Find folder with timestamps
-                m = re.search(
-                    "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}",
-                    str(set_folder),
-                )
-                start_time = pd.to_datetime(
-                    m.group(0), format="%Y-%m-%d_%H-%M-%S"
-                ).tz_localize(local_time)
 
-        SR, sync_frame = parse_sync_file(
-            file.parents[3] / "recording1/sync_messages.txt"
-        )  # Get SR and sync frame info
+        rec_folder = file.parents[2]  # Get recording file
+        start_time_rec, _ = get_recording_start(rec_folder, to_zone=local_time)
+        # Get SR and sync frame info - for syncing to time of day.
+        SR, sync_frame_rec = parse_sync_file(file.parents[2] / "sync_messages.txt")
+        # # sync_frame info between recordings within the same experiment folder
+        # _, sync_frame_rec = parse_sync_file(file.parents[2] / "sync_messages.txt")
+        #
+        # start_time_rec = start_time + pd.Timedelta((sync_frame_rec - sync_frame_exp) / SR, unit="sec")
 
-        # OE version >= 0.6 bugfix
-        sync_frame = sync_frame / SR if ts_in_sec else SR
-        SR = 1 if ts_in_sec else SR
-
-        print("start time = " + str(start_time))
+        if print_start_time_to_screen:
+            print("start time = " + str(start_time_rec))
         stamps = np.load(file)  # load in timestamps
 
         # Remove any dropped end frames.
@@ -130,7 +249,7 @@ def get_dat_timestamps(
             stamps = stamps[[0, -1]]
         timestamps.append(
             (
-                start_time + pd.to_timedelta((stamps - sync_frame) / SR, unit="sec")
+                start_time_rec + pd.to_timedelta((stamps - sync_frame_rec) / SR, unit="sec")
             ).to_frame(index=False)
         )  # Add in absolute timestamps, keep index of acquisition system
 
@@ -189,14 +308,26 @@ def get_timestamp_files(
     basepath: str or Path, type: str in ["continuous", "TTL"], sync: bool = False
 ):
     """
-    Identify all timestamp files of a certain type
+    Identify all timestamp files of a certain type.
+    IMPORTANT NOTE: Due to the original OE file naming scheme, this function grabs files with 'timestamps' in units of
+    frames (sample_number), NOT actual time.
     :param basepath: str of Path object of folder containing timestamp file(s)
     :param type: 'continuous' or 'TTL'
     :param sync: False(default) for 'timestamps.npy', True for 'synchronized_timestamps.npy'
     :return: list of all files in that directory matching the inputs
     """
+    basepath = Path(basepath)
 
-    timestamps_list = sorted(basepath.glob("**/*timestamps.npy"))
+    # Backwards compatibility fix
+    settings_file = sorted(Path(str(basepath).split("/experiment")[0]).glob("**/*settings.xml"))[0]
+    oe_version = get_version_number(settings_file)
+    ts_file_str = "**/*timestamps.npy"
+    if Version(oe_version) >= Version("0.6"):
+        # print("OE version >= 0.6 detected, check timestamps. Could be off by factor = Sampling Rate")
+        # ts_units = "seconds"  # timestamps.npy in 0.6.7 (and presumably all 0.6) is in seconds, NOT sample # (tha
+        ts_file_str = "**/*sample_numbers.npy"
+    timestamps_list = sorted(basepath.glob(ts_file_str))
+
     assert len(timestamps_list) > 0, "No timestamps.npy files found, check if files exist and if appropriate inputs are being used"
     continuous_bool = ["continuous" in str(file_name) for file_name in timestamps_list]
     TTL_bool = ["TTL" in str(file_name) for file_name in timestamps_list]
@@ -215,18 +346,19 @@ def get_timestamp_files(
     return [timestamps_list[ind] for ind in file_inds]
 
 
-def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250):
+def get_lfp_timestamps(dat_times_or_folder, SRdat=30000, SRlfp=1250, **kwargs):
     """
     Gets all timestamps corresponding to a downsampled lfp or eeg file
     :param dat_times_or_folder: str, path to parent directory, holding your 'experiment' folder(s).
     OR pandas dataframe of timestamps from .dat file.
     :param SRdat: sample rate for .dat file
     :param SRlfp: sample rate for .lfp file
+    :param **kwargs: inputs to get_dat_timestamps
     :return:
     """
 
     if isinstance(dat_times_or_folder, (str, Path)):
-        dat_times = get_dat_timestamps(dat_times_or_folder)
+        dat_times = get_dat_timestamps(dat_times_or_folder, **kwargs)
     elif isinstance(dat_times_or_folder, (pd.DataFrame, pd.Series)):
         dat_times = dat_times_or_folder
 
@@ -252,9 +384,14 @@ def load_all_ttl_events(
     # Grab corresponding continuous data folders
     exppaths = [file.parents[3] for file in TTLpaths]
 
+    # Get sync data
+    start_end_df = get_dat_timestamps(basepath, start_end_only=True, print_start_time_to_screen=False)
+
     # Concatenate everything together into one list
     events_all, nframes_dat = [], []
-    for TTLfolder, expfolder in zip(TTLpaths, exppaths):
+    for idr, (TTLfolder, expfolder) in enumerate(zip(TTLpaths, exppaths)):
+        rec_start_df = start_end_df[(start_end_df.Recording == idr) & (start_end_df.Condition == 'start')]
+        nframes_dat.append(rec_start_df.nframe_dat.values[0])
         events = load_ttl_events(TTLfolder, **kwargs)
         events_all.append(events)
 
@@ -263,8 +400,8 @@ def load_all_ttl_events(
 
     # Now loop through and make everything into a datetime in case you are forced to use system times to synchronize everything later
     times_list = []
-    for ide, events in enumerate(events_all):
-        times_list.append(events_to_datetime(events))
+    for ide, (events, start_frame_dat) in enumerate(zip(events_all, nframes_dat)):
+        times_list.append(events_to_datetime(events, start_frame_dat))
 
     ttl_df = pd.concat(times_list)
 
@@ -283,6 +420,8 @@ def load_all_ttl_events(
 
 def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=True):
     """Loads TTL events for one recording folder and spits out a dictionary.
+    IMPORTANT NOTE: Due to the original OE file naming scheme, this function grabs files with 'timestamps' in units of
+    frames (sample_number), NOT actual time.
 
     :param TTLfolder: folder where your TTLevents live, recorded in BINARY format.
     :param zero_timestamps: True (default) = subtract start time in sync_messages.txt. This will align everything
@@ -295,46 +434,80 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=T
     """
     TTLfolder = Path(TTLfolder)
 
+    # Backwards compatibility fix
+    settings_file = sorted(TTLfolder.parents[4].glob("**/*settings.xml"))[0]
+    oe_version = get_version_number(settings_file)
+    varnames_load = ["channel_states", "channels", "full_words", "timestamps"]
+    keynames_use = ["channel_states", "channels", "full_words", "timestamps"]
+    if Version(oe_version) >= Version("0.6"):
+        varnames_load = ["states", "timestamps", "full_words", "sample_numbers"]
+        keynames_use = ["channel_states", "time_in_sec", "full_words", "timestamps"]
+
     # Load event times and states into a dict
     events = dict()
-    for varname in ["channel_states", "channels", "full_words", "timestamps"]:
-        events[varname] = np.load(TTLfolder / (varname + ".npy"))
+    for keyname, varname in zip(keynames_use, varnames_load):
+        events[keyname] = np.load(TTLfolder / (varname + ".npy"))
 
     # Get sync info
     if sync_info:
-        # sync_file = TTLfolder.parents[2] / "sync_messages.txt"
-        sync_file = (
+
+        # Get SR and sync frame info - this gets you absolute time from start of recording! Use for syncing to time of day.
+        sync_file_exp = (
             TTLfolder.parents[3] / "recording1/sync_messages.txt"
-        )  # Get SR and sync frame info
-        SR, record_start = parse_sync_file(sync_file)
+        )
+
+        # Gets you time from start of dat file - use for syncing to frame number in a combined .dat file.
+        sync_file_rec = TTLfolder.parents[2] / "sync_messages.txt"
+
+        SR, exp_start = parse_sync_file(sync_file_exp)
+        _, record_start = parse_sync_file(sync_file_rec)
         events["SR"] = SR
+        events["recording_start_frame"] = record_start
+        events["experiment_start_frame"] = exp_start
 
         # Zero timestamps
         if zero_timestamps:
             events["timestamps"] = events["timestamps"] - record_start
+            # events["timestamps_from_exp_start"] =
 
-        # Grab start time from .xml file and keep it with events just in case
-        settings_file = TTLfolder.parents[4] / get_settings_filename(TTLfolder)
-        try:
-            events["start_time"] = pd.to_datetime(
-                XML2Dict(settings_file)["INFO"]["DATE"]
-            )
-        except FileNotFoundError:
-            print("Settings file: " + str(settings_file) + " NOT FOUND")
+        # # Grab start time from .xml file and keep it with events just in case
+        # settings_file = TTLfolder.parents[4] / get_settings_filename(TTLfolder)
+        # missing_set_file = False
+        # try:
+        #     exp_start_time = pd.to_datetime(
+        #         XML2Dict(settings_file)["INFO"]["DATE"]
+        #     )
+        #     # events["start_time"] = pd.to_datetime(
+        #     #     XML2Dict(settings_file)["INFO"]["DATE"]
+        #     # )
+        #
+        # except FileNotFoundError:
+        #     print("Settings file: " + str(settings_file) + " NOT FOUND")
+        #
+        #     # Find start time using filename
+        #     p = re.compile(
+        #         "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-2]+[0-9]+-[0-6]+[0-9]+-[0-6]+[0-9]+"
+        #     )
+        #
+        #     exp_start_time = pd.to_datetime(
+        #         p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
+        #     )
+        #     missing_set_file = True
+        #     # events["start_time"] = pd.to_datetime(
+        #     #     p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
+        #     # )
 
-            # Find start time using filename
-            p = re.compile(
-                "[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-2]+[0-9]+-[0-6]+[0-9]+-[0-6]+[0-9]+"
-            )
-            events["start_time"] = pd.to_datetime(
-                p.search(str(settings_file)).group(0), format="%Y-%m-%d_%H-%M-%S"
-            )
+        # events["start_time"] = (exp_start_time +
+        #                         pd.Timedelta((record_start - exp_start) / SR, unit="sec"))
 
-            # Print to screen to double check!
-            print(
-                str(events["start_time"])
-                + " loaded from folder structure, be sure to double check!"
-            )
+        # # Print to screen to double-check!
+        # if missing_set_file:
+        #     print(
+        #         str(events["start_time"])
+        #         + " loaded from folder structure, be sure to double check!"
+        #     )
+
+        events["start_time"], _ = get_recording_start(TTLfolder.parents[2])
 
     # Last add in event_names dict
     events["event_names"] = event_names
@@ -342,14 +515,18 @@ def load_ttl_events(TTLfolder, zero_timestamps=True, event_names="", sync_info=T
     return events
 
 
-def events_to_datetime(events):
-    """Parses out channel_states and timestamps and calculates absolute datetimes for all events"""
+def events_to_datetime(events, start_frame_dat=None):
+    """Parses out channel_states and timestamps and calculates absolute datetimes for all events
+    If start_frame_dat is specified, also outputs the sample number from each + start_frame_dat, useful
+    for getting the correct frame number of an event in a combined dat file"""
 
     # First grab relevant keys from full events dictionary
     sub_dict = {key: events[key] for key in ["channel_states", "timestamps"]}
     sub_dict["datetimes"] = events["start_time"] + pd.to_timedelta(
         events["timestamps"] / [events["SR"]], unit="sec"
     )
+    if start_frame_dat is not None:
+        sub_dict["sample_number"] = sub_dict["timestamps"] + start_frame_dat
 
     # Now dump any event names into the appropriate rows
     if events["event_names"] is not None:
@@ -429,11 +606,15 @@ def recording_events_to_combined_time(
 def get_version_number(settings_path):
     """Get OE version number"""
     settings_path = Path(settings_path)
-    assert settings_path.name == "settings.xml"
+    assert re.search("settings_?[0-9]?[0-9]?.xml",
+                     settings_path.name) is not None, \
+        "settings file is not of the format settings.xml or settings_#.xml"
+    # assert settings_path.name == "settings.xml"
 
     settings_dict = XML2Dict(settings_path)
 
     return settings_dict["INFO"]["VERSION"]
+
 
 def parse_sync_file(sync_file):
     """Grab synchronization info for a given session
@@ -794,5 +975,13 @@ def GetRecChs(File):
 
 
 if __name__ == "__main__":
-    parse_sync_file('/data2/Anisomycin/Recording_Rats/Creampuff/2024_07_17_Anisomycin/1_PRE/2024-07-17_10-12-28/Record Node 104/experiment1/recording1/sync_messages.txt')
-    pass
+
+    # Code to check `get_recording_start` function for all possible recording types
+    # OE 0.6.7
+    # start_time, prec = get_recording_start(Path('/data3/Anisomycin/Recording_Rats/Creampuff/2024_07_17_Anisomycin/2_POST/2024-07-17_10-42-12/Record Node 104/experiment1/recording1'))
+
+    # OE 0.5.3 with PhoTimestamp
+    # start_time, prec = get_recording_start(Path('/data2/Trace_FC/Recording_Rats/Finn/2022_01_20_training/1_tone_habituation/2022-01-20_12-28-41/Record Node 104/experiment1/recording1'))
+
+    start_time, prec = get_recording_start(Path("/data2/Trace_FC/Recording_Rats/Django/2023_03_08_training/2_training/2023-03-08_12-15-15/Record Node 103/experiment1/recording1"))
+    print(f"start_time={start_time}, precision={prec}")

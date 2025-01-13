@@ -8,7 +8,7 @@ from .. import core
 
 class PhyIO:
     def __init__(self, dirname: Path, include_groups=("mua", "good")) -> None:
-        self.source_dir = dirname
+        self.source_dir = Path(dirname)
         self.sampling_rate = None
         self.spiketrains = None
         self.waveforms = None
@@ -66,6 +66,7 @@ class PhyIO:
         self.peak_amplitudes = cluinfo["amp"].values
         self.peak_channels = cluinfo["ch"].values
         self.shank_ids = cluinfo["sh"].values
+        self.clu_q = cluinfo["q"].values
         self.channel_map = channel_map
         self.channel_positions = channel_positions
 

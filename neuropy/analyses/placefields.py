@@ -4,12 +4,18 @@ import ipywidgets as widgets
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from scipy.signal import find_peaks, peak_widths
+from copy import deepcopy
+import seaborn as sns
 
-from .. import core
-from ..utils.signal_process import ThetaParams
-from .. import plotting
+from neuropy import core
+from neuropy.utils.signal_process import ThetaParams
+from neuropy import plotting
+from neuropy.utils.mathutil import contiguous_regions
+from neuropy.externals.peak_prominence2d import getProminence
 
 
 class Pf1D(core.Ratemap):
@@ -121,6 +127,11 @@ class Pf1D(core.Ratemap):
         self.occupancy = occupancy
         self.frate_thresh = frate_thresh
         self.speed_thresh = speed_thresh
+        self.speed = speed
+        self.t = t
+        self.x = x
+        self.t_start = t_start
+        self.t_stop = t_stop
 
     def estimate_theta_phases(self, signal: core.Signal):
         """Calculates phase of spikes computed for placefields
@@ -199,21 +210,245 @@ class Pf1D(core.Ratemap):
 
         return ax
 
-    def plot_ratemaps(
-        self, ax=None, pad=2, normalize=False, sortby=None, cmap="tab20b"
-    ):
-        return plotting.plot_ratemaps()
+    def plot_ratemaps(self, **kwargs):
+        return plotting.plot_ratemap(self, **kwargs)
 
-    def plot_ratemaps_raster(self):
-        _, ax = plt.subplots()
-        order = self.get_sort_order(by="index")
+    def plot_rasters(self, jitter=0, plot_time=False, scale=None, sort=True, ax=None):
+        """Plot ratemap as a raster for each neuron
+
+        Parameters
+        ----------
+        jitter: float, offset each neuron's spikes and get an estimate of spiking density
+
+        plot_time: bool, True = show timing of each spike on y-axis
+
+        scale: None = keep in native coords (input), 'tuning_curve' = scale to match tuning curve
+
+        sort: True = sort by peak location, False = don't sort
+        """
+
+        assert isinstance(ax, plt.Axes) or (ax is None)
+        assert (scale == "tuning_curve") or (scale is None)
+        if ax is None:
+            _, ax = plt.subplots()
+
+        order = self.get_sort_order(by="index") if sort else np.arange(self.n_neurons)
         spiketrains_pos = [self.ratemap_spiketrains_pos[i] for i in order]
-        for i, pos in enumerate(spiketrains_pos):
-            ax.plot(pos, i * np.ones_like(pos), "k.", markersize=2)
+        spiketrains_t = [self.ratemap_spiketrains[i] for i in order]
+
+        scale_factor = 1
+        if scale == "tuning_curve":
+            ncm = np.ptp(self.coords)
+            nbins = self.tuning_curves.shape[1]
+            scale_factor = (nbins - 2) / ncm
+
+        for i, (spk_pos, spk_t) in enumerate(zip(spiketrains_pos, spiketrains_t)):
+            if plot_time:
+                ypos = (spk_t - self.t_start) / ((self.t_stop - self.t_start) * 1.1) + i - 0.45  # spike time
+                ypos_traj = (self.t - self.t_start) / ((self.t_stop - self.t_start) * 1.1) + i - 0.45  # trajectory time
+                ax.plot(self.x * scale_factor - 0.5, ypos_traj, "-", color=[0, 0, 1, 0.3])
+                # NRK Todo: allow plotting by lap.
+            else:
+                ypos = i * np.ones_like(spk_pos) + np.random.randn(spk_pos.shape[0]) * jitter
+            ax.plot(spk_pos * scale_factor - 0.5, ypos, "k.", markersize=2)
+
+    def plot_ratemap_w_raster(self, ind=None, id=None, ax=None, **kwargs):
+
+        # Get neuron index
+        assert (ind == None) != (id == None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        if ind is None:
+            ind = np.where(id == self.neuron_ids)[0][0]
+
+        # Slice desired neuron's placefield
+        pfuse = self.neuron_slice([ind])
+
+        # Create axes
+        if ax is None:
+            _, ax = plt.subplots(2, 1, figsize=(4, 4), sharex=True,
+                                 height_ratios=[3, 2])
+
+        # Plot tuning curve
+        pfuse.plot_ratemaps(normalize_tuning_curve=True, ax=ax[0])
+
+        # Plot raster below
+        pfuse.plot_rasters(plot_time=True, ax=ax[1])
+
+        return ax
 
     def plot_raw_ratemaps_laps(self, ax=None, subplots=(8, 9)):
         return plotting.plot_raw_ratemaps()
 
+    def neuron_slice(self, inds=None, ids=None):
+        """Slice out neurons"""
+        assert (inds is None) != (ids is None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        if ids is not None:
+            inds = [np.where(idd == self.neuron_ids)[0][0] for idd in np.atleast_1d(ids)]
+        inds = np.sort(np.atleast_1d(inds))
+
+        # Make a copy and slice
+        pfslice = deepcopy(self)
+        pfslice.tuning_curves = self.tuning_curves[inds]
+        pfslice.neuron_ids = self.neuron_ids[inds]
+        pfslice.ratemap_spiketrains = [self.ratemap_spiketrains[ind] for ind in inds]
+        pfslice.ratemap_spiketrains_pos = [self.ratemap_spiketrains_pos[ind] for ind in inds]
+
+        return pfslice
+
+    def get_pf_data(self, sigma=1.5, plot=False, **kwargs):
+        """Gets all pf data: peak heights, peak prominences, peak centers, peak edges, and peak widths
+        :param: sigma: smoothing kernel width, default = 1.5
+        :param: plot: bool, True = plot all placefields with peaks and widths overlaid, default = False
+        :param: **kwargs: inputs to .get_pf_peaks or .get_pf_widths
+
+        :return: pf_stats_df: pd.DataFrame with all place field stats"""
+
+        # First parse kwargs out
+        peaks_keys = ["step", "centroid_num_to_center", "verbose"]
+        kwargs_peaks = {key: value for key, value in kwargs.items() if key in peaks_keys}
+        kwargs_widths = {key: value for key, value in kwargs.items() if key in ["height_thresh"]}
+
+        # Now loop through each neuron and calculate peak / width information
+        pf_stats_list = []
+        ind = 0
+        for nid in self.neuron_ids:
+            heights, prominences, centers, tuning_curve = self.get_pf_peaks(cell_id=nid, sigma=sigma, **kwargs_peaks)
+            widths, edges = self.get_pf_widths(tuning_curve.squeeze(), heights, prominences, centers, plot=plot,
+                                               **kwargs_widths)
+            for idp, (height, prom, cent, width, edge) in enumerate(zip(heights, prominences, centers, widths, edges)):
+                pf_stats_list.append(pd.DataFrame({"cell_id": nid, "peak_no": idp, "height": height,
+                                                   "prominence": prom, "center": cent, "width": width,
+                                                   "left_edge": edge[0], "right_edge": edge[1]}, index=[ind]))
+
+        return pd.concat(pf_stats_list, axis=0).reset_index()
+
+    def get_pf_peaks(self, cell_ind=None, cell_id=None, sigma=1.5,
+                     step=0.1, centroid_num_to_center=1, verbose=False, **kwargs):
+        """Gets pf peaks using `peak_prominence2d.getProminence external package
+        (https://github.com/Xunius/python_peak_promience2d)
+
+        :param: cell_ind, cell_id: cell index or id to calculate
+        :param: sigma: gaussian smoothing kernel size to use
+        :param: step: step-size for peak_prominence2d.getProminence iterations, default=0.1
+        :param: centroid_num_to_center: input to peak_prominence2d.getProminence, default=1
+        :param: verbose: input to peak_prominence2d.getProminence, default=False
+        :param: **kwargs: other inputs to peak_prominence2d.getProminence
+
+        :return: heights, prominences, centers, tuning_curve
+            np.ndarrays of height, prominence, and center for each field + smoothed tuning curve"""
+        pf_use = self.neuron_slice(inds=cell_ind, ids=cell_id)
+        tuning_curve = pf_use.tuning_curves
+        if sigma > 0:
+            tuning_curve = gaussian_filter1d(pf_use.tuning_curves, sigma=sigma, axis=1)
+        peaks, idmap, promap, parentmap = getProminence(np.repeat(tuning_curve, 20, axis=0),
+                                                        step=step, centroid_num_to_center=centroid_num_to_center,
+                                                        verbose=verbose, **kwargs)
+
+        centers, heights, prominences = [], [], []
+        for ii, vv in peaks.items():
+            xii, yii = vv['center']
+            centers.append(xii)
+
+
+            z2ii = vv['height']
+            heights.append(z2ii)
+
+            pro = vv['prominence']
+            prominences.append(pro)
+
+        return np.array(heights), np.array(prominences), np.array(centers), tuning_curve
+
+    def get_pf_widths(self, tuning_curve, heights, prominences, centers, height_thresh=0.5, plot=False):
+        """Gets placefield widths after obtaining peak height, location, and prominence data using .get_pf_peaks
+
+        :param: tuning_curve: smoothed tuning curve, output from .get_pf_peaks
+        :param: heights, prominences, centers: outputs from .get_pf_peaks
+        :param: height thresh: float between 0 and 1, height threshold at which to calculate pf width
+        :param: plot: plots identified, heights, prominences, and widths, default = False
+
+        :return: widths, edges: 1d and 2d np.ndarrays of widths, and left/right edges for each field.
+                 one edge = np.nan means the edge of the field lies outside of the data limits
+                            at that height_thresh, width from other edge to track limit is still reported"""
+
+        assert tuning_curve.ndim == 1, "Tuning curve must be 1-dimensional"
+        edges, widths = [], []
+
+        if plot:
+            _, ax = plt.subplots()
+
+        for height, pro, center in zip(heights, prominences, centers):
+            # identify regions above height threshold
+            abv_thresh_regions = contiguous_regions(tuning_curve - (height - pro * height_thresh) > 0)
+
+            # In case multiple peaks are above this threshold, grab only the indices which contain the peak center
+            left_ind, right_ind = abv_thresh_regions[
+                np.array([(center > lims[0]) & (center < lims[1]) for lims in abv_thresh_regions])].squeeze()
+
+            # Interpolate the exact crossing point
+            left_edge, right_edge, edge = np.nan, np.nan
+            track_width = tuning_curve.size
+            if left_ind > 0:
+                left_edge = np.interp(0, tuning_curve[[left_ind - 1, left_ind]] - (height - pro * height_thresh),
+                                      [left_ind - 1, left_ind])
+            if right_ind < track_width:
+                right_edge = np.interp(0, tuning_curve[[right_ind, right_ind - 1]] - (height - pro * height_thresh),
+                                       [right_ind, right_ind - 1])
+
+            # Save
+            if np.isnan(left_edge):
+                width_use = right_edge
+            elif np.isnan(right_edge):
+                width_use = track_width - left_edge
+            else:
+                width_use = right_edge - left_edge
+            widths.append(width_use)
+            edges.append(np.array([left_edge, right_edge]))
+
+        if plot:
+            ax.plot(tuning_curve,  ".-")
+            for width, edge, height, pro, center in zip(widths, edges, heights, prominences, centers):
+                ax.plot([center, center], [height - pro, height], 'k:')
+                ax.plot([edge[0], edge[1]],
+                        [height - pro * height_thresh, height - pro * height_thresh],
+                        'r')
+
+        return np.array(widths), np.array(edges)
+
+    # def get_pf_widths(self, rel_height_thresh: float = 0.5, dist_thresh: float = 10,
+    #                   width: float = 3, height: float = 1, prominence: float = 1, smooth_sigma=1,
+    #                   keep: str in ['all', 'peak_only'] = 'peak_only', sanity_check_plot: bool = False):
+    #
+    #     pf_tc_smooth = gaussian_filter1d(self.tuning_curves, sigma=smooth_sigma, axis=1) \
+    #         if (smooth_sigma > 0) else self.tuning_curves
+    #
+    #     widths = []
+    #     for idt, (tc, peak_loc) in enumerate(zip(pf_tc_smooth, self.peak_locations())):
+    #         peaks, _ = find_peaks(tc, distance=dist_thresh, rel_height=rel_height_thresh, width=width, height=height,
+    #                               prominence=prominence)
+    #         biggest = np.argmax(tc)
+    #         if keep == 'peak_only':
+    #             try:
+    #                 peaks = [peaks.flat[np.abs(peaks - biggest).argmin()]]
+    #             except ValueError:
+    #                 peaks = peaks
+    #         width_results = peak_widths(tc, peaks=peaks, rel_height=rel_height_thresh)
+    #         widths.append(width_results[0].squeeze() if width_results[0].size > 0 else np.array(np.nan))
+    #
+    #     if sanity_check_plot:  # plot last neuron
+    #         _, ax = plt.subplots(2, 1, height_ratios=[4, 1], sharex=True)
+    #         ax[0].plot(tc)
+    #         ax[0].plot(peaks, tc[peaks], 'r.')
+    #         ax[0].plot(peak_loc, tc[peak_loc], 'g*')
+    #         ax[0].plot(biggest, tc[biggest], 'co', markerfacecolor=None)
+    #         ax[0].hlines(*width_results[1:], 'r')
+    #         ax[0].set_ylabel('Firing rate (Hz)')
+    #
+    #         self.plot_ratemaps_raster(jitter=0.1, scale='tuning_curve', sort=False, ax=ax[1])
+    #         ax[1].set_xlabel(f"Bin # ({self.x_binsize} cm bins)")
+    #         ax[1].set_ylim([idt - 0.5, idt + 0.5])
+    #         ax[1].set_yticks([])
+    #         sns.despine(left=True, ax=ax[1])
+    #
+    #     return widths
 
 class Pf2D:
     def __init__(
@@ -504,3 +739,19 @@ class Pf2D:
         self._obj.spikes.plot_ccg(clus_use=[cellind], type="acg", ax=axccg)
 
         return fig_use
+
+    if __name__ == "__main__":
+        import matplotlib
+        matplotlib.use('TkAgg')
+        import subjects
+        sess = subjects.remaze_sess()[1]
+
+        maze = sess.paradigm[
+            "maze"].flatten()  # Grab times when rat was on the maze (as opposed to pre/post sleep recordings)
+        neurons = sess.neurons_stable.get_neuron_type("pyr")  # get pre-selected stable neurons
+        kw = dict(frate_thresh=0, grid_bin=5)  # Define placefield parameters
+
+        pfmaze = Pf1D(neurons, position=sess.maze, **kw)
+        pf_data_df = pfmaze.neuron_slice(inds=np.arange(10)).get_pf_data(test="blah", step=0.1, height_thresh=0.5, plot=True)
+        pass
+        # pfmaze.plot_ratemap_w_raster([2])
