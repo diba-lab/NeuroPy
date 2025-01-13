@@ -472,9 +472,22 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         
         
     """
+    """
+    Binning events and calculating spike counts for each epoch. Allows for either:
+      1) A single bin per epoch, or
+      2) A sliding-window approach with a 1-ms histogram base, 
+         aggregated into windows of size `bin_size` seconds and stride `slideby`.
+
+    Returns:
+        spkcount: list of spike-count arrays, one per epoch
+                  each array shape is (n_neurons, n_time_windows_in_this_epoch).
+        nbins: number of time bins for each epoch.
+        time_bin_containers_list: if export_time_bins is True, a list of BinningContainer
+                                  objects for each epoch’s final time bins/edges/centers.
+    """
     from neuropy.core.epoch import ensure_dataframe
 
-    # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
+    # -- Convert `neurons` into a list of spiketrains (arrays of spike times) --
     if isinstance(neurons, core.Neurons):
         spiketrains = neurons.spiketrains
     elif isinstance(neurons, pd.DataFrame):
@@ -482,13 +495,15 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         spikes_df = neurons
         spiketrains = spikes_df.spikes.get_unit_spiketrains(included_neuron_ids=included_neuron_ids)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("`neurons` must be Neurons or DataFrame.")
 
-    # Handle either core.Epoch or pd.DataFrame objects:
+    # -- Prep the epochs --
     epoch_df = ensure_dataframe(epochs)
-    n_epochs = np.shape(epoch_df)[0] # there is one row per epoch
+    n_epochs = len(epoch_df)
 
     spkcount = []
+    nbins = np.zeros(n_epochs, dtype="int")
+
     if export_time_bins:
         time_bin_containers_list = []
     else:
