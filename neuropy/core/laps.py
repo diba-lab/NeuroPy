@@ -510,8 +510,6 @@ class Laps(Epoch):
 
 
         # Get start/end times from the indicies
-        # custom_test_laps_df['start_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_begining_idxs], pos_t_rel_seconds[asc_crossing_begining_idxs]])
-        # custom_test_laps_df['end_t_rel_seconds'] = np.concatenate([pos_t_rel_seconds[desc_crossing_ending_idxs], pos_t_rel_seconds[asc_crossing_ending_idxs]])
         custom_test_laps_df['start_t_rel_seconds'] = np.array([pos_t_rel_seconds[an_idx] for an_idx in custom_test_laps_df['start_position_index'].to_numpy()])
         custom_test_laps_df['end_t_rel_seconds'] = np.array([pos_t_rel_seconds[an_idx] for an_idx in custom_test_laps_df['end_position_index'].to_numpy()])
         custom_test_laps_df['start'] = custom_test_laps_df['start_t_rel_seconds']

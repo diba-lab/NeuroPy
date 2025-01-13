@@ -282,8 +282,12 @@ class SpikesAccessor(TimeSlicedMixin):
             # assert (np.shape(out_digitized_variable_bins)[0] == np.shape(self._obj)[0]), f'np.shape(out_digitized_variable_bins)[0]: {np.shape(out_digitized_variable_bins)[0]} should equal np.shape(self._obj)[0]: {np.shape(self._obj)[0]}'
             print(time_window_edges_binning_info)
 
-        bin_labels = time_window_edges_binning_info.bin_indicies[1:] # edge bin indicies: [0,     1,     2, ..., 11878, 11879, 11880][1:] -> [ 1,     2, ..., 11878, 11879, 11880]
+        # bin_labels = time_window_edges_binning_info.bin_indicies[1:] # edge bin indicies: [0,     1,     2, ..., 11878, 11879, 11880][1:] -> [ 1,     2, ..., 11878, 11879, 11880]
+        bin_labels = time_window_edges_binning_info.bin_indicies[:-1] ## typical 0-based indexing - 2025-01-13 16:11 
         self._obj['binned_time'] = pd.cut(self._obj[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
+        
+        assert (np.nanmax(self._obj['binned_time']) < len(time_window_edges)), f"there should be no values above the number of edges, but there are! np.nanmax(self._obj['binned_time']): {np.nanmax(self._obj['binned_time'])}, len(time_window_edges): {len(time_window_edges)}"
+        
         return self._obj
 
     def adding_lap_identity_column(self, laps_epoch_df, epoch_id_key_name:str='new_lap_IDX'):
