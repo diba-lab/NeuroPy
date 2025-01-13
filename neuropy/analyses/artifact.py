@@ -13,13 +13,13 @@ def detect_artifact_epochs(
     edge_cutoff=2,
     merge=5,
     filt: list or np.ndarray = None,
-):
+    ):
     """
     calculating artifact periods using z-score measure
 
     Parameters
     ----------
-    signal : core.Signal
+    signal : core.Signal====
         neuropy.signal object
     thresh : int, optional
         zscore value above which it is considered noisy, by default 4
@@ -55,9 +55,11 @@ def detect_artifact_epochs(
     if filt is not None:
         assert len(filt) == 2, "Inputs for filtering signal must be length = 2"
         if filt[0] is not None:  # highpass
-            sig = signal_process.filter_sig.highpass(sig_raw, filt[0], fs=sampling_rate)
+            sig = signal_process.filter_sig.highpass(
+                sig_raw, filt[0], fs=sampling_rate)
         elif filt[1] is not None:  # lowpass
-            sig = signal_process.filter_sig.lowpass(sig_raw, filt[1], fs=sampling_rate)
+            sig = signal_process.filter_sig.lowpass(
+                sig_raw, filt[1], fs=sampling_rate)
         elif filt[0] is not None and filt[1] is not None:  # bandpass
             sig = signal_process.filter_sig.bandpass(
                 sig_raw, filt[0], filt[1], fs=sampling_rate
@@ -111,11 +113,31 @@ def detect_artifact_epochs(
         art_epochs = Epoch(epochs, metadata)
         art_epochs.metadata = {"filename": Path(signal.source_file)}
 
+        '''
+        drops = np.zeros(zsc.shape)
+        for i in range(1,len(zs_second)):
+            if zs_second[i] == 0 and zs_second[i-1] == 0:
+                drops[i] = 1
+            else:
+                drops[i] = 0
+
+        import matplotlib.pyplot as plt
+        xstarts = art_epochs.starts *1250
+        xstops = art_epochs.stops * 1250
+        y_min,y_max = plt.ylim()
+        plt.plot(zsc)
+        plt.vlines(xstarts,ymin=y_min,ymax=y_max,color="green",linewidth=1)
+        plt.vlines(xstops,ymin=y_min,ymax=y_max,color="red",linewidth=1)
+        plt.show()
+        print(art_epochs.starts)
+        print(art_epochs.stops)
+
+        '''
+        
         return art_epochs
     else:
         print("No artifacts found at this threshold")
         pass
-
 
 if __name__ == "__main__":
     print("test")
