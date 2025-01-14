@@ -383,7 +383,8 @@ def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFr
 
     unique_lap_ids = np.unique(laps_df['lap_id'])
     lap_id_to_dir_dict = {a_row.lap_id:a_row.lap_dir for a_row in laps_df[['lap_id', 'lap_dir']].itertuples(index=False)}
-    print(f'lap_id_to_dir_dict: {lap_id_to_dir_dict}')
+    if debug_print:
+        print(f'lap_id_to_dir_dict: {lap_id_to_dir_dict}')
     assert len(unique_lap_ids) == len(lap_id_to_dir_dict)
     
     n_laps: int = len(unique_lap_ids)
