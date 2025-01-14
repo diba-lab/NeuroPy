@@ -472,22 +472,9 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         
         
     """
-    """
-    Binning events and calculating spike counts for each epoch. Allows for either:
-      1) A single bin per epoch, or
-      2) A sliding-window approach with a 1-ms histogram base, 
-         aggregated into windows of size `bin_size` seconds and stride `slideby`.
-
-    Returns:
-        spkcount: list of spike-count arrays, one per epoch
-                  each array shape is (n_neurons, n_time_windows_in_this_epoch).
-        nbins: number of time bins for each epoch.
-        time_bin_containers_list: if export_time_bins is True, a list of BinningContainer
-                                  objects for each epoch’s final time bins/edges/centers.
-    """
     from neuropy.core.epoch import ensure_dataframe
 
-    # -- Convert `neurons` into a list of spiketrains (arrays of spike times) --
+    # Handle extracting the spiketrains, which are a list with one entry for each neuron and each list containing the timestamps of the spike event
     if isinstance(neurons, core.Neurons):
         spiketrains = neurons.spiketrains
     elif isinstance(neurons, pd.DataFrame):
@@ -495,15 +482,13 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
         spikes_df = neurons
         spiketrains = spikes_df.spikes.get_unit_spiketrains(included_neuron_ids=included_neuron_ids)
     else:
-        raise NotImplementedError("`neurons` must be Neurons or DataFrame.")
+        raise NotImplementedError
 
-    # -- Prep the epochs --
+    # Handle either core.Epoch or pd.DataFrame objects:
     epoch_df = ensure_dataframe(epochs)
-    n_epochs = len(epoch_df)
+    n_epochs = np.shape(epoch_df)[0] # there is one row per epoch
 
     spkcount = []
-    nbins = np.zeros(n_epochs, dtype="int")
-
     if export_time_bins:
         time_bin_containers_list = []
     else:
@@ -563,8 +548,16 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
 
                 # Build BinningContainer by hand (only 1 bin)
                 actual_window_size = float(epoch_stop - epoch_start)
-                center_info = BinningInfo( variable_extents=(epoch_start, epoch_stop), step=actual_window_size, num_bins=1 )
-                bin_container = BinningContainer( edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info )
+                center_info = BinningInfo(
+                    variable_extents=(epoch_start, epoch_stop),
+                    step=actual_window_size,
+                    num_bins=1
+                )
+                bin_container = BinningContainer(
+                    edges=reduced_time_bin_edges,
+                    centers=reduced_time_bin_centers,
+                    center_info=center_info
+                )
                 time_bin_containers_list.append(bin_container)
 
         else:
@@ -586,9 +579,18 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                     reduced_time_bin_edges = np.array([epoch_start, epoch_stop])
                     reduced_time_bin_centers = np.array([(epoch_start + epoch_stop) / 2.0])
                     actual_window_size = epoch_duration
-                    center_info = BinningInfo( variable_extents=(epoch_start, epoch_stop), step=actual_window_size, num_bins=1 )
-                    bin_container = BinningContainer( edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info )
+                    center_info = BinningInfo(
+                        variable_extents=(epoch_start, epoch_stop),
+                        step=actual_window_size, 
+                        num_bins=1
+                    )
+                    bin_container = BinningContainer(
+                        edges=reduced_time_bin_edges,
+                        centers=reduced_time_bin_centers,
+                        center_info=center_info
+                    )
                     time_bin_containers_list.append(bin_container)
+
             else:
                 # Build array of valid start indices for each full window
                 stride_in_bins = int(slideby * 1000)  # stride in # of 1-ms bins
