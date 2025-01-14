@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import List, Dict, Any, Tuple, Optional, Callable
 from attrs import define, field, Factory, asdict
 from nptyping import NDArray
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import tables as tb
@@ -1052,4 +1053,179 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         ## Bad/Icky Bimodal Cells:
         # return {k:pd.DataFrame(v, columns=['start', 'stop', 'lap_dir']) for k, v in laps_override_dict.items()}
         return laps_override_dict
+
+
+
+    # ==================================================================================================================== #
+    # Helper/Utility Functions                                                                                             #
+    # ==================================================================================================================== #
+        
+    @function_attributes(short_name=None, tags=['utility', 'importer', 'batch', 'matlab_mat_file', 'multi-session', 'grid_bin_bounds'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-04-10 07:41', related_items=[])
+    @classmethod
+    def batch_build_user_annotation_grid_bin_bounds_from_exported_position_info_mat_files(cls, search_parent_path: Path, platform_side_length: float = 22.0, debug_print=False):
+        """ finds all *.position_info.mat files recurrsively in the search_parent_path, then try to load them and parse their parent directory as a session to build an IdentifyingContext that can be used as a key in UserAnnotations.
+        
+        Builds a list of grid_bin_bounds user annotations that can be pasted into `specific_session_override_dict`
+
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+
+            _out_user_annotations_add_code_lines, loaded_configs = UserAnnotationsManager.batch_build_user_annotation_grid_bin_bounds_from_exported_position_info_mat_files(search_parent_path=Path(r'W:\\Data\\Kdiba'))
+            loaded_configs
+
+        """
+        # from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder, DataSessionFormatBaseRegisteredClass
+        from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+        from pyphocorehelpers.geometry_helpers import BoundsRect
+        from pyphocorehelpers.Filesystem.path_helpers import discover_data_files
+
+        found_any_position_info_mat_files: list[Path] = discover_data_files(search_parent_path, glob_pattern='*.position_info.mat', recursive=True)
+        found_any_position_info_mat_files
+        ## INPUTS: found_any_position_info_mat_files
+        
+        user_annotations = cls.get_user_annotations()
+        _out_user_annotations_add_code_lines: List[str] = []
+
+        loaded_configs = {}
+        for a_path in found_any_position_info_mat_files:
+            if a_path.exists():
+                file_prefix: str = a_path.name.split('.position_info.mat', maxsplit=1)[0]
+                if debug_print:
+                    print(f'file_prefix: {file_prefix}')
+                session_path = a_path.parent.resolve()
+                session_name = KDibaOldDataSessionFormatRegisteredClass.get_session_name(session_path)
+                if debug_print:
+                    print(f'session_name: {session_name}')
+                if session_name == file_prefix:
+                    try:
+                        _updated_config_dict = {}
+                        _test_session = KDibaOldDataSessionFormatRegisteredClass.build_session(session_path) # Path(r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53')
+                        _test_session_context = _test_session.get_context()
+                        if debug_print:
+                            print(f'_test_session_context: {_test_session_context}')
+                        
+                        _updated_config_dict = KDibaOldDataSessionFormatRegisteredClass.perform_load_position_info_mat(session_position_mat_file_path=a_path, config_dict=_updated_config_dict, debug_print=debug_print)
+                        _updated_config_dict['session_context'] = _test_session_context
+
+                        assert 'pix2cm' in _updated_config_dict, f"must have pix2cm to convert from cm to unit frames. 2025-01-14 17:10."
+                        pix2cm: float = float(_updated_config_dict['pix2cm'])
+
+                        loaded_track_limits = _updated_config_dict.get('loaded_track_limits', None) # {'long_xlim': array([59.0774, 228.69]), 'short_xlim': array([94.0156, 193.757]), 'long_ylim': array([138.164, 146.12]), 'short_ylim': array([138.021, 146.263])}
+                        if loaded_track_limits is not None:
+                            long_xlim = loaded_track_limits['long_xlim']
+                            long_ylim = loaded_track_limits['long_ylim']
+                            # short_xlim = loaded_track_limits['short_xlim']
+                            # short_ylim = loaded_track_limits['short_ylim']
+
+                            long_unit_xlim = loaded_track_limits['long_unit_xlim']
+                            long_unit_ylim = loaded_track_limits['long_unit_ylim']
+                            
+                            platform_side_unit_length: float = (float(platform_side_length) / pix2cm)
+                            from_mat_unit_lims_grid_bin_bounds = BoundsRect(xmin=(long_unit_xlim[0]-platform_side_unit_length), xmax=(long_unit_xlim[1]+platform_side_unit_length), ymin=long_unit_ylim[0], ymax=long_unit_ylim[1])
+                            
+                            ## Build full grid_bin_bounds:
+                            from_mat_cm_lims_grid_bin_bounds = BoundsRect(xmin=(long_xlim[0]-platform_side_length), xmax=(long_xlim[1]+platform_side_length), ymin=long_ylim[0], ymax=long_ylim[1])
+                            # print(f'from_mat_lims_grid_bin_bounds: {from_mat_lims_grid_bin_bounds}')
+                            # from_mat_lims_grid_bin_bounds # BoundsRect(xmin=37.0773897438341, xmax=250.69004399129707, ymin=116.16397564990257, ymax=168.1197529956474)
+                            
+                            ## pre 2025-01-14 16:58 [cm] grid-bin-bounds:
+                            # from_mat_lims_grid_bin_bounds: BoundsRect = deepcopy(from_mat_cm_lims_grid_bin_bounds)
+                            # _updated_config_dict['new_grid_bin_bounds'] = from_mat_lims_grid_bin_bounds.extents ## how it used to be pre 2025-01-14 16:58 
+                            
+
+                            _updated_config_dict['new_cm_grid_bin_bounds'] = from_mat_cm_lims_grid_bin_bounds.extents
+                            _updated_config_dict['new_unit_grid_bin_bounds'] = from_mat_unit_lims_grid_bin_bounds.extents
+                            
+
+
+                            ## 2025-01-14 16:58 Use Unit-length Grid bin bounds:
+                            from_mat_lims_grid_bin_bounds: BoundsRect = deepcopy(from_mat_unit_lims_grid_bin_bounds)
+                            _updated_config_dict['new_grid_bin_bounds'] = _updated_config_dict['new_unit_grid_bin_bounds'] # 2025-01-14 16:58 - switch to unit scale bounds
+                             
+                            ## Build Update:
+
+
+                            # curr_active_pipeline.sess.config.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
+
+                            active_context = _test_session_context # curr_active_pipeline.get_session_context()
+                            final_context = active_context.adding_context_if_missing(user_annotation='grid_bin_bounds')
+                            user_annotations[final_context] = from_mat_lims_grid_bin_bounds.extents
+                            
+
+
+
+                            # Updates the context. Needs to generate the code.
+
+                            ## Generate code to insert int user_annotations:
+                            
+                            ## new style:
+                            # print(f"user_annotations[{final_context.get_initialization_code_string()}] = {(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}")
+                            # _a_code_line: str = f"user_annotations[{active_context.get_initialization_code_string()}] = dict(grid_bin_bounds=({(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}))"                            
+                            _a_code_line: str = f"""user_annotations[{active_context.get_initialization_code_string()}] = dict(unit_grid_bin_bounds=({(from_mat_unit_lims_grid_bin_bounds.xmin, from_mat_unit_lims_grid_bin_bounds.xmax), (from_mat_unit_lims_grid_bin_bounds.ymin, from_mat_unit_lims_grid_bin_bounds.ymax)}), cm_grid_bin_bounds=({(from_mat_cm_lims_grid_bin_bounds.xmin, from_mat_cm_lims_grid_bin_bounds.xmax), (from_mat_cm_lims_grid_bin_bounds.ymin, from_mat_cm_lims_grid_bin_bounds.ymax)}))"""
+                            # _a_code_line: str = f"user_annotations[{active_context.get_initialization_code_string()}] = dict(unit_grid_bin_bounds=({(from_mat_unit_lims_grid_bin_bounds.xmin, from_mat_unit_lims_grid_bin_bounds.xmax), (from_mat_unit_lims_grid_bin_bounds.ymin, from_mat_unit_lims_grid_bin_bounds.ymax)}),\n\t"
+                            # _a_code_line += f"cm_grid_bin_bounds=({(from_mat_cm_lims_grid_bin_bounds.xmin, from_mat_cm_lims_grid_bin_bounds.xmax), (from_mat_cm_lims_grid_bin_bounds.ymin, from_mat_cm_lims_grid_bin_bounds.ymax)}),\n"
+                            # _a_code_line += f")"
+
+                            # print(_a_code_line)
+                            _out_user_annotations_add_code_lines.append(_a_code_line)
+
+                        loaded_configs[a_path] = _updated_config_dict
+                    except (AssertionError, Exception) as e:
+                        print(f'e: {e}. Skipping.')
+                        pass
+                        
+        # loaded_configs
+
+        print('Add the following code to UserAnnotationsManager.get_user_annotations() function body:')
+        print('\n'.join(_out_user_annotations_add_code_lines))
+        return _out_user_annotations_add_code_lines, loaded_configs
+
+    # @classmethod
+    # def _build_new_grid_bin_bounds_from_mat_exported_xlims(cls, curr_active_pipeline, platform_side_length: float = 22.0, build_user_annotation_string:bool=False):
+    #     """ 2024-04-10 -
+        
+    #     from pyphoplacecellanalysis.SpecificResults.PendingNotebookCode import _build_new_grid_bin_bounds_from_mat_exported_xlims
+
+    #     """
+    #     from neuropy.core.user_annotations import UserAnnotationsManager
+    #     from pyphocorehelpers.geometry_helpers import BoundsRect
+
+    #     ## INPUTS: curr_active_pipeline
+    #     loaded_track_limits = deepcopy(curr_active_pipeline.sess.config.loaded_track_limits) # {'long_xlim': array([59.0774, 228.69]), 'short_xlim': array([94.0156, 193.757]), 'long_ylim': array([138.164, 146.12]), 'short_ylim': array([138.021, 146.263])}
+    #     x_midpoint: float = curr_active_pipeline.sess.config.x_midpoint
+    #     pix2cm: float = curr_active_pipeline.sess.config.pix2cm
+
+    #     ## INPUTS: loaded_track_limits
+    #     print(f'loaded_track_limits: {loaded_track_limits}')
+
+    #     long_xlim = loaded_track_limits['long_xlim']
+    #     long_ylim = loaded_track_limits['long_ylim']
+    #     short_xlim = loaded_track_limits['short_xlim']
+    #     short_ylim = loaded_track_limits['short_ylim']
+
+
+    #     ## Build full grid_bin_bounds:
+    #     from_mat_lims_grid_bin_bounds = BoundsRect(xmin=(long_xlim[0]-platform_side_length), xmax=(long_xlim[1]+platform_side_length), ymin=long_ylim[0], ymax=long_ylim[1])
+    #     # print(f'from_mat_lims_grid_bin_bounds: {from_mat_lims_grid_bin_bounds}')
+    #     # from_mat_lims_grid_bin_bounds # BoundsRect(xmin=37.0773897438341, xmax=250.69004399129707, ymin=116.16397564990257, ymax=168.1197529956474)
+
+    #     if build_user_annotation_string:
+    #         ## Build Update:
+    #         user_annotations = UserAnnotationsManager.get_user_annotations()
+
+    #         # curr_active_pipeline.sess.config.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
+
+    #         active_context = curr_active_pipeline.get_session_context()
+    #         final_context = active_context.adding_context_if_missing(user_annotation='grid_bin_bounds')
+    #         user_annotations[final_context] = from_mat_lims_grid_bin_bounds.extents
+    #         # Updates the context. Needs to generate the code.
+
+    #         ## Generate code to insert int user_annotations:
+    #         print('Add the following code to UserAnnotationsManager.get_user_annotations() function body:')
+    #         ## new style:
+    #         # print(f"user_annotations[{final_context.get_initialization_code_string()}] = {(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}")
+    #         print(f"user_annotations[{active_context.get_initialization_code_string()}] = dict(grid_bin_bounds=({(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}))")
+
+    #     return from_mat_lims_grid_bin_bounds
+
 
