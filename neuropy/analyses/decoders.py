@@ -563,16 +563,8 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
 
                 # Build BinningContainer by hand (only 1 bin)
                 actual_window_size = float(epoch_stop - epoch_start)
-                center_info = BinningInfo(
-                    variable_extents=(epoch_start, epoch_stop),
-                    step=actual_window_size,
-                    num_bins=1
-                )
-                bin_container = BinningContainer(
-                    edges=reduced_time_bin_edges,
-                    centers=reduced_time_bin_centers,
-                    center_info=center_info
-                )
+                center_info = BinningInfo( variable_extents=(epoch_start, epoch_stop), step=actual_window_size, num_bins=1 )
+                bin_container = BinningContainer( edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info )
                 time_bin_containers_list.append(bin_container)
 
         else:
@@ -594,18 +586,9 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                     reduced_time_bin_edges = np.array([epoch_start, epoch_stop])
                     reduced_time_bin_centers = np.array([(epoch_start + epoch_stop) / 2.0])
                     actual_window_size = epoch_duration
-                    center_info = BinningInfo(
-                        variable_extents=(epoch_start, epoch_stop),
-                        step=actual_window_size, 
-                        num_bins=1
-                    )
-                    bin_container = BinningContainer(
-                        edges=reduced_time_bin_edges,
-                        centers=reduced_time_bin_centers,
-                        center_info=center_info
-                    )
+                    center_info = BinningInfo( variable_extents=(epoch_start, epoch_stop), step=actual_window_size, num_bins=1 )
+                    bin_container = BinningContainer( edges=reduced_time_bin_edges, centers=reduced_time_bin_centers, center_info=center_info )
                     time_bin_containers_list.append(bin_container)
-
             else:
                 # Build array of valid start indices for each full window
                 stride_in_bins = int(slideby * 1000)  # stride in # of 1-ms bins
