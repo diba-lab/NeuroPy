@@ -834,12 +834,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
 
     @classmethod
-    def perform_load_position_info_mat(cls, session_position_mat_file_path: Path, config_dict: Optional[Dict]=None) -> Dict:
+    def perform_load_position_info_mat(cls, session_position_mat_file_path: Path, config_dict: Optional[Dict]=None, debug_print:bool=True) -> Dict:
         """ must conform to `[Path, DataSession], DataSession` """
         from neuropy.utils.load_exported import import_mat_file
         assert session_position_mat_file_path.exists(), f"session_position_mat_file_path: '{session_position_mat_file_path}' does not exist!"
 
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
+        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path, debug_print=debug_print)
 
         if config_dict is None:
             config_dict = {} # allocate a new dict
@@ -891,12 +891,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
     
     @classmethod
-    def perform_load_position_info_mat_into_session(cls, session_position_mat_file_path: Path, session: DataSession) -> DataSession:
+    def perform_load_position_info_mat_into_session(cls, session_position_mat_file_path: Path, session: DataSession, debug_print:bool=True) -> DataSession:
         """ must conform to `[Path, DataSession], DataSession` """
         from neuropy.utils.load_exported import import_mat_file
         assert session_position_mat_file_path.exists(), f"session_position_mat_file_path: '{session_position_mat_file_path}' does not exist!"
 
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
+        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path, debug_print=debug_print)
 
         # updated_config_dict = cls.perform_load_position_info_mat(session_position_mat_file_path=session_position_mat_file_path, session.config.to_dict())
         # session.config.__dict__.update(updated_config_dict) ## update given the values
