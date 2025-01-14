@@ -14,7 +14,7 @@ from neuropy.core import neurons
 from neuropy.core.epoch import Epoch, NamedTimerange
 from neuropy.core.flattened_spiketrains import FlattenedSpiketrains
 from neuropy.core.laps import Laps
-from neuropy.core.position import Position
+from neuropy.core.position import Position, PositionAccessor, adding_lap_info_to_position_df
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from copy import deepcopy
 
@@ -572,8 +572,9 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
             laps_position_traces, curr_position_df = compute_position_laps(sess) """
         curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
         curr_laps_df = self.laps.to_dataframe()
-        curr_position_df = DataSession.compute_laps_position_df(curr_position_df, curr_laps_df)
-        
+        # curr_position_df = DataSession.compute_laps_position_df(curr_position_df, curr_laps_df)
+        curr_position_df = curr_position_df.position.adding_lap_info(laps_df=curr_laps_df, inplace=False)        
+
         # update:
         self.position._data['lap'] = curr_position_df['lap']
         self.position._data['lap_dir'] = curr_position_df['lap_dir']
@@ -586,24 +587,21 @@ class DataSession(HDF_SerializationMixin, DataSessionPanelMixin, NeuronUnitSlica
         """ Adds a 'lap' column to the position dataframe:
             Also adds a 'lap_dir' column, containing 0 if it's an outbound trial, 1 if it's an inbound trial, and -1 if it's neither.
         Usage:
-            laps_position_traces, curr_position_df = compute_position_laps(sess) """
-        position_df['lap'] = np.NaN # set all 'lap' column to NaN
-        position_df['lap_dir'] = np.full_like(position_df['lap'], -1) # set all 'lap_dir' to -1
+            laps_position_traces, curr_position_df = compute_position_laps(sess) 
+            
+            curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
+            curr_laps_df = self.laps.to_dataframe()
+            curr_position_df = DataSession.compute_laps_position_df(curr_position_df, curr_laps_df)
+            
+            # update:
+            self.position._data['lap'] = curr_position_df['lap']
+            self.position._data['lap_dir'] = curr_position_df['lap_dir']
+            
+        """
+        from neuropy.core.position import adding_lap_info_to_position_df
+        
+        return adding_lap_info_to_position_df(position_df=position_df, laps_df=laps_df)
 
-        for i in np.arange(len(laps_df['lap_id'])):
-            curr_lap_id = laps_df.loc[laps_df.index[i], 'lap_id'] # The second epoch in a session doesn't start with indicies of the first lap, so instead we need to get laps_df.index[i] to get the correct index
-            curr_lap_t_start, curr_lap_t_stop = laps_df.loc[laps_df.index[i], 'start'], laps_df.loc[laps_df.index[i], 'stop']
-            # curr_lap_t_start, curr_lap_t_stop = self.laps.get_lap_times(i)
-            # print('lap[{}]: ({}, {}): '.format(curr_lap_id, curr_lap_t_start, curr_lap_t_stop))
-            curr_lap_position_df_is_included = position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive='both') # returns a boolean array indicating inclusion in teh current lap
-            position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
-            # curr_position_df.query('-0.5 <= t < 0.5')
-        
-        # update the lap_dir variable:
-        position_df.loc[np.logical_not(np.isnan(position_df.lap.to_numpy())), 'lap_dir'] = np.mod(position_df.loc[np.logical_not(np.isnan(position_df.lap.to_numpy())), 'lap'], 2.0)
-        
-        # return the extracted traces and the updated curr_position_df
-        return position_df
     
     
     def compute_spikes_PBEs(self):
