@@ -759,10 +759,8 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         # real_cm_x_grid_bin_bounds # array([0, 287.77])
 
         for a_ctxt, a_dict in user_annotations.items():
-            a_dict.update(real_unit_x_grid_bin_bounds=deepcopy(real_unit_x_grid_bin_bounds),  real_cm_x_grid_bin_bounds=deepcopy(real_cm_x_grid_bin_bounds))
+            a_dict.update(pix2cm=pix2cm, real_unit_x_grid_bin_bounds=tuple(deepcopy(real_unit_x_grid_bin_bounds)),  real_cm_x_grid_bin_bounds=tuple(deepcopy(real_cm_x_grid_bin_bounds)))
         ## override with the "real" bounds
-
-
 
         # ==================================================================================================================== #
         # 2024-11-05 16:05 Produced programmatically from exported matlab csv                                                 #
