@@ -221,13 +221,17 @@ class Pf1D(core.Ratemap):
     ):
         cmap = mpl.cm.get_cmap(cmap)
 
-        mapinfo = self.ratemaps
+        # mapinfo = self.ratemaps
 
-        ratemaps = mapinfo["ratemaps"]
+        # ratemaps = mapinfo["ratemaps"]
+        ratemaps = self.ratemap_spiketrains
         if normalize:
-            ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
-        phases = mapinfo["phases"]
-        position = mapinfo["pos"]
+            # ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
+            ratemaps = [map_ / np.max(map_) if len(map_) > 0 else np.array([]) for map_ in ratemaps]
+        # phases = mapinfo["phases"]
+        # position = mapinfo["pos"]
+        phases = self.ratemap_spiketrains_phases
+        position = self.ratemap_spiketrains_pos
         nCells = len(ratemaps)
         bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
 
