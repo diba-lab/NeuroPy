@@ -844,15 +844,26 @@ class Pf2D:
     if __name__ == "__main__":
         import matplotlib
         matplotlib.use('TkAgg')
-        import subjects
-        sess = subjects.remaze_sess()[1]
+        import DataPaths.subjects as subjects
+        from neuropy.io import BinarysignalIO
+        sessions = subjects.remaze_sess()[1:]  # RatSDay2NSD does not have remaze position info
+        sess = sessions[0]
+        maze = sess.paradigm["maze"].flatten()
+        remaze = sess.paradigm["re-maze"].flatten()
+        neurons = sess.neurons_stable.get_neuron_type("pyr")
+        kw = dict(frate_thresh=0, grid_bin=5)
+        signal = sess.theta
 
-        maze = sess.paradigm[
-            "maze"].flatten()  # Grab times when rat was on the maze (as opposed to pre/post sleep recordings)
-        neurons = sess.neurons_stable.get_neuron_type("pyr")  # get pre-selected stable neurons
-        kw = dict(frate_thresh=0, grid_bin=5)  # Define placefield parameters
+        pfremaze = Pf1D(neurons, position=sess.remaze, **kw)
 
-        pfmaze = Pf1Dsplit(neurons, position=sess.maze, t_interval_split=60, **kw)
-        pf_data_df = pfmaze.neuron_slice(inds=np.arange(10)).get_pf_data(test="blah", step=0.1, height_thresh=0.75, plot=True)
-        pass
-        # pfmaze.plot_ratemap_w_raster([2])
+        pfmaze = Pf1D(neurons, position=sess.maze, **kw)
+
+        eegtheta_file = sorted(sess.recinfo.dat_filename.parent.glob("*_thetachan.eeg"))[0]
+        sess.thetachan_eeg = BinarysignalIO(eegtheta_file, n_channels=1, sampling_rate=sess.recinfo.eeg_sampling_rate)
+        print(
+            f"eeg file min = {sess.thetachan_eeg.n_frames / 1250 / 60:.3f}, last spike time = {neurons.get_all_spikes()[-1] / 60:.3f}")
+
+        theta_sig = sess.thetachan_eeg.get_signal()
+
+        pfmaze.estimate_theta_phases(theta_sig)
+
