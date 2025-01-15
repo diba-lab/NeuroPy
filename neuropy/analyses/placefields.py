@@ -211,8 +211,8 @@ class Pf1D(core.Ratemap):
         thetaparam = ThetaParams(signal.traces, fs=signal.sampling_rate)
 
         phase = []
-        for spiketrain in self.ratemap_spkitrains:
-            phase.append(np.interp(spiketrain, sig_t, thetaparam.angle))
+        for spiketrain in self.ratemap_spiketrains:
+            phase.append(np.interp(spiketrain, sig_t, thetaparam.angle.squeeze()))
 
         self.ratemap_spiketrains_phases = phase
 
@@ -224,7 +224,8 @@ class Pf1D(core.Ratemap):
         # mapinfo = self.ratemaps
 
         # ratemaps = mapinfo["ratemaps"]
-        ratemaps = self.ratemap_spiketrains
+        # ratemaps = self.ratemap_spiketrains
+        ratemaps = self.tuning_curves
         if normalize:
             # ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
             ratemaps = [map_ / np.max(map_) if len(map_) > 0 else np.array([]) for map_ in ratemaps]
@@ -233,7 +234,7 @@ class Pf1D(core.Ratemap):
         phases = self.ratemap_spiketrains_phases
         position = self.ratemap_spiketrains_pos
         nCells = len(ratemaps)
-        bin_cntr = self.bin[:-1] + np.diff(self.bin).mean() / 2
+        bin_cntr = self.x_coords() + np.diff(self.x_coords()).mean() / 2
 
         def plot_(cell, ax, axphase):
             color = cmap(cell / nCells)
@@ -244,9 +245,9 @@ class Pf1D(core.Ratemap):
             ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
             ax.set_xlabel("Position (cm)")
             ax.set_ylabel("Normalized frate")
-            ax.set_title(
-                " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
-            )
+            # ax.set_title(
+            #     " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
+            # )
             if normalize:
                 ax.set_ylim([0, 1])
             axphase.scatter(position[cell], phases[cell], c="k", s=0.6)
@@ -256,8 +257,8 @@ class Pf1D(core.Ratemap):
 
         if ax is None:
             if subplots is None:
-                _, gs = plotting.Fig().draw(grid=(1, 1), size=(10, 5))
-                ax = plt.subplot(gs[0])
+                Fig = plotting.Fig(nrows=1, ncols=1, size=(10, 5))
+                ax = plt.subplot(Fig.gs[0])
                 ax.spines["right"].set_visible(True)
                 axphase = ax.twinx()
                 widgets.interact(
@@ -272,9 +273,10 @@ class Pf1D(core.Ratemap):
                     axphase=widgets.fixed(axphase),
                 )
             else:
-                _, gs = plotting.Fig().draw(grid=subplots, size=(15, 10))
+                Fig = plotting.Fig(nrows=subplots[1], ncols=subplots[0],
+                                     size=(15, 10))
                 for cell in range(nCells):
-                    ax = plt.subplot(gs[cell])
+                    ax = plt.subplot(Fig.gs[cell])
                     axphase = ax.twinx()
                     plot_(cell, ax, axphase)
 
@@ -841,29 +843,30 @@ class Pf2D:
 
         return fig_use
 
-    if __name__ == "__main__":
-        import matplotlib
-        matplotlib.use('TkAgg')
-        import DataPaths.subjects as subjects
-        from neuropy.io import BinarysignalIO
-        sessions = subjects.remaze_sess()[1:]  # RatSDay2NSD does not have remaze position info
-        sess = sessions[0]
-        maze = sess.paradigm["maze"].flatten()
-        remaze = sess.paradigm["re-maze"].flatten()
-        neurons = sess.neurons_stable.get_neuron_type("pyr")
-        kw = dict(frate_thresh=0, grid_bin=5)
-        signal = sess.theta
+if __name__ == "__main__":
+    import matplotlib
+    matplotlib.use('TkAgg')
+    import DataPaths.subjects as subjects
+    from neuropy.io import BinarysignalIO
+    sessions = subjects.remaze_sess()[1:]  # RatSDay2NSD does not have remaze position info
+    sess = sessions[0]
+    maze = sess.paradigm["maze"].flatten()
+    remaze = sess.paradigm["re-maze"].flatten()
+    neurons = sess.neurons_stable.get_neuron_type("pyr")
+    kw = dict(frate_thresh=0, grid_bin=5)
+    signal = sess.theta
 
-        pfremaze = Pf1D(neurons, position=sess.remaze, **kw)
+    pfremaze = Pf1D(neurons, position=sess.remaze, **kw)
 
-        pfmaze = Pf1D(neurons, position=sess.maze, **kw)
+    pfmaze = Pf1D(neurons, position=sess.maze, **kw)
 
-        eegtheta_file = sorted(sess.recinfo.dat_filename.parent.glob("*_thetachan.eeg"))[0]
-        sess.thetachan_eeg = BinarysignalIO(eegtheta_file, n_channels=1, sampling_rate=sess.recinfo.eeg_sampling_rate)
-        print(
-            f"eeg file min = {sess.thetachan_eeg.n_frames / 1250 / 60:.3f}, last spike time = {neurons.get_all_spikes()[-1] / 60:.3f}")
+    eegtheta_file = sorted(sess.recinfo.dat_filename.parent.glob("*_thetachan.eeg"))[0]
+    sess.thetachan_eeg = BinarysignalIO(eegtheta_file, n_channels=1, sampling_rate=sess.recinfo.eeg_sampling_rate)
+    print(
+        f"eeg file min = {sess.thetachan_eeg.n_frames / 1250 / 60:.3f}, last spike time = {neurons.get_all_spikes()[-1] / 60:.3f}")
 
-        theta_sig = sess.thetachan_eeg.get_signal()
+    theta_sig = sess.thetachan_eeg.get_signal()
 
-        pfmaze.estimate_theta_phases(theta_sig)
+    pfmaze.estimate_theta_phases(theta_sig.time_slice(t_start=pfmaze.t_start, t_stop=pfmaze.t_stop))
+    pfmaze.neuron_slice(inds=range(40)).plot_with_phase()
 
