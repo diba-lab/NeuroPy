@@ -315,8 +315,11 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
         # if override_dict.get('unit_grid_bin_bounds', None) is not None:
         #     grid_bin_bounds = override_dict['unit_grid_bin_bounds']
         
-        if override_dict.get('real_cm_x_grid_bin_bounds', None) is not None:
-            grid_bin_bounds = override_dict['real_cm_x_grid_bin_bounds'] ## key to use 'real_cm_x_grid_bin_bounds'
+        # if override_dict.get('real_cm_x_grid_bin_bounds', None) is not None:
+        #     grid_bin_bounds = override_dict['real_cm_x_grid_bin_bounds'] ## key to use 'real_cm_x_grid_bin_bounds'
+        
+        if override_dict.get('real_cm_grid_bin_bounds', None) is not None:
+            grid_bin_bounds = override_dict['real_cm_grid_bin_bounds'] ## key to use 'real_cm_grid_bin_bounds' ((float, float), (float, float))
         else:
             # no overrides present
             raise NotImplementedError

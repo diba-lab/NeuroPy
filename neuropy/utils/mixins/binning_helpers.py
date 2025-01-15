@@ -558,7 +558,7 @@ def build_df_discretized_binned_position_columns(active_df, bin_values=(None, No
             curr_bins = curr_dim_bin_values
             # bin_info = None  # bin_info is None for pre-computed values
             updated_combined_bin_infos['mode'] = 'provided'
-            updated_combined_bin_infos['step'].append((curr_bins[1]-curr_bins[0]))
+            updated_combined_bin_infos['step'].append((curr_bins[1]-curr_bins[0])) # IndexError: index 1 is out of bounds for axis 0 with size 1 -- only has 1 bin ... [0, ] - 2025-01-15 06:32 - SOLVED: this occured when I was accidentally specifying grid_bin_bounds as a single tuple instead of a pair of two tuples (for the x & y))
             updated_combined_bin_infos['num_bins'].append(len(curr_bins))
             
             if debug_print:

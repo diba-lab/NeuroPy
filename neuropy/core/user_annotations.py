@@ -755,11 +755,17 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         pix2cm: float = 287.7697841726619
         real_unit_x_grid_bin_bounds = np.array([0.0, 1.0])
         real_cm_x_grid_bin_bounds = (real_unit_x_grid_bin_bounds * pix2cm)
+        
+
+        real_unit_y_grid_bin_bounds = np.array([0.4, 0.6])
+        real_cm_y_grid_bin_bounds = (real_unit_y_grid_bin_bounds * pix2cm)
+        
 
         # real_cm_x_grid_bin_bounds # array([0, 287.77])
 
         for a_ctxt, a_dict in user_annotations.items():
-            a_dict.update(pix2cm=pix2cm, real_unit_x_grid_bin_bounds=tuple(deepcopy(real_unit_x_grid_bin_bounds)),  real_cm_x_grid_bin_bounds=tuple(deepcopy(real_cm_x_grid_bin_bounds)))
+            # a_dict.update(pix2cm=pix2cm, real_unit_x_grid_bin_bounds=tuple(deepcopy(real_unit_x_grid_bin_bounds)),  real_cm_x_grid_bin_bounds=tuple(deepcopy(real_cm_x_grid_bin_bounds)))
+            a_dict.update(pix2cm=pix2cm, real_unit_grid_bin_bounds=(tuple(deepcopy(real_unit_x_grid_bin_bounds)), tuple(deepcopy(real_unit_y_grid_bin_bounds))),  real_cm_grid_bin_bounds=(tuple(deepcopy(real_cm_x_grid_bin_bounds)), tuple(deepcopy(real_cm_y_grid_bin_bounds))))
         ## override with the "real" bounds
 
         # ==================================================================================================================== #
