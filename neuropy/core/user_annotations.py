@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import List, Dict, Any, Tuple, Optional, Callable
 from attrs import define, field, Factory, asdict
 from nptyping import NDArray
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import tables as tb
@@ -492,32 +493,34 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
             
     @classmethod
     def get_hardcoded_specific_session_override_dict(cls) -> dict:
-        """ Extracted from `neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat` 
-            ## Create a dictionary of overrides that have been specified manually for a given session:
+        """ ## Create a dictionary of overrides that have been specified manually for a given session:
             # Used in `build_lap_only_short_long_bin_aligned_computation_configs`
-
-            Usage:
-                ## Get specific grid_bin_bounds overrides from the `UserAnnotationsManager._specific_session_override_dict`
-                override_dict = UserAnnotationsManager.get_hardcoded_specific_session_override_dict().get(sess.get_context(), {})
-                if override_dict.get('grid_bin_bounds', None) is not None:
-                    grid_bin_bounds = override_dict['grid_bin_bounds']
-                else:
-                    # no overrides present
-                    pos_df = sess.position.to_dataframe().copy()
-                    if not 'lap' in pos_df.columns:
-                        pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
-                    laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
-                    laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
-                    print(f'\tlaps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
-                    grid_bin_bounds = laps_only_grid_bin_bounds
-                    # ## Determine the grid_bin_bounds from the long session:
-                    # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
-                    # # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
-                    # DO INTERACTIVE MODE:
-                    # grid_bin_bounds = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input=True)
-                    # print(f'grid_bin_bounds: {grid_bin_bounds}')
-                    # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
-
+            History: Extracted from `neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat` 
+        
+        Change Log:
+            2025-01-14 - added ['unit_grid_bin_bounds', 'cm_grid_bin_bounds', 'real_unit_x_grid_bin_bounds', 'real_cm_x_grid_bin_bounds'] annotations to `UserAnnotationsManager.get_hardcoded_specific_session_override_dict(...)`, removed ambiguous 'grid_bin_bounds' to purposefully break dependencies
+        
+        Usage:
+            ## Get specific grid_bin_bounds overrides from the `UserAnnotationsManager._specific_session_override_dict`
+            override_dict = UserAnnotationsManager.get_hardcoded_specific_session_override_dict().get(sess.get_context(), {})
+            if override_dict.get('grid_bin_bounds', None) is not None:
+                grid_bin_bounds = override_dict['grid_bin_bounds']
+            else:
+                # no overrides present
+                pos_df = sess.position.to_dataframe().copy()
+                if not 'lap' in pos_df.columns:
+                    pos_df = sess.compute_laps_position_df() # compute the lap column as needed.
+                laps_pos_df = pos_df[pos_df.lap.notnull()] # get only the positions that belong to a lap
+                laps_only_grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(laps_pos_df.x.to_numpy(), laps_pos_df.y.to_numpy()) # compute the grid_bin_bounds for these positions only during the laps. This means any positions outside of this will be excluded!
+                print(f'\tlaps_only_grid_bin_bounds: {laps_only_grid_bin_bounds}')
+                grid_bin_bounds = laps_only_grid_bin_bounds
+                # ## Determine the grid_bin_bounds from the long session:
+                # grid_bin_bounds = PlacefieldComputationParameters.compute_grid_bin_bounds(sess.position.x, sess.position.y) # ((22.736279243974774, 261.696733348342), (125.5644705153173, 151.21507349463707))
+                # # refined_grid_bin_bounds = ((24.12, 259.80), (130.00, 150.09))
+                # DO INTERACTIVE MODE:
+                # grid_bin_bounds = interactive_select_grid_bin_bounds_2D(curr_active_pipeline, epoch_name='maze', should_block_for_input=True)
+                # print(f'grid_bin_bounds: {grid_bin_bounds}')
+                # print(f"Add this to `specific_session_override_dict`:\n\n{curr_active_pipeline.get_session_context().get_initialization_code_string()}:dict(grid_bin_bounds=({(grid_bin_bounds[0], grid_bin_bounds[1]), (grid_bin_bounds[2], grid_bin_bounds[3])})),\n")
 
         """
         user_annotations = {}            
@@ -616,73 +619,153 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
         
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43',user_annotation='grid_bin_bounds')] = ((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))
         # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
-        # ==================================================================================================================== #
-        # Generated by `EXTERNAL\TESTING\testing_notebooks\PhoMatFileBrowsingTesting.ipynb` on 2024-04-10                      #
-        # ==================================================================================================================== #
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (135.23924311831908, 144.1984518410047))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.925447118083, 145.16448776601297))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.34507862499134, 147.58755064986212))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.97626338793503, 146.00371440346137))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.2791990765373, 145.4465660546858))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.39266723911976, 146.9470603477007))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.39397650284766, 151.15367504603452))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.89578722770338, 148.51861548115295))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.3053644252862, 147.99662782360443))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.91706986262813, 148.7452035506836))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.07167669307665, 149.9682455260008))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (136.10095530133273, 144.59252270314897))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.44749773951332, 147.73754766678462))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.9314777686048, 146.63678892951214))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_21-26-8')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.0941872269056, 144.73231230966147))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-05_19-26-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.68438010327935, 149.1812684821468))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_11-43-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.83695987994884, 148.19261155492785))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_12-15-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.81427373438675, 151.01734563269633))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_21-17-16')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.1080902149446, 149.67559694575627))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_22-4-5')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.6251048241162, 147.8395197952068))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (140.14211943328775, 147.2745729796531))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.74109546718452, 144.66169395771726))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.05172078553375, 143.70812931964014))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.13933162527657, 115.13913718623321))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.8177789584226, 113.7570079192343))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.18519657066037, 113.91231021144307))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.52716865032582, 113.61793633102158))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.19374317979644, 114.35521596716852))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.82954763216065, 113.6273663796197))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.31665318697634, 113.76094640105372))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.64675309404181, 115.02034120144286))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.9445597322445, 114.6716733730272))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.67092311452707, 114.54957547519382))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (106.80073123839011, 112.7399601992018))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.55947898953707, 114.56941305702512))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.22908621020602, 114.94607134445735))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.0566791531139, 115.63225407401256))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.29954776242832, 115.16807161656368))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.60152468408094, 114.81344556506657))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.22404579212474, 114.08244113972872))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.2501053175898, 113.9772189583725))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.96634289724359, 130.46108420493456))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.84017431563773, 129.69856966324173))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.9536718458597, 129.52924676675838))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (125.03673561741104, 131.04666968489906))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.05348636842058, 129.56848468917428))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (126.17725557343053, 131.1266130407736))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.90636700893516, 129.5627755430415))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.63448954400148, 128.79596233137354))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.14624025653195, 129.44912325725667))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.92990621750084, 128.7984300716362))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.22934368316666, 129.46152157721505))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.50144550147462, 129.4508029688177))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.27871634925401, 129.58159934997875))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.01748457963947, 129.67389311374583))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.59625706838818, 130.18196049581826))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.54109241108247, 129.91468051848352))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.37674715861888, 129.74020675948856))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.79328080534583, 130.59109955280485))))
-        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.16323999738597, 128.89035363816865))))
+        # # ==================================================================================================================== #
+        # # Generated by `EXTERNAL\TESTING\testing_notebooks\PhoMatFileBrowsingTesting.ipynb` on 2024-04-10                      #
+        # # ==================================================================================================================== #
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (135.23924311831908, 144.1984518410047))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.925447118083, 145.16448776601297))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.34507862499134, 147.58755064986212))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.97626338793503, 146.00371440346137))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.2791990765373, 145.4465660546858))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.39266723911976, 146.9470603477007))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.39397650284766, 151.15367504603452))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.89578722770338, 148.51861548115295))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.3053644252862, 147.99662782360443))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.91706986262813, 148.7452035506836))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.07167669307665, 149.9682455260008))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (136.10095530133273, 144.59252270314897))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.44749773951332, 147.73754766678462))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.9314777686048, 146.63678892951214))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_21-26-8')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.0941872269056, 144.73231230966147))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-05_19-26-43')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.68438010327935, 149.1812684821468))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_11-43-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.83695987994884, 148.19261155492785))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_12-15-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.81427373438675, 151.01734563269633))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_21-17-16')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.1080902149446, 149.67559694575627))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_22-4-5')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.6251048241162, 147.8395197952068))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (140.14211943328775, 147.2745729796531))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.74109546718452, 144.66169395771726))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.05172078553375, 143.70812931964014))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.13933162527657, 115.13913718623321))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.8177789584226, 113.7570079192343))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.18519657066037, 113.91231021144307))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.52716865032582, 113.61793633102158))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.19374317979644, 114.35521596716852))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.82954763216065, 113.6273663796197))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.31665318697634, 113.76094640105372))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.64675309404181, 115.02034120144286))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.9445597322445, 114.6716733730272))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.67092311452707, 114.54957547519382))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (106.80073123839011, 112.7399601992018))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.55947898953707, 114.56941305702512))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.22908621020602, 114.94607134445735))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.0566791531139, 115.63225407401256))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.29954776242832, 115.16807161656368))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.60152468408094, 114.81344556506657))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.22404579212474, 114.08244113972872))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.2501053175898, 113.9772189583725))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.96634289724359, 130.46108420493456))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.84017431563773, 129.69856966324173))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.9536718458597, 129.52924676675838))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (125.03673561741104, 131.04666968489906))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.05348636842058, 129.56848468917428))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (126.17725557343053, 131.1266130407736))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.90636700893516, 129.5627755430415))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.63448954400148, 128.79596233137354))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.14624025653195, 129.44912325725667))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.92990621750084, 128.7984300716362))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.22934368316666, 129.46152157721505))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.50144550147462, 129.4508029688177))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.27871634925401, 129.58159934997875))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.01748457963947, 129.67389311374583))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.59625706838818, 130.18196049581826))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.54109241108247, 129.91468051848352))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.37674715861888, 129.74020675948856))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.79328080534583, 130.59109955280485))))
+        # user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14')] = dict(grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.16323999738597, 128.89035363816865))))
                                 
+        # ==================================================================================================================================================================================================================================================================================== #
+        # 2025-01-14 17:20 Generated by `_out_user_annotations_add_code_lines, loaded_configs = UserAnnotationsManager.batch_build_user_annotation_grid_bin_bounds_from_exported_position_info_mat_files(search_parent_path=Path('Data/KDIBA'))`                                               #
+        # ==================================================================================================================================================================================================================================================================================== #
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-07_11-26-53')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.46995636983615874, 0.5010896201474913))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (135.23924311831908, 144.1984518410047))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-08_14-26-15')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4792909287353384, 0.504446594986895))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.925447118083, 145.16448776601297))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_1-22-43')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.48011981538341136, 0.5077661416598747))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.16397564990257, 146.1197529956474))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-09_3-23-37')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4842241482218449, 0.5128667385082708))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.34507862499134, 147.58755064986212))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-12_15-55-31')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4794675152730742, 0.5073629075520282))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.97626338793503, 146.00371440346137))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='one',session_name='2006-6-13_14-42-6')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4805202167909671, 0.5054268170400331))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.2791990765373, 145.4465660546858))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-07_16-40-19')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4809145186559411, 0.5106410347082598))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.39266723911976, 146.9470603477007))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_15-46-47')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4948190683473956, 0.5252590207849699))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.39397650284766, 151.15367504603452))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-08_21-16-25')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4861378606162692, 0.5161021887970064))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.89578722770338, 148.51861548115295))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-09_22-24-40')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4840861413778695, 0.5142882816870253))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.3053644252862, 147.99662782360443))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-12_16-53-46')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.48621181777263267, 0.5168895823386255))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (139.91706986262813, 148.7452035506836))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='gor01',exper_name='two',session_name='2006-6-13_15-22-3')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4902240765084413, 0.5211396532028527))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.07167669307665, 149.9682455260008))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_17-46-44')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4729508196721312, 0.5024590163934426))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (136.10095530133273, 144.59252270314897))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-02_19-28-0')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.49153005464480876, 0.5133879781420765))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.44749773951332, 147.73754766678462))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_12-3-25')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.48278688524590163, 0.5095628415300546))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.9314777686048, 146.63678892951214))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-03_21-26-8')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4798773006134969, 0.5029447852760736))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.0941872269056, 144.73231230966147))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-05_19-26-43')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4958282208588957, 0.5184049079754601))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (142.68438010327935, 149.1812684821468))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_11-43-50')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.49288343558282216, 0.5149693251533742))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.83695987994884, 148.19261155492785))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_12-15-3')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4997546012269939, 0.5247852760736197))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.81427373438675, 151.01734563269633))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_21-17-16')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.49730061349693244, 0.520122699386503))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (143.1080902149446, 149.67559694575627))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='11-09_22-4-5')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4921472392638037, 0.5137423312883436))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (141.6251048241162, 147.8395197952068))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-01_12-58-54')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4869938650306749, 0.5117791411042945))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (140.14211943328775, 147.2745729796531))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-03_20-28-3')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.47865030674846615, 0.5026993865030674))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (137.74109546718452, 144.66169395771726))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='pin01',exper_name='one',session_name='fet11-04_21-20-3')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4797297297297297, 0.4993857493857494))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (138.05172078553375, 143.70812931964014))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-09_17-29-30')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.37578417739783604, 0.4001085017221604))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.13933162527657, 115.13913718623321))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_12-25-50')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3746667818805185, 0.39530560251933916))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.8177789584226, 113.7570079192343))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-10_21-2-40')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.37594355808304475, 0.39584527798476465))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.18519657066037, 113.91231021144307))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-11_15-16-59')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3771319110598822, 0.39482232875029993))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.52716865032582, 113.61793633102158))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_14-39-31')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3794482575497926, 0.39738437548591055))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.19374317979644, 114.35521596716852))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-12_17-53-55')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.37470767802175825, 0.3948550981691784))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.82954763216065, 113.6273663796197))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-16_15-12-23')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.37640036982474273, 0.3953192887436616))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.31665318697634, 113.76094640105372))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-17_12-33-47')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.38102246700179526, 0.3996956856750139))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.64675309404181, 115.02034120144286))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_13-6-1')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3785823450695496, 0.3984840649712695))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.9445597322445, 114.6716733730272))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-18_15-23-32')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3811064578229815, 0.3980597747762985))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.67092311452707, 114.54957547519382))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_13-34-40')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3711325410534056, 0.3917713616922262))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (106.80073123839011, 112.7399601992018))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-19_16-48-9')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3772441894886413, 0.3981287103731622))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.55947898953707, 114.56941305702512))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-21_10-24-35')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3760960745804659, 0.39943759792198924))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.22908621020602, 114.94607134445735))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_14-28-51')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3789719600570708, 0.4018220829071936))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.0566791531139, 115.63225407401256))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-25_17-17-6')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.37981592847443835, 0.40020904886755876))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (109.29954776242832, 115.16807161656368))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-26_13-22-13')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.37391529827718123, 0.3989767233386063))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.60152468408094, 114.81344556506657))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-27_14-43-12')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.37260355912763343, 0.3964364829605572))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (107.22404579212474, 114.08244113972872))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='one',session_name='2006-4-28_16-48-29')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.3761691159786245, 0.3960708358803444))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (108.2501053175898, 113.9772189583725))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-09_16-40-54')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.42730804156792146, 0.4533522676121476))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.96634289724359, 130.46108420493456))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_12-58-3')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4268696057468411, 0.450702529579765))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.84017431563773, 129.69856966324173))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-10_19-11-57')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4272640096643624, 0.4501141325144853))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.9536718458597, 129.52924676675838))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_12-48-38')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.43450265627050333, 0.4553871771550242))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (125.03673561741104, 131.04666968489906))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-11_16-2-46')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4310858651302615, 0.45025048429488057))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.05348636842058, 129.56848468917428))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-12_15-25-59')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.43846596311767105, 0.45566498031668823))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (126.17725557343053, 131.1266130407736))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_14-49-24')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4305746253560496, 0.4502306450120692))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.90636700893516, 129.5627755430415))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-16_18-47-52')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4296298511654051, 0.447565969101523))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.63448954400148, 128.79596233137354))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-17_12-52-15')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4314081848914485, 0.4498357033189669))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.14624025653195, 129.44912325725667))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_13-28-57')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4271814241058154, 0.44757454449893574))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (122.92990621750084, 128.7984300716362))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-18_15-38-2')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4316969692990041, 0.4498787874808223))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.22934368316666, 129.46152157721505))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_13-50-7')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.43264252311762424, 0.4498415403166415))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.50144550147462, 129.4508029688177))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-19_16-37-40')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.43186853931365765, 0.4502960577411761))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.27871634925401, 129.58159934997875))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-21_11-19-2')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4309607589142471, 0.4506167785702667))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.01748457963947, 129.67389311374583))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_13-20-55')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4329719933126489, 0.4523823127229684))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.59625706838818, 130.18196049581826))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-25_17-33-28')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.43278029612851154, 0.4514535148017302))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.54109241108247, 129.91468051848352))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-26_13-51-50')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4287341963762006, 0.4508472184892227))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.37674715861888, 129.74020675948856))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_12-38-13')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.43365665079857674, 0.4538040709459968))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (124.79328080534583, 130.59109955280485))))
+        user_annotations[IdentifyingContext(format_name='kdiba',animal='vvp01',exper_name='two',session_name='2006-4-28_17-6-14')] = dict(unit_grid_bin_bounds=(((0.12884392935982347, 0.8711479028697573), (0.4279922589909162, 0.447893978892636))), cm_grid_bin_bounds=(((37.0773897438341, 250.69004399129707), (123.16323999738597, 128.89035363816865))))
+
+        # ================================================================================================================================================================================ #
+        # Override with the absolute outermost grid_bin_bounds [0.0, 1.0]                                                                                                                  #
+        # ================================================================================================================================================================================ #
+        pix2cm: float = 287.7697841726619
+        real_unit_x_grid_bin_bounds = np.array([0.0, 1.0])
+        real_cm_x_grid_bin_bounds = (real_unit_x_grid_bin_bounds * pix2cm)
+
+        # real_cm_x_grid_bin_bounds # array([0, 287.77])
+
+        for a_ctxt, a_dict in user_annotations.items():
+            a_dict.update(real_unit_x_grid_bin_bounds=deepcopy(real_unit_x_grid_bin_bounds),  real_cm_x_grid_bin_bounds=deepcopy(real_cm_x_grid_bin_bounds))
+        ## override with the "real" bounds
+
+
+
         # ==================================================================================================================== #
-        # 2024-11-05 16:05 Produced programmatically from exxported matlab csv                                                 #
+        # 2024-11-05 16:05 Produced programmatically from exported matlab csv                                                 #
         # ==================================================================================================================== #
         # """ 
         # ```python
@@ -966,4 +1049,179 @@ class UserAnnotationsManager(HDFMixin, AttrsBasedClassHelperMixin):
 
         ## Bad/Icky Bimodal Cells:
         return {k:pd.DataFrame(v, columns=['start', 'stop', 'lap_dir']) for k, v in laps_override_dict.items()}
+
+
+
+    # ==================================================================================================================== #
+    # Helper/Utility Functions                                                                                             #
+    # ==================================================================================================================== #
+        
+    @function_attributes(short_name=None, tags=['utility', 'importer', 'batch', 'matlab_mat_file', 'multi-session', 'grid_bin_bounds'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2024-04-10 07:41', related_items=[])
+    @classmethod
+    def batch_build_user_annotation_grid_bin_bounds_from_exported_position_info_mat_files(cls, search_parent_path: Path, platform_side_length: float = 22.0, debug_print=False):
+        """ finds all *.position_info.mat files recurrsively in the search_parent_path, then try to load them and parse their parent directory as a session to build an IdentifyingContext that can be used as a key in UserAnnotations.
+        
+        Builds a list of grid_bin_bounds user annotations that can be pasted into `specific_session_override_dict`
+
+        Usage:
+            from neuropy.core.user_annotations import UserAnnotationsManager
+
+            _out_user_annotations_add_code_lines, loaded_configs = UserAnnotationsManager.batch_build_user_annotation_grid_bin_bounds_from_exported_position_info_mat_files(search_parent_path=Path(r'W:\\Data\\Kdiba'))
+            loaded_configs
+
+        """
+        # from neuropy.core.session.Formats.BaseDataSessionFormats import DataSessionFormatRegistryHolder, DataSessionFormatBaseRegisteredClass
+        from neuropy.core.session.Formats.Specific.KDibaOldDataSessionFormat import KDibaOldDataSessionFormatRegisteredClass
+        from pyphocorehelpers.geometry_helpers import BoundsRect
+        from pyphocorehelpers.Filesystem.path_helpers import discover_data_files
+
+        found_any_position_info_mat_files: list[Path] = discover_data_files(search_parent_path, glob_pattern='*.position_info.mat', recursive=True)
+        found_any_position_info_mat_files
+        ## INPUTS: found_any_position_info_mat_files
+        
+        user_annotations = cls.get_user_annotations()
+        _out_user_annotations_add_code_lines: List[str] = []
+
+        loaded_configs = {}
+        for a_path in found_any_position_info_mat_files:
+            if a_path.exists():
+                file_prefix: str = a_path.name.split('.position_info.mat', maxsplit=1)[0]
+                if debug_print:
+                    print(f'file_prefix: {file_prefix}')
+                session_path = a_path.parent.resolve()
+                session_name = KDibaOldDataSessionFormatRegisteredClass.get_session_name(session_path)
+                if debug_print:
+                    print(f'session_name: {session_name}')
+                if session_name == file_prefix:
+                    try:
+                        _updated_config_dict = {}
+                        _test_session = KDibaOldDataSessionFormatRegisteredClass.build_session(session_path) # Path(r'R:\data\KDIBA\gor01\one\2006-6-07_11-26-53')
+                        _test_session_context = _test_session.get_context()
+                        if debug_print:
+                            print(f'_test_session_context: {_test_session_context}')
+                        
+                        _updated_config_dict = KDibaOldDataSessionFormatRegisteredClass.perform_load_position_info_mat(session_position_mat_file_path=a_path, config_dict=_updated_config_dict, debug_print=debug_print)
+                        _updated_config_dict['session_context'] = _test_session_context
+
+                        assert 'pix2cm' in _updated_config_dict, f"must have pix2cm to convert from cm to unit frames. 2025-01-14 17:10."
+                        pix2cm: float = float(_updated_config_dict['pix2cm'])
+
+                        loaded_track_limits = _updated_config_dict.get('loaded_track_limits', None) # {'long_xlim': array([59.0774, 228.69]), 'short_xlim': array([94.0156, 193.757]), 'long_ylim': array([138.164, 146.12]), 'short_ylim': array([138.021, 146.263])}
+                        if loaded_track_limits is not None:
+                            long_xlim = loaded_track_limits['long_xlim']
+                            long_ylim = loaded_track_limits['long_ylim']
+                            # short_xlim = loaded_track_limits['short_xlim']
+                            # short_ylim = loaded_track_limits['short_ylim']
+
+                            long_unit_xlim = loaded_track_limits['long_unit_xlim']
+                            long_unit_ylim = loaded_track_limits['long_unit_ylim']
+                            
+                            platform_side_unit_length: float = (float(platform_side_length) / pix2cm)
+                            from_mat_unit_lims_grid_bin_bounds = BoundsRect(xmin=(long_unit_xlim[0]-platform_side_unit_length), xmax=(long_unit_xlim[1]+platform_side_unit_length), ymin=long_unit_ylim[0], ymax=long_unit_ylim[1])
+                            
+                            ## Build full grid_bin_bounds:
+                            from_mat_cm_lims_grid_bin_bounds = BoundsRect(xmin=(long_xlim[0]-platform_side_length), xmax=(long_xlim[1]+platform_side_length), ymin=long_ylim[0], ymax=long_ylim[1])
+                            # print(f'from_mat_lims_grid_bin_bounds: {from_mat_lims_grid_bin_bounds}')
+                            # from_mat_lims_grid_bin_bounds # BoundsRect(xmin=37.0773897438341, xmax=250.69004399129707, ymin=116.16397564990257, ymax=168.1197529956474)
+                            
+                            ## pre 2025-01-14 16:58 [cm] grid-bin-bounds:
+                            # from_mat_lims_grid_bin_bounds: BoundsRect = deepcopy(from_mat_cm_lims_grid_bin_bounds)
+                            # _updated_config_dict['new_grid_bin_bounds'] = from_mat_lims_grid_bin_bounds.extents ## how it used to be pre 2025-01-14 16:58 
+                            
+
+                            _updated_config_dict['new_cm_grid_bin_bounds'] = from_mat_cm_lims_grid_bin_bounds.extents
+                            _updated_config_dict['new_unit_grid_bin_bounds'] = from_mat_unit_lims_grid_bin_bounds.extents
+                            
+
+
+                            ## 2025-01-14 16:58 Use Unit-length Grid bin bounds:
+                            from_mat_lims_grid_bin_bounds: BoundsRect = deepcopy(from_mat_unit_lims_grid_bin_bounds)
+                            _updated_config_dict['new_grid_bin_bounds'] = _updated_config_dict['new_unit_grid_bin_bounds'] # 2025-01-14 16:58 - switch to unit scale bounds
+                             
+                            ## Build Update:
+
+
+                            # curr_active_pipeline.sess.config.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
+
+                            active_context = _test_session_context # curr_active_pipeline.get_session_context()
+                            final_context = active_context.adding_context_if_missing(user_annotation='grid_bin_bounds')
+                            user_annotations[final_context] = from_mat_lims_grid_bin_bounds.extents
+                            
+
+
+
+                            # Updates the context. Needs to generate the code.
+
+                            ## Generate code to insert int user_annotations:
+                            
+                            ## new style:
+                            # print(f"user_annotations[{final_context.get_initialization_code_string()}] = {(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}")
+                            # _a_code_line: str = f"user_annotations[{active_context.get_initialization_code_string()}] = dict(grid_bin_bounds=({(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}))"                            
+                            _a_code_line: str = f"""user_annotations[{active_context.get_initialization_code_string()}] = dict(unit_grid_bin_bounds=({(from_mat_unit_lims_grid_bin_bounds.xmin, from_mat_unit_lims_grid_bin_bounds.xmax), (from_mat_unit_lims_grid_bin_bounds.ymin, from_mat_unit_lims_grid_bin_bounds.ymax)}), cm_grid_bin_bounds=({(from_mat_cm_lims_grid_bin_bounds.xmin, from_mat_cm_lims_grid_bin_bounds.xmax), (from_mat_cm_lims_grid_bin_bounds.ymin, from_mat_cm_lims_grid_bin_bounds.ymax)}))"""
+                            # _a_code_line: str = f"user_annotations[{active_context.get_initialization_code_string()}] = dict(unit_grid_bin_bounds=({(from_mat_unit_lims_grid_bin_bounds.xmin, from_mat_unit_lims_grid_bin_bounds.xmax), (from_mat_unit_lims_grid_bin_bounds.ymin, from_mat_unit_lims_grid_bin_bounds.ymax)}),\n\t"
+                            # _a_code_line += f"cm_grid_bin_bounds=({(from_mat_cm_lims_grid_bin_bounds.xmin, from_mat_cm_lims_grid_bin_bounds.xmax), (from_mat_cm_lims_grid_bin_bounds.ymin, from_mat_cm_lims_grid_bin_bounds.ymax)}),\n"
+                            # _a_code_line += f")"
+
+                            # print(_a_code_line)
+                            _out_user_annotations_add_code_lines.append(_a_code_line)
+
+                        loaded_configs[a_path] = _updated_config_dict
+                    except (AssertionError, Exception) as e:
+                        print(f'e: {e}. Skipping.')
+                        pass
+                        
+        # loaded_configs
+
+        print('Add the following code to UserAnnotationsManager.get_user_annotations() function body:')
+        print('\n'.join(_out_user_annotations_add_code_lines))
+        return _out_user_annotations_add_code_lines, loaded_configs
+
+    # @classmethod
+    # def _build_new_grid_bin_bounds_from_mat_exported_xlims(cls, curr_active_pipeline, platform_side_length: float = 22.0, build_user_annotation_string:bool=False):
+    #     """ 2024-04-10 -
+        
+    #     from pyphoplacecellanalysis.SpecificResults.PendingNotebookCode import _build_new_grid_bin_bounds_from_mat_exported_xlims
+
+    #     """
+    #     from neuropy.core.user_annotations import UserAnnotationsManager
+    #     from pyphocorehelpers.geometry_helpers import BoundsRect
+
+    #     ## INPUTS: curr_active_pipeline
+    #     loaded_track_limits = deepcopy(curr_active_pipeline.sess.config.loaded_track_limits) # {'long_xlim': array([59.0774, 228.69]), 'short_xlim': array([94.0156, 193.757]), 'long_ylim': array([138.164, 146.12]), 'short_ylim': array([138.021, 146.263])}
+    #     x_midpoint: float = curr_active_pipeline.sess.config.x_midpoint
+    #     pix2cm: float = curr_active_pipeline.sess.config.pix2cm
+
+    #     ## INPUTS: loaded_track_limits
+    #     print(f'loaded_track_limits: {loaded_track_limits}')
+
+    #     long_xlim = loaded_track_limits['long_xlim']
+    #     long_ylim = loaded_track_limits['long_ylim']
+    #     short_xlim = loaded_track_limits['short_xlim']
+    #     short_ylim = loaded_track_limits['short_ylim']
+
+
+    #     ## Build full grid_bin_bounds:
+    #     from_mat_lims_grid_bin_bounds = BoundsRect(xmin=(long_xlim[0]-platform_side_length), xmax=(long_xlim[1]+platform_side_length), ymin=long_ylim[0], ymax=long_ylim[1])
+    #     # print(f'from_mat_lims_grid_bin_bounds: {from_mat_lims_grid_bin_bounds}')
+    #     # from_mat_lims_grid_bin_bounds # BoundsRect(xmin=37.0773897438341, xmax=250.69004399129707, ymin=116.16397564990257, ymax=168.1197529956474)
+
+    #     if build_user_annotation_string:
+    #         ## Build Update:
+    #         user_annotations = UserAnnotationsManager.get_user_annotations()
+
+    #         # curr_active_pipeline.sess.config.computation_config['pf_params'].grid_bin_bounds = new_grid_bin_bounds
+
+    #         active_context = curr_active_pipeline.get_session_context()
+    #         final_context = active_context.adding_context_if_missing(user_annotation='grid_bin_bounds')
+    #         user_annotations[final_context] = from_mat_lims_grid_bin_bounds.extents
+    #         # Updates the context. Needs to generate the code.
+
+    #         ## Generate code to insert int user_annotations:
+    #         print('Add the following code to UserAnnotationsManager.get_user_annotations() function body:')
+    #         ## new style:
+    #         # print(f"user_annotations[{final_context.get_initialization_code_string()}] = {(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}")
+    #         print(f"user_annotations[{active_context.get_initialization_code_string()}] = dict(grid_bin_bounds=({(from_mat_lims_grid_bin_bounds.xmin, from_mat_lims_grid_bin_bounds.xmax), (from_mat_lims_grid_bin_bounds.ymin, from_mat_lims_grid_bin_bounds.ymax)}))")
+
+    #     return from_mat_lims_grid_bin_bounds
+
 

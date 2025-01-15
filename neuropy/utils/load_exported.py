@@ -9,8 +9,8 @@ from benedict import benedict # https://github.com/fabiocaccamo/python-benedict#
 from neuropy.utils.mixins.print_helpers import ProgressMessagePrinter
 
 
-def import_mat_file(mat_import_file='data/RoyMaze1/positionAnalysis.mat'):
-    with ProgressMessagePrinter(mat_import_file, action='Loading', contents_description='matlab import file'):
+def import_mat_file(mat_import_file='data/RoyMaze1/positionAnalysis.mat', debug_print:bool=True):
+    with ProgressMessagePrinter(mat_import_file, action='Loading', contents_description='matlab import file', enable_print=debug_print):
         data = hdf5storage.loadmat(mat_import_file, appendmat=False)
     return data
 

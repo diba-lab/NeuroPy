@@ -142,6 +142,9 @@ class SessionConfig(SimplePrintable, metaclass=OrderedMeta):
     
     TODO 2023-10-23 - Upgrade to attrs class
     
+    
+    from neuropy.core.session.Formats.SessionSpecifications import SessionConfig
+    
     """
     basepath: Path = field()
     session_spec: SessionFolderSpec = field()

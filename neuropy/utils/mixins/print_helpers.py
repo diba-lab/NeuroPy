@@ -82,7 +82,7 @@ class FileProgressAction(ExtendedEnum):
     
     
 
-def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=' ', returns_string: bool=False) -> Optional[str]:
+def print_file_progress_message(filepath, action: str, contents_description: str, print_line_ending=' ', returns_string: bool=False, enable_print:bool=True) -> Optional[str]:
     """Prints a specific progress message related to an action (e.g. loading/saving) performed on a filepath
 
         
@@ -116,8 +116,8 @@ def print_file_progress_message(filepath, action: str, contents_description: str
         out_string = f'{out_string} "{str(filepath)}"' # like "Loading flattened_spike_identities results from path"
 
     out_string = f"{out_string}..."
-
-    print(out_string, end=print_line_ending) # always print
+    if enable_print:
+        print(out_string, end=print_line_ending) # always print
         
     if returns_string:
         return f'{out_string}{print_line_ending}'
@@ -135,7 +135,7 @@ class ProgressMessagePrinter(object):
     
     """
     
-    def __init__(self, filepath, action: str, contents_description: str, print_line_ending:str=' ', finished_message:str='done.', returns_string:bool=False):
+    def __init__(self, filepath, action: str, contents_description: str, print_line_ending:str=' ', finished_message:str='done.', returns_string:bool=False, enable_print:bool=True):
         self.filepath = filepath
         self.action = action
         self.contents_description = contents_description
@@ -143,6 +143,7 @@ class ProgressMessagePrinter(object):
         self.finished_message = finished_message
         
         self.returns_string = returns_string
+        self.enable_print = enable_print
         if self.returns_string:
             self.returned_string = ''
         else:
@@ -150,11 +151,12 @@ class ProgressMessagePrinter(object):
         
         
     def __enter__(self):
-        self.returned_string = print_file_progress_message(self.filepath, self.action, self.contents_description, self.print_line_ending, returns_string=self.returns_string)
+        self.returned_string = print_file_progress_message(self.filepath, self.action, self.contents_description, self.print_line_ending, returns_string=self.returns_string, enable_print=self.enable_print)
         
   
     def __exit__(self, *args):
-        print(self.finished_message)        
+        if self.enable_print:
+            print(self.finished_message)        
         if self.returns_string:
             self.returned_string = f'{self.returned_string}{self.finished_message}\n'
             

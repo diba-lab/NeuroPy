@@ -309,8 +309,14 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
         ## Get specific grid_bin_bounds overrides from the `cls._specific_session_override_dict`
         override_dict = cls.get_specific_session_override_dict().get(sess.get_context(), {})
-        if override_dict.get('grid_bin_bounds', None) is not None:
-            grid_bin_bounds = override_dict['grid_bin_bounds']
+        # if override_dict.get('grid_bin_bounds', None) is not None:
+        #     grid_bin_bounds = override_dict['grid_bin_bounds']
+        
+        # if override_dict.get('unit_grid_bin_bounds', None) is not None:
+        #     grid_bin_bounds = override_dict['unit_grid_bin_bounds']
+        
+        if override_dict.get('real_cm_x_grid_bin_bounds', None) is not None:
+            grid_bin_bounds = override_dict['real_cm_x_grid_bin_bounds'] ## key to use 'real_cm_x_grid_bin_bounds'
         else:
             # no overrides present
             raise NotImplementedError
@@ -834,12 +840,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
 
     @classmethod
-    def perform_load_position_info_mat(cls, session_position_mat_file_path: Path, config_dict: Optional[Dict]=None) -> Dict:
+    def perform_load_position_info_mat(cls, session_position_mat_file_path: Path, config_dict: Optional[Dict]=None, debug_print:bool=True) -> Dict:
         """ must conform to `[Path, DataSession], DataSession` """
         from neuropy.utils.load_exported import import_mat_file
         assert session_position_mat_file_path.exists(), f"session_position_mat_file_path: '{session_position_mat_file_path}' does not exist!"
 
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
+        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path, debug_print=debug_print)
 
         if config_dict is None:
             config_dict = {} # allocate a new dict
@@ -855,19 +861,26 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             if microseconds_to_seconds_conversion_factor is not None:
                 config_dict['microseconds_to_seconds_conversion_factor'] = microseconds_to_seconds_conversion_factor
 
+
+        pix2cm = None
         if 'pix2cm' in position_mat_file:
             pix2cm = position_mat_file['pix2cm'].item()
             if pix2cm is not None:
                 config_dict['pix2cm'] = pix2cm
 
+        assert pix2cm is not None, f"pix2cm cannot be done!"
+        
+
         if 'x_midpoint' in position_mat_file:
             x_midpoint = position_mat_file['x_midpoint'].item()
             if x_midpoint is not None:
                 config_dict['x_midpoint'] = x_midpoint
+                config_dict['x_unit_midpoint'] = (x_midpoint / float(pix2cm))
 
         loadable_alim_keys = ['long_xlim', 'short_xlim', 'long_ylim', 'short_ylim']
+        computable_unit_alim_keys = ['long_unit_xlim', 'short_unit_xlim', 'long_unit_ylim', 'short_unit_ylim']
 
-        for a_loadable_alim_key in loadable_alim_keys:
+        for a_loadable_alim_key, a_computable_unit_alim_key in zip(loadable_alim_keys, computable_unit_alim_keys):
             if a_loadable_alim_key in position_mat_file:
                 an_alim = position_mat_file[a_loadable_alim_key].squeeze()
                 if an_alim is not None:
@@ -875,7 +888,9 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
                         config_dict['loaded_track_limits'] = dict() # allocate a new dict
 
                     config_dict['loaded_track_limits'][a_loadable_alim_key] = an_alim
-
+                    ## use `pix2cm` to convert back to unit
+                    config_dict['loaded_track_limits'][a_computable_unit_alim_key] = an_alim / float(pix2cm)
+                    
         # 2024-11-05 added on 2024-11-05 17:32 _______________________________________________________________________________ #
         if 'first_valid_pos_time' in position_mat_file:
             first_valid_pos_time = position_mat_file['first_valid_pos_time'].item()
@@ -891,12 +906,12 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
 
     
     @classmethod
-    def perform_load_position_info_mat_into_session(cls, session_position_mat_file_path: Path, session: DataSession) -> DataSession:
+    def perform_load_position_info_mat_into_session(cls, session_position_mat_file_path: Path, session: DataSession, debug_print:bool=True) -> DataSession:
         """ must conform to `[Path, DataSession], DataSession` """
         from neuropy.utils.load_exported import import_mat_file
         assert session_position_mat_file_path.exists(), f"session_position_mat_file_path: '{session_position_mat_file_path}' does not exist!"
 
-        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path)
+        position_mat_file = import_mat_file(mat_import_file=session_position_mat_file_path, debug_print=debug_print)
 
         # updated_config_dict = cls.perform_load_position_info_mat(session_position_mat_file_path=session_position_mat_file_path, session.config.to_dict())
         # session.config.__dict__.update(updated_config_dict) ## update given the values
@@ -912,23 +927,32 @@ class KDibaOldDataSessionFormatRegisteredClass(DataSessionFormatBaseRegisteredCl
             if microseconds_to_seconds_conversion_factor is not None:
                 session.config.microseconds_to_seconds_conversion_factor = microseconds_to_seconds_conversion_factor
 
+        pix2cm = None
         if 'pix2cm' in position_mat_file:
             pix2cm = position_mat_file['pix2cm'].item()
             if pix2cm is not None:
                 session.config.pix2cm = pix2cm
 
+        assert pix2cm is not None, f"pix2cm cannot be done!"
+        
+
         if 'x_midpoint' in position_mat_file:
             x_midpoint = position_mat_file['x_midpoint'].item()
             if x_midpoint is not None:
                 session.config.x_midpoint = x_midpoint
+                # session.config['x_unit_midpoint'] = (x_midpoint / float(pix2cm))
+                session.config.x_unit_midpoint = (x_midpoint / float(pix2cm))
 
         loadable_alim_keys = ['long_xlim', 'short_xlim', 'long_ylim', 'short_ylim']
-
-        for a_loadable_alim_key in loadable_alim_keys:
+        computable_unit_alim_keys = ['long_unit_xlim', 'short_unit_xlim', 'long_unit_ylim', 'short_unit_ylim']
+        
+        for a_loadable_alim_key, a_computable_unit_alim_key in zip(loadable_alim_keys, computable_unit_alim_keys):
             if a_loadable_alim_key in position_mat_file:
                 an_alim = position_mat_file[a_loadable_alim_key].squeeze()
                 if an_alim is not None:
                     session.config.loaded_track_limits[a_loadable_alim_key] = an_alim
+                    ## use `pix2cm` to convert back to unit
+                    session.config.loaded_track_limits[a_computable_unit_alim_key] = an_alim / float(pix2cm)
                     
         # 2024-11-05 added on 2024-11-05 17:32 _______________________________________________________________________________ #
         if 'first_valid_pos_time' in position_mat_file:
