@@ -81,6 +81,9 @@ def plot_epochs(
         dh = 1
         y_min = np.zeros(len(epochs))
 
+    if ax is None:
+        _, ax = plt.subplots()
+
     for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
         ax.axvspan(
             epoch.start,

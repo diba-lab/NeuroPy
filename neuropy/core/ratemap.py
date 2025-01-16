@@ -1,6 +1,7 @@
 import numpy as np
 from . import DataWriter
 from scipy import stats, interpolate
+from scipy.ndimage import gaussian_filter1d
 
 
 class Ratemap(DataWriter):
@@ -192,6 +193,14 @@ class Ratemap(DataWriter):
         ratemap_new.coords = x_new
 
         return ratemap_new
+
+    def smooth_tuning_curves(self, sigma_bin):
+        """Smooth tuning curves with 1d gaussian kernel of size sigma.
+        :param: sigma_bin: smoothing kernel in bin size, not cm!"""
+        if sigma_bin > 0:
+            return gaussian_filter1d(self.tuning_curves, sigma=sigma_bin, axis=1)
+        else:
+            return self._tuning_curves
 
     def peak_locations(self, by="index"):
         sort_ind = np.argmax(stats.zscore(self.tuning_curves, axis=1), axis=1)

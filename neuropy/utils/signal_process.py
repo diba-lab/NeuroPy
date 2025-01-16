@@ -1422,7 +1422,7 @@ def plot_miniscope_noise(
             a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
             a.set_xticks((0, nblocks))
             a.set(xticklabels=("0", str(time[-1])))
-            a.set_xlabel("Time (30 sec blocks)")
+            a.set_xlabel(f"Time ({interval_sec} sec blocks)")
             a.set_ylabel("Frez (Hz)")
         else:
             a.text(
