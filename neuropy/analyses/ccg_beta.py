@@ -29,19 +29,27 @@ def _as_array(arr, dtype=None, use_cupy=False):
         )
     return out
 
+
 def _index_of(arr, lookup, use_cupy=False):
     """Replace scalars in an array by their indices in a lookup table."""
     lib = cp if use_cupy else np
     lookup = lib.asarray(lookup, dtype=lib.int32)
     m = (lookup.max() if len(lookup) else 0) + 1
     tmp = lib.zeros(m + 1, dtype=int)
+
+    # Ensure that -1 values are kept.
     tmp[-1] = -1
     if len(lookup):
         tmp[lookup] = lib.arange(len(lookup))
     return tmp[arr]
 
+
 def _unique(x, use_cupy=False):
-    """Faster version of np.unique() using NumPy or CuPy."""
+    """
+    Faster version of np.unique().
+    This version is restricted to 1D arrays of non-negative integers.
+    It is only faster if len(x) >> len(unique(x)).
+    """
     lib = cp if use_cupy else np
     if x is None or len(x) == 0:
         return lib.array([], dtype=int)
@@ -50,8 +58,12 @@ def _unique(x, use_cupy=False):
     bc = lib.bincount(x)
     return lib.nonzero(bc)[0]
 
+
 def _increment(arr, indices, use_cupy=False):
-    """Increment some indices in a 1D vector of non-negative integers."""
+    """
+    Increment some indices in a 1D vector of non-negative integers.
+    Repeated indices are taken into account.
+    """
     lib = cp if use_cupy else np
     arr = _as_array(arr, use_cupy=use_cupy)
     indices = _as_array(indices, use_cupy=use_cupy)
@@ -59,26 +71,55 @@ def _increment(arr, indices, use_cupy=False):
     arr[: len(bbins)] += bbins
     return arr
 
+
 def _diff_shifted(arr, steps=1, use_cupy=False):
-    """Calculate the difference between elements shifted by `steps`."""
-    lib = cp if use_cupy else np
+    """Calculate the difference between elements shifted by steps."""
     arr = _as_array(arr, use_cupy=use_cupy)
     return arr[steps:] - arr[: len(arr) - steps]
+
 
 def _create_correlograms_array(n_clusters, winsize_bins, use_cupy=False):
     """Create an array to hold correlograms."""
     lib = cp if use_cupy else np
     return lib.zeros((n_clusters, n_clusters, winsize_bins // 2 + 1), dtype=lib.int32)
 
+
 def _symmetrize_correlograms(correlograms, use_cupy=False):
     """Return the symmetrized version of the CCG arrays."""
     lib = cp if use_cupy else np
     n_clusters, _, n_bins = correlograms.shape
     assert n_clusters == _
+
+    # We symmetrize c[i, j, 0].
+    # This is necessary because the algorithm in correlograms() is sensitive to the order of identical spikes.
     correlograms[..., 0] = lib.maximum(correlograms[..., 0], correlograms[..., 0].T)
+
     sym = correlograms[..., 1:][..., ::-1]
     sym = lib.transpose(sym, (1, 0, 2))
+
     return lib.dstack((sym, correlograms))
+
+
+def firing_rate(spike_clusters, cluster_ids=None, bin_size=None, duration=None):
+    """Compute the average number of spikes per cluster per bin."""
+    # Take the cluster order into account.
+    if cluster_ids is None:
+        cluster_ids = _unique(spike_clusters)
+    else:
+        cluster_ids = _as_array(cluster_ids)
+
+    # Like spike_clusters, but with 0..n_clusters-1 indices.
+    spike_clusters_i = _index_of(spike_clusters, cluster_ids)
+
+    assert bin_size > 0
+    bc = np.bincount(spike_clusters_i)
+    # Handle the case where the last cluster(s) are empty.
+    if len(bc) < len(cluster_ids):
+        n = len(cluster_ids) - len(bc)
+        bc = np.concatenate((bc, np.zeros(n, dtype=bc.dtype)))
+    assert bc.shape == (len(cluster_ids),)
+    return bc * np.c_[bc] * (bin_size / (duration or 1.0))
+
 
 def correlograms(
     neurons,
