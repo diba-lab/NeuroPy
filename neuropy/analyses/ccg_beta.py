@@ -5,7 +5,7 @@
 # ------------------------------------------------------------------------------
 
 import numpy as np
-
+from neuropy import core
 
 # ------------------------------------------------------------------------------
 # Cross-correlograms
@@ -133,16 +133,16 @@ def firing_rate(spike_clusters, cluster_ids=None, bin_size=None, duration=None):
 
 
 def correlograms(
-    spike_times,
-    spike_clusters,
-    cluster_ids=None,
+    neurons: core.Neurons,
     sample_rate=1.0,
     bin_size=None,
     window_size=None,
     symmetrize=True,
 ):
-    """Compute all pairwise cross-correlograms among the clusters appearing
-    in `spike_clusters`.
+    """Compute all pairwise cross-correlograms taken in from neurons object.
+    TODO (BK)
+    - Optional cupy implementation
+
     Parameters
     ----------
     spike_times : array-like
@@ -166,14 +166,28 @@ def correlograms(
         A `(n_clusters, n_clusters, winsize_samples)` array with all pairwise CCGs.
     """
     assert sample_rate > 0.0
-    assert np.all(np.diff(spike_times) >= 0), "The spike times must be " "increasing."
 
-    # Get the spike samples.
-    spike_times = np.asarray(spike_times, dtype=float)
+    # Get spiketrains from neurons object
+    spike_times = np.concatenate(neurons.spiketrains)
+
+    # Get cluster id for each spike matched to spike_times
+    spike_clusters = np.concatenate([
+        np.full(len(spiketrain), cluster_id)
+        for spiketrain, cluster_id in zip(neurons.spiketrains, neurons.neuron_ids)
+    ])
+
+    # Sort by ascending and get the index
+    sort_ind = np.argsort(spike_times)
+
+    # Sort both times and clusters by ascending spike time.
+    spike_times = spike_times[sort_ind]
+    spike_clusters = spike_clusters[sort_ind]
+
+    assert np.all(np.diff(spike_times) >= 0), "The spike times must be " "increasing."
+    # Get the spike samples, which will be ints based on sampling rate.
     spike_samples = (spike_times * sample_rate).astype(int)
 
-    spike_clusters = _as_array(spike_clusters)
-
+    # Check spike sample validity
     assert spike_samples.ndim == 1
     assert spike_samples.shape == spike_clusters.shape
 
@@ -186,14 +200,12 @@ def correlograms(
     window_size = np.clip(window_size, 1e-5, 1e5)  # in seconds
     winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
 
+    # check winsize bin validity
     assert winsize_bins >= 1
     assert winsize_bins % 2 == 1
 
-    # Take the cluster order into account.
-    if cluster_ids is None:
-        clusters = _unique(spike_clusters)
-    else:
-        clusters = _as_array(cluster_ids)
+    # Get clusters, and find number of total clusters to compare
+    clusters = _unique(spike_clusters)
     n_clusters = len(clusters)
 
     # Like spike_clusters, but with 0..n_clusters-1 indices.
