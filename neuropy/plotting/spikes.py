@@ -17,7 +17,7 @@ def plot_raster(
     alpha=1,
     rasterized=False,
 ):
-    """creates raster plot using spiktrains in neurons
+    """creates raster plot using spiketrains in neurons
 
     Parameters
     ----------
