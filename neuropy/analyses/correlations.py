@@ -1,6 +1,4 @@
 import numpy as np
-import cupy as cp
-
 
 # Define acceptable dtypes
 _ACCEPTED_ARRAY_DTYPES = (
@@ -121,15 +119,42 @@ def firing_rate(spike_clusters, cluster_ids=None, bin_size=None, duration=None):
     return bc * np.c_[bc] * (bin_size / (duration or 1.0))
 
 
-def correlograms(
-    neurons,
-    sample_rate=1.0,
-    bin_size=None,
-    window_size=None,
-    symmetrize=True,
-    use_cupy=False
+def spike_correlations(
+        neurons,
+        sample_rate=1.0,
+        bin_size=None,
+        window_size=None,
+        symmetrize=True,
+        use_cupy=False
 ):
-    """Compute cross-correlograms."""
+    """
+    Compute all pairwise cross-correlations among neurons(clusters) given in neurons class.
+
+    Parameters
+    ----------
+    neurons : core.Neurons
+        neurons obj containing spiketrains and related info
+    sample_rate : float
+        Sampling rate.
+    bin_size : float
+        Size of the bin, in seconds.
+    window_size : float
+        Size of the window, in seconds.
+    symmetrize : boolean (True)
+        Whether the output matrix should be symmetrized or not.
+    use_cupy : boolean (False)
+        Boolean to determine whether use GPU acceleration (via CuPy).
+
+    Returns
+    -------
+    correlograms : array
+        A `(n_clusters, n_clusters, winsize_samples)` array with all pairwise CCGs.
+    """
+    
+    # Import CuPy if set as true
+    if use_cupy:
+        import cupy as cp
+
     lib = cp if use_cupy else np
 
     spike_times = lib.concatenate(neurons.spiketrains)
