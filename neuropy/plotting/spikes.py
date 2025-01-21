@@ -165,25 +165,38 @@ def plot_correlograms(
 
     # Calculate bins for the histogram
     winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
-    bins = cp.linspace(-window_size / 2, window_size / 2, winsize_bins)
 
-    # Plotting each correlogram
-    for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
-        # Transfer from GPU to CPU if CuPy
-        if use_cupy:
-            bins_cpu = bins.get()
+    # Plot correlograms using pertinent library
+
+    bins = np.linspace(-window_size / 2, window_size / 2, winsize_bins)
+
+    # Plot
+    if use_cupy:
+        for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
             ccg_cpu = ccg.get()
 
-        a.bar(bins_cpu, ccg_cpu, width=bins_cpu[1] - bins_cpu[0])
+            a.bar(bins, ccg_cpu, width=bins[1] - bins[0])
 
-        if is_acg:
-            a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
-                      label='Refractory Period Boundary')  # Line at -1 ms
-            a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+            if is_acg:
+                a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+                          label='Refractory Period Boundary')  # Line at -1 ms
+                a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
 
-        a.set_xticks([-window_size / 2, 0, window_size / 2])
-        a.set_xlabel("Time (s)")
-        a.set_ylabel("Spike Count")
+            a.set_xticks([-window_size / 2, 0, window_size / 2])
+            a.set_xlabel("Time (s)")
+            a.set_ylabel("Spike Count")
+    else:
+        for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
+            a.bar(bins, ccg, width=bins[1] - bins[0])
+
+            if is_acg:
+                a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+                          label='Refractory Period Boundary')  # Line at -1 ms
+                a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+
+            a.set_xticks([-window_size / 2, 0, window_size / 2])
+            a.set_xlabel("Time (s)")
+            a.set_ylabel("Spike Count")
     plt.tight_layout()
 
     return ax
