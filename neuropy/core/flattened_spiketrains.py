@@ -272,7 +272,7 @@ class SpikesAccessor(TimeSlicedMixin):
             print("\t done updating 'fragile_linear_neuron_IDX' and 'neuron_IDX'.")
         return self._obj
 
-    def add_binned_time_column(self, time_window_edges, time_window_edges_binning_info:BinningInfo, debug_print:bool=False):
+    def add_binned_time_column(self, time_window_edges, time_window_edges_binning_info:BinningInfo, debug_print:bool=False): ## CONFORMANCE: TimePointEventAccessor
         """ adds a 'binned_time' column to spikes_df given the time_window_edges and time_window_edges_binning_info provided 
         
         """
@@ -286,7 +286,7 @@ class SpikesAccessor(TimeSlicedMixin):
         self._obj['binned_time'] = pd.cut(self._obj[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
         return self._obj
 
-    def adding_lap_identity_column(self, laps_epoch_df, epoch_id_key_name:str='new_lap_IDX'):
+    def adding_lap_identity_column(self, laps_epoch_df, epoch_id_key_name:str='new_lap_IDX'):  ## CONFORMANCE: TimePointEventAccessor
         """ Adds the lap IDX column to the spikes df from a set of lap epochs.
 
             spikes: curr_active_pipeline.sess.spikes_df
@@ -312,7 +312,7 @@ class SpikesAccessor(TimeSlicedMixin):
 
 
     def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None, override_time_variable_name=None,
-                                      no_interval_fill_value=-1, should_replace_existing_column=False, drop_non_epoch_spikes: bool=False):
+                                      no_interval_fill_value=-1, should_replace_existing_column=False, drop_non_epoch_spikes: bool=False):  ## CONFORMANCE: TimePointEventAccessor
         """ Adds the arbitrary column with name epoch_id_key_name to the dataframe.
 
             spikes: curr_active_pipeline.sess.spikes_df
