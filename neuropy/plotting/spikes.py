@@ -4,6 +4,12 @@ from .. import core
 import numpy as np
 import seaborn as sns
 from neuropy.utils.ccg import correlograms
+from neuropy.analyses import correlations
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
+
 
 def plot_raster(
     neurons: core.Neurons,
@@ -119,6 +125,68 @@ def plot_mua(mua: core.Mua, ax=None, **kwargs):
     ax.plot(mua.time, mua.spike_counts, **kwargs)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Spike counts")
+
+
+def plot_correlograms(
+        neurons : core.Neurons,
+        clus_use,
+        sample_rate=1.0,
+        type="all",
+        bin_size=0.001,
+        window_size=0.05,
+        ax=None,
+        use_cupy=False
+):
+
+    if isinstance(clus_use, int):
+        clus_use = [clus_use]
+
+    ccgs = correlations.spike_correlations(
+        neurons,
+        sample_rate=sample_rate,
+        bin_size=bin_size,
+        window_size=window_size,
+        use_cupy=use_cupy)
+
+    # Adjust for CCG or ACG only
+    if type == "ccgs_only":
+        ccgs = ccgs[0, 1, :].reshape(1, 1, -1)
+
+    # Check the shape of ccgs to determine if it’s an ACG or CCG
+    is_acg = ccgs.shape[0] == 1 and ccgs.shape[1] == 1  # Shape is (1, 1, N) for ACGs
+
+    # Determine subplot dimensions based on the correlogram shape
+    if ax is None:
+        fig, ax = plt.subplots(ccgs.shape[0], ccgs.shape[1], squeeze=False)  # Always create 2D array of axes
+
+    # Make sure `ax` is a 2D array for reshaping
+    if isinstance(ax, plt.Axes):
+        ax = np.array([ax])  # Convert single Axes object to array for consistency
+
+    # Calculate bins for the histogram
+    winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
+    bins = cp.linspace(-window_size / 2, window_size / 2, winsize_bins)
+
+    # Plotting each correlogram
+    for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
+        # Transfer from GPU to CPU if CuPy
+        if use_cupy:
+            bins_cpu = bins.get()
+            ccg_cpu = ccg.get()
+
+        a.bar(bins_cpu, ccg_cpu, width=bins_cpu[1] - bins_cpu[0])
+
+        if is_acg:
+            a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+                      label='Refractory Period Boundary')  # Line at -1 ms
+            a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+
+        a.set_xticks([-window_size / 2, 0, window_size / 2])
+        a.set_xlabel("Time (s)")
+        a.set_ylabel("Spike Count")
+    plt.tight_layout()
+
+    return ax
 
 
 def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
