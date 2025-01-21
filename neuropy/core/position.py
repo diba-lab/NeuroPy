@@ -12,7 +12,7 @@ from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableO
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
 from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
-
+from neuropy.utils.mixins.time_slicing import TimePointEventAccessor
 
 """ --- Helper FUNCTIONS """
 def build_position_df_time_window_idx(active_pos_df: pd.DataFrame, curr_active_time_windows, debug_print=False):
@@ -378,8 +378,13 @@ def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFr
     """
     assert 'lap_id' in laps_df
     
+    possible_lap_columns_to_add = ['maze_id', 'lap_dir', 'is_LR_dir', 'truth_decoder_name']
+    possible_lap_columns_to_add_not_found_values = {'maze_id':-1, 'lap_dir':-1, 'is_LR_dir':False, 'truth_decoder_name':''}
+    lap_columns_to_add = [v for v in possible_lap_columns_to_add if v in laps_df.columns] ## can only add the columns if they're present in laps_df
+
+    
     position_df['lap'] = np.NaN # set all 'lap' column to NaN
-    position_df['lap_dir'] = np.full_like(position_df['lap'], -1) # set all 'lap_dir' to -1
+    position_df['lap_dir'] = np.full_like(position_df['lap'], possible_lap_columns_to_add_not_found_values['lap_dir']) # set all 'lap_dir' to -1
 
     unique_lap_ids = np.unique(laps_df['lap_id'])
     lap_id_to_dir_dict = {a_row.lap_id:a_row.lap_dir for a_row in laps_df[['lap_id', 'lap_dir']].itertuples(index=False)}
@@ -414,7 +419,7 @@ def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFr
 
 """ --- """
 @pd.api.extensions.register_dataframe_accessor("position")
-class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlicedMixin):
+class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlicedMixin, TimePointEventAccessor):
     """ A Pandas DataFrame-based Position helper. """
     
     def __init__(self, pandas_obj):
