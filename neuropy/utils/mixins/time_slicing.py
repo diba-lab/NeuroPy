@@ -1,3 +1,10 @@
+from __future__ import annotations # prevents having to specify types for typehinting as strings
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    ## typehinting only imports here
+    from neuropy.utils.mixins.binning_helpers import BinningInfo # for add_binned_time_column
+
 from copy import deepcopy
 from typing import Optional
 import numpy as np
@@ -156,6 +163,142 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
         return included_df
     
             
+
+
+# ==================================================================================================================== #
+# General TimePointEventAccessor                                                                                       #
+# ==================================================================================================================== #
+@pd.api.extensions.register_dataframe_accessor("time_point_event")
+class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
+    """ Allows general events (marked by a single point in time) represented as Pandas DataFrames to be easily time-sliced and manipulated along with their accompanying data without making a custom class.
+    
+    Generalized from SpikesAccessor on 2025-01-15 14:51 - refactored instantaneous-event functionality out into `TimePointEventAccessor` accessible via `a_df.time_point_event.adding_epochs_identity_column(....)`
+    
+    Examples: spikes_df, pos_df
+
+
+    from neuropy.utils.mixins.time_slicing import TimePointEventAccessor
+        
+    """
+    __time_variable_name = 't' # currently hardcoded
+    
+    def __init__(self, pandas_obj):
+        pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={TimePointEventAccessor.__time_variable_name:['t_rel_seconds','t_sec']}) # @IgnoreException ,'begin','start_t','start'
+        self._validate(pandas_obj)
+        self._obj = pandas_obj
+
+    @staticmethod
+    def _validate(obj):
+        """ verify there is a column that identifies the spike's neuron, the type of cell of this neuron ('neuron_type'), and the timestamp at which each spike occured ('t'||'t_rel_seconds') """
+        if "t" not in obj.columns and "t_seconds" not in obj.columns and "t_rel_seconds" not in obj.columns:
+            raise AttributeError("Must have at least one time column: either 't' and 't_seconds', or 't_rel_seconds'.")
+
+    @property
+    def time_variable_name(self):
+        return self.__time_variable_name
+    
+    def set_time_variable_name(self, new_time_variable_name):
+        if self._obj.time_point_event.time_variable_name == new_time_variable_name:
+            # no change in the time_variable_name:
+            pass
+        else:
+            assert new_time_variable_name in self._obj.columns, f"a_df.time_point_event.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original a_df.time_point_event.time_variable_name: '{self._obj.time_point_event.time_variable_name}'.\n\t valid_columns: {list(self._obj.columns)}"
+            # otherwise it's okay and we can continue
+            original_time_variable_name = self._obj.time_point_event.time_variable_name
+            TimePointEventAccessor.__time_variable_name = new_time_variable_name # set for the class
+            self.__time_variable_name = new_time_variable_name # also set for the instance, as the class properties won't be retained when doing deepcopy and hopefully the instance properties will.
+            print('\t time variable changed!')
+        
+    @property
+    def times(self):
+        """ convenience property to access the times of the spikes in the dataframe 
+            ## TODO: why doesn't this have a `times` property to access `self._obj[self.time_variable_name].values`?
+        """
+        return self._obj[self.time_variable_name].values
+
+
+    # ==================================================================================================================== #
+    # Begin Features                                                                                                       #
+    # ==================================================================================================================== #
+    def add_binned_time_column(self, time_window_edges, time_window_edges_binning_info:BinningInfo, debug_print:bool=False):
+        """ adds a 'binned_time' column to spikes_df given the time_window_edges and time_window_edges_binning_info provided 
+        
+        """
+        event_timestamp_column_name = self.time_variable_name # 't_rel_seconds'
+        if debug_print:
+            print(f'self._obj[time_variable_name]: {np.shape(self._obj[event_timestamp_column_name])}\ntime_window_edges: {np.shape(time_window_edges)}')
+            # assert (np.shape(out_digitized_variable_bins)[0] == np.shape(self._obj)[0]), f'np.shape(out_digitized_variable_bins)[0]: {np.shape(out_digitized_variable_bins)[0]} should equal np.shape(self._obj)[0]: {np.shape(self._obj)[0]}'
+            print(time_window_edges_binning_info)
+
+        bin_labels = time_window_edges_binning_info.bin_indicies[1:] # edge bin indicies: [0,     1,     2, ..., 11878, 11879, 11880][1:] -> [ 1,     2, ..., 11878, 11879, 11880]
+        self._obj['binned_time'] = pd.cut(self._obj[event_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
+        return self._obj
+
+    def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None, override_time_variable_name=None,
+                                      no_interval_fill_value=-1, should_replace_existing_column=False, drop_non_epoch_events: bool=False):
+        """ Adds the arbitrary column with name epoch_id_key_name to the dataframe.
+
+            spikes: curr_active_pipeline.sess.spikes_df
+            adds column epoch_id_key_name to spikes df.
+            
+            drop_non_epoch_spikes: if True, drops the spikes that don't have a matching epoch after these are determined.
+
+            # Created Columns:
+                epoch_id_key_name
+
+            Usage:
+                active_spikes_df = active_spikes_df.time_point_event.adding_epochs_identity_column(epochs_df=active_epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
+                                                                                        no_interval_fill_value=no_interval_fill_value, should_replace_existing_column=True, drop_non_epoch_spikes=True)
+                                                                                        
+
+        """
+        if (epoch_id_key_name in self._obj.columns) and (not should_replace_existing_column):
+            print(f'column "{epoch_id_key_name}" already exists in df! Skipping adding intervals.')
+            return self._obj
+        else:
+            from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
+            from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+
+            if override_time_variable_name is None:
+                override_time_variable_name = self.time_variable_name # 't_rel_seconds'
+
+            self._obj[epoch_id_key_name] = no_interval_fill_value # initialize the column to -1
+            self._obj = add_epochs_id_identity(self._obj, epochs_df=epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=epoch_label_column_name, no_interval_fill_value=no_interval_fill_value, override_time_variable_name=override_time_variable_name, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            if drop_non_epoch_events:
+                active_point_events_df = self._obj.copy()
+                active_point_events_df.drop(active_point_events_df.loc[active_point_events_df[epoch_id_key_name] == no_interval_fill_value].index, inplace=True)
+                # Sort by columns: 't_rel_seconds' (ascending), 'aclu' (ascending)
+                active_point_events_df = active_point_events_df.sort_values(['t_rel_seconds'])
+            else:
+                # return all spikes
+                active_point_events_df = self._obj
+            return active_point_events_df
+
+
+    def adding_lap_identity_column(self, laps_epoch_df, epoch_id_key_name:str='new_lap_IDX', override_time_variable_name=None):
+        """ Adds the lap IDX column to the spikes df from a set of lap epochs.
+
+            spikes: curr_active_pipeline.sess.spikes_df
+            adds column 'new_lap_IDX' to spikes df.
+            
+            # Created Columns:
+                'new_lap_IDX'
+
+        """
+        if epoch_id_key_name in self._obj.columns:
+            print(f'column "{epoch_id_key_name}" already exists in df! Skipping recomputation.')
+            return self._obj
+        else:
+            from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
+            from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
+
+            if override_time_variable_name is None:
+                override_time_variable_name = self.time_variable_name # 't_rel_seconds'
+            self._obj[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
+            self._obj = add_epochs_id_identity(self._obj, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name=override_time_variable_name, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            return self._obj
+
+
 
 # ==================================================================================================================== #
 # General Spike Identities from Epochs                                                                                 #
