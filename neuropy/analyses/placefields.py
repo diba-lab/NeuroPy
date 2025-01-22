@@ -245,6 +245,7 @@ class Pf1D(core.Ratemap):
             ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
             ax.set_xlabel("Position (cm)")
             ax.set_ylabel("Normalized frate")
+            ax.set_title(f"Cell id {self.neuron_ids[cell]}")
             # ax.set_title(
             #     " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
             # )
