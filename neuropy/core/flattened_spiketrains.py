@@ -53,9 +53,14 @@ class SpikesAccessor(TimeSlicedMixin):
                 raise AttributeError(f"Must have 'flat_spike_idx' column.. obj.columns: {list(obj.columns)}")
             else:
                 print(f"This used to be an assert but `_REQUIRE_FLAT_SPIKE_INDEX_COLUMN == False, so continuing at your own risk. Missing the 'flat_spike_idx' column. obj.columns: {list(obj.columns)}")
+                
+        ## CONDITION FOR TimePointEventAccessor CONFORMANCE
         if "t" not in obj.columns and "t_seconds" not in obj.columns and "t_rel_seconds" not in obj.columns:
             raise AttributeError("Must have at least one time column: either 't' and 't_seconds', or 't_rel_seconds'.")
         
+    # ==================================================================================================================== #
+    # TimePointEventAccessor CONFORMANCE                                                                                   #
+    # ==================================================================================================================== #
     @property
     def time_variable_name(self):
         return self.__time_variable_name
@@ -81,6 +86,7 @@ class SpikesAccessor(TimeSlicedMixin):
         """
         return self._obj[self.time_variable_name].values
 
+    # END TimePointEventAccessor CONFORMANCE _____________________________________________________________________________ #
     @property
     def neuron_ids(self):
         """ return the unique cell identifiers (given by the unique values of the 'aclu' column) for this DataFrame """
@@ -152,9 +158,6 @@ class SpikesAccessor(TimeSlicedMixin):
         """
         inclusion_mask = np.isin(np.array(self._obj.qclu), included_qclu_values)
         return self._obj.loc[inclusion_mask, :].copy()
-
-
-
 
 
     def extract_unique_neuron_identities(self):
@@ -327,7 +330,6 @@ class SpikesAccessor(TimeSlicedMixin):
                 active_spikes_df = active_spikes_df.spikes.adding_epochs_identity_column(epochs_df=active_epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
                                                                                         no_interval_fill_value=no_interval_fill_value, should_replace_existing_column=True, drop_non_epoch_spikes=True)
                                                                                         
-
         """
         if (epoch_id_key_name in self._obj.columns) and (not should_replace_existing_column):
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping adding intervals.')
