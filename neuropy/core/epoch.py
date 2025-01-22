@@ -778,7 +778,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         assert epoch_id_key_name in spikes_df, f"""ERROR: epoch_id_key_name: '{epoch_id_key_name}' is not in spikes_df.columns: {spikes_df.columns}. Did you add the columns to spikes_df via:
 ## INPUTS: curr_active_pipeline, epochs_df
 active_spikes_df: pd.DataFrame = get_proper_global_spikes_df(curr_active_pipeline).spikes.adding_epochs_identity_column(epochs_df=epochs_df, epoch_id_key_name='replay_id', epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
-	should_replace_existing_column=False, drop_non_epoch_spikes=True) ## gets the proper spikes_df, and then adds the epoch_id columns (named 'replay_id') for the epochs provided in `epochs_df`
+    should_replace_existing_column=False, drop_non_epoch_spikes=True) ## gets the proper spikes_df, and then adds the epoch_id columns (named 'replay_id') for the epochs provided in `epochs_df`
 epochs_df = epochs_df.epochs.adding_active_aclus_information(spikes_df=active_spikes_df, epoch_id_key_name='replay_id', add_unique_aclus_list_column=True)
 epochs_df
         """
@@ -853,6 +853,49 @@ epochs_df
         return self.add_maze_id_if_needed(epochs_df=epochs_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=replace_existing, labels_column_name=labels_column_name, start_time_col_name='start', end_time_col_name='stop')
     
 
+    def adding_global_epoch_row(self, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None) -> pd.DataFrame:
+        """ builds the 'global' epoch row for the entire session that includes by default the times from all other epochs in epochs_df. 
+		e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
+        
+        Based off of `neuropy.core.session.Formats.BaseDataSessionFormats.DataSessionFormatBaseRegisteredClass.build_global_epoch_filter_config_dict` on 2025-01-15 15:56 
+        
+        Usage:
+            from neuropy.core.epoch import Epoch, EpochsAccessor, NamedTimerange, ensure_dataframe, ensure_Epoch
+
+            maze_epochs_df = deepcopy(curr_active_pipeline.sess.epochs).to_dataframe()
+            maze_epochs_df = maze_epochs_df.epochs.adding_global_epoch_row()
+            maze_epochs_df
+
+        """
+        all_epoch_names = list(self.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
+        if global_epoch_name in all_epoch_names:
+            global_epoch_name = f"{global_epoch_name}_GLOBAL"
+            print(f'WARNING: name collision "{global_epoch_name}" already exists in all_epoch_names: {all_epoch_names}! Using {global_epoch_name} instead.')
+        
+        if first_included_epoch_name is not None:
+            # global_start_end_times[0] = sess.epochs[first_included_epoch_name][0] # 'maze1'
+            pass
+        else:
+            first_included_epoch_name = self.get_unique_labels()[0]
+            
+
+        if last_included_epoch_name is not None:
+            # global_start_end_times[1] = sess.epochs[last_included_epoch_name][1] # 'maze2'
+            pass
+        else:
+            last_included_epoch_name = self.get_unique_labels()[-1]
+        
+        maze_epochs_df =  pd.DataFrame({'start': [*self.starts, self._obj.iloc[(self.labels == first_included_epoch_name)]['start'].tolist()[0]], 
+                                        'stop': [*self.stops, self._obj.iloc[(self.labels == last_included_epoch_name)]['stop'].tolist()[0]],
+        # 'stop': [*self.stops, self._obj[self.labels == last_included_epoch_name][1]],
+        'label': [*self.labels, global_epoch_name],
+        }) # .epochs.get_valid_df()    
+        maze_epochs_df[['start', 'stop']] = maze_epochs_df[['start', 'stop']].astype(float) 
+        maze_epochs_df['duration'] = maze_epochs_df['stop'] - maze_epochs_df['start']
+
+        self._obj = maze_epochs_df
+        return self._obj
+        
 
     # ==================================================================================================================== #
     # `Epoch` object / pd.DataFrame exchangeability                                                                         #
@@ -1024,6 +1067,64 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         else:
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
 
+
+    def adding_global_epoch_row(self, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None) -> "Epoch":
+        """ builds the 'global' epoch row for the entire session that includes by default the times from all other epochs in epochs_df. 
+		e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
+        
+        Based off of `neuropy.core.session.Formats.BaseDataSessionFormats.DataSessionFormatBaseRegisteredClass.build_global_epoch_filter_config_dict` on 2025-01-15 15:56 
+        
+        Usage:
+            from neuropy.core.epoch import Epoch, EpochsAccessor, NamedTimerange, ensure_dataframe, ensure_Epoch
+
+            maze_epochs_obj = ensure_Epoch(deepcopy(curr_active_pipeline.sess.epochs).to_dataframe())
+            maze_epochs_obj.adding_global_epoch_row(global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None)
+            maze_epochs_obj
+            
+        """
+        all_epoch_names = list(self.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
+        if global_epoch_name in all_epoch_names:
+            global_epoch_name = f"{global_epoch_name}_GLOBAL"
+            print(f'WARNING: name collision "{global_epoch_name}" already exists in all_epoch_names: {all_epoch_names}! Using {global_epoch_name} instead.')
+        
+        if first_included_epoch_name is not None:
+            # global_start_end_times[0] = sess.epochs[first_included_epoch_name][0] # 'maze1'
+            pass
+        else:
+            first_included_epoch_name = self.get_unique_labels()[0]
+            
+        if last_included_epoch_name is not None:
+            # global_start_end_times[1] = sess.epochs[last_included_epoch_name][1] # 'maze2'
+            pass
+        else:
+            last_included_epoch_name = self.get_unique_labels()[-1]
+    
+        # global_start_end_times = [epochs.t_start, epochs.t_stop]
+        # global_start_end_times = [self[first_included_epoch_name][0], self[last_included_epoch_name][1]]
+        # self.t_start, self.t_stop
+        # maze_epochs_df = deepcopy(curr_active_pipeline.sess.epochs).to_dataframe()[['start', 'stop', 'label']] # ['start', 'stop', 'label', 'duration']
+        # maze_epochs_numpy = maze_epochs_df.to_numpy()
+        # maze_epochs_numpy.shape
+
+        # new_df =  pd.DataFrame({'start': np.stack([self.starts, [self[first_included_epoch_name][0]]]), 
+        # 'stop': np.stack([self.stops, [self[last_included_epoch_name][1]]]),
+        # 'label': [*self.labels, global_epoch_name],
+        # }).epochs.get_valid_df()
+        
+        maze_epochs_df =  pd.DataFrame({'start': [*self.starts, self[first_included_epoch_name][0]], 
+        'stop': [*self.stops, self[last_included_epoch_name][1]],
+        'label': [*self.labels, global_epoch_name],
+        }) # .epochs.get_valid_df()    
+        maze_epochs_df[['start', 'stop']] = maze_epochs_df[['start', 'stop']].astype(float) 
+        maze_epochs_df['duration'] = maze_epochs_df['stop'] - maze_epochs_df['start']
+
+        self._df = maze_epochs_df
+        # self._df = new_df
+        return self
+        
+        
+
+        
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         return Epoch(epochs=self._df.epochs.time_slice(t_start, t_stop), metadata=self.metadata)
