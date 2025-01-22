@@ -451,6 +451,28 @@ class NumpyHelpers:
         """ returns the result of `np.split(...)` but removes any empty sequences that it returns. """
         return [v for v in np.split(arr, indices_or_sections, **kwargs) if len(v) > 0] # exclude empty subsequences
         
+    @classmethod
+    def convert_to_array_recursive(cls, data: Any) -> Any:
+        """
+        Recursively converts lists and tuples in a nested structure into np.array objects.
+
+        Args:
+            data (Any): The input data, can be a list, tuple, dict, or other nested structure.
+
+        Returns:
+            Any: The transformed structure with lists and tuples replaced by np.array.
+
+        Usage:
+            result = convert_to_array_recursive([1, 2, (3, 4, [5, 6])])
+        """
+        if isinstance(data, (list, tuple)):
+            return np.array([cls.convert_to_array_recursive(item) for item in data])
+        elif isinstance(data, dict):
+            return {key: cls.convert_to_array_recursive(value) for key, value in data.items()}
+        else:
+            return data
+            
+        
 
 # ==================================================================================================================== #
 # Sorting/Joint-sorting                                                                                                #
