@@ -299,6 +299,99 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
             return self._obj
 
 
+    @classmethod
+    def add_maze_id_if_needed(cls, active_point_events_df: pd.DataFrame, t_start:float, t_delta:float, t_end:float, replace_existing:bool=True, event_time_col_name: str='t_rel_seconds') -> pd.DataFrame: # , labels_column_name:str='label'
+        """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
+
+        Add the maze_id to the active_filter_epochs so we can see how properties change as a function of which track the replay event occured on
+        
+        WARNING: does NOT modify in place!
+
+        Adds Columns: ['maze_id']
+        Usage:
+            from neuropy.core.session.dataSession import Laps
+
+            t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+            laps_obj: Laps = curr_active_pipeline.sess.laps
+            laps_df = laps_obj.to_dataframe()
+            laps_df = laps_df.epochs.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end)
+            laps_df
+
+        """
+        # epochs_df = epochs_df.epochs.to_dataframe()
+        # active_point_events_df[[labels_column_name]] = active_point_events_df[[labels_column_name]].astype('int')
+        # active_point_events_df[[labels_column_name]] = active_point_events_df[[labels_column_name]].astype('int')
+        is_missing_column: bool = ('maze_id' not in active_point_events_df.columns)
+        if (is_missing_column or replace_existing):
+            # Create the maze_id column:
+            # active_point_events_df['maze_id'] = np.full_like(active_point_events_df[labels_column_name].to_numpy(), -1) # all -1 to start
+            active_point_events_df['maze_id'] = np.full_like(active_point_events_df.index.to_numpy().astype(int), -1) # all -1 to start
+            active_point_events_df.loc[(np.logical_and((active_point_events_df[event_time_col_name].to_numpy() >= t_start), (active_point_events_df[event_time_col_name].to_numpy() <= t_delta))), 'maze_id'] = 0 # first epoch
+            active_point_events_df.loc[(np.logical_and((active_point_events_df[event_time_col_name].to_numpy() >= t_delta), (active_point_events_df[event_time_col_name].to_numpy() <= t_end))), 'maze_id'] = 1 # second epoch, post delta
+            active_point_events_df['maze_id'] = active_point_events_df['maze_id'].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
+        else:
+            # already exists and we shouldn't overwrite it:
+            active_point_events_df[['maze_id']] = active_point_events_df[['maze_id']].astype('int') # note the single vs. double brakets in the two cases. Not sure if it makes a difference or not
+        return active_point_events_df
+            
+
+    def adding_maze_id_if_needed(self, t_start:float, t_delta:float, t_end:float, replace_existing:bool=True, override_time_variable_name=None) -> pd.DataFrame:
+        """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
+
+        Add the maze_id to the active_filter_epochs so we can see how properties change as a function of which track the replay event occured on
+        
+        WARNING: does NOT modify in place!
+
+        Adds Columns: ['maze_id']
+        Usage:
+            from neuropy.core.session.dataSession import Laps
+
+            t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+            laps_obj: Laps = curr_active_pipeline.sess.laps
+            laps_df = laps_obj.to_dataframe()
+            laps_df = laps_df.time_point_event.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end)
+            laps_df
+
+        """
+        if override_time_variable_name is None:
+            override_time_variable_name = self.time_variable_name # 't_rel_seconds'
+        active_point_events_df: pd.DataFrame = self._obj.copy()
+        return self.add_maze_id_if_needed(active_point_events_df=active_point_events_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=replace_existing, event_time_col_name=override_time_variable_name) # , labels_column_name=labels_column_name
+    
+    
+    def adding_true_decoder_identifier(self, t_start:float, t_delta:float, t_end:float, replace_existing:bool=True, override_time_variable_name=None) -> pd.DataFrame:
+        """ 2024-01-17 - adds the 'maze_id' column if it doesn't exist
+
+        Add the maze_id to the active_filter_epochs so we can see how properties change as a function of which track the replay event occured on
+        
+        WARNING: does NOT modify in place!
+        Requires Columns: ['maze_id', 'lap_dir']
+        Adds Columns: ['truth_decoder_name', 'maze_id']
+        Usage:
+            from neuropy.core.session.dataSession import Laps
+
+            t_start, t_delta, t_end = owning_pipeline_reference.find_LongShortDelta_times()
+            laps_obj: Laps = curr_active_pipeline.sess.laps
+            laps_df = laps_obj.to_dataframe()
+            pos_df = pos_df.time_point_event.adding_true_decoder_identifier(t_start=t_start, t_delta=t_delta, t_end=t_end)
+            pos_df
+
+        """
+        if override_time_variable_name is None:
+            override_time_variable_name = self.time_variable_name # 't_rel_seconds'
+        active_point_events_df: pd.DataFrame = self.adding_maze_id_if_needed(t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=replace_existing, override_time_variable_name=override_time_variable_name) # _obj.copy()
+        assert 'maze_id' in active_point_events_df
+        assert 'lap_dir' in active_point_events_df
+        # Creates Columns: 'truth_decoder_name':
+        lap_dir_keys = ['LR', 'RL']
+        maze_id_keys = ['long', 'short']
+        active_point_events_df['truth_decoder_name'] = active_point_events_df['maze_id'].map(dict(zip(np.arange(len(maze_id_keys)), maze_id_keys))) + '_' + active_point_events_df['lap_dir'].map(dict(zip(np.arange(len(lap_dir_keys)), lap_dir_keys)))
+        self._obj[['maze_id', 'truth_decoder_name']] = active_point_events_df[['maze_id', 'truth_decoder_name']] ## modify in-place and return?
+
+        # return self.add_maze_id_if_needed(active_point_events_df=active_point_events_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=replace_existing, labels_column_name=labels_column_name, event_time_col_name=override_time_variable_name)
+        return self._obj
+    
+    
 
 def _compute_time_point_event_arbitrary_provided_epoch_ids(spk_df, provided_epochs_df, epoch_label_column_name=None, no_interval_fill_value=np.nan, override_time_variable_name=None, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL, debug_print=False):
     """ Computes the appropriate IDs from provided_epochs_df for each spikes to be added as an identities column to spikes_df
