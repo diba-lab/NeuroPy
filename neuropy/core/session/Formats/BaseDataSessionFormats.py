@@ -182,7 +182,7 @@ class DataSessionFormatBaseRegisteredClass(metaclass=DataSessionFormatRegistryHo
 		all_epoch_names = list(sess.epochs.get_unique_labels()) # all_epoch_names # ['maze1', 'maze2']
 		if global_epoch_name in all_epoch_names:
 			global_epoch_name = f"{global_epoch_name}_GLOBAL"
-			print('WARNING: name collision "{global_epoch_name}" already exists in all_epoch_names: {all_epoch_names}! Using {global_epoch_name} instead.')
+			print(f'WARNING: name collision "{global_epoch_name}" already exists in all_epoch_names: {all_epoch_names}! Using {global_epoch_name} instead.')
 		
 		if first_included_epoch_name is not None:
 			# global_start_end_times[0] = sess.epochs[first_included_epoch_name][0] # 'maze1'
