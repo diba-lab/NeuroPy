@@ -1681,6 +1681,34 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         return Epoch(epochs=self._df.epochs.subtracting(other_epochs_df=other_epochs_df, skip_get_overlapping=skip_get_non_overlapping), metadata=self.metadata)
         
 
+    def split_into_training_and_test(self, training_data_portion: float=5.0/6.0, group_column_name: str='label', additional_epoch_identity_column_names:List[str]=['label'], skip_get_non_overlapping:bool=False, debug_print: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """ Splits laps into separate training and test sections
+        
+        Usage:
+
+            ### Get the laps to train on
+            training_data_portion: float = 5.0/6.0
+            test_data_portion: float = 1.0 - training_data_portion # test data portion is 1/6 of the total duration
+
+            print(f'training_data_portion: {training_data_portion}, test_data_portion: {test_data_portion}')
+
+            a_laps_df: pd.DataFrame = ensure_dataframe(deepcopy(a_config['pf_params'].computation_epochs))
+            a_laps_training_df, a_laps_test_df = a_laps_df.epochs.split_into_training_and_test(training_data_portion=training_data_portion, group_column_name ='lap_id', additional_epoch_identity_column_names=['label', 'lap_id', 'lap_dir'], skip_get_non_overlapping=False, debug_print=False) # a_laps_training_df, a_laps_test_df both comeback good here.
+
+            laps_df
+            laps_training_df
+            laps_test_df 
+            
+        Usage 2:
+            training_data_portion: float = 5.0/6.0
+            a_new_training_df, a_new_test_df = global_epoch_only_non_PBE_epoch_df.epochs.split_into_training_and_test(training_data_portion=training_data_portion, group_column_name ='label', additional_epoch_identity_column_names=['label'], skip_get_non_overlapping=False, debug_print=False) # a_laps_training_df, a_laps_test_df both comeback good here.
+
+            a_new_training_df
+            a_new_test_df
+
+        """
+        return Epoch(epochs=self._df.epochs.split_into_training_and_test(training_data_portion=training_data_portion, group_column_name=group_column_name, additional_epoch_identity_column_names=additional_epoch_identity_column_names, skip_get_overlapping=skip_get_non_overlapping, debug_print=debug_print), metadata=self.metadata)
+
 
     # HDF5 Serialization _________________________________________________________________________________________________ #
     # HDFMixin Conformances ______________________________________________________________________________________________ #
