@@ -129,20 +129,21 @@ def plot_mua(mua: core.Mua, ax=None, **kwargs):
 
 def plot_correlograms(
         neurons : core.Neurons,
-        clus_use,
-        sample_rate=1.0,
+        neuron_inds,
         type="all",
+        sample_rate=1.0,
         bin_size=0.001,
         window_size=0.05,
         ax=None,
         use_cupy=False
 ):
 
-    if isinstance(clus_use, int):
-        clus_use = [clus_use]
+    if isinstance(neuron_inds, int):
+        clus_use = [neuron_inds]
 
     ccgs = correlations.spike_correlations(
         neurons,
+        neuron_inds=neuron_inds,
         sample_rate=sample_rate,
         bin_size=bin_size,
         window_size=window_size,
@@ -265,9 +266,9 @@ def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=No
         a.bar(bins, ccg, width=bins[1] - bins[0])
 
         if is_acg:
-            a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+            a.axvline(-0.002, color='blue', linestyle='--', linewidth=1,
                       label='Refractory Period Boundary')  # Line at -1 ms
-            a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+            a.axvline(0.002, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
 
         a.set_xticks([-window_size / 2, 0, window_size / 2])
         a.set_xlabel("Time (s)")
