@@ -1,3 +1,5 @@
+from copy import deepcopy
+from pathlib import Path
 from typing import Optional, List, Dict, Tuple, Union
 from importlib import metadata
 import warnings
@@ -760,6 +762,44 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         from neuropy.utils.efficient_interval_search import _convert_start_end_tuples_list_to_PortionInterval
         return _convert_start_end_tuples_list_to_PortionInterval(zip(self.starts, self.stops))
 
+
+    def get_in_between(self, copy_metadata:bool=False) -> pd.DataFrame:
+        """ gets the epochs that are in-between (non-overlapping) the current epochs.
+        
+        Usage:
+            inter_lap_epoch_df: pd.DataFrame = laps_df.epochs.get_in_between()
+            inter_lap_epoch_df
+            
+        """
+        epochs_df: pd.DataFrame = self.get_non_overlapping_df()
+        df_metadata = None
+        if (self._obj.attrs is not None) and copy_metadata:
+            df_metadata = deepcopy(self._obj.attrs)
+        
+        inter_lap_epochs = []
+        prev_lap = None
+        for a_lap in epochs_df.itertuples():
+            if prev_lap is not None:
+                inter_lap_epochs.append([float(prev_lap.stop), float(a_lap.start), str(prev_lap.label), str(a_lap.label)])
+            prev_lap = a_lap
+
+        inter_epoch_df: pd.DataFrame = pd.DataFrame(np.array(inter_lap_epochs), columns=['start', 'stop', 'precceding_epoch_label', 'following_epoch_label'])
+        inter_epoch_df['start'] = inter_epoch_df['start'].astype('float')
+        inter_epoch_df['stop'] = inter_epoch_df['stop'].astype('float')
+        # Optional: If the 'label' column of the dataframe is empty, should populate it with the index (after sorting) as a string.
+        inter_epoch_df['label'] = inter_epoch_df.index
+        inter_epoch_df["label"] = inter_epoch_df["label"].astype("str")
+        # Optional: Add 'duration' column:
+        inter_epoch_df["duration"] = inter_epoch_df["stop"] - inter_epoch_df["start"]
+        if df_metadata is not None:
+            inter_epoch_df.attrs = df_metadata
+
+
+        return inter_epoch_df   
+        
+        
+    
+    
     # Column Adding/Updating Methods _____________________________________________________________________________________ #
     def adding_active_aclus_information(self, spikes_df: pd.DataFrame, epoch_id_key_name: str = 'Probe_Epoch_id', add_unique_aclus_list_column: bool=False) -> pd.DataFrame:
         """ 
@@ -855,7 +895,7 @@ epochs_df
 
     def adding_global_epoch_row(self, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None) -> pd.DataFrame:
         """ builds the 'global' epoch row for the entire session that includes by default the times from all other epochs in epochs_df. 
-		e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
+        e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
         
         Based off of `neuropy.core.session.Formats.BaseDataSessionFormats.DataSessionFormatBaseRegisteredClass.build_global_epoch_filter_config_dict` on 2025-01-15 15:56 
         
@@ -1070,7 +1110,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
     def adding_global_epoch_row(self, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None) -> "Epoch":
         """ builds the 'global' epoch row for the entire session that includes by default the times from all other epochs in epochs_df. 
-		e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
+        e.g. builds the 'maze' epoch from ['maze1', 'maze2'] epochs
         
         Based off of `neuropy.core.session.Formats.BaseDataSessionFormats.DataSessionFormatBaseRegisteredClass.build_global_epoch_filter_config_dict` on 2025-01-15 15:56 
         
@@ -1401,6 +1441,10 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """ Returns a copy with overlapping epochs removed. """
         return Epoch(epochs=self._df.epochs.get_non_overlapping_df(debug_print=debug_print), metadata=self.metadata)
     
+    def get_in_between(self, copy_metadata:bool=False) -> "Epoch":
+        """ gets the epochs that are in-between (non-overlapping) the current epochs."""
+        return Epoch(epochs=self._df.epochs.get_in_between(copy_metadata=copy_metadata), metadata=self.metadata)
+
 
     # HDF5 Serialization _________________________________________________________________________________________________ #
     # HDFMixin Conformances ______________________________________________________________________________________________ #
