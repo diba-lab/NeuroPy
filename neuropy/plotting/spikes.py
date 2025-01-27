@@ -139,7 +139,7 @@ def plot_correlograms(
 ):
 
     if isinstance(neuron_inds, int):
-        clus_use = [neuron_inds]
+        neuron_inds = [neuron_inds]
 
     ccgs = correlations.spike_correlations(
         neurons,
