@@ -798,6 +798,68 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return inter_epoch_df   
         
         
+    def modify_each_epoch_by(self, additive_factor: float = 0.0, multiplicative_factor: float=1.0, final_output_minimum_epoch_duration:float=0.0, copy_metadata:bool=False) -> pd.DataFrame:
+        """ gets a copy of the epochs where each epoch is modified by the provided scale factors.
+        
+        if safe_contract_epochs is not 0.0, a value of 0.0 is used to safely
+        Usage:
+            inter_lap_epoch_df: pd.DataFrame = inter_lap_epoch_df.epochs.modify_each_epoch_by(additive_factor=-0.008, final_output_minimum_epoch_duration=0.040)
+            inter_lap_epoch_df
+            
+        """
+        epochs_df: pd.DataFrame = self.get_non_overlapping_df()
+        df_metadata = None
+        if (self._obj.attrs is not None) and copy_metadata:
+            df_metadata = deepcopy(self._obj.attrs)
+        
+
+        # smallest_allowed_epoch_duration: float = (2.0 * safe_contract_epochs) + 0.001 # add another ms just to be safe
+        # epochs_df = epochs_df.epochs.get_epochs_longer_than(minimum_duration=smallest_allowed_epoch_duration)
+        
+        if additive_factor != 0.0:
+            epochs_df['start'] = epochs_df['start'] - additive_factor 
+            epochs_df['stop'] = epochs_df['stop'] + additive_factor
+            epochs_df['duration'] = epochs_df['stop'] - epochs_df['start']
+                        
+        if multiplicative_factor != 1.0:
+            epochs_df['duration'] = epochs_df['stop'] - epochs_df['start'] ## ensure duration is up-to-date
+            epochs_df['half_duration'] = epochs_df['duration'] * 0.5
+            epochs_df['t_mid'] = epochs_df['start'] + epochs_df['half_duration'] ## compute midpoint, which will be unchanged by the multipliciatve_factor  
+            epochs_df['duration'] = multiplicative_factor * epochs_df['duration'] ## update the duration
+            epochs_df['half_duration'] = epochs_df['duration'] * 0.5 ## updated half-duration
+            # epochs_df['t_mid'] = epochs_df['start'] + epochs_df['half_duration'] ## compute updated midpoint
+            epochs_df['start'] = epochs_df['t_mid'] - epochs_df['half_duration'] 
+            epochs_df['stop'] = epochs_df['t_mid'] + epochs_df['half_duration'] 
+            ## drop temporary columns
+            epochs_df = epochs_df.drop(columns=['half_duration', 't_mid'], inplace=False)
+            
+        if final_output_minimum_epoch_duration is not None:
+            epochs_df = epochs_df.epochs.get_epochs_longer_than(minimum_duration=final_output_minimum_epoch_duration) ## post-hoc filtering
+
+        if df_metadata is not None:
+            epochs_df.attrs = df_metadata
+
+        return epochs_df   
+        
+    def subtracting(self, other_epochs_df: pd.DataFrame, skip_get_overlapping:bool=False) -> pd.DataFrame:
+        """ gets a copy of the epochs after subtracting the epochs provided in `other_epochs_df`.
+        
+        Usage:
+            global_epoch_only_non_PBE_epoch_df: pd.DataFrame = global_epoch_only_df.epochs.subtracting(PBE_df)
+            global_epoch_only_non_PBE_epoch_df= global_epoch_only_non_PBE_epoch_df.epochs.modify_each_epoch_by(additive_factor=-0.008, final_output_minimum_epoch_duration=0.040)
+            global_epoch_only_non_PBE_epoch_df
+            
+        """
+        if not skip_get_overlapping:
+            epochs_df: pd.DataFrame = self.get_non_overlapping_df()
+        else:
+            epochs_df: pd.DataFrame = ensure_dataframe(self._obj)
+        epochs_Portion: P.Interval = epochs_df.epochs.to_PortionInterval()
+        other_epochs_Porition: P.Interval = other_epochs_df.epochs.to_PortionInterval()
+        return EpochsAccessor.from_PortionInterval(epochs_Portion.difference(other_epochs_Porition))
+        
+        
+            
     
     
     # Column Adding/Updating Methods _____________________________________________________________________________________ #
@@ -1444,6 +1506,18 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def get_in_between(self, copy_metadata:bool=False) -> "Epoch":
         """ gets the epochs that are in-between (non-overlapping) the current epochs."""
         return Epoch(epochs=self._df.epochs.get_in_between(copy_metadata=copy_metadata), metadata=self.metadata)
+
+    def modify_each_epoch_by(self, additive_factor: float = 0.0, multiplicative_factor: float=1.0, final_output_minimum_epoch_duration:float=0.0, copy_metadata:bool=False) -> "Epoch":
+        """ gets a copy of the epochs where each epoch is modified by the provided scale factors.
+        if safe_contract_epochs is not 0.0, a value of 0.0 is used to safely
+        """
+        return Epoch(epochs=self._df.epochs.modify_each_epoch_by(additive_factor=additive_factor, multiplicative_factor=multiplicative_factor, final_output_minimum_epoch_duration=final_output_minimum_epoch_duration, copy_metadata=copy_metadata), metadata=self.metadata)
+        
+    def subtracting(self, other_epochs_df: pd.DataFrame, skip_get_overlapping:bool=False) -> "Epoch":
+        """ gets a copy of the epochs after subtracting the epochs provided in `other_epochs_df`.            
+        """
+        return Epoch(epochs=self._df.epochs.subtracting(other_epochs_df=other_epochs_df, skip_get_overlapping=skip_get_overlapping), metadata=self.metadata)
+        
 
 
     # HDF5 Serialization _________________________________________________________________________________________________ #
