@@ -482,8 +482,136 @@ def find_epochs_overlapping_other_epochs(epochs_df: pd.DataFrame, epochs_df_requ
     is_included: NDArray = np.array([an_interval.overlaps(epochs_df_required_to_overlap_portion) for an_interval in continuous_time_binned_computation_epochs_portion_intervals])
     return is_included
 
+
+# @function_attributes(short_name=None, tags=['epoch'], input_requires=[], output_provides=[], uses=[], used_by=['split_epochs_into_training_and_test'], creation_date='2025-01-27 13:48', related_items=[])
+def sample_random_period_from_epoch(epoch_start: float, epoch_stop: float, training_data_portion: float, *additional_lap_columns, debug_print=False, debug_override_training_start_t=None):
+    """ randomly sample a portion of each lap. Draw a random period of duration (duration[i] * training_data_portion) from the lap.
+
+    """
+    total_epoch_duration: float = (epoch_stop - epoch_start)
+    training_duration: float = total_epoch_duration * training_data_portion
+    test_duration: float = total_epoch_duration - training_duration
+
+    ## new method:
+    # I'd like to randomly choose a test_start_t period from any time during the interval.
+
+    # TRAINING data split mode:
+    if debug_override_training_start_t is not None:
+        print(f'debug_override_training_start_t: {debug_override_training_start_t} provided, so not generating random number.')
+        training_start_t = debug_override_training_start_t
+    else:
+        training_start_t = np.random.uniform(epoch_start, epoch_stop)
+    
+    training_end_t = (training_start_t + training_duration)
+    
+    if debug_print:
+        print(f'training_start_t: {training_start_t}, training_end_t: {training_end_t}') # , training_wrap_duration: {training_wrap_duration}
+
+    if training_end_t > epoch_stop:
+        # Wrap around if training_end_t is beyond the period (wrap required):
+        # CASE: [train[0], test[0], train[1]] - train[1] = (train
+        # Calculate how much time should wrap to the beginning
+        wrap_duration = training_end_t - epoch_stop
         
+        # Define the training periods
+        train_period_1 = (training_start_t, epoch_stop, *additional_lap_columns) # training spans to the end of the lap
+        train_period_2 = (epoch_start, (epoch_start + wrap_duration), *additional_lap_columns) ## new period is crated for training at start of lap
         
+        # Return both training periods
+        train_outputs = [train_period_1, train_period_2]
+    else:
+        # all other cases have only one train interval (train[0])
+        train_outputs = [(training_start_t, training_end_t, *additional_lap_columns)]
+
+
+    train_outputs.sort(key=lambda i: (i[0], i[1])) # sort by low first, then by high if the low keys tie
+    return train_outputs
+
+
+# @function_attributes(short_name=None, tags=['epoch'], input_requires=[], output_provides=[], uses=['sample_random_period_from_epoch'], used_by=['Epoch.split_into_training_and_test'], creation_date='2025-01-27 13:48', related_items=[])
+def split_epochs_into_training_and_test(epochs_df: pd.DataFrame, training_data_portion: float=5.0/6.0, group_column_name: str='lap_id', additional_epoch_identity_column_names=['label', 'lap_id', 'lap_dir'], debug_print: bool = False):
+    """ Splits laps into separate training and test sections
+    
+    Usage:
+
+        from pyphoplacecellanalysis.SpecificResults.PendingNotebookCode import split_laps_training_and_test
+
+        ### Get the laps to train on
+        training_data_portion: float = 5.0/6.0
+        test_data_portion: float = 1.0 - training_data_portion # test data portion is 1/6 of the total duration
+
+        print(f'training_data_portion: {training_data_portion}, test_data_portion: {test_data_portion}')
+
+        laps_df: pd.DataFrame = deepcopy(global_any_laps_epochs_obj.to_dataframe())
+
+        laps_training_df, laps_test_df = split_laps_training_and_test(laps_df=laps_df, training_data_portion=training_data_portion, debug_print=False)
+
+        laps_df
+        laps_training_df
+        laps_test_df 
+
+    """
+    from neuropy.core.epoch import Epoch, ensure_dataframe
+
+    # BEGIN FUNCTION BODY ________________________________________________________________________________________________ #
+
+    # Randomly sample a portion of each lap. Draw a random period of duration (duration[i] * training_data_portion) from the lap.
+    train_rows = []
+    test_rows = []
+
+    for epoch_id, group in epochs_df.groupby(group_column_name):
+        lap_start = group['start'].min()
+        lap_stop = group['stop'].max()
+        curr_lap_duration: float = lap_stop - lap_start
+        if debug_print:
+            print(f'lap_id: {epoch_id} - group: {group}')
+        curr_additional_lap_column_values = [group[a_col].to_numpy()[0] for a_col in additional_epoch_identity_column_names]
+        if debug_print:
+            print(f'\tcurr_additional_lap_column_values: {curr_additional_lap_column_values}')
+        # Get the random training start and stop times for the lap.
+        # Define your period as an interval
+        curr_lap_period = P.closed(lap_start, lap_stop)
+        epoch_start_stop_tuple_list = sample_random_period_from_epoch(lap_start, lap_stop, training_data_portion, *curr_additional_lap_column_values)
+
+        a_combined_intervals = P.empty()
+        for an_epoch_start_stop_tuple in epoch_start_stop_tuple_list:
+            a_combined_intervals = a_combined_intervals.union(P.closed(an_epoch_start_stop_tuple[0], an_epoch_start_stop_tuple[1]))
+            train_rows.append(an_epoch_start_stop_tuple)
+        
+        # Calculate the difference between the period and the combined interval
+        complement_intervals = curr_lap_period.difference(a_combined_intervals)
+        _temp_test_epochs_df = EpochsAccessor.from_PortionInterval(complement_intervals)
+        _temp_test_epochs_df[additional_epoch_identity_column_names] = curr_additional_lap_column_values ## add in the additional columns
+        test_rows.append(_temp_test_epochs_df)
+
+        ## VALIDATE:
+        a_train_durations = [(an_epoch_start_stop_tuple[1]-an_epoch_start_stop_tuple[0]) for an_epoch_start_stop_tuple in epoch_start_stop_tuple_list]
+        all_train_durations: float = np.sum(a_train_durations)
+        all_test_durations: float = _temp_test_epochs_df['duration'].sum()
+        assert np.isclose(curr_lap_duration, (all_train_durations+all_test_durations)), f"(all_train_durations: {all_train_durations} + all_test_durations: {all_test_durations}) should equal curr_lap_duration: {curr_lap_duration}, but instead it equals {(all_train_durations+all_test_durations)}"
+
+
+    ## INPUTS: laps_df, laps_df
+
+    # train_rows
+    # Convert to DataFrame and reset indices
+    epochs_training_df = pd.DataFrame(train_rows, columns=['start', 'stop', *additional_epoch_identity_column_names])
+    epochs_training_df['duration'] = epochs_training_df['stop'] - epochs_training_df['start']
+
+
+    # Convert to DataFrame and reset indices
+    epochs_test_df = pd.concat(test_rows)
+    epochs_training_df.reset_index(drop=True, inplace=True)
+    epochs_test_df.reset_index(drop=True, inplace=True)
+
+    # assert np.shape(laps_test_df)[0] == np.shape(laps_df)[0], f"np.shape(laps_test_df)[0]: {np.shape(laps_test_df)[0]} != np.shape(laps_df)[0]: {np.shape(laps_df)[0]}"
+
+    ## OUTPUTS: epochs_training_df, epochs_test_df
+    return epochs_training_df, epochs_test_df
+
+    
+
+
 """ 
 from neuropy.core.epoch import NamedTimerange, EpochsAccessor, Epoch
 
@@ -841,7 +969,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
         return epochs_df   
         
-    def subtracting(self, other_epochs_df: pd.DataFrame, skip_get_overlapping:bool=False) -> pd.DataFrame:
+    def subtracting(self, other_epochs_df: pd.DataFrame, skip_get_non_overlapping:bool=False) -> pd.DataFrame:
         """ gets a copy of the epochs after subtracting the epochs provided in `other_epochs_df`.
         
         Usage:
@@ -850,7 +978,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             global_epoch_only_non_PBE_epoch_df
             
         """
-        if not skip_get_overlapping:
+        if not skip_get_non_overlapping:
             epochs_df: pd.DataFrame = self.get_non_overlapping_df()
         else:
             epochs_df: pd.DataFrame = ensure_dataframe(self._obj)
@@ -859,8 +987,42 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return EpochsAccessor.from_PortionInterval(epochs_Portion.difference(other_epochs_Porition))
         
         
+    def split_into_training_and_test(self, training_data_portion: float=5.0/6.0, group_column_name: str='label', additional_epoch_identity_column_names:List[str]=['label'], skip_get_non_overlapping:bool=False, debug_print: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """ Splits laps into separate training and test sections
+        
+        Usage:
+
+            ### Get the laps to train on
+            training_data_portion: float = 5.0/6.0
+            test_data_portion: float = 1.0 - training_data_portion # test data portion is 1/6 of the total duration
+
+            print(f'training_data_portion: {training_data_portion}, test_data_portion: {test_data_portion}')
+
+            a_laps_df: pd.DataFrame = ensure_dataframe(deepcopy(a_config['pf_params'].computation_epochs))
+            a_laps_training_df, a_laps_test_df = a_laps_df.epochs.split_into_training_and_test(training_data_portion=training_data_portion, group_column_name ='lap_id', additional_epoch_identity_column_names=['label', 'lap_id', 'lap_dir'], skip_get_non_overlapping=False, debug_print=False) # a_laps_training_df, a_laps_test_df both comeback good here.
+
+            laps_df
+            laps_training_df
+            laps_test_df 
             
+        Usage 2:
+            training_data_portion: float = 5.0/6.0
+            a_new_training_df, a_new_test_df = global_epoch_only_non_PBE_epoch_df.epochs.split_into_training_and_test(training_data_portion=training_data_portion, group_column_name ='label', additional_epoch_identity_column_names=['label'], skip_get_non_overlapping=False, debug_print=False) # a_laps_training_df, a_laps_test_df both comeback good here.
+
+            a_new_training_df
+            a_new_test_df
+
     
+
+        """
+        if not skip_get_non_overlapping:
+            epochs_df: pd.DataFrame = self.get_non_overlapping_df()
+        else:
+            epochs_df: pd.DataFrame = self.get_valid_df()        
+
+        return split_epochs_into_training_and_test(epochs_df=epochs_df, training_data_portion=training_data_portion, group_column_name=group_column_name, additional_epoch_identity_column_names=additional_epoch_identity_column_names, debug_print=debug_print)
+
+
     
     # Column Adding/Updating Methods _____________________________________________________________________________________ #
     def adding_active_aclus_information(self, spikes_df: pd.DataFrame, epoch_id_key_name: str = 'Probe_Epoch_id', add_unique_aclus_list_column: bool=False) -> pd.DataFrame:
@@ -1513,10 +1675,10 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         return Epoch(epochs=self._df.epochs.modify_each_epoch_by(additive_factor=additive_factor, multiplicative_factor=multiplicative_factor, final_output_minimum_epoch_duration=final_output_minimum_epoch_duration, copy_metadata=copy_metadata), metadata=self.metadata)
         
-    def subtracting(self, other_epochs_df: pd.DataFrame, skip_get_overlapping:bool=False) -> "Epoch":
+    def subtracting(self, other_epochs_df: pd.DataFrame, skip_get_non_overlapping:bool=False) -> "Epoch":
         """ gets a copy of the epochs after subtracting the epochs provided in `other_epochs_df`.            
         """
-        return Epoch(epochs=self._df.epochs.subtracting(other_epochs_df=other_epochs_df, skip_get_overlapping=skip_get_overlapping), metadata=self.metadata)
+        return Epoch(epochs=self._df.epochs.subtracting(other_epochs_df=other_epochs_df, skip_get_overlapping=skip_get_non_overlapping), metadata=self.metadata)
         
 
 
