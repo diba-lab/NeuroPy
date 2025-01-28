@@ -285,6 +285,7 @@ def firing_rate(spike_clusters, cluster_ids=None, bin_size=None, duration=None):
 
 def np_spike_correlations(
         neurons,
+        neuron_inds,
         sample_rate=1.0,
         bin_size=None,
         window_size=None,
@@ -311,6 +312,13 @@ def np_spike_correlations(
     correlograms : array
         A `(n_clusters, n_clusters, winsize_samples)` array with all pairwise CCGs.
     """
+
+    # Convert to array if int
+    if isinstance(neuron_inds, int):
+        neuron_inds = [neuron_inds]
+
+    neurons = neurons.neuron_slice(neuron_inds=neuron_inds)
+
     # Get spike times from neurons
     spike_times, spike_clusters, spike_samples = _np_assemble_spike_arrays(neurons, sample_rate)
 
@@ -382,6 +390,7 @@ def np_spike_correlations(
 
 def cp_spike_correlations(
         neurons,
+        neuron_inds,
         sample_rate=1.0,
         bin_size=None,
         window_size=None,
@@ -408,6 +417,13 @@ def cp_spike_correlations(
     correlograms : array
         A `(n_clusters, n_clusters, winsize_samples)` array with all pairwise CCGs.
     """
+
+    # Convert to array if int
+    if isinstance(neuron_inds, int):
+        neuron_inds = [neuron_inds]
+
+    neurons = neurons.neuron_slice(neuron_inds=neuron_inds)
+
     # Get spike times from neurons
     spike_times, spike_clusters, spike_samples = _cp_assemble_spike_arrays(neurons, sample_rate)
 
@@ -472,6 +488,7 @@ def cp_spike_correlations(
 
 def spike_correlations(
         neurons,
+        neuron_inds,
         sample_rate=1.0,
         bin_size=None,
         window_size=None,
@@ -479,7 +496,7 @@ def spike_correlations(
         use_cupy=False
 ):
     if use_cupy:
-        correlograms = cp_spike_correlations(neurons, sample_rate=sample_rate, bin_size=bin_size, window_size=window_size, symmetrize=symmetrize)
+        correlograms = cp_spike_correlations(neurons, neuron_inds, sample_rate=sample_rate, bin_size=bin_size, window_size=window_size, symmetrize=symmetrize)
     else:
-        correlograms = np_spike_correlations(neurons, sample_rate=sample_rate, bin_size=bin_size, window_size=window_size, symmetrize=symmetrize)
+        correlograms = np_spike_correlations(neurons, neuron_inds, sample_rate=sample_rate, bin_size=bin_size, window_size=window_size, symmetrize=symmetrize)
     return correlograms
