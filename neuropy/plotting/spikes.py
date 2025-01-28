@@ -130,17 +130,26 @@ def plot_mua(mua: core.Mua, ax=None, **kwargs):
 def plot_correlograms(
         neurons : core.Neurons,
         neuron_inds,
-        type="all",
+        type="all", #all, acg, ccg
         sample_rate=1.0,
         bin_size=0.001,
         window_size=0.05,
         ax=None,
-        use_cupy=False
+        use_cupy=False,
+        ref_p=False,
+        ref_t=0.002
 ):
 
+    # Allow integer inputs (assumes ACG)
     if isinstance(neuron_inds, int):
         neuron_inds = [neuron_inds]
+    # Remove duplicates because we get ACGs already
+    else:
+        neuron_inds = list(dict.fromkeys(neuron_inds))
 
+    n_neurons = len(neuron_inds)
+
+    # Get spike correlations
     ccgs = correlations.spike_correlations(
         neurons,
         neuron_inds=neuron_inds,
@@ -149,12 +158,15 @@ def plot_correlograms(
         window_size=window_size,
         use_cupy=use_cupy)
 
-    # Adjust for CCG or ACG only
-    if type == "ccgs_only":
-        ccgs = ccgs[0, 1, :].reshape(1, 1, -1)
 
     # Check the shape of ccgs to determine if it’s an ACG or CCG
-    is_acg = ccgs.shape[0] == 1 and ccgs.shape[1] == 1  # Shape is (1, 1, N) for ACGs
+    is_acg = ccgs.shape[:2] == (1, 1) # Shape is (1, 1, N) for ACGs
+
+    # Adjust for CCG or ACG only
+    if type == "acg":
+        ccgs = np.diagonal(ccgs,axis1=0,axis2=1).T.reshape(1,n_neurons,-1)
+    if type == "ccg" and not is_acg:
+        ccgs = ccgs[0, 1, :][None, None, :]
 
     # Determine subplot dimensions based on the correlogram shape
     if ax is None:
@@ -168,7 +180,6 @@ def plot_correlograms(
     winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
 
     # Plot correlograms using pertinent library
-
     bins = np.linspace(-window_size / 2, window_size / 2, winsize_bins)
 
     # Plot
@@ -178,10 +189,10 @@ def plot_correlograms(
 
             a.bar(bins, ccg_cpu, width=bins[1] - bins[0])
 
-            if is_acg:
-                a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+            if ref_p:
+                a.axvline(-ref_t, color='blue', linestyle='--', linewidth=1,
                           label='Refractory Period Boundary')  # Line at -1 ms
-                a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+                a.axvline(ref_t, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
 
             a.set_xticks([-window_size / 2, 0, window_size / 2])
             a.set_xlabel("Time (s)")
@@ -190,10 +201,10 @@ def plot_correlograms(
         for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
             a.bar(bins, ccg, width=bins[1] - bins[0])
 
-            if is_acg:
-                a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+            if ref_p:
+                a.axvline(-ref_t, color='blue', linestyle='--', linewidth=1,
                           label='Refractory Period Boundary')  # Line at -1 ms
-                a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+                a.axvline(ref_t, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
 
             a.set_xticks([-window_size / 2, 0, window_size / 2])
             a.set_xlabel("Time (s)")
