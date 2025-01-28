@@ -63,6 +63,13 @@ def min_max_scaler(x, axis=-1):
     -------
     np.array
         scaled array
+
+
+    ERRORS:
+        2023-03-02 - ValueError: zero-size array to reduction operation minimum which has no identity
+            Occurs when np.shape(x) is (0,)
+
+
     """
     min_val = np.min(x, axis=axis, keepdims=True)
     range_val = np.ptp(x, axis=axis, keepdims=True)
@@ -101,6 +108,82 @@ def min_max_external_scaler(x, xmin, xptp):
     return (x - xmin) / xptp
 
 
+def bounded(v: float, vmin: float = -np.inf, vmax: float = np.inf) -> float:
+    """Returns the value bounded between two optional lower and upper bounds.
+    It clips to the bounds.
+
+    Usage:
+        from neuropy.utils.mathutil import bounded
+
+        v_bounded = bounded(value, vmin=0.0, vmax=1.0)
+    
+    Usage 2:
+        value = [-150, -65, -0.9, 0, 0.9, 65, 150]
+
+        bounded(value, vmin=0.0, vmax=1.0) # array([0. , 0. , 0. , 0. , 0.9, 1. , 1. ])
+        bounded(value, vmin=-1.0, vmax=1.0) # array([-1. , -1. , -0.9,  0. ,  0.9,  1. ,  1. ])
+
+        
+    """
+    if np.isscalar(v):
+        if np.isnan(v):
+            return np.nan  # Return NaN directly if v is NaN
+        return min(max(v, vmin), vmax)  # No need for numpy functions for scalar
+    
+    # If v is array-like
+    v = np.array(v)
+    v = np.clip(v, vmin, vmax)
+    return v
+
+    
+def map_to_fixed_range(lin_pos, x_min:float=0.0, x_max:float=1.0):
+    # Normalize lin_pos to the range [0, 1]
+    lin_pos_normalized = (lin_pos - np.nanmin(lin_pos)) / (np.nanmax(lin_pos) - np.nanmin(lin_pos))
+    # Scale the normalized lin_pos to the range [x_min, x_max]
+    mapped_pos = lin_pos_normalized * (x_max - x_min) + x_min
+    return mapped_pos
+
+# @function_attributes(short_name=None, tags=['map','values','transform'], input_requires=[], output_provides=[], uses=[], used_by=[], creation_date='2023-05-31 16:53', related_items=[])
+def map_value(value, from_range: tuple[float, float], to_range: tuple[float, float]):
+    """ Maps values from a range `from_low_high_tuple`: (a, b) to a new range `to_low_high_tuple`: (A, B). Similar to arduino's `map(value, fromLow, fromHigh, toLow, toHigh)` function
+    
+    Usage:
+        from neuropy.utils.mathutil import map_value
+        track_change_mapped_idx = map_value(track_change_time, (Flat_epoch_time_bins_mean[0], Flat_epoch_time_bins_mean[-1]), (0, (num_epochs-1)))
+        track_change_mapped_idx
+        
+    Example 2: Defining Shortcut mapping
+        map_value_time_to_epoch_idx_space = lambda v: map_value(v, (Flat_epoch_time_bins_mean[0], Flat_epoch_time_bins_mean[-1]), (0, (num_epochs-1))) # same map
+
+    """
+    # Calculate the ratio of the input value relative to the input range
+    from_low, from_high = from_range
+    to_low, to_high = to_range
+    ratio = (value - from_low) / (from_high - from_low)
+    # Map the ratio to the output range
+    mapped_value = to_low + (to_high - to_low) * ratio
+    # Return the mapped value
+    return mapped_value
+
+
+def compute_grid_bin_bounds(*args):
+    """ computes the (min, max) bound for each passed array and returns a tuple of these (min, max) tuples. 
+    from neuropy.utils.mathutil import compute_grid_bin_bounds
+    
+    grid_bin_bounds: `((x_min, x_max), (y_min, y_max), ...)
+    
+    """
+    grid_bin_bounds = []
+    for data in args:
+        if data is not None:
+            bounds = (np.nanmin(data), np.nanmax(data))
+        else:
+            bounds = None # append None to the array
+        grid_bin_bounds.append(bounds)
+    return tuple(grid_bin_bounds)
+
+
+
 def cdf(x, bins):
     """Returns cummulative distribution for x at bins"""
     return np.cumsum(np.histogram(x, bins, density=True)[0])
@@ -133,8 +216,9 @@ def getICA_Assembly(x):
     return V
 
 
-def threshPeriods(arr, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
-    ThreshSignal = np.diff(np.where(arr > lowthresh, 1, 0))
+def threshPeriods(sig, lowthresh=1, highthresh=2, minDistance=30, minDuration=50):
+
+    ThreshSignal = np.diff(np.where(sig > lowthresh, 1, 0))
     start = np.where(ThreshSignal == 1)[0]
     stop = np.where(ThreshSignal == -1)[0]
 
@@ -169,7 +253,7 @@ def threshPeriods(arr, lowthresh=1, highthresh=2, minDistance=30, minDuration=50
     fourthPass = []
     # peakNormalizedPower, peaktime = [], []
     for i in range(len(thirdPass)):
-        maxValue = max(arr[thirdPass[i, 0] : thirdPass[i, 1]])
+        maxValue = max(sig[thirdPass[i, 0] : thirdPass[i, 1]])
         if maxValue >= highthresh:
             fourthPass.append(thirdPass[i])
             # peakNormalizedPower.append(maxValue)
@@ -243,7 +327,20 @@ def contiguous_regions(condition):
     a 2D array where the first column is the start index of the region and the
     second column is the end index. Taken directly from stackoverflow:
     https://stackoverflow.com/questions/4494404/find-large-number-of-
-    consecutive-values-fulfilling-condition-in-a-numpy-array"""
+    consecutive-values-fulfilling-condition-in-a-numpy-array
+        
+    Usage:
+        from neuropy.utils.mathutil import contiguous_regions
+        idnan = mathutil.contiguous_regions(np.isnan(x))  # identify missing data points
+
+            for ids in idnan:
+                missing_ids = range(ids[0], ids[-1])
+                bracket_ids = ids + [-1, 0]
+                xgood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], x[bracket_ids])
+                ygood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], y[bracket_ids])
+                zgood[missing_ids] = np.interp(t[missing_ids], t[bracket_ids], z[bracket_ids])
+
+    """
 
     # Find the indices of changes in "condition"
     d = np.diff(condition)
