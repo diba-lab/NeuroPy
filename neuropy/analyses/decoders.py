@@ -596,7 +596,7 @@ def epochs_spkcount(neurons: Union[core.Neurons, pd.DataFrame], epochs: Union[co
                         bin_container = BinningContainer(edges=reduced_time_bin_edges)
                         reduced_time_bin_centers = deepcopy(bin_container.centers)                 
 
-                except BaseException as err:
+                except Exception as err:
                     print(f'ERROR: epochs_spkcount(...): epoch[{i}], nbins[{i}]: while building time bins, encountered exception err: {err}.')
                     raise err                
             
