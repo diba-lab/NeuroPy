@@ -63,7 +63,7 @@ class Pf1D(core.Ratemap):
             f, sigma / grid_bin, axis=-1
         )  # divide by grid_bin to account for discrete spacing
 
-        xbin = np.arange(np.min(x), np.max(x) + grid_bin, grid_bin)
+        xbin = np.arange(np.nanmin(x), np.nanmax(x) + grid_bin, grid_bin)
 
         if epochs is not None:
             assert isinstance(epochs, core.Epoch), "epochs should be core.Epoch object"
@@ -458,7 +458,7 @@ class Pf2D:
         epochs: core.Epoch = None,
         frate_thresh=1.0,
         speed_thresh=3,
-        grid_bin=1,
+        grid_bin=10,
         sigma=1,
     ):
         """Calculates 2D placefields
@@ -477,9 +477,11 @@ class Pf2D:
         """
         assert position.ndim > 1, "Position is not 2D"
         period = [position.t_start, position.t_stop]
-        smooth_ = lambda f: gaussian_filter1d(
-            f, sigma / grid_bin, axis=-1
-        )  # divide by grid_bin to account for discrete spacing
+        #smooth_ = lambda f: gaussian_filter1d(
+        #    f, sigma / grid_bin, axis=-1
+        #)  # divide by grid_bin to account for discrete spacing
+        smooth_ = lambda f: gaussian_filter(f, sigma=(sigma / grid_bin, 
+                                                      sigma / grid_bin))
 
         spikes = neurons.time_slice(*period).spiketrains
         cell_ids = neurons.neuron_ids
@@ -487,7 +489,7 @@ class Pf2D:
 
         # ----- Position---------
         xcoord = position.x
-        ycoord = position.y
+        ycoord = position.z #default for optitrack input
         time = position.time
         trackingRate = position.sampling_rate
 
@@ -496,8 +498,8 @@ class Pf2D:
         y = ycoord[ind_maze]
         t = time[ind_maze]
 
-        x_grid = np.arange(min(x), max(x) + grid_bin, grid_bin)
-        y_grid = np.arange(min(y), max(y) + grid_bin, grid_bin)
+        x_grid = np.arange(np.nanmin(x), np.nanmax(x) + grid_bin, grid_bin)
+        y_grid = np.arange(np.nanmin(y), np.nanmax(y) + grid_bin, grid_bin)
         # x_, y_ = np.meshgrid(x_grid, y_grid)
 
         diff_posx = np.diff(x)
@@ -505,7 +507,7 @@ class Pf2D:
 
         speed = np.sqrt(diff_posx**2 + diff_posy**2) / (1 / trackingRate)
 
-        speed = smooth_(speed)
+        #speed = smooth_(speed)
 
         dt = t[1] - t[0]
         running = np.where(speed / dt > speed_thresh)[0]
@@ -563,7 +565,7 @@ class Pf2D:
         self.spk_pos = get_elem(spk_pos)
         self.spk_t = get_elem(spk_t)
         self.ratemaps = get_elem(maps)
-        self.cell_ids = cell_ids[good_cells_indx]
+        self.cell_ids = cell_ids.iloc[good_cells_indx]
         self.occupancy = occupancy
         self.speed = speed
         self.x = x
@@ -622,6 +624,8 @@ class Pf2D:
             figures.append(fig)
 
         for cell, pfmap in enumerate(map_use):
+            if cell == 19: #tmp
+                continue
             ind = cell // np.prod(subplots)
             subplot_ind = cell % np.prod(subplots)
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
@@ -635,7 +639,7 @@ class Pf2D:
             # max_frate =
             ax1.axis("off")
             ax1.set_title(
-                f"Cell {self.cell_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
+                f"Cell {self.cell_ids.iloc[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
             )
 
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
@@ -674,11 +678,11 @@ class Pf2D:
             else:
                 ax1 = ax[cell]
             ax1.plot(self.x, self.y, color="#d3c5c5")
-            ax1.plot(spk_x, spk_y, ".r", markersize=0.8, color=[1, 0, 0, alpha])
+            ax1.plot(spk_x, spk_y, ".r", markersize=0.8)  #, color=[1, 0, 0, alpha])
             ax1.axis("off")
             if label_cells:
                 # Put info on title
-                info = self.cell_ids[cell]
+                info = self.cell_ids.iloc[cell]
                 ax1.set_title(f"Cell {info}")
 
         fig.suptitle(
@@ -755,3 +759,19 @@ class Pf2D:
         pf_data_df = pfmaze.neuron_slice(inds=np.arange(10)).get_pf_data(test="blah", step=0.1, height_thresh=0.5, plot=True)
         pass
         # pfmaze.plot_ratemap_w_raster([2])
+
+    def neuron_slice(self, inds=None, ids=None):
+        """Slice out neurons"""
+        assert (inds is None) != (ids is None), "Exactly one of 'inds' and 'ids' must be a list or array"
+        if ids is not None:
+            inds = [np.where(idd == self.neuron_ids)[0][0] for idd in np.atleast_1d(ids)]
+        inds = np.sort(np.atleast_1d(inds))
+
+        # Make a copy and slice
+        pfslice = deepcopy(self)
+        #pfslice.tuning_curves = self.tuning_curves[inds]
+        pfslice.neuron_ids = self.neuron_ids[inds]
+        pfslice.ratemap_spiketrains = [self.ratemap_spiketrains[ind] for ind in inds]
+        pfslice.ratemap_spiketrains_pos = [self.ratemap_spiketrains_pos[ind] for ind in inds]
+
+        return pfslice

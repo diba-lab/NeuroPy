@@ -353,11 +353,16 @@ class OptitrackIO:
         scale : float, optional
             scale the extracted coordinates, by default 1.0
         """
+        
+        # ----- grab only files that are position files -------
+        all_files = sorted(file for file in self.dirname.rglob("Take*") if file.suffix in {".csv", ".fbx"})
 
-        sampling_rate = getSampleRate(sorted((self.dirname).glob("*.csv"))[0])
+        sampling_rate = getSampleRate(all_files[0])
+        #sampling_rate = getSampleRate(sorted((self.dirname).glob("*.csv"))[0])
 
         # ------- collecting timepoints related to position tracking ------
-        posfiles = np.asarray(sorted(self.dirname.glob("*.csv")))
+        #currently the next few lines will break with fbx. fix if you're gonna use
+        posfiles = np.asarray(all_files)
         posfilestimes = np.asarray([getStartTime(file) for file in posfiles])
         filesort_ind = np.argsort(posfilestimes).astype(int)
         posfiles = posfiles[filesort_ind]

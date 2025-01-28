@@ -24,6 +24,14 @@ class Position(DataWriter):
         self._sampling_rate = sampling_rate
         super().__init__(metadata=metadata)
 
+    #@property
+    #def traces(self,traces):
+    #    return self.traces
+    
+    #@traces.setter
+    #def traces(self,traces):
+    #    self.traces = traces
+    
     @property
     def x(self):
         return self.traces[0]
