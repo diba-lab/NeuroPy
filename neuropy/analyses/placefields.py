@@ -91,6 +91,7 @@ class Pf1D(core.Ratemap):
         speed_thresh=3,
         grid_bin=5,
         sigma=0,
+        sigma_pos=0.1,
     ):
         """computes 1d place field using linearized coordinates. It always computes two place maps with and
         without speed thresholds.
@@ -112,12 +113,19 @@ class Pf1D(core.Ratemap):
             standard deviation for smoothing occupancy and spikecounts in each position bin,
             in units of cm, PRIOR to calculating binned tuning curves. default 0 cm
             NOTE that smoothing before creating tuning-curves is not standard, kept for legacy purposes.
+        sigma_pos: float
+            smoothing kernel for smoothing position (and therefore speed) before speed thresholding and calculating
+            occupancy.
+            Recommended for high sample rates to remove articially high speeds due to division by a very small
+            denominator (1 / sample_rate).
         NOTE: speed_thresh is ignored if epochs is provided
         """
 
         assert position.ndim == 1, "Only 1 dimensional position are acceptable"
         neuron_ids = neurons.neuron_ids
         position_srate = position.sampling_rate
+        if sigma_pos > 0:
+            position = position.get_smoothed(sigma_pos)
         x = position.x
         speed = position.speed
         t = position.time
@@ -156,7 +164,8 @@ class Pf1D(core.Ratemap):
             spiketrains = neurons.time_slice(t_start, t_stop).spiketrains
             indx = np.where(speed >= speed_thresh)[0]
 
-        # to avoid interpolation error, speed and position estimation for spiketrains should use time and speed of entire position (not only on threshold crossing time points)
+        # to avoid interpolation error, speed and position estimation for spiketrains should use time
+        # and speed of entire position (not only on threshold crossing time points)
         x_thresh = x[indx]
 
         spk_pos, spk_t, spkcounts = [], [], []
@@ -198,6 +207,7 @@ class Pf1D(core.Ratemap):
         self.t_start = t_start
         self.t_stop = t_stop
         self.sigma = sigma
+        self.sigma_pos = sigma_pos
 
     def estimate_theta_phases(self, signal: core.Signal):
         """Calculates phase of spikes computed for placefields
@@ -217,7 +227,7 @@ class Pf1D(core.Ratemap):
         self.ratemap_spiketrains_phases = phase
 
     def plot_with_phase(
-        self, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)
+        self, sigma=0, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)
     ):
         cmap = mpl.cm.get_cmap(cmap)
 
@@ -226,6 +236,8 @@ class Pf1D(core.Ratemap):
         # ratemaps = mapinfo["ratemaps"]
         # ratemaps = self.ratemap_spiketrains
         ratemaps = self.tuning_curves
+        if sigma > 0:
+            ratemaps = gaussian_filter1d(ratemaps, sigma=sigma, axis=1)
         if normalize:
             # ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
             ratemaps = [map_ / np.max(map_) if len(map_) > 0 else np.array([]) for map_ in ratemaps]
@@ -244,7 +256,7 @@ class Pf1D(core.Ratemap):
             ax.fill_between(bin_cntr, 0, ratemaps[cell], color=color, alpha=0.3)
             ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
             ax.set_xlabel("Position (cm)")
-            ax.set_ylabel("Normalized frate")
+            ax.set_ylabel("Normalized frate") if normalize else ax.set_ylabel("frate")
             ax.set_title(f"Cell id {self.neuron_ids[cell]}")
             # ax.set_title(
             #     " ".join(filter(None, ("Cell", str(cell), self.run_dir.capitalize())))
