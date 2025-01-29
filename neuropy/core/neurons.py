@@ -34,11 +34,39 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         neuron_ids=None,
         neuron_type=None,
         waveforms=None,
+        waveforms_amplitude=None,
         peak_channels=None,
+        clu_q=None,
         shank_ids=None,
         extended_neuron_properties_df=None,
         metadata=None,
     ) -> None:
+        """Initializes the Neurons instance
+         Parameters
+         ----------
+         spiketrains : np.array/list of numpy arrays
+             each array contains spiketimes in seconds, 5 arrays for 5 neurons
+         t_stop : float
+             time when the recording was stopped
+         t_start : float, optional
+             start time for the recording/spike trains, by default 0.0
+         sampling_rate : int, optional
+             at what sampling rate the spike times were recorded, by default 1
+         neuron_ids : array, optional
+             id for each spiketrain/neuron, by default None
+         neuron_type : array of strings, optional
+             what neuron type, by default None
+         waveforms : (n_neurons x n_channels x n_timepoints), optional
+             waveshape for each neuron, by default None
+         waveforms_amplitude : list/array of arrays, optional
+             the number of arrays should match spiketrains, each value gives scaling factor used for template waveform to extract that spike, by default None
+         peak_channels : array, optional
+             peak channel for waveform, by default None
+         shank_ids : array of int, optional
+             which shank of the probe each spiketrain was recorded from, by default None
+         metadata : dict, optional
+             any additional metadata, by default None
+         """
         super().__init__(metadata=metadata)
 
         self.spiketrains = np.array(spiketrains, dtype="object")
@@ -59,6 +87,15 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
                 waveforms.shape[0] == self.n_neurons
             ), "Waveforms first dimension should match number of neurons"
 
+
+        if waveforms_amplitude is not None:
+            assert len(waveforms_amplitude) == len(
+                self.spiketrains
+            ), "length should match"
+            self.waveforms_amplitude = waveforms_amplitude
+        else:
+            self.waveforms_amplitude = None
+
         self.waveforms = waveforms
         self.shank_ids = shank_ids
         self.neuron_type = neuron_type
@@ -66,6 +103,16 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         self._sampling_rate = sampling_rate
         self.t_start = t_start
         self.t_stop = t_stop
+        self.clu_q = clu_q
+
+    @staticmethod
+    def load(file):
+        """Loads a previously saved Neurons class from a .npy file
+        TODO CHECK FOR FUNCTIONALITY BK
+        """
+        neurons_dict = DataWriter.from_file(file)
+
+        return Neurons.from_dict(neurons_dict)
 
     @property
     def neuron_ids(self):
