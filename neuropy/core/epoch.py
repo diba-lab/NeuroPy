@@ -1,21 +1,26 @@
+# Standard Library Imports
 from copy import deepcopy
-from pathlib import Path
-from typing import Optional, List, Dict, Tuple, Union
 from importlib import metadata
+from pathlib import Path
 import warnings
 from warnings import warn
+
+# Package Imports
 import numpy as np
-from nptyping import NDArray
 import pandas as pd
-import portion as P # Required for interval search: portion~=2.3.0
+import portion as P  # Required for interval search: portion~=2.3.0
+from nptyping import NDArray
+
+# Module-Specific Imports
+from typing import Dict, List, Optional, Tuple, Union
+
+# Local Imports
+from .datawriter import DataWriter
 
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable, DataFrameInitializable
-from .datawriter import DataWriter
 from neuropy.utils.mixins.print_helpers import SimplePrintable, OrderedMeta
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicedMixin, TimeColumnAliasesProtocol
-from neuropy.utils.efficient_interval_search import get_non_overlapping_epochs, deduplicate_epochs # for EpochsAccessor's .get_non_overlapping_df()
-from neuropy.utils.mixins.AttrsClassHelpers import AttrsBasedClassHelperMixin, serialized_field, serialized_attribute_field, non_serialized_field
-from neuropy.utils.mixins.HDF5_representable import HDF_DeserializationMixin, post_deserialize, HDF_SerializationMixin, HDFMixin
+from neuropy.utils.mixins.HDF5_representable import HDFMixin
 
 
 def find_data_indicies_from_epoch_times(a_df: pd.DataFrame, epoch_times: NDArray, t_column_names=None, atol:float=1e-3, not_found_action='skip_index', debug_print=False) -> NDArray:
@@ -1174,10 +1179,10 @@ epochs_df
 
 
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
-    """ An Epoch object holds one ore more periods of time (marked by start/end timestamps) along with their corresponding metadata.
+    """ An Epoch object holds one or more periods of time (marked by start/end timestamps) along with their corresponding metadata.
 
     """
-    def __init__(self, epochs: pd.DataFrame, metadata=None) -> None:
+    def __init__(self, epochs: pd.DataFrame, metadata=None, file=None) -> None:
         """[summary]
         Args:
             epochs (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
@@ -1189,9 +1194,8 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
             epochs = epochs.to_dataframe() # try to convert to dataframe if the object is an Epoch or other compatible object
             assert isinstance(epochs, pd.DataFrame)
         super().__init__(metadata=metadata)
-        self._df = epochs.epochs.get_valid_df() # gets already sorted appropriately and everything. epochs.epochs uses the DataFrame accesor
+        self._df = epochs.epochs.get_valid_df() # gets already sorted appropriately and everything. epochs.epochs uses the DataFrame accessor
         self._check_epochs(self._df) # check anyway
-        # self._check_epochs(epochs) # check anyway
 
     @property
     def starts(self):
@@ -1204,6 +1208,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     @property
     def t_start(self):
         return self.starts[0]
+
     @t_start.setter
     def t_start(self, t):
         self._df.epochs.t_start = t
@@ -1225,10 +1230,10 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """ since each epoch is given by a (start, stop) time, the midtimes are the center of this epoch. """
         return self._df.epochs.midtimes
 
-
     @property
     def n_epochs(self):
         return self._df.epochs.n_epochs
+
     @property
     def labels(self):
         return self._df.epochs.labels
@@ -1239,7 +1244,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def get_named_timerange(self, epoch_name):
         return NamedTimerange(name=epoch_name, start_end_times=self[epoch_name])
 
-
     @property
     def metadata(self):
         return self._metadata
@@ -1249,14 +1253,12 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """metadata compatibility"""
         self._metadata = metadata
 
-        
     @property
     def epochs(self) -> "EpochsAccessor":
         """ a passthrough accessor to the Pandas dataframe `EpochsAccessor` to allow complete pass-thru compatibility with either Epoch or pd.DataFrame versions of epochs.
         Instead of testing whether it's an `Epoch` object or pd.DataFrame and then converting back and forth, should just be able to pretend it's a dataframe for the most part and use the `some_epochs.epochs.*` properties and methods.
         """
         return self._df.epochs
-
 
     def _check_epochs(self, epochs):
         assert isinstance(epochs, pd.DataFrame)
@@ -1288,7 +1290,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def str_for_filename(self) -> str:
         return f"Epoch[{len(self.starts)}]({self.starts[0]:.1f}-{self.stops[-1]:.1f})" #
 
-
     @property
     def __array_interface__(self):
         """ wraps the internal dataframe's `__array_interface__` which Pandas uses to provide numpy with information about dataframes such as np.shape(a_df) info.
@@ -1299,7 +1300,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         # The .to_numpy() method explicitly converts the DataFrame to a NumPy array
         return self._df.to_numpy().__array_interface__
         # return self._df.__array_interface__
-
 
     def __getitem__(self, slice_):
         """ Allows pass-thru indexing like it were a numpy array.
@@ -1330,7 +1330,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
 
         else:
             return np.vstack((self.starts[slice_], self.stops[slice_])).T
-
 
     def adding_global_epoch_row(self, global_epoch_name='maze', first_included_epoch_name=None, last_included_epoch_name=None) -> "Epoch":
         """ builds the 'global' epoch row for the entire session that includes by default the times from all other epochs in epochs_df. 
@@ -1386,9 +1385,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         # self._df = new_df
         return self
         
-        
 
-        
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         return Epoch(epochs=self._df.epochs.time_slice(t_start, t_stop), metadata=self.metadata)
@@ -1817,8 +1814,6 @@ def ensure_Epoch(epochs: Union[Epoch, pd.DataFrame], metadata=None) -> Epoch:
         return epochs
     
 
-
-
 def subdivide_epochs(df: pd.DataFrame, subdivide_bin_size: float, start_col='start', stop_col='stop') -> pd.DataFrame:
     """ splits each epoch into equally sized chunks determined by subidivide_bin_size.
     
@@ -1835,9 +1830,7 @@ def subdivide_epochs(df: pd.DataFrame, subdivide_bin_size: float, start_col='sta
 
     """
     sub_epochs = []
-
     extra_column_names = list(set(df.columns) - set([start_col, stop_col, 'label', 'duration', 'lap_id', 'lap_dir', 'epoch_t_bin_idx', 'epoch_num_t_bins']))
-    # print(f'extra_column_names: {extra_column_names}')
 
     for index, row in df.iterrows():
         start = row[start_col]
