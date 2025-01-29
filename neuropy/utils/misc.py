@@ -1,20 +1,15 @@
-import types
 from collections import namedtuple
-from enum import Enum, IntEnum, auto, unique
 from itertools import islice
 from typing import Optional, Tuple
 import numpy as np
 from nptyping import NDArray
-import pandas as pd
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
-
-import collections
+import math
+from itertools import chain
 import _collections_abc as cabc
 import abc
-
 from datetime import datetime
 from enum import unique, Enum
-
 
 
 ## Solution from Alexander McFarlane, https://stackoverflow.com/questions/1055360/how-to-tell-a-variable-is-iterable-but-not-a-string. answered Jun 30 '20 at 13:25
@@ -127,13 +122,6 @@ def compute_paginated_grid_config(num_required_subplots, max_num_columns, max_su
     if debug_print:
         print(f'page_grid_sizes: {page_grid_sizes}')
     return subplot_no_pagination_configuration, included_combined_indicies_pages, page_grid_sizes
-
-
-
-def get_interval(self, period, nwindows):
-import math
-from collections.abc import Iterable
-from itertools import chain
 
 
 def find_nearest(array, value):

@@ -6,10 +6,8 @@ import numpy as np
 import pandas as pd
 import pingouin as pg
 import scipy.stats as stats
-from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import PCA, FastICA
 
-from neuropy.utils.mathutil import getICA_Assembly, parcorr_mult
 from .. import core
 from ..plotting import Fig
 

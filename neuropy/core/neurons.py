@@ -1,15 +1,19 @@
-from typing import Sequence, Union
+# Standard Library Imports
+from copy import deepcopy
+
+# Package Imports
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
+import scipy.signal as sg
 import tables as tb
 
-import scipy.signal as sg
+# Module-Specific Imports
+from typing import Sequence, Union
 
+# Local Imports
 from .datawriter import DataWriter
-# from .flattened_spiketrains import FlattenedSpiketrains
 
-from copy import deepcopy
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 
@@ -78,7 +82,6 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
             self._reverse_cellID_index_map = None
             self._neuron_ids = None
 
-
     @property
     def reverse_cellID_index_map(self):
         """The reverse_cellID_index_map property: Allows reverse indexing into the linear imported array using the original cell ID indicies."""
@@ -91,11 +94,11 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         linear_flitered_ids = np.arange(len(flat_cell_ids))
         return dict(zip(flat_cell_ids, linear_flitered_ids))
 
-
     @property
     def neuron_type(self):
         """The neuron_type property."""
         return self._neuron_type
+
     @neuron_type.setter
     def neuron_type(self, value):
         if value is not None:
@@ -121,8 +124,6 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
     def aclu_to_neuron_type_map(self):
         """ builds a map from the neuron_id to the neuron_type """
         return dict(zip(self.neuron_ids, self.neuron_type))
-
-
 
     def __getitem__(self, i):    
         # print('Neuron.__getitem__(i: {}): \n\t n_neurons: {}'.format(i, self.n_neurons))
@@ -167,7 +168,6 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
     @property
     def n_neurons(self):
         return len(self.spiketrains)
-
     
     def time_slice(self, t_start=None, t_stop=None):
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
@@ -217,7 +217,6 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         #         self.instfiring,
         #     ]
         # )
-
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}\n n_neurons: {self.n_neurons}\n n_total_spikes: {self.n_total_spikes}\n t_start: {self.t_start}\n t_stop: {self.t_stop}"
@@ -589,7 +588,6 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
 
         # Reconstruct the object using the from_config_values class method
         return cls(spikes_df=spikes_df, position=position, epochs=epochs, config=config, position_srate=position_srate)
-    
 
 
 class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
@@ -735,8 +733,7 @@ class BinnedSpiketrain(NeuronUnitSlicableObjectProtocol, DataWriter):
         """Returns BinnedSpiketrain object with neuron_ids equal to ids"""
         indices = np.isin(self.neuron_ids, ids)
         return self[indices]
-    
-    
+
     
 class Mua(DataWriter):
     """ Mua stands for Multi-unit activity """
@@ -823,4 +820,4 @@ class Mua(DataWriter):
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "spike_counts": self.spike_counts})
 
-    
+
