@@ -1,9 +1,13 @@
+# Standard Library Imports
+from pathlib import Path
+
+# Package Imports
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import numpy as np
 
-from ..core import Epoch, Signal
+# Module-Specific Imports
+
+# Local Imports
 from ..core import Signal, Epoch
 
 
@@ -55,9 +59,6 @@ class BinarysignalIO:
         return start_time
 
     def get_signal(self, channel_indx=None, t_start=None, t_stop=None):
-        # if isinstance(channel_indx, list):
-        #     channel_indx = [channel_indx]
-
         if t_start is None:
             t_start = 0.0
 
@@ -79,7 +80,7 @@ class BinarysignalIO:
             sampling_rate=self.sampling_rate,
             t_start=t_start,
             channel_id=channel_indx,
-            source_file=self.source_file,
+            #source_file=self.source_file,
         )
 
     def frame_slice(self, channel_indx=None, frame_start=None, frame_stop=None):
@@ -104,7 +105,9 @@ class BinarysignalIO:
             sampling_rate=self.sampling_rate,
             t_start=frame_start / self.sampling_rate,
             channel_id=channel_indx,
+            source_file=self.source_file
         )
+
 
     def get_frames_within_epochs(self, epochs: Epoch, channel_indx, ret_time=False):
         """Return concatenated frames corresponding to epochs

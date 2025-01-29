@@ -14,7 +14,7 @@ except ImportError:
     sys.path.append(r'C:\Users\Pho\repos\NeuroPy')
 	# sys.path.append('/Users/pho/repo/Python Projects/NeuroPy')
     print('neuropy module not found, adding directory to sys.path. \nUpdated sys.path: {}'.format(sys.path))
-	from neuropy import core
+from neuropy import core
 
 
 from neuropy.core.session.data_session_loader import DataSessionLoader
