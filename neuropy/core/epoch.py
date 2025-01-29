@@ -461,7 +461,8 @@ def find_epoch_times_to_data_indicies_map(a_df: pd.DataFrame, epoch_times: NDArr
     # , found_data_indicies
     
     return epoch_time_to_index_map
-            
+
+
 def find_epochs_overlapping_other_epochs(epochs_df: pd.DataFrame, epochs_df_required_to_overlap: pd.DataFrame):
     """ 
     For example, you might wonder which epochs occur during laps:
@@ -614,12 +615,9 @@ def split_epochs_into_training_and_test(epochs_df: pd.DataFrame, training_data_p
     ## OUTPUTS: epochs_training_df, epochs_test_df
     return epochs_training_df, epochs_test_df
 
-    
-
 
 """ 
 from neuropy.core.epoch import NamedTimerange, EpochsAccessor, Epoch
-
 """
 class NamedTimerange(SimplePrintable, metaclass=OrderedMeta):
     """ A simple named period of time with a known start and end time """
@@ -1085,7 +1083,6 @@ epochs_df
             laps_df
 
         """
-        # epochs_df = epochs_df.epochs.to_dataframe()
         epochs_df[[labels_column_name]] = epochs_df[[labels_column_name]].astype('int')
         is_missing_column: bool = ('maze_id' not in epochs_df.columns)
         if (is_missing_column or replace_existing):
@@ -1179,23 +1176,32 @@ epochs_df
 
 
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):
-    """ An Epoch object holds one or more periods of time (marked by start/end timestamps) along with their corresponding metadata.
-
-    """
-    def __init__(self, epochs: pd.DataFrame, metadata=None, file=None) -> None:
+    """ An Epoch object holds one or more periods of time (marked by start/end timestamps) along with their corresponding metadata."""
+    def __init__(self, epochs: pd.DataFrame or dict or None, metadata=None, file=None) -> None:
         """[summary]
         Args:
             epochs (pd.DataFrame): Each column is a pd.Series(["start", "stop", "label"])
             metadata (dict, optional): [description]. Defaults to None.
         """
+
+        # Grab an epoch (.npy) file if no epoch is entered.
+        if epochs is None:
+            assert(file is not None), "Must specify file to load if no epochs dataframe entered"
+            epochs = np.load(file, allow_pickle=True).item()["epochs"]
+            epochs = pd.DataFrame(epochs, columns=["start", "stop", "label"])
+            self.metadata = np.load(file, allow_pickle=True).item()["metadata"]
+
+        # Convert to DataFrame if not already
         if not isinstance(epochs, pd.DataFrame):
             _epochs_metadata = getattr(epochs, 'metadata', None)
             metadata = metadata or _epochs_metadata
-            epochs = epochs.to_dataframe() # try to convert to dataframe if the object is an Epoch or other compatible object
+
+            # Try to convert to dataframe if the object is an Epoch or other compatible object
+            epochs = epochs.to_dataframe()
             assert isinstance(epochs, pd.DataFrame)
         super().__init__(metadata=metadata)
-        self._df = epochs.epochs.get_valid_df() # gets already sorted appropriately and everything. epochs.epochs uses the DataFrame accessor
-        self._check_epochs(self._df) # check anyway
+        self._df = epochs.epochs.get_valid_df()
+        self._check_epochs(self._df) # Check epochs
 
     @property
     def starts(self):
@@ -1384,7 +1390,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         self._df = maze_epochs_df
         # self._df = new_df
         return self
-        
 
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
@@ -1419,9 +1424,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
             Epoch: the filtered epochs as an Epoch object
 
         NOTE: this really is a general method that works for any Epoch object or Epoch-type dataframe to filter it.
-
-        TODO 2023-04-11 - This really belongs in the Epoch class or the epoch dataframe accessor. 
-
         """
         from neuropy.utils.efficient_interval_search import filter_epochs_by_speed
         from neuropy.utils.efficient_interval_search import filter_epochs_by_num_active_units
@@ -1592,7 +1594,7 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         return np.histogram(mid_times, bins=bins)[0]
 
     def to_neuroscope(self, ext="PHO", override_filepath=None):
-        """ exports to a Neuroscope compatable .evt file. """
+        """ exports to a Neuroscope compatible .evt file. """
         if not isinstance(ext, str):
             ext = '.'.join(ext) # assume it is an list, tuple or something. Join its elements by periods
 
@@ -1706,6 +1708,18 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         """
         return Epoch(epochs=self._df.epochs.split_into_training_and_test(training_data_portion=training_data_portion, group_column_name=group_column_name, additional_epoch_identity_column_names=additional_epoch_identity_column_names, skip_get_overlapping=skip_get_non_overlapping, debug_print=debug_print), metadata=self.metadata)
 
+    def add_epoch_buffer(self, buffer_sec: float or int or tuple or list):
+        """Extend each epoch by buffer_sec before/after start/stop of each epoch"""
+        if isinstance(buffer_sec, (int, float)):
+            buffer_sec = (buffer_sec, buffer_sec)
+        else:
+            assert len(buffer_sec) == 2
+
+        self._df["start"] -= buffer_sec[0]
+        self._df["stop"] += buffer_sec[1]
+        self._df["duration"] += (buffer_sec[0] + buffer_sec[1])
+
+        return self
 
     # HDF5 Serialization _________________________________________________________________________________________________ #
     # HDFMixin Conformances ______________________________________________________________________________________________ #
@@ -1720,27 +1734,6 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
         _df = self.to_dataframe()
         _df.to_hdf(path_or_buf=file_path, key=key, format=kwargs.pop('format', 'table'), data_columns=kwargs.pop('data_columns',True), **kwargs)
         return
-    
-        # # create_group
-        # a_key = Path(key)
-        # with tb.open_file(file_path, mode='r+') as f:
-        #     # group = f.create_group(str(a_key.parent), a_key.name, title='epochs.', createparents=True)
-        #     group = f.get_node(str(a_key.parent))
-        #     # group = f[key]
-        #     table = f.create_table(group, a_key.name, EpochTable, "Epochs")
-        #     # Serialization
-        #     for i, t_start, t_stop, a_label in zip(np.arange(self.n_epochs), self.starts, self.stops, self.labels):
-        #         row = table.row
-        #         row['t_start'] = t_start
-        #         row['t_end'] = t_stop  # Provide an appropriate session identifier here
-        #         row['label'] = str(a_label)
-        #         row.append()
-                
-        #     table.flush()
-        #     # Metadata:
-        #     group.attrs['t_start'] = self.t_start
-        #     group.attrs['t_stop'] = self.t_stop
-        #     group.attrs['n_epochs'] = self.n_epochs
 
     @classmethod
     def read_hdf(cls, file_path, key: str, **kwargs) -> "Epoch":
@@ -1858,3 +1851,5 @@ def subdivide_epochs(df: pd.DataFrame, subdivide_bin_size: float, start_col='sta
     
     sub_epochs_df = pd.DataFrame(sub_epochs)
     return sub_epochs_df
+
+
