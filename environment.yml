@@ -1,39 +1,21 @@
 name: NeuroPy
 channels:
     - conda-forge
-    - defaults
 dependencies:
     - python=3.9
-    - pip
-    - numpy=1.20.*
-    - scipy=1.6.*
+    - numpy=1.20.2
+    - scipy=1.6.2
     - matplotlib
     - pandas
     - joblib
-    - scikit-learn # not sure when used
+    - scikit-learn
     - hmmlearn
     - ipywidgets
     - seaborn
     - h5py
-    # - opencv
-    # - pytables
+    - opencv
+    - pytables
     - tqdm
-    # # These modules are for importing DeepLabCut data, comment out if you don't need.
-    # - easydict
-    # - ruamel.yaml
-    - pingouin
-    - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
-    - numba
-    # - param # not sure when used
-    - panel
-    - hdf5storage
-    # mamba install scikit-learn hmmlearn joblib pytables tqdm
-    # mamba install pingouin cupy ruamel.yaml easydict pingouin cupy ruamel.yaml easydict
-    - portion
-    # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
-    - pip:
-      - python-benedict
-      - scikit-posthocs # not sure when used
     - xarray=0.16.2
     - zarr
     - scikit-image

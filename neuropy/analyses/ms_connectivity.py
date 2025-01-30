@@ -1,4 +1,5 @@
-﻿"""Calculate and test millisecond-scale connectivity between neurons a la Diba et al. (2014) and English/McKenzie et al. (2017)"""
+﻿"""Calculate and test millisecond-scale connectivity between neurons a la Diba et al. (2014) and English/McKenzie
+ et al. (2017)"""
 
 import numpy as np
 

@@ -43,6 +43,15 @@ class PhyIO:
         channel_map = np.load(self.source_dir / "channel_map.npy")
         channel_positions = np.load(self.source_dir / "channel_positions.npy")
 
+        # if self.include_noise_clusters:
+        #     cluinfo = cluinfo[
+        #         cluinfo["group"].isin(["mua", "good", "noise"])
+        #     ].reset_index(drop=True)
+        # else:
+        #     cluinfo = cluinfo[cluinfo["group"].isin(["mua", "good"])].reset_index(
+        #         drop=True
+        #     )
+
         cluinfo = cluinfo[cluinfo["group"].isin(self.include_groups)].reset_index(
             drop=True
         )

@@ -1,12 +1,4 @@
-# Standard Library Imports
-
-# Package Imports
 import numpy as np
-
-
-# Module-Specific Imports
-
-# Local Imports
 from ..core import DataWriter
 
 

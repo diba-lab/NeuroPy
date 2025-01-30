@@ -101,7 +101,7 @@ class Shank:
     def n_contacts(self):
         return len(self.x)
 
-    def to_dict(self, recurrsively=False):
+    def to_dict(self):
         layout = {
             "x": self.x,
             "y": self.y,
@@ -201,7 +201,7 @@ class Probe:
             shank_df["shank_id"] = (self.n_shanks - 1) * np.ones(shank.n_contacts)
             self._data = pd.concat([self._data, shank_df])
 
-    def to_dict(self, recurrsively=False):
+    def to_dict(self):
         return self._data.to_dict()
 
     def to_dataframe(self):
@@ -372,7 +372,7 @@ class ProbeGroup(DataWriter):
 
         # _, counts = np.unique(self.get_channel_ids(), return_counts=True)
 
-    def to_dict(self, recurrsively=False):
+    def to_dict(self):
         return {
             "data": self._data,
             "metadata": self.metadata,
@@ -383,6 +383,12 @@ class ProbeGroup(DataWriter):
         prbgrp = ProbeGroup(metadata=d["metadata"])
         prbgrp._data = d["data"].sort_values(["shank_id", "y"], ascending=[True, False])
         return prbgrp
+
+    @staticmethod
+    def from_file(f):
+        d = DataWriter.from_file(f)
+        if d is not None:
+            return ProbeGroup.from_dict(d)
 
     def to_dataframe(self):
         return pd.DataFrame(self._data)

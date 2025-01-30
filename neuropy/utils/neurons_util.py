@@ -182,12 +182,17 @@ def estimate_neuron_type(
         ub = np.array([500, 50, 500, 25, 70, 20, 5, 100])
 
         try:
-            popt, _ = curve_fit(acg_no_burst_fit, t, y[101:], p0=p_initial[:-2], bounds=(lb[:-2], ub[:-2]),)
+            popt, _ = curve_fit(
+                acg_no_burst_fit,
+                t,
+                y[101:],
+                p0=p_initial[:-2],
+                bounds=(lb[:-2], ub[:-2]),
+            )
         except:
             popt, _ = curve_fit(acg_fit, t, y[101:], p0=p_initial, bounds=(lb, ub))
 
         params.append(popt)
-
     tau_decay = np.log10(np.array([_[0] for _ in params]))
     tau_rise = np.array([_[1] for _ in params])
 

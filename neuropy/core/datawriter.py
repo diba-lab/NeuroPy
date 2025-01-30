@@ -1,38 +1,17 @@
 import numpy as np
-import pathlib
 from pathlib import Path
-
-from neuropy.utils.mixins.dict_representable import DictRepresentable
-from neuropy.utils.mixins.file_representable import FileRepresentable
-from neuropy.utils.mixins.print_helpers import SimplePrintable
+import datetime
+import pandas as pd
 
 
-class LegacyDataLoadingMixin:
-    @classmethod
-    def legacy_from_dict(cls, dict_rep: dict):
-        """ Tries to load the dict using previous versions of this code. """
-        raise NotImplementedError
-    
-        
-
-class DataWriter(FileRepresentable, DictRepresentable, LegacyDataLoadingMixin, SimplePrintable):
-    def __init__(self, metadata=None) -> None:
-
-        self._filename = None
+class DataWriter:
+    def __init__(self, metadata: dict = None) -> None:
 
         if metadata is not None:
             assert isinstance(metadata, dict), "Only dictionary accepted as metadata"
-
-        self._metadata: dict = metadata
-
-    @property
-    def filename(self):
-        return self._filename
-
-    @filename.setter
-    def filename(self, f):
-        assert isinstance(f, (str, Path))
-        self._filename = f
+            self._metadata: dict = metadata
+        else:
+            self._metadata: dict = {}
 
     @property
     def metadata(self):
@@ -43,69 +22,72 @@ class DataWriter(FileRepresentable, DictRepresentable, LegacyDataLoadingMixin, S
         """metadata compatibility"""
         if d is not None:
             assert isinstance(d, dict), "Only dictionary accepted"
-            if self._metadata is not None:
-                self._metadata = self._metadata | d # if we already have valid metadata, merge the dicts
-            else:
-                self._metadata = d # otherwise we can just set it directly
-                
-    ## DictRepresentable protocol:
-    @staticmethod
-    def from_dict(d):
-        return NotImplementedError
+            self._metadata = self._metadata | d
 
-    def to_dict(self, recurrsively=False):
-        return NotImplementedError
-
-    ## FileRepresentable protocol:
     @classmethod
-    def from_file(cls, f):
+    def from_dict(cls, d):
+        return cls(**d)
+
+    @classmethod
+    def from_file(cls, f, convert=False):
+        """
+        :param f: filename, full path
+        :param convert: bool, True = send to class, False = keep as dict (left as default for legacy purposes)
+        :return:
+        """
+
+        f = Path(f) if isinstance(f, str) else f
         if f.is_file():
-            dict_rep = None
-            try:
-                dict_rep = np.load(f, allow_pickle=True).item()
-                # return dict_rep
-            except NotImplementedError:
-                print("Issue with pickled POSIX_PATH on windows for path {}, falling back to non-pickled version...".format(f))
-                temp = pathlib.PosixPath
-                # pathlib.PosixPath = pathlib.WindowsPath # Bad hack
-                pathlib.PosixPath = pathlib.PurePosixPath # Bad hack
-                dict_rep = np.load(f, allow_pickle=True).item()
-            
-            if dict_rep is not None:
-                # Convert to object
-                try:
-                    obj = cls.from_dict(dict_rep)
-                except KeyError as e:
-                    # print(f'f: {f}, dict_rep: {dict_rep}')
-                    # Tries to load using any legacy methods defined in the class
-                    obj = cls.legacy_from_dict(dict_rep)
-                    # raise e
-                
-                obj.filename = f
-                return obj
-            return dict_rep
-            
+            d = np.load(f, allow_pickle=True).item()
+            d = cls.from_dict(d) if convert else d
+            return d
         else:
             return None
-        
-    @classmethod
-    def to_file(cls, data: dict, f, status_print=True):
-        if f is not None:
-            assert isinstance(f, Path)
-            np.save(f, data)
-            if status_print:
-                print(f"{f.name} saved")
-        else:
-            print("WARNING: filename can not be None")
 
+    def to_dict(self):
+        d = dict()
+        attrs = self.__dict__.keys()
+        for k in attrs:
+            key_data = getattr(self, k)
 
-    def save(self, status_print=True):
+            # To avoid pickling error when reading pandas object from .npy file
+            if isinstance(key_data, pd.DataFrame):
+                key_data = key_data.to_dict()
+
+            k = k[1:] if k.startswith("_") else k
+
+            d[k] = key_data
+
+        return d
+
+    def save(self, fp):
+
+        assert isinstance(fp, (str, Path)), "filename is invalid"
         data = self.to_dict()
-        DataWriter.to_file(data, self.filename)
+        np.save(fp, data)
+        print(f"{fp} saved")
 
-    def delete_file(self):
-        self.filename.unlink()
-        print(f"file {self.filename} removed")
+    def save_with_date(self, fp):
 
-    def create_backup(self):
-        pass
+        assert isinstance(fp, (str, Path)), "filename is invalid"
+        date_suffix = "." + datetime.date.today().strftime("%d-%m-%y")
+        fname = fp.name + date_suffix
+        data = self.to_dict()
+        fp = fp.with_name(fname)
+        np.save(fp, data)
+        print(f"{fp} saved")
+
+    def _time_slice_params(self, t1=None, t2=None):
+
+        if t1 is None:
+            t1 = self.t_start
+
+        if t2 is None:
+            t2 = self.t_stop
+
+        assert t2 > t1, "t2 must be greater than t1"
+
+        if hasattr(self, "time"):
+            return (self.time >= t1) & (self.time <= t2)
+        else:
+            return t1, t2

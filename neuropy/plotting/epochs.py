@@ -7,7 +7,7 @@ from scipy import stats
 
 
 def plot_epochs(
-    ax, epochs: Epoch, ymin=0.5, ymax=0.55, color="Set3", style="step_blocks"
+    epochs: Epoch, labels_order=None, colors="Set3", alpha=1, collapsed=False, colorby="label", ax=None
 ):
     """Plots epochs on a given axis, with different style of plotting
 
@@ -21,34 +21,80 @@ def plot_epochs(
         [description], by default 0.5
     ymax : float, optional
         [description], by default 0.55
-    color : str, optional
-        [description], by default "gray"
+    color : str or dict, optional
+        [description], by default "gray", if dict = {"value1": color, "value2": color2}
+        where value1, value2, ... are values in the column defined by colorby param
+    colorby: str, column in epochs to map colors to
+    collapsed:
 
     Returns
     -------
     [type]
         [description]
     """
-    delta = 0
+    if isinstance(epochs, pd.DataFrame):
+        epochs = Epoch(epochs)
+
+    # assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
+
     n_epochs = epochs.n_epochs
-    cmap = mpl.cm.get_cmap(color)
+
+    if isinstance(colors, str):
+        try:
+            cmap = mpl.cm.get_cmap(colors)
+            colors = [cmap(i / n_epochs) for i in range(n_epochs)]
+        except:
+            colors = [colors] * n_epochs
+    elif isinstance(colors, dict):
+        # Define colors, sending those not in the colors dict to white
+        colors = [colors[label] if label in colors.keys() else "#ffffff" for label in epochs.to_dataframe()[colorby]]
+
+    if epochs.has_labels or (len(epochs.to_dataframe().label) > 1):
+        labels = epochs.labels
+        # unique_labels = np.unique(epochs.labels)
+        unique_labels = epochs.to_dataframe().label.unique()
+        n_labels = len(unique_labels)
+
+        # Update to order labels correctly
+        if labels_order is not None:
+            # assert np.array_equal(
+            #     np.sort(labels_order), np.sort(unique_labels)
+            # ), "labels_order does not match with epochs labels"
+
+            # Make sure all labels are in labels_order
+
+            # This code might be necessary, keep for potential debugging
+            # if np.array_equal(np.sort(labels_order), np.sort(unique_labels)) or \
+            #         np.all([label in labels_order for label in unique_labels]):
+            if np.all([label in labels_order for label in unique_labels]):
+                unique_labels = labels_order
+                n_labels = len(unique_labels)
+            else:
+                assert False, "labels_order does not match with epochs labels"
+
+        dh = 1 if collapsed else 1 / n_labels
+        y_min = np.zeros(len(epochs))
+        if not collapsed:
+            for i, l in enumerate(unique_labels):
+                y_min[labels == l] = i * dh
+    else:
+        dh = 1
+        y_min = np.zeros(len(epochs))
+
+    if ax is None:
+        _, ax = plt.subplots()
 
     for i, epoch in enumerate(epochs.to_dataframe().itertuples()):
         ax.axvspan(
             epoch.start,
             epoch.stop,
-            ymin + delta,
-            ymax + delta,
-            color=cmap(i / n_epochs),
-            alpha=0.5,
+            y_min[i],
+            y_min[  i] + dh,
+            facecolor=colors[i],
+            edgecolor=None,
+            alpha=alpha,
         )
-        # ax.text(
-        #     epochs.stops[-1],
-        #     ymax + delta,
-        #     epoch.label,
-        #     transform=ax.get_yaxis_transform(),
-        # )
-        delta = delta + 0.07
+        ax.set_ylim([0, 1])
 
     return ax
 

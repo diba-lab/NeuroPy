@@ -7,8 +7,8 @@ def align_data(time_ref, time_data, data, t_align_ref=None, t_align_data=None):
     """
     Aligns data in 'data_align' to time points in 'time_ref'. Default uses absolute datetime timestamps.
     :param time_ref: pandas series of datetime timestamps to align data to
-    :param time_data: pandas series of datetime timestamps
-    :param data: ndarray or timeseries of data the same shape as time_data to interpolate to time_ref timestamps
+    :param time: pandas series of datetime timestamps
+    :param data: ndarray or timeseries of data the same shape as time to interpolate to time_ref timestamps
     :param t_align_ref: timestamp in reference data where you have a reference event, e.g. a TTL from a different system.
     Use 'start' if the TTL triggered recording start. None (default) = use timestamps to align directly.
     :param t_align_data: opposite of `t_align_ref` - time in time_data where your alignment event occurs. None = default.
@@ -54,7 +54,9 @@ def align_data(time_ref, time_data, data, t_align_ref=None, t_align_data=None):
 
     # Now align data and timestamps
     data_aligned = np.interp(time_ref, time_data, data)
-    time_aligned_sec = np.interp(time_ref, time_data, (time_data - time_data.iloc[0]).dt.total_seconds())
+    time_aligned_sec = np.interp(
+        time_ref, time_data, (time_data - time_data.iloc[0]).dt.total_seconds()
+    )
 
     time_aligned = time_data.iloc[0] + pd.to_timedelta(time_aligned_sec, unit="sec")
 

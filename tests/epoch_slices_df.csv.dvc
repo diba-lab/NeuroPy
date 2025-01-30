@@ -1,5 +1,0 @@
-outs:
-- md5: b9956d2ba46dd71edb864343edca05fa
-  size: 7431
-  hash: md5
-  path: epoch_slices_df.csv
