@@ -27,7 +27,7 @@ class Neurons(DataWriter):
         waveforms=None,
         waveforms_amplitude=None,
         peak_channels=None,
-        clu_q = None,
+        clu_q=None,
         shank_ids=None,
         metadata=None,
     ) -> None:
