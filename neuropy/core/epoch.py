@@ -820,17 +820,38 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         else:
             return active_filter_epochs[active_filter_epochs['duration'] >= minimum_duration]
 
-    # for TimeSlicableObjectProtocol:
-    def time_slice(self, t_start, t_stop) -> pd.DataFrame:
-        """ trim the epochs down to the provided time range
-        
-        """
-        # TODO time_slice should also include partial epochs falling in between the timepoints
-        df = self._obj.copy() 
-        t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        df = df[(df["start"] >= t_start) & (df["start"] < t_stop)].reset_index(drop=True) # 2023-11-13 - changed to `(df["start"] < t_stop)` from `(df["start"] <= t_stop)` because in the equals case the resulting included interval would be zero duration.
-        return df
-        
+    def time_slice(self, t_start, t_stop, strict=True):
+        """Return epochs which are within the provided time limits while retaining peak_time."""
+
+        if t_start is None:
+            t_start = self.t_start
+        if t_stop is None:
+            t_stop = self.t_stop
+        if t_start > t_stop:
+            raise ValueError(f"t_start ({t_start}) must be less than t_stop ({t_stop})")
+
+        starts = self.starts
+        stops = self.stops
+
+        if strict:
+            keep = (starts >= t_start) & (stops <= t_stop)  # strictly inside
+        else:
+            keep = (starts <= t_stop) & (stops >= t_start)  # Includes partially overlapping epochs
+
+        # Preserve all columns
+        epoch_df = self.to_dataframe()[keep].reset_index(drop=True)
+
+        # Drop 'duration' safely without affecting other columns like 'peak_time'
+        if "duration" in epoch_df.columns:
+            epoch_df = epoch_df.drop(columns=["duration"])
+
+        # If strict=False, trim overlapping epochs
+        if not strict:
+            epoch_df.loc[epoch_df["start"] < t_start, "start"] = t_start
+            epoch_df.loc[epoch_df["stop"] > t_stop, "stop"] = t_stop
+
+        return epoch_df
+
     def label_slice(self, label) -> pd.DataFrame:
         if isinstance(label, (list, NDArray)):
             df = self._obj[np.isin(self._obj["label"], label)].reset_index(drop=True)
@@ -926,52 +947,54 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             inter_epoch_df.attrs = df_metadata
 
 
-        return inter_epoch_df   
-        
-        
-    def modify_each_epoch_by(self, additive_factor: float = 0.0, multiplicative_factor: float=1.0, final_output_minimum_epoch_duration:float=0.0, copy_metadata:bool=False) -> pd.DataFrame:
+        return inter_epoch_df
+
+    def modify_each_epoch_by(self, additive_factor: float = 0.0, multiplicative_factor: float = 1.0,
+                             final_output_minimum_epoch_duration: float = 0.0,
+                             copy_metadata: bool = False) -> pd.DataFrame:
         """ gets a copy of the epochs where each epoch is modified by the provided scale factors.
-        
+
         if safe_contract_epochs is not 0.0, a value of 0.0 is used to safely
         Usage:
             inter_lap_epoch_df: pd.DataFrame = inter_lap_epoch_df.epochs.modify_each_epoch_by(additive_factor=-0.008, final_output_minimum_epoch_duration=0.040)
             inter_lap_epoch_df
-            
+
         """
         epochs_df: pd.DataFrame = self.get_non_overlapping_df()
         df_metadata = None
         if (self._obj.attrs is not None) and copy_metadata:
             df_metadata = deepcopy(self._obj.attrs)
-        
 
         # smallest_allowed_epoch_duration: float = (2.0 * safe_contract_epochs) + 0.001 # add another ms just to be safe
         # epochs_df = epochs_df.epochs.get_epochs_longer_than(minimum_duration=smallest_allowed_epoch_duration)
-        
+
         if additive_factor != 0.0:
-            epochs_df['start'] = epochs_df['start'] - additive_factor 
+            epochs_df['start'] = epochs_df['start'] - additive_factor
             epochs_df['stop'] = epochs_df['stop'] + additive_factor
             epochs_df['duration'] = epochs_df['stop'] - epochs_df['start']
-                        
+
         if multiplicative_factor != 1.0:
-            epochs_df['duration'] = epochs_df['stop'] - epochs_df['start'] ## ensure duration is up-to-date
+            epochs_df['duration'] = epochs_df['stop'] - epochs_df['start']  ## ensure duration is up-to-date
             epochs_df['half_duration'] = epochs_df['duration'] * 0.5
-            epochs_df['t_mid'] = epochs_df['start'] + epochs_df['half_duration'] ## compute midpoint, which will be unchanged by the multipliciatve_factor  
-            epochs_df['duration'] = multiplicative_factor * epochs_df['duration'] ## update the duration
-            epochs_df['half_duration'] = epochs_df['duration'] * 0.5 ## updated half-duration
+            epochs_df['t_mid'] = epochs_df['start'] + epochs_df[
+                'half_duration']  ## compute midpoint, which will be unchanged by the multipliciatve_factor
+            epochs_df['duration'] = multiplicative_factor * epochs_df['duration']  ## update the duration
+            epochs_df['half_duration'] = epochs_df['duration'] * 0.5  ## updated half-duration
             # epochs_df['t_mid'] = epochs_df['start'] + epochs_df['half_duration'] ## compute updated midpoint
-            epochs_df['start'] = epochs_df['t_mid'] - epochs_df['half_duration'] 
-            epochs_df['stop'] = epochs_df['t_mid'] + epochs_df['half_duration'] 
+            epochs_df['start'] = epochs_df['t_mid'] - epochs_df['half_duration']
+            epochs_df['stop'] = epochs_df['t_mid'] + epochs_df['half_duration']
             ## drop temporary columns
             epochs_df = epochs_df.drop(columns=['half_duration', 't_mid'], inplace=False)
-            
+
         if final_output_minimum_epoch_duration is not None:
-            epochs_df = epochs_df.epochs.get_epochs_longer_than(minimum_duration=final_output_minimum_epoch_duration) ## post-hoc filtering
+            epochs_df = epochs_df.epochs.get_epochs_longer_than(
+                minimum_duration=final_output_minimum_epoch_duration)  ## post-hoc filtering
 
         if df_metadata is not None:
             epochs_df.attrs = df_metadata
 
-        return epochs_df   
-        
+        return epochs_df
+
     def subtracting(self, other_epochs_df: pd.DataFrame, skip_get_non_overlapping:bool=False) -> pd.DataFrame:
         """ gets a copy of the epochs after subtracting the epochs provided in `other_epochs_df`.
         
@@ -1667,6 +1690,16 @@ class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrame
     def get_in_between(self, copy_metadata:bool=False) -> "Epoch":
         """ gets the epochs that are in-between (non-overlapping) the current epochs."""
         return Epoch(epochs=self._df.epochs.get_in_between(copy_metadata=copy_metadata), metadata=self.metadata)
+
+    def shift(self, dt):
+        epochs = self._df.copy()
+        epochs[["start", "stop"]] += dt
+
+        has_peak_time = 'peak_time' in epochs.columns
+        if has_peak_time:
+            epochs['peak_time'] += dt
+
+        return Epoch(epochs=epochs, metadata=self.metadata)
 
     def modify_each_epoch_by(self, additive_factor: float = 0.0, multiplicative_factor: float=1.0, final_output_minimum_epoch_duration:float=0.0, copy_metadata:bool=False) -> "Epoch":
         """ gets a copy of the epochs where each epoch is modified by the provided scale factors.
