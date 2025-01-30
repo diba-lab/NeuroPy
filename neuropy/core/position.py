@@ -279,13 +279,16 @@ class PositionComputedDataMixin:
         out_obj.compute_smoothed_position_info()
         out_obj.speed; # ensure speed is calculated for the new object
         return out_obj
+
     @property
     def linear_pos(self):
         assert 'lin_pos' in self.df.columns, "Linear Position data has not yet been computed."
         return self.df['lin_pos'].to_numpy()
+
     @linear_pos.setter
     def linear_pos(self, linear_pos):
         self.df.loc[:, 'lin_pos'] = linear_pos
+
     @property
     def has_linear_pos(self):
         if 'lin_pos' in self.df.columns:
@@ -294,12 +297,9 @@ class PositionComputedDataMixin:
             # Linear Position data has not yet been computed.
             return False
 
-
     def compute_linearized_position(self, method='isomap', **kwargs) -> "Position":
         """ computes and adds the linear position to this Position object """
         from neuropy.utils import position_util
-        # out_linear_position_obj = position_util.linearize_position(self, method=method, **kwargs)
-        # self._df['lin_pos'] = out_linear_position_obj.to_dataframe()['lin_pos'] # add the `lin_pos` column to the pos_df
         self.df = position_util.linearize_position_df(self.df, method=method, **kwargs) # adds 'lin_pos' column to `self.df`
         return self
 
