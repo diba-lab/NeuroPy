@@ -12,9 +12,12 @@ from joblib import Parallel, delayed
 from scipy import stats
 from typing import Sequence, Union
 from ..utils.mathutil import gaussian_kernel1D
+from scipy.ndimage import gaussian_filter1d
 
 # Local Imports
 from .datawriter import DataWriter
+from . import Epoch
+from .. import core
 
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol
 from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
@@ -22,6 +25,8 @@ from neuropy.utils.mixins.unit_slicing import NeuronUnitSlicableObjectProtocol
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.HDF5_representable import HDF_SerializationMixin
 from neuropy.core.neuron_identities import NeuronIdentityTable, neuronTypesEnum, NeuronType
+
+
 
 
 class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartStopTimesMixin, TimeSlicableObjectProtocol, ConcatenationInitializable, DataWriter):

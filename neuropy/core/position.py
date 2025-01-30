@@ -6,8 +6,10 @@ import h5py # for to_hdf and read_hdf definitions
 from pandas.core.indexing import IndexingError
 
 import pandas as pd
+from scipy.ndimage import gaussian_filter1d
 from .epoch import Epoch
 from .datawriter import DataWriter
+from ..utils import mathutil
 from neuropy.utils.mixins.time_slicing import StartStopTimesMixin, TimeSlicableObjectProtocol, TimeSlicableIndiciesMixin, TimeSlicedMixin
 from neuropy.utils.mixins.concatenatable import ConcatenationInitializable
 from neuropy.utils.mixins.dataframe_representable import DataFrameRepresentable
@@ -357,8 +359,6 @@ class PositionComputedDataMixin:
             self.df = self.compute_higher_order_derivatives()   
         return self.df['acceleration_y'].to_numpy()
     
-    
-
 
 def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFrame, debug_print:bool=False):
     """ Adds a 'lap' column to the position dataframe:
