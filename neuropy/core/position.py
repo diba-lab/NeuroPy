@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional
 import itertools # for flattening lists with itertools.chain.from_iterable()
 import numpy as np
 import h5py # for to_hdf and read_hdf definitions
@@ -55,28 +55,28 @@ def build_position_df_resampled_to_time_windows(active_pos_df: pd.DataFrame, tim
 
 """ --- Helper MIXINS """
 class PositionDimDataMixin:
-    """ Implementors gain convenience properties to access .x, .y, and .z variables as properties. 
+    """ Implementors gain convenience properties to access .x, .y, and .z variables as properties.
     Requirements:
-        Implement  
+        Implement
             @property
             def df(self):
                 return <a dataframe>
     """
     __time_variable_name = 't' # currently hardcoded
-    
+
     @property
     def df(self):
         """The df property."""
-        raise NotImplementedError # must be overriden by implementor 
+        raise NotImplementedError # must be overriden by implementor
         # return self._obj # for PositionAccessor
-        # return self._data # for Position
+        # return self._df # for Position
     @df.setter
     def df(self, value):
-        raise NotImplementedError # must be overriden by implementor 
+        raise NotImplementedError # must be overriden by implementor
         # self._obj = value # for PositionAccessor
-        # self._data = value # for Position
-    
-    
+        # self._df = value # for Position
+
+
     # Position
     @property
     def x(self):
@@ -104,7 +104,7 @@ class PositionDimDataMixin:
     @z.setter
     def z(self, z):
         self.df.loc[:, 'z'] = z
-    
+
     @property
     def traces(self):
         """ Compatibility method for the old-style implementation. """
@@ -117,7 +117,7 @@ class PositionDimDataMixin:
             return self.df[['x','y','z']].to_numpy().T
         else:
             raise IndexingError
-        
+
     # Time Properties:
     @property
     def time_variable_name(self):
@@ -147,20 +147,20 @@ class PositionDimDataMixin:
         return np.sum(np.isin(['x','y','z'], self.df.columns))
     @property
     def dim_columns(self):
-        """ returns the labels of the columns that correspond to spatial columns 
-            If ndim == 1, returns ['x'], 
+        """ returns the labels of the columns that correspond to spatial columns
+            If ndim == 1, returns ['x'],
             if ndim == 2, returns ['x','y'], etc.
         """
         spatial_column_labels = np.array(['x','y','z'])
         return list(spatial_column_labels[np.isin(spatial_column_labels, self.df.columns)])
-    
+
     @property
     def n_frames(self):
         return len(self.df.index)
 
 class PositionComputedDataMixin:
     """ Requires conformance to PositionDimDataMixin as well. Adds computed properties like velocity and acceleration (higher-order derivatives of position) and smoothed values to the dataframe."""
-    
+
     ## Computed Variable Labels Properties:
     @staticmethod
     def _computed_column_component_labels(component_label):
@@ -176,7 +176,7 @@ class PositionComputedDataMixin:
         # itertools.chain.from_iterable converts ['dt', ['velocity_x', 'acceleration_x'], ['velocity_y', 'acceleration_y']] to ['dt', 'velocity_x', 'acceleration_x', 'velocity_y', 'acceleration_y']
         computed_column_labels = list(itertools.chain.from_iterable(computed_column_labels)) # ['dt', 'velocity_x', 'acceleration_x', 'velocity_y', 'acceleration_y']
         return computed_column_labels
-    
+
     @staticmethod
     def _perform_compute_higher_order_derivatives(pos_df: pd.DataFrame, component_label: str, time_variable_name: str = 't'):
         """Computes the higher-order positional derivatives for a single component (given by component_label) of the pos_df
@@ -189,22 +189,22 @@ class PositionComputedDataMixin:
         # compute each component separately:
         velocity_column_key = f'velocity_{component_label}'
         acceleration_column_key = f'acceleration_{component_label}'
-                
+
         dt = np.insert(np.diff(pos_df[time_variable_name]), 0, np.nan)
         velocity_comp = np.insert(np.diff(pos_df[component_label]), 0, 0.0) / dt
         velocity_comp[np.isnan(velocity_comp)] = 0.0 # replace NaN components with zero
         acceleration_comp = np.insert(np.diff(velocity_comp), 0, 0.0) / dt
         acceleration_comp[np.isnan(acceleration_comp)] = 0.0 # replace NaN components with zero
         dt[np.isnan(dt)] = 0.0 # replace NaN components with zero
-        
+
         # add the columns to the dataframe:
         # pos_df.loc[:, 'dt'] = dt
         pos_df['dt'] = dt
         pos_df[velocity_column_key] = velocity_comp
         pos_df[acceleration_column_key] = acceleration_comp
-        
+
         return pos_df
-    
+
     def compute_higher_order_derivatives(self):
         """Computes the higher-order positional derivatives for all spatial dimensional components of self.df. Adds the dt, velocity, and acceleration columns
         """
@@ -212,8 +212,8 @@ class PositionComputedDataMixin:
             curr_column_label = self.dim_columns[dim_i]
             self.df = PositionComputedDataMixin._perform_compute_higher_order_derivatives(self.df, curr_column_label, time_variable_name=self.time_variable_name)
         return self.df
-    
-    
+
+
     ## Smoothed Computed Variables:
     @staticmethod
     def _smoothed_column_labels(non_smoothed_column_labels):
@@ -230,7 +230,7 @@ class PositionComputedDataMixin:
         smoothed_column_labels = PositionComputedDataMixin._smoothed_column_labels(non_smoothed_column_labels)
         # smoothed_column_labels = list(itertools.chain.from_iterable(smoothed_column_labels)) # flattens list, but I don't think we need this
         return smoothed_column_labels
-    
+
     @staticmethod
     def _perform_compute_smoothed_position_info(pos_df: pd.DataFrame, non_smoothed_column_labels,  N: int = 20):
         """Computes the smoothed quantities for a single component (given by component_label) of the pos_df
@@ -238,18 +238,18 @@ class PositionComputedDataMixin:
             pos_df (pd.DataFrame): [description]
             non_smoothed_column_labels (list(str)): a list of the columns to be smoothed
             N (int): 20 # roll over the last N samples
-            
+
         Returns:
             pd.DataFrame: The updated dataframe with the dt, velocity, and acceleration columns added.
-            
+
         Usage:
             smoothed_pos_df = Position._perform_compute_smoothed_position_info(pos_df, (position_obj.dim_columns + position_obj.dim_computed_columns), N=20)
-        
+
         """
         smoothed_column_names = PositionComputedDataMixin._smoothed_column_labels(non_smoothed_column_labels)
         pos_df[smoothed_column_names] = pos_df[non_smoothed_column_labels].rolling(window=N).mean()
         return pos_df
-    
+
     def compute_smoothed_position_info(self, N: int = 20, non_smoothed_column_labels=None):
         """Computes smoothed position variables and adds them as columns to the internal dataframe
         Args:
@@ -261,16 +261,16 @@ class PositionComputedDataMixin:
             non_smoothed_column_labels = (self.dim_columns + self.dim_computed_columns)
         # smoothed_column_names = self.dim_smoothed_columns(non_smoothed_column_labels)
         self.df = PositionComputedDataMixin._perform_compute_smoothed_position_info(self.df, non_smoothed_column_labels, N=N)
-        return self.df        
-    
+        return self.df
+
     ## Linear Position Properties:
     @property
     def linear_pos_obj(self) -> "Position":
-        """ returns a Position object containing only the linear_pos as its trace. This is used for compatibility with Bapun's Pf1D function """ 
+        """ returns a Position object containing only the linear_pos as its trace. This is used for compatibility with Bapun's Pf1D function """
         if not self.has_linear_pos:
             self.compute_linearized_position()
             assert self.has_linear_pos, "Doesn't have linear position even after `self.compute_linearized_position()` was called!"
-            
+
         lin_pos_df = deepcopy(self.df[[self.time_variable_name, 'lin_pos']])
         # lin_pos_df.rename({'lin_pos':'x'}, axis='columns', errors='raise', inplace=True)
         lin_pos_df['x'] = lin_pos_df['lin_pos'].copy() # duplicate the lin_pos column to the 'x' column
@@ -299,10 +299,10 @@ class PositionComputedDataMixin:
         """ computes and adds the linear position to this Position object """
         from neuropy.utils import position_util
         # out_linear_position_obj = position_util.linearize_position(self, method=method, **kwargs)
-        # self._data['lin_pos'] = out_linear_position_obj.to_dataframe()['lin_pos'] # add the `lin_pos` column to the pos_df
+        # self._df['lin_pos'] = out_linear_position_obj.to_dataframe()['lin_pos'] # add the `lin_pos` column to the pos_df
         self.df = position_util.linearize_position_df(self.df, method=method, **kwargs) # adds 'lin_pos' column to `self.df`
         return self
-    
+
     ## Computed Variable Properties:
     @property
     def speed(self):
@@ -311,78 +311,78 @@ class PositionComputedDataMixin:
         else:
             # Compute the speed if not already done upon first access
             dt = np.mean(np.diff(self.time))
-            self.df['speed'] = np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)        
+            self.df['speed'] = np.insert((np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt), 0, 0.0) # prepends a 0.0 value to the front of the result array so it's the same length as the other position vectors (x, y, etc)
         return self.df['speed'].to_numpy()
-    
+
     @property
     def dt(self):
         if 'dt' in self.df.columns:
             return self.df['dt'].to_numpy()
         else:
             # compute the higher_order_derivatives if not already done upon first access
-            self.df = self.compute_higher_order_derivatives()   
+            self.df = self.compute_higher_order_derivatives()
         return self.df['dt'].to_numpy()
-    
+
     @property
     def velocity_x(self):
         if 'velocity_x' in self.df.columns:
             return self.df['velocity_x'].to_numpy()
         else:
             # compute the higher_order_derivatives if not already done upon first access
-            self.df = self.compute_higher_order_derivatives()   
+            self.df = self.compute_higher_order_derivatives()
         return self.df['velocity_x'].to_numpy()
-    
+
     @property
     def acceleration_x(self):
         if 'acceleration_x' in self.df.columns:
             return self.df['acceleration_x'].to_numpy()
         else:
             # compute the higher_order_derivatives if not already done upon first access
-            self.df = self.compute_higher_order_derivatives()   
+            self.df = self.compute_higher_order_derivatives()
         return self.df['acceleration_x'].to_numpy()
-    
+
     @property
     def velocity_y(self):
         if 'velocity_y' in self.df.columns:
             return self.df['velocity_y'].to_numpy()
         else:
             # compute the higher_order_derivatives if not already done upon first access
-            self.df = self.compute_higher_order_derivatives()   
+            self.df = self.compute_higher_order_derivatives()
         return self.df['velocity_y'].to_numpy()
-    
+
     @property
     def acceleration_y(self):
         if 'acceleration_y' in self.df.columns:
             return self.df['acceleration_y'].to_numpy()
         else:
             # compute the higher_order_derivatives if not already done upon first access
-            self.df = self.compute_higher_order_derivatives()   
+            self.df = self.compute_higher_order_derivatives()
         return self.df['acceleration_y'].to_numpy()
-    
+
 
 def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFrame, debug_print:bool=False):
     """ Adds a 'lap' column to the position dataframe:
         Also adds a 'lap_dir' column, containing 0 if it's an outbound trial, 1 if it's an inbound trial, and -1 if it's neither.
     Usage:
-    
+
         from neuropy.core.position import adding_lap_info_to_position_df
-        
+
         curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
         curr_laps_df = self.laps.to_dataframe()
         curr_position_df = adding_lap_info_to_position_df(position_df=curr_position_df, laps_df=curr_laps_df)
-        
+
         # update:
         self.position._data['lap'] = curr_position_df['lap']
         self.position._data['lap_dir'] = curr_position_df['lap_dir']
-        
+
     """
     assert 'lap_id' in laps_df
-    
+
     possible_lap_columns_to_add = ['maze_id', 'lap_dir', 'is_LR_dir', 'truth_decoder_name']
     possible_lap_columns_to_add_not_found_values = {'maze_id':-1, 'lap_dir':-1, 'is_LR_dir':False, 'truth_decoder_name':''}
     lap_columns_to_add = [v for v in possible_lap_columns_to_add if v in laps_df.columns] ## can only add the columns if they're present in laps_df
 
-    
+
     position_df['lap'] = np.NaN # set all 'lap' column to NaN
     position_df['lap_dir'] = np.full_like(position_df['lap'], possible_lap_columns_to_add_not_found_values['lap_dir']) # set all 'lap_dir' to -1
 
@@ -391,7 +391,7 @@ def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFr
     if debug_print:
         print(f'lap_id_to_dir_dict: {lap_id_to_dir_dict}')
     assert len(unique_lap_ids) == len(lap_id_to_dir_dict)
-    
+
     n_laps: int = len(unique_lap_ids)
     for i in np.arange(n_laps):
         curr_lap_id = laps_df.loc[laps_df.index[i], 'lap_id'] # The second epoch in a session doesn't start with indicies of the first lap, so instead we need to get laps_df.index[i] to get the correct index
@@ -402,17 +402,17 @@ def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFr
         curr_lap_position_df_is_included = position_df['t'].between(curr_lap_t_start, curr_lap_t_stop, inclusive='both') # returns a boolean array indicating inclusion in teh current lap
         position_df.loc[curr_lap_position_df_is_included, ['lap']] = curr_lap_id # set the 'lap' identifier on the object
         curr_lap_dir = lap_id_to_dir_dict[curr_lap_id]
-        
+
         position_df.loc[curr_lap_position_df_is_included, ['lap_dir']] = curr_lap_dir # set the 'lap' identifier on the object
 
         # curr_position_df.query('-0.5 <= t < 0.5')
-    
+
     # laps_df.epoch
 
     # update the lap_dir variable:
     # position_df.loc[np.logical_not(np.isnan(position_df.lap.to_numpy())), 'lap_dir'] = np.mod(position_df.loc[np.logical_not(np.isnan(position_df.lap.to_numpy())), 'lap'], 2.0)
     # position_df['lap_dir'] = position_df['lap'].map(lambda v: lap_id_to_dir_dict.get(v, -1))
-    
+
     # return the extracted traces and the updated curr_position_df
     return position_df
 
@@ -421,7 +421,7 @@ def adding_lap_info_to_position_df(position_df: pd.DataFrame, laps_df: pd.DataFr
 @pd.api.extensions.register_dataframe_accessor("position")
 class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlicedMixin, TimePointEventAccessor):
     """ A Pandas DataFrame-based Position helper. """
-    
+
     def __init__(self, pandas_obj):
         self._validate(pandas_obj)
         self._obj = pandas_obj
@@ -443,9 +443,9 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
     @df.setter
     def df(self, value):
         self._obj = value # for PositionAccessor
-    
+
     def to_Position_obj(self, metadata=None):
-        """ builds a Position object from the PositionAccessor's dataframe 
+        """ builds a Position object from the PositionAccessor's dataframe
         Usage:
             pos_df.position.to_Position_obj()
         """
@@ -479,24 +479,24 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
                 out_df = out_df.drop(columns=y_related_column_names, inplace=inplace)
 
         return out_df
-    
+
 
 
     def adding_lap_info(self, laps_df: pd.DataFrame, inplace:bool=False, debug_print:bool=False):
         """ Adds a 'lap' column to the position dataframe:
             Also adds a 'lap_dir' column, containing 0 if it's an outbound trial, 1 if it's an inbound trial, and -1 if it's neither.
         Usage:
-        
+
             from neuropy.core.position import adding_lap_info_to_position_df
-            
+
             curr_position_df = self.position.to_dataframe() # get the position dataframe from the session
             curr_laps_df = self.laps.to_dataframe()
             curr_position_df = curr_position_df.position.adding_lap_info(laps_df=curr_laps_df, inplace=False)
-            
+
             # update:
             self.position._data['lap'] = curr_position_df['lap']
             self.position._data['lap_dir'] = curr_position_df['lap_dir']
-            
+
         """
         if inplace:
             self._obj = adding_lap_info_to_position_df(position_df=self._obj, laps_df=laps_df, debug_print=debug_print)
@@ -507,7 +507,7 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
             return out_pos_df
 
 
-    
+
 """ --- """
 class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, ConcatenationInitializable, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataWriter):
     def __init__(self, pos_df: pd.DataFrame, metadata=None) -> None:
@@ -517,35 +517,40 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
             metadata (dict, optional): [description]. Defaults to None.
         """
         super().__init__(metadata=metadata)
-        self._data = pos_df # set to the laps dataframe
-        self._data = self._data.sort_values(by=[self.time_variable_name]) # sorts all values in ascending order
-        
+        self._df = pos_df # set to the laps dataframe
+
+        if not hasattr(self._df, 'attrs'):
+            self._df.attrs = {} # If no metadata set as empty in case convention changes in the future
+        if metadata is not None:
+            self._df.attrs.update(metadata)
+        self._df = self._df.sort_values(by=[self.time_variable_name]) # sorts all values in ascending order
+
     def time_slice_indicies(self, t_start, t_stop):
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        included_indicies = self._data[self.time_variable_name].between(t_start, t_stop, inclusive='both') # returns a boolean array indicating inclusion in teh current lap
-        return self._data.index[included_indicies]# note that this currently returns a Pandas.Series object. I could get the normal indicis by using included_indicies.to_numpy()
-        
+        included_indicies = self._df[self.time_variable_name].between(t_start, t_stop, inclusive='both') # returns a boolean array indicating inclusion in teh current lap
+        return self._df.index[included_indicies]# note that this currently returns a Pandas.Series object. I could get the normal indicis by using included_indicies.to_numpy()
+
     @classmethod
     def init(cls, traces: np.ndarray, computed_traces: np.ndarray=None, t_start=0, sampling_rate=120, metadata=None):
         """ Comatibility initializer """
         if traces.ndim == 1:
             traces = traces.reshape(1, -1) # required before setting ndim
-            
+
         ndim = traces.shape[0]
         assert ndim <= 3, "Maximum possible dimension of position is 3"
-        
+
         # generate time vector:
         n_frames = traces.shape[1]
         duration = float(n_frames) / float(sampling_rate)
         t_stop = t_start + duration
         time = np.linspace(t_start, t_stop, n_frames)
 
-        x = traces[0].flatten().copy()       
+        x = traces[0].flatten().copy()
         df = pd.DataFrame({'t': time, 'x': x})
         if computed_traces is not None:
             if computed_traces.ndim >= 1:
                 df["lin_pos"] = computed_traces[0].flatten().copy()
-        
+
         if ndim >= 2:
             y = traces[1]
             df["y"] = y.flatten().copy()
@@ -554,22 +559,62 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
             df["z"] = z.flatten().copy()
         return Position(df, metadata=metadata)
 
+    # Compatibility with raw position vectors
+    @classmethod
+    def init_from_xyz_arrays(cls,
+                             x: np.ndarray,
+                             y: Optional[np.ndarray]=None,
+                             z: Optional[np.ndarray]=None,
+                             t: Optional[np.ndarray]=None,
+                             sampling_rate: float=120.0,
+                             t_start: float=0.0,
+                             **additional_variable_columns):
+        """
+        Create a Position object from separate x, y, z arrays.
 
-    ## Compatibility:
+        Args:
+            x (np.ndarray): X-coordinates.
+            y (Optional[np.ndarray]): Y-coordinates.
+            z (Optional[np.ndarray]): Z-coordinates.
+            sampling_rate (float): The sampling rate of position data (default: 120Hz).
+            t_start (float): Start time for the position data (default: 0.0).
+            **additional_variable_columns: Other optional position-related data.
+
+        Returns:
+            Position: A Position object formatted as a Pandas DataFrame.
+        """
+        # Create position dataframe
+        pos_var_dict = {'x': x}
+        if y is not None:
+            pos_var_dict['y'] = y
+        if z is not None:
+            pos_var_dict['z'] = z
+        if t is not None:
+            pos_var_dict['t'] = t
+        else:
+            n_frames = len(x)
+            pos_var_dict['t'] = np.arange(n_frames) * (1 / sampling_rate) + t_start
+        pos_df = pd.DataFrame(pos_var_dict)
+
+        # Update metadata
+        pos_var_dict.update(additional_variable_columns)
+        return cls(pos_df, metadata={'t_start': t_start, 'sampling_rate': sampling_rate})
+
+    # Compatibility:
     @classmethod
     def legacy_from_dict(cls, dict_rep: dict):
         """ Tries to load the dict using previous versions of this code. """
         # Legacy fallback:
         print(f'Position falling back to legacy loading protocol...: dict_rep: {dict_rep}')
         return Position.init(**({'computed_traces': None, 't_start': 0, 'sampling_rate': 120, 'metadata': None} | dict_rep))
-        
+
     # for PositionDimDataMixin
     @property
     def df(self):
-        return self._data # for Position
+        return self._df # for Position
     @df.setter
     def df(self, value):
-        self._data = value # for Position
+        self._df = value # for Position
 
     @property
     def sampling_rate(self):
@@ -579,11 +624,11 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
     @sampling_rate.setter
     def sampling_rate(self, sampling_rate):
         raise NotImplementedError
-    
+
 
     def to_dict(self):
         data = {
-            "df": self._data,
+            "df": self._df,
             "metadata": self.metadata,
         }
         return data
@@ -598,10 +643,10 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
     # @staticmethod
     # def is_fixed_sampling_rate(time):
     #     dt = np.diff(time)
-        
-    
+
+
     def to_dataframe(self):
-        return self._data.copy()
+        return self._df.copy()
 
     def speed_in_epochs(self, epochs: Epoch):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
@@ -610,10 +655,10 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
     # for TimeSlicableObjectProtocol:
     def time_slice(self, t_start, t_stop):
         t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
-        included_df = deepcopy(self._data)
+        included_df = deepcopy(self._df)
         included_df = included_df[((included_df[self.time_variable_name] >= t_start) & (included_df[self.time_variable_name] <= t_stop))]
         return Position(included_df, metadata=deepcopy(self.metadata))
-        
+
 
     @classmethod
     def from_separate_arrays(cls, t, x, y=None, z=None, lin_pos=None, metadata=None):
@@ -624,10 +669,10 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
             temp_dict['z'] = z
         if lin_pos is not None:
             temp_dict['lin_pos'] = lin_pos
-        return cls(pd.DataFrame(temp_dict), metadata=metadata)                            
+        return cls(pd.DataFrame(temp_dict), metadata=metadata)
         # return cls(traces=np.vstack((x, y)))
-    
-    
+
+
     # ConcatenationInitializable protocol:
     @classmethod
     def concat(cls, objList: Union[Sequence, np.array]):
@@ -636,7 +681,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
         concat_df = pd.concat([obj._data for obj in objList])
         return cls(concat_df)
 
-        
+
     def drop_dimensions_above(self, desired_ndim:int):
         """ modifies the internal dataframe to drop dimensions above a certain number. Always done in place, and returns None. """
         return self.df.position.drop_dimensions_above(desired_ndim, inplace=True)
@@ -651,7 +696,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
             self.t_start,
             self.t_stop)
         )
-         
+
     # HDFMixin Conformances ______________________________________________________________________________________________ #
     def to_hdf(self, file_path, key: str, **kwargs):
         """ Saves the object to key in the hdf5 file specified by file_path
@@ -661,7 +706,7 @@ class Position(HDFMixin, PositionDimDataMixin, PositionComputedDataMixin, Concat
             _pos_obj.to_hdf(hdf5_output_path, key='pos')
         """
         _df = self.to_dataframe()
-        
+
         # Save the DataFrame using pandas
         # Unable to open/create file '/media/MAX/Data/KDIBA/gor01/one/2006-6-12_15-55-31/output/pipeline_results.h5'
         with pd.HDFStore(file_path) as store:
