@@ -272,6 +272,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         spiketrains = neurons.spiketrains[positions]
 
         # Get waveforms, peak channels, shank ids, from original neuron index
+
         waveforms = (None if neurons.waveforms is None else neurons.waveforms[positions])
         peak_channels = (None if neurons.peak_channels is None else neurons.peak_channels[positions])
         shank_ids = (None if neurons.shank_ids is None else neurons.shank_ids[positions])
