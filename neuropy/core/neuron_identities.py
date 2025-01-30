@@ -730,12 +730,8 @@ class NeuronType(HDFConvertableEnum, Enum):
         itemindex = np.where(cls.bapunNpyFileStyleShortClassNames()==string_value)
         return NeuronType(itemindex[0])
 
-
     @classmethod
     def from_qclu_series(cls, qclu_Series):
-        # qclu_Series: a Pandas Series object, such as qclu_Series=spikes_df['qclu']
-        # example: spikes_df['neuron_type'] = pd.cut(x=spikes_df['qclu'], bins=classCutoffValues, labels=classNames)
-        # temp_neuronTypeStrings = pd.cut(x=qclu_Series, bins=cls.classCutoffValues(), labels=cls.shortClassNames())
         temp_cutoff_map:dict = cls.classCutoffMap()
         temp_neuronTypeStrings = [temp_cutoff_map[int(qclu)] for qclu in qclu_Series]
         temp_neuronTypes = np.array([NeuronType.from_short_string(_) for _ in np.array(temp_neuronTypeStrings)])
@@ -743,13 +739,10 @@ class NeuronType(HDFConvertableEnum, Enum):
 
     @classmethod
     def from_any_string_series(cls, neuron_types_strings):
-        # neuron_types_strings: a np.ndarray containing any acceptable style strings, such as: ['mua', 'mua', 'inter', 'pyr', ...]
         return np.array([NeuronType.from_string(_) for _ in np.array(neuron_types_strings)])
-
 
     @classmethod
     def from_bapun_npy_style_series(cls, bapun_style_neuron_types):
-        # bapun_style_neuron_types: a np.ndarray containing Bapun-style strings, such as: ['mua', 'mua', 'inter', 'pyr', ...]
         return np.array([NeuronType.from_bapun_npy_style_string(_) for _ in np.array(bapun_style_neuron_types)])
 
     @classmethod
