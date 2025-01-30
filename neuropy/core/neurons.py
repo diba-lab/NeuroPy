@@ -292,6 +292,42 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
             shank_ids=shank_ids,
         )
 
+    def concatenate(self, neurons_to_add, index_to_add=0):
+        """Add two neuron spike trains together. Adds 'index_to_add' to neuron_ids, shank_ids, and peak_channels
+        to help differentiate different sessions (e.g. index_to_add=100 will make the cluster_ids from
+        neurons_to_add be 101, 102, 103... """
+        t_start = np.min((self.t_start, neurons_to_add.t_start))
+        t_stop = np.max((self.t_stop, neurons_to_add.t_stop))
+
+        # Check to make sure everything is compatible
+        assert self.sampling_rate == neurons_to_add.sampling_rate
+        feature_dict = {}
+        for feature in ["spiketrains", "neuron_ids", "neuron_type", "waveforms",
+                        "peak_channels", "shank_ids"]:
+            print(f"{feature} with kind={getattr(self, feature).dtype.kind}")
+            # try:
+            if feature in ["spiketrains", "neuron_type", "waveforms"]:
+                feature_dict[feature] = np.concatenate((getattr(self, feature),
+                                                        getattr(neurons_to_add, feature)),
+                                                        axis=0)
+            else:  # only add to id related fields
+
+                feature_dict[feature] = np.concatenate((getattr(self, feature),
+                                                        getattr(neurons_to_add, feature) + index_to_add),
+                                                       axis=0)
+
+        return Neurons(spiketrains=feature_dict["spiketrains"],
+                       t_start=t_start,
+                       t_stop=t_stop,
+                       sampling_rate=self.sampling_rate,
+                       neuron_ids=feature_dict["neuron_ids"],
+                       neuron_type=feature_dict["neuron_type"],
+                       waveforms=feature_dict["waveforms"],
+                       waveforms_amplitude=feature_dict["waveforms_amplitude"],
+                       peak_channels=feature_dict["peak_channels"],
+                       clu_q=feature_dict["clu_q"],
+                       shank_ids=feature_dict["shank_ids"])
+
     def get_neuron_type(self, query_neuron_type):
         """ filters self by the specified query_neuron_type, only returning neurons that match. """
         if isinstance(query_neuron_type, NeuronType):
