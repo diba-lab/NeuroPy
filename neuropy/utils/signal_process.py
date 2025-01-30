@@ -456,22 +456,25 @@ class FourierSg(Spectrogram):
         window = int(window * fs)
         overlap = int(overlap * fs)
 
+        sig = signal.traces[0]
+        if norm_sig:
+            sig = stats.zscore(signal.traces[0])
+
         f = None
-        if mt:
+        if multitaper:
             tapers = sg.windows.dpss(M=window, NW=5, Kmax=6)
 
             sxx_taper = []
             for taper in tapers:
-                f, t, sxx = sg.spectrogram(
-                    signal, window=taper, fs=fs, noverlap=overlap
-                )
+                f, t, sxx = sg.spectrogram(sig, window=taper, fs=fs, noverlap=overlap)
                 sxx_taper.append(sxx)
             sxx = np.dstack(sxx_taper).mean(axis=2)
 
         else:
-            f, t, sxx = sg.spectrogram(signal, fs=fs, nperseg=window, noverlap=overlap)
+            f, t, sxx = sg.spectrogram(sig, fs=fs, nperseg=window, noverlap=overlap)
 
-        return sxx, f, t
+        if smooth is not None:
+            sxx = filtSig.gaussian_filter1d(sxx, sigma=smooth, axis=-1)
 
 
 def hilbertfast(arr, ax=-1):
@@ -483,10 +486,10 @@ def hilbertfast(arr, ax=-1):
     Returns:
         [type] -- [description]
     """
-    signal_length = arr.shape[-1]
-    hilbertsig = sg.hilbert(arr, fftpack.next_fast_len(signal_length), axis=ax)
+    signal_length = signal.shape[-1]
+    hilbertsig = sg.hilbert(signal, fftpack.next_fast_len(signal_length), axis=ax)
 
-    if np.ndim(arr) > 1:
+    if np.ndim(signal) > 1:
         hilbertsig = hilbertsig[:, :signal_length]
     else:
         hilbertsig = hilbertsig[:signal_length]

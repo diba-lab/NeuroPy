@@ -9,6 +9,7 @@ import numpy as np
 class Animal(DataWriter):
     name: str = None
     alias: str = None
+    tag: str = None
     sex: str = None
     weight: float = None  # weight of the animal in grams during the recording session
     day: str = None  # day of experiment
@@ -31,10 +32,38 @@ class Animal(DataWriter):
     def write_csv(self):
         pass
 
-    # @staticmethod
-    # def from_dict(d):
-    #     return Animal(**d)
+    def to_dict(self, recurrsively=False):
+        return {
+            "name": self.name,
+            "alias": self.alias,
+            "tag": self.tag,
+            "day": self.day,
+            "start": self.start,
+            "stop": self.stop,
+            "sex": self.sex,
+            "weight": self.weight,
+            "experimenter": self.experimenter,
+            "experiment": self.experiment,
+            "probe": self.probe,
+            "track": self.track,
+            "brain_region": self.brain_region,
+            "metadata": self.metadata,
+        }
 
+    @staticmethod
+    def from_dict(d):
+        return Animal(
+            name=d["name"],
+            alias=d["alias"],
+            tag=d["tag"],
+            sex=d["sex"],
+            weight=d["weight"],
+            day=d["day"],
+            date=d["date"],
+            experimenter=d["experimenter"],
+            experiment=d["experiment"],
+            track=d["track"],
+            brain_region=d["brain_region"],
+            metadata=d["metadata"],
+        )
 
-if __name__ == "__main__":
-    print('test')

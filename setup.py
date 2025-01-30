@@ -1,8 +1,8 @@
 import setuptools
 
 requires = [
-    "numpy>=1.19",
-    "scipy>=1.5",
+    "numpy>=1.20",
+    "scipy>=1.6",
     "matplotlib",
     "scikit-learn",
     "pandas",
@@ -10,17 +10,22 @@ requires = [
     "hmmlearn",
     "ipywidgets",
     "seaborn",
+    "h5py",
+    "hdf5storage",
+    "numba",
+    "python-benedict",
+    "portion"
 ]
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="neuropy-bapungiri",
-    version="0.0.1",
-    author="Bapun Giri",
+    name="neuropy-pho",
+    version="0.0.6",
+    author="Bapun Giri, Pho Hale",
     author_email="bapung@umich.edu",
-    maintainer=["Bapun Giri", "Nat Kinsky"],
-    maintainer_email=["bapung@umich.edu", "nkinsky@umich.edu"],
+    maintainer=["Bapun Giri", "Nat Kinsky", "Pho Hale"],
+    maintainer_email=["bapung@umich.edu", "nkinsky@umich.edu", "halechr@umich.edu"],
     description="Package for ephys analysis",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -31,6 +36,6 @@ setuptools.setup(
         "License :: OSI Approved :: GPL License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=requires,
 )

@@ -1,26 +1,17 @@
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from scipy.signal import find_peaks
-from ..utils import mathutil
+from neuropy.utils import mathutil
 from .. import core
 
 
-def detect_off_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
-    """Detects OFF periods using multiunit activity. During these epochs neurons stop almost stop firing.
-    These off periods were reported by Vyazovskiy et al. 2011 in cortex for sleep deprived animals.
+def detect_local_sleep_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
+    """Detects local OFF events in within period
 
     Parameters
     ----------
-    mua : core.Mua object
-        mua object holds total number of spikes in each bin
-    ignore_epochs: core.Epoch
-        ignore these epochs from getting detected
-
-    References
-    ----------
-    1) Vyazovskiy, V. V., Olcese, U., Hanlon, E. C., Nir, Y., Cirelli, C., & Tononi, G. (2011). Local sleep in awake rats. Nature, 472(7344), 443–447. https://doi.org/10.1038/nature10009
-
+    period : list,array-like
+        period in seconds
 
     """
 
@@ -55,7 +46,7 @@ def detect_off_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
         {
             "start": time[offperiods[:, 0]],
             "stop": time[offperiods[:, 1]],
-            "duration": duration * mua.bin_size,
+            "duration": duration / 1000,
             "label": "",
         }
     )
@@ -63,84 +54,55 @@ def detect_off_epochs(mua: core.Mua, ignore_epochs: core.Epoch = None):
     return core.Epoch(events)
 
 
-def detect_pbe_epochs(
-    mua: core.Mua,
-    thresh=(3, None),
-    edge_cutoff=0.5,
-    duration=(0.1, None),
-    distance=None,
-):
+def detect_pbe_epochs(mua: core.Mua, thresh=(0, 3), min_dur=0.1, merge_dur=0.01, max_dur=1.0):
     """Detects putative population burst events
 
     Parameters
     ----------
     thresh : tuple, optional
         values based on zscore i.e, events with firing rate above thresh[0] and peak exceeding thresh[1], by default (0, 3) --> above mean and greater than 3 SD
-    duration : float, optional
-        minimum and maximum duration of pbe, in seconds, default = (0.1,None) seconds
-    distance : float, optioal
+    min_dur : float, optional
+        minimum duration of a pop burst event, in seconds, default = 0.1 seconds
+    merge_dur : float, optional
         if two events are less than this time apart, they are merged, in seconds
+    max_dur : float, optional
+        events only lasting below this duration
     """
-
     assert len(thresh) == 2, "thresh can only have two elements"
-    if distance is None:
-        distance = 1e-6
-    else:
-        distance = distance / mua.bin_size
-
-    min_dur, max_dur = duration
     params = {
         "thresh": thresh,
-        "duration": duration,
-        "distance": distance,
+        "min_dur": min_dur,
+        "merge_dur": merge_dur,
+        "max_dur": max_dur,
+        **(mua.metadata or {}) # add in Mua calculation metadata if it has any
     }
 
-    lowthresh, highthresh = thresh
-    n_spikes = stats.zscore(mua.spike_counts)
-    n_spikes_thresh = np.where(n_spikes >= edge_cutoff, n_spikes, 0)
-    peaks, props = find_peaks(
-        n_spikes_thresh, height=[lowthresh, highthresh], prominence=0
+    sampling_rate = 1 / mua.bin_size  # sampling rate of mua
+    min_dur = min_dur * sampling_rate
+    merge_dur = merge_dur * sampling_rate
+    events = mathutil.threshPeriods(
+        stats.zscore(mua.firing_rate),
+        lowthresh=thresh[0],
+        highthresh=thresh[1],
+        minDuration=min_dur,
+        minDistance=merge_dur,
     )
-    starts, stops = props["left_bases"], props["right_bases"]
-    peaks_n_spikes = n_spikes_thresh[peaks]
-
-    # ----- merge overlapping epochs ------
-    n_epochs = len(starts)
-    ind_delete = []
-    for i in range(n_epochs - 1):
-        if starts[i + 1] - stops[i] < distance:
-
-            # stretch the second epoch to cover the range of both epochs
-            starts[i + 1] = min(starts[i], starts[i + 1])
-            stops[i + 1] = max(stops[i], stops[i + 1])
-
-            peaks_n_spikes[i + 1] = max(peaks_n_spikes[i], peaks_n_spikes[i + 1])
-            peaks[i + 1] = [peaks[i], peaks[i + 1]][
-                np.argmax([peaks_n_spikes[i], peaks_n_spikes[i + 1]])
-            ]
-
-            ind_delete.append(i)
-
-    epochs_arr = np.vstack((starts, stops, peaks, peaks_n_spikes)).T
-    starts, stops, peaks, peaks_n_spikes = np.delete(epochs_arr, ind_delete, axis=0).T
 
     time = np.asarray(mua.time)
-    epochs_df = pd.DataFrame(
+    pbe_times = time[events]
+
+    events = pd.DataFrame(
         {
-            "start": time[starts.astype("int")],
-            "stop": time[stops.astype("int")],
-            "peak_time": time[peaks.astype("int")],
-            "peak_counts": peaks_n_spikes,
-            "label": "pbe",
+            "start": pbe_times[:, 0],
+            "stop": pbe_times[:, 1],
+            "duration": np.diff(pbe_times, axis=1).squeeze(),
+            "label": "",
         }
     )
-    epochs = core.Epoch(epochs=epochs_df)
-    # ------duration thresh---------
-    epochs = epochs.duration_slice(min_dur=min_dur, max_dur=max_dur)
-    print(f"{len(epochs)} epochs reamining with durations within ({min_dur},{max_dur})")
 
-    epochs.metadata = params
-    return epochs
+    events = events[events.duration < max_dur].reset_index(drop=True)
+
+    return core.Epoch(events, params)
 
 
 def detect_lowstates_epochs():

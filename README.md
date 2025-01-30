@@ -1,4 +1,4 @@
-# NeuroPy
+# NeuroPy [![DOI](https://zenodo.org/badge/426124562.svg)](https://zenodo.org/badge/latestdoi/426124562)
 Package for analyzing ephys data using python.
 
 ### Overview
@@ -39,15 +39,33 @@ plotting.plot_raster(neurons,color = 'jet')
 
 ![Example Image](images/raster.png)
 
-### Citing this package
-If you use NeuroPy in your research, please consider citing it.
 
+### DVC (Data Version Control) Setup
+DVC is used to access and version the files used in testing neuropy (excuting the unit tests in `/tests`).
+
+##### Instalation:
+It can be installed via poetry via: `poetry add dvc[gdrive] --dev`, but this adds a butch of uneeded libraries
+
+Or installed locally on Windows via: `choco install dvc`
+
+See also: https://dvc.org/doc/user-guide/how-to/setup-google-drive-remote#using-a-custom-google-cloud-project-recommended
+
+```bash
+dvc remote add --default diba_shared_gdrive gdrive://1DyUM5aOhE5kIKzc7OOkVyBltYjUbJ7tX/dvcstore
+dvc pull # this will be fetch the files needed from Google Drive, first prompting you for your credentials
 ```
-@misc{neuropy2021,
-    author       = {Bapun Giri, Nat Kinsky},
-    title        = {{NeuroPy: Electrophysiology analysis using Python}},
-    year         = 2020--2021,
-    version      = {0.0.1},
-    url          = {https://github.com/diba-lab/NeuroPy}
-    }
+
+### Citing this package
+If you use NeuroPy in your research, please consider citing as
+```
+@software{neuropy2022,
+  author       = {Bapun Giri, Nat Kinsky, Pho Hale},
+  title        = {NeuroPy: Electrophysiology analysis using Python},
+  month        = jun,
+  year         = 2022,
+  publisher    = {Zenodo},
+  version      = {0.0.3},
+  doi          = {10.5281/zenodo.6647463},
+  url          = {https://doi.org/10.5281/zenodo.6647463}
+}
 ```
