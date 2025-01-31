@@ -371,14 +371,11 @@ def detect_ripple_epochs(
     )
 
     if not return_power:
-        print(epochs._df.head())
         epochs = epochs.shift(dt=signal.t_start)
-        print(epochs._df.head())
         epochs.metadata = dict(channels=selected_chans)
         return epochs
     else:
         ripple_power = epochs[1]
-
         epochs = epochs[0].shift(dt=signal.t_start)
         epochs.metadata = dict(channels=selected_chans)
         return epochs, ripple_power
