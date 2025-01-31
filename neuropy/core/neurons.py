@@ -85,7 +85,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         else:
             if neuron_ids is int:
                 neuron_ids = [neuron_ids] # if it's a single element, wrap it in a list.
-            self._neuron_ids = np.array([int(cell_id) for cell_id in neuron_ids]) # ensures integer indexes for IDs
+            self._neuron_ids = pd.Series([int(cell_id) for cell_id in neuron_ids], name="neuron_id")
             
         self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(self._neuron_ids.copy())
         
@@ -123,6 +123,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
     def neuron_ids(self):
         """The neuron_ids property."""
         return self._neuron_ids
+
     @neuron_ids.setter
     def neuron_ids(self, value):
         """ ensures the indicies are integers and builds the reverse index map upon setting this value """
@@ -259,26 +260,42 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
             shank_ids=neurons.shank_ids,
         )
 
-    def neuron_slice(self, neuron_inds):
+    def neuron_slice(self, neuron_inds=None, neuron_ids=None):
         neurons = deepcopy(self)
 
-        # Allow slicing single neurons (user gave int for a slice)
-        if isinstance(neuron_inds, int):
-            neuron_inds = [neuron_inds]
+        if neuron_inds is not None and neuron_ids is not None:
+            raise ValueError("Specify either neuron indexes or neuron ids, but not both.")
 
-        # Get list of original neuron indices
-        all_neurons = np.array(neurons.neuron_ids.index)
+        # Handle selection of neuron indices
+        if neuron_inds is not None:
+            if isinstance(neuron_inds, int):
+                neuron_inds = [neuron_inds]
 
-        # Find the positional indices of original indexes
-        positions = np.where(np.isin(all_neurons, neuron_inds))[0]
-        positions = positions.tolist()
+            # Get list of original neuron indices
+            all_neurons = np.array(neurons.neuron_ids.index)
+            # Find the positional indices of original indexes
+            positions = np.where(np.isin(all_neurons, neuron_inds))[0]
+
+        # Handle selection by neuron ids
+        elif neuron_ids is not None:
+            if isinstance(neuron_ids, int):
+                neuron_ids = [neuron_ids]
+
+            # Find positions corresponding to neuron ids
+            positions = self.neuron_ids[self.neuron_ids.isin(neuron_ids)].index.to_list()
+            if len(positions) == 0:
+                raise ValueError(f"No neurons found for give ids: {neuron_ids}")
+
+        else:
+            raise ValueError("Must specify either neuron_inds or neuron_ids.")
 
         # Get spiketrains from original neuron index
         spiketrains = neurons.spiketrains[positions]
 
         # Get waveforms, peak channels, shank ids, from original neuron index
-
+        neuron_type = (None if neurons.neuron_type is None else neurons.neuron_type[positions])
         waveforms = (None if neurons.waveforms is None else neurons.waveforms[positions])
+        waveforms_amplitude = (None if neurons.waveforms_amplitude is None else neurons.waveforms_amplitude[positions])
         peak_channels = (None if neurons.peak_channels is None else neurons.peak_channels[positions])
         shank_ids = (None if neurons.shank_ids is None else neurons.shank_ids[positions])
         clu_q = (None if neurons.clu_q is None else neurons.clu_q[positions])
@@ -289,10 +306,10 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
             t_stop=neurons.t_stop,
             t_start=neurons.t_start,
             sampling_rate=neurons.sampling_rate,
-            neuron_ids=neurons.neuron_ids[neuron_inds],
-            neuron_type=neurons.neuron_type[neuron_inds],
+            neuron_ids=neurons.neuron_ids.loc[positions],  # Keep correct neuron IDs
+            neuron_type=neuron_type,  # Keep correct neuron types
             waveforms=waveforms,
-            waveforms_amplitude=neurons.waveforms_amplitude,
+            waveforms_amplitude=waveforms_amplitude,
             peak_channels=peak_channels,
             clu_q=clu_q,
             shank_ids=shank_ids,
