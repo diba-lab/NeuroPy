@@ -262,58 +262,58 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
 
     def neuron_slice(self, neuron_inds=None, neuron_ids=None):
         neurons = deepcopy(self)
-
+    
         if neuron_inds is not None and neuron_ids is not None:
-            raise ValueError("Specify either neuron indexes or neuron ids, but not both.")
-
+            raise ValueError("Specify either neuron_inds or neuron_ids, but not both.")
+    
         # Handle selection of neuron indices
         if neuron_inds is not None:
             if isinstance(neuron_inds, int):
                 neuron_inds = [neuron_inds]
-
-            # Get list of original neuron indices
-            all_neurons = np.array(neurons.neuron_ids.index)
-            # Find the positional indices of original indexes
-            positions = np.where(np.isin(all_neurons, neuron_inds))[0]
-
-        # Handle selection by neuron ids
+    
+            # Find the positional indices directly from the numpy array
+            positions = np.array(neuron_inds)  # Use provided indices directly
+    
+        # Handle selection by neuron IDs
         elif neuron_ids is not None:
             if isinstance(neuron_ids, int):
                 neuron_ids = [neuron_ids]
-
-            # Find positions corresponding to neuron ids
-            positions = self.neuron_ids[self.neuron_ids.isin(neuron_ids)].index.to_list()
+    
+            # Find the positions corresponding to the given neuron IDs
+            positions = np.where(np.isin(neurons.neuron_ids, neuron_ids))[0]
             if len(positions) == 0:
-                raise ValueError(f"No neurons found for give ids: {neuron_ids}")
-
+                raise ValueError(f"No neurons found for given neuron_ids: {neuron_ids}")
+    
         else:
             raise ValueError("Must specify either neuron_inds or neuron_ids.")
-
-        # Get spiketrains from original neuron index
+    
+        # Extract data using the found positions
         spiketrains = neurons.spiketrains[positions]
-
-        # Get waveforms, peak channels, shank ids, from original neuron index
-        neuron_type = (None if neurons.neuron_type is None else neurons.neuron_type[positions])
-        waveforms = (None if neurons.waveforms is None else neurons.waveforms[positions])
-        waveforms_amplitude = (None if neurons.waveforms_amplitude is None else neurons.waveforms_amplitude[positions])
-        peak_channels = (None if neurons.peak_channels is None else neurons.peak_channels[positions])
-        shank_ids = (None if neurons.shank_ids is None else neurons.shank_ids[positions])
-        clu_q = (None if neurons.clu_q is None else neurons.clu_q[positions])
-
-        # neuron_ids and neuron_type stay maintained because neuron_inds points to original indices.
+        neuron_type = None if neurons.neuron_type is None else neurons.neuron_type[positions]
+        waveforms = None if neurons.waveforms is None else neurons.waveforms[positions]
+        waveforms_amplitude = None if neurons.waveforms_amplitude is None else neurons.waveforms_amplitude[positions]
+        peak_channels = None if neurons.peak_channels is None else neurons.peak_channels[positions]
+        shank_ids = None if neurons.shank_ids is None else neurons.shank_ids[positions]
+        clu_q = None if neurons.clu_q is None else neurons.clu_q[positions]
+    
+        # Ensure neuron_ids remains a NumPy array and retains its original values
+        sliced_neuron_ids = np.array(neurons.neuron_ids)[positions]
+    
+        # Create and return the new Neurons object
         return Neurons(
             spiketrains=spiketrains,
             t_stop=neurons.t_stop,
             t_start=neurons.t_start,
             sampling_rate=neurons.sampling_rate,
-            neuron_ids=neurons.neuron_ids.loc[positions],  # Keep correct neuron IDs
-            neuron_type=neuron_type,  # Keep correct neuron types
+            neuron_ids=sliced_neuron_ids,  # Now a NumPy array
+            neuron_type=neuron_type,  # Still an np.ndarray
             waveforms=waveforms,
             waveforms_amplitude=waveforms_amplitude,
             peak_channels=peak_channels,
             clu_q=clu_q,
             shank_ids=shank_ids,
         )
+
 
     def concatenate(self, neurons_to_add, index_to_add=0):
         """Add two neuron spike trains together. Adds 'index_to_add' to neuron_ids, shank_ids, and peak_channels
