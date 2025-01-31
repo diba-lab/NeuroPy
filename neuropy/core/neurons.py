@@ -85,7 +85,7 @@ class Neurons(HDF_SerializationMixin, NeuronUnitSlicableObjectProtocol, StartSto
         else:
             if neuron_ids is int:
                 neuron_ids = [neuron_ids] # if it's a single element, wrap it in a list.
-            self._neuron_ids = pd.Series([int(cell_id) for cell_id in neuron_ids], name="neuron_id")
+            self._neuron_ids = np.array([int(cell_id) for cell_id in neuron_ids]) # ensures integer indexes for IDs
             
         self._reverse_cellID_index_map = Neurons.__build_cellID_reverse_lookup_map(self._neuron_ids.copy())
         
