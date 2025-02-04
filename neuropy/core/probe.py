@@ -134,7 +134,7 @@ class Probe:
         if isinstance(shanks, list):
             assert np.all([_.__class__.__name__ == "Shank" for _ in shanks])
 
-        self._data = pd.DataFrame(
+        self._df = pd.DataFrame(
             {
                 "x": np.array([]),
                 "y": np.array([]),
@@ -152,42 +152,42 @@ class Probe:
             shank_df["x"] += x[i]
             shank_df["y"] += y[i]
             shank_df["shank_id"] = i * np.ones(shank.n_contacts)
-            # self._data = self._data.append(shank_df)
-            self._data = pd.concat([self._data, shank_df])
-        self._data = self._data.reset_index(drop=True)
-        self._data["contact_id"] = np.arange(len(self._data))
+            # self._df = self._df.append(shank_df)
+            self._df = pd.concat([self._df, shank_df])
+        self._df = self._df.reset_index(drop=True)
+        self._df["contact_id"] = np.arange(len(self._df))
 
     @property
     def n_contacts(self):
-        return len(self._data)
+        return len(self._df)
 
     @property
     def n_shanks(self):
-        return np.max(self._data["shank_id"]) + 1
+        return np.max(self._df["shank_id"]) + 1
 
     @property
     def shank_id(self):
-        return self._data["shank_id"].values
+        return self._df["shank_id"].values
 
     @property
     def x(self):
-        return self._data["x"].values
+        return self._df["x"].values
 
     @property
     def x_max(self):
-        return np.max(self._data["x"].values)
+        return np.max(self._df["x"].values)
 
     @property
     def y(self):
-        return self._data["y"].values
+        return self._df["y"].values
 
     @property
     def channel_id(self):
-        return self._data["channel_id"].values
+        return self._df["channel_id"].values
 
     @property
     def connected(self):
-        return self._data["connected"].values
+        return self._df["connected"].values
 
     def add_shanks(self, shanks: Shank, shank_pitch=(150, 0)):
         if isinstance(shanks, list):
@@ -199,24 +199,24 @@ class Probe:
         for shank in shanks:
             shank_df = shank.to_dataframe()
             shank_df["shank_id"] = (self.n_shanks - 1) * np.ones(shank.n_contacts)
-            self._data = pd.concat([self._data, shank_df])
+            self._df = pd.concat([self._df, shank_df])
 
     def to_dict(self, recurrsively=False):
-        return self._data.to_dict()
+        return self._df.to_dict()
 
     def to_dataframe(self):
-        return self._data
+        return self._df
 
     def move(self, translation):
         x, y = translation
-        self._data["x"] += x
-        self._data["y"] += y
+        self._df["x"] += x
+        self._df["y"] += y
 
 
 class ProbeGroup(DataWriter):
     def __init__(self, metadata=None) -> None:
         super().__init__(metadata=metadata)
-        self._data = pd.DataFrame(
+        self._df = pd.DataFrame(
             {
                 "x": np.array([]),
                 "y": np.array([]),
@@ -230,7 +230,7 @@ class ProbeGroup(DataWriter):
 
     @property
     def x(self):
-        return self._data["x"].values
+        return self._df["x"].values
 
     @property
     def x_min(self):
@@ -242,7 +242,7 @@ class ProbeGroup(DataWriter):
 
     @property
     def y(self):
-        return self._data["y"].values
+        return self._df["y"].values
 
     @property
     def y_min(self):
@@ -254,15 +254,15 @@ class ProbeGroup(DataWriter):
 
     @property
     def n_contacts(self):
-        return len(self._data)
+        return len(self._df)
 
     @property
     def channel_id(self):
-        return self._data["channel_id"].values
+        return self._df["channel_id"].values
 
     @property
     def shank_id(self):
-        return self._data["shank_id"].values
+        return self._df["shank_id"].values
 
     def get_channels(self, groupby="shank"):
         prb = self.to_dataframe()
@@ -348,7 +348,7 @@ class ProbeGroup(DataWriter):
 
     @property
     def probe_id(self):
-        return self._data["probe_id"].values
+        return self._df["probe_id"].values
 
     @property
     def n_probes(self):
@@ -360,7 +360,7 @@ class ProbeGroup(DataWriter):
 
     @property
     def get_disconnected(self):
-        return self._data[self._data["connected"] == False]
+        return self._df[self._df["connected"] == False]
 
     def add_probe(self, probe: Probe):
         probe_df = probe.to_dataframe()
@@ -368,24 +368,24 @@ class ProbeGroup(DataWriter):
         if self.n_probes > 0:
             probe_df["shank_id"] = probe_df["shank_id"] + self.n_shanks
 
-        self._data = pd.concat([self._data, probe_df])
+        self._df = pd.concat([self._df, probe_df])
 
         # _, counts = np.unique(self.get_channel_ids(), return_counts=True)
 
     def to_dict(self, recurrsively=False):
         return {
-            "data": self._data,
+            "data": self._df,
             "metadata": self.metadata,
         }
 
     @staticmethod
     def from_dict(d: dict):
         prbgrp = ProbeGroup(metadata=d["metadata"])
-        prbgrp._data = d["data"].sort_values(["shank_id", "y"], ascending=[True, False])
+        prbgrp._df = d["data"].sort_values(["shank_id", "y"], ascending=[True, False])
         return prbgrp
 
     def to_dataframe(self):
-        return pd.DataFrame(self._data)
+        return pd.DataFrame(self._df)
 
     def remove_probes(self, probe_id=None):
-        self._data = {}
+        self._df = {}

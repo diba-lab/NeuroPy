@@ -665,13 +665,13 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
     def __init__(self, pandas_obj):
         pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict=self._time_column_name_synonyms)       #@IgnoreException 
         pandas_obj = self._validate(pandas_obj)
-        self._obj = pandas_obj
-        self._obj = self._obj.sort_values(by=["start"]) # sorts all values in ascending order
+        self._df = pandas_obj
+        self._df = self._df.sort_values(by=["start"]) # sorts all values in ascending order
         # Optional: If the 'label' column of the dataframe is empty, should populate it with the index (after sorting) as a string.
-        # self._obj['label'] = self._obj.index
-        self._obj["label"] = self._obj["label"].astype("str")
+        # self._df['label'] = self._df.index
+        self._df["label"] = self._df["label"].astype("str")
         # Optional: Add 'duration' column:
-        self._obj["duration"] = self._obj["stop"] - self._obj["start"]
+        self._df["duration"] = self._df["stop"] - self._df["start"]
         # Optional: check for and remove overlaps
 
     @classmethod
@@ -686,16 +686,16 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
     @property
     def starts(self):
-        return self._obj.start.values
+        return self._df.start.values
 
     @property
     def midtimes(self): # -> NDArray
         """ since each epoch is given by a (start, stop) time, the midtimes are the center of this epoch. """
-        return self._obj.start.values + ((self._obj.stop.values - self._obj.start.values)/2.0)
+        return self._df.start.values + ((self._df.stop.values - self._df.start.values)/2.0)
 
     @property
     def stops(self):
-        return self._obj.stop.values
+        return self._df.stop.values
     
     @property
     def t_start(self):
@@ -714,7 +714,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             drop_indicies = np.arange(first_include_index)
             print('drop_indicies: {}'.format(drop_indicies))
             raise NotImplementedError # doesn't yet drop the indicies before the first_include_index
-        self._obj.loc[first_include_index, ('start')] = t # exclude the first short period where the animal isn't on the maze yet
+        self._df.loc[first_include_index, ('start')] = t # exclude the first short period where the animal isn't on the maze yet
 
     @property
     def duration(self):
@@ -734,21 +734,21 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
     @property
     def labels(self):
-        return self._obj.label.values
+        return self._df.label.values
 
 
     @property
     def extra_data_column_names(self):
         """Any additional columns in the dataframe beyond those that exist by default. """
-        return list(set(self._obj.columns) - set(self._required_column_names))
+        return list(set(self._df.columns) - set(self._required_column_names))
         
     @property
     def extra_data_dataframe(self) -> pd.DataFrame:
         """The subset of the dataframe containing additional information in its columns beyond that what is required. """
-        return self._obj[self.extra_data_column_names]
+        return self._df[self.extra_data_column_names]
 
     def as_array(self) -> NDArray:
-        return self._obj[["start", "stop"]].to_numpy()
+        return self._df[["start", "stop"]].to_numpy()
 
     def get_unique_labels(self):
         return np.unique(self.labels)
@@ -758,8 +758,8 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         return list(zip(self.starts, self.stops))
 
     def get_valid_df(self) -> pd.DataFrame:
-        """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._obj` """
-        return self._obj.copy()
+        """ gets a validated copy of the dataframe. Looks better than doing `epochs_df.epochs._df` """
+        return self._df.copy()
 
     # @classmethod
     # def _mergable(cls, a, b):
@@ -854,10 +854,10 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
     def label_slice(self, label) -> pd.DataFrame:
         if isinstance(label, (list, NDArray)):
-            df = self._obj[np.isin(self._obj["label"], label)].reset_index(drop=True)
+            df = self._df[np.isin(self._df["label"], label)].reset_index(drop=True)
         else:
             assert isinstance(label, str), "label must be string"
-            df = self._obj[self._obj["label"] == label].reset_index(drop=True)
+            df = self._df[self._df["label"] == label].reset_index(drop=True)
         return df
 
     def find_data_indicies_from_epoch_times(self, epoch_times: NDArray, atol:float=1e-3, t_column_names=None) -> NDArray:
@@ -872,7 +872,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
         """
         # find_data_indicies_from_epoch_times(a_df, np.squeeze(any_good_selected_epoch_times[:,0]), t_column_names=['ripple_start_t',])
-        return find_data_indicies_from_epoch_times(self._obj, epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
+        return find_data_indicies_from_epoch_times(self._df, epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
     
 
     def find_epoch_times_to_data_indicies_map(self, epoch_times: NDArray, atol:float=1e-3, t_column_names=None) -> Dict[Union[float, Tuple[float, float]], Union[int, NDArray]]:
@@ -884,7 +884,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             epoch_time_to_index_map = deepcopy(dbgr.active_decoder_decoded_epochs_result).filter_epochs.epochs.find_epoch_times_to_data_indicies_map(epoch_times=[epoch_start_time, ])
         
         """
-        return find_epoch_times_to_data_indicies_map(self._obj, epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
+        return find_epoch_times_to_data_indicies_map(self._df, epoch_times, t_column_names=t_column_names, atol=atol, debug_print=False)
     
 
             
@@ -895,13 +895,13 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
 
         """
         # , not_found_action='skip_index'
-        found_data_indicies = self._obj.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times, atol=atol, t_column_names=t_column_names)
-        # df = self._obj.iloc[found_data_indicies].copy().reset_index(drop=True)
-        df = self._obj.loc[found_data_indicies].copy().reset_index(drop=True)
+        found_data_indicies = self._df.epochs.find_data_indicies_from_epoch_times(epoch_times=epoch_times, atol=atol, t_column_names=t_column_names)
+        # df = self._df.iloc[found_data_indicies].copy().reset_index(drop=True)
+        df = self._df.loc[found_data_indicies].copy().reset_index(drop=True)
         return df
 
     def filtered_by_duration(self, min_duration=None, max_duration=None):
-        return self._obj[(self.durations >= (min_duration or 0.0)) & (self.durations <= (max_duration or np.inf))].reset_index(drop=True)
+        return self._df[(self.durations >= (min_duration or 0.0)) & (self.durations <= (max_duration or np.inf))].reset_index(drop=True)
         
     # Requires Optional `portion` library
     # import portion as P # Required for interval search: portion~=2.3.0
@@ -925,8 +925,8 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """
         epochs_df: pd.DataFrame = self.get_non_overlapping_df()
         df_metadata = None
-        if (self._obj.attrs is not None) and copy_metadata:
-            df_metadata = deepcopy(self._obj.attrs)
+        if (self._df.attrs is not None) and copy_metadata:
+            df_metadata = deepcopy(self._df.attrs)
         
         inter_lap_epochs = []
         prev_lap = None
@@ -962,8 +962,8 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         """
         epochs_df: pd.DataFrame = self.get_non_overlapping_df()
         df_metadata = None
-        if (self._obj.attrs is not None) and copy_metadata:
-            df_metadata = deepcopy(self._obj.attrs)
+        if (self._df.attrs is not None) and copy_metadata:
+            df_metadata = deepcopy(self._df.attrs)
 
         # smallest_allowed_epoch_duration: float = (2.0 * safe_contract_epochs) + 0.001 # add another ms just to be safe
         # epochs_df = epochs_df.epochs.get_epochs_longer_than(minimum_duration=smallest_allowed_epoch_duration)
@@ -1007,7 +1007,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
         if not skip_get_non_overlapping:
             epochs_df: pd.DataFrame = self.get_non_overlapping_df()
         else:
-            epochs_df: pd.DataFrame = ensure_dataframe(self._obj)
+            epochs_df: pd.DataFrame = ensure_dataframe(self._df)
         epochs_Portion: P.Interval = epochs_df.epochs.to_PortionInterval()
         other_epochs_Porition: P.Interval = other_epochs_df.epochs.to_PortionInterval()
         return EpochsAccessor.from_PortionInterval(epochs_Portion.difference(other_epochs_Porition))
@@ -1060,7 +1060,7 @@ class EpochsAccessor(TimeColumnAliasesProtocol, TimeSlicedMixin, StartStopTimesM
             active_epochs_df = active_epochs_df.epochs.adding_active_aclus_information(spikes_df=active_spikes_df, epoch_id_key_name='Probe_Epoch_id', add_unique_aclus_list_column=True)
 
         """
-        active_epochs_df: pd.DataFrame = self._obj.epochs.get_valid_df()
+        active_epochs_df: pd.DataFrame = self._df.epochs.get_valid_df()
         
         # Ensures the appropriate columns are added to spikes_df:
         # spikes_df = spikes_df.spikes.adding_epochs_identity_column(epochs_df=active_epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name='label', override_time_variable_name='t_rel_seconds',
@@ -1138,7 +1138,7 @@ epochs_df
             laps_df
 
         """
-        epochs_df: pd.DataFrame = self._obj.epochs.get_valid_df()
+        epochs_df: pd.DataFrame = self._df.epochs.get_valid_df()
         return self.add_maze_id_if_needed(epochs_df=epochs_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=replace_existing, labels_column_name=labels_column_name, start_time_col_name='start', end_time_col_name='stop')
     
 
@@ -1174,16 +1174,16 @@ epochs_df
         else:
             last_included_epoch_name = self.get_unique_labels()[-1]
         
-        maze_epochs_df =  pd.DataFrame({'start': [*self.starts, self._obj.iloc[(self.labels == first_included_epoch_name)]['start'].tolist()[0]], 
-                                        'stop': [*self.stops, self._obj.iloc[(self.labels == last_included_epoch_name)]['stop'].tolist()[0]],
-        # 'stop': [*self.stops, self._obj[self.labels == last_included_epoch_name][1]],
+        maze_epochs_df =  pd.DataFrame({'start': [*self.starts, self._df.iloc[(self.labels == first_included_epoch_name)]['start'].tolist()[0]],
+                                        'stop': [*self.stops, self._df.iloc[(self.labels == last_included_epoch_name)]['stop'].tolist()[0]],
+        # 'stop': [*self.stops, self._df[self.labels == last_included_epoch_name][1]],
         'label': [*self.labels, global_epoch_name],
         }) # .epochs.get_valid_df()    
         maze_epochs_df[['start', 'stop']] = maze_epochs_df[['start', 'stop']].astype(float) 
         maze_epochs_df['duration'] = maze_epochs_df['stop'] - maze_epochs_df['start']
 
-        self._obj = maze_epochs_df
-        return self._obj
+        self._df = maze_epochs_df
+        return self._df
         
 
     # ==================================================================================================================== #
@@ -1191,11 +1191,11 @@ epochs_df
     # ==================================================================================================================== #
     def to_dataframe(self) -> pd.DataFrame:
         """ Ensures code exchangeability of epochs in either `Epoch` object / pd.DataFrame """
-        return self._obj.copy()
+        return self._df.copy()
 
     def to_Epoch(self) -> "Epoch":
         """ Ensures code exchangeability of epochs in either `Epoch` object / pd.DataFrame """
-        return Epoch(self._obj.copy())
+        return Epoch(self._df.copy())
 
 
 class Epoch(HDFMixin, StartStopTimesMixin, TimeSlicableObjectProtocol, DataFrameRepresentable, DataFrameInitializable, DataWriter):

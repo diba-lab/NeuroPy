@@ -95,7 +95,7 @@ class NeuronIdentityDataframeAccessor:
    
     def __init__(self, pandas_obj):
         self._validate(pandas_obj)
-        self._obj = pandas_obj
+        self._df = pandas_obj
 
     @staticmethod
     def _validate(obj):
@@ -115,15 +115,15 @@ class NeuronIdentityDataframeAccessor:
     @property
     def neuron_ids(self):
         """ return the unique cell identifiers (given by the unique values of the 'aclu' column) for this DataFrame """
-        unique_aclus = np.unique(self._obj['aclu'].values)
+        unique_aclus = np.unique(self._df['aclu'].values)
         return unique_aclus
     
     @property
     def neuron_probe_tuple_ids(self):
         """ returns a list of NeuronExtendedIdentityTuple tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
         # groupby the multi-index [shank, cluster]:
-        # shank_cluster_grouped_spikes_df = self._obj.groupby(['shank','cluster'])
-        aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
+        # shank_cluster_grouped_spikes_df = self._df.groupby(['shank','cluster'])
+        aclu_grouped_spikes_df = self._df.groupby(['aclu'])
         shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster','qclu']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
         # output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
         output_tuples_list = [NeuronExtendedIdentity(shank=an_id.shank, cluster=an_id.cluster, aclu=an_id.aclu, qclu=an_id.qclu) for an_id in shank_cluster_reference_df.itertuples()]
@@ -136,11 +136,11 @@ class NeuronIdentityDataframeAccessor:
     def extract_unique_neuron_identities(self):
         """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
         # selected_columns = ['aclu', 'shank', 'cluster', 'qclu']
-        # if "neuron_type" in self._obj.columns:
+        # if "neuron_type" in self._df.columns:
         #     selected_columns.append('neuron_type') ## idk if this even makes a difference.
-        selected_columns = [column_name for column_name in ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type'] if column_name in self._obj.columns] ## only include actual columns (but 'aclu' is required)
+        selected_columns = [column_name for column_name in ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type'] if column_name in self._df.columns] ## only include actual columns (but 'aclu' is required)
         
-        unique_rows_df = self._obj[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu. 
+        unique_rows_df = self._df[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu.
         assert len(unique_rows_df) == self.n_neurons, f"if this were false that would suggest that there are multiple entries for aclus. n_neurons: {self.n_neurons}, {len(unique_rows_df) =}"
         return unique_rows_df
 
@@ -181,9 +181,9 @@ class NeuronIdentityDataframeAccessor:
 
         """
         if not inplace:
-            neuron_indexed_df: pd.DataFrame = self._obj.copy()
+            neuron_indexed_df: pd.DataFrame = self._df.copy()
         else:
-            neuron_indexed_df: pd.DataFrame = self._obj
+            neuron_indexed_df: pd.DataFrame = self._df
 
         # Get the aclu information for each aclu in the dataframe. Adds the ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type'] columns
         # unique_aclu_information_df: pd.DataFrame = curr_active_pipeline.sess.spikes_df.spikes.extract_unique_neuron_identities()
@@ -221,7 +221,7 @@ class NeuronIdentityDataframeAccessor:
 
     #     .spikes.to_hdf(
     #     """
-    #     _spikes_df = deepcopy(self._obj)
+    #     _spikes_df = deepcopy(self._df)
     #     # Convert the 'neuron_type' column of the dataframe to the categorical type if needed
     #     cat_type = NeuronType.get_pandas_categories_type()
     #     if _spikes_df["neuron_type"].dtype != cat_type:
