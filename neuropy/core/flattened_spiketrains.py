@@ -31,7 +31,7 @@ class SpikesAccessor(TimeSlicedMixin):
     
     def __init__(self, pandas_obj):
         self._validate(pandas_obj)
-        self._obj = pandas_obj
+        self._df = pandas_obj
 
     @staticmethod
     def _validate(obj):
@@ -67,13 +67,13 @@ class SpikesAccessor(TimeSlicedMixin):
     
     def set_time_variable_name(self, new_time_variable_name):
         module_logger.warning(f'WARNING: SpikesAccessor.set_time_variable_name(new_time_variable_name: {new_time_variable_name}) has been called. Be careful!')
-        if self._obj.spikes.time_variable_name == new_time_variable_name:
+        if self._df.spikes.time_variable_name == new_time_variable_name:
             # no change in the time_variable_name:
             module_logger.warning(f'\t no change in time_variable_name. It will remain {new_time_variable_name}.')
         else:
-            assert new_time_variable_name in self._obj.columns, f"spikes_df.spikes.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original spk_df.spikes.time_variable_name: '{self._obj.spikes.time_variable_name}'.\n\t valid_columns: {list(self._obj.columns)}"
+            assert new_time_variable_name in self._df.columns, f"spikes_df.spikes.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original spk_df.spikes.time_variable_name: '{self._df.spikes.time_variable_name}'.\n\t valid_columns: {list(self._df.columns)}"
             # otherwise it's okay and we can continue
-            original_time_variable_name = self._obj.spikes.time_variable_name
+            original_time_variable_name = self._df.spikes.time_variable_name
             SpikesAccessor.__time_variable_name = new_time_variable_name # set for the class
             self.__time_variable_name = new_time_variable_name # also set for the instance, as the class properties won't be retained when doing deepcopy and hopefully the instance properties will.
             module_logger.warning(f"\t time variable changed from '{original_time_variable_name}' to '{new_time_variable_name}'.")
@@ -82,23 +82,23 @@ class SpikesAccessor(TimeSlicedMixin):
     @property
     def times(self):
         """ convenience property to access the times of the spikes in the dataframe 
-            ## TODO: why doesn't this have a `times` property to access `self._obj[self.time_variable_name].values`?
+            ## TODO: why doesn't this have a `times` property to access `self._df[self.time_variable_name].values`?
         """
-        return self._obj[self.time_variable_name].values
+        return self._df[self.time_variable_name].values
 
     # END TimePointEventAccessor CONFORMANCE _____________________________________________________________________________ #
     @property
     def neuron_ids(self):
         """ return the unique cell identifiers (given by the unique values of the 'aclu' column) for this DataFrame """
-        unique_aclus = np.unique(self._obj['aclu'].values)
+        unique_aclus = np.unique(self._df['aclu'].values)
         return unique_aclus
     
     @property
     def neuron_probe_tuple_ids(self):
         """ returns a list of NeuronExtendedIdentity tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids """
         # groupby the multi-index [shank, cluster]:
-        # shank_cluster_grouped_spikes_df = self._obj.groupby(['shank','cluster'])
-        aclu_grouped_spikes_df = self._obj.groupby(['aclu'])
+        # shank_cluster_grouped_spikes_df = self._df.groupby(['shank','cluster'])
+        aclu_grouped_spikes_df = self._df.groupby(['aclu'])
         shank_cluster_reference_df = aclu_grouped_spikes_df[['aclu','shank','cluster','qclu']].first() # returns a df indexed by 'aclu' with only the 'shank' and 'cluster' columns
         # output_tuples_list = [NeuronExtendedIdentityTuple(an_id.shank, an_id.cluster, an_id.aclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
         output_tuples_list = [NeuronExtendedIdentity(an_id.shank, an_id.cluster, an_id.aclu, qclu=an_id.qclu) for an_id in shank_cluster_reference_df.itertuples()] # returns a list of tuples where the first element is the shank_id and the second is the cluster_id. Returned in the same order as self.neuron_ids
@@ -107,7 +107,7 @@ class SpikesAccessor(TimeSlicedMixin):
 
     @property
     def n_total_spikes(self):
-        return np.shape(self._obj)[0]
+        return np.shape(self._df)[0]
 
     @property
     def n_neurons(self):
@@ -119,20 +119,20 @@ class SpikesAccessor(TimeSlicedMixin):
         # self.neuron_ids is the list of 'aclu' values found in the spikes_df table.
         if included_neuron_ids is None:
             included_neuron_ids = self.neuron_ids
-        return [safe_pandas_get_group(self._obj.groupby('aclu'), neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
+        return [safe_pandas_get_group(self._df.groupby('aclu'), neuron_id) for neuron_id in included_neuron_ids] # dataframes split for each ID
     
     def sliced_by_neuron_id(self, included_neuron_ids) -> pd.DataFrame:
         """ gets the slice of spikes with the specified `included_neuron_ids` """
         if included_neuron_ids is None:
             included_neuron_ids = self.neuron_ids
-        return self._obj[self._obj['aclu'].isin(included_neuron_ids)] ## restrict to only the shared aclus for both short and long
+        return self._df[self._df['aclu'].isin(included_neuron_ids)] ## restrict to only the shared aclus for both short and long
         
     def get_unit_spiketrains(self, included_neuron_ids=None):
         """ returns an array of the spiketrains (an array of the times that each spike occured) for each unit """
         return np.asarray([a_unit_spikes_df[self.time_variable_name].to_numpy() for a_unit_spikes_df in self.get_split_by_unit(included_neuron_ids=included_neuron_ids)])
         
     def sliced_by_neuron_type(self, query_neuron_type) -> pd.DataFrame:
-        """ returns a copy of self._obj filtered by the specified query_neuron_type, only returning neurons that match.
+        """ returns a copy of self._df filtered by the specified query_neuron_type, only returning neurons that match.
             e.g. query_neuron_type = NeuronType.PYRAMIDAL 
                 or query_neuron_type = 'PYRAMIDAL' 
                 or query_neuron_type = 'Pyr'
@@ -146,24 +146,24 @@ class SpikesAccessor(TimeSlicedMixin):
         except Exception as e:
             raise e
         
-        # Compare via .shortClassName for both query_neuron_type and self._obj.neuron_type
-        inclusion_mask = np.isin(np.array([a_type.shortClassName for a_type in self._obj.neuron_type]), [query_neuron_type.shortClassName])
-        return self._obj.loc[inclusion_mask, :].copy()
-        # return self._obj[np.isin(np.array([a_type.shortClassName for a_type in self._obj.neuron_type]), [query_neuron_type.shortClassName])]
+        # Compare via .shortClassName for both query_neuron_type and self._df.neuron_type
+        inclusion_mask = np.isin(np.array([a_type.shortClassName for a_type in self._df.neuron_type]), [query_neuron_type.shortClassName])
+        return self._df.loc[inclusion_mask, :].copy()
+        # return self._df[np.isin(np.array([a_type.shortClassName for a_type in self._df.neuron_type]), [query_neuron_type.shortClassName])]
         
 
     def sliced_by_neuron_qclu(self, included_qclu_values=[1,2,4,9]) -> pd.DataFrame:
-        """ returns a copy of self._obj filtered by the specified included_qclu_values, only returning neurons that match.
+        """ returns a copy of self._df filtered by the specified included_qclu_values, only returning neurons that match.
 
         """
-        inclusion_mask = np.isin(np.array(self._obj.qclu), included_qclu_values)
-        return self._obj.loc[inclusion_mask, :].copy()
+        inclusion_mask = np.isin(np.array(self._df.qclu), included_qclu_values)
+        return self._df.loc[inclusion_mask, :].copy()
 
 
     def extract_unique_neuron_identities(self):
         """ Tries to build information about the unique neuron identitiies from the (highly reundant) information in the spikes_df. """
         selected_columns = ['aclu', 'shank', 'cluster', 'qclu', 'neuron_type']
-        unique_rows_df = self._obj[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu. 
+        unique_rows_df = self._df[selected_columns].drop_duplicates().reset_index(drop=True).sort_values(by='aclu') # Based on only these columns, remove all repeated rows. Since every spike from the same aclu must have the same values for all the rest of the values, there should only be one row for each aclu.
         assert len(unique_rows_df) == self.n_neurons, f"if this were false that would suggest that there are multiple entries for aclus. n_neurons: {self.n_neurons}, {len(unique_rows_df) =}"
         return unique_rows_df
 
@@ -184,13 +184,13 @@ class SpikesAccessor(TimeSlicedMixin):
     # sets the 'x','y' positions by interpolating over a position data frame
     def interpolate_spike_positions(self, position_sampled_times, position_x, position_y, position_linear_pos=None, position_speeds=None):
         spike_timestamp_column_name=self.time_variable_name
-        self._obj['x'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_x)
-        self._obj['y'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_y)
+        self._df['x'] = np.interp(self._df[spike_timestamp_column_name], position_sampled_times, position_x)
+        self._df['y'] = np.interp(self._df[spike_timestamp_column_name], position_sampled_times, position_y)
         if position_linear_pos is not None:
-            self._obj['lin_pos'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_linear_pos)
+            self._df['lin_pos'] = np.interp(self._df[spike_timestamp_column_name], position_sampled_times, position_linear_pos)
         if position_speeds is not None:
-            self._obj['speed'] = np.interp(self._obj[spike_timestamp_column_name], position_sampled_times, position_speeds)
-        return self._obj
+            self._df['speed'] = np.interp(self._df[spike_timestamp_column_name], position_sampled_times, position_speeds)
+        return self._df
     
     def add_same_cell_ISI_column(self):
         """ Compute the inter-spike-intervals (ISIs) for each cell/unit separately. Meaning the list should be the difference from the current spike to the last spike of the previous unit.
@@ -204,19 +204,19 @@ class SpikesAccessor(TimeSlicedMixin):
                 
             # Called only from _default_add_spike_scISIs_if_needed(...)
         """
-        if 'scISI' in self._obj.columns:
+        if 'scISI' in self._df.columns:
             print(f'column "scISI" already exists in df! Skipping recomputation.')
             return
         else:
             spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
-            self._obj['scISI'] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
+            self._df['scISI'] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
 
-            for (i, a_cell_id) in enumerate(self._obj.spikes.neuron_ids):
+            for (i, a_cell_id) in enumerate(self._df.spikes.neuron_ids):
                 # loop through the cell_ids
-                curr_df = safe_pandas_get_group(self._obj.groupby('aclu'), a_cell_id)
+                curr_df = safe_pandas_get_group(self._df.groupby('aclu'), a_cell_id)
                 curr_series_differences = curr_df[spike_timestamp_column_name].diff() # These are the ISIs
                 #set the properties for the points in question:
-                self._obj.loc[curr_df.index,'scISI'] = curr_series_differences
+                self._df.loc[curr_df.index,'scISI'] = curr_series_differences
 
     def rebuild_fragile_linear_neuron_IDXs(self, debug_print=False):
         """ Rebuilds the 'fragile_linear_neuron_IDX' and 'neuron_IDX' columns from the complete list of 'aclu' values in the current spike dataframe so that they're monotonic and without gaps. Ensures that all the fragile_linear_neuron_IDXs are valid after removing neurons or filtering cells.
@@ -254,26 +254,26 @@ class SpikesAccessor(TimeSlicedMixin):
             'neuron_IDX'
         
         """
-        assert 'aclu' in self._obj.columns, f"spikes_df is missing the required 'aclu' column!"
-        if 'fragile_linear_neuron_IDX' in self._obj.columns:
+        assert 'aclu' in self._df.columns, f"spikes_df is missing the required 'aclu' column!"
+        if 'fragile_linear_neuron_IDX' in self._df.columns:
             # Backup the old value if it exists:
             if debug_print:
                 print("WARNING: Overwriting spikes_df's 'fragile_linear_neuron_IDX' and 'neuron_IDX' columns!")
-                self._obj['old_fragile_linear_neuron_IDX'] = self._obj['fragile_linear_neuron_IDX'].copy()
+                self._df['old_fragile_linear_neuron_IDX'] = self._df['fragile_linear_neuron_IDX'].copy()
         
         
-        included_cell_INDEXES = np.array([neuron_id_to_new_IDX_map[an_included_cell_ID] for an_included_cell_ID in self._obj['aclu'].to_numpy()], dtype=int) # get the indexes from the cellIDs
+        included_cell_INDEXES = np.array([neuron_id_to_new_IDX_map[an_included_cell_ID] for an_included_cell_ID in self._df['aclu'].to_numpy()], dtype=int) # get the indexes from the cellIDs
         if debug_print:
             print('\t computed included_cell_INDEXES.')
-        self._obj['fragile_linear_neuron_IDX'] = included_cell_INDEXES.copy()
+        self._df['fragile_linear_neuron_IDX'] = included_cell_INDEXES.copy()
         if debug_print:
-            print("\t set self._obj['fragile_linear_neuron_IDX']")
-        self._obj['neuron_IDX'] = self._obj['fragile_linear_neuron_IDX'].copy()
+            print("\t set self._df['fragile_linear_neuron_IDX']")
+        self._df['neuron_IDX'] = self._df['fragile_linear_neuron_IDX'].copy()
         
         if debug_print:
-            print("\t set self._obj['neuron_IDX']")
+            print("\t set self._df['neuron_IDX']")
             print("\t done updating 'fragile_linear_neuron_IDX' and 'neuron_IDX'.")
-        return self._obj
+        return self._df
 
     def add_binned_time_column(self, time_window_edges, time_window_edges_binning_info:BinningInfo, debug_print:bool=False): ## CONFORMANCE: TimePointEventAccessor
         """ adds a 'binned_time' column to spikes_df given the time_window_edges and time_window_edges_binning_info provided 
@@ -281,13 +281,13 @@ class SpikesAccessor(TimeSlicedMixin):
         """
         spike_timestamp_column_name = self.time_variable_name # 't_rel_seconds'
         if debug_print:
-            print(f'self._obj[time_variable_name]: {np.shape(self._obj[spike_timestamp_column_name])}\ntime_window_edges: {np.shape(time_window_edges)}')
-            # assert (np.shape(out_digitized_variable_bins)[0] == np.shape(self._obj)[0]), f'np.shape(out_digitized_variable_bins)[0]: {np.shape(out_digitized_variable_bins)[0]} should equal np.shape(self._obj)[0]: {np.shape(self._obj)[0]}'
+            print(f'self._df[time_variable_name]: {np.shape(self._df[spike_timestamp_column_name])}\ntime_window_edges: {np.shape(time_window_edges)}')
+            # assert (np.shape(out_digitized_variable_bins)[0] == np.shape(self._df)[0]), f'np.shape(out_digitized_variable_bins)[0]: {np.shape(out_digitized_variable_bins)[0]} should equal np.shape(self._df)[0]: {np.shape(self._df)[0]}'
             print(time_window_edges_binning_info)
 
         bin_labels = time_window_edges_binning_info.bin_indicies[1:] # edge bin indicies: [0,     1,     2, ..., 11878, 11879, 11880][1:] -> [ 1,     2, ..., 11878, 11879, 11880]
-        self._obj['binned_time'] = pd.cut(self._obj[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
-        return self._obj
+        self._df['binned_time'] = pd.cut(self._df[spike_timestamp_column_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._df: (69142,))
+        return self._df
 
     def adding_lap_identity_column(self, laps_epoch_df, epoch_id_key_name:str='new_lap_IDX'):  ## CONFORMANCE: TimePointEventAccessor
         """ Adds the lap IDX column to the spikes df from a set of lap epochs.
@@ -299,17 +299,17 @@ class SpikesAccessor(TimeSlicedMixin):
                 'new_lap_IDX'
 
         """
-        if epoch_id_key_name in self._obj.columns:
+        if epoch_id_key_name in self._df.columns:
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping recomputation.')
-            return self._obj
+            return self._df
         else:
             from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
             from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
 
             spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
-            self._obj[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
-            self._obj = add_epochs_id_identity(self._obj, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
-            return self._obj
+            self._df[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
+            self._df = add_epochs_id_identity(self._df, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            return self._df
 
 
 
@@ -331,25 +331,25 @@ class SpikesAccessor(TimeSlicedMixin):
                                                                                         no_interval_fill_value=no_interval_fill_value, should_replace_existing_column=True, drop_non_epoch_spikes=True)
                                                                                         
         """
-        if (epoch_id_key_name in self._obj.columns) and (not should_replace_existing_column):
+        if (epoch_id_key_name in self._df.columns) and (not should_replace_existing_column):
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping adding intervals.')
-            return self._obj
+            return self._df
         else:
             from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
             from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
 
             spike_timestamp_column_name=self.time_variable_name # 't_rel_seconds'
-            self._obj[epoch_id_key_name] = no_interval_fill_value # initialize the column to -1
-            self._obj = add_epochs_id_identity(self._obj, epochs_df=epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=epoch_label_column_name, no_interval_fill_value=no_interval_fill_value, override_time_variable_name=override_time_variable_name, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            self._df[epoch_id_key_name] = no_interval_fill_value # initialize the column to -1
+            self._df = add_epochs_id_identity(self._df, epochs_df=epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=epoch_label_column_name, no_interval_fill_value=no_interval_fill_value, override_time_variable_name=override_time_variable_name, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
             if drop_non_epoch_spikes:
-                active_spikes_df = self._obj.copy()
+                active_spikes_df = self._df.copy()
                 active_spikes_df.drop(active_spikes_df.loc[active_spikes_df[epoch_id_key_name] == no_interval_fill_value].index, inplace=True)
                 # Sort by columns: 't_rel_seconds' (ascending), 'aclu' (ascending)
                 active_spikes_df = active_spikes_df.sort_values(['t_rel_seconds', 'aclu'])
                 active_spikes_df, active_aclu_to_fragile_linear_neuron_IDX_dict = active_spikes_df.spikes.rebuild_fragile_linear_neuron_IDXs()
             else:
                 # return all spikes
-                active_spikes_df = self._obj
+                active_spikes_df = self._df
 
             return active_spikes_df
 
@@ -362,7 +362,7 @@ class SpikesAccessor(TimeSlicedMixin):
 
         .spikes.to_hdf(
         """
-        _spikes_df = deepcopy(self._obj)
+        _spikes_df = deepcopy(self._df)
         # Convert the 'neuron_type' column of the dataframe to the categorical type if needed
         cat_type = NeuronType.get_pandas_categories_type()
         if _spikes_df["neuron_type"].dtype != cat_type:

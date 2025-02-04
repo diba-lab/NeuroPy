@@ -61,9 +61,9 @@ class TimeSlicedMixin:
         start_stop_times_arr = np.hstack((np.atleast_2d(starts).T, np.atleast_2d(stops).T)) # atleast_2d ensures that each array is represented as a column, so start_stop_times_arr is at least of shape (1, 2)
         # print(f'time_sliced(...): np.shape(start_stop_times_arr): {np.shape(start_stop_times_arr)}')
         # print(f'np.shape(start_stop_times_arr): {np.shape(start_stop_times_arr)}')
-        inclusion_mask = determine_event_interval_is_included(self._obj[self.time_variable_name].to_numpy(), start_stop_times_arr)
+        inclusion_mask = determine_event_interval_is_included(self._df[self.time_variable_name].to_numpy(), start_stop_times_arr)
         # once all slices have been computed and the inclusion_mask is complete, use it to mask the output dataframe
-        return self._obj.loc[inclusion_mask, :].copy()
+        return self._df.loc[inclusion_mask, :].copy()
 
 
 class TimeColumnAliasesProtocol:
@@ -143,7 +143,7 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
     def __init__(self, pandas_obj):
         pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={"start":{'begin','start_t'}, "stop":['end','stop_t']}) # @IgnoreException 
         self._validate(pandas_obj)
-        self._obj = pandas_obj
+        self._df = pandas_obj
 
     @classmethod
     def _validate(cls, obj):
@@ -157,8 +157,8 @@ class TimeSliceAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtocol):
         # t_start, t_stop = self.safe_start_stop_times(t_start, t_stop)
         
         # Approach copied from Laps object's time_slice(...) function
-        included_df = deepcopy(self._obj)
-        included_indicies = (((self._obj.start >= t_start) & (self._obj.start <= t_stop)) & ((self._obj.stop >= t_start) & (self._obj.stop <= t_stop)))
+        included_df = deepcopy(self._df)
+        included_indicies = (((self._df.start >= t_start) & (self._df.start <= t_stop)) & ((self._df.stop >= t_start) & (self._df.stop <= t_stop)))
         included_df = included_df[included_indicies].reset_index(drop=True)
         return included_df
     
@@ -185,7 +185,7 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
     def __init__(self, pandas_obj):
         pandas_obj = self.renaming_synonym_columns_if_needed(pandas_obj, required_columns_synonym_dict={TimePointEventAccessor.__time_variable_name:['t_rel_seconds','t_sec']}) # @IgnoreException ,'begin','start_t','start'
         self._validate(pandas_obj)
-        self._obj = pandas_obj
+        self._df = pandas_obj
 
     @staticmethod
     def _validate(obj):
@@ -198,13 +198,13 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
         return self.__time_variable_name
     
     def set_time_variable_name(self, new_time_variable_name):
-        if self._obj.time_point_event.time_variable_name == new_time_variable_name:
+        if self._df.time_point_event.time_variable_name == new_time_variable_name:
             # no change in the time_variable_name:
             pass
         else:
-            assert new_time_variable_name in self._obj.columns, f"a_df.time_point_event.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original a_df.time_point_event.time_variable_name: '{self._obj.time_point_event.time_variable_name}'.\n\t valid_columns: {list(self._obj.columns)}"
+            assert new_time_variable_name in self._df.columns, f"a_df.time_point_event.set_time_variable_name(new_time_variable_name='{new_time_variable_name}') was called but '{new_time_variable_name}' is not a column of the dataframe! Original a_df.time_point_event.time_variable_name: '{self._df.time_point_event.time_variable_name}'.\n\t valid_columns: {list(self._df.columns)}"
             # otherwise it's okay and we can continue
-            original_time_variable_name = self._obj.time_point_event.time_variable_name
+            original_time_variable_name = self._df.time_point_event.time_variable_name
             TimePointEventAccessor.__time_variable_name = new_time_variable_name # set for the class
             self.__time_variable_name = new_time_variable_name # also set for the instance, as the class properties won't be retained when doing deepcopy and hopefully the instance properties will.
             print('\t time variable changed!')
@@ -212,9 +212,9 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
     @property
     def times(self):
         """ convenience property to access the times of the spikes in the dataframe 
-            ## TODO: why doesn't this have a `times` property to access `self._obj[self.time_variable_name].values`?
+            ## TODO: why doesn't this have a `times` property to access `self._df[self.time_variable_name].values`?
         """
-        return self._obj[self.time_variable_name].values
+        return self._df[self.time_variable_name].values
 
 
     # ==================================================================================================================== #
@@ -227,13 +227,13 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
         if override_time_variable_name is None:
             override_time_variable_name = self.time_variable_name # 't_rel_seconds'
         if debug_print:
-            print(f'self._obj[time_variable_name]: {np.shape(self._obj[override_time_variable_name])}\ntime_window_edges: {np.shape(time_window_edges)}')
-            # assert (np.shape(out_digitized_variable_bins)[0] == np.shape(self._obj)[0]), f'np.shape(out_digitized_variable_bins)[0]: {np.shape(out_digitized_variable_bins)[0]} should equal np.shape(self._obj)[0]: {np.shape(self._obj)[0]}'
+            print(f'self._df[time_variable_name]: {np.shape(self._df[override_time_variable_name])}\ntime_window_edges: {np.shape(time_window_edges)}')
+            # assert (np.shape(out_digitized_variable_bins)[0] == np.shape(self._df)[0]), f'np.shape(out_digitized_variable_bins)[0]: {np.shape(out_digitized_variable_bins)[0]} should equal np.shape(self._df)[0]: {np.shape(self._df)[0]}'
             print(time_window_edges_binning_info)
 
         bin_labels = time_window_edges_binning_info.bin_indicies[1:] # edge bin indicies: [0,     1,     2, ..., 11878, 11879, 11880][1:] -> [ 1,     2, ..., 11878, 11879, 11880]
-        self._obj['binned_time'] = pd.cut(self._obj[override_time_variable_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._obj: (69142,))
-        return self._obj
+        self._df['binned_time'] = pd.cut(self._df[override_time_variable_name].to_numpy(), bins=time_window_edges, include_lowest=True, labels=bin_labels) # same shape as the input data (time_binned_self._df: (69142,))
+        return self._df
 
     def adding_epochs_identity_column(self, epochs_df: pd.DataFrame, epoch_id_key_name:str='temp_epoch_id', epoch_label_column_name=None, override_time_variable_name=None,
                                       no_interval_fill_value=-1, should_replace_existing_column=False, drop_non_epoch_events: bool=False, overlap_behavior: OverlappingIntervalsFallbackBehavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL):
@@ -253,25 +253,25 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
                                                                                         
 
         """
-        if (epoch_id_key_name in self._obj.columns) and (not should_replace_existing_column):
+        if (epoch_id_key_name in self._df.columns) and (not should_replace_existing_column):
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping adding intervals.')
-            return self._obj
+            return self._df
         else:
             from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
 
             if override_time_variable_name is None:
                 override_time_variable_name = self.time_variable_name # 't_rel_seconds'
             
-            self._obj[epoch_id_key_name] = no_interval_fill_value # initialize the column to -1
-            self._obj = add_epochs_id_identity(self._obj, epochs_df=epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=epoch_label_column_name, no_interval_fill_value=no_interval_fill_value, override_time_variable_name=override_time_variable_name, overlap_behavior=overlap_behavior) # uses new add_epochs_id_identity method which is general
+            self._df[epoch_id_key_name] = no_interval_fill_value # initialize the column to -1
+            self._df = add_epochs_id_identity(self._df, epochs_df=epochs_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=epoch_label_column_name, no_interval_fill_value=no_interval_fill_value, override_time_variable_name=override_time_variable_name, overlap_behavior=overlap_behavior) # uses new add_epochs_id_identity method which is general
             if drop_non_epoch_events:
-                active_point_events_df = self._obj.copy()
+                active_point_events_df = self._df.copy()
                 active_point_events_df.drop(active_point_events_df.loc[active_point_events_df[epoch_id_key_name] == no_interval_fill_value].index, inplace=True)
                 # Sort by columns: 't_rel_seconds' (ascending), 'aclu' (ascending)
                 active_point_events_df = active_point_events_df.sort_values(['t_rel_seconds'])
             else:
                 # return all spikes
-                active_point_events_df = self._obj
+                active_point_events_df = self._df
             return active_point_events_df
 
 
@@ -285,18 +285,18 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
                 'new_lap_IDX'
 
         """
-        if epoch_id_key_name in self._obj.columns:
+        if epoch_id_key_name in self._df.columns:
             print(f'column "{epoch_id_key_name}" already exists in df! Skipping recomputation.')
-            return self._obj
+            return self._df
         else:
             from neuropy.utils.efficient_interval_search import OverlappingIntervalsFallbackBehavior
             from neuropy.utils.mixins.time_slicing import add_epochs_id_identity
 
             if override_time_variable_name is None:
                 override_time_variable_name = self.time_variable_name # 't_rel_seconds'
-            self._obj[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
-            self._obj = add_epochs_id_identity(self._obj, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name=override_time_variable_name, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
-            return self._obj
+            self._df[epoch_id_key_name] = -1 # initialize the 'scISI' column (same-cell Intra-spike-interval) to -1
+            self._df = add_epochs_id_identity(self._df, epochs_df=laps_epoch_df, epoch_id_key_name=epoch_id_key_name, epoch_label_column_name=None, no_interval_fill_value=-1, override_time_variable_name=override_time_variable_name, overlap_behavior=OverlappingIntervalsFallbackBehavior.ASSERT_FAIL) # uses new add_epochs_id_identity method which is general
+            return self._df
 
 
     @classmethod
@@ -355,7 +355,7 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
         """
         if override_time_variable_name is None:
             override_time_variable_name = self.time_variable_name # 't_rel_seconds'
-        active_point_events_df: pd.DataFrame = self._obj.copy()
+        active_point_events_df: pd.DataFrame = self._df.copy()
         return self.add_maze_id_if_needed(active_point_events_df=active_point_events_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=replace_existing, event_time_col_name=override_time_variable_name) # , labels_column_name=labels_column_name
     
     
@@ -386,10 +386,10 @@ class TimePointEventAccessor(TimeColumnAliasesProtocol, TimeSlicableObjectProtoc
         lap_dir_keys = ['LR', 'RL']
         maze_id_keys = ['long', 'short']
         active_point_events_df['truth_decoder_name'] = active_point_events_df['maze_id'].map(dict(zip(np.arange(len(maze_id_keys)), maze_id_keys))) + '_' + active_point_events_df['lap_dir'].map(dict(zip(np.arange(len(lap_dir_keys)), lap_dir_keys)))
-        self._obj[['maze_id', 'truth_decoder_name']] = active_point_events_df[['maze_id', 'truth_decoder_name']] ## modify in-place and return?
+        self._df[['maze_id', 'truth_decoder_name']] = active_point_events_df[['maze_id', 'truth_decoder_name']] ## modify in-place and return?
 
         # return self.add_maze_id_if_needed(active_point_events_df=active_point_events_df, t_start=t_start, t_delta=t_delta, t_end=t_end, replace_existing=replace_existing, labels_column_name=labels_column_name, event_time_col_name=override_time_variable_name)
-        return self._obj
+        return self._df
     
     
 

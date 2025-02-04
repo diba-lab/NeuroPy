@@ -68,12 +68,12 @@ class PositionDimDataMixin:
     def df(self):
         """The df property."""
         raise NotImplementedError # must be overriden by implementor
-        # return self._obj # for PositionAccessor
+        # return self._df # for PositionAccessor
         # return self._df # for Position
     @df.setter
     def df(self, value):
         raise NotImplementedError # must be overriden by implementor
-        # self._obj = value # for PositionAccessor
+        # self._df = value # for PositionAccessor
         # self._df = value # for Position
 
 
@@ -424,7 +424,7 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
 
     def __init__(self, pandas_obj):
         self._validate(pandas_obj)
-        self._obj = pandas_obj
+        self._df = pandas_obj
 
     @staticmethod
     def _validate(obj):
@@ -439,17 +439,17 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
     # for PositionDimDataMixin & PositionComputedDataMixin
     @property
     def df(self):
-        return self._obj # for PositionAccessor
+        return self._df # for PositionAccessor
     @df.setter
     def df(self, value):
-        self._obj = value # for PositionAccessor
+        self._df = value # for PositionAccessor
 
     def to_Position_obj(self, metadata=None):
         """ builds a Position object from the PositionAccessor's dataframe
         Usage:
             pos_df.position.to_Position_obj()
         """
-        return Position(self._obj, metadata=metadata)
+        return Position(self._df, metadata=metadata)
 
     def drop_dimensions_above(self, desired_ndim:int, inplace:bool=False):
         """ drops all columns related to dimensions above `desired_ndim`.
@@ -460,21 +460,21 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
         if inplace is True, None is returned and the dataframe is modified in place
 
         """
-        z_related_column_names = [str(c) for c in self._obj.columns if str(c).endswith('z')] # Find z (3D) related columns
-        y_related_column_names = [str(c) for c in self._obj.columns if str(c).endswith('y')] # Find y (2D) related columns
+        z_related_column_names = [str(c) for c in self._df.columns if str(c).endswith('z')] # Find z (3D) related columns
+        y_related_column_names = [str(c) for c in self._df.columns if str(c).endswith('y')] # Find y (2D) related columns
         if inplace:
             out_df = None
         else:
-            out_df = self._obj.copy()
+            out_df = self._df.copy()
 
         if desired_ndim < 3:
             if inplace:
-                self._obj.drop(columns=z_related_column_names, inplace=inplace)
+                self._df.drop(columns=z_related_column_names, inplace=inplace)
             else:
                 out_df = out_df.drop(columns=z_related_column_names, inplace=inplace)
         if desired_ndim < 2:
             if inplace:
-                self._obj.drop(columns=y_related_column_names, inplace=inplace)
+                self._df.drop(columns=y_related_column_names, inplace=inplace)
             else:
                 out_df = out_df.drop(columns=y_related_column_names, inplace=inplace)
 
@@ -499,10 +499,10 @@ class PositionAccessor(PositionDimDataMixin, PositionComputedDataMixin, TimeSlic
 
         """
         if inplace:
-            self._obj = adding_lap_info_to_position_df(position_df=self._obj, laps_df=laps_df, debug_print=debug_print)
-            return self._obj
+            self._df = adding_lap_info_to_position_df(position_df=self._df, laps_df=laps_df, debug_print=debug_print)
+            return self._df
         else:
-            out_pos_df = self._obj.copy()
+            out_pos_df = self._df.copy()
             out_pos_df = adding_lap_info_to_position_df(position_df=out_pos_df, laps_df=laps_df, debug_print=debug_print)
             return out_pos_df
 
