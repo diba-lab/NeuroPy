@@ -73,7 +73,8 @@ def _detect_freq_band_epochs(
     # Fourth, identify candidate epochs above edge_cutoff threshold
     # ---- thresholding and detection ------
     power = stats.zscore(power)
-    power_thresh = np.where(power >= edge_cutoff, power, 0)
+    # power_thresh = np.where(power >= edge_cutoff, power, 0)
+    power_thresh = np.where(power >= edge_cutoff, power, -100)  # NRK bugfix
 
     # Fifth, refine candidate epochs to periods between lowthresh and highthresh
     peaks, props = sg.find_peaks(
@@ -756,7 +757,7 @@ class Gamma:
 
 if __name__ == "__main__":
     from neuropy.io import BinarysignalIO
-    from neuropy.core import Shank, Probe, ProbeGroup, Epoch, ProcessData
+    from neuropy.core import ProbeGroup, Epoch
 
     # eegfile = BinarysignalIO(
     #     "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.eeg",
@@ -774,7 +775,8 @@ if __name__ == "__main__":
     # ripple_epochs = detect_ripple_epochs(
     #     signal, prbgrp, thresh=(2.5, None), ignore_epochs=art_epochs, mindur=0.025
     # )
-    sess = ProcessData('/data3/Psilocybin/Recording_Rats/Finn/2022_02_17_psilocybin')
-    signal = sess.eegfile.get_signal()
-    rpl_epochs = detect_ripple_epochs(signal, ripple_channel=27)
-    Ripple.get_peak_ripple_freq(sess.eegfile, rpl_epochs)
+    eegfile = BinarysignalIO('/data/Clustering/sessions/RatU/RatUDay2NSD/RatU_Day2NSD_2021-07-24_08-16-38_thetachan.eeg',
+                             n_channels=1, sampling_rate=1250)
+    signal = eegfile.get_signal()
+    art_epochs = Epoch(epochs=None, file='/data/Clustering/sessions/RatU/RatUDay2NSD/RatU_Day2NSD_2021-07-24_08-16-38.artifact.npy')
+    detect_theta_epochs(signal, ignore_epochs=art_epochs)
