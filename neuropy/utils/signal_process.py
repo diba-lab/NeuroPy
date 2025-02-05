@@ -839,7 +839,7 @@ class ThetaParams:
             thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=25)
             hil_theta = hilbertfast(thetalfp)
             theta_360 = np.angle(hil_theta, deg=True) + 180
-            theta_angle = np.abs(np.angle(hil_theta, deg=True))
+            theta_angle = np.abs(np.angle(hil_theta, deg=True)).squeeze()
             trough = sg.find_peaks(theta_angle)[0]
             peak = sg.find_peaks(-theta_angle)[0]
             theta_amp = np.abs(hil_theta) ** 2
