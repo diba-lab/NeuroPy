@@ -420,6 +420,19 @@ class OptitrackIO:
     def to_position(self, t_start=0):
         return Position(np.array([self.x, self.y, self.z]), t_start=t_start, sampling_rate=self.sampling_rate)
 
+    def to_position_df(self, t_start=0):
+        position_df = pd.DataFrame({
+            "datetime": self.datetime_array,
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
+        })
+        position_df.attrs['metadata'] = {
+            't_start': t_start,
+            'sampling_rate': self.sampling_rate
+        }
+        return position_df
+
     def remove_negatives(self, ref_time):
         """
         Remove position data that is before the referenced time. Used when motive is started during a recording that

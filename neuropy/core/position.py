@@ -106,6 +106,35 @@ class Position(DataWriter):
     def to_dataframe(self):
         return pd.DataFrame({"time": self.time, "x": self.x})
 
+    @classmethod
+    def from_dataframe(cls, df: pd.DataFrame, sampling_rate: float = 120, t_start: float = 0):
+        # Build traces from DataFrame columns.
+        # Check which coordinate columns exist in case only 1 or 2 dimensions were input.
+        if 'x' in df.columns and 'y' in df.columns and 'z' in df.columns:
+            # Create 2D traces array with shape (number of dimensions, number of samples)
+            traces = np.vstack((df['x'].to_numpy(), df['y'].to_numpy(), df['z'].to_numpy()))
+        elif 'x' in df.columns and 'y' in df.columns:
+            traces = np.vstack((df['x'].to_numpy(), df['y'].to_numpy()))
+        elif 'x' in df.columns and 'z' in df.columns:
+            traces = np.vstack((df['x'].to_numpy(), df['z'].to_numpy()))
+        elif 'x' in df.columns:
+            # Only x column is available; the constructor will reshape it to (1, n_samples)
+            traces = df['x'].to_numpy()
+        else:
+            raise ValueError("DataFrame must contain at least an 'x' column")
+
+        # Pass along metadata if available.
+        metadata = df.attrs.get('metadata', {})
+        # Use metadata values if they exist, otherwise fall back to the provided defaults.
+        sampling_rate = metadata.get('sampling_rate', sampling_rate)
+        t_start = metadata.get('t_start', t_start)
+
+        print("Traces samples:", traces.shape[1])
+        print("Using sampling_rate:", sampling_rate)
+        print("Using t_start:", t_start)
+
+        return cls(traces, t_start=t_start, sampling_rate=sampling_rate, metadata=metadata)
+
     def speed_in_epochs(self, epochs: Epoch):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
         pass
