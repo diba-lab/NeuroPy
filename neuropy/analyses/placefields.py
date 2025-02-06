@@ -565,7 +565,7 @@ class Pf2D:
         self.spk_pos = get_elem(spk_pos)
         self.spk_t = get_elem(spk_t)
         self.ratemaps = get_elem(maps)
-        self.cell_ids = cell_ids.iloc[good_cells_indx]
+        self.cell_ids = cell_ids[good_cells_indx]
         self.occupancy = occupancy
         self.speed = speed
         self.x = x
@@ -624,8 +624,7 @@ class Pf2D:
             figures.append(fig)
 
         for cell, pfmap in enumerate(map_use):
-            if cell == 19: #tmp
-                continue
+
             ind = cell // np.prod(subplots)
             subplot_ind = cell % np.prod(subplots)
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
@@ -639,7 +638,7 @@ class Pf2D:
             # max_frate =
             ax1.axis("off")
             ax1.set_title(
-                f"Cell {self.cell_ids.iloc[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
+                f"Cell {self.cell_ids[cell]} \n{round(np.nanmax(pfmap),2)} Hz"
             )
 
             # cbar_ax = fig.add_axes([0.9, 0.3, 0.01, 0.3])
@@ -682,7 +681,7 @@ class Pf2D:
             ax1.axis("off")
             if label_cells:
                 # Put info on title
-                info = self.cell_ids.iloc[cell]
+                info = self.cell_ids[cell]
                 ax1.set_title(f"Cell {info}")
 
         fig.suptitle(
@@ -692,7 +691,7 @@ class Pf2D:
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
         if ax is None:
             fig, ax = plt.subplots(2, 1, sharex=True)
-            fig.set_size_inches([23, 9.7])
+            fig.set_size_inches([10,7]) #([23, 9.7])
 
         # plot trajectories
         for a, pos, ylabel in zip(
