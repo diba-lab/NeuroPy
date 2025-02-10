@@ -425,6 +425,22 @@ class OptitrackIO:
 
         return x, y, z
 
+    def to_position(self, t_start=0):
+        return Position(np.array([self.x, self.y, self.z]), t_start=t_start, sampling_rate=self.sampling_rate)
+
+    def to_position_df(self, t_start=0):
+        position_df = pd.DataFrame({
+            "datetime": self.datetime_array,
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
+        })
+        position_df.attrs['metadata'] = {
+            't_start': t_start,
+            'sampling_rate': self.sampling_rate
+        }
+        return position_df
+
     def remove_negatives(self, ref_time):
         """
         Remove position data that is before the referenced time. Used when motive is started during a recording that
@@ -451,38 +467,6 @@ class OptitrackIO:
         self.datetime_starts = self.datetime_array[0]
         self.datetime_stops = self.datetime_array[-1]
         self.datetime_nframes = len(self.datetime_array)
-
-    def to_position(self, t_start=0):
-        return Position(np.array([self.x, self.y, self.z]), t_start=t_start, sampling_rate=self.sampling_rate)
-    def remove_negatives(self, ref_time):
-        """
-        Remove position data that is before the referenced time. Used when motive is started during a recording that
-        precedes the relevant recording
-
-        Parameters
-        ----------
-        ref_time : float, optional
-            The reference time to subtract from the datetime_array, by default 0.
-        """
-        if not isinstance(ref_time, pd.Timestamp):
-            ref_time = pd.Timestamp(ref_time)  # Ensure ref_time is a pandas Timestamp
-            print("Reference time was not a timestamp, converting to timestamp")
-
-        relative_times = (self.datetime_array - ref_time).total_seconds()
-        mask = relative_times >= 0
-
-        # Filter only per-frame data
-        self.datetime_array = self.datetime_array[mask]
-        self.x = self.x[mask]
-        self.y = self.y[mask]
-        self.z = self.z[mask]
-
-        self.datetime_starts = self.datetime_array[0]
-        self.datetime_stops = self.datetime_array[-1]
-        self.datetime_nframes = len(self.datetime_array)
-
-    def to_position(self, t_start=0):
-        return Position(np.array([self.x, self.y, self.z]), t_start=t_start, sampling_rate=self.sampling_rate)
 
     def old_stuff(self):
         """get position data from files. All position related files should be in 'position' folder within basepath

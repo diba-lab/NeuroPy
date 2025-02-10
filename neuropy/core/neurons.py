@@ -27,7 +27,7 @@ class Neurons(DataWriter):
         waveforms=None,
         waveforms_amplitude=None,
         peak_channels=None,
-        clu_q = None,
+        clu_q=None,
         shank_ids=None,
         metadata=None,
     ) -> None:
@@ -176,19 +176,35 @@ class Neurons(DataWriter):
 
     def neuron_slice(self, neuron_inds):
         neurons = deepcopy(self)
-        spiketrains = neurons.spiketrains[neuron_inds]
 
+        # Allow slicing single neurons (user gave int for a slice)
+        if isinstance(neuron_inds, int):
+            neuron_inds = [neuron_inds]
+
+        # Get list of original neuron indices
+        all_neurons = np.array(neurons.neuron_ids.index)
+
+        # Find the positional indices of original indexes
+        positions = np.where(np.isin(all_neurons, neuron_inds))[0]
+        positions = positions.tolist()
+
+        # Get spiketrains from original neuron index
+        spiketrains = neurons.spiketrains[positions]
+
+        # Get waveforms, peak channels, shank ids, from original neuron index
         waveforms = (
-            None if neurons.waveforms is None else neurons.waveforms[neuron_inds]
+            None if neurons.waveforms is None else neurons.waveforms[positions]
         )
         peak_channels = (
             None
             if neurons.peak_channels is None
-            else neurons.peak_channels[neuron_inds]
+            else neurons.peak_channels[positions]
         )
         shank_ids = (
-            None if neurons.shank_ids is None else neurons.shank_ids[neuron_inds]
+            None if neurons.shank_ids is None else neurons.shank_ids[positions]
         )
+
+        # neuron_ids and neuron_type stay maintained because neuron_inds points to original indices.
         return Neurons(
             spiketrains=spiketrains,
             t_stop=neurons.t_stop,
@@ -238,6 +254,7 @@ class Neurons(DataWriter):
                        # waveforms_amplitude=feature_dict["waveforms_amplitude"],
                        peak_channels=feature_dict["peak_channels"],
                        shank_ids=feature_dict["shank_ids"])
+
     def get_neuron_type(self, neuron_type):
         if isinstance(neuron_type, str):
             indices = self.neuron_type == neuron_type

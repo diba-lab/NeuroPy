@@ -36,6 +36,25 @@ class Epoch(DataWriter):
 
         self._epochs = self._validate(epochs)
 
+    def union(self, other_epoch, res):
+        """Find union with other epoch at 'res' time resolution"""
+        t_start = np.min((self.starts.min(), other_epoch.starts.min()))
+        t_stop = np.max((self.stops.max(), other_epoch.stops.max()))
+        times, bool1 = self.to_point_process(t_start, t_stop, bin_size=res)
+        _, bool2 = other_epoch.to_point_process(t_start, t_stop, bin_size=res)
+
+        return self.from_boolean_array(np.bitwise_or(bool1, bool2), times)
+
+    def intersection(self, other_epoch, res):
+        """Find intersection with other epoch at 'res' time resolution"""
+        t_start = np.min((self.starts.min(), other_epoch.starts.min()))
+        t_stop = np.max((self.stops.max(), other_epoch.stops.max()))
+        times, bool1 = self.to_point_process(t_start, t_stop, bin_size=res)
+        _, bool2 = other_epoch.to_point_process(t_start, t_stop, bin_size=res)
+
+        return self.from_boolean_array(np.bitwise_and(bool1, bool2), times)
+
+
     def replace_start_with_t_start_eeg(self):
         if hasattr(self, 'data'):
             self.data['start'] = self.data['t_start_eeg']
@@ -658,7 +677,7 @@ class Epoch(DataWriter):
         # time_bool = time_bool | ((times >= start) & (times < stop))
 
         for start_ind, end_ind in zip(
-            (self.starts / bin_size).astype(int), (self.stops / bin_size).astype(int)
+            ((self.starts - t_start) / bin_size).astype(int), ((self.stops - t_start) / bin_size).astype(int)
         ):
             time_bool[start_ind:end_ind] = True
 
@@ -768,6 +787,10 @@ class Epoch(DataWriter):
 
         return time_bool.astype("bool")
 
+    @property
+    def epochs(self):
+        return self._epochs
+
 def add_epoch_buffer(epoch_df: pd.DataFrame, buffer_sec: float or int or tuple or list):
     """Extend each epoch by buffer_sec before/after start/stop of each epoch"""
     if type(buffer_sec) in [int, float]:
@@ -800,7 +823,7 @@ def getOverlap(a, b):
 
 def combine_epochs(epochs_df: pd.DataFrame, inplace: bool = True):
     """Combine epochs so that there are no starts or stops contained
-    entirely within another epoch"""
+    entirely within another epoch. Epoch.union might be better"""
 
     all([col in epochs_df.columns for col in ["start", "stop"]])
 

@@ -4,6 +4,12 @@ from .. import core
 import numpy as np
 import seaborn as sns
 from neuropy.utils.ccg import correlograms
+from neuropy.analyses import correlations
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
+
 
 def plot_raster(
     neurons: core.Neurons,
@@ -17,7 +23,7 @@ def plot_raster(
     alpha=1,
     rasterized=False,
 ):
-    """creates raster plot using spiktrains in neurons
+    """creates raster plot using spiketrains in neurons
 
     Parameters
     ----------
@@ -121,6 +127,93 @@ def plot_mua(mua: core.Mua, ax=None, **kwargs):
     ax.set_ylabel("Spike counts")
 
 
+def plot_correlograms(
+        neurons : core.Neurons,
+        neuron_inds,
+        type="all", #all, acg, ccg
+        sample_rate=1.0,
+        bin_size=0.001,
+        window_size=0.05,
+        ax=None,
+        use_cupy=False,
+        ref_p=False,
+        ref_t=0.002
+):
+
+    # Allow integer inputs (assumes ACG)
+    if isinstance(neuron_inds, int):
+        neuron_inds = [neuron_inds]
+    # Remove duplicates because we get ACGs already
+    else:
+        neuron_inds = list(dict.fromkeys(neuron_inds))
+
+    n_neurons = len(neuron_inds)
+
+    # Get spike correlations
+    ccgs = correlations.spike_correlations(
+        neurons,
+        neuron_inds=neuron_inds,
+        sample_rate=sample_rate,
+        bin_size=bin_size,
+        window_size=window_size,
+        use_cupy=use_cupy)
+
+
+    # Check the shape of ccgs to determine if it’s an ACG or CCG
+    is_acg = ccgs.shape[:2] == (1, 1) # Shape is (1, 1, N) for ACGs
+
+    # Adjust for CCG or ACG only
+    if type == "acg":
+        ccgs = np.diagonal(ccgs,axis1=0,axis2=1).T.reshape(1,n_neurons,-1)
+    if type == "ccg" and not is_acg:
+        ccgs = ccgs[0, 1, :][None, None, :]
+
+    # Determine subplot dimensions based on the correlogram shape
+    if ax is None:
+        fig, ax = plt.subplots(ccgs.shape[0], ccgs.shape[1], squeeze=False)  # Always create 2D array of axes
+
+    # Make sure `ax` is a 2D array for reshaping
+    if isinstance(ax, plt.Axes):
+        ax = np.array([ax])  # Convert single Axes object to array for consistency
+
+    # Calculate bins for the histogram
+    winsize_bins = 2 * int(0.5 * window_size / bin_size) + 1
+
+    # Plot correlograms using pertinent library
+    bins = np.linspace(-window_size / 2, window_size / 2, winsize_bins)
+
+    # Plot
+    if use_cupy:
+        for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
+            ccg_cpu = ccg.get()
+
+            a.bar(bins, ccg_cpu, width=bins[1] - bins[0])
+
+            if ref_p:
+                a.axvline(-ref_t, color='blue', linestyle='--', linewidth=1,
+                          label='Refractory Period Boundary')  # Line at -1 ms
+                a.axvline(ref_t, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+
+            a.set_xticks([-window_size / 2, 0, window_size / 2])
+            a.set_xlabel("Time (s)")
+            a.set_ylabel("Spike Count")
+    else:
+        for a, ccg in zip(ax.reshape(-1), ccgs.reshape(-1, ccgs.shape[2])):
+            a.bar(bins, ccg, width=bins[1] - bins[0])
+
+            if ref_p:
+                a.axvline(-ref_t, color='blue', linestyle='--', linewidth=1,
+                          label='Refractory Period Boundary')  # Line at -1 ms
+                a.axvline(ref_t, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+
+            a.set_xticks([-window_size / 2, 0, window_size / 2])
+            a.set_xlabel("Time (s)")
+            a.set_ylabel("Spike Count")
+    plt.tight_layout()
+
+    return ax
+
+
 def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=None):
     """
     Plot CCG for clusters in clus_use (list, max length = 2). Supply only one cluster in clus_use for ACG only.
@@ -184,9 +277,9 @@ def plot_ccg(self, clus_use, type="all", bin_size=0.001, window_size=0.05, ax=No
         a.bar(bins, ccg, width=bins[1] - bins[0])
 
         if is_acg:
-            a.axvline(-0.001, color='blue', linestyle='--', linewidth=1,
+            a.axvline(-0.002, color='blue', linestyle='--', linewidth=1,
                       label='Refractory Period Boundary')  # Line at -1 ms
-            a.axvline(0.001, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
+            a.axvline(0.002, color='blue', linestyle='--', linewidth=1)  # Line at +1 ms
 
         a.set_xticks([-window_size / 2, 0, window_size / 2])
         a.set_xlabel("Time (s)")

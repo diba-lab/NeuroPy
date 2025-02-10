@@ -839,7 +839,7 @@ class ThetaParams:
             thetalfp = filter_sig.bandpass(self.lfp, lf=1, hf=25)
             hil_theta = hilbertfast(thetalfp)
             theta_360 = np.angle(hil_theta, deg=True) + 180
-            theta_angle = np.abs(np.angle(hil_theta, deg=True))
+            theta_angle = np.abs(np.angle(hil_theta, deg=True)).squeeze()
             trough = sg.find_peaks(theta_angle)[0]
             peak = sg.find_peaks(-theta_angle)[0]
             theta_amp = np.abs(hil_theta) ** 2
@@ -1422,7 +1422,7 @@ def plot_miniscope_noise(
             a.set_yticklabels([str(f[freq_bool].min()), str(f[freq_bool].max())])
             a.set_xticks((0, nblocks))
             a.set(xticklabels=("0", str(time[-1])))
-            a.set_xlabel("Time (30 sec blocks)")
+            a.set_xlabel(f"Time ({interval_sec} sec blocks)")
             a.set_ylabel("Frez (Hz)")
         else:
             a.text(
