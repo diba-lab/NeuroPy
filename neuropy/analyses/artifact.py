@@ -19,7 +19,7 @@ def detect_artifact_epochs(
 
     Parameters
     ----------
-    signal : core.Signal====
+    signal : core.Signal
         neuropy.signal object
     thresh : int, optional
         zscore value above which it is considered noisy, by default 4

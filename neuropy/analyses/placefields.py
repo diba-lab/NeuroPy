@@ -574,7 +574,7 @@ class Pf2D:
         epochs: core.Epoch = None,
         frate_thresh=1.0,
         speed_thresh=3,
-        grid_bin=10,
+        grid_bin=1,
         sigma=1,
     ):
         """Calculates 2D placefields

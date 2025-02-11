@@ -8,36 +8,6 @@ from scipy.interpolate import interp1d
 from .. import core
 from ..utils.mathutil import contiguous_regions, thresh_epochs
 
-def interpolate_position(position: core.Position,method='cubic'):
-    """ to interpolate position for missing time points - removes all nans."""
-
-    # Create an interpolation function
-
-    t = np.arange(len(position.x))
-
-    def fill_gaps(data, method):
-        valid = ~np.isnan(data)  # Mask for valid (non-NaN) values
-        if np.sum(valid) > 1:  # Ensure there are enough points to interpolate
-            if method == 'linear':
-                filled = np.copy(data)
-                filled[np.isnan(data)] = np.interp(t[np.isnan(data)], t[valid], data[valid])
-            else:  # Default to cubic
-                interp_func = interp1d(
-                    t[valid], data[valid], kind='cubic', bounds_error=False, fill_value="extrapolate"
-                )
-                filled = np.copy(data)
-                filled[np.isnan(data)] = interp_func(t[np.isnan(data)])
-            return filled
-        else:
-            return data  # Not enough points to interpolate; return as-is
-
-    # Fill gaps for each dimension independently
-    position.x = fill_gaps(position.x, method)
-    position.y = fill_gaps(position.y, method)
-    position.z = fill_gaps(position.z, method)
-
-    return position
-
 def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2, dimensions=["x", "y"],circular=False):
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
@@ -117,10 +87,9 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
 
         xlinear -= np.min(xlinear)
 
-    return core.Position(
-        traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
-    )
-
+        return core.Position(
+            traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
+        )
 
 def run_direction(
     position: core.Position,
@@ -200,60 +169,3 @@ def run_direction(
     data["peak_speed"] = peak_speed
 
     return core.Epoch(epochs=data, metadata=metadata)
-
-def remove_deadtimes(position: core.Position):
-    """ manually inspect and cut dead time from position object. 
-    readjusts start time if you cut off the beginning, otherwise it just nan's the cut out part. 
-    to use, send in position object - will plot the traces over time, and you can specify start/end 
-    (in sec from beginning) of time band you'd like to cut out. Replot after to confirm.
-    """
-
-    import matplotlib.pyplot as plt
-    from matplotlib.widgets import TextBox
-
-    def remove_time_block(event):
-            """ Removes the specified time block from the position data and closes the plot. """
-
-            nonlocal position, fig, ax
-
-            try:
-                # Parse the input time block (e.g., "start_time,end_time")
-                start_time, end_time = map(float, text_box.text.split(","))
-                keep = (position.time < start_time) | (position.time > end_time)
-                
-
-                if keep[0]: #if you're removing something besides the beginning
-                    updated_traces = position.traces
-                    updated_traces[:,~keep] = np.nan
-                else: #if you're removing the beginning, just cut off part instead of nan'ing
-                    updated_traces = position.traces[:,keep]
-                    
-                    updated_time = position.time[keep]
-                    position.t_start = updated_time[0] #only changes if you cut the beginning.
-
-                #modify position
-                position.traces = updated_traces
-                
-                
-                plt.close(fig)
-                print(f"Removed time block from {start_time} to {end_time}.")
-
-            except ValueError:
-                print("Invalid input format. Please enter in 'start_time,end_time' format.")
-
-        # Plot x/y/z dimensions
-    fig, ax = plt.subplots(3, 1, figsize=(12, 5), sharex=True)
-
-    for a, dim, name in zip(ax, position.traces, ["x", "y", "z"]):
-        a.plot(position.time, dim)
-        a.set_ylabel(f"{name} (cm)")
-    ax[0].set_xlabel("Time (s)")
-
-    # Create a TextBox widget
-    ax_box = plt.axes([0.5, 0, 0.3, 0.05])  # Position for the text box
-    text_box = TextBox(ax_box, "Remove Time Block (sec) (start,end): ")
-    plt.show()
-    # Connect the TextBox to the function
-    text_box.on_submit(remove_time_block)
-
-    return position

@@ -335,11 +335,12 @@ def get_sync_info(_sync_file):
 
 
 class OptitrackIO:
-    def __init__(self, dirname, scale_factor=1.0) -> None:
+    def __init__(self, dirname, scale_factor=1.0,sampling_rate = None) -> None:
         self.dirname = dirname
         self.scale_factor = scale_factor
         self.datetime = None
         self.time = None
+        self.sampling_rate = sampling_rate
         self._parse_folder()
 
     def _parse_folder(self):
@@ -357,7 +358,12 @@ class OptitrackIO:
         # ----- grab only files that are position files -------
         all_files = sorted(file for file in self.dirname.rglob("Take*") if file.suffix in {".csv", ".fbx"})
 
-        sampling_rate = getSampleRate(all_files[0])
+        if self.sampling_rate == None:
+            sampling_rate = getSampleRate(all_files[0])
+        else:
+            sampling_rate = self.sampling_rate
+
+
         #sampling_rate = getSampleRate(sorted((self.dirname).glob("*.csv"))[0])
 
         # ------- collecting timepoints related to position tracking ------
