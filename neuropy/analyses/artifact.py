@@ -113,27 +113,6 @@ def detect_artifact_epochs(
         art_epochs = Epoch(epochs, metadata)
         art_epochs.metadata = {"filename": Path(signal.source_file)}
 
-        '''
-        drops = np.zeros(zsc.shape)
-        for i in range(1,len(zs_second)):
-            if zs_second[i] == 0 and zs_second[i-1] == 0:
-                drops[i] = 1
-            else:
-                drops[i] = 0
-
-        import matplotlib.pyplot as plt
-        xstarts = art_epochs.starts *1250
-        xstops = art_epochs.stops * 1250
-        y_min,y_max = plt.ylim()
-        plt.plot(zsc)
-        plt.vlines(xstarts,ymin=y_min,ymax=y_max,color="green",linewidth=1)
-        plt.vlines(xstops,ymin=y_min,ymax=y_max,color="red",linewidth=1)
-        plt.show()
-        print(art_epochs.starts)
-        print(art_epochs.stops)
-
-        '''
-        
         return art_epochs
     else:
         print("No artifacts found at this threshold")
