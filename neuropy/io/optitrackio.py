@@ -420,7 +420,7 @@ class OptitrackIO:
     def to_position(self, t_start=0):
         return Position(np.array([self.x, self.y, self.z]), t_start=t_start, sampling_rate=self.sampling_rate)
 
-    def to_position_df(self, t_start=0):
+    def to_position_with_datetime(self, t_start=0):
         position_df = pd.DataFrame({
             "datetime": self.datetime_array,
             "x": self.x,
