@@ -327,6 +327,7 @@ class Neurons(DataWriter):
         return pd.DataFrame(
             dict(
                 neuron_type=self.neuron_type,
+                neuron_id = self.neuron_ids,
                 nspikes=self.n_spikes,
                 mean_frate=self.firing_rate,
             )

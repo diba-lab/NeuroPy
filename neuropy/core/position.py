@@ -104,7 +104,28 @@ class Position(DataWriter):
         )
 
     def to_dataframe(self):
-        return pd.DataFrame({"time": self.time, "x": self.x})
+        pos_dict = {"time": self.time}
+
+        # Only add x, y, and z if they exist
+        for axis in ["x", "y", "z"]:
+            if hasattr(self, axis):
+                pos_dict[axis] = getattr(self, axis)
+
+        # Include speed if it exists
+        if hasattr(self, "speed"):
+            pos_dict["speed"] = self.speed
+
+        # Create the DataFrame with the available data
+        position_df = pd.DataFrame(pos_dict)
+
+        # Prepare metadata using available attributes
+        metadata = {}
+        for key in ["t_start", "t_stop", "sampling_rate"]:
+            if hasattr(self, key):
+                metadata[key] = getattr(self, key)
+        position_df.attrs["metadata"] = metadata
+
+        return position_df
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, sampling_rate: float = 120, t_start: float = 0):
