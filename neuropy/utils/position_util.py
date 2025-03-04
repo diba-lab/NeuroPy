@@ -3,12 +3,12 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
+from scipy.interpolate import interp1d
 
 from .. import core
 from ..utils.mathutil import contiguous_regions, thresh_epochs
 
-
-def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2, dimensions=["x", "y"]):
+def linearize_position(position: core.Position, sample_sec=3, method="isomap", sigma=2, dimensions=["x", "y"],circular=False):
     """linearize trajectory. Use method='PCA' for off-angle linear track, method='ISOMAP' for any non-linear track.
     ISOMAP is more versatile but also more computationally expensive.
 
@@ -25,6 +25,8 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
         Gaussian filter smoothing parameter, by default 2.
     dimensions: list, optional
         List of spatial dimensions to use, by default ["x", "y"].
+    circular: bool, optional
+        If True, assumes the track is circular and uses polar coordinates for linearization.
 
     Returns
     -------
@@ -44,28 +46,50 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
 
     xlinear = None
 
-    if method.lower() == "pca":
-        pca = PCA(n_components=1)
-        xlinear = pca.fit_transform(pos_array).squeeze()
-    elif method.lower() == "isomap":
-        imap = Isomap(n_neighbors=5, n_components=2)
+    if circular: #will have issues if x/y have nans. interpolate before sending in.
 
-        # Downsample points to reduce memory load and time
-        pos_ds = pos_array[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
-        imap.fit(pos_ds)
-        iso_pos = imap.transform(pos_array)
+        #need to get xlim,ylim, set 0 as the center of those
+        x, y = pos_array[:, 0], pos_array[:, 1]
+        xcenter = np.nanmean([np.nanmin(x),np.nanmax(x)])
+        ycenter = np.nanmean([np.nanmin(y),np.nanmax(y)])
 
-        # Keep iso_pos here in case we want to use 2nd dimension (transverse to track)
-        if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
-            iso_pos[:, [0,1]] = iso_pos[:, [1,0]]
-        xlinear = iso_pos[:,0]
+        x = x-xcenter
+        y = y-ycenter
 
-    xlinear = gaussian_filter1d(xlinear, sigma=sigma)
-    xlinear -= np.min(xlinear)
-    return core.Position(
-        traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
-    )
+        theta = np.arctan2(y,x);
+        theta[theta < 0] += 2*np.pi; #have all between 0 and 2pi
 
+        #theta_valid = theta[~np.isnan(theta)]
+        #theta_unwrapped = np.unwrap(theta_valid)
+        #theta[~np.isnan(theta)] = theta_unwrapped
+    
+        xlinear = theta
+
+    else:
+
+        if method.lower() == "pca":
+            pca = PCA(n_components=1)
+            xlinear = pca.fit_transform(pos_array).squeeze()
+        elif method.lower() == "isomap":
+            imap = Isomap(n_neighbors=5, n_components=2)
+
+            # Downsample points to reduce memory load and time
+            pos_ds = pos_array[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
+            imap.fit(pos_ds)
+            iso_pos = imap.transform(pos_array)
+
+            # Keep iso_pos here in case we want to use 2nd dimension (transverse to track)
+            if iso_pos.std(axis=0)[0] < iso_pos.std(axis=0)[1]:
+                iso_pos[:, [0,1]] = iso_pos[:, [1,0]]
+            xlinear = iso_pos[:,0]
+
+            xlinear = gaussian_filter1d(xlinear, sigma=sigma)
+
+        xlinear -= np.min(xlinear)
+
+        return core.Position(
+            traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
+        )
 
 def run_direction(
     position: core.Position,
