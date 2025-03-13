@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.gridspec import GridSpec
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from tqdm import tqdm
 from scipy.signal import find_peaks, peak_widths
 from copy import deepcopy
 import seaborn as sns
@@ -395,7 +396,7 @@ class Pf1D(core.Ratemap):
         # Now loop through each neuron and calculate peak / width information
         pf_stats_list = []
         ind = 0
-        for nid in self.neuron_ids:
+        for nid in tqdm(self.neuron_ids):
             heights, prominences, centers, tuning_curve = self.get_pf_peaks(cell_id=nid, sigma=sigma, **kwargs_peaks)
             widths, edges = self.get_pf_widths(tuning_curve.squeeze(), heights, prominences, centers, plot=plot,
                                                **kwargs_widths)
