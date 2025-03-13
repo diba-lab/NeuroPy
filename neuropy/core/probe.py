@@ -379,16 +379,16 @@ class ProbeGroup(DataWriter):
         }
 
     @staticmethod
-    def from_dict(d: dict):
+    def from_dict(d: dict, sort_shanks_by: str in ["shank_id", "x"] = "shank_id"):
         prbgrp = ProbeGroup(metadata=d["metadata"])
-        prbgrp._data = d["data"].sort_values(["shank_id", "y"], ascending=[True, False])
+        prbgrp._data = d["data"].sort_values([sort_shanks_by, "y"], ascending=[True, False])
         return prbgrp
 
     @staticmethod
-    def from_file(f):
+    def from_file(f, sort_shanks_by: str in ["shank_id", "x"] = "shank_id"):
         d = DataWriter.from_file(f)
         if d is not None:
-            return ProbeGroup.from_dict(d)
+            return ProbeGroup.from_dict(d, sort_shanks_by)
 
     def to_dataframe(self):
         return pd.DataFrame(self._data)

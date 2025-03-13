@@ -4,6 +4,8 @@ from neuropy.utils import mathutil, signal_process
 from scipy import stats
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
+from copy import deepcopy
+
 from neuropy.core import Signal, ProbeGroup, Epoch
 from neuropy.utils.signal_process import WaveletSg, filter_sig
 from neuropy.io import BinarysignalIO
@@ -596,16 +598,14 @@ class Ripple:
         return detect_sharpwave_epochs(**kwargs)
 
     @staticmethod
-    def get_peak_ripple_freq(eegfile: BinarysignalIO, rpl_epochs: Epoch, lf=100, hf=300):
-        """Detect peak ripple frequency"""
+    def get_mean_wavelet(eegfile, rpl_channel, rpl_epochs, lf=100, hf=300, buffer_sec=0.1):
 
         # Load in relevant metadata
         sampling_rate = eegfile.sampling_rate
-        rpl_channels = rpl_epochs.metadata["channels"]
 
         # Specify frequencies and get signal
         freqs = np.linspace(100, 250, 100)
-        signal = eegfile.get_signal(rpl_channels)
+        signal = eegfile.get_signal(channel_indx=rpl_channel)
 
         # Bandpass signal in ripple range
         lfp = filter_sig.bandpass(signal, lf=lf, hf=hf).traces.mean(axis=0)
@@ -614,7 +614,59 @@ class Ripple:
         n_rpls = len(rpl_epochs)
         rpls_window = np.arange(0, n_rpls, np.min([1000, n_rpls - 1]))
         rpls_window[-1] = n_rpls
-        peak_freqs = []
+        peak_freqs, peak_power = [], []
+
+        # Loop through each set of 1000 ripples, concatenate signal for each together, run Wavelet and get peak frequency
+        # at time of peak power
+        buffer_frames = int(buffer_sec * sampling_rate)  # grab 100ms either side of peak power
+        sxx_mean, wvlt_n = [], []
+        for i in range(len(rpls_window) - 1):
+            # Get blocks of ripples and their peak times
+            rpl_df = rpl_epochs[rpls_window[i] : rpls_window[i + 1]].to_dataframe()
+            peakframe = (rpl_df["peak_time"].values * sampling_rate).astype("int")
+
+            rpl_frames = [np.arange(p - buffer_frames, p + buffer_frames) for p in peakframe]  # Grab 100ms either side of peak frame
+            rpl_frames = np.concatenate(rpl_frames)
+
+            # Grab signal for ripples only
+            new_sig = Signal(lfp[rpl_frames].reshape(1, -1), sampling_rate=sampling_rate)
+
+            # Run Wavelet and get peak frequency for each ripple
+            wvlt = WaveletSg(signal=new_sig, freqs=freqs, ncycles=10)
+            sxx_mean.append(np.reshape(wvlt.traces, (len(freqs), len(peakframe), -1)).mean(axis=1)[:, :, None])
+            wvlt_n.append(rpl_df.shape[0])
+
+        # Get mean wavelet
+        sxx_mean = np.concatenate(sxx_mean, axis=2)
+        sxx_mean = np.average(sxx_mean, axis=2, weights=wvlt_n)
+
+        # Make into Wavelet class
+        wvlt_mean = deepcopy(wvlt)
+        wvlt_mean.traces = sxx_mean
+        wvlt_mean.t_start = -buffer_sec
+
+        return wvlt_mean
+
+
+    @staticmethod
+    def get_peak_ripple_freq(eegfile: BinarysignalIO, rpl_channel, rpl_epochs: Epoch, lf=100, hf=300):
+        """Detect peak ripple frequency"""
+
+        # Load in relevant metadata
+        sampling_rate = eegfile.sampling_rate
+
+        # Specify frequencies and get signal
+        freqs = np.linspace(100, 250, 100)
+        signal = eegfile.get_signal(channel_indx=rpl_channel)
+
+        # Bandpass signal in ripple range
+        lfp = filter_sig.bandpass(signal, lf=lf, hf=hf).traces.mean(axis=0)
+
+        # Build up arrays to grab every 1000 ripples
+        n_rpls = len(rpl_epochs)
+        rpls_window = np.arange(0, n_rpls, np.min([1000, n_rpls - 1]))
+        rpls_window[-1] = n_rpls
+        peak_freqs, peak_power = [], []
 
         # Loop through each set of 1000 ripples, concatenate signal for each together, run Wavelet and get peak frequency
         # at time of peak power
@@ -639,11 +691,16 @@ class Ripple:
                     .argmax(axis=0)
                 ]
             )
+            peak_power.append(np.reshape(wvlt, (len(freqs), len(peakframe), -1))
+                              .max(axis=2)
+                              .max(axis=0))
 
         # Concatenate all peak frequencies found
         peak_freqs = np.concatenate(peak_freqs)
+        peak_power = np.concatenate(peak_power)
         assert len(peak_freqs) == len(rpl_epochs), "# peak frequencies found does not match size of input 'rpl_epochs', check code"
         new_epochs = rpl_epochs.add_column("peak_frequency_bp", peak_freqs)
+        new_epochs = new_epochs.add_column("peak_power", peak_power)
 
         return new_epochs
 
@@ -759,24 +816,8 @@ if __name__ == "__main__":
     from neuropy.io import BinarysignalIO
     from neuropy.core import ProbeGroup, Epoch
 
-    # eegfile = BinarysignalIO(
-    #     "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.eeg",
-    #     n_channels=35,
-    #     sampling_rate=1250,
-    # )
-    # signal = eegfile.get_signal()
-    # prbgrp = ProbeGroup().from_file(
-    #     "/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.probegroup.npy"
-    # )
-    # art_epochs = Epoch(
-    #     epochs=None,
-    #     file="/data/Working/Trace_FC/Recording_Rats/Finn/2022_01_18_habituation/Finn_habituation2_denoised.art_epochs.npy",
-    # )
-    # ripple_epochs = detect_ripple_epochs(
-    #     signal, prbgrp, thresh=(2.5, None), ignore_epochs=art_epochs, mindur=0.025
-    # )
-    eegfile = BinarysignalIO('/data/Clustering/sessions/RatU/RatUDay2NSD/RatU_Day2NSD_2021-07-24_08-16-38_thetachan.eeg',
-                             n_channels=1, sampling_rate=1250)
+    eegfile = BinarysignalIO("/data2/Opto/Jackie671/Jackie_propofol_2020-09-30/Jackie_propofol.eeg",
+                             n_channels=35, sampling_rate=1250)
     signal = eegfile.get_signal()
-    art_epochs = Epoch(epochs=None, file='/data/Clustering/sessions/RatU/RatUDay2NSD/RatU_Day2NSD_2021-07-24_08-16-38.artifact.npy')
-    detect_theta_epochs(signal, ignore_epochs=art_epochs)
+    ripple_epochs = Epoch(epochs=None, file="/data2/Opto/Jackie671/Jackie_propofol_2020-09-30/Jackie_propofol.ripple.npy")
+    Ripple.get_mean_wavelet(eegfile, rpl_channel=30, rpl_epochs=ripple_epochs)

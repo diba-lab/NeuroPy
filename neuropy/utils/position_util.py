@@ -72,6 +72,10 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
             xlinear = pca.fit_transform(pos_array).squeeze()
         elif method.lower() == "isomap":
             imap = Isomap(n_neighbors=5, n_components=2)
+            
+            # Eliminate any NaNs present in data
+            nan_bool = np.bitwise_or(np.isnan(pos_array[:, 0]), np.isnan(pos_array[:, 1]))
+            pos_array_good = pos_array[~nan_bool, :]
 
             # Downsample points to reduce memory load and time
             pos_ds = pos_array[0 : -1 : np.round(int(position.sampling_rate) * sample_sec)]
@@ -83,9 +87,10 @@ def linearize_position(position: core.Position, sample_sec=3, method="isomap", s
                 iso_pos[:, [0,1]] = iso_pos[:, [1,0]]
             xlinear = iso_pos[:,0]
 
-            xlinear = gaussian_filter1d(xlinear, sigma=sigma)
-
+        xlinear = gaussian_filter1d(xlinear, sigma=sigma)
         xlinear -= np.min(xlinear)
+        xlinear_good = np.ones_like(nan_bool)*np.nan
+        xlinear_good[~nan_bool] = xlinear       
 
         return core.Position(
             traces=xlinear, t_start=position.t_start, sampling_rate=position.sampling_rate
@@ -169,3 +174,10 @@ def run_direction(
     data["peak_speed"] = peak_speed
 
     return core.Epoch(epochs=data, metadata=metadata)
+
+if __name__ == "__main__":
+    pass
+
+
+
+
