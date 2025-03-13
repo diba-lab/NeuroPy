@@ -27,7 +27,7 @@ class Neurons(DataWriter):
         waveforms=None,
         waveforms_amplitude=None,
         peak_channels=None,
-        clu_q = None,
+        clu_q=None,
         shank_ids=None,
         metadata=None,
     ) -> None:
@@ -174,30 +174,57 @@ class Neurons(DataWriter):
             shank_ids=neurons.shank_ids,
         )
 
-    def neuron_slice(self, neuron_inds):
+    def neuron_slice(self, neuron_inds=None, neuron_ids=None):
         neurons = deepcopy(self)
-        spiketrains = neurons.spiketrains[neuron_inds]
 
-        waveforms = (
-            None if neurons.waveforms is None else neurons.waveforms[neuron_inds]
-        )
-        peak_channels = (
-            None
-            if neurons.peak_channels is None
-            else neurons.peak_channels[neuron_inds]
-        )
-        shank_ids = (
-            None if neurons.shank_ids is None else neurons.shank_ids[neuron_inds]
-        )
+        if neuron_inds is not None and neuron_ids is not None:
+            raise ValueError("Specify either neuron_inds or neuron_ids, but not both.")
+
+        # Handle selection of neuron indices
+        if neuron_inds is not None:
+            if isinstance(neuron_inds, int):
+                neuron_inds = [neuron_inds]
+
+            # Find the positional indices directly from the numpy array
+            positions = np.array(neuron_inds)  # Use provided indices directly
+
+        # Handle selection by neuron IDs
+        elif neuron_ids is not None:
+            if isinstance(neuron_ids, int):
+                neuron_ids = [neuron_ids]
+
+            # Find the positions corresponding to the given neuron IDs
+            positions = np.where(np.isin(neurons.neuron_ids, neuron_ids))[0]
+            if len(positions) == 0:
+                raise ValueError(f"No neurons found for given neuron_ids: {neuron_ids}")
+
+        else:
+            raise ValueError("Must specify either neuron_inds or neuron_ids.")
+
+        # Extract data using the found positions
+        spiketrains = neurons.spiketrains[positions]
+        neuron_type = None if neurons.neuron_type is None else neurons.neuron_type[positions]
+        waveforms = None if neurons.waveforms is None else neurons.waveforms[positions]
+        waveforms_amplitude = None if neurons.waveforms_amplitude is None else neurons.waveforms_amplitude[positions]
+        peak_channels = None if neurons.peak_channels is None else neurons.peak_channels[positions]
+        shank_ids = None if neurons.shank_ids is None else neurons.shank_ids[positions]
+        clu_q = None if neurons.clu_q is None else neurons.clu_q[positions]
+
+        # Ensure neuron_ids remains a NumPy array and retains its original values
+        sliced_neuron_ids = np.array(neurons.neuron_ids)[positions]
+
+        # Create and return the new Neurons object
         return Neurons(
             spiketrains=spiketrains,
             t_stop=neurons.t_stop,
             t_start=neurons.t_start,
             sampling_rate=neurons.sampling_rate,
-            neuron_ids=neurons.neuron_ids[neuron_inds],
-            neuron_type=neurons.neuron_type[neuron_inds],
+            neuron_ids=sliced_neuron_ids,  # Now a NumPy array
+            neuron_type=neuron_type,  # Still an np.ndarray
             waveforms=waveforms,
+            waveforms_amplitude=waveforms_amplitude,
             peak_channels=peak_channels,
+            clu_q=clu_q,
             shank_ids=shank_ids,
         )
 
@@ -238,6 +265,7 @@ class Neurons(DataWriter):
                        # waveforms_amplitude=feature_dict["waveforms_amplitude"],
                        peak_channels=feature_dict["peak_channels"],
                        shank_ids=feature_dict["shank_ids"])
+
     def get_neuron_type(self, neuron_type):
         if isinstance(neuron_type, str):
             indices = self.neuron_type == neuron_type
@@ -299,6 +327,7 @@ class Neurons(DataWriter):
         return pd.DataFrame(
             dict(
                 neuron_type=self.neuron_type,
+                neuron_id = self.neuron_ids,
                 nspikes=self.n_spikes,
                 mean_frate=self.firing_rate,
             )

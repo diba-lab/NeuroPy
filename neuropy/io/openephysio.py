@@ -545,6 +545,9 @@ def recording_events_to_combined_time(
     time_out="eeg_time",
     event_ts_key: str = "datetimes",
     sync_ts_key: str = "Datetime",
+    event_align_key: str = "datetimes",
+    sync_align_key: str = "Datetime",
+    sr: int = 30000,
 ):
 
     """Infers appropriate start frame/time of each event if multiple recordings/experiments in the same folder
@@ -553,7 +556,9 @@ def recording_events_to_combined_time(
     :param sync_df: output of function create_sync_df
     :param time_out: eeg_time or dat_time
     :param event_ts_key: key to use to access datetimes in event_df
-    :param sync_ts_key: key to use to access datetimes in sync_df"""
+    :param sync_ts_key: key to use to access datetimes in sync_df
+    :param event_align_key: key in event_df to align by
+    :param sync_align_key: key in sync_df to align by"""
     # Calc and check that each event occurs in the same recording.
     try:
         nrec_start = [
@@ -570,17 +575,26 @@ def recording_events_to_combined_time(
     # Loop through each recording and calculate CS time in combined dat/eeg file
     if nrec_start == nrec_stop:
         event_time_comb = []
-        for nrec, event_time in zip(nrec_start, event_df[event_ts_key]):
+        for nrec, event_time in zip(nrec_start, event_df[event_align_key]):
             # Get correct start time of recording in the desired output time (eeg/dat) and timestamp
             rec_start_time = sync_df[
                 (sync_df["Recording"] == nrec) & (sync_df["Condition"] == "start")
             ][time_out].values[0]
             rec_start_timestamp = sync_df[
                 (sync_df["Recording"] == nrec) & (sync_df["Condition"] == "start")
-            ][sync_ts_key].iloc[0]
-            event_dt = (event_time - rec_start_timestamp).total_seconds()
-            event_time_comb.append(event_dt + rec_start_time)
+            ][sync_align_key].iloc[0]
 
+            if event_align_key == 'datetimes': #default
+                event_dt = (event_time - rec_start_timestamp).total_seconds()
+
+            elif event_align_key == 'sample_number': 
+            #align using dataframes instead of datetime. still spits out relative seconds from start, 
+            # but the time dif is calculated using df. Use if you have low datetime resolution in 
+            # your ephys start time.
+                df_dt = event_time  - rec_start_timestamp #in dataframes
+                event_dt = df_dt/sr
+
+            event_time_comb.append(event_dt + rec_start_time)
         event_time_comb = np.array(event_time_comb)
 
     else:

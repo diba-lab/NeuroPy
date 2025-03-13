@@ -13,7 +13,7 @@ def detect_artifact_epochs(
     edge_cutoff=2,
     merge=5,
     filt: list or np.ndarray = None,
-):
+    ):
     """
     calculating artifact periods using z-score measure
 
@@ -55,9 +55,11 @@ def detect_artifact_epochs(
     if filt is not None:
         assert len(filt) == 2, "Inputs for filtering signal must be length = 2"
         if filt[0] is not None:  # highpass
-            sig = signal_process.filter_sig.highpass(sig_raw, filt[0], fs=sampling_rate)
+            sig = signal_process.filter_sig.highpass(
+                sig_raw, filt[0], fs=sampling_rate)
         elif filt[1] is not None:  # lowpass
-            sig = signal_process.filter_sig.lowpass(sig_raw, filt[1], fs=sampling_rate)
+            sig = signal_process.filter_sig.lowpass(
+                sig_raw, filt[1], fs=sampling_rate)
         elif filt[0] is not None and filt[1] is not None:  # bandpass
             sig = signal_process.filter_sig.bandpass(
                 sig_raw, filt[0], filt[1], fs=sampling_rate
@@ -115,7 +117,6 @@ def detect_artifact_epochs(
     else:
         print("No artifacts found at this threshold")
         pass
-
 
 if __name__ == "__main__":
     print("test")

@@ -137,7 +137,7 @@ class Pf1D(core.Ratemap):
             f, sigma / grid_bin, axis=-1
         ) if sigma > 0 else f  # divide by grid_bin to account for discrete spacing
 
-        xbin = np.arange(np.min(x), np.max(x) + grid_bin, grid_bin)
+        xbin = np.arange(np.nanmin(x), np.nanmax(x) + grid_bin, grid_bin)
 
         if epochs is not None:
             assert isinstance(epochs, core.Epoch), "epochs should be core.Epoch object"
@@ -594,9 +594,11 @@ class Pf2D:
         """
         assert position.ndim > 1, "Position is not 2D"
         period = [position.t_start, position.t_stop]
-        smooth_ = lambda f: gaussian_filter1d(
-            f, sigma / grid_bin, axis=-1
-        )  # divide by grid_bin to account for discrete spacing
+        #smooth_ = lambda f: gaussian_filter1d(
+        #    f, sigma / grid_bin, axis=-1
+        #)  # divide by grid_bin to account for discrete spacing
+        smooth_ = lambda f: gaussian_filter(f, sigma=(sigma / grid_bin, 
+                                                      sigma / grid_bin))
 
         spikes = neurons.time_slice(*period).spiketrains
         cell_ids = neurons.neuron_ids
@@ -604,7 +606,7 @@ class Pf2D:
 
         # ----- Position---------
         xcoord = position.x
-        ycoord = position.y
+        ycoord = position.z #default for optitrack input
         time = position.time
         trackingRate = position.sampling_rate
 
@@ -613,8 +615,8 @@ class Pf2D:
         y = ycoord[ind_maze]
         t = time[ind_maze]
 
-        x_grid = np.arange(min(x), max(x) + grid_bin, grid_bin)
-        y_grid = np.arange(min(y), max(y) + grid_bin, grid_bin)
+        x_grid = np.arange(np.nanmin(x), np.nanmax(x) + grid_bin, grid_bin)
+        y_grid = np.arange(np.nanmin(y), np.nanmax(y) + grid_bin, grid_bin)
         # x_, y_ = np.meshgrid(x_grid, y_grid)
 
         diff_posx = np.diff(x)
@@ -622,7 +624,7 @@ class Pf2D:
 
         speed = np.sqrt(diff_posx**2 + diff_posy**2) / (1 / trackingRate)
 
-        speed = smooth_(speed)
+        #speed = smooth_(speed)
 
         dt = t[1] - t[0]
         running = np.where(speed / dt > speed_thresh)[0]
@@ -739,6 +741,7 @@ class Pf2D:
             figures.append(fig)
 
         for cell, pfmap in enumerate(map_use):
+
             ind = cell // np.prod(subplots)
             subplot_ind = cell % np.prod(subplots)
             ax1 = figures[ind].add_subplot(gs[ind][subplot_ind])
@@ -791,7 +794,7 @@ class Pf2D:
             else:
                 ax1 = ax[cell]
             ax1.plot(self.x, self.y, color="#d3c5c5")
-            ax1.plot(spk_x, spk_y, ".r", markersize=0.8, color=[1, 0, 0, alpha])
+            ax1.plot(spk_x, spk_y, ".r", markersize=0.8)  #, color=[1, 0, 0, alpha])
             ax1.axis("off")
             if label_cells:
                 # Put info on title
@@ -805,7 +808,7 @@ class Pf2D:
     def plotRaw_v_time(self, cellind, speed_thresh=False, alpha=0.5, ax=None):
         if ax is None:
             fig, ax = plt.subplots(2, 1, sharex=True)
-            fig.set_size_inches([23, 9.7])
+            fig.set_size_inches([10,7]) #([23, 9.7])
 
         # plot trajectories
         for a, pos, ylabel in zip(
