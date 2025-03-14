@@ -148,9 +148,17 @@ class Epoch(DataWriter):
         epochs_df = pd.concat((epochs_df, line), ignore_index=False)
         self._epochs = epochs_df.sort_index().reset_index(drop=True)
 
-    def shift(self, dt):
+    def shift(self, dt, other_fields: None or str or list = None):
+        """other_fields: provide other fields to shift aside from 'start' and 'stop'"""
         epochs = self._epochs.copy()
         epochs[["start", "stop"]] += dt
+
+        assert isinstance(other_fields, (str, list)) or (other_fields is None)
+        if other_fields is not None:
+            other_fields = [other_fields] if isinstance(other_fields, str) else other_fields
+            for field in other_fields:
+                epochs[field] += dt
+
         return Epoch(epochs=epochs, metadata=self.metadata)
 
     def scale(self, sf):
@@ -237,7 +245,7 @@ class Epoch(DataWriter):
             epoch_df.loc[epoch_df["start"] < t_start, "start"] = t_start
             epoch_df.loc[epoch_df["stop"] > t_stop, "stop"] = t_stop
 
-        return Epoch(epoch_df)
+        return Epoch(epoch_df, metadata=self.metadata)
 
     def duration_slice(self, min_dur=None, max_dur=None):
         """return epochs that have durations between given thresholds
