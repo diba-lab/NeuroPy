@@ -11,6 +11,30 @@ from neuropy.utils.signal_process import WaveletSg, filter_sig
 from neuropy.io import BinarysignalIO
 
 
+def get_bandpass_power(
+        signals,
+        freq_band,
+        fs,
+        sigma,
+):
+    lf, hf = freq_band
+    dt = 1 / fs
+    smooth = lambda x: gaussian_filter1d(x, sigma=sigma / dt, axis=-1)
+
+    # First, bandpass the signal in the range of interest and get power
+    power = np.zeros(signals.shape[1])
+    for sig in signals:
+        yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
+        # zsc_chan = smooth(stats.zscore(np.abs(signal_process.hilbertfast(yf))))
+        # zscsignal[sig_i] = zsc_chan
+        power += np.abs(signal_process.hilbertfast(yf))
+
+    # Second, take the mean and smooth the signal with a sigma wide gaussian kernel
+    power = smooth(power / signals.shape[0])
+
+    return power
+
+
 def _detect_freq_band_epochs(
     signals,
     freq_band,
@@ -37,25 +61,28 @@ def _detect_freq_band_epochs(
         channels used for epoch detection, if None then chooses best chans
     """
 
-    lf, hf = freq_band
-    dt = 1 / fs
-    smooth = lambda x: gaussian_filter1d(x, sigma=sigma / dt, axis=-1)
+    # lf, hf = freq_band
+    # dt = 1 / fs
+    # smooth = lambda x: gaussian_filter1d(x, sigma=sigma / dt, axis=-1)
     lowthresh, highthresh = thresh
 
     # Because here one shank is selected per shank, based on visualization:
     # mean: very conservative in cases where some shanks may not have that strong ripple
     # max: works well but may have occasional false positives
 
-    # First, bandpass the signal in the range of interest
-    power = np.zeros(signals.shape[1])
-    for sig in signals:
-        yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
-        # zsc_chan = smooth(stats.zscore(np.abs(signal_process.hilbertfast(yf))))
-        # zscsignal[sig_i] = zsc_chan
-        power += np.abs(signal_process.hilbertfast(yf))
+    # # First, bandpass the signal in the range of interest
+    # power = np.zeros(signals.shape[1])
+    # for sig in signals:
+    #     yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
+    #     # zsc_chan = smooth(stats.zscore(np.abs(signal_process.hilbertfast(yf))))
+    #     # zscsignal[sig_i] = zsc_chan
+    #     power += np.abs(signal_process.hilbertfast(yf))
+    #
+    # # Second, take the mean and smooth the signal with a sigma wide gaussian kernel
+    # power = smooth(power / signals.shape[0])
 
-    # Second, take the mean and smooth the signal with a sigma wide gaussian kernel
-    power = smooth(power / signals.shape[0])
+    # First get bandpass power, and second, smooth it
+    power = get_bandpass_power(signals, freq_band, fs, sigma)
 
     # Third, exclude any noisy periods due to motion or other artifact
     # ---------setting noisy periods zero --------
@@ -119,11 +146,14 @@ def _detect_freq_band_epochs(
 
     epochs.metadata = {
         "params": {
-            "lowThres": lowthresh,
-            "highThresh": highthresh,
+            # "lowThres": lowthresh,
+            # "highThresh": highthresh,
+            "thresh": thresh,
+            "edge_cutoff": edge_cutoff,
             "freq_band": freq_band,
             "mindur": mindur,
             "maxdur": maxdur,
+            "sigma": sigma,
             # "mergedist": mergedist,
         },
     }
