@@ -271,7 +271,7 @@ class Pf1D(core.Ratemap):
 
         if ax is None:
             if subplots is None:
-                Fig = plotting.Fig(nrows=1, ncols=1, size=(10, 5))
+                Fig = plotting.Fig(nrows=1, ncols=1, size=(8, 3))
                 ax = plt.subplot(Fig.gs[0])
                 ax.spines["right"].set_visible(True)
                 axphase = ax.twinx()
