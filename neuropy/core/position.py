@@ -10,6 +10,7 @@ class Position(DataWriter):
     def __init__(
         self,
         traces: np.ndarray,
+        traces_rot: np.ndarray = None, #rotation
         t_start=0,
         sampling_rate=120,
         time=None,
@@ -22,6 +23,15 @@ class Position(DataWriter):
         self.traces = traces
         self._t_start = t_start
         self._sampling_rate = sampling_rate
+
+        if isinstance(traces_rot,np.ndarray):
+            if traces_rot.ndim == 1:
+                traces_rot = traces_rot.reshape(1,-1)
+            assert traces_rot.shape[0] <= 3, "Maximum possible dimension of rotation is 3"
+            self.traces_rot =  traces_rot
+        else:
+            self.traces_rot = None
+
         super().__init__(metadata=metadata)
 
     @property
@@ -50,6 +60,33 @@ class Position(DataWriter):
     @z.setter
     def z(self, z):
         self.traces[2] = z
+
+    @property
+    def x_rot(self):
+        return self.traces_rot[0]
+
+    @x_rot.setter
+    def x_rot(self, x_rot):
+        self.traces_rot[0] = x_rot
+
+    @property
+    def y_rot(self):
+        assert self.traces_rot.shape[0] > 1, "No y for one-dimensional rotation"
+        return self.traces_rot[1]
+
+    @y.setter
+    def y_rot(self, y_rot):
+        assert self.traces_rot.shape[0] > 1, "Rotation data has only one dimension"
+        self.traces_rot[1] = y_rot
+
+    @property
+    def z_rot(self):
+        assert self.traces_rot.shape[0] == 3, "Rotation data is not three-dimensional"
+        return self.traces_rot[2]
+
+    @z.setter
+    def z_rot(self, z_rot):
+        self.traces_rot[2] = z_rot
 
     @property
     def t_start(self):
@@ -97,10 +134,19 @@ class Position(DataWriter):
     def get_smoothed(self, sigma):
         dt = 1 / self.sampling_rate
         smooth = lambda x: gaussian_filter1d(x, sigma=sigma / dt, axis=-1)
-        return Position(
-            traces=smooth(self.traces),
-            sampling_rate=self.sampling_rate,
-            t_start=self.t_start,
+
+        if self.traces_rot is not None:
+            return Position(
+                traces=smooth(self.traces),
+                traces_rot=smooth(self.traces_rot),
+                sampling_rate=self.sampling_rate,
+                t_start=self.t_start,
+        )
+        else:
+            return Position(
+                traces=smooth(self.traces),
+                sampling_rate=self.sampling_rate,
+                t_start=self.t_start,
         )
 
     def to_dataframe(self):
