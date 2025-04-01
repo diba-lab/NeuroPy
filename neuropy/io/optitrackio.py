@@ -73,11 +73,13 @@ def getunits(fileName):
     return units
 
 
-def posfromCSV(fileName):
-    """Import position data from OptiTrack CSV file"""
+def posfromCSV(fileName,get_rotation=False):
+    """Import position data from OptiTrack CSV file
+    get_rotation: bool, default False, to also pull rigid body rotation cols from csv.
+    """
 
     # ---- auto select which columns have rigid body position -------
-    pos_columns = rigidbody_columns = None
+    pos_columns = rot_columns = rigidbody_columns = None
     with open(fileName, newline="") as csvfile:
         reader = csv.reader(csvfile, delimiter=",")
         line_count = 0
@@ -91,7 +93,14 @@ def posfromCSV(fileName):
 
             if "Position" in row:
                 pos_columns = np.where(np.array(row) == "Position")[0]
-                break
+
+            if get_rotation:
+                if "Rotation" in row:
+                    rot_columns = np.where(np.array(row) == "Rotation")[0]
+
+            if "Position" in row and (not get_rotation or "Rotation" in row):
+                break  # Break only when all needed values are found
+
             line_count += 1
 
     rigidbody_pos_columns = np.intersect1d(pos_columns, rigidbody_columns)
@@ -129,8 +138,37 @@ def posfromCSV(fileName):
         raise Exception(
             "position data needs to be exported in either centimeters or meters"
         )
+    
+    if get_rotation:
+        rigidbody_rot_columns = np.intersect1d(rot_columns, rigidbody_columns)
 
-    return x, y, z, t
+        rotdata = pd.read_csv(
+            fileName,
+            skiprows=line_count + 1,
+            skip_blank_lines=False,
+            usecols=rigidbody_rot_columns,
+        )
+
+        x0_r = np.asarray(rotdata.iloc[:, 1])
+        y0_r = np.asarray(rotdata.iloc[:, 2])
+        z0_r = np.asarray(rotdata.iloc[:, 3])
+
+        if np.isnan(x0_r[-1]):
+            x0_r, y0_r, z0_r = x0_r[:-1], y0_r[:-1], z0_r[:-1]
+
+        xfill_r, yfill_r, zfill_r = interp_missing_pos(x0_r, y0_r, z0_r, t)
+
+        # Now convert to centimeters
+        units = getunits(fileName)
+        if units.lower() == "centimeters":
+            x_r, y_r, z_r = xfill_r, yfill_r, zfill_r
+        elif units.lower() == "meters":
+            x_r, y_r, z_r = xfill_r * 100, yfill_r * 100, zfill_r * 100
+
+    if get_rotation:
+        return x, y, z, x_r,y_r,z_r,t
+    else:
+        return x, y, z, t
 
 
 def interp_missing_pos(x, y, z, t):
@@ -335,15 +373,15 @@ def get_sync_info(_sync_file):
 
 
 class OptitrackIO:
-    def __init__(self, dirname, scale_factor=1.0,sampling_rate = None) -> None:
+    def __init__(self, dirname, scale_factor=1.0,sampling_rate = None,get_rotation = False) -> None:
         self.dirname = dirname
         self.scale_factor = scale_factor
         self.datetime = None
         self.time = None
         self.sampling_rate = sampling_rate
-        self._parse_folder()
+        self._parse_folder(get_rotation)
 
-    def _parse_folder(self):
+    def _parse_folder(self,get_rotation):
         """get position data from files. All position related files should be in 'position' folder within basepath
 
         Parameters
@@ -375,6 +413,7 @@ class OptitrackIO:
 
         postime, posx, posy, posz = [], [], [], []
         datetime_starts, datetime_stops, datetime_nframes = [], [], []
+        x_rot,y_rot,z_rot = [], [], []
 
         for file in posfiles:
             print(file)
@@ -392,7 +431,17 @@ class OptitrackIO:
                 postime.extend(trange)
 
             else:
-                x, y, z, trelative = posfromCSV(file)
+                output = posfromCSV(file,get_rotation)
+
+                if get_rotation:
+                    x,y,z,rx,ry,rz,trelative = output
+                    x_rot.extend(rx)
+                    y_rot.extend(ry)
+                    z_rot.extend(rz)
+
+                else:
+                    x,y,z,trelative = output
+
                 # Make sure you aren't just importing the header, if so engage except
                 assert len(x) > 0
                 nframes_pos = len(x)
@@ -422,6 +471,15 @@ class OptitrackIO:
         self.datetime_stops = datetime_stops
         self.datetime_nframes = datetime_nframes
         self.sampling_rate = sampling_rate
+
+        if get_rotation:
+
+            x_rot = np.asarray(x_rot)
+            y_rot = np.asarray(y_rot)
+            z_rot = np.asarray(z_rot)
+            self.x_rot = x_rot * self.scale_factor
+            self.y_rot = y_rot * self.scale_factor
+            self.z_rot = z_rot * self.scale_factor
 
     def get_position_at_datetimes(self, dt):
 
