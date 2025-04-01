@@ -91,6 +91,10 @@ class Epoch(DataWriter):
     @property
     def stops(self):
         return self._epochs.stop.values
+    
+    @property
+    def peak_times(self):
+        return self._epochs.peak_time.values
 
     @property
     def durations(self):

@@ -293,6 +293,10 @@ class Pf1D(core.Ratemap):
                     ax = plt.subplot(Fig.gs[cell])
                     axphase = ax.twinx()
                     plot_(cell, ax, axphase)
+        else: #assumes sending in one cell
+            axphase = ax.twinx()
+            cell = 0
+            plot_(cell, ax, axphase)
 
         return ax
 
@@ -503,7 +507,7 @@ class Pf1D(core.Ratemap):
         # Plot tuning curve
         if plot:
 
-            self.plot_pf_peaks_and_width(tuning_curve, widths, edges, heights, prominences, centers,
+            self.plot_pf_peaks_and_widths(tuning_curve, widths, edges, heights, prominences, centers,
                                          height_thresh, track_width=track_width, ax=ax)
 
         return np.array(widths), np.array(edges)
