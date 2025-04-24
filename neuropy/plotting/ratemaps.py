@@ -70,6 +70,7 @@ def plot_ratemap(
         sort_ind = sortby
     else:
         sort_ind = np.arange(n_neurons)
+
     for i, neuron_ind in enumerate(sort_ind):
         color = cmap(i / len(sort_ind))
 

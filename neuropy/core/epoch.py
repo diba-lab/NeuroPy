@@ -129,6 +129,10 @@ class Epoch(DataWriter):
 
         return Epoch(epochs=df_new)
 
+    @property
+    def _df(self):
+        return self.to_dataframe()
+
     def add_epoch_manually(self, start, stop, label="", merge_dt: float or None = 0):
         comb_df = pd.DataFrame(
             {

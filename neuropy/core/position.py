@@ -192,6 +192,10 @@ class Position(DataWriter):
 
         # Pass along metadata if available.
         metadata = df.attrs.get('metadata', {})
+
+        if not metadata['t_start'] == df.iloc[0]['t']:
+            print('Dataframe metadata does not match dataframe data!')
+
         # Use metadata values if they exist, otherwise fall back to the provided defaults.
         sampling_rate = metadata.get('sampling_rate', sampling_rate)
         t_start = metadata.get('t_start', t_start)
