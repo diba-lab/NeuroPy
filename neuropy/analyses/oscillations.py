@@ -355,7 +355,7 @@ def detect_ripple_epochs(
 
     print(f"Selected channels for ripples: {selected_chans}")
     if ignore_epochs is not None:
-        ignore_times = ignore_epochs.as_array()
+        ignore_times = ignore_epochs.shift(-signal.t_start).as_array()
     else:
         ignore_times = None
 
