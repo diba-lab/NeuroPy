@@ -274,7 +274,7 @@ def detect_beta_epochs(
 
     print(f"Best channel for beta: {selected_chan}")
     if ignore_epochs is not None:
-        ignore_times = ignore_epochs.as_array()
+        ignore_times = ignore_epochs.shift(-signal.t_start).as_array()
     else:
         ignore_times = None
 
@@ -435,7 +435,7 @@ def detect_sharpwave_epochs(
 
     print(f"Selected channels for sharp-waves: {selected_chans}")
     if ignore_epochs is not None:
-        ignore_times = ignore_epochs.as_array()
+        ignore_times = ignore_epochs.shift(-signal.t_start).as_array()
     else:
         ignore_times = None
 
@@ -493,7 +493,7 @@ def detect_theta_epochs(
 
     print(f"Best channel for theta: {selected_chan}")
     if ignore_epochs is not None:
-        ignore_times = ignore_epochs.as_array()
+        ignore_times = ignore_epochs.shift(-signal.t_start).as_array()
     else:
         ignore_times = None
 
@@ -561,7 +561,7 @@ def detect_spindle_epochs(
     print(f"Selected channels for spindles: {selected_chans}")
 
     if ignore_epochs is not None:
-        ignore_times = ignore_epochs.as_array()
+        ignore_times = ignore_epochs.shift(-signal.t_start).as_array()
     else:
         ignore_times = None
 
