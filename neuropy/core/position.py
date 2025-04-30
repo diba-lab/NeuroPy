@@ -236,3 +236,12 @@ class Position(DataWriter):
             t_start=t_start,
             sampling_rate=self.sampling_rate,
         )
+
+    def epoch_slice(self, epochs: Epoch):
+        assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
+        t_start = epochs.starts[0]
+        t_stop = epochs.stops[0]
+
+        print(f"Slicing from {t_start} to {t_stop}")
+
+        return self.time_slice(t_start=t_start, t_stop=t_stop)
