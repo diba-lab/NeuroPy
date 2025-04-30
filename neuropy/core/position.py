@@ -131,6 +131,10 @@ class Position(DataWriter):
         speed = np.sqrt(((np.abs(np.diff(self.traces, axis=1))) ** 2).sum(axis=0)) / dt
         return np.hstack(([0], speed))
 
+    @property
+    def _df(self):
+        return self.to_dataframe()
+
     def get_smoothed(self, sigma):
         dt = 1 / self.sampling_rate
         smooth = lambda x: gaussian_filter1d(x, sigma=sigma / dt, axis=-1)
@@ -149,19 +153,22 @@ class Position(DataWriter):
                 t_start=self.t_start,
         )
 
+
     def to_dataframe(self):
         pos_dict = {"time": self.time}
 
-        # Only add x, y, and z if they exist
         for axis in ["x", "y", "z"]:
-            if hasattr(self, axis):
+            try:
                 pos_dict[axis] = getattr(self, axis)
+            except AssertionError as e:
+                print(f"Skipping axis '{axis}': {e}")
+                continue  # Axis doesn't exist, skip it
 
-        # Include speed if it exists
-        if hasattr(self, "speed"):
+        try:
             pos_dict["speed"] = self.speed
+        except Exception:
+            pass  # Only include if computable
 
-        # Create the DataFrame with the available data
         position_df = pd.DataFrame(pos_dict)
 
         # Prepare metadata using available attributes
@@ -173,9 +180,13 @@ class Position(DataWriter):
 
         return position_df
 
+
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, sampling_rate: float = 120, t_start: float = 0):
         # Build traces from DataFrame columns.
+
+        df_time_col = 't' if 't' in df.columns else 'time' if 'time' in df.columns else None
+
         # Check which coordinate columns exist in case only 1 or 2 dimensions were input.
         if 'x' in df.columns and 'y' in df.columns and 'z' in df.columns:
             # Create 2D traces array with shape (number of dimensions, number of samples)
@@ -193,14 +204,18 @@ class Position(DataWriter):
         # Pass along metadata if available.
         metadata = df.attrs.get('metadata', {})
 
-        if not metadata['t_start'] == df.iloc[0]['t']:
-            print('Dataframe metadata does not match dataframe data!')
+        df_time_col = 't' if 't' in df.columns else 'time' if 'time' in df.columns else None
+        if df_time_col is not None:
+            if not np.isclose(metadata.get('t_start', t_start), df.iloc[0][df_time_col]):
+                print("Dataframe metadata does not match dataframe data!")
+        else:
+            print("Warning: No 't' or 'time' column found to validate t_start.")
 
         # Use metadata values if they exist, otherwise fall back to the provided defaults.
         sampling_rate = metadata.get('sampling_rate', sampling_rate)
         t_start = metadata.get('t_start', t_start)
 
-        print("Traces samples:", traces.shape[1])
+        print("Traces samples:", traces.shape)
         print("Using sampling_rate:", sampling_rate)
         print("Using t_start:", t_start)
 
