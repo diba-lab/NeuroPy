@@ -183,43 +183,47 @@ class Position(DataWriter):
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, sampling_rate: float = 120, t_start: float = 0):
-        # Build traces from DataFrame columns.
-
         df_time_col = 't' if 't' in df.columns else 'time' if 'time' in df.columns else None
 
-        # Check which coordinate columns exist in case only 1 or 2 dimensions were input.
-        if 'x' in df.columns and 'y' in df.columns and 'z' in df.columns:
-            # Create 2D traces array with shape (number of dimensions, number of samples)
-            traces = np.vstack((df['x'].to_numpy(), df['y'].to_numpy(), df['z'].to_numpy()))
-        elif 'x' in df.columns and 'y' in df.columns:
-            traces = np.vstack((df['x'].to_numpy(), df['y'].to_numpy()))
-        elif 'x' in df.columns and 'z' in df.columns:
-            traces = np.vstack((df['x'].to_numpy(), df['z'].to_numpy()))
-        elif 'x' in df.columns:
-            # Only x column is available; the constructor will reshape it to (1, n_samples)
-            traces = df['x'].to_numpy()
-        else:
-            raise ValueError("DataFrame must contain at least an 'x' column")
+        # Collect valid position dimensions
+        trace_components = []
+        axis_names = []  # To keep track of which axis corresponds to each row
 
-        # Pass along metadata if available.
+        for axis in ['x', 'y', 'z']:
+            if axis in df.columns:
+                trace_components.append(df[axis].to_numpy())
+                axis_names.append(axis)
+
+        # If none of x/y/z, try lin
+        if not trace_components and 'lin' in df.columns:
+            trace_components.append(df['lin'].to_numpy())
+            axis_names.append('lin')
+
+        if not trace_components:
+            raise ValueError("DataFrame must contain at least one of 'x', 'y', 'z', or 'lin' columns")
+
+        traces = np.vstack(trace_components)
+
+        # Warn if lin is included with x/y/z
+        if 'lin' in df.columns and 'lin' not in axis_names:
+            print("Note: 'lin' column is present but will be ignored since x/y/z are being used.")
+
+        # Load metadata if present
         metadata = df.attrs.get('metadata', {})
+        print(metadata)
+        # Optional t_start consistency check
+        if df_time_col and not np.isclose(metadata.get('t_start', t_start), df.iloc[0][df_time_col]):
+            print("Warning: t_start metadata does not match time column start value.")
 
-        df_time_col = 't' if 't' in df.columns else 'time' if 'time' in df.columns else None
-        if df_time_col is not None:
-            if not np.isclose(metadata.get('t_start', t_start), df.iloc[0][df_time_col]):
-                print("Dataframe metadata does not match dataframe data!")
-        else:
-            print("Warning: No 't' or 'time' column found to validate t_start.")
-
-        # Use metadata values if they exist, otherwise fall back to the provided defaults.
         sampling_rate = metadata.get('sampling_rate', sampling_rate)
         t_start = metadata.get('t_start', t_start)
 
-        print("Traces samples:", traces.shape)
+        print(f"Loaded dimensions: {axis_names}")
+        print("Trace shape:", traces.shape)
         print("Using sampling_rate:", sampling_rate)
         print("Using t_start:", t_start)
 
-        return cls(traces, t_start=t_start, sampling_rate=sampling_rate, metadata=metadata)
+        return cls(traces=traces, t_start=t_start, sampling_rate=sampling_rate, metadata=metadata)
 
     def speed_in_epochs(self, epochs: Epoch):
         assert isinstance(epochs, Epoch), "epochs must be neuropy.Epoch object"
