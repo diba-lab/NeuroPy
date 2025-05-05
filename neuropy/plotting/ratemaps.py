@@ -98,9 +98,16 @@ def plot_ratemap(
     if normalize_xbin:
         ax.set_xlim([0, 1])
     ax.tick_params("y", length=0)
+
+    # Set y axis as the neuron id
     ax.set_ylim([0, len(sort_ind)])
-    # if self.run_dir is not None:
-    #     ax.set_title(self.run_dir.capitalize() + " Runs only")
+
+    # Set y-axis as firing rate if cross norm is provided and normalized tuning curve is false
+    if cross_norm is not None and normalize_tuning_curve is False:
+        ax.set_ylim(cross_norm[0])
+        ax.set_yticks(np.linspace(*cross_norm[0], num=3))
+        ax.set_yticklabels([f"{v:.1f}" for v in np.linspace(*cross_norm[0], num=3)])
+        ax.tick_params("y", length=4)
 
     return ax
 

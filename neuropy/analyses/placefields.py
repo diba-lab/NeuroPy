@@ -358,7 +358,7 @@ class Pf1D(core.Ratemap):
                                  height_ratios=[3, 2])
 
         # Plot tuning curve
-        pfuse.plot_ratemaps(normalize_tuning_curve=True, ax=ax[0])
+        pfuse.plot_ratemaps(ax=ax[0], **kwargs)
 
         # Plot raster below
         pfuse.plot_rasters(plot_time=True, ax=ax[1])
