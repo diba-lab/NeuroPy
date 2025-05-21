@@ -16,7 +16,7 @@ try:
     from ..plotting import Fig
     from .. import core
 except ImportError:
-    from neuropy.plotting import Fig
+    from neuropy.plotting.figure import Fig
     from neuropy import core
 
 
