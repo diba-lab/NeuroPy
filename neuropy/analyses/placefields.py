@@ -103,7 +103,7 @@ class Pf1D(core.Ratemap):
         position: core.Position
             1D position
         grid_bin : int
-            bin size of position bining, by default 5 cm
+            bin size of position binning, by default 5 cm
         epochs : core.Epoch,
             restrict calculation to these epochs, default None
         frate_thresh : float,
@@ -117,7 +117,7 @@ class Pf1D(core.Ratemap):
         sigma_pos: float
             smoothing kernel for smoothing position (and therefore speed) before speed thresholding and calculating
             occupancy.
-            Recommended for high sample rates to remove articially high speeds due to division by a very small
+            Recommended for high sample rates to remove artificially high speeds due to division by a very small
             denominator (1 / sample_rate).
         NOTE: speed_thresh is ignored if epochs is provided
         """
