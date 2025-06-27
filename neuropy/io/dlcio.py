@@ -22,7 +22,8 @@ class DLC:
     `search_str` list which will only include files with ALL the strings listed. Infers session and animal name
     from directory structure in base_path, e.g. base_path = ...../Animal_Name/2021_02_22_training"""
 
-    def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1):
+    def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1, get_timestamps=True,
+                 camera_type='optitrack'):
 
         # fix poorly annotated movie_type input
         if movie_type[0] != ".":
@@ -177,16 +178,38 @@ class DLC:
                     print(f"No Optitrack csv file found at {tracking_file.stem}.")
                     print("Inferring start time from file name. SECOND PRECISION IN START TIME!!!")
                     start_time = deduce_starttime_from_file(tracking_file)
+                    print(start_time)
                     time_deltas = pd.to_timedelta(
                         np.arange(self.nframes[idt]) / self.SampleRate, unit="sec"
                     )
                     self.timestamps.append(start_time + time_deltas)
-            self.timestamps = pd.concat(self.timestamps, axis=0)
+            try:
+                self.timestamps = pd.concat(self.timestamps, axis=0)
+            except TypeError:
+                self.timestamps = pd.concat([pd.Series(tstamps) for tstamps in self.timestamps], axis=0)
+
+            # Sort appropriately
+            isort = self.timestamps.argsort().values
+            self.timestamps = self.timestamps.iloc[isort]
+
+            self.timestamps = pd.DataFrame({"Timestamps": self.timestamps})
+
         else:
             mio = MiniscopeIO(self.base_dir)
             webcam_flag = True if camera_type == "ms_webcam" else int(camera_type[-1])
             self.timestamps = mio.load_all_timestamps(webcam=webcam_flag, exclude_str=exclude_str,
                                                       include_str=include_str)
+            # Sort appropriately
+            isort = self.timestamps.iloc["Timestamps"].argsort()
+            self.timestamps = self.timestamps.iloc[isort, :]
+
+        # Reorder timestamps for position data if necessary
+        if not np.all(isort == np.arange(self.timestamps.shape[0])):
+            print(
+                "WARNING: Timestamps imported out of order. Resorting position data and setting .speed and .pos_smooth to None")
+            self.pos_data = self.pos_data.iloc[isort, :]
+            self.pos_smooth = None
+            self.speed = None
 
 
     def to_cm(self):
