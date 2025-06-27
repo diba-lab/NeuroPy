@@ -164,6 +164,7 @@ class MinianIO:
                 raise IndexError(
                     'unit_id mismatch: check data folder for unit_id.npy or curated_neurons.pkl with "unit_id" field',
                 )
+
             keep_bool[keep_ind] = True  # add in neurons to keep
 
         else:
@@ -195,6 +196,7 @@ class MinianIO:
                 print(
                     f"Error trimming variable {var_name}: using un-trimmed version. Be sure to cleanup before processing!"
                 )
+                # print(f"{var_name} shape: {getattr(caneurons, var_name).shape}")
                 setattr(caneurons, var_name, getattr(caneurons, var_name))
 
         return caneurons
@@ -278,5 +280,13 @@ def check_integrity(var_list, fix: str or bool in [False, "min_size"] = "min_siz
 
 
 if __name__ == "__main__":
-    basedir = '/data3/Psilocybin/Recording_Rats/Finn/2022_02_15_saline1'
-    MinianIO(basedir=basedir)
+    animal_dir = Path('/data3/Psilocybin/Recording_Rats/Finn2')  # Base folder where all sessions are located
+    session_dict = {'Saline1': '2023_05_24_saline1', 'Psilocybin': '2023_05_25_psilocybin',
+                    'Saline2': '2023_05_26_saline2'}  # name for each session followed by sub-folder name
+    animal = 'Finn2'
+    session_list = ['Saline1', 'Psilocybin', 'Saline2']
+    dir_use = lambda sesh_name: animal_dir / session_dict[sesh_name]
+
+    keep = [['good', 'weird_ROI', 'maybe_interneurons']] * len(session_list)
+    trim = [None] * len(session_list)
+    [MinianIO(basedir=dir_use(session)).trim_neurons(keep=ke, trim=tr) for session, ke, tr in zip(session_list, keep, trim)]
