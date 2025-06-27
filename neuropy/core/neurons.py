@@ -203,7 +203,7 @@ class Neurons(DataWriter):
 
         # Extract data using the found positions
         spiketrains = neurons.spiketrains[positions]
-        neuron_type = None if neurons.neuron_type is None else neurons.neuron_type[positions]
+        neuron_type = None if neurons.neuron_type is None else neurons.neuron_type.iloc[positions]
         waveforms = None if neurons.waveforms is None else neurons.waveforms[positions]
         waveforms_amplitude = None if neurons.waveforms_amplitude is None else neurons.waveforms_amplitude[positions]
         peak_channels = None if neurons.peak_channels is None else neurons.peak_channels[positions]
@@ -622,6 +622,8 @@ class BinnedSpiketrain(DataWriter):
         self.shank_ids = shank_ids
         if neuron_ids is None:
             self.neuron_ids = np.arange(self.n_neurons)
+        else:
+            self.neuron_ids = neuron_ids
 
         self.metadata = metadata
 
@@ -816,7 +818,7 @@ def binned_pe_raster(
     binned_spiketrain class."""
 
     if isinstance(binned_spiketrain, BinnedSpiketrain):
-        binned_fr = binned_spiketrain.firing_rate[neuron_id]
+        binned_fr = binned_spiketrain.firing_rate[neuron_id == binned_spiketrain.neuron_ids].squeeze()
     elif isinstance(binned_spiketrain, Mua):
         binned_fr = binned_spiketrain.firing_rate
 
