@@ -12,7 +12,7 @@ class ProcessData:
         basepath = Path(basepath)
         self.basepath = basepath
         xml_files = sorted(basepath.glob("*.xml"))
-        assert len(xml_files) == 1, "Found fewer/more than one .xml file"
+        assert len(xml_files) == 1, f"Found fewer/more than one .xml file in {basepath.name}"
 
         fp = xml_files[0].with_suffix("")
         self.filePrefix = fp     
@@ -23,22 +23,24 @@ class ProcessData:
         self.recinfo = neuroscopeio.NeuroscopeIO(xml_files[0])    
         eegfiles = sorted(basepath.glob("*.eeg"))
         try:
-            assert len(eegfiles) == 1, "Fewer/more than one .eeg file detected"
+            assert len(eegfiles) == 1, f"Fewer/more than one .eeg file detected in {basepath.name}"
             self.eegfile = binarysignalio.BinarysignalIO(
                 eegfiles[0],
                 n_channels=self.recinfo.n_channels,
                 sampling_rate=self.recinfo.eeg_sampling_rate,
             )
         except AssertionError:
-            print("Fewer/more than one .eeg file detected, no eeg file loaded")
+            print(f"Fewer/more than one .eeg file detected in {basepath.name}, no eeg file loaded")
+        datfiles = sorted(basepath.glob("*.dat"))
         try:
+            assert len(eegfiles) == 1, f"Fewer/more than one .dat file detected in {basepath.name}"
             self.datfile = binarysignalio.BinarysignalIO(
                 eegfiles[0].with_suffix(".dat"),
                 n_channels=self.recinfo.n_channels,
                 sampling_rate=self.recinfo.dat_sampling_rate,
             )
         except (FileNotFoundError, IndexError):
-            print("No dat file found, not loading")
+            print(f"No dat file found in {basepath.name}, not loading")
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
