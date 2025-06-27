@@ -628,7 +628,7 @@ class Ripple:
         return detect_sharpwave_epochs(**kwargs)
 
     @staticmethod
-    def get_mean_wavelet(eegfile, rpl_channel, rpl_epochs, lf=100, hf=300, buffer_sec=0.1):
+    def get_mean_wavelet(eegfile, rpl_channel, rpl_epochs, lf=100, hf=300, buffer_sec=0.1, event_key="peak_time"):
 
         # Load in relevant metadata
         sampling_rate = eegfile.sampling_rate
@@ -653,7 +653,7 @@ class Ripple:
         for i in range(len(rpls_window) - 1):
             # Get blocks of ripples and their peak times
             rpl_df = rpl_epochs[rpls_window[i] : rpls_window[i + 1]].to_dataframe()
-            peakframe = (rpl_df["peak_time"].values * sampling_rate).astype("int")
+            peakframe = (rpl_df[event_key].values * sampling_rate).astype("int")
 
             rpl_frames = [np.arange(p - buffer_frames, p + buffer_frames) for p in peakframe]  # Grab 100ms either side of peak frame
             rpl_frames = np.concatenate(rpl_frames)
