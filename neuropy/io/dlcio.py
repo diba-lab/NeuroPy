@@ -154,12 +154,13 @@ class DLC:
                 self.meta.append(load(f))
 
     def get_timestamps(self, camera_type: str in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2'] = 'optitrack',
-                       exclude_str: str or None = None, include_str: str or None = None):
+                       exclude_str: str or None = None, include_str: str or None = None, tz="America/Detroit"):
         """Tries to import timestamps from CSV file from optitrack, if not, infers it from timestamp in filename,
         sample rate, and nframes
         :param camera_type: 'optitrack' looks for optitrack csv file with tracking data, other options look for
         :params exclude_str, include_str: see MiniscopeIO.load_all_timestamps - can include or exclude folders
-        UCLA miniscope webcam files"""
+        UCLA miniscope webcam files
+        :param tz: time-zone to use for timestamps"""
 
         assert camera_type in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2']
         self.timestamp_type = camera_type
@@ -211,6 +212,8 @@ class DLC:
             self.pos_smooth = None
             self.speed = None
 
+        # Set time-zone
+        self.timestamps["Timestamps"] = self.timestamps["Timestamps"].dt.tz_localize(tz)
 
     def to_cm(self):
         """Convert pixels to centimeters in pos_data"""
@@ -344,6 +347,7 @@ class DLC:
         bodyparts=None,
         plot_style="-",
         lcutoff=0,
+        pix2cm=1,
         ax=None,
     ):
         """Plot the feature ('x', 'y', or post-processed 'speed') for a given bodypart vs. time.
@@ -372,7 +376,7 @@ class DLC:
                 data_plot,
                 body_part=bodypart,
                 likelihood_cutoff=lcutoff,
-                pix2cm=self.pix2cm,
+                pix2cm=pix2cm,
                 plot_style=plot_style,
                 ax=ax,
                 title_use=self.animal_name + ": " + bodypart,
