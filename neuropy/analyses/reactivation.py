@@ -11,7 +11,12 @@ from sklearn.decomposition import PCA, FastICA
 from typing import Union
 # from ..utils.mathutil import getICA_Assembly
 from .. import core
-from ..plotting import Fig
+
+try:
+    from ..plotting import Fig
+except ImportError:
+    from neuropy.plotting.figure import Fig
+
 from tqdm import tqdm
 
 
