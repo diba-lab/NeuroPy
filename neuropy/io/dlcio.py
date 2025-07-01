@@ -68,7 +68,7 @@ class DLC:
 
         pos_list, scorernames = [], []
         for idf, file in enumerate(self.tracking_files):
-            print(f"Using tracking file #{idf+1}: {str(file)}")
+            print(f"Using tracking file #{idf}: {str(file)}")
             # Import position data as-is
             pos_data = import_tracking_data(file)
             scorername = get_scorername(pos_data)
@@ -165,6 +165,7 @@ class DLC:
         assert camera_type in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2']
         self.timestamp_type = camera_type
         self.timestamps = []
+        file_num = []
         if camera_type == 'optitrack':
             for idt, tracking_file in enumerate(self.tracking_files):
                 opti_file = tracking_file.parent / (
@@ -175,6 +176,7 @@ class DLC:
                     _, _, _, t = posfromCSV(opti_file)
 
                     self.timestamps.append(start_time + pd.to_timedelta(t, unit="sec"))
+                    file_num.extend(np.ones_like(t)*idt)
                 else:
                     print(f"No Optitrack csv file found at {tracking_file.stem}.")
                     print("Inferring start time from file name. SECOND PRECISION IN START TIME!!!")
@@ -183,6 +185,7 @@ class DLC:
                     time_deltas = pd.to_timedelta(
                         np.arange(self.nframes[idt]) / self.SampleRate, unit="sec"
                     )
+                    file_num.extend(np.ones_like(time_deltas) * idt)
                     self.timestamps.append(start_time + time_deltas)
             try:
                 self.timestamps = pd.concat(self.timestamps, axis=0)
@@ -192,8 +195,9 @@ class DLC:
             # Sort appropriately
             isort = self.timestamps.argsort().values
             self.timestamps = self.timestamps.iloc[isort]
+            file_num_sort = np.array(file_num)[isort].astype(int)
 
-            self.timestamps = pd.DataFrame({"Timestamps": self.timestamps})
+            self.timestamps = pd.DataFrame({"Timestamps": self.timestamps, "File num": file_num_sort})
 
         else:
             mio = MiniscopeIO(self.base_dir)
