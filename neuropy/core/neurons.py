@@ -203,7 +203,7 @@ class Neurons(DataWriter):
 
         # Extract data using the found positions
         spiketrains = neurons.spiketrains[positions]
-        neuron_type = None if neurons.neuron_type is None else neurons.neuron_type.iloc[positions]
+        neuron_type = None if neurons.neuron_type is None else neurons.neuron_type[positions]
         waveforms = None if neurons.waveforms is None else neurons.waveforms[positions]
         waveforms_amplitude = None if neurons.waveforms_amplitude is None else neurons.waveforms_amplitude[positions]
         peak_channels = None if neurons.peak_channels is None else neurons.peak_channels[positions]
