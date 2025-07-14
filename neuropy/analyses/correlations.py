@@ -2,6 +2,7 @@ import numpy as np
 try:
     import cupy as cp
 except ImportError:
+    print("Error importing CuPy")
     cp = None
 
 
