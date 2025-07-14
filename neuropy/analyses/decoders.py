@@ -168,7 +168,7 @@ class Decode1d:
         epochs : core.Epoch, optional
             if provided then decode within these epochs only,if None then uses entire duration of neurons, by default None
         bin_size : float, optional
-            binning size to calculate spike counts, by default 0.5
+            binning size in seconds to calculate spike counts, by default 0.5
         slideby : float, optional
             slide the binning window by this amount, by default None
         decode_margin : int, optional
