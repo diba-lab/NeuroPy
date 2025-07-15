@@ -21,26 +21,41 @@ class ProcessData:
 
         # self.recinfo = NeuroscopeIO(xml_files[0])
         self.recinfo = neuroscopeio.NeuroscopeIO(xml_files[0])    
-        eegfiles = sorted(basepath.glob("*.eeg"))
-        try:
-            assert len(eegfiles) == 1, f"Fewer/more than one .eeg file detected in {basepath.name}"
+        # eegfiles = sorted(basepath.glob("*.eeg"))
+        # # try:
+        # #     assert len(eegfiles) == 1, f"Fewer/more than one .eeg file detected in {basepath.name}"
+        # #     self.eegfile = binarysignalio.BinarysignalIO(
+        # #         eegfiles[0],
+        # #         n_channels=self.recinfo.n_channels,
+        # #         sampling_rate=self.recinfo.eeg_sampling_rate,
+        # #     )
+        # # except AssertionError:
+        # #     print(f"Fewer/more than one .eeg file detected in {basepath.name}, no eeg file loaded")
+        # # datfiles = sorted(basepath.glob("*.dat"))
+        # # try:
+        # #     assert len(datfiles) == 1, f"Fewer/more than one .dat file detected in {basepath.name}"
+        # #     self.datfile = binarysignalio.BinarysignalIO(
+        # #         eegfiles[0].with_suffix(".dat"),
+        # #         n_channels=self.recinfo.n_channels,
+        # #         sampling_rate=self.recinfo.dat_sampling_rate,
+        # #     )
+        # # except (FileNotFoundError, IndexError):
+        # #     print(f"No dat file found in {basepath.name}, not loading")
+
+        fp = xml_files[0].with_suffix("")
+        if self.recinfo.eeg_filename.is_file():
             self.eegfile = binarysignalio.BinarysignalIO(
-                eegfiles[0],
+                self.recinfo.eeg_filename,
                 n_channels=self.recinfo.n_channels,
                 sampling_rate=self.recinfo.eeg_sampling_rate,
             )
-        except AssertionError:
-            print(f"Fewer/more than one .eeg file detected in {basepath.name}, no eeg file loaded")
-        datfiles = sorted(basepath.glob("*.dat"))
-        try:
-            assert len(eegfiles) == 1, f"Fewer/more than one .dat file detected in {basepath.name}"
+
+        if self.recinfo.dat_filename.is_file():
             self.datfile = binarysignalio.BinarysignalIO(
-                eegfiles[0].with_suffix(".dat"),
+                self.recinfo.dat_filename,
                 n_channels=self.recinfo.n_channels,
                 sampling_rate=self.recinfo.dat_sampling_rate,
             )
-        except (FileNotFoundError, IndexError):
-            print(f"No dat file found in {basepath.name}, not loading")
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.recinfo.source_file.name})"
