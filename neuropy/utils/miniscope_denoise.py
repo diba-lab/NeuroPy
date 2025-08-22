@@ -9,8 +9,8 @@ import seaborn as sns
 import scipy.signal as ssignal
 
 from .. import core
-from ..utils.signal_process import filter_sig
-from ..io.binarysignalio import BinarysignalIO
+from neuropy.utils.signal_process import filter_sig
+from neuropy.io.binarysignalio import BinarysignalIO
 
 
 class MiniscopeDenoise(BinarysignalIO):

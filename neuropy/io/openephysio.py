@@ -32,14 +32,17 @@ class OESyncIO:
 def get_settings_file(experiment_or_recording_folder):
     if "Record Node" in Path(experiment_or_recording_folder).stem:
         node_folder = Path(experiment_or_recording_folder)
+        fname = "settings.xml"
     elif "experiment" in Path(experiment_or_recording_folder).stem:
         node_folder = Path(experiment_or_recording_folder).parent
+        fname = get_settings_filename(experiment_or_recording_folder)
     elif "recording" in Path(experiment_or_recording_folder).stem:
         node_folder = Path(experiment_or_recording_folder).parents[1]
+        fname = get_settings_filename(experiment_or_recording_folder)
     else:
         assert False, "must enter any one of '.../Record Node ###', '.../experiment#', or '.../experiment#/recording#' folder"
 
-    settings_path = sorted(node_folder.glob("**/*settings*"))
+    settings_path = sorted(node_folder.glob(f"**/{fname}"))
     return settings_path[0]
 
 

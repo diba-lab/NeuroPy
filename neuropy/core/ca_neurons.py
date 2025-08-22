@@ -237,7 +237,7 @@ class CaNeurons(DataWriter):
 
     def quick_merge(self, unit_ids: list, method="max"):
         """Quickly merge units post-hoc - will make copies of merged units at each index
-        noted in merge. Again make this recursive to accommodate list of lists (multiple
+        noted in merge!!! Again make this recursive to accommodate list of lists (multiple
         sets of neurons to merge). NOTE each nested pair of neuron in unit_ids can only be two units.
         usage: CaNeuron.quick_merge([1, 3]) will merge units 1 and 3
                CaNeuron.quick_merge([[1, 3], [2, 4]]) will merge 1 & 3 and 2 & 4 separately"""

@@ -151,13 +151,15 @@ def deduce_starttime_from_file(movie_file):
         start_time_delta = pd.to_timedelta(
             "0 days " + matchobj.group(0).replace(".", ":")
         )
+        if re.search("[0-1][0-9]\.[0-6][0-9]\.[0-6][0-9] PM", str(movie_file)) is not None:
+            start_time_delta = start_time_delta + pd.Timedelta(12, unit="h")
         start_date_str = re.search(
             "[0-9]{4}-[0-1][0-9]-[0-3][0-9]", str(movie_file)
         ).group(0)
         start_date = pd.to_datetime(start_date_str)
     elif (
         matchobj := re.search("[0-1][0-9]_[0-6][0-9]_[0-6][0-9]", str(movie_file))
-    ) is not None:  # Windows Camera App
+    ) is not None:  # Windows Camera App and miniscope
         start_time_delta = pd.to_timedelta(
             "0 days " + matchobj.group(0)[1:-1].replace("_", ":")
         )
@@ -165,6 +167,10 @@ def deduce_starttime_from_file(movie_file):
             "[0-9]{4}[0-1][0-9][0-3][0-9]", str(movie_file)
         ).group(0)
         start_date = pd.to_datetime(start_date_str)
+
+    # Finally correct for 12 being the start of the day.
+    if matchobj.group(0)[0:2] == "12":
+        start_time_delta = start_time_delta - pd.Timedelta(12, unit="h")
 
     return start_date + start_time_delta
 

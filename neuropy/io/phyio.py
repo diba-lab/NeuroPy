@@ -74,18 +74,21 @@ class PhyIO:
             clu_id, spiketrains, template_id = [], [], []
             template_waveforms, template_amplitudes = [], []
             for clu in cluinfo.itertuples():
-                clu_spike_location = np.where(clu_ids == clu.id)[0]
-                spkframes = spktime[clu_spike_location]
-                cell_template_id, counts = np.unique(
-                    spk_templates_id[clu_spike_location], return_counts=True
-                )
-                spiketrains.append(spkframes / self.sampling_rate)
-                template_waveforms.append(
-                    spk_templates[cell_template_id[np.argmax(counts)]].squeeze().T
-                )
-                template_amplitudes.append(waveform_amplitude[clu_spike_location])
-                clu_id.append(clu_ids[clu_spike_location])
-                template_id.append(cell_template_id[np.argmax(counts)])
+                try:
+                    clu_spike_location = np.where(clu_ids == clu.id)[0]
+                    spkframes = spktime[clu_spike_location]
+                    cell_template_id, counts = np.unique(
+                        spk_templates_id[clu_spike_location], return_counts=True
+                    )
+                    spiketrains.append(spkframes / self.sampling_rate)
+                    template_waveforms.append(
+                        spk_templates[cell_template_id[np.argmax(counts)]].squeeze().T
+                    )
+                    template_amplitudes.append(waveform_amplitude[clu_spike_location])
+                    clu_id.append(clu_ids[clu_spike_location])
+                    template_id.append(cell_template_id[np.argmax(counts)])
+                except ValueError:
+                    print(f"error loading clu_id {clu.cluster_id}")
 
             self.spiketrains = np.array(spiketrains, dtype="object")
             self.clu_ids = np.array(clu_id, dtype="object")

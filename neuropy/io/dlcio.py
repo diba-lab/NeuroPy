@@ -22,7 +22,8 @@ class DLC:
     `search_str` list which will only include files with ALL the strings listed. Infers session and animal name
     from directory structure in base_path, e.g. base_path = ...../Animal_Name/2021_02_22_training"""
 
-    def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1):
+    def __init__(self, base_path, search_str=None, movie_type=".mp4", pix2cm=1, get_timestamps=True,
+                 camera_type='optitrack'):
 
         # fix poorly annotated movie_type input
         if movie_type[0] != ".":
@@ -67,7 +68,7 @@ class DLC:
 
         pos_list, scorernames = [], []
         for idf, file in enumerate(self.tracking_files):
-            print(f"Using tracking file #{idf+1}: {str(file)}")
+            print(f"Using tracking file #{idf}: {str(file)}")
             # Import position data as-is
             pos_data = import_tracking_data(file)
             scorername = get_scorername(pos_data)
@@ -153,16 +154,18 @@ class DLC:
                 self.meta.append(load(f))
 
     def get_timestamps(self, camera_type: str in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2'] = 'optitrack',
-                       exclude_str: str or None = None, include_str: str or None = None):
+                       exclude_str: str or None = None, include_str: str or None = None, tz="America/Detroit"):
         """Tries to import timestamps from CSV file from optitrack, if not, infers it from timestamp in filename,
         sample rate, and nframes
         :param camera_type: 'optitrack' looks for optitrack csv file with tracking data, other options look for
         :params exclude_str, include_str: see MiniscopeIO.load_all_timestamps - can include or exclude folders
-        UCLA miniscope webcam files"""
+        UCLA miniscope webcam files
+        :param tz: time-zone to use for timestamps"""
 
         assert camera_type in ['optitrack', 'ms_webcam', 'ms_webcam1', 'ms_webcam2']
         self.timestamp_type = camera_type
         self.timestamps = []
+        file_num = []
         if camera_type == 'optitrack':
             for idt, tracking_file in enumerate(self.tracking_files):
                 opti_file = tracking_file.parent / (
@@ -173,21 +176,48 @@ class DLC:
                     _, _, _, t = posfromCSV(opti_file)
 
                     self.timestamps.append(start_time + pd.to_timedelta(t, unit="sec"))
+                    file_num.extend(np.ones_like(t)*idt)
                 else:
                     print(f"No Optitrack csv file found at {tracking_file.stem}.")
                     print("Inferring start time from file name. SECOND PRECISION IN START TIME!!!")
                     start_time = deduce_starttime_from_file(tracking_file)
+                    print(start_time)
                     time_deltas = pd.to_timedelta(
                         np.arange(self.nframes[idt]) / self.SampleRate, unit="sec"
                     )
+                    file_num.extend(np.ones_like(time_deltas) * idt)
                     self.timestamps.append(start_time + time_deltas)
-            self.timestamps = pd.concat(self.timestamps, axis=0)
+            try:
+                self.timestamps = pd.concat(self.timestamps, axis=0)
+            except TypeError:
+                self.timestamps = pd.concat([pd.Series(tstamps) for tstamps in self.timestamps], axis=0)
+
+            # Sort appropriately
+            isort = self.timestamps.argsort().values
+            self.timestamps = self.timestamps.iloc[isort]
+            file_num_sort = np.array(file_num)[isort].astype(int)
+
+            self.timestamps = pd.DataFrame({"Timestamps": self.timestamps, "File num": file_num_sort})
+
         else:
             mio = MiniscopeIO(self.base_dir)
             webcam_flag = True if camera_type == "ms_webcam" else int(camera_type[-1])
             self.timestamps = mio.load_all_timestamps(webcam=webcam_flag, exclude_str=exclude_str,
                                                       include_str=include_str)
+            # Sort appropriately
+            isort = self.timestamps.iloc["Timestamps"].argsort()
+            self.timestamps = self.timestamps.iloc[isort, :]
 
+        # Reorder timestamps for position data if necessary
+        if not np.all(isort == np.arange(self.timestamps.shape[0])):
+            print(
+                "WARNING: Timestamps imported out of order. Resorting position data and setting .speed and .pos_smooth to None")
+            self.pos_data = self.pos_data.iloc[isort, :]
+            self.pos_smooth = None
+            self.speed = None
+
+        # Set time-zone
+        self.timestamps["Timestamps"] = self.timestamps["Timestamps"].dt.tz_localize(tz)
 
     def to_cm(self):
         """Convert pixels to centimeters in pos_data"""
@@ -321,6 +351,7 @@ class DLC:
         bodyparts=None,
         plot_style="-",
         lcutoff=0,
+        pix2cm=1,
         ax=None,
     ):
         """Plot the feature ('x', 'y', or post-processed 'speed') for a given bodypart vs. time.
@@ -349,7 +380,7 @@ class DLC:
                 data_plot,
                 body_part=bodypart,
                 likelihood_cutoff=lcutoff,
-                pix2cm=self.pix2cm,
+                pix2cm=pix2cm,
                 plot_style=plot_style,
                 ax=ax,
                 title_use=self.animal_name + ": " + bodypart,

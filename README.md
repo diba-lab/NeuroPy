@@ -10,7 +10,7 @@ This package is primarily developed for hippocampal recordings, but can also be 
 * Scipy 1.6.2
 
 ### Installation
-* Install mamba. See https://mamba.readthedocs.io/en/latest/mamba-installation.html.  
+* Install mamba. See [https://mamba.readthedocs.io/en/latest/mamba-installation.html](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html).  
 * Fork this repository and navigate to the "NeuroPy" directory in bash.  
 * Run the following command from your base environment:  
 `mamba env create -f environment.yml`(stable but older)  or `env create -f environment_beta.yml` (most up-to-date).  
