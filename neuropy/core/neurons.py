@@ -174,6 +174,72 @@ class Neurons(DataWriter):
             shank_ids=neurons.shank_ids,
         )
 
+    def ignore_spikes_in_epochs(
+            self,
+            ignore_epochs: Epoch,
+            *,
+            in_place: bool = False,
+            t_start: float | None = None,
+            t_stop: float | None = None,
+    ):
+        """
+        Return Neurons with spikes removed wherever they fall inside `ignore_epochs`. Effectively the negative of time_slice.
+        Parameters
+        ----------
+        ignore_epochs : Epoch
+            Epochs that should be treated as 'bad'
+            Merged before use via parity trick on epoch boundaries.
+        in_place : bool, default False
+            If True, modify this Neurons instance and return it. Otherwise,
+            return a new Neurons with spikes removed.
+        t_start, t_stop : float or None
+            Optionally restrict the removal to a specific time window. If given,
+            epochs are trimmed to [t_start, t_stop] before removal.
+        """
+        if ignore_epochs is None or len(ignore_epochs) == 0:
+            return self if in_place else deepcopy(self)
+
+        if (t_start is not None) or (t_stop is not None):
+            # Use current object bounds as defaults
+            ts = self.t_start if t_start is None else t_start
+            te = self.t_stop if t_stop is None else t_stop
+            ep = ignore_epochs.time_slice(ts, te, strict=False)
+        else:
+            ep = ignore_epochs
+
+        ep = ep.merge_neighbors().merge(0)
+
+        if len(ep) == 0:
+            return self if in_place else deepcopy(self)
+
+        ep_bins = ep.flatten()
+
+        new_spktrains = []
+        for st in self.spiketrains:
+            # digitize returns the index of the right bin edge each spike falls into
+            bin_loc = np.digitize(st, ep_bins)
+            keep = (bin_loc % 2 == 0)
+            new_spktrains.append(st[keep])
+
+        if in_place:
+            self.spiketrains = np.array(new_spktrains, dtype="object")
+            return self
+
+        return Neurons(
+            spiketrains=np.array(new_spktrains, dtype="object"),
+            t_start=self.t_start,
+            t_stop=self.t_stop,
+            sampling_rate=self.sampling_rate,
+            neuron_ids=self.neuron_ids,
+            neuron_type=self.neuron_type,
+            waveforms=self.waveforms,
+            waveforms_amplitude=self.waveforms_amplitude,
+            peak_channels=self.peak_channels,
+            shank_ids=self.shank_ids,
+            clu_q=self.clu_q,
+            metadata=self.metadata,
+        )
+
     def neuron_slice(self, neuron_inds=None, neuron_ids=None):
         neurons = deepcopy(self)
 
