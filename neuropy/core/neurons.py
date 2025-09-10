@@ -99,7 +99,7 @@ class Neurons(DataWriter):
         # copy object
         spiketrains = self.spiketrains[i]
         if self.neuron_type is not None:
-            neuron_type = self.neuron_type[i]
+            neuron_type = np.asarray(self.neuron_type)[i]
         else:
             neuron_type = self.neuron_type
 
@@ -128,7 +128,7 @@ class Neurons(DataWriter):
             t_start=self.t_start,
             t_stop=self.t_stop,
             sampling_rate=self.sampling_rate,
-            neuron_ids=self.neuron_ids[i],
+            neuron_ids=np.asarray(self.neuron_ids)[i],
             neuron_type=neuron_type,
             waveforms=waveforms,
             waveforms_amplitude=waveforms_amplitude,
