@@ -179,8 +179,8 @@ class Neurons(DataWriter):
             ignore_epochs: Epoch,
             *,
             in_place: bool = False,
-            t_start: float | None = None,
-            t_stop: float | None = None,
+            t_start: float or None = None,
+            t_stop: float or None = None,
     ):
         """
         Return Neurons with spikes removed wherever they fall inside `ignore_epochs`. Effectively the negative of time_slice.
