@@ -20,6 +20,7 @@ dependencies:
     - zarr
     - scikit-image
     - notebook
+    - ipynbname
     # May need to install pingouin via pip after the fact
     - pingouin
     # May need to install libgcc for linux distributions
