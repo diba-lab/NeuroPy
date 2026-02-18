@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import datetime
 
+"""Note that this functionality has all been moved to notebooks/Data_align... jupyter notebooks"""
 
 def align_data(time_ref, time_data, data, t_align_ref=None, t_align_data=None):
     """
