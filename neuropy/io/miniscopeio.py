@@ -8,8 +8,11 @@ import pickle
 import re
 import math
 
+from fontTools.varLib.plot import stops
+
 from neuropy.utils.manipulate_files import prepend_time_from_folder_to_file
 from neuropy.core.position import HeadAngularPosition
+from neuropy.core.epoch import Epoch
 
 class MiniscopeIO:
     def __init__(self, basedir) -> None:
@@ -178,6 +181,21 @@ class MiniscopeIO:
         self.times_aligned = pd.read_csv(ms_align_files[0], index_col=0)
 
         return self.times_aligned
+
+    def rec_times_from_timestamps(self, ts_type: str in ["raw", "aligned"] = "aligned"):
+        """Get a core.Epochs class of recording start and end times"""
+
+        assert ts_type == "aligned", "Raw timestamps (from MiniscopeIO.times_all) functionality not yet implemented"
+        assert self.times_aligned is not [], "Run MiniscopeIO.load_aligned_timestamps"
+
+        rec_times, rec_num = [], []
+        for nrec in self.times_aligned.Recording.unique():
+            rec_use = self.times_aligned[self.times_aligned.Recording == nrec]
+            rec_times.append(rec_use.Timestamps.values[[0, -1]].squeeze())
+            rec_num.append(nrec)
+        rec_times = np.array(rec_times)
+
+        return Epoch(pd.DataFrame({"start": rec_times[:, 0], "stop": rec_times[:, 1], "label": rec_num}))
 
     def to_head_ang_pos(self, times: "str" in ["raw", "aligned"]):
         """Sends head sensor orientation data to core.position.HeadAngularPosition class"""
