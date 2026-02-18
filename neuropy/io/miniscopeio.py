@@ -9,7 +9,7 @@ import re
 import math
 
 from neuropy.utils.manipulate_files import prepend_time_from_folder_to_file
-
+from neuropy.core.position import HeadAngularPosition
 
 class MiniscopeIO:
     def __init__(self, basedir) -> None:
@@ -20,6 +20,7 @@ class MiniscopeIO:
         self.webcam_number = None
         self.ms_rec_start_df = None
         self.webcam_rec_start_df = None
+        self.times_aligned = None
 
         pass
 
@@ -166,6 +167,27 @@ class MiniscopeIO:
             self.webcam_rec_start_df = ms_start_df
 
         return ms_start_df
+
+    def load_aligned_timestamps(self):
+        """Load in miniscope timestamps that have been aligned to OpenEphys
+        times using notebooks/Data_align_Miniscope_to_OpenEphys.ipynb"""
+
+        ms_align_files = sorted(self.basedir.glob("*.ms_times_aligned.csv"))
+        assert len(ms_align_files) == 1, f"One ...ms_times_aligned.csv file expected, {len(ms_align_files)} files found"
+
+        self.times_aligned = pd.read_csv(ms_align_files[0], index_col=0)
+
+        return self.times_aligned
+
+    def to_head_ang_pos(self, times: "str" in ["raw", "aligned"]):
+        """Sends head sensor orientation data to core.position.HeadAngularPosition class"""
+        if times == "raw":
+            times_use = (self.orient_all["Timestamps"] - self.orient_all["Timestamps"].iloc[0]).dt.total_seconds()
+        elif times == "aligned":
+            times_use = self.times_aligned["Timestamps"]
+        traces = self.orient_all[["roll", "pitch", "yaw"]].values.T
+
+        return HeadAngularPosition(traces=traces, time=times_use)
 
 
 def get_recording_metadata(rec_folder: pathlib.Path):
