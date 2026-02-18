@@ -355,9 +355,27 @@ class HeadAngularPosition(FlexPosition):
         self.traces[2] = yaw
     @property
     def speed(self):
+
+        # Calc delta_t
         dt = np.diff(self.time)
-        ### NRK Todo: adjust for circular stats here, subtract or add pi or 180 to any super large changes in ang pos
-        speed = np.sqrt(((np.diff(self.traces, axis=1)) ** 2).sum(axis=0)) / dt
+
+        # Calc delta_pos
+        abs_pos_diff = np.abs(np.diff(self.traces, axis=1))
+
+        # Correct for any large jumps, e.g. yaw from -pi to pi
+        # All 3 angles can technically jump by a lot, but only yaw is likely since large shifts in pitch or roll would
+        # mean the rat had rolled upside down which is tough to do with cabled head-motion sensors (cable would likely
+        # disconnect or headstage / miniscope would break / detach)
+        roll_jump_bool = abs_pos_diff[0] > np.pi
+        abs_pos_diff[0, roll_jump_bool] = abs_pos_diff[0, roll_jump_bool] - 2 * np.pi
+        pitch_jump_bool = abs_pos_diff[1] > np.pi / 2
+        abs_pos_diff[1, pitch_jump_bool] = abs_pos_diff[1, pitch_jump_bool] - np.pi
+        yaw_jump_bool = abs_pos_diff[2] > np.pi
+        abs_pos_diff[2, yaw_jump_bool] = abs_pos_diff[2, yaw_jump_bool] - 2 * np.pi
+
+        # Calculate and return speed (add 0 to beginning to make length match timestamps)
+        speed = np.sqrt((abs_pos_diff ** 2).sum(axis=0)) / dt
+
         return np.hstack(([0], speed))
 
     @property
