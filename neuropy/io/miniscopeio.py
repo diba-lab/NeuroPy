@@ -8,20 +8,28 @@ import pickle
 import re
 import math
 
-from neuropy.utils.manipulate_files import prepend_time_from_folder_to_file
+from fontTools.varLib.plot import stops
 
+from neuropy.utils.manipulate_files import prepend_time_from_folder_to_file
+from neuropy.core.position import HeadAngularPosition
+from neuropy.core.epoch import Epoch
 
 class MiniscopeIO:
     def __init__(self, basedir) -> None:
         self.basedir = Path(basedir)
         self.times_all = None
         self.orient_all = None
-        self.webcam_times_all = {}
+        self.webcam_times_all = None
+        self.webcam_number = None
+        self.ms_rec_start_df = None
+        self.webcam_rec_start_df = None
+        self.times_aligned = None
+
         pass
 
     def load_all_timestamps(
         self, format="UCLA", webcam: bool or int = False, exclude_str: str = "WebCam",
-            include_str = None, print_included_folders=False
+            include_str = None, tz="America/Detroit", print_included_folders=False, return_corrupt_times=False,
     ):
         """Loads multiple timestamps from multiple videos in the UCLA miniscope software file format
         (folder = ""hh_mm_ss")
@@ -32,6 +40,8 @@ class MiniscopeIO:
         :param exclude_str: exclude any folders containing this string from being loaded in.
         :param print_included_folders: bool, True = prints folders included in generating timestamps, useful
         for debugging mismatches in nframes, default=False
+        :param return_corrupt_times: bool, True = include corrupted timestamps in output. Adds in additional column to
+        output dataframe, a boolean noting if corrupt or not.
         :return:
         """
 
@@ -73,19 +83,28 @@ class MiniscopeIO:
 
         # Loop through and load all timestamps, then concatenate
         times_list = []
-        for rec_folder in self.rec_folders:
-            times_temp, _, _, _ = load_timestamps(
-                rec_folder, webcam=webcam, corrupted_videos="from_file"
+        for idr, rec_folder in enumerate(self.rec_folders):
+            times_temp, _, _, _, good_bool = load_timestamps(
+                rec_folder, webcam=webcam, corrupted_videos="from_file", return_corrupt_times=return_corrupt_times,
             )
+            times_temp["Recording"] = idr
+            if return_corrupt_times:
+                times_temp["Corrupt"] = ~good_bool
             times_list.append(times_temp)
 
         if not webcam:
             self.times_all = pd.concat(times_list)
 
+            # Localize time zone
+            self.times_all["Timestamps"] = self.times_all["Timestamps"].dt.tz_localize(tz)
+
             return self.times_all
         else:
             self.webcam_number = webcam
             self.webcam_times_all = pd.concat(times_list)
+
+            # Localize time zone
+            self.webcam_times_all["Timestamps"] = self.webcam_times_all["Timestamps"].dt.tz_localize(tz)
 
             return self.webcam_times_all
 
@@ -123,11 +142,76 @@ class MiniscopeIO:
 
         self.orient_all = pd.concat(orient_list)
 
+    def get_rec_starts(self, format="UCLA", webcam: bool or int = False):
+        """Get start times of each miniscope recordings. Must run .load_all_timestamps first
+
+        NOTE: The miniscope will almost always have a frame in its buffer from BEFORE you hit record which is saved.
+        This frame has a negative 'Time Stamp (ms)` value. This code grabs the first frame with a positive value
+        from each recording."""
+
+        assert format == "UCLA"
+
+        ms_start_df = []
+        if not webcam:
+            all_rec_df_use = self.times_all
+        else:
+            all_rec_df_use = self.webcam_times_all
+        assert all_rec_df_use is not None, "Error loading recording starts. Must run .load_all_timestamps() first."
+
+        for idr in all_rec_df_use.Recording.unique():
+            rec_df = all_rec_df_use[(all_rec_df_use.Recording == idr) & (all_rec_df_use["Time Stamp (ms)"] >= 0)]
+            ms_start_df.append(rec_df.iloc[0])
+
+        ms_start_df = pd.DataFrame(ms_start_df)
+
+        if not webcam:
+            self.ms_rec_start_df = ms_start_df
+        else:
+            self.webcam_rec_start_df = ms_start_df
+
+        return ms_start_df
+
+    def load_aligned_timestamps(self):
+        """Load in miniscope timestamps that have been aligned to OpenEphys
+        times using notebooks/Data_align_Miniscope_to_OpenEphys.ipynb"""
+
+        ms_align_files = sorted(self.basedir.glob("*.ms_times_aligned.csv"))
+        assert len(ms_align_files) == 1, f"One ...ms_times_aligned.csv file expected, {len(ms_align_files)} files found"
+
+        self.times_aligned = pd.read_csv(ms_align_files[0], index_col=0)
+
+        return self.times_aligned
+
+    def rec_times_from_timestamps(self, ts_type: str in ["raw", "aligned"] = "aligned"):
+        """Get a core.Epochs class of recording start and end times"""
+
+        assert ts_type == "aligned", "Raw timestamps (from MiniscopeIO.times_all) functionality not yet implemented"
+        assert self.times_aligned is not [], "Run MiniscopeIO.load_aligned_timestamps"
+
+        rec_times, rec_num = [], []
+        for nrec in self.times_aligned.Recording.unique():
+            rec_use = self.times_aligned[self.times_aligned.Recording == nrec]
+            rec_times.append(rec_use.Timestamps.values[[0, -1]].squeeze())
+            rec_num.append(nrec)
+        rec_times = np.array(rec_times)
+
+        return Epoch(pd.DataFrame({"start": rec_times[:, 0], "stop": rec_times[:, 1], "label": rec_num}))
+
+    def to_head_ang_pos(self, times: "str" in ["raw", "aligned"]):
+        """Sends head sensor orientation data to core.position.HeadAngularPosition class"""
+        if times == "raw":
+            times_use = (self.orient_all["Timestamps"] - self.orient_all["Timestamps"].iloc[0]).dt.total_seconds()
+        elif times == "aligned":
+            times_use = self.times_aligned["Timestamps"]
+        traces = self.orient_all[["roll", "pitch", "yaw"]].values.T
+
+        return HeadAngularPosition(traces=traces, time=times_use)
+
 
 def get_recording_metadata(rec_folder: pathlib.Path):
     """Get and return relevant metadata from a recording specified in rec_folder"""
 
-    assert isinstance(rec_folder, pathlib.Path)
+    rec_folder = Path(rec_folder)
 
     # Get video folder name from metaData.json file
     with open(rec_folder / "metaData.json", "rb") as f:
@@ -151,7 +235,8 @@ def get_recording_metadata(rec_folder: pathlib.Path):
 
 
 def load_timestamps(
-    rec_folder, webcam: False or True or int = False, corrupted_videos=None, print_success=False, print_corrupt_success=True
+    rec_folder, webcam: False or True or int = False, corrupted_videos=None, print_success=False,
+        print_corrupt_success=True, return_corrupt_times=False,
 ):
     """Loads in timestamps corresponding to all videos in rec_folder.
 
@@ -163,6 +248,7 @@ def load_timestamps(
     :param print_success: bool, True = print # frames found in each file, False=default
     :param print_corrupt_success: bool, True = print when you have succesfully detected and removed frames from a
     corrupted video.
+    :param return_corrupt_times: bool, False = chop out corrupt frame timestamps, True = return
     :return:
     """
 
@@ -216,25 +302,19 @@ def load_timestamps(
         corrupt_array = []
 
     for corrupt_vid in corrupt_array:
-        if print_corrupt_success:
-            print(
-                "Eliminating timestamps from corrupted video"
-                + str(corrupt_vid)
-                + " in "
-                + str(rec_folder.parts[-1] + " folder.")
-            )
-        good_frame_bool[
-            range(
+        bad_frame_range = range(
                 corrupt_vid * f_per_file,
-                np.min((f_per_file * (corrupt_vid + 1), nframes)),
-            )
-        ] = 0
+                np.min((f_per_file * (corrupt_vid + 1), nframes)))
+        if print_corrupt_success:
+            print(f"Eliminating {len(bad_frame_range)} timestamps from corrupted video {corrupt_vid} in {rec_folder.parts[-1]} folder.")
+        good_frame_bool[bad_frame_range] = 0
 
-    times = times[good_frame_bool]
     if print_success:
         print(str(sum(good_frame_bool)) + " total good frames found")
 
-    return times, rec_metadata, vid_metadata, rec_start
+    if not return_corrupt_times:
+        times = times[good_frame_bool]
+    return times, rec_metadata, vid_metadata, rec_start, good_frame_bool
 
 
 def load_orientation(rec_folder, corrupted_videos=None):
@@ -295,6 +375,7 @@ def move_files_to_combined_folder(
 
     parent_folder = Path(parent_folder)
     combined_folder = parent_folder / "Miniscope_combined"
+    assert combined_folder.exists(), "Error: Create Miniscope_combined folder in `parent_folder` prior to running"
 
     # Get files
     movie_files = sorted(parent_folder.glob(re_pattern))

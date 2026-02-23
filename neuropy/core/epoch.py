@@ -49,8 +49,8 @@ class Epoch(DataWriter):
         """Find intersection with other epoch at 'res' time resolution"""
         t_start = np.min((self.starts.min(), other_epoch.starts.min()))
         t_stop = np.max((self.stops.max(), other_epoch.stops.max()))
-        times, bool1 = self.to_point_process(t_start, t_stop, bin_size=res)
-        _, bool2 = other_epoch.to_point_process(t_start, t_stop, bin_size=res)
+        times, bool1, _ = self.to_point_process(t_start, t_stop, bin_size=res)
+        _, bool2, _ = other_epoch.to_point_process(t_start, t_stop, bin_size=res)
 
         return self.from_boolean_array(np.bitwise_and(bool1, bool2), times)
 
@@ -351,6 +351,11 @@ class Epoch(DataWriter):
             return Epoch.from_dict(d)
         else:
             return None
+
+    @staticmethod
+    def from_csv(f):
+        """Load properly formatted csv file"""
+        return Epoch(pd.read_csv(f))
 
     @property
     def is_overlapping(self):
@@ -677,7 +682,7 @@ class Epoch(DataWriter):
         """
         return self.as_array().flatten("C")
 
-    def to_point_process(self, t_start=None, t_stop=None, bin_size=(1 / 1250)):
+    def to_point_process(self, t_start=None, t_stop=None, bin_size=(1 / 1250), return_labels=False):
         """Returns 1d numpy boolean where True = epochs"""
         if t_start is None:
             t_start = 0
@@ -685,19 +690,24 @@ class Epoch(DataWriter):
         if t_stop is None:
             t_stop = np.max(self.stops)
 
-        times = np.arange(t_start, t_stop, bin_size)
+        times = np.arange(t_start, t_stop + bin_size, bin_size)
 
         # Super slow
         time_bool = np.zeros_like(times).astype(bool)
-        # for start, stop in zip(self.starts, self.stops):
-        # time_bool = time_bool | ((times >= start) & (times < stop))
+        labels = np.zeros_like(times).astype('str')
 
-        for start_ind, end_ind in zip(
-            ((self.starts - t_start) / bin_size).astype(int), ((self.stops - t_start) / bin_size).astype(int)
+        for start_ind, end_ind, label in zip(
+                ((self.starts - t_start) / bin_size).astype(int),
+                ((self.stops - t_start) / bin_size).astype(int),
+                self.labels,
         ):
             time_bool[start_ind:end_ind] = True
+            labels[start_ind:end_ind] = label
 
-        return times, time_bool
+        if return_labels:
+            return times, time_bool, labels
+        else:
+            return times, time_bool
 
     def add_epoch_buffer(self, buffer_sec: float or int or tuple or list):
         df = self._epochs.copy()
@@ -886,7 +896,9 @@ def combine_epochs(epochs_df: pd.DataFrame, inplace: bool = True):
 
 
 if __name__ == "__main__":
-    art_file = "/data3/Trace_FC/Recording_Rats/Finn2/2023_05_06_habituation1/Finn2_habituation1_denoised.art_epochs.npy"
-    art_epochs = Epoch(epochs=None, file=art_file)
-    epochs_to_add = np.array([[1291, 1291.2], [2734, 2734.5], [1622, 1623.4]])
-    art_epochs.add_epoch_manually(epochs_to_add[:, 0], epochs_to_add[:, 1])
+    base_dir = Path("/data/Clustering/sessions/RatU/RatUNSD_sleep_score_test")
+    sleep_file = sorted(base_dir.glob("*.brainstates.npy"))[0]
+    sleep_epochs = Epoch(epochs=None, file=sleep_file)
+
+    # Resample data to match epoch length specfied above and in AccuSleePy
+    sleep_df_rs = sleep_epochs.to_point_process(bin_size=2.5)

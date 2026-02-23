@@ -1,11 +1,11 @@
-name: NeuroPy2
+name: NeuroPy
 channels:
     - conda-forge
 dependencies:
-    - python
+    - python=3.11.6
     - numpy
     - scipy
-    - matplotlib
+    - matplotlib=3.9
     - pandas
     - joblib
     - scikit-learn
@@ -34,6 +34,7 @@ dependencies:
     - easydict
     - ruamel.yaml
     # - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
+    - ephyviewer  # for using brainstates (sleep-state) editor
     
     # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
     - pip

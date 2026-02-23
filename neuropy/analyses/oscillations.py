@@ -101,6 +101,7 @@ def _detect_freq_band_epochs(
 
     # Fourth, identify candidate epochs above edge_cutoff threshold
     # ---- thresholding and detection ------
+    power_abs = deepcopy(power)  # keep copy of absolute power before z-scoring to compare between sessions
     power = stats.zscore(power)
     # power_thresh = np.where(power >= edge_cutoff, power, 0)
     power_thresh = np.where(power >= edge_cutoff, power, -100)  # NRK bugfix
@@ -111,6 +112,7 @@ def _detect_freq_band_epochs(
     )
     starts, stops = props["left_bases"], props["right_bases"]
     peaks_power = power_thresh[peaks]
+    peaks_power_abs = power_abs[peaks]
 
     # ----- merge overlapping epochs ------
     # Last, merge any epochs that overlap into one longer epoch
@@ -123,18 +125,20 @@ def _detect_freq_band_epochs(
             stops[i + 1] = max(stops[i], stops[i + 1])
 
             peaks_power[i + 1] = max(peaks_power[i], peaks_power[i + 1])
+            peaks_power_abs[i + 1] = max(peaks_power_abs[i], peaks_power_abs[i + 1])
             peaks[i + 1] = [peaks[i], peaks[i + 1]][
                 np.argmax([peaks_power[i], peaks_power[i + 1]])
             ]
 
             ind_delete.append(i)
 
-    epochs_arr = np.vstack((starts, stops, peaks, peaks_power)).T
-    starts, stops, peaks, peaks_power = np.delete(epochs_arr, ind_delete, axis=0).T
+    epochs_arr = np.vstack((starts, stops, peaks, peaks_power, peaks_power_abs)).T
+    starts, stops, peaks, peaks_power, peaks_power_abs = np.delete(epochs_arr, ind_delete, axis=0).T
 
     epochs_df = pd.DataFrame(
         dict(
-            start=starts, stop=stops, peak_time=peaks, peak_power=peaks_power, label=""
+            start=starts, stop=stops, peak_time=peaks, peak_power=peaks_power, peak_power_abs=peaks_power_abs,
+            label=""
         )
     )
     epochs_df[["start", "stop", "peak_time"]] /= fs  # seconds
@@ -709,6 +713,12 @@ class Ripple:
             rpl_frames = [np.arange(p - buffer_frames, p + buffer_frames) for p in peakframe]  # Grab 100ms either side of peak frame
             rpl_frames = np.concatenate(rpl_frames)
 
+            # Calculate peak frequency and power
+            if rpl_frames[-1] >= len(lfp):  # Check if the buffer frames for the last ripple extend beyond end of recording
+                rpl_frames = rpl_frames[:-(2 * buffer_frames)]  # Chop out last ripple
+                peakframe = peakframe[:-1]  # Chop out ripple from peakframe
+                rpl_epochs = rpl_epochs[:-1]  # Chop out last ripple from end
+                print("Last ripple too close to end of recording. Removed from rpl_epochs.")
             # Grab signal for ripples only
             new_sig = Signal(lfp[rpl_frames].reshape(1, -1), sampling_rate=sampling_rate)
 

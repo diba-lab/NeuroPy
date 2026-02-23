@@ -7,7 +7,8 @@ from scipy import stats
 
 
 def plot_epochs(
-    epochs: Epoch, labels_order=None, colors="Set3", alpha=1, collapsed=False, colorby="label", ax=None
+    epochs: Epoch, labels_order=None, colors="Set3", alpha=1, collapsed=False, colorby="label", yaxis_label=True,
+        ax=None
 ):
     """Plots epochs on a given axis, with different style of plotting
 
@@ -25,6 +26,7 @@ def plot_epochs(
         [description], by default "gray", if dict = {"value1": color, "value2": color2}
         where value1, value2, ... are values in the column defined by colorby param
     colorby: str, column in epochs to map colors to
+    yaxis_label: bool, True (default) = add epoch labels to y axis
     collapsed:
 
     Returns
@@ -95,6 +97,12 @@ def plot_epochs(
             alpha=alpha,
         )
         ax.set_ylim([0, 1])
+
+    # Label epochs on plot
+    if not collapsed and yaxis_label:
+        yticks = np.linspace(1 / n_labels / 2, 1 - 1 / n_labels / 2, n_labels)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(unique_labels)
 
     return ax
 

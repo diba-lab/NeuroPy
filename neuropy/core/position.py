@@ -249,3 +249,139 @@ class Position(DataWriter):
         print(f"Slicing from {t_start} to {t_stop}")
 
         return self.time_slice(t_start=t_start, t_stop=t_stop)
+
+import numpy as np
+from ..utils import mathutil
+import pandas as pd
+from scipy.ndimage import gaussian_filter1d
+from .epoch import Epoch
+from .datawriter import DataWriter
+
+
+class FlexPosition(Position):
+    """Similar to position but for a flexible / non-uniform sampling rate"""
+    def __init__(
+        self,
+        traces: np.ndarray,
+        traces_rot: np.ndarray = None, #rotation
+        approx_sampling_rate=None,
+        time=None,
+        metadata=None,
+    ) -> None:
+        if traces.ndim == 1:
+            traces = traces.reshape(1, -1)
+
+        assert traces.shape[0] <= 3, "Maximum possible dimension of position is 3"
+        self.traces = traces
+        self.time = time
+        super().__init__(traces=traces, time=time)
+        self._approx_sampling_rate = approx_sampling_rate
+
+        if isinstance(traces_rot,np.ndarray):
+            if traces_rot.ndim == 1:
+                traces_rot = traces_rot.reshape(1,-1)
+            assert traces_rot.shape[0] <= 3, "Maximum possible dimension of rotation is 3"
+            self.traces_rot =  traces_rot
+        else:
+            self.traces_rot = None
+
+
+
+    @property
+    def t_start(self):
+        return None
+
+class HeadAngularPosition(FlexPosition):
+    """Similar to FlexPosition but for head angular position """
+    def __init__(
+        self,
+        traces: np.ndarray, # roll, pitch, yaw in that order
+        traces_rot: np.ndarray = None, #rotation
+        approx_sampling_rate=None,
+        time=None,
+        metadata=None,
+    ) -> None:
+        if traces.ndim == 1:
+            traces = traces.reshape(1, -1)
+
+        assert traces.shape[0] <= 3, "Maximum possible dimension of position is 3"
+        self.traces = traces
+        self.time = time
+        self._approx_sampling_rate = approx_sampling_rate
+        super().__init__(traces=traces, time=time)
+
+        if isinstance(traces_rot,np.ndarray):
+            if traces_rot.ndim == 1:
+                traces_rot = traces_rot.reshape(1,-1)
+            assert traces_rot.shape[0] <= 3, "Maximum possible dimension of rotation is 3"
+            self.traces_rot =  traces_rot
+        else:
+            self.traces_rot = None
+
+    # def from_dataframe(self):
+    #     print("HeadAngularPosition.from_dataframe() not implemented")
+    #     pass
+
+    # @property
+    # def time(self):
+    #     return self.time
+    #
+    # @time.setter
+    # def time(self, time):
+    #     self.time = time
+
+    @property
+    def roll(self):
+        return self.traces[0]
+
+    @roll.setter
+    def roll(self, roll):
+        self.traces[0] = roll
+
+    @property
+    def pitch(self):
+        return self.traces[1]
+
+    @pitch.setter
+    def pitch(self, pitch):
+        self.traces[1] = pitch
+
+    @property
+    def yaw(self):
+        return self.traces[2]
+
+    @yaw.setter
+    def yaw(self, yaw):
+        self.traces[2] = yaw
+    @property
+    def speed(self):
+
+        # Calc delta_t
+        dt = np.diff(self.time)
+
+        # Calc delta_pos
+        abs_pos_diff = np.abs(np.diff(self.traces, axis=1))
+
+        # Correct for any large jumps, e.g. yaw from -pi to pi
+        # All 3 angles can technically jump by a lot, but only yaw is likely since large shifts in pitch or roll would
+        # mean the rat had rolled upside down which is tough to do with cabled head-motion sensors (cable would likely
+        # disconnect or headstage / miniscope would break / detach)
+        roll_jump_bool = abs_pos_diff[0] > np.pi
+        abs_pos_diff[0, roll_jump_bool] = abs_pos_diff[0, roll_jump_bool] - 2 * np.pi
+        pitch_jump_bool = abs_pos_diff[1] > np.pi / 2
+        abs_pos_diff[1, pitch_jump_bool] = abs_pos_diff[1, pitch_jump_bool] - np.pi
+        yaw_jump_bool = abs_pos_diff[2] > np.pi
+        abs_pos_diff[2, yaw_jump_bool] = abs_pos_diff[2, yaw_jump_bool] - 2 * np.pi
+
+        # Calculate and return speed (add 0 to beginning to make length match timestamps)
+        speed = np.sqrt((abs_pos_diff ** 2).sum(axis=0)) / dt
+
+        return np.hstack(([0], speed))
+
+    @property
+    def time(self):
+        return self._time
+
+    @time.setter
+    def time(self, value):
+        self._time = value

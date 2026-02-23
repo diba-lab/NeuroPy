@@ -396,6 +396,7 @@ def load_all_ttl_events(
         rec_start_df = start_end_df[(start_end_df.Recording == idr) & (start_end_df.Condition == 'start')]
         nframes_dat.append(rec_start_df.nframe_dat.values[0])
         events = load_ttl_events(TTLfolder, **kwargs)
+        events["Recording"] = idr
         events_all.append(events)
 
         # This shouldn't be necessary for grabbing event timestamps.
@@ -404,7 +405,9 @@ def load_all_ttl_events(
     # Now loop through and make everything into a datetime in case you are forced to use system times to synchronize everything later
     times_list = []
     for ide, (events, start_frame_dat) in enumerate(zip(events_all, nframes_dat)):
-        times_list.append(events_to_datetime(events, start_frame_dat))
+        event_dt_df = events_to_datetime(events, start_frame_dat)
+        event_dt_df["Recording"] = ide
+        times_list.append(event_dt_df)
 
     ttl_df = pd.concat(times_list)
 

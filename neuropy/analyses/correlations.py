@@ -2,7 +2,7 @@ import numpy as np
 try:
     import cupy as cp
 except ImportError:
-    print("Error importing CuPy")
+    print("Error importing CuPy. Install CuPy to speed up correlogram calculations.")
     cp = None
 
 

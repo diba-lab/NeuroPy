@@ -374,7 +374,7 @@ def get_sync_info(_sync_file):
 
 class OptitrackIO:
     def __init__(self, dirname, scale_factor=1.0,sampling_rate = None,get_rotation = False) -> None:
-        self.dirname = dirname
+        self.dirname = Path(dirname)
         self.scale_factor = scale_factor
         self.datetime = None
         self.time = None

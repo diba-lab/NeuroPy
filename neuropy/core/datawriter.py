@@ -30,7 +30,7 @@ class DataWriter:
 
     @classmethod
     def from_file(cls, f, convert=False):
-        """
+        """Load in a file saved with the DataWriter.save method
         :param f: filename, full path
         :param convert: bool, True = send to class, False = keep as dict (left as default for legacy purposes)
         :return:
@@ -64,7 +64,7 @@ class DataWriter:
 
         assert isinstance(fp, (str, Path)), "filename is invalid"
         data = self.to_dict()
-        np.save(fp, data)
+        np.save(str(fp), data)
         print(f"{fp} saved")
 
     def save_with_date(self, fp):

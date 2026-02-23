@@ -65,6 +65,7 @@ class DLC:
         # self.nframes = self.nframes
         # self.SampleRate = []
         self.timestamps = []
+        self.times_aligned = []
 
         pos_list, scorernames = [], []
         for idf, file in enumerate(self.tracking_files):
@@ -219,6 +220,17 @@ class DLC:
         # Set time-zone
         self.timestamps["Timestamps"] = self.timestamps["Timestamps"].dt.tz_localize(tz)
 
+    def load_opti_aligned_timestamps(self):
+        """Load in Optitrack timestamps that have been aligned to OpenEphys
+        times using notebooks/Data_align_Optitrack_to_OpenEphys.ipynb"""
+
+        opti_align_files = sorted(self.base_dir.glob("*.opti_times_aligned.csv"))
+        assert len(opti_align_files) == 1, f"One ...opti_times_aligned.csv file expected, {len(opti_align_files)} files found"
+
+        self.times_aligned = pd.read_csv(opti_align_files[0], index_col=0)
+
+        return self.times_aligned
+
     def to_cm(self):
         """Convert pixels to centimeters in pos_data"""
         idx = pd.IndexSlice
@@ -271,8 +283,8 @@ class DLC:
 
     def get_speed(self, bodypart):
         """Get speed of animal"""
-        assert self.pos_smooth is not None, "You must smooth data first"
-        assert self.timestamps is not None, "You must get timestamps first"
+        assert self.pos_smooth is not None, "You must smooth data first with DLC.smooth_pos()"
+        assert len(self.timestamps) > 0, "You must get timestamps first with DLC.get_timestamps()"
         if self.timestamp_type == "optitrack":
             print('get_speed not yet tested for optitrack data, use with caution')
 
@@ -288,8 +300,9 @@ class DLC:
 
         # Calculate speed
         speed = delta_pos / delta_t
-        speed = np.hstack((speed, np.nan))  # add in Nan at end to match pos data shape
-        return speed
+        self.speed = np.hstack((speed, np.nan))  # add in Nan at end to match pos data shape
+
+        return self.speed
 
 
     def plot1d(

@@ -64,10 +64,18 @@ def min_max_scaler(x, axis=-1):
     np.array
         scaled array
     """
-    min_val = np.min(x, axis=axis, keepdims=True)
-    range_val = np.ptp(x, axis=axis, keepdims=True)
+    xclean = x[~np.isnan(x)]
+    min_val = np.min(xclean, axis=axis, keepdims=True)
+    range_val = np.ptp(xclean, axis=axis, keepdims=True)
     return (x - min_val)  / np.where(range_val == 0,1,range_val)
 
+def quantile_scaler(x, qb=0.025, qt=0.975, axis=-1):
+    """Scales data to quantiles specified in qb and qt"""
+    xclean = x[~np.isnan(x)]
+    xmin, xtop = np.quantile(xclean, [qb, qt], axis=axis, keepdims=True)
+    xrange = xtop - xmin
+
+    return (x - xmin) / xrange
 
 def min_max_external_scaler(x, xmin, xptp):
     """Scales the values of x according to a specified min value and peak-to-peak values.

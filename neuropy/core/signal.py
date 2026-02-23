@@ -1,5 +1,5 @@
 import numpy as np
-from ..core import DataWriter
+from neuropy.core.datawriter import DataWriter
 
 
 class Signal(DataWriter):

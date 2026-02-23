@@ -12,12 +12,14 @@ from scipy.signal import find_peaks, peak_widths
 from copy import deepcopy
 import seaborn as sns
 
+import neuropy.core
 from neuropy import core
+from neuropy.core.epoch import Epoch
 from neuropy.utils.signal_process import ThetaParams
-from neuropy import plotting
+import neuropy.plotting.figure as figure
+from neuropy.plotting.ratemaps import plot_ratemap, plot_raw
 from neuropy.utils.mathutil import contiguous_regions
 from neuropy.externals.peak_prominence2d import getProminence
-
 
 class Pf1Dsplit():
     """Class used to split up Pf1D object by blocks to assess reliability"""
@@ -140,7 +142,7 @@ class Pf1D(core.Ratemap):
         xbin = np.arange(np.nanmin(x), np.nanmax(x) + grid_bin, grid_bin)
 
         if epochs is not None:
-            assert isinstance(epochs, core.Epoch), "epochs should be core.Epoch object"
+            assert isinstance(epochs, (Epoch, neuropy.core.epoch.Epoch)), "epochs should be core.Epoch object"
 
             spiketrains = [
                 np.concatenate(
@@ -228,8 +230,19 @@ class Pf1D(core.Ratemap):
         self.ratemap_spiketrains_phases = phase
 
     def plot_with_phase(
-        self, sigma=0, ax=None, normalize=True, stack=True, cmap="tab20b", subplots=(5, 8)
+        self, sigma=0, ax=None, normalize=True, stack=True, plot_thresh: float or None = None,
+            cmap="tab20b", subplots=(5, 8)
     ):
+        """plots ratemap with theta phase x position plotting of all spikes overlaid to visualize phase precession
+        :param sigma: smoothing kernel to use to smooth tuning curves
+        :param ax: axes to plot into
+        :param normalize: bool, normalize to max firing rate
+        :param stack: bool, plot from 0 to 4 pi, False = plot 0 to 2 pi only
+        :param plot_thresh: plot a FR threshold over the tuning curve
+        :param cmap: colormap to use for different cells
+        :param subplots: subplots to plot each cell onto, otherwise scroll through cell with a widget
+        :return: ax
+        """
         cmap = mpl.cm.get_cmap(cmap)
 
         # mapinfo = self.ratemaps
@@ -242,6 +255,11 @@ class Pf1D(core.Ratemap):
         if normalize:
             # ratemaps = [map_ / np.max(map_) for map_ in ratemaps]
             ratemaps = [map_ / np.max(map_) if len(map_) > 0 else np.array([]) for map_ in ratemaps]
+            plot_thresh_vals = [plot_thresh / np.max(map_) if len(map_) > 0 else np.nan for map_ in ratemaps]
+            plot_thresh_vals[plot_thresh_vals > 1] = np.nan
+        else:
+            plot_thresh_vals = [plot_thresh] * len(ratemaps)
+
         # phases = mapinfo["phases"]
         # position = mapinfo["pos"]
         phases = self.ratemap_spiketrains_phases
@@ -256,6 +274,8 @@ class Pf1D(core.Ratemap):
                 axphase.clear()
             ax.fill_between(bin_cntr, 0, ratemaps[cell], color=color, alpha=0.3)
             ax.plot(bin_cntr, ratemaps[cell], color=color, alpha=0.2)
+            if plot_thresh is not None:
+                ax.axhline(plot_thresh_vals[cell], color='r', linestyle='--')
             ax.set_xlabel("Position (cm)")
             ax.set_ylabel("Normalized frate") if normalize else ax.set_ylabel("frate")
             ax.set_title(f"Cell id {self.neuron_ids[cell]}")
@@ -271,7 +291,7 @@ class Pf1D(core.Ratemap):
 
         if ax is None:
             if subplots is None:
-                Fig = plotting.Fig(nrows=1, ncols=1, size=(8, 3))
+                Fig = figure.Fig(nrows=1, ncols=1, size=(8, 3))
                 ax = plt.subplot(Fig.gs[0])
                 ax.spines["right"].set_visible(True)
                 axphase = ax.twinx()
@@ -287,7 +307,7 @@ class Pf1D(core.Ratemap):
                     axphase=widgets.fixed(axphase),
                 )
             else:
-                Fig = plotting.Fig(nrows=subplots[1], ncols=subplots[0],
+                Fig = figure.Fig(nrows=subplots[1], ncols=subplots[0],
                                      size=(15, 10))
                 for cell in range(nCells):
                     ax = plt.subplot(Fig.gs[cell])
@@ -301,7 +321,7 @@ class Pf1D(core.Ratemap):
         return ax
 
     def plot_ratemaps(self, **kwargs):
-        return plotting.plot_ratemap(self, **kwargs)
+        return plot_ratemap(self, **kwargs)
 
     def plot_rasters(self, jitter=0, plot_time=False, scale=None, sort=True, ax=None):
         """Plot ratemap as a raster for each neuron
@@ -366,7 +386,7 @@ class Pf1D(core.Ratemap):
         return ax
 
     def plot_raw_ratemaps_laps(self, ax=None, subplots=(8, 9)):
-        return plotting.plot_raw_ratemaps()
+        return plot_raw()
 
     def neuron_slice(self, inds=None, ids=None):
         """Slice out neurons"""
@@ -381,6 +401,7 @@ class Pf1D(core.Ratemap):
         pfslice.neuron_ids = self.neuron_ids[inds]
         pfslice.ratemap_spiketrains = [self.ratemap_spiketrains[ind] for ind in inds]
         pfslice.ratemap_spiketrains_pos = [self.ratemap_spiketrains_pos[ind] for ind in inds]
+        pfslice.ratemap_spiketrains_phases = [self.ratemap_spiketrains_phases[ind] for ind in inds]
 
         return pfslice
 

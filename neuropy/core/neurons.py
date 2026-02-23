@@ -60,6 +60,14 @@ class Neurons(DataWriter):
         """
         super().__init__(metadata=metadata)
 
+        # Make sure data inputs are in the correct format
+        for var, name in zip([neuron_ids, neuron_type, peak_channels, shank_ids],
+                             ["neuron_ids", "neuron_type", "peak_channels", "shank_ids"]):
+            if var is not None:
+                assert isinstance(var, (np.ndarray, pd.Series)), f"{name} must be np.ndarray or pd.Series"
+                if isinstance(var, pd.Series):  # Grab only values for pd.Series type data
+                    var = var.values
+
         self.spiketrains = np.array(spiketrains, dtype="object")
         if neuron_ids is None:
             self.neuron_ids = np.arange(len(self.spiketrains))
@@ -888,13 +896,24 @@ def binned_pe_raster(
     elif isinstance(binned_spiketrain, Mua):
         binned_fr = binned_spiketrain.firing_rate
 
+    event_times = np.array(event_times)
+
+    # This could be sped up by calculating the appropriate bin for each event and adding / subtracting the appropriate
+    # number of frames rather than calculating a boolean for each step.
+    # firing_rate = []
+    # for event_time in event_times:
+    #     time_bool = (binned_spiketrain.time > (event_time - buffer_sec[0])) & (
+    #         binned_spiketrain.time
+    #         <= (event_time + buffer_sec[1] + binned_spiketrain.bin_size * 0.5)
+    #     )
+    #     firing_rate.append(binned_fr[time_bool])
+
+    # Speed up attempt - seems to work
+    event_frames = ((event_times - binned_spiketrain.t_start) / binned_spiketrain.bin_size).astype(int)
+    buffer_frames = (np.array(buffer_sec) / binned_spiketrain.bin_size).astype(int)
     firing_rate = []
-    for event_time in event_times:
-        time_bool = (binned_spiketrain.time > (event_time - buffer_sec[0])) & (
-            binned_spiketrain.time
-            <= (event_time + buffer_sec[1] + binned_spiketrain.bin_size * 0.5)
-        )
-        firing_rate.append(binned_fr[time_bool])
+    for event_frame in event_frames:
+        firing_rate.append(binned_fr[(event_frame - buffer_frames[0]):(event_frame + buffer_frames[1] + 1)])
 
     fr_len = [len(f) for f in firing_rate]
     if np.max(fr_len) == np.min(fr_len):

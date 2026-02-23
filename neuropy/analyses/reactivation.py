@@ -11,12 +11,10 @@ from sklearn.decomposition import PCA, FastICA
 from typing import Union
 # from ..utils.mathutil import getICA_Assembly
 from .. import core
-
 try:
     from ..plotting import Fig
 except ImportError:
     from neuropy.plotting.figure import Fig
-
 from tqdm import tqdm
 
 
@@ -70,7 +68,7 @@ class ExplainedVariance(core.DataWriter):
         template : list/array of length 2
             time in seconds, pairwise correlation calculated from this period will be compared to matching period
         matching : list/array of length 2
-            time in seconds, template-correlations will be correlated with pariwise correlations of this period
+            time in seconds, template-correlations will be correlated with pairwise correlations of this period
         control : list/array of length 2
             time in seconds, control for pairwise correlations within this period
         bin_size : float, optional

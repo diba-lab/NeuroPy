@@ -17,38 +17,19 @@ class ProcessData:
         fp = xml_files[0].with_suffix("")
         self.filePrefix = fp     
 
-        self.probegroup = core.ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
+        if fp.with_suffix(".probegroup.npy").is_file():
+            self.probegroup = core.ProbeGroup.from_file(fp.with_suffix(".probegroup.npy"))
 
-        # self.recinfo = NeuroscopeIO(xml_files[0])
-        self.recinfo = neuroscopeio.NeuroscopeIO(xml_files[0])    
-        # eegfiles = sorted(basepath.glob("*.eeg"))
-        # # try:
-        # #     assert len(eegfiles) == 1, f"Fewer/more than one .eeg file detected in {basepath.name}"
-        # #     self.eegfile = binarysignalio.BinarysignalIO(
-        # #         eegfiles[0],
-        # #         n_channels=self.recinfo.n_channels,
-        # #         sampling_rate=self.recinfo.eeg_sampling_rate,
-        # #     )
-        # # except AssertionError:
-        # #     print(f"Fewer/more than one .eeg file detected in {basepath.name}, no eeg file loaded")
-        # # datfiles = sorted(basepath.glob("*.dat"))
-        # # try:
-        # #     assert len(datfiles) == 1, f"Fewer/more than one .dat file detected in {basepath.name}"
-        # #     self.datfile = binarysignalio.BinarysignalIO(
-        # #         eegfiles[0].with_suffix(".dat"),
-        # #         n_channels=self.recinfo.n_channels,
-        # #         sampling_rate=self.recinfo.dat_sampling_rate,
-        # #     )
-        # # except (FileNotFoundError, IndexError):
-        # #     print(f"No dat file found in {basepath.name}, not loading")
+        self.recinfo = neuroscopeio.NeuroscopeIO(xml_files[0])
 
-        fp = xml_files[0].with_suffix("")
         if self.recinfo.eeg_filename.is_file():
             self.eegfile = binarysignalio.BinarysignalIO(
                 self.recinfo.eeg_filename,
                 n_channels=self.recinfo.n_channels,
                 sampling_rate=self.recinfo.eeg_sampling_rate,
             )
+        else:
+            print('No .eeg file found!')
 
         if self.recinfo.dat_filename.is_file():
             self.datfile = binarysignalio.BinarysignalIO(
