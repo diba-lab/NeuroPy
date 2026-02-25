@@ -117,6 +117,7 @@ def plot_hypnogram(epochs: Epoch, ax=None, labels: list or None = ["nrem", "rem"
         axis to plot onto, by default None
     tstart : float, optional
         start of hypnogram, by default 0.0, helps in positioning of hypnogram
+    labels : list or None, optional. None = use labels in epochs, default is ["nrem", "rem", "quiet", "active"]
     unit : str, optional
         unit of timepoints, 's'=seconds or 'h'=hour, by default "s"
     collapsed : bool, optional
@@ -140,8 +141,11 @@ def plot_hypnogram(epochs: Epoch, ax=None, labels: list or None = ["nrem", "rem"
         span_starts = np.linspace(0, 1, len(labels) + 1)[:-1]
         span_stops = np.linspace(0, 1, len(labels) + 1)[1:]
         span_ = {}
-        for start, stop, label in zip(span_starts, span_stops, labels):
+        for start, stop, label, color_name in zip(span_starts, span_stops, labels, colors.keys()):
+            if label not in colors.keys():
+                colors[label] = colors.pop(color_name)
             span_[label] = [start, stop]
+
     else:
         span_ = {
             "nrem": [0, 0.25],
