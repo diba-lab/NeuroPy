@@ -54,7 +54,7 @@ class SleepScoreIO:
         all_epochs = []
         for matlab_label, epoch_times in states_from_mat.items():
 
-            if epoch_times.size > 0 and epoch_times.shape[1] >= 2:
+            if epoch_times.size > 0 and epoch_times.ndim >= 2 and epoch_times.shape[1] >= 2:
                 # Scale times to hours for better hypnogram display
                 ep = epoch.Epoch.from_array(
                     starts=epoch_times[:, 0],
