@@ -22,6 +22,7 @@ dependencies:
     - zarr
     - scikit-image
     - notebook
+    - ipynbname
     # These are needed for reading in USV/WAV files
     - librosa
     - ffmpeg

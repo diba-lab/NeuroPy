@@ -107,7 +107,8 @@ def plot_epochs(
     return ax
 
 
-def plot_hypnogram(epochs: Epoch, ax=None, unit="s", collapsed=False, annotate=False):
+def plot_hypnogram(epochs: Epoch, ax=None, labels: list or None = ["nrem", "rem", "quiet", "active"],
+                   unit="s", collapsed=False, annotate=False):
     """Plot hypnogram
 
     Parameters
@@ -116,6 +117,7 @@ def plot_hypnogram(epochs: Epoch, ax=None, unit="s", collapsed=False, annotate=F
         axis to plot onto, by default None
     tstart : float, optional
         start of hypnogram, by default 0.0, helps in positioning of hypnogram
+    labels : list or None, optional. None = use labels in epochs, default is ["nrem", "rem", "quiet", "active"]
     unit : str, optional
         unit of timepoints, 's'=seconds or 'h'=hour, by default "s"
     collapsed : bool, optional
@@ -134,7 +136,23 @@ def plot_hypnogram(epochs: Epoch, ax=None, unit="s", collapsed=False, annotate=F
         "quiet": "#b6afaf",
         "active": "#474343",
     }
-    labels = ["nrem", "rem", "quiet", "active"]
+    if labels is None:
+        labels = np.unique(epochs.labels)
+        span_starts = np.linspace(0, 1, len(labels) + 1)[:-1]
+        span_stops = np.linspace(0, 1, len(labels) + 1)[1:]
+        span_ = {}
+        for start, stop, label, color_name in zip(span_starts, span_stops, labels, colors.keys()):
+            if label not in colors.keys():
+                colors[label] = colors.pop(color_name)
+            span_[label] = [start, stop]
+
+    else:
+        span_ = {
+            "nrem": [0, 0.25],
+            "rem": [0.25, 0.5],
+            "quiet": [0.5, 0.75],
+            "active": [0.75, 1],
+        }
 
     if ax is None:
         _, ax = plt.subplots(1, 1)
@@ -145,12 +163,6 @@ def plot_hypnogram(epochs: Epoch, ax=None, unit="s", collapsed=False, annotate=F
     elif unit == "h":
         unit_norm = 3600
 
-    span_ = {
-        "nrem": [0, 0.25],
-        "rem": [0.25, 0.5],
-        "quiet": [0.5, 0.75],
-        "active": [0.75, 1],
-    }
 
     if annotate:
         for state in span_:

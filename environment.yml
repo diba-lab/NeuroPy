@@ -20,6 +20,7 @@ dependencies:
     - zarr
     - scikit-image
     - notebook
+    - ipynbname
     # May need to install pingouin via pip after the fact
     - pingouin
     # May need to install libgcc for linux distributions
@@ -29,7 +30,6 @@ dependencies:
     # - ruamel.yaml
     # - cupy  # uncomment this if you want to run correlograms with a GPU using the ccg_gpu.py module.
     
-    # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in 
-Windows.
+    # Works well in RedHat8. Note you may have to comment out the following lines and then install manually "pip install scikit-posthocs" in Windows.
     # - pip:
     #  - scikit-posthocs

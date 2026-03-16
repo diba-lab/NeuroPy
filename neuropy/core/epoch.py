@@ -112,6 +112,11 @@ class Epoch(DataWriter):
         self._epochs["label"] = labels
         return Epoch(epochs=self._epochs)
 
+    def rename_label(self, old_label, new_label):
+        new_labels = self.labels.copy()
+        new_labels[new_labels == old_label] = new_label
+        self.set_labels(new_labels)
+
     @property
     def has_labels(self):
         return np.all(self._epochs["label"] != "")
