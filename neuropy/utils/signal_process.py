@@ -709,7 +709,7 @@ class Csd:
 
         gs = None
         if ax is None:
-            figure = Fig()
+            figure = Fig(1, 1)
             _, gs = figure.draw(grid=[1, 1])
             ax = plt.subplot(gs[0])
 
