@@ -51,6 +51,14 @@ class CaNeurons(DataWriter):
 
         return delta_t
 
+    @property
+    def n_neurons(self):
+        return self.C.shape[0]
+
+    @property
+    def n_frames(self):
+        return self.C.shape[1]
+
     def n_events(self):
         """Get # of calcium events for each neuron"""
         pass
@@ -228,7 +236,7 @@ class CaNeurons(DataWriter):
         pass
 
     def plot_traces(self):
-        print("CaNeuros.plot_traces not yet implemented")
+        print("CaNeurons.plot_traces not yet implemented")
         pass
 
     def plot_traces_and_ROIs(self):
@@ -237,7 +245,7 @@ class CaNeurons(DataWriter):
 
     def quick_merge(self, unit_ids: list, method="max"):
         """Quickly merge units post-hoc - will make copies of merged units at each index
-        noted in merge!!! Again make this recursive to accommodate list of lists (multiple
+        noted in merge!!! Again made this recursive to accommodate list of lists (multiple
         sets of neurons to merge). NOTE each nested pair of neuron in unit_ids can only be two units.
         usage: CaNeuron.quick_merge([1, 3]) will merge units 1 and 3
                CaNeuron.quick_merge([[1, 3], [2, 4]]) will merge 1 & 3 and 2 & 4 separately"""
