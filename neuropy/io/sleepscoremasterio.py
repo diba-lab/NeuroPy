@@ -1,5 +1,7 @@
 from pathlib import Path
 from matplotlib import pyplot as plt
+plt.rcParams["pdf.fonttype"] = 42
+plt.rcParams["ps.fonttype"] = 42
 import numpy as np
 import pandas as pd
 import scipy.io as sio
@@ -22,6 +24,7 @@ class SleepScoreIO:
     in MATLAB."""
     def __init__(self, basedir):
         self.basedir = Path(basedir)
+        self.emg_params = None
     def read_emg(self):
         """Read in pseudo-EMG from SleepScoreMaster"""
 
@@ -36,9 +39,11 @@ class SleepScoreIO:
         # Make into DataFrame
         emg_df = pd.DataFrame({"timestamps": emg_dict["timestamps"], "pEMG": emg_dict["data"]})
 
-        # Save MetaData
-        emg_df.attrs = {"channels": emg_dict["channels"], "SampleRate": emg_dict["samplingFrequency"],
-                        "detectorName": emg_dict["detectorName"]}
+        # Save MetaData - Not working due to pd.DataFrame.attrs being experimental currently
+        self.emg_params = {"channels": emg_dict["channels"], "SampleRate": emg_dict["samplingFrequency"],
+                           "detectorName": emg_dict["detectorName"]}
+        # emg_df.attrs = {"channels": emg_dict["channels"], "SampleRate": emg_dict["samplingFrequency"],
+        #                 "detectorName": emg_dict["detectorName"]}
 
         return emg_df
 
