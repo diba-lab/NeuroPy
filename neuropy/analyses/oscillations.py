@@ -70,18 +70,8 @@ def _detect_freq_band_epochs(
     # mean: very conservative in cases where some shanks may not have that strong ripple
     # max: works well but may have occasional false positives
 
-    # # First, bandpass the signal in the range of interest
-    # power = np.zeros(signals.shape[1])
-    # for sig in signals:
-    #     yf = signal_process.filter_sig.bandpass(sig, lf=lf, hf=hf, fs=fs)
-    #     # zsc_chan = smooth(stats.zscore(np.abs(signal_process.hilbertfast(yf))))
-    #     # zscsignal[sig_i] = zsc_chan
-    #     power += np.abs(signal_process.hilbertfast(yf))
-    #
-    # # Second, take the mean and smooth the signal with a sigma wide gaussian kernel
-    # power = smooth(power / signals.shape[0])
-
-    # First get bandpass power, and second, smooth it
+    # First get bandpass power, and ...
+    # Second, smooth it
     power = get_bandpass_power(signals, freq_band, fs, sigma)
 
     # Third, exclude any noisy periods due to motion or other artifact
@@ -103,8 +93,7 @@ def _detect_freq_band_epochs(
     # ---- thresholding and detection ------
     power_abs = deepcopy(power)  # keep copy of absolute power before z-scoring to compare between sessions
     power = stats.zscore(power)
-    # power_thresh = np.where(power >= edge_cutoff, power, 0)
-    power_thresh = np.where(power >= edge_cutoff, power, -100)  # NRK bugfix
+    power_thresh = np.where(power >= edge_cutoff, power, -100)
 
     # Fifth, refine candidate epochs to periods between lowthresh and highthresh
     peaks, props = sg.find_peaks(
