@@ -47,6 +47,7 @@ def _detect_freq_band_epochs(
     sigma,
     ignore_times=None,
     return_power=False,
+    custom_z_params=None,
 ):
     """Detects epochs of high power in a given frequency band
 
@@ -59,6 +60,9 @@ def _detect_freq_band_epochs(
     maxdur : float, optional
     chans : list
         channels used for epoch detection, if None then chooses best chans
+    custom_z_params: list, tuple, np.ndarray
+        (mean, std) to use for z-scoring power. Useful for across session comparisons
+
     """
 
     # lf, hf = freq_band
@@ -92,7 +96,12 @@ def _detect_freq_band_epochs(
     # Fourth, identify candidate epochs above edge_cutoff threshold
     # ---- thresholding and detection ------
     power_abs = deepcopy(power)  # keep copy of absolute power before z-scoring to compare between sessions
-    power = stats.zscore(power)
+    print(f"Power mean={power_abs[power_abs != 0].mean()} and std={power_abs[power_abs != 0].std()}")
+    if custom_z_params is None:
+        power = stats.zscore(power)
+    else:
+        mu_custom, sigma_custom = custom_z_params
+        power = (power - mu_custom) / sigma_custom
     power_thresh = np.where(power >= edge_cutoff, power, -100)
 
     # Fifth, refine candidate epochs to periods between lowthresh and highthresh
