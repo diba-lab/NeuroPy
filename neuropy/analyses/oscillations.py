@@ -5,6 +5,7 @@ from scipy import stats
 from scipy.ndimage import gaussian_filter1d
 import scipy.signal as sg
 from copy import deepcopy
+from joblib import Parallel, delayed
 
 from neuropy.core import Signal, ProbeGroup, Epoch
 from neuropy.utils.signal_process import WaveletSg, filter_sig
@@ -742,6 +743,42 @@ class Ripple:
 
         return new_epochs
 
+    @staticmethod
+    def get_sharp_wave_amplitude(eegfile, ripple_epochs, chan_ids=None):
+        """Gets sharp-wave amplitude using specific channel_ids only"""
+
+        if chan_ids is None:
+            chan_ids = np.arange(eegfile.n_channels)
+
+        rpl_traces, t_frames = eegfile.get_frames_within_epochs(
+            ripple_epochs,
+            chan_ids,
+            ret_time=True
+        )
+
+        rpl_traces = filter_sig.bandpass(
+            rpl_traces,
+            lf=2,
+            hf=30,
+            fs=eegfile.sampling_rate
+        )
+
+        def process_swa(arr):
+            res = stats.binned_statistic(
+                t_frames,
+                arr,
+                bins=ripple_epochs.flatten(),
+                statistic=lambda x: x[np.argmax(np.abs(x))] if len(x) > 0 else np.nan
+            )[0]
+            return res[::2]
+
+        max_val = Parallel(n_jobs=-1)(
+            delayed(process_swa)(arr) for arr in rpl_traces
+        )
+
+        sw_amp = np.ptp(np.asarray(max_val), axis=0) * 0.95 * 1e-3
+
+        return sw_amp
 
 class Gamma:
     """Events and analysis related to gamma oscillations"""
