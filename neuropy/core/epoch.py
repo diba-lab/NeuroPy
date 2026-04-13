@@ -49,8 +49,8 @@ class Epoch(DataWriter):
         """Find intersection with other epoch at 'res' time resolution"""
         t_start = np.min((self.starts.min(), other_epoch.starts.min()))
         t_stop = np.max((self.stops.max(), other_epoch.stops.max()))
-        times, bool1, _ = self.to_point_process(t_start, t_stop, bin_size=res)
-        _, bool2, _ = other_epoch.to_point_process(t_start, t_stop, bin_size=res)
+        times, bool1 = self.to_point_process(t_start, t_stop, bin_size=res)
+        _, bool2 = other_epoch.to_point_process(t_start, t_stop, bin_size=res)
 
         return self.from_boolean_array(np.bitwise_and(bool1, bool2), times)
 
