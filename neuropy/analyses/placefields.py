@@ -231,7 +231,7 @@ class Pf1D(core.Ratemap):
 
     def plot_with_phase(
         self, sigma=0, ax=None, normalize=True, stack=True, plot_thresh: float or None = None,
-            cmap="tab20b", subplots=(5, 8)
+            cmap="tab20b", subplots=(5, 8), return_ratemaps=False,
     ):
         """plots ratemap with theta phase x position plotting of all spikes overlaid to visualize phase precession
         :param sigma: smoothing kernel to use to smooth tuning curves
@@ -318,7 +318,10 @@ class Pf1D(core.Ratemap):
             cell = 0
             plot_(cell, ax, axphase)
 
-        return ax
+        if not return_ratemaps:
+            return ax
+        else:
+            return ax, (bin_cntr, ratemaps)
 
     def plot_ratemaps(self, **kwargs):
         return plot_ratemap(self, **kwargs)
