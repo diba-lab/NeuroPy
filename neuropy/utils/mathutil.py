@@ -64,15 +64,26 @@ def min_max_scaler(x, axis=-1):
     np.array
         scaled array
     """
-    xclean = x[~np.isnan(x)]
-    min_val = np.min(xclean, axis=axis, keepdims=True)
-    range_val = np.ptp(xclean, axis=axis, keepdims=True)
+    min_val = np.min(x, axis=axis, keepdims=True)
+    range_val = np.ptp(x, axis=axis, keepdims=True)
+    if np.any(np.isnan(x)):  # fix any rows with NaNs manually
+        bad_rows = np.where(np.any(np.isnan(x), axis=1))[0]
+        for idr in bad_rows:
+            rowclean = x[idr][~np.isnan(x[idr])]
+            min_val[idr] = np.min(rowclean)
+            range_val[idr] = np.min(rowclean)
+
     return (x - min_val)  / np.where(range_val == 0,1,range_val)
 
 def quantile_scaler(x, qb=0.025, qt=0.975, axis=-1):
     """Scales data to quantiles specified in qb and qt"""
-    xclean = x[~np.isnan(x)]
-    xmin, xtop = np.quantile(xclean, [qb, qt], axis=axis, keepdims=True)
+    xmin, xtop = np.quantile(x, [qb, qt], axis=axis, keepdims=True)
+    if np.any(np.isnan(xmin)):  # fix any rows with NaNs manually
+        bad_rows = np.where(np.any(np.isnan(x), axis=1))[0]
+        for idr in bad_rows:
+            rowclean = x[idr][~np.isnan(x[idr])]
+            quant_row = np.quantile(rowclean, [qb, qt])
+            xmin[idr], xtop[idr] = quant_row
     xrange = xtop - xmin
 
     return (x - xmin) / xrange
