@@ -5,6 +5,7 @@ plt.rcParams["ps.fonttype"] = 42
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from scipy.stats import mode
 
 from neuropy.core import epoch
 from neuropy.plotting.epochs import plot_hypnogram
@@ -100,12 +101,25 @@ class SleepScoreIO:
 
         # Make into DataFrame
         # Subfields: broadbandslowwave_raw, thratio_raw, motiondata_raw, t_clus, badtimes, badtimes_TH, recordingname
+        badtimes = np.zeros(metrics_dict["t_clus"].shape, dtype=bool)
+        badtimes_TH = np.zeros(metrics_dict["t_clus"].shape, dtype=bool)
+        badtimes[metrics_dict["badtimes"] - 1] = True
+        badtimes_TH[metrics_dict["badtimes_TH"] - 1] = True
+
+        good_inds = self.get_good_times() - 1
+        good_times = np.zeros(metrics_dict["t_clus"].shape, dtype=bool)
+        good_times[good_inds.astype(int)] = True
         metrics_df = pd.DataFrame({
             "timestamps": metrics_dict["t_clus"],
             "EMG": metrics_dict["motiondata_raw"],
             "theta": metrics_dict["thratio_raw"],
-            "slowwave": metrics_dict["broadbandSlowWave_raw"]
+            "slowwave": metrics_dict["broadbandSlowWave_raw"],
+            "badtimes": badtimes,
+            "badtimes_TH": badtimes_TH,
+            "goodtimes": good_times,
         })
+
+        return metrics_df
 
     def get_good_times(self):
         files = sorted(self.basedir.glob("*.SleepState.states.mat"))
@@ -116,5 +130,6 @@ class SleepScoreIO:
         states_from_mat = sio.loadmat(file, simplify_cells=True)
         good_times = states_from_mat['SleepState']['detectorinfo']['detectionparms']['SleepScoreMetrics']['t_clus']
 
+        assert mode(np.diff(good_times)).mode == 1, "SleepScoreIO.get_good_times only works for 1 second windows currently"
         return good_times
 
