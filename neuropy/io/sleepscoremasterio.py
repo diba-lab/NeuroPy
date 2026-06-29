@@ -87,3 +87,34 @@ class SleepScoreIO:
 
         return brainstates_epochs
 
+    def read_metrics(self):
+        """Read in sleep score metrics (EMG, theta, slow wave) from SleepScoreMaster"""
+
+        # Get file and check only one present
+        metrics_files = sorted(self.basedir.glob("*.SleepScoreMetrics_raw.LFP.mat"))
+        assert len(metrics_files) == 1, f"1 metrics file expected, {len(metrics_files)} files found"
+        metrics_file = metrics_files[0]
+
+        # Read in file
+        metrics_dict = sio.loadmat(metrics_file, simplify_cells=True)['SleepScoreMetrics_raw']
+
+        # Make into DataFrame
+        # Subfields: broadbandslowwave_raw, thratio_raw, motiondata_raw, t_clus, badtimes, badtimes_TH, recordingname
+        metrics_df = pd.DataFrame({
+            "timestamps": metrics_dict["t_clus"],
+            "EMG": metrics_dict["motiondata_raw"],
+            "theta": metrics_dict["thratio_raw"],
+            "slowwave": metrics_dict["broadbandSlowWave_raw"]
+        })
+
+    def get_good_times(self):
+        files = sorted(self.basedir.glob("*.SleepState.states.mat"))
+
+        assert len(files) == 1, f"1 state file expected, f{len(files)} files found"
+        file = files[0]
+
+        states_from_mat = sio.loadmat(file, simplify_cells=True)
+        good_times = states_from_mat['SleepState']['detectorinfo']['detectionparms']['SleepScoreMetrics']['t_clus']
+
+        return good_times
+
