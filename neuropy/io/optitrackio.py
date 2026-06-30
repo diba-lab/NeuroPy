@@ -173,8 +173,8 @@ def posfromCSV(fileName,get_rotation=False):
 
 def interp_missing_pos(x, y, z, t):
     """Interpolate missing data points"""
-    xgood, ygood, zgood = x, y, z
-    idnan = mathutil.contiguous_regions(np.isnan(x))  # identify missing data points
+    xgood, ygood, zgood = x.copy(), y.copy(), z.copy() # Copy to make read/write possible for future pandas versions
+    idnan = mathutil.contiguous_regions(np.isnan(x))   # identify missing data points
 
     for ids in idnan:
         missing_ids = range(max(0, ids[0]), min(len(xgood), ids[-1]))
