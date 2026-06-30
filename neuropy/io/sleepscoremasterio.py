@@ -60,8 +60,11 @@ class SleepScoreIO:
         all_epochs = []
         for matlab_label, epoch_times in states_from_mat.items():
 
-            if epoch_times.size > 0 and epoch_times.ndim >= 2 and epoch_times.shape[1] >= 2:
+            if epoch_times.size > 0:
                 # Scale times to hours for better hypnogram display
+                # if epoch_times.ndim >= 2 and epoch_times.shape[1] >= 2:
+                if epoch_times.ndim == 1:
+                    epoch_times = epoch_times[None, :]
                 ep = epoch.Epoch.from_array(
                     starts=epoch_times[:, 0],
                     stops=epoch_times[:, 1],
@@ -133,3 +136,7 @@ class SleepScoreIO:
         assert mode(np.diff(good_times)).mode == 1, "SleepScoreIO.get_good_times only works for 1 second windows currently"
         return good_times
 
+if __name__ == "__main__":
+    dir_use = "/data3/Psilocybin/Recording_Rats/Rey/2022_06_03_saline2"
+    sleepio = SleepScoreIO(dir_use)
+    brainstates = sleepio.read_states()
