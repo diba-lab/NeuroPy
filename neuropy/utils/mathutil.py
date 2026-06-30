@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 import math
 import pandas as pd
 from sklearn.decomposition import FastICA, PCA
@@ -77,6 +78,14 @@ def min_max_scaler(x, axis=-1):
 
 def quantile_scaler(x, qb=0.025, qt=0.975, axis=-1):
     """Scales data to quantiles specified in qb and qt"""
+
+    # size x appropriately
+    squeeze = False
+    if x.ndim == 1:
+        x = x[None, :]
+        squeeze = True
+        print('test')
+
     xmin, xtop = np.quantile(x, [qb, qt], axis=axis, keepdims=True)
     if np.any(np.isnan(xmin)):  # fix any rows with NaNs manually
         bad_rows = np.where(np.any(np.isnan(x), axis=1))[0]
@@ -86,7 +95,10 @@ def quantile_scaler(x, qb=0.025, qt=0.975, axis=-1):
             xmin[idr], xtop[idr] = quant_row
     xrange = xtop - xmin
 
-    return (x - xmin) / xrange
+    if squeeze:
+        return np.squeeze((x - xmin) / xrange)
+    else:
+        return (x - xmin) / xrange
 
 def min_max_external_scaler(x, xmin, xptp):
     """Scales the values of x according to a specified min value and peak-to-peak values.

@@ -237,11 +237,17 @@ class Raster:
                 time_list.append(trial_dt[good_frame_bool])
 
         ## Get times
-        # First infer sampling rate
-        dt_good_bool = (
-            times.diff().dt.total_seconds() < 0.2
-        )  # Assume any frames more than 0.2 sec apart are due to a disconnect
-        sr = 1 / times.diff().dt.total_seconds()[dt_good_bool].mean()
+        if isinstance(times, pd.Series):
+            # First infer sampling rate
+            dt_good_bool = (
+                times.diff().dt.total_seconds() < 0.2
+            )  # Assume any frames more than 0.2 sec apart are due to a disconnect
+            sr = 1 / times.diff().dt.total_seconds()[dt_good_bool].mean()
+        elif isinstance(times, np.ndarray):
+            # First infer sampling rate
+            times_diff = np.diff(times)
+            dt_good_bool = times_diff < 0.2 # Assume any frames more than 0.2 sec apart are due to a disconnect
+            sr = 1 / times_diff[dt_good_bool].mean()
         # Calculate trial duration
         dur_sec = start_buffer_sec + end_buffer_sec + avg_event_sec
         # last get times for each bin in the raster array relative to event start
@@ -279,8 +285,13 @@ class Raster:
         end_buffer_sec=10,
     ):
         # Get baselines for activity using only activity from the first to last event +/- buffers
-        bl_start = event_starts.min() - pd.Timedelta(start_buffer_sec, unit="sec")
-        bl_end = event_ends.max() + pd.Timedelta(end_buffer_sec, unit="sec")
+        assert isinstance(times, (pd.Series, np.ndarray)), "'times' must be pd.Series or np.ndarray"
+        if isinstance(times, pd.Series):
+            bl_start = event_starts.min() - pd.Timedelta(start_buffer_sec, unit="sec")
+            bl_end = event_ends.max() + pd.Timedelta(end_buffer_sec, unit="sec")
+        elif isinstance(times, np.ndarray):
+            bl_start = np.min(event_starts) - start_buffer_sec
+            bl_end = np.max(event_ends) + start_buffer_sec
         bl_bool = (times > bl_start) & (times < bl_end)
         baseline = np.nanmean(activity[bl_bool])
 
@@ -296,7 +307,7 @@ class Raster:
         avg_event_sec,
         pd_to_np=True,
     ):
-        """This automatically makes things run faster by using pd.Series only when necessary for identfying
+        """This automatically makes things run faster by using pd.Series only when necessary for identifying
         frames with a trial.  Good target for elimination once data alignment is set!"""
 
         if pd_to_np or isinstance(times, np.ndarray):
@@ -306,6 +317,20 @@ class Raster:
                 event_ends = (event_ends - start_time).dt.total_seconds().values
                 times = (times - start_time).dt.total_seconds().values
 
+                (
+                    start_buffers,
+                    end_buffers,
+                    good_frames_bool,
+                    trial_dts,
+                ) = Raster.get_start_ends_np(
+                    event_starts,
+                    event_ends,
+                    times,
+                    start_buffer_sec,
+                    end_buffer_sec,
+                    avg_event_sec,
+                )
+            elif isinstance(times, np.ndarray):
                 (
                     start_buffers,
                     end_buffers,
@@ -415,7 +440,7 @@ class RasterGroup:
         times: pd.Series,
         event_start_times: pd.Series,
         event_end_times: pd.Series,
-        cell_ids: list or np.ndarray or None,
+        cell_ids: list or np.ndarray or None = None,
         start_buffer_sec: float = 10.0,
         end_buffer_sec: float = 10.0,
         auto_generate: bool = True,
@@ -718,36 +743,36 @@ def plot_pe_traces(
 
 
 if __name__ == "__main__":
-    from tracefc.io import session_directory as sd
     from neuropy.io.minianio import MinianIO
-    from neuropy.analyses.trace_fc import load_events_from_csv
+    from Psilocybin.subjects import get_psi_dir
+    from neuropy.core.session import ProcessData
+    from neuropy.core.epoch import Epoch
+
 
     # Specify session to plot here
     animal = "Finn"
-    session = "Recall1"
+    session = "Psilocybin"
 
     # Get session directory
-    sesh_dir = sd.get_session_dir(animal, session)
+    sesh_dir = get_psi_dir(animal, session)
 
     # Load in ca imaging data from minian
     minian = MinianIO(basedir=sesh_dir)
 
-    # Load in event data
-    event_df = load_events_from_csv(
-        sesh_dir / "1_tone_recall" / "tone_recall01_21_2022-12_37_59.csv"
-    )
-    event_starts = event_df[
-        event_df["Event"].str.contains("CS") & event_df["Event"].str.contains("start")
-    ]["Timestamp"]
-    event_ends = event_df[
-        event_df["Event"].str.contains("CS") & event_df["Event"].str.contains("end")
-    ]["Timestamp"]
 
-    _, ax, _, _, _ = plot_pe_traces(
-        minian.times["Timestamps"],
-        minian.S[45],
-        event_starts,
-        event_ends=event_ends,
-        raw_trace=minian.C[45],
-        end_buffer_sec=40,
-    )
+    session = "Psilocybin"
+
+    # load in ripple timing
+    sess = ProcessData(sesh_dir)
+    sess.ripples = Epoch(epochs=None, file=sorted(sess.basepath.glob("*.ripple.npy"))[0])
+
+    # Load in caneurons
+    sess.caneurons = MinianIO(basedir=sesh_dir).trim_neurons(
+        keep=['example', 'weird_ROI', 'maybe_interneurons'], trim=None)
+
+    # Load in timing
+    sess.ts_sync_df = pd.read_csv(sorted(sess.basepath.glob("*.ms_times_aligned.csv"))[0])
+
+    # Plot
+    times = sess.ts_sync_df.loc[sess.ts_sync_df.okLEDpower, "Timestamps"]
+    plot_pe_traces(times, sess.caneurons.C[0], event_starts=sess.ripples.to_dataframe()["peak_time"])
