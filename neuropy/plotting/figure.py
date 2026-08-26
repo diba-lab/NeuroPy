@@ -114,8 +114,12 @@ class Fig:
         tick_size=3.5,
         constrained_layout=True,
         fontname="Arial",
+        figtype: "paper" or "talk-grey" = "paper",
         **kwargs,
     ):
+        """:param figtype: "talk-grey" sets fig and axes backgrounds to match U-M accessible template grey colored
+        slides """
+        
         # --- plot settings --------
         mpl.rcParams["font.family"] = fontname
         # mpl.rcParams["font.sans-serif"] = "Arial"
@@ -158,6 +162,11 @@ class Fig:
                 "#e8594f",
             ],
         )
+
+        # Set background color to match accessible slide grey color template
+        if figtype == "talk-grey":
+            mpl.rcParams['figure.facecolor'] = (0.949, 0.949, 0.949)
+            mpl.rcParams['axes.facecolor'] = (0.949, 0.949, 0.949)
 
         fig = plt.figure(num=num, figsize=(8.5, 11), clear=True)
         fig.set_size_inches(size[0], size[1])
