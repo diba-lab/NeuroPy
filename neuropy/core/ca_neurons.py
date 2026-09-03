@@ -671,74 +671,84 @@ class MultiSessionMap:
 
     def stepwise_reg(self, **kwargs):
         """Step through and register each session in order to the next
-        Current functionality is only for 3 sessions, trying to make recursive to
-        easily add in however many sessions you want.
+        Current functionality (9/3/2026) will only give valid results for multiple sessions in a row but
+        NOT for a neuron which is on for two sessions, off, then on again. Any instances of successive
+        on sessions should be treated as a new neuron.
         :param **kwargs to .add_third_session()"""
 
         # Initialize multi_sesh_map with last two columns of input map
         if len(self.sesh_order) > 3:
             # Code to recursively define multi_map here
-            print("more than one 3 session registration not yet implemented")
-            multi_sesh_map = MultiSessionMap(
+            # print("more than one 3 session registration not yet implemented")
+            multi_sesh_map_df = MultiSessionMap(
                 self.maps[:-1], self.sesh_order[:-1]
             ).stepwise_reg()
-            pass
+
+            # If 4 sessions, proceed with the rest of the code treating the last three sessions as 1, 2, and 3
+            if len(self.sesh_order) >= 4:
+                sesh1, sesh2, sesh3 = self.sesh_order[-3:]
+                map1_2 = multi_sesh_map_df.iloc[:, -2:] # Grab all but the last two rows
+                map2_3 = self.grab_map([sesh2, sesh3])
+                map1_3 = self.grab_map([sesh1, sesh3])
+
         elif len(self.sesh_order) == 3:
+            pass
             sesh1, sesh2, sesh3 = self.sesh_order
             # Grab map from session 1->2 and session 2->3 (and 1->3 if there)
             map1_2 = self.grab_map([sesh1, sesh2])
             map2_3 = self.grab_map([sesh2, sesh3])
             map1_3 = self.grab_map([sesh1, sesh3])
-            multi_sesh_map = map1_2.iloc[:, -2:].copy()
+            multi_sesh_map_df = map1_2.iloc[:, -2:].copy()
         elif (
             len(self.sesh_order) == 2
         ):  # Just return map1_2 if only two sessions specified
             sesh1, sesh2 = self.sesh_order
-            multi_sesh_map = self.grab_map([sesh1, sesh2])
+            multi_sesh_map_df = self.grab_map([sesh1, sesh2])
 
-            self.multi_sesh_map = multi_sesh_map
+            self.multi_sesh_map = multi_sesh_map_df
 
-            return multi_sesh_map
+            return multi_sesh_map_df
 
-        multi_sesh_map.insert(
-            2, sesh3, np.ones_like(map1_2[sesh2]) * -1
+        multi_sesh_map_df.insert(
+            len(self.sesh_order) - 1, sesh3, np.ones_like(map1_2[sesh2]) * -1
         )  # Add in session 3 column
 
         # Identify mapped and unmapped neurons from session 2 to session 3
         sesh2neurons = map2_3[sesh2]
-        mapped_neurons = map1_2.iloc[multi_sesh_map[sesh2].values > -1]
+        mapped_neurons = map1_2.iloc[multi_sesh_map_df[sesh2].values > -1]
         unmapped_neurons = sesh2neurons[
             [n2 not in mapped_neurons[sesh2].values for n2 in sesh2neurons]
         ]
 
         # Next add in any neurons from session 2 that didn't appear in session 1
-        rownum = multi_sesh_map.shape[0]  # starting row for new neurons
+        rownum = multi_sesh_map_df.shape[0]  # starting row for new neurons
         for idn, neuron in enumerate(unmapped_neurons):
-            multi_sesh_map.loc[rownum + idn] = [-1, neuron, -1]
+            row_add = np.ones(len(self.sesh_order), dtype=int) * -1
+            row_add[-2] = neuron # Set new neuron
+            multi_sesh_map_df.loc[rownum + idn] = row_add #[-1, neuron, -1]
 
         # Assign correct id to session 3 for neurons mapped from session 1 to session 2
         sesh2idx_reorder = [
-            np.where(nid == multi_sesh_map[sesh2])[0][0] for nid in sesh2neurons
+            np.where(nid == multi_sesh_map_df[sesh2])[0][0] for nid in sesh2neurons
         ]  # Get id of each neuron in session 2 in multi_sesh_map
-        multi_sesh_map[sesh3].iloc[sesh2idx_reorder] = map2_3[sesh3].iloc[sesh2neurons]
+        multi_sesh_map_df[sesh3].iloc[sesh2idx_reorder] = map2_3[sesh3].iloc[sesh2neurons]
 
         # Last add in any neurons in session3 that don't map to other neurons.
-
         # Optional: add in a map from sesh1 to sesh3 to fill in any neurons that are only active in sesh1 and 3
         if map1_3 is not None:
-            multi_sesh_map = self.add_third_session(multi_sesh_map, map1_3, **kwargs)
+            multi_sesh_map_df = self.add_third_session(multi_sesh_map_df, map1_3, **kwargs)
         else:
             print(
                 "Map from session 1 to session 3 not found, cannot fill neurons active in sessions 1 and 3 only"
             )
 
-        self.multi_sesh_map = multi_sesh_map
+        self.multi_sesh_map = multi_sesh_map_df
 
-        return multi_sesh_map
+        return multi_sesh_map_df
 
     @staticmethod
     def add_third_session(
-        multi_sesh_map: pd.DataFrame,
+        multi_sesh_map_df: pd.DataFrame,
         sesh1_3map: pd.DataFrame,
         overwrite_indirect: bool = False,
     ) -> pd.DataFrame:
@@ -749,25 +759,25 @@ class MultiSessionMap:
 
         sesh1_multi_idx = np.array(
             [
-                multi_sesh_map[sesh1]
-                .iloc[(n1 == multi_sesh_map[sesh1]).values]
+                multi_sesh_map_df[sesh1]
+                .iloc[(n1 == multi_sesh_map_df[sesh1]).values]
                 .index[0]
                 for n1 in sesh1_3map[sesh1]
             ]
-        )  # get index for all session1 neurons in multi_sesh_map
+        )  # get index for all session1 neurons in multi_sesh_map_df
 
         # Identify new cells
         sesh2offbool = np.bitwise_and(
-            multi_sesh_map.iloc[sesh1_multi_idx, 0] >= 0,
-            multi_sesh_map.iloc[sesh1_multi_idx, 1] == -1,
+            multi_sesh_map_df.iloc[sesh1_multi_idx, -3] >= 0,
+            multi_sesh_map_df.iloc[sesh1_multi_idx, -2] == -1,
         )
-        sesh3newbool = np.bitwise_and(sesh2offbool, sesh1_3map[sesh3] >= 0).values
+        sesh3newbool = np.bitwise_and(sesh2offbool.values, (sesh1_3map[sesh3] >= 0).values)
         sesh3new_multi_idx = sesh1_multi_idx[
             sesh3newbool
         ]  # index for new cells in multi_map
 
         # Assign sesh1 on - sesh2 off - sesh3 on cells the appropriate neuron id
-        multi_sesh_map[sesh3].iloc[sesh3new_multi_idx] = sesh1_3map[sesh3].iloc[
+        multi_sesh_map_df[sesh3].iloc[sesh3new_multi_idx] = sesh1_3map[sesh3].iloc[
             sesh3newbool
         ]
 
@@ -775,10 +785,10 @@ class MultiSessionMap:
         if overwrite_indirect:
             # Identify mappings directly and indirectly (through session 2)
             sesh3_directreg = sesh1_3map[sesh3]
-            sesh3_indirectreg = multi_sesh_map[sesh3].iloc[sesh1_multi_idx]
-            multi_sesh_map[sesh3].iloc[sesh1_multi_idx] = sesh3_directreg
+            sesh3_indirectreg = multi_sesh_map_df[sesh3].iloc[sesh1_multi_idx]
+            multi_sesh_map_df[sesh3].iloc[sesh1_multi_idx] = sesh3_directreg
 
-        return multi_sesh_map
+        return multi_sesh_map_df
 
     @staticmethod
     def transitive_test(multi_sesh_map, sesh1_3_map):
@@ -884,18 +894,32 @@ def detect_roi_centroid(roi_binary, **kwargs):
 
 if __name__ == "__main__":
     from tracefc.io import session_directory as sd
+    from neuropy.io.minianio import MinianIO
+    import itertools
 
-    # from neuropy.io.minianio import MinianIO
-    #
-    session_list = ["Habituation2", "Training", "Recall1"]
-    animal = "Jyn"
-    basedir = sd.get_session_dir(animal, session_list[0])
-    # careg = CaNeuronReg(
-    #     [
-    #         MinianIO(basedir=sd.get_session_dir(animal, session)).trim_neurons(
-    #             keep=["good", "maybe_interneurons"]
-    #         )
-    #         for session in session_list
-    #     ],
-    #     alias=session_list,
-    # )
+    # Specify sessions to plot here
+    animal = 'Finn'  # 'Jyn' # 'Rat698' # 'Rose' # 'Rey'
+    sessions = ['Habituation1', 'Habituation2', 'Training', 'Recall1', 'Recall2',
+                'Recall7']  # ['Recall1', 'Recall2', 'Recall7'] # ['Habituation1', 'Recall2', 'Recall7']
+    keep = [['good', 'maybe_interneurons']] * len(sessions)
+    trim = [None] * len(sessions)
+
+    if animal == 'Finn':
+        if "Training" in sessions:
+            try:
+                train_ind = np.where([sesh == "Training" for sesh in sessions])[0][0]
+                keep[train_ind] = None
+                trim[train_ind] = 'bad_units'
+            except IndexError:
+                pass
+
+    # Assemble data
+    careg = CaNeuronReg([MinianIO(basedir=sd.get_session_dir(animal, session)).trim_neurons(keep=ke, trim=tr)
+                         for session, ke, tr in zip(sessions, keep, trim)], alias=sessions)
+
+    # Assemble maps
+    msm = MultiSessionMap(pwmaps=[careg.load_pairwise_map(sesh1, sesh2) for sesh1, sesh2 in
+                                  itertools.combinations(sessions, 2)], sesh_order=sessions)
+
+    # Get full map for all sessions
+    multi_sesh_map = msm.stepwise_reg(overwrite_indirect=True)
