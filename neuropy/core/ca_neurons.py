@@ -893,33 +893,35 @@ def detect_roi_centroid(roi_binary, **kwargs):
 
 
 if __name__ == "__main__":
-    from tracefc.io import session_directory as sd
+    # from tracefc.io import session_directory as sd
     from neuropy.io.minianio import MinianIO
     import itertools
 
-    # Specify sessions to plot here
-    animal = 'Finn'  # 'Jyn' # 'Rat698' # 'Rose' # 'Rey'
-    sessions = ['Habituation1', 'Habituation2', 'Training', 'Recall1', 'Recall2',
-                'Recall7']  # ['Recall1', 'Recall2', 'Recall7'] # ['Habituation1', 'Recall2', 'Recall7']
-    keep = [['good', 'maybe_interneurons']] * len(sessions)
-    trim = [None] * len(sessions)
-
-    if animal == 'Finn':
-        if "Training" in sessions:
-            try:
-                train_ind = np.where([sesh == "Training" for sesh in sessions])[0][0]
-                keep[train_ind] = None
-                trim[train_ind] = 'bad_units'
-            except IndexError:
-                pass
-
-    # Assemble data
-    careg = CaNeuronReg([MinianIO(basedir=sd.get_session_dir(animal, session)).trim_neurons(keep=ke, trim=tr)
-                         for session, ke, tr in zip(sessions, keep, trim)], alias=sessions)
-
-    # Assemble maps
-    msm = MultiSessionMap(pwmaps=[careg.load_pairwise_map(sesh1, sesh2) for sesh1, sesh2 in
-                                  itertools.combinations(sessions, 2)], sesh_order=sessions)
-
-    # Get full map for all sessions
-    multi_sesh_map = msm.stepwise_reg(overwrite_indirect=True)
+    t = 4
+    print(t + 4)
+    # # Specify sessions to plot here
+    # animal = 'Finn'  # 'Jyn' # 'Rat698' # 'Rose' # 'Rey'
+    # sessions = ['Habituation1', 'Habituation2', 'Training', 'Recall1', 'Recall2',
+    #             'Recall7']  # ['Recall1', 'Recall2', 'Recall7'] # ['Habituation1', 'Recall2', 'Recall7']
+    # keep = [['good', 'maybe_interneurons']] * len(sessions)
+    # trim = [None] * len(sessions)
+    #
+    # if animal == 'Finn':
+    #     if "Training" in sessions:
+    #         try:
+    #             train_ind = np.where([sesh == "Training" for sesh in sessions])[0][0]
+    #             keep[train_ind] = None
+    #             trim[train_ind] = 'bad_units'
+    #         except IndexError:
+    #             pass
+    #
+    # # Assemble data
+    # careg = CaNeuronReg([MinianIO(basedir=sd.get_session_dir(animal, session)).trim_neurons(keep=ke, trim=tr)
+    #                      for session, ke, tr in zip(sessions, keep, trim)], alias=sessions)
+    #
+    # # Assemble maps
+    # msm = MultiSessionMap(pwmaps=[careg.load_pairwise_map(sesh1, sesh2) for sesh1, sesh2 in
+    #                               itertools.combinations(sessions, 2)], sesh_order=sessions)
+    #
+    # # Get full map for all sessions
+    # multi_sesh_map = msm.stepwise_reg(overwrite_indirect=True)
