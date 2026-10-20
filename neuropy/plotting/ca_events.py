@@ -609,7 +609,7 @@ def plot_pe_traces(
     ax: plt.axes = None,
     event_type: str = "",
     ylabels: list or tuple = ["Processed Activity", "Raw Activity"],
-    plt_type: 'str' in ['all', 'std'] = 'all',
+    plt_type: 'str' in ['all', 'std', 'mean'] = 'all',
     event_color: list or tuple = [0, 1, 0, 0.3],
 ):
     """
@@ -629,6 +629,8 @@ def plot_pe_traces(
     :param event_color: color of box to overlay for event
     :return:
     """
+
+    assert plt_type in ["all", "std", "mean"]
 
     # Grab appropriate cell's activity
     if activity.ndim == 2:
