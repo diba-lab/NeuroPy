@@ -609,6 +609,7 @@ def plot_pe_traces(
     ax: plt.axes = None,
     event_type: str = "",
     ylabels: list or tuple = ["Processed Activity", "Raw Activity"],
+    plt_type: 'str' in ['all', 'std', 'mean'] = 'all',
     event_color: list or tuple = [0, 1, 0, 0.3],
 ):
     """
@@ -624,9 +625,12 @@ def plot_pe_traces(
     :param ax: axes to plot into, default (None) = create new figure
     :param event_type: str, label for plots
     :param ylabels: ylabels corresponding to activity and raw_trace
-    :param
+    :param plt_type: 'all' = all traces, 'std' = mean +/- std
+    :param event_color: color of box to overlay for event
     :return:
     """
+
+    assert plt_type in ["all", "std", "mean"]
 
     # Grab appropriate cell's activity
     if activity.ndim == 2:
@@ -708,10 +712,30 @@ def plot_pe_traces(
         ax[0].sharex(ax[1])
 
     # Plot rasters
-    for raw_rast, rast in zip(raw_rast_array, rast_array):
-        ax[0].plot(time_plot, rast, color=[0, 0, 1, 0.3])
+    if plt_type == 'all':  # Plot all traces overlaid
+
+        ## Fast way here, slow way for legacy purposes below
+        ax[0].plot(time_plot, rast_array.T, color=[0, 0, 1, 0.3])
         if raw_trace is not None:
-            ax[1].plot(time_plot, raw_rast, color=[0, 0, 1, 0.3])
+            ax[1].plot(time_plot, raw_rast_array.T, color=[0, 0, 1, 0.3])
+
+        ## Old potentially slower way kept here for debugging.
+        # for raw_rast, rast in zip(raw_rast_array, rast_array):
+        #     # ax[0].plot(time_plot, rast, color=[0, 0, 1, 0.3])
+        #     if raw_trace is not None:
+        #         ax[1].plot(time_plot, raw_rast, color=[0, 0, 1, 0.3])
+
+    elif plt_type == 'std': # Plt mean +/- std
+        rasts_use = [rast_array]
+        if raw_trace is not None:
+            rasts_use.append(raw_rast_array)
+        for a, rast in zip(ax, rasts_use):
+            good_frame_bool = np.bitwise_not(np.all(np.isnan(rast_array), axis=0))
+            trace_std = np.nanstd(rast[:, good_frame_bool], axis=0)
+            trace_mean = np.nanmean(rast[:, good_frame_bool], axis=0)
+            a.fill_between(time_plot[good_frame_bool], trace_mean - trace_std, trace_mean + trace_std, color=[0, 0, 1, 0.3])
+
+    # Plot mean
     good_frame_bool = np.bitwise_not(np.all(np.isnan(rast_array), axis=0))
     ax[0].plot(
         time_plot[good_frame_bool],
@@ -733,11 +757,11 @@ def plot_pe_traces(
         a.axhline(bline, color="g", linestyle="-")
         sns.despine(ax=a)
         a.set_xlabel("Time (s) from " + event_type + " start")
-        a.set_title("Cell #" + str(cell_id))
+        # a.set_title("Cell #" + str(cell_id))
 
     # Label axes
     for a, label in zip(ax, ylabels):
-        a.set_ylabel(label)
+        a.set_ylabel(f"Cell {cell_id}\n {label}")
 
     return fig, ax, rast_array, raw_rast_array, time_plot
 

@@ -201,6 +201,7 @@ class Pf1D(core.Ratemap):
         )
         self.ratemap_spiketrains = spk_t
         self.ratemap_spiketrains_pos = spk_pos
+        self.ratemap_spiketrains_phases= [None] * len(spk_t)
         self.occupancy = occupancy
         self.frate_thresh = frate_thresh
         self.speed_thresh = speed_thresh
