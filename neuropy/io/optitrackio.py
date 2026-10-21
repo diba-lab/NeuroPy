@@ -134,6 +134,8 @@ def posfromCSV(fileName,get_rotation=False):
         x, y, z = xfill, yfill, zfill
     elif units.lower() == "meters":
         x, y, z = xfill * 100, yfill * 100, zfill * 100
+    elif units.lower() == "millimeters":
+        x, y, z = xfill / 10, yfill / 10, zfill / 10
     else:
         raise Exception(
             "position data needs to be exported in either centimeters or meters"

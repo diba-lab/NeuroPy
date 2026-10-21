@@ -5,6 +5,7 @@ plt.rcParams["ps.fonttype"] = 42
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from scipy.stats import mode
 
 from neuropy.core import epoch
 from neuropy.plotting.epochs import plot_hypnogram
@@ -59,8 +60,11 @@ class SleepScoreIO:
         all_epochs = []
         for matlab_label, epoch_times in states_from_mat.items():
 
-            if epoch_times.size > 0 and epoch_times.ndim >= 2 and epoch_times.shape[1] >= 2:
+            if epoch_times.size > 0:
                 # Scale times to hours for better hypnogram display
+                # if epoch_times.ndim >= 2 and epoch_times.shape[1] >= 2:
+                if epoch_times.ndim == 1:
+                    epoch_times = epoch_times[None, :]
                 ep = epoch.Epoch.from_array(
                     starts=epoch_times[:, 0],
                     stops=epoch_times[:, 1],
@@ -87,3 +91,52 @@ class SleepScoreIO:
 
         return brainstates_epochs
 
+    def read_metrics(self):
+        """Read in sleep score metrics (EMG, theta, slow wave) from SleepScoreMaster"""
+
+        # Get file and check only one present
+        metrics_files = sorted(self.basedir.glob("*.SleepScoreMetrics_raw.LFP.mat"))
+        assert len(metrics_files) == 1, f"1 metrics file expected, {len(metrics_files)} files found"
+        metrics_file = metrics_files[0]
+
+        # Read in file
+        metrics_dict = sio.loadmat(metrics_file, simplify_cells=True)['SleepScoreMetrics_raw']
+
+        # Make into DataFrame
+        # Subfields: broadbandslowwave_raw, thratio_raw, motiondata_raw, t_clus, badtimes, badtimes_TH, recordingname
+        badtimes = np.zeros(metrics_dict["t_clus"].shape, dtype=bool)
+        badtimes_TH = np.zeros(metrics_dict["t_clus"].shape, dtype=bool)
+        badtimes[metrics_dict["badtimes"] - 1] = True
+        badtimes_TH[metrics_dict["badtimes_TH"] - 1] = True
+
+        good_inds = self.get_good_times() - 1
+        good_times = np.zeros(metrics_dict["t_clus"].shape, dtype=bool)
+        good_times[good_inds.astype(int)] = True
+        metrics_df = pd.DataFrame({
+            "timestamps": metrics_dict["t_clus"],
+            "EMG": metrics_dict["motiondata_raw"],
+            "theta": metrics_dict["thratio_raw"],
+            "slowwave": metrics_dict["broadbandSlowWave_raw"],
+            "badtimes": badtimes,
+            "badtimes_TH": badtimes_TH,
+            "goodtimes": good_times,
+        })
+
+        return metrics_df
+
+    def get_good_times(self):
+        files = sorted(self.basedir.glob("*.SleepState.states.mat"))
+
+        assert len(files) == 1, f"1 state file expected, f{len(files)} files found"
+        file = files[0]
+
+        states_from_mat = sio.loadmat(file, simplify_cells=True)
+        good_times = states_from_mat['SleepState']['detectorinfo']['detectionparms']['SleepScoreMetrics']['t_clus']
+
+        assert mode(np.diff(good_times)).mode == 1, "SleepScoreIO.get_good_times only works for 1 second windows currently"
+        return good_times
+
+if __name__ == "__main__":
+    dir_use = "/data3/Psilocybin/Recording_Rats/Rey/2022_06_03_saline2"
+    sleepio = SleepScoreIO(dir_use)
+    brainstates = sleepio.read_states()

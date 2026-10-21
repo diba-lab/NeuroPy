@@ -744,15 +744,16 @@ class Ripple:
         return new_epochs
 
     @staticmethod
-    def get_sharp_wave_amplitude(eegfile, ripple_epochs, chan_ids=None):
-        """Gets sharp-wave amplitude using specific channel_ids only"""
+    def get_sharp_wave_amplitude(eegfile, ripple_epochs, chan_inds=None):
+        """Gets sharp-wave amplitude using specific channel_inds only.
+        NOTE: This uses channel indices from the raw binary file."""
 
-        if chan_ids is None:
-            chan_ids = np.arange(eegfile.n_channels)
+        if chan_inds is None:
+            chan_inds = np.arange(eegfile.n_channels)
 
         rpl_traces, t_frames = eegfile.get_frames_within_epochs(
             ripple_epochs,
-            chan_ids,
+            chan_inds,
             ret_time=True
         )
 

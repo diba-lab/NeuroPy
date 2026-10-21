@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import seaborn as sns
 import numpy as np
 import pandas as pd
 from ..core import Epoch, Signal
@@ -136,14 +137,20 @@ def plot_hypnogram(epochs: Epoch, ax=None, labels: list or None = ["nrem", "rem"
         "quiet": "#b6afaf",
         "active": "#474343",
     }
+
     if labels is None:
         labels = np.unique(epochs.labels)
+
+    if labels is not ["nrem", "rem", "quiet", "active"]:  # PICK UP HERE NRK!!!
+
         span_starts = np.linspace(0, 1, len(labels) + 1)[:-1]
         span_stops = np.linspace(0, 1, len(labels) + 1)[1:]
         span_ = {}
-        for start, stop, label, color_name in zip(span_starts, span_stops, labels, colors.keys()):
-            if label not in colors.keys():
-                colors[label] = colors.pop(color_name)
+
+        color_vals = list(colors.values())
+        colors = {}
+        for start, stop, label, color_val in zip(span_starts, span_stops, labels, color_vals):
+            colors[label] = color_val
             span_[label] = [start, stop]
 
     else:
@@ -192,8 +199,10 @@ def plot_hypnogram(epochs: Epoch, ax=None, labels: list or None = ["nrem", "rem"
                 facecolor=colors[state.label],
                 # alpha=0.7,
             )
-    ax.axis("off")
-    ax.set_xlim([epochs.starts[0], epochs.stops[-1]])
+    sns.despine(left=True, bottom=True, ax=ax)
+    ax.yaxis.set_visible(False)
+    ax.set_xlim([np.min((epochs.starts[0], 0)) / unit_norm, epochs.stops[-1] / unit_norm])
+    ax.set_xlabel(f"Time ({unit})")
 
     return ax
 
