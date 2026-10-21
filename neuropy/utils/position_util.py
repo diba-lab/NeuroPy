@@ -169,7 +169,7 @@ def run_direction(
 
     high_speed = np.around(high_speed / sampling_rate + position.t_start, 2)
     data = pd.DataFrame(high_speed, columns=["start", "stop"])
-    data["label"] = np.where(val > 0, "up", "down")
+    data["label"] = np.where(val > 0, "right", "left")
     data["peak_time"] = peak_time + position.t_start
     data["peak_speed"] = peak_speed
 
